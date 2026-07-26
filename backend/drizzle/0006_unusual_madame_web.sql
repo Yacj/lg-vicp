@@ -1,0 +1,2 @@
+CREATE TYPE "public"."data_scope" AS ENUM('ALL', 'DEPT', 'DEPT_AND_CHILDREN', 'SELF', 'CUSTOM', 'PROJECT_OWNER');--> statement-breakpoint
+ALTER TABLE "roles" ADD COLUMN "data_scope" "data_scope" DEFAULT 'SELF' NOT NULL;

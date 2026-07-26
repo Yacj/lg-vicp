@@ -1,0 +1,5 @@
+interface:
+  # 客户端隔离、接口级权限和项目级权限必须同时遵守。
+  display_name: "蓝格 VICP 后端"
+  short_description: "按项目权限边界安全开发蓝格 VICP 建筑节能 AI 后端"
+  default_prompt: "使用 $lg-backend 按项目规则修改蓝格 VICP 后端，并完成迁移、测试和文档同步。"

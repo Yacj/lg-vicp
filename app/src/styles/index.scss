@@ -1,0 +1,11 @@
+// 测试用的 iconfont，可生效
+// @import './iconfont.css';
+
+.wd-overlay{
+     transition-property: opacity;
+     transition-timing-function: ease;
+     opacity: 1;
+     -webkit-backdrop-filter: blur(4px);
+     backdrop-filter: blur(4px);
+     transition-duration: .3s;
+}

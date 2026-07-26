@@ -1,0 +1,17 @@
+---
+description: Fastify 后端架构和接口约定
+globs: src/**/*.ts
+alwaysApply: false
+---
+
+- `src/app.ts` 只负责 Fastify 插件和路由注册。
+- `src/modules/<模块>` 管理业务路由、schema 和服务。
+- `src/plugins` 管理数据库、Redis、队列、存储、认证、错误和 Swagger。
+- `src/workers` 管理耗时异步任务，API 不同步执行解析和导出。
+- 请求输入使用 Zod，成功与失败使用统一响应结构。
+- 数据变更和对应审计尽量处于同一事务。
+- 路由和 JSON 字段使用英文，Swagger 摘要、校验、错误及日志使用中文。
+
+路由边界：`platform` 为 B 端平台管理，`workspace` 为 B 端渠道工作台，`projects` 为共享只读项目，`files` 为源文件，`ai` 为对话，`reports` 为报告。平台路由要求 `B_ADMIN`，具体能力由权限码控制，超级管理员全量放行。
+- 平台路由的 `preHandler` 至少包含 `app.authenticate`；后台业务处理器还必须校验具体权限码。超级管理员直通，普通 B 端账号按角色权限执行。
+- 不能仅因为请求来自 B 端就允许系统管理操作；不能仅因为请求来自 C/AI 端就绕过项目、文件或会话权限。

@@ -1,0 +1,14 @@
+---
+description: Drizzle、PostgreSQL 和项目数据边界
+globs: src/db/**/*.ts,src/modules/**/*.ts,src/shared/**/*.ts,drizzle/**/*.sql
+alwaysApply: false
+---
+
+- 普通 CRUD 使用 Drizzle，全文检索、`pg_trgm`、未来 `pgvector` 可使用参数化原生 SQL。
+- 禁止拼接用户输入构造 SQL。
+- 数据模型先改 `src/db/schema.ts`，再运行 `pnpm db:generate` 并检查 SQL。
+- 生产环境只执行已提交 migration，禁止使用 schema push。
+- 不添加租户字段；项目数据通过 `project_id`、创建者、可见性和预留成员关系约束。
+- 私有项目仅创建者和超级管理员，公开项目对登录用户只读。
+- 项目业务权限独立于动态 RBAC。
+- 模型或权限变化后运行类型检查、测试和 migration 检查。

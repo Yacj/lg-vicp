@@ -1,0 +1,17 @@
+---
+description: 蓝格 VICP 后端全局项目规则
+alwaysApply: true
+---
+
+本仓库是蓝格 VICP 建筑节能 AI 智配系统统一后端。
+
+- 使用 Fastify、TypeScript、PostgreSQL、Drizzle、Zod、Redis、BullMQ 和 AI SDK。
+- 不引入租户数据库或租户路由，以项目作为业务访问边界。
+- 经销商和业务员同属 `CHANNEL_USER`，使用 `channelType` 区分。
+- AI 不替代权限、工程计算、持久化和审计。
+- 面向人的提示、Swagger、日志、AI 提示词和协作文档使用中文。
+- API 路径、字段、错误码、枚举和代码标识保持英文。
+- 修改长期规则时同步更新 `AGENTS.md`、Codex skill 和 Cursor rules。
+- 客户端隔离固定为 `B_ADMIN`、`C_APP`、`PC_AI`。`/platform` 和 `/workspace` 只允许 `B_ADMIN`，C/AI 端不得访问后台管理接口。
+- B 端接口必须同时执行 JWT、客户端类型和具体按钮权限码校验；项目接口还必须执行项目级权限。
+- 禁用角色不得继续产生权限，查询角色权限时必须过滤 `roles.enabled = true`。

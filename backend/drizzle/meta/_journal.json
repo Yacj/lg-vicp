@@ -1,0 +1,69 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1785056380037,
+      "tag": "0000_salty_mongoose",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1785058954836,
+      "tag": "0001_magenta_grey_gargoyle",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785065942556,
+      "tag": "0002_lean_viper",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1785067158137,
+      "tag": "0003_silly_rattler",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1785070250949,
+      "tag": "0004_thankful_sprite",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1785070634164,
+      "tag": "0005_premium_lady_mastermind",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1785071326592,
+      "tag": "0006_unusual_madame_web",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1785071998090,
+      "tag": "0007_complex_newton_destine",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1785072423937,
+      "tag": "0008_handy_lady_mastermind",
+      "breakpoints": true
+    }
+  ]
+}

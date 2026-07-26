@@ -1,0 +1,39 @@
+---
+description: UI/UX 指南、样式规范和组件使用
+globs: **/*.vue, **/*.scss, src/components/**/*, src/uni_modules/**/*, uno.config.ts
+alwaysApply: false
+---
+
+# UI 与样式指南
+
+## 🎨 样式系统
+- **引擎**: UnoCSS (原子化 CSS) 是**首选**的样式方案。
+- **配置**: `uno.config.ts`。
+- **预处理**: SCSS 用于复杂的组件样式（极少需要）。
+- **主题**: 通过 `src/theme.json` 和 CSS 变量支持亮色/暗色模式切换。
+
+### UnoCSS 约定
+- 使用工具类: `flex`, `items-center`, `text-primary`, `m-4`.
+
+## 🧩 组件库
+- **核心库**: `@wot-ui/ui`（组件前缀为 `wd-`）。
+- **文档**: [Wot UI](https://wot-ui.cn).
+- **自定义组件**: 在 `src/components` 中创建。
+
+## 🖼️ 图标与图片资源
+- **单色功能图标**: 优先使用 UnoCSS `presetIcons` + 本地 SVG collection，目录统一为 `src/static/my-icons`，类名形如 `i-my-icons-{name}`。
+- **图标命名**: 本地 SVG 图标使用 kebab-case 语义命名，例如 `arrow-left.svg`、`scan-code.svg`。
+- **历史 iconfont**: `src/styles/iconfont.css` 仅用于兼容存量字体图标，新功能不作为首选。
+- **图片资源**: Logo、插图、Banner、多色 SVG、PNG/JPG/WebP 放在 `src/static`，按图片资源使用，不混入图标 collection。
+- **职责边界**: 图标表达动作、状态、导航语义；图片表达品牌、内容、运营和装饰视觉。
+- **Skill**: 参考 **`icon-and-image-guide`** skill 查看图标、SVG、图片和 iconfont 的使用示例。
+
+## 📢 全局反馈
+- **Toast/Dialog/Loading**: 请勿直接使用 `uni.showToast` 或临时手写弹层。
+- **标准**: 轻提示使用 `GlobalToast` / `useGlobalToast`，确认弹窗使用 `GlobalDialog` / `useGlobalDialog`，加载状态使用 `GlobalLoading` / `useGlobalLoading`。
+- **Skill**: 参考 **`global-feedback`** skill 查看使用示例。
+
+## 📱 布局
+- **系统**: `vite-plugin-uni-layouts`。
+- **默认**: `src/layouts/default.vue`。
+- **TabBar**: `src/layouts/tabbar.vue`。

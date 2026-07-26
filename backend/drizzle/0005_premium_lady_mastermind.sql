@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "menus_route_path_unique" ON "menus" USING btree ("route_path");

@@ -1,0 +1,22 @@
+---
+description: 蓝格后端常见需求修改位置
+alwaysApply: true
+---
+
+- 项目创建、公开/私有或读取权限：项目模块、`src/shared/permissions.ts`、Drizzle schema。
+- 用户、角色、权限、部门或字典：用户、权限、系统管理模块、Drizzle schema。
+- 文件上传和下载：文件模块与 `src/storage`。
+- PDF/DOCX 解析、OCR 和知识切片：文档 Worker、OCR 服务、知识模块。
+- Redis/BullMQ：队列定义、Fastify 插件、`src/worker.ts`。
+- AI 服务商、模型、场景和提示词：AI 配置模块。
+- AI 对话、围栏和检索：AI 模块、知识模块、AI 参考规则。
+- AI 回答点赞、反馈和重新生成：AI 模块、平台 AI 反馈模块、Drizzle schema。
+- 报告记录、来源、发布和导出：报告模块、报告 Worker、`report_sources`。
+- 公开分享：分享模块、`share_links`、`share_views`。
+- 全局响应、错误和中文提示：共享响应/错误与错误处理插件。
+- 长期业务或架构规则：同步更新 `AGENTS.md`、`README.md`、Codex skill 和 Cursor rules。
+- 初始化权限、角色和动态菜单：`src/db/seed.ts`；新增后台权限码时必须同时更新 seed、对应路由守卫和权限说明。
+- B/C/AI 客户端隔离：`src/plugins/auth.ts`、`src/shared/client-guard.ts`、`src/modules/auth/auth.routes.ts`。
+- B 端按钮权限：`src/modules/system-management/system-management.routes.ts`、`src/modules/users/users.routes.ts`、`src/modules/platform-ops/platform-ops.routes.ts`、`src/modules/ai-config/ai-config.routes.ts`。
+- AI 运营、反馈和审计权限：`src/modules/ai/ai-admin.routes.ts`、`src/modules/ai-feedback/ai-feedback.routes.ts`、`src/modules/audit-logs/audit-log.routes.ts`。
+- 角色启用状态影响权限：`src/plugins/auth.ts`、`src/modules/menus/menu.service.ts`。
