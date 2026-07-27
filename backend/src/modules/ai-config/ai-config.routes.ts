@@ -72,7 +72,7 @@ export async function aiConfigRoutes(app: FastifyInstance) {
 
   route.get("/ai/providers", {
     preHandler: [app.authenticate],
-    schema: { tags: ["AI 配置"], summary: "获取 AI 服务商列表" }
+    schema: { tags: ["B端 / 平台 / AI配置"], summary: "获取 AI 服务商列表" }
   }, async (request) => {
     requireAdmin(request, "system:ai:provider:list");
     const items = await app.db.select().from(aiProviders).orderBy(desc(aiProviders.createdAt));
@@ -81,7 +81,7 @@ export async function aiConfigRoutes(app: FastifyInstance) {
 
   route.post("/ai/providers", {
     preHandler: [app.authenticate],
-    schema: { tags: ["AI 配置"], summary: "创建 AI 服务商", body: providerBodySchema }
+    schema: { tags: ["B端 / 平台 / AI配置"], summary: "创建 AI 服务商", body: providerBodySchema }
   }, async (request) => {
     const actor = requireAdmin(request, "system:ai:provider:add");
     const encrypted = request.body.apiKey ? encryptSecret(request.body.apiKey) : undefined;
@@ -108,7 +108,7 @@ export async function aiConfigRoutes(app: FastifyInstance) {
 
   route.patch("/ai/providers/:id", {
     preHandler: [app.authenticate],
-    schema: { tags: ["AI 配置"], summary: "修改 AI 服务商", params: providerParamsSchema, body: providerBodySchema.partial() }
+    schema: { tags: ["B端 / 平台 / AI配置"], summary: "修改 AI 服务商", params: providerParamsSchema, body: providerBodySchema.partial() }
   }, async (request) => {
     const actor = requireAdmin(request, "system:ai:provider:edit");
     const [before] = await app.db.select().from(aiProviders).where(eq(aiProviders.id, request.params.id)).limit(1);
@@ -137,7 +137,7 @@ export async function aiConfigRoutes(app: FastifyInstance) {
 
   route.delete("/ai/providers/:id", {
     preHandler: [app.authenticate],
-    schema: { tags: ["AI 配置"], summary: "删除 AI 服务商", params: providerParamsSchema }
+    schema: { tags: ["B端 / 平台 / AI配置"], summary: "删除 AI 服务商", params: providerParamsSchema }
   }, async (request) => {
     const actor = requireAdmin(request, "system:ai:provider:remove");
     const [provider] = await app.db.delete(aiProviders).where(eq(aiProviders.id, request.params.id)).returning();
@@ -148,7 +148,7 @@ export async function aiConfigRoutes(app: FastifyInstance) {
 
   route.get("/ai/models", {
     preHandler: [app.authenticate],
-    schema: { tags: ["AI 配置"], summary: "获取 AI 模型列表" }
+    schema: { tags: ["B端 / 平台 / AI配置"], summary: "获取 AI 模型列表" }
   }, async (request) => {
     requireAdmin(request, "system:ai:model:list");
     const items = await app.db.select().from(aiModels).orderBy(desc(aiModels.createdAt));
@@ -157,7 +157,7 @@ export async function aiConfigRoutes(app: FastifyInstance) {
 
   route.post("/ai/models", {
     preHandler: [app.authenticate],
-    schema: { tags: ["AI 配置"], summary: "创建 AI 模型", body: modelBodySchema }
+    schema: { tags: ["B端 / 平台 / AI配置"], summary: "创建 AI 模型", body: modelBodySchema }
   }, async (request) => {
     const actor = requireAdmin(request, "system:ai:model:add");
     const [provider] = await app.db.select({ id: aiProviders.id }).from(aiProviders).where(eq(aiProviders.id, request.body.providerId)).limit(1);
@@ -176,7 +176,7 @@ export async function aiConfigRoutes(app: FastifyInstance) {
   route.patch("/ai/models/:id", {
     preHandler: [app.authenticate],
     schema: {
-      tags: ["AI 配置"],
+      tags: ["B端 / 平台 / AI配置"],
       summary: "修改 AI 模型",
       params: modelParamsSchema,
       body: modelBodySchema.partial().refine((value) => Object.keys(value).length > 0, "至少需要修改一个字段")
@@ -204,7 +204,7 @@ export async function aiConfigRoutes(app: FastifyInstance) {
 
   route.delete("/ai/models/:id", {
     preHandler: [app.authenticate],
-    schema: { tags: ["AI 配置"], summary: "删除 AI 模型", params: modelParamsSchema }
+    schema: { tags: ["B端 / 平台 / AI配置"], summary: "删除 AI 模型", params: modelParamsSchema }
   }, async (request) => {
     const actor = requireAdmin(request, "system:ai:model:remove");
     const [model] = await app.db.delete(aiModels).where(eq(aiModels.id, request.params.id)).returning();
@@ -215,7 +215,7 @@ export async function aiConfigRoutes(app: FastifyInstance) {
 
   route.post("/ai/models/:id/test-connection", {
     preHandler: [app.authenticate],
-    schema: { tags: ["AI 配置"], summary: "测试 AI 模型连接", params: modelParamsSchema }
+    schema: { tags: ["B端 / 平台 / AI配置"], summary: "测试 AI 模型连接", params: modelParamsSchema }
   }, async (request) => {
     const actor = requireAdmin(request, "system:ai:model:test");
     const [model] = await app.db.select().from(aiModels).where(eq(aiModels.id, request.params.id)).limit(1);
@@ -244,7 +244,7 @@ export async function aiConfigRoutes(app: FastifyInstance) {
 
   route.get("/ai/scene-bindings", {
     preHandler: [app.authenticate],
-    schema: { tags: ["AI 配置"], summary: "获取 AI 场景绑定" }
+    schema: { tags: ["B端 / 平台 / AI配置"], summary: "获取 AI 场景绑定" }
   }, async (request) => {
     requireAdmin(request, "system:ai:scene:list");
     return ok(request, { items: await app.db.select().from(aiSceneBindings).orderBy(aiSceneBindings.scene) });
@@ -252,7 +252,7 @@ export async function aiConfigRoutes(app: FastifyInstance) {
 
   route.put("/ai/scene-bindings", {
     preHandler: [app.authenticate],
-    schema: { tags: ["AI 配置"], summary: "设置 AI 场景主模型", body: sceneBindingBodySchema }
+    schema: { tags: ["B端 / 平台 / AI配置"], summary: "设置 AI 场景主模型", body: sceneBindingBodySchema }
   }, async (request) => {
     const actor = requireAdmin(request, "system:ai:scene:edit");
     const binding = await app.db.transaction(async (tx) => {
@@ -271,7 +271,7 @@ export async function aiConfigRoutes(app: FastifyInstance) {
 
   route.get("/ai/prompts", {
     preHandler: [app.authenticate],
-    schema: { tags: ["AI 配置"], summary: "获取提示词版本" }
+    schema: { tags: ["B端 / 平台 / AI配置"], summary: "获取提示词版本" }
   }, async (request) => {
     requireAdmin(request, "system:ai:prompt:list");
     return ok(request, { items: await app.db.select().from(promptTemplates).orderBy(desc(promptTemplates.createdAt)) });
@@ -279,7 +279,7 @@ export async function aiConfigRoutes(app: FastifyInstance) {
 
   route.post("/ai/prompts", {
     preHandler: [app.authenticate],
-    schema: { tags: ["AI 配置"], summary: "创建提示词版本", body: promptBodySchema }
+    schema: { tags: ["B端 / 平台 / AI配置"], summary: "创建提示词版本", body: promptBodySchema }
   }, async (request) => {
     const actor = requireAdmin(request, "system:ai:prompt:add");
     const [prompt] = await app.db.insert(promptTemplates).values({ ...request.body, createdById: actor.id }).returning();
@@ -288,7 +288,7 @@ export async function aiConfigRoutes(app: FastifyInstance) {
 
   route.delete("/ai/prompts/:id", {
     preHandler: [app.authenticate],
-    schema: { tags: ["AI 配置"], summary: "删除提示词版本", params: providerParamsSchema }
+    schema: { tags: ["B端 / 平台 / AI配置"], summary: "删除提示词版本", params: providerParamsSchema }
   }, async (request) => {
     const actor = requireAdmin(request, "system:ai:prompt:remove");
     const [prompt] = await app.db.delete(promptTemplates).where(eq(promptTemplates.id, request.params.id)).returning();

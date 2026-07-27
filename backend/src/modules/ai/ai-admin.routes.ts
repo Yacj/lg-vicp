@@ -50,7 +50,7 @@ export async function aiAdminRoutes(app: FastifyInstance) {
   route.get("/conversations", {
     preHandler: [app.authenticate],
     schema: {
-      tags: ["AI 会话管理"],
+      tags: ["B端 / 平台 / AI运营"],
       summary: "查询 AI 会话运营列表",
       querystring: adminConversationQuerySchema
     }
@@ -107,7 +107,7 @@ export async function aiAdminRoutes(app: FastifyInstance) {
   route.get("/conversations/:id", {
     preHandler: [app.authenticate],
     schema: {
-      tags: ["AI 会话管理"],
+      tags: ["B端 / 平台 / AI运营"],
       summary: "查看 AI 会话运营详情",
       params: conversationParamsSchema
     }

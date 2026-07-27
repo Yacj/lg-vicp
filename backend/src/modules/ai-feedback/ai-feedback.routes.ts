@@ -29,7 +29,7 @@ export async function platformAiFeedbackRoutes(app: FastifyInstance) {
   route.get("/feedbacks", {
     preHandler: [app.authenticate],
     schema: {
-      tags: ["AI 反馈"],
+      tags: ["B端 / 平台 / AI运营"],
       summary: "查询 AI 回答点赞与反馈",
       querystring: feedbackQuerySchema
     }

@@ -10,6 +10,8 @@ alwaysApply: true
 - 经销商和业务员同属 `CHANNEL_USER`，使用 `channelType` 区分。
 - AI 不替代权限、工程计算、持久化和审计。
 - 面向人的提示、Swagger、日志、AI 提示词和协作文档使用中文。
+- Swagger 路由标签统一使用“客户端边界 / 业务模块”格式；客户端边界仅允许 `B端`、`C端`、`PC AI端`、`共用`、`公共`。
+- 所有新增或修改的 Fastify 路由必须声明 `schema.tags`，新增标签必须登记到 `src/plugins/swagger.ts`；标签只用于文档分类，不替代认证、客户端隔离、权限码或项目级权限。
 - API 路径、字段、错误码、枚举和代码标识保持英文。
 - 业务错误统一返回 HTTP `200`，通过 `error.code` 和 `error.message` 表达错误；未捕获的服务器异常返回 HTTP `500`。
 - 修改长期规则时同步更新 `AGENTS.md`、Codex skill 和 Cursor rules。

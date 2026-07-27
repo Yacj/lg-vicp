@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
-import fastify from "fastify";
+import fastify, { LogController } from "fastify";
 import { sql } from "drizzle-orm";
 import {
   serializerCompiler,
@@ -42,7 +42,9 @@ export async function buildApp() {
     logger: env.NODE_ENV === "test" ? false : {
       level: env.NODE_ENV === "development" ? "debug" : "info"
     },
-    disableRequestLogging: true,
+    logController: new LogController({
+      disableRequestLogging: true
+    }),
     genReqId: () => randomUUID()
   });
 
@@ -62,6 +64,10 @@ export async function buildApp() {
   await app.register(authPlugin);
   await app.register(swaggerPlugin);
 
+  app.get("/favicon.ico", {
+    schema: { hide: true }
+  }, async (_request, reply) => reply.code(204).send());
+
   app.get("/health", async (request) =>
     ok(request, {
       status: "ok",
@@ -71,11 +77,11 @@ export async function buildApp() {
   );
 
   app.get("/health/live", {
-    schema: { tags: ["健康检查"], summary: "检查服务进程是否存活" }
+    schema: { tags: ["公共 / 健康检查"], summary: "检查服务进程是否存活" }
   }, async (request) => ok(request, { status: "ok", message: "服务进程运行正常" }));
 
   app.get("/health/ready", {
-    schema: { tags: ["健康检查"], summary: "检查依赖服务是否就绪" }
+    schema: { tags: ["公共 / 健康检查"], summary: "检查依赖服务是否就绪" }
   }, async (request, reply) => {
     const checks: Record<string, string> = {};
     await Promise.all([

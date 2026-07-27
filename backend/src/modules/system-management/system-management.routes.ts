@@ -99,7 +99,7 @@ export async function systemManagementRoutes(app: FastifyInstance) {
 
   route.get("/menus", {
     preHandler: [app.authenticate],
-    schema: { tags: ["菜单管理"], summary: "获取菜单列表" }
+    schema: { tags: ["B端 / 平台 / 菜单管理"], summary: "获取菜单列表" }
   }, async (request) => {
     requireAdmin(request, "system:menu:list");
     return ok(request, { items: await app.db.select().from(menus).orderBy(asc(menus.sortOrder), asc(menus.name)) });
@@ -107,7 +107,7 @@ export async function systemManagementRoutes(app: FastifyInstance) {
 
   route.post("/menus", {
     preHandler: [app.authenticate],
-    schema: { tags: ["菜单管理"], summary: "创建菜单", body: menuBodySchema }
+    schema: { tags: ["B端 / 平台 / 菜单管理"], summary: "创建菜单", body: menuBodySchema }
   }, async (request) => {
     const actor = requireAdmin(request, "system:menu:add");
     await ensureMenuParent(app, undefined, request.body.parentId);
@@ -122,7 +122,7 @@ export async function systemManagementRoutes(app: FastifyInstance) {
 
   route.patch("/menus/:id", {
     preHandler: [app.authenticate],
-    schema: { tags: ["菜单管理"], summary: "修改菜单", params: idParamsSchema, body: menuBodySchema.partial() }
+    schema: { tags: ["B端 / 平台 / 菜单管理"], summary: "修改菜单", params: idParamsSchema, body: menuBodySchema.partial() }
   }, async (request) => {
     const actor = requireAdmin(request, "system:menu:edit");
     const [before] = await app.db.select().from(menus).where(eq(menus.id, request.params.id)).limit(1);
@@ -139,7 +139,7 @@ export async function systemManagementRoutes(app: FastifyInstance) {
 
   route.delete("/menus/:id", {
     preHandler: [app.authenticate],
-    schema: { tags: ["菜单管理"], summary: "删除菜单", params: idParamsSchema }
+    schema: { tags: ["B端 / 平台 / 菜单管理"], summary: "删除菜单", params: idParamsSchema }
   }, async (request) => {
     const actor = requireAdmin(request, "system:menu:remove");
     const [menu] = await app.db.select().from(menus).where(eq(menus.id, request.params.id)).limit(1);
@@ -154,14 +154,14 @@ export async function systemManagementRoutes(app: FastifyInstance) {
   });
 
   route.get("/roles", {
-    preHandler: [app.authenticate], schema: { tags: ["角色权限"], summary: "获取角色列表" }
+    preHandler: [app.authenticate], schema: { tags: ["B端 / 平台 / 角色权限"], summary: "获取角色列表" }
   }, async (request) => {
     requireAdmin(request, "system:role:list");
     return ok(request, { items: await app.db.select().from(roles).orderBy(asc(roles.code)) });
   });
 
   route.post("/roles", {
-    preHandler: [app.authenticate], schema: { tags: ["角色权限"], summary: "创建角色", body: roleBodySchema }
+    preHandler: [app.authenticate], schema: { tags: ["B端 / 平台 / 角色权限"], summary: "创建角色", body: roleBodySchema }
   }, async (request) => {
     const actor = requireAdmin(request, "system:role:add");
     const [role] = await app.db.insert(roles).values(request.body).returning();
@@ -170,14 +170,14 @@ export async function systemManagementRoutes(app: FastifyInstance) {
   });
 
   route.get("/permissions", {
-    preHandler: [app.authenticate], schema: { tags: ["角色权限"], summary: "获取权限列表" }
+    preHandler: [app.authenticate], schema: { tags: ["B端 / 平台 / 角色权限"], summary: "获取权限列表" }
   }, async (request) => {
     requireAdmin(request, "system:permission:list");
     return ok(request, { items: await app.db.select().from(permissions).orderBy(asc(permissions.code)) });
   });
 
   route.post("/permissions", {
-    preHandler: [app.authenticate], schema: { tags: ["角色权限"], summary: "创建权限", body: permissionBodySchema }
+    preHandler: [app.authenticate], schema: { tags: ["B端 / 平台 / 角色权限"], summary: "创建权限", body: permissionBodySchema }
   }, async (request) => {
     const actor = requireAdmin(request, "system:permission:add");
     const [permission] = await app.db.insert(permissions).values(request.body).returning();
@@ -187,7 +187,7 @@ export async function systemManagementRoutes(app: FastifyInstance) {
 
   route.put("/roles/:id/permissions", {
     preHandler: [app.authenticate],
-    schema: { tags: ["角色权限"], summary: "设置角色权限", params: idParamsSchema, body: rolePermissionBodySchema }
+    schema: { tags: ["B端 / 平台 / 角色权限"], summary: "设置角色权限", params: idParamsSchema, body: rolePermissionBodySchema }
   }, async (request) => {
     const actor = requireAdmin(request, "system:role:permission");
     const [role] = await app.db.select().from(roles).where(eq(roles.id, request.params.id)).limit(1);
@@ -213,7 +213,7 @@ export async function systemManagementRoutes(app: FastifyInstance) {
 
   route.put("/users/:id/roles", {
     preHandler: [app.authenticate],
-    schema: { tags: ["角色权限"], summary: "设置用户角色", params: idParamsSchema, body: userRoleBodySchema }
+    schema: { tags: ["B端 / 平台 / 角色权限"], summary: "设置用户角色", params: idParamsSchema, body: userRoleBodySchema }
   }, async (request) => {
     const actor = requireAdmin(request, "system:user:role");
     const [user] = await app.db.select({ id: users.id }).from(users).where(eq(users.id, request.params.id)).limit(1);
@@ -237,14 +237,14 @@ export async function systemManagementRoutes(app: FastifyInstance) {
   });
 
   route.get("/departments", {
-    preHandler: [app.authenticate], schema: { tags: ["部门"], summary: "获取部门列表" }
+    preHandler: [app.authenticate], schema: { tags: ["B端 / 平台 / 部门管理"], summary: "获取部门列表" }
   }, async (request) => {
     requireAdmin(request, "system:dept:list");
     return ok(request, { items: await app.db.select().from(departments).orderBy(asc(departments.sortOrder), asc(departments.name)) });
   });
 
   route.post("/departments", {
-    preHandler: [app.authenticate], schema: { tags: ["部门"], summary: "创建部门", body: departmentBodySchema }
+    preHandler: [app.authenticate], schema: { tags: ["B端 / 平台 / 部门管理"], summary: "创建部门", body: departmentBodySchema }
   }, async (request) => {
     const actor = requireAdmin(request, "system:dept:add");
     if (request.body.parentId) {
@@ -257,14 +257,14 @@ export async function systemManagementRoutes(app: FastifyInstance) {
   });
 
   route.get("/dictionaries", {
-    preHandler: [app.authenticate], schema: { tags: ["字典管理"], summary: "获取动态字典列表" }
+    preHandler: [app.authenticate], schema: { tags: ["B端 / 平台 / 基础数据"], summary: "获取动态字典列表" }
   }, async (request) => {
     requireAdmin(request, "system:dict:list");
     return ok(request, { items: await app.db.select().from(dictionaries).orderBy(asc(dictionaries.code)) });
   });
 
   route.post("/dictionaries", {
-    preHandler: [app.authenticate], schema: { tags: ["字典管理"], summary: "创建动态字典", body: dictionaryBodySchema }
+    preHandler: [app.authenticate], schema: { tags: ["B端 / 平台 / 基础数据"], summary: "创建动态字典", body: dictionaryBodySchema }
   }, async (request) => {
     const actor = requireAdmin(request, "system:dict:add");
     const [dictionary] = await app.db.insert(dictionaries).values(request.body).returning();
@@ -274,7 +274,7 @@ export async function systemManagementRoutes(app: FastifyInstance) {
 
   route.post("/dictionaries/:id/items", {
     preHandler: [app.authenticate],
-    schema: { tags: ["字典管理"], summary: "创建字典项", params: idParamsSchema, body: dictionaryItemBodySchema }
+    schema: { tags: ["B端 / 平台 / 基础数据"], summary: "创建字典项", params: idParamsSchema, body: dictionaryItemBodySchema }
   }, async (request) => {
     const actor = requireAdmin(request, "system:dict:item:add");
     const [dictionary] = await app.db.select({ id: dictionaries.id }).from(dictionaries).where(eq(dictionaries.id, request.params.id)).limit(1);

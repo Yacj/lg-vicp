@@ -180,7 +180,7 @@ export async function aiRoutes(app: FastifyInstance) {
 
   route.post("/conversations", {
     preHandler: [app.authenticate],
-    schema: { tags: ["AI 对话"], summary: "创建 AI 会话", body: createConversationBodySchema }
+    schema: { tags: ["共用 / AI对话"], summary: "创建 AI 会话", body: createConversationBodySchema }
   }, async (request) => {
     const user = getCurrentUser(request);
     if (request.body.clientApp !== expectedClientApp(user.clientType)) {
@@ -217,7 +217,7 @@ export async function aiRoutes(app: FastifyInstance) {
 
   route.get("/conversations", {
     preHandler: [app.authenticate],
-    schema: { tags: ["AI 对话"], summary: "获取我的 AI 会话列表", querystring: conversationListQuerySchema }
+    schema: { tags: ["共用 / AI对话"], summary: "获取我的 AI 会话列表", querystring: conversationListQuerySchema }
   }, async (request) => {
     const user = getCurrentUser(request);
     const { skip, take } = getPagination(request.query.page, request.query.pageSize);
@@ -296,7 +296,7 @@ export async function aiRoutes(app: FastifyInstance) {
 
   route.get("/conversations/:id", {
     preHandler: [app.authenticate],
-    schema: { tags: ["AI 对话"], summary: "获取 AI 会话和消息", params: conversationParamsSchema }
+    schema: { tags: ["共用 / AI对话"], summary: "获取 AI 会话和消息", params: conversationParamsSchema }
   }, async (request) => {
     const user = getCurrentUser(request);
     const conversation = await findConversation(app, request.params.id);
@@ -371,7 +371,7 @@ export async function aiRoutes(app: FastifyInstance) {
   route.patch("/conversations/:id", {
     preHandler: [app.authenticate],
     schema: {
-      tags: ["AI 对话"],
+      tags: ["共用 / AI对话"],
       summary: "重命名 AI 会话",
       params: conversationParamsSchema,
       body: conversationUpdateBodySchema
@@ -400,7 +400,7 @@ export async function aiRoutes(app: FastifyInstance) {
   route.put("/conversations/:id/pin", {
     preHandler: [app.authenticate],
     schema: {
-      tags: ["AI 对话"],
+      tags: ["共用 / AI对话"],
       summary: "置顶或取消置顶 AI 会话",
       params: conversationParamsSchema,
       body: pinBodySchema
@@ -429,7 +429,7 @@ export async function aiRoutes(app: FastifyInstance) {
   route.patch("/conversations/:id/project", {
     preHandler: [app.authenticate],
     schema: {
-      tags: ["AI 对话"],
+      tags: ["共用 / AI对话"],
       summary: "移动 AI 会话到项目",
       params: conversationParamsSchema,
       body: moveProjectBodySchema
@@ -467,7 +467,7 @@ export async function aiRoutes(app: FastifyInstance) {
 
   route.delete("/conversations/:id", {
     preHandler: [app.authenticate],
-    schema: { tags: ["AI 对话"], summary: "删除 AI 会话", params: conversationParamsSchema }
+    schema: { tags: ["共用 / AI对话"], summary: "删除 AI 会话", params: conversationParamsSchema }
   }, async (request) => {
     const user = getCurrentUser(request);
     const conversation = await findConversation(app, request.params.id);
@@ -517,7 +517,7 @@ export async function aiRoutes(app: FastifyInstance) {
 
   route.post("/conversations/:id/restore", {
     preHandler: [app.authenticate],
-    schema: { tags: ["AI 对话"], summary: "恢复 AI 会话", params: conversationParamsSchema }
+    schema: { tags: ["共用 / AI对话"], summary: "恢复 AI 会话", params: conversationParamsSchema }
   }, async (request) => {
     const user = getCurrentUser(request);
     const conversation = await findConversationById(app, request.params.id);
@@ -545,7 +545,7 @@ export async function aiRoutes(app: FastifyInstance) {
   route.patch("/conversations/:id/settings", {
     preHandler: [app.authenticate],
     schema: {
-      tags: ["AI 对话"],
+      tags: ["共用 / AI对话"],
       summary: "修改当前 AI 会话设置",
       params: conversationParamsSchema,
       body: conversationSettingsBodySchema
@@ -583,7 +583,7 @@ export async function aiRoutes(app: FastifyInstance) {
   route.post("/conversations/:id/messages", {
     preHandler: [app.authenticate],
     schema: {
-      tags: ["AI 对话"],
+      tags: ["共用 / AI对话"],
       summary: "发送消息并以 SSE 接收 AI 回复",
       params: conversationParamsSchema,
       body: sendMessageBodySchema
@@ -821,7 +821,7 @@ export async function aiRoutes(app: FastifyInstance) {
   route.post("/messages/:id/stop", {
     preHandler: [app.authenticate],
     schema: {
-      tags: ["AI 对话"],
+      tags: ["共用 / AI对话"],
       summary: "停止正在生成的 AI 回答",
       params: messageParamsSchema
     }
@@ -848,7 +848,7 @@ export async function aiRoutes(app: FastifyInstance) {
   route.put("/messages/:id/feedback", {
     preHandler: [app.authenticate],
     schema: {
-      tags: ["AI 对话"],
+      tags: ["共用 / AI对话"],
       summary: "提交或更新 AI 回答点赞反馈",
       params: messageParamsSchema,
       body: feedbackBodySchema
@@ -900,7 +900,7 @@ export async function aiRoutes(app: FastifyInstance) {
   route.post("/messages/:id/regenerate", {
     preHandler: [app.authenticate],
     schema: {
-      tags: ["AI 对话"],
+      tags: ["共用 / AI对话"],
       summary: "重新生成一条 AI 回答并通过 SSE 返回",
       params: messageParamsSchema,
       body: regenerateBodySchema
@@ -1171,7 +1171,7 @@ export async function aiRoutes(app: FastifyInstance) {
   route.post("/conversations/:id/report-draft", {
     preHandler: [app.authenticate],
     schema: {
-      tags: ["AI 对话"],
+      tags: ["共用 / AI对话"],
       summary: "根据 AI 会话生成结构化报告草稿",
       params: conversationParamsSchema,
       body: reportDraftBodySchema

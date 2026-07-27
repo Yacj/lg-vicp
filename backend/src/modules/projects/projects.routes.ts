@@ -31,7 +31,7 @@ export async function workspaceProjectRoutes(app: FastifyInstance) {
 
   route.post("/projects", {
     preHandler: [app.authenticate],
-    schema: { tags: ["工作台项目"], summary: "创建项目", body: createProjectBodySchema }
+    schema: { tags: ["B端 / 工作台 / 项目"], summary: "创建项目", body: createProjectBodySchema }
   }, async (request) => {
     const user = getCurrentUser(request);
     if (!canCreateProject(user)) {
@@ -62,7 +62,7 @@ export async function workspaceProjectRoutes(app: FastifyInstance) {
 
   route.get("/projects/my", {
     preHandler: [app.authenticate],
-    schema: { tags: ["工作台项目"], summary: "获取我创建的项目", querystring: paginationQuerySchema }
+    schema: { tags: ["B端 / 工作台 / 项目"], summary: "获取我创建的项目", querystring: paginationQuerySchema }
   }, async (request) => {
     const user = getCurrentUser(request);
     const { skip, take } = getPagination(request.query.page, request.query.pageSize);
@@ -76,7 +76,7 @@ export async function workspaceProjectRoutes(app: FastifyInstance) {
 
   route.patch("/projects/:id", {
     preHandler: [app.authenticate],
-    schema: { tags: ["工作台项目"], summary: "修改项目信息", params: projectParamsSchema, body: updateProjectBodySchema }
+    schema: { tags: ["B端 / 工作台 / 项目"], summary: "修改项目信息", params: projectParamsSchema, body: updateProjectBodySchema }
   }, async (request) => {
     const user = getCurrentUser(request);
     const project = await findActiveProject(app, request.params.id);
@@ -98,7 +98,7 @@ export async function workspaceProjectRoutes(app: FastifyInstance) {
 
   route.patch("/projects/:id/visibility", {
     preHandler: [app.authenticate],
-    schema: { tags: ["工作台项目"], summary: "切换项目公开状态", params: projectParamsSchema, body: updateVisibilityBodySchema }
+    schema: { tags: ["B端 / 工作台 / 项目"], summary: "切换项目公开状态", params: projectParamsSchema, body: updateVisibilityBodySchema }
   }, async (request) => {
     const user = getCurrentUser(request);
     const project = await findActiveProject(app, request.params.id);
@@ -120,7 +120,7 @@ export async function workspaceProjectRoutes(app: FastifyInstance) {
 
   route.delete("/projects/:id", {
     preHandler: [app.authenticate],
-    schema: { tags: ["工作台项目"], summary: "删除项目", params: projectParamsSchema }
+    schema: { tags: ["B端 / 工作台 / 项目"], summary: "删除项目", params: projectParamsSchema }
   }, async (request) => {
     const user = getCurrentUser(request);
     const project = await findActiveProject(app, request.params.id);
@@ -145,7 +145,7 @@ export async function projectRoutes(app: FastifyInstance) {
 
   route.get("/public", {
     preHandler: [app.authenticate],
-    schema: { tags: ["项目"], summary: "获取公开项目", querystring: paginationQuerySchema }
+    schema: { tags: ["共用 / 项目"], summary: "获取公开项目", querystring: paginationQuerySchema }
   }, async (request) => {
     const { skip, take } = getPagination(request.query.page, request.query.pageSize);
     const where = and(eq(projects.visibility, PROJECT_VISIBILITY.PUBLIC), eq(projects.status, "active"), isNull(projects.deletedAt));
@@ -158,7 +158,7 @@ export async function projectRoutes(app: FastifyInstance) {
 
   route.get("/:id", {
     preHandler: [app.authenticate],
-    schema: { tags: ["项目"], summary: "获取项目详情", params: projectParamsSchema }
+    schema: { tags: ["共用 / 项目"], summary: "获取项目详情", params: projectParamsSchema }
   }, async (request) => {
     const user = getCurrentUser(request);
     const project = await findActiveProject(app, request.params.id);
@@ -179,7 +179,7 @@ export async function platformProjectRoutes(app: FastifyInstance) {
   route.get("/projects", {
     preHandler: [app.authenticate],
     schema: {
-      tags: ["平台项目"],
+      tags: ["B端 / 平台 / 项目"],
       summary: "平台项目列表",
       querystring: paginationQuerySchema.extend({
         visibility: z.enum([PROJECT_VISIBILITY.PRIVATE, PROJECT_VISIBILITY.PUBLIC]).optional()

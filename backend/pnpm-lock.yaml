@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@ai-sdk/openai-compatible':
-        specifier: ^2.0.16
-        version: 2.0.62(zod@4.4.3)
+        specifier: ^3.0.14
+        version: 3.0.14(zod@4.4.3)
       '@fastify/cors':
         specifier: ^11.3.0
         version: 11.3.0
@@ -18,8 +18,8 @@ importers:
         specifier: ^13.1.0
         version: 13.1.0
       '@fastify/jwt':
-        specifier: ^10.2.0
-        version: 10.2.0
+        specifier: ^10.2.1
+        version: 10.2.1
       '@fastify/swagger':
         specifier: ^9.8.1
         version: 9.8.1
@@ -33,23 +33,23 @@ importers:
         specifier: ^6.23.0
         version: 6.23.0
       argon2:
-        specifier: ^0.44.0
-        version: 0.44.0
+        specifier: ^0.45.1
+        version: 0.45.1
       bullmq:
-        specifier: ^5.58.5
+        specifier: ^5.81.2
         version: 5.81.2
       docx:
-        specifier: ^9.5.1
+        specifier: ^9.7.1
         version: 9.7.1
       dotenv:
         specifier: ^17.4.2
         version: 17.4.2
       drizzle-orm:
-        specifier: ^0.44.7
-        version: 0.44.7(postgres@3.4.9)
+        specifier: ^0.45.2
+        version: 0.45.2(postgres@3.4.9)
       drizzle-zod:
         specifier: ^0.8.3
-        version: 0.8.3(drizzle-orm@0.44.7(postgres@3.4.9))(zod@4.4.3)
+        version: 0.8.3(drizzle-orm@0.45.2(postgres@3.4.9))(zod@4.4.3)
       fastify:
         specifier: ^5.10.0
         version: 5.10.0
@@ -60,38 +60,38 @@ importers:
         specifier: ^7.0.0
         version: 7.0.0(@fastify/swagger@9.8.1)(fastify@5.10.0)(openapi-types@12.1.3)(zod@4.4.3)
       file-type:
-        specifier: ^21.0.0
-        version: 21.3.4
+        specifier: ^22.0.1
+        version: 22.0.1
       ioredis:
-        specifier: ^5.8.1
+        specifier: ^5.11.1
         version: 5.11.1
       mammoth:
-        specifier: ^1.11.0
+        specifier: ^1.12.0
         version: 1.12.0
       minio:
-        specifier: ^8.0.6
+        specifier: ^8.0.7
         version: 8.0.7
       playwright-core:
-        specifier: ^1.55.1
+        specifier: ^1.62.0
         version: 1.62.0
       postgres:
-        specifier: ^3.4.7
+        specifier: ^3.4.9
         version: 3.4.9
       unpdf:
-        specifier: ^1.3.0
+        specifier: ^1.8.0
         version: 1.8.0
       zod:
         specifier: ^4.4.3
         version: 4.4.3
     devDependencies:
       '@types/ali-oss':
-        specifier: ^6.16.12
+        specifier: ^6.23.3
         version: 6.23.3
       '@types/node':
         specifier: ^26.1.1
         version: 26.1.1
       drizzle-kit:
-        specifier: ^0.31.5
+        specifier: ^0.31.10
         version: 0.31.10
       tsx:
         specifier: ^4.23.1
@@ -111,15 +111,9 @@ packages:
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
-  '@ai-sdk/openai-compatible@2.0.62':
-    resolution: {integrity: sha512-lRe54zvyIS1a60N8UVhnwKZRI5I+GSV8uhKkPpId+aiKO7z7UgSbNqFmXkBBMD3yc9UrLnQnATV2EQyXNhzEkA==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      zod: ^3.25.76 || ^4.1.8
-
-  '@ai-sdk/provider-utils@4.0.40':
-    resolution: {integrity: sha512-OL5IrpUm9Y8Dwy+w/vvFwPotS6m52O9W0op2oXgXdCROMJIBalBI0oro6OIBYkPxvm5Xg02GSkoQN25RlR0bnw==}
-    engines: {node: '>=18'}
+  '@ai-sdk/openai-compatible@3.0.14':
+    resolution: {integrity: sha512-nUl7dBHUDTqcnuWGnEbKMwDDqL94BxRfibLwYv8uWp+kZn8Zqdxy7tUBt4sv2hpHQi+S2P6bUyqW18xmbykErw==}
+    engines: {node: '>=22'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
@@ -128,10 +122,6 @@ packages:
     engines: {node: '>=22'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
-
-  '@ai-sdk/provider@3.0.14':
-    resolution: {integrity: sha512-5X1k57JBJ4H7H1QjX7CnJYAB1I19r/trVZTMcSms7/kLNZ8RaU4Nt2agcwZzv82Hfx6Q7/TOLU7agAKeFfc8cA==}
-    engines: {node: '>=18'}
 
   '@ai-sdk/provider@4.0.3':
     resolution: {integrity: sha512-e0CpNWJUY7OxAFAnCZkw+ri9QOHWwTs1tXP42782KFGCU07qt8NiXCrCVowyCB5dP2r5/Uls+g2oPd8kOJn9dw==}
@@ -622,8 +612,8 @@ packages:
   '@fastify/helmet@13.1.0':
     resolution: {integrity: sha512-SvVOU0IrzYJW1BvSkfq9G1WUdW3dnaRUvg6m0BtgGMBmML62No0VmSu087jecH58SFbicbREgZTPJ89mAguupA==}
 
-  '@fastify/jwt@10.2.0':
-    resolution: {integrity: sha512-4f5aBnXORARG+6I+sVNqLoPCvLlEqi9VymliB+QRG4EUuZy0a+NjnGL7bt+Uyi09KOVjj6GmdEXXOhWbdqyYZA==}
+  '@fastify/jwt@10.2.1':
+    resolution: {integrity: sha512-8FHalB082a6HFj+neP9TdJZrUa65Aq6mtozVjd3vH3Yy7hmjRJUDKLPdxYRYF9S077JeN9RgimsautqnijbDlQ==}
 
   '@fastify/merge-json-schemas@0.2.1':
     resolution: {integrity: sha512-OA3KGBCy6KtIvLf8DINC5880o5iBlDX4SxzLQS8HorJAbqluzLRn80UXU0bxZn7UOFhFgpRJDasfwn9nG4FG4A==}
@@ -1029,8 +1019,8 @@ packages:
   anynum@1.0.1:
     resolution: {integrity: sha512-N6//FLET/tXYNM/F6ABca1oH6fWB+KlTt909Le28WMDBk8oaT4vY17DCrwg2MvmuqUKt3Ni4N5dGJ/EoBgcO6A==}
 
-  argon2@0.44.0:
-    resolution: {integrity: sha512-zHPGN3S55sihSQo0dBbK0A5qpi2R31z7HZDZnry3ifOyj8bZZnpZND2gpmhnRGO1V/d555RwBqIK5W4Mrmv3ig==}
+  argon2@0.45.1:
+    resolution: {integrity: sha512-skm+/WCjkGqCQxF7FG1LuZXM5yvbFjgbfiCGsud2oLgaDhh6b6dbH0b1EkghbM+xx4Bj8Ape+KKgixoIlWZicQ==}
     engines: {node: '>=16.17.0'}
 
   argparse@1.0.3:
@@ -1207,8 +1197,8 @@ packages:
     resolution: {integrity: sha512-7OZcmQUrdGI+DUNNsKBn1aW8qSoKuTH7d0mYgSP8bAzdFzKoovxEFnoGQp2dVs82EOJeYycqRtciopszwUf8bw==}
     hasBin: true
 
-  drizzle-orm@0.44.7:
-    resolution: {integrity: sha512-quIpnYznjU9lHshEOAYLoZ9s3jweleHlZIAWR/jX9gAWNg/JhQ1wj0KGRf7/Zm+obRrYd9GjPVJg790QY9N5AQ==}
+  drizzle-orm@0.45.2:
+    resolution: {integrity: sha512-kY0BSaTNYWnoDMVoyY8uxmyHjpJW1geOmBMdSSicKo9CIIWkSxMIj2rkeSR51b8KAPB7m+qysjuHme5nKP+E5Q==}
     peerDependencies:
       '@aws-sdk/client-rds-data': '>=3'
       '@cloudflare/workers-types': '>=4'
@@ -1441,9 +1431,9 @@ packages:
       picomatch:
         optional: true
 
-  file-type@21.3.4:
-    resolution: {integrity: sha512-Ievi/yy8DS3ygGvT47PjSfdFoX+2isQueoYP1cntFW1JLYAuS4GD7NUPGg4zv2iZfV52uDyk5w5Z0TdpRS6Q1g==}
-    engines: {node: '>=20'}
+  file-type@22.0.1:
+    resolution: {integrity: sha512-ww5Mhre0EE+jmBvOXTmXAbEMuZE7uX4a3+oRCQFNj8w++g3ev913N6tXQz0XTXbueQ5TWQfm6BdaViEHHn8bhA==}
+    engines: {node: '>=22'}
 
   filter-obj@1.1.0:
     resolution: {integrity: sha512-8rXg1ZnX7xzy2NGDVkBVaAy+lSlPNwad13BtgSlLuxfIslyt5Vg64U7tFcCt4WS1R0hvtnQybT/IyCkGZ3DpXQ==}
@@ -2328,17 +2318,10 @@ snapshots:
       '@vercel/oidc': 3.2.0
       zod: 4.4.3
 
-  '@ai-sdk/openai-compatible@2.0.62(zod@4.4.3)':
+  '@ai-sdk/openai-compatible@3.0.14(zod@4.4.3)':
     dependencies:
-      '@ai-sdk/provider': 3.0.14
-      '@ai-sdk/provider-utils': 4.0.40(zod@4.4.3)
-      zod: 4.4.3
-
-  '@ai-sdk/provider-utils@4.0.40(zod@4.4.3)':
-    dependencies:
-      '@ai-sdk/provider': 3.0.14
-      '@standard-schema/spec': 1.1.0
-      eventsource-parser: 3.1.0
+      '@ai-sdk/provider': 4.0.3
+      '@ai-sdk/provider-utils': 5.0.12(zod@4.4.3)
       zod: 4.4.3
 
   '@ai-sdk/provider-utils@5.0.12(zod@4.4.3)':
@@ -2348,10 +2331,6 @@ snapshots:
       '@workflow/serde': 4.1.0
       eventsource-parser: 3.1.0
       zod: 4.4.3
-
-  '@ai-sdk/provider@3.0.14':
-    dependencies:
-      json-schema: 0.4.0
 
   '@ai-sdk/provider@4.0.3':
     dependencies:
@@ -2634,7 +2613,7 @@ snapshots:
       fastify-plugin: 6.0.0
       helmet: 8.3.0
 
-  '@fastify/jwt@10.2.0':
+  '@fastify/jwt@10.2.1':
     dependencies:
       '@fastify/error': 4.2.0
       '@lukeed/ms': 2.0.2
@@ -2979,7 +2958,7 @@ snapshots:
 
   anynum@1.0.1: {}
 
-  argon2@0.44.0:
+  argon2@0.45.1:
     dependencies:
       '@phc/format': 1.0.0
       cross-env: 10.1.0
@@ -3131,13 +3110,13 @@ snapshots:
       esbuild: 0.25.4
       tsx: 4.23.1
 
-  drizzle-orm@0.44.7(postgres@3.4.9):
+  drizzle-orm@0.45.2(postgres@3.4.9):
     optionalDependencies:
       postgres: 3.4.9
 
-  drizzle-zod@0.8.3(drizzle-orm@0.44.7(postgres@3.4.9))(zod@4.4.3):
+  drizzle-zod@0.8.3(drizzle-orm@0.45.2(postgres@3.4.9))(zod@4.4.3):
     dependencies:
-      drizzle-orm: 0.44.7(postgres@3.4.9)
+      drizzle-orm: 0.45.2(postgres@3.4.9)
       zod: 4.4.3
 
   duck@0.1.12:
@@ -3363,7 +3342,7 @@ snapshots:
     optionalDependencies:
       picomatch: 4.0.5
 
-  file-type@21.3.4:
+  file-type@22.0.1:
     dependencies:
       '@tokenizer/inflate': 0.4.1
       strtok3: 10.3.5

@@ -34,7 +34,7 @@ export async function fileRoutes(app: FastifyInstance) {
   route.get("/", {
     preHandler: [app.authenticate],
     schema: {
-      tags: ["文件"],
+      tags: ["共用 / 文件"],
       summary: "获取我的源文件列表",
       querystring: paginationQuerySchema.extend({ projectId: z.uuid("项目 ID 格式不正确").optional() })
     }
@@ -55,7 +55,7 @@ export async function fileRoutes(app: FastifyInstance) {
 
   route.post("/upload-intents", {
     preHandler: [app.authenticate],
-    schema: { tags: ["文件"], summary: "创建文件直传凭证", body: createUploadIntentBodySchema }
+    schema: { tags: ["共用 / 文件"], summary: "创建文件直传凭证", body: createUploadIntentBodySchema }
   }, async (request) => {
     const user = getCurrentUser(request);
     if (request.body.sizeBytes > env.MAX_UPLOAD_BYTES) {
@@ -104,7 +104,7 @@ export async function fileRoutes(app: FastifyInstance) {
 
   route.post("/:id/complete", {
     preHandler: [app.authenticate],
-    schema: { tags: ["文件"], summary: "确认文件上传完成", params: fileParamsSchema }
+    schema: { tags: ["共用 / 文件"], summary: "确认文件上传完成", params: fileParamsSchema }
   }, async (request) => {
     const user = getCurrentUser(request);
     const file = await findFile(app, request.params.id);
@@ -161,7 +161,7 @@ export async function fileRoutes(app: FastifyInstance) {
 
   route.get("/:id/status", {
     preHandler: [app.authenticate],
-    schema: { tags: ["文件"], summary: "获取文件处理状态", params: fileParamsSchema }
+    schema: { tags: ["共用 / 文件"], summary: "获取文件处理状态", params: fileParamsSchema }
   }, async (request) => {
     const user = getCurrentUser(request);
     const file = await findFile(app, request.params.id);
@@ -174,7 +174,7 @@ export async function fileRoutes(app: FastifyInstance) {
 
   route.get("/:id/download-url", {
     preHandler: [app.authenticate],
-    schema: { tags: ["文件"], summary: "获取源文件下载地址", params: fileParamsSchema }
+    schema: { tags: ["共用 / 文件"], summary: "获取源文件下载地址", params: fileParamsSchema }
   }, async (request) => {
     const user = getCurrentUser(request);
     const file = await findFile(app, request.params.id);
@@ -189,7 +189,7 @@ export async function fileRoutes(app: FastifyInstance) {
 
   route.delete("/:id", {
     preHandler: [app.authenticate],
-    schema: { tags: ["文件"], summary: "删除文件", params: fileParamsSchema }
+    schema: { tags: ["共用 / 文件"], summary: "删除文件", params: fileParamsSchema }
   }, async (request) => {
     const user = getCurrentUser(request);
     const file = await findFile(app, request.params.id);

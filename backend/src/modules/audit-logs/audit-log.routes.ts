@@ -26,7 +26,7 @@ export async function auditLogRoutes(app: FastifyInstance) {
     keyword: z.string().trim().max(120).optional()
   });
 
-  route.get("/audit-logs", { preHandler: [app.authenticate], schema: { tags: ["审计日志"], summary: "查询审计日志", querystring: querySchema } }, async (request) => {
+  route.get("/audit-logs", { preHandler: [app.authenticate], schema: { tags: ["B端 / 平台 / 审计监控"], summary: "查询审计日志", querystring: querySchema } }, async (request) => {
     requireAuditPermission(request, "monitor:audit:list");
     const { skip, take } = getPagination(request.query.page, request.query.pageSize);
     const where = and(
@@ -43,7 +43,7 @@ export async function auditLogRoutes(app: FastifyInstance) {
     return ok(request, { items, total: totalRow?.value ?? 0, page: request.query.page, pageSize: request.query.pageSize });
   });
 
-  route.get("/audit-logs/export", { preHandler: [app.authenticate], schema: { tags: ["审计日志"], summary: "导出操作日志", querystring: paginationQuerySchema } }, async (request, reply) => {
+  route.get("/audit-logs/export", { preHandler: [app.authenticate], schema: { tags: ["B端 / 平台 / 审计监控"], summary: "导出操作日志", querystring: paginationQuerySchema } }, async (request, reply) => {
     requireAuditPermission(request, "monitor:audit:export");
     const rows = await app.db.select().from(auditLogs).orderBy(desc(auditLogs.createdAt)).limit(10000);
     const escape = (value: unknown) => { const text = value == null ? "" : String(value); return /[",\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text; };

@@ -9,6 +9,9 @@ import { QUEUE_NAMES } from "./queues/queues.js";
 import { createObjectStorage } from "./storage/index.js";
 import { createDocumentProcessor } from "./workers/document.worker.js";
 import { createReportProcessor } from "./workers/report.worker.js";
+import { configureConsoleEncoding } from "./shared/console-encoding.js";
+
+configureConsoleEncoding();
 
 const { db, client } = createDatabase(env);
 const redis = createRedisConnection();

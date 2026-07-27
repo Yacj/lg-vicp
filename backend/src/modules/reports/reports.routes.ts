@@ -41,7 +41,7 @@ export async function reportRoutes(app: FastifyInstance) {
 
   route.post("/reports", {
     preHandler: [app.authenticate],
-    schema: { tags: ["报告"], summary: "创建并排队生成报告", body: createReportBodySchema }
+    schema: { tags: ["共用 / 报告"], summary: "创建并排队生成报告", body: createReportBodySchema }
   }, async (request) => {
     const user = getCurrentUser(request);
     const [project] = await app.db.select().from(projects).where(and(
@@ -160,7 +160,7 @@ export async function reportRoutes(app: FastifyInstance) {
 
   route.get("/reports/:id", {
     preHandler: [app.authenticate],
-    schema: { tags: ["报告"], summary: "获取报告详情", params: reportParamsSchema }
+    schema: { tags: ["共用 / 报告"], summary: "获取报告详情", params: reportParamsSchema }
   }, async (request) => {
     const user = getCurrentUser(request);
     const row = await getReportWithProject(app, request.params.id);
@@ -177,7 +177,7 @@ export async function reportRoutes(app: FastifyInstance) {
 
   route.post("/reports/:id/generate", {
     preHandler: [app.authenticate],
-    schema: { tags: ["报告"], summary: "将报告草稿加入导出队列", params: reportParamsSchema }
+    schema: { tags: ["共用 / 报告"], summary: "将报告草稿加入导出队列", params: reportParamsSchema }
   }, async (request) => {
     const user = getCurrentUser(request);
     const row = await getReportWithProject(app, request.params.id);
@@ -221,7 +221,7 @@ export async function reportRoutes(app: FastifyInstance) {
 
   route.post("/reports/:id/publish", {
     preHandler: [app.authenticate],
-    schema: { tags: ["报告"], summary: "发布报告", params: reportParamsSchema }
+    schema: { tags: ["共用 / 报告"], summary: "发布报告", params: reportParamsSchema }
   }, async (request) => {
     const user = getCurrentUser(request);
     const row = await getReportWithProject(app, request.params.id);
@@ -242,7 +242,7 @@ export async function reportRoutes(app: FastifyInstance) {
 
   route.get("/reports/:id/artifacts/:type/download-url", {
     preHandler: [app.authenticate],
-    schema: { tags: ["报告"], summary: "获取报告文件下载地址", params: artifactParamsSchema }
+    schema: { tags: ["共用 / 报告"], summary: "获取报告文件下载地址", params: artifactParamsSchema }
   }, async (request) => {
     const user = getCurrentUser(request);
     const row = await getReportWithProject(app, request.params.id);
@@ -267,7 +267,7 @@ export async function reportRoutes(app: FastifyInstance) {
 
   route.delete("/reports/:id", {
     preHandler: [app.authenticate],
-    schema: { tags: ["报告"], summary: "删除报告", params: reportParamsSchema }
+    schema: { tags: ["共用 / 报告"], summary: "删除报告", params: reportParamsSchema }
   }, async (request) => {
     const user = getCurrentUser(request);
     const row = await getReportWithProject(app, request.params.id);

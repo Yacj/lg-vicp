@@ -6,7 +6,7 @@ export async function dictRoutes(app: FastifyInstance) {
     "/dicts",
     {
       schema: {
-        tags: ["字典"],
+        tags: ["公共 / 基础字典"],
         summary: "获取系统基础字典"
       }
     },

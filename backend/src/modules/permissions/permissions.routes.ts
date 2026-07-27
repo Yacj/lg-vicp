@@ -9,7 +9,7 @@ import { ok } from "../../shared/response.js";
 export async function permissionRoutes(app: FastifyInstance) {
   app.get("/permissions/me", {
     preHandler: [app.authenticate, requireClient(AUTH_CLIENTS.B_ADMIN)],
-    schema: { tags: ["权限"], summary: "获取当前用户权限" }
+    schema: { tags: ["B端 / 平台 / 角色权限"], summary: "获取当前用户权限" }
   }, async (request) => {
     const user = getCurrentUser(request);
     const assigned = await app.db.select({

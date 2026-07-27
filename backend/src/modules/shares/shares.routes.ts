@@ -59,7 +59,7 @@ export async function shareRoutes(app: FastifyInstance) {
   route.post("/shares", {
     preHandler: [app.authenticate],
     schema: {
-      tags: ["公开分享"],
+      tags: ["共用 / 分享"],
       summary: "创建公开分享链接",
       body: createShareBodySchema
     }
@@ -227,7 +227,7 @@ export async function shareRoutes(app: FastifyInstance) {
   route.patch("/shares/:id/disable", {
     preHandler: [app.authenticate],
     schema: {
-      tags: ["公开分享"],
+      tags: ["共用 / 分享"],
       summary: "禁用公开分享链接",
       params: shareParamsSchema
     }
@@ -259,7 +259,7 @@ export async function publicShareRoutes(app: FastifyInstance) {
 
   route.get("/shares/:token", {
     schema: {
-      tags: ["公开分享"],
+      tags: ["公共 / 分享"],
       summary: "公开查看分享内容",
       params: publicShareParamsSchema
     }

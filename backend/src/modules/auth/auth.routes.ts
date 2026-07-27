@@ -152,7 +152,7 @@ export async function authRoutes(app: FastifyInstance) {
   });
 
   route.get("/b/captchaImage", {
-    schema: { tags: ["认证"], summary: "生成 B 端登录验证码" }
+    schema: { tags: ["B端 / 认证"], summary: "生成 B 端登录验证码" }
   }, async (request) => {
     const ipKey = `auth:captcha:ip:${request.ip}`;
     const attempts = await app.redis.incr(ipKey);
@@ -171,7 +171,7 @@ export async function authRoutes(app: FastifyInstance) {
   });
 
   route.post("/b/login", {
-    schema: { tags: ["认证"], summary: "B 端账号密码登录", body: bLoginBodySchema }
+    schema: { tags: ["B端 / 认证"], summary: "B 端账号密码登录", body: bLoginBodySchema }
   }, async (request) => {
     const loginIdentifier = request.body.identifier.trim().toLowerCase();
     const ipRateKey = `auth:b:login:ip:${request.ip}`;
@@ -202,7 +202,7 @@ export async function authRoutes(app: FastifyInstance) {
   });
 
   route.post("/client/sms/send", {
-    schema: { tags: ["认证"], summary: "发送客户端登录短信验证码", body: clientSmsSendBodySchema }
+    schema: { tags: ["C端 / 认证", "PC AI端 / 认证"], summary: "发送客户端登录短信验证码", body: clientSmsSendBodySchema }
   }, async (request) => {
     const phoneKey = `auth:sms:send:phone:${request.body.clientType}:${request.body.phone}`;
     const ipKey = `auth:sms:send:ip:${request.ip}`;
@@ -226,7 +226,7 @@ export async function authRoutes(app: FastifyInstance) {
   });
 
   route.post("/client/login/sms", {
-    schema: { tags: ["认证"], summary: "客户端短信验证码登录", body: clientSmsLoginBodySchema }
+    schema: { tags: ["C端 / 认证", "PC AI端 / 认证"], summary: "客户端短信验证码登录", body: clientSmsLoginBodySchema }
   }, async (request) => {
     const key = `auth:sms:login:${request.body.clientType}:${request.body.phone}`;
     const stored = await app.redis.getdel(key);
@@ -238,7 +238,7 @@ export async function authRoutes(app: FastifyInstance) {
   });
 
   route.post("/client/register/password", {
-    schema: { tags: ["认证"], summary: "客户端手机号密码注册", body: clientRegisterBodySchema }
+    schema: { tags: ["C端 / 认证", "PC AI端 / 认证"], summary: "客户端手机号密码注册", body: clientRegisterBodySchema }
   }, async (request) => {
     const phone = request.body.phone.trim();
     const ipKey = `auth:register:ip:${request.ip}`;
@@ -284,7 +284,7 @@ export async function authRoutes(app: FastifyInstance) {
   });
 
   route.post("/client/login/password", {
-    schema: { tags: ["认证"], summary: "客户端手机号密码登录", body: clientPasswordLoginBodySchema }
+    schema: { tags: ["C端 / 认证", "PC AI端 / 认证"], summary: "客户端手机号密码登录", body: clientPasswordLoginBodySchema }
   }, async (request) => {
     const account = await findAccount(app, request.body.phone, "PHONE");
     if (!account?.passwordHash || !(await argon2.verify(account.passwordHash, request.body.password))) {
@@ -295,7 +295,7 @@ export async function authRoutes(app: FastifyInstance) {
   });
 
   route.post("/client/login/wechat", {
-    schema: { tags: ["认证"], summary: "客户端微信登录", body: clientWechatLoginBodySchema }
+    schema: { tags: ["C端 / 认证", "PC AI端 / 认证"], summary: "客户端微信登录", body: clientWechatLoginBodySchema }
   }, async (request) => {
     const provider = createWechatAuthProvider();
     if (!provider) throw new ForbiddenError("微信登录尚未配置");
@@ -305,8 +305,7 @@ export async function authRoutes(app: FastifyInstance) {
 
   route.post("/login", {
     schema: {
-      tags: ["认证"],
-      summary: "账号密码登录",
+      tags: ["共用 / 认证"],
       body: loginBodySchema
     }
   }, async (request) => {
@@ -325,11 +324,11 @@ export async function authRoutes(app: FastifyInstance) {
   });
 
   route.post("/refresh", {
-    schema: { tags: ["认证"], summary: "刷新访问令牌", body: refreshBodySchema }
+    schema: { tags: ["共用 / 认证"], summary: "刷新访问令牌", body: refreshBodySchema }
   }, async (request) => ok(request, await rotateRefreshToken(app, request, request.body.refreshToken)));
 
   route.post("/logout", {
-    schema: { tags: ["认证"], summary: "退出登录", body: refreshBodySchema }
+    schema: { tags: ["共用 / 认证"], summary: "退出登录", body: refreshBodySchema }
   }, async (request) => {
     const [stored] = await app.db.select({ userId: refreshTokens.userId, clientType: refreshTokens.clientType }).from(refreshTokens).where(and(
       eq(refreshTokens.tokenHash, hashRefreshToken(request.body.refreshToken)),
@@ -353,7 +352,7 @@ export async function authRoutes(app: FastifyInstance) {
 
   if (env.NODE_ENV !== "production") {
     route.post("/dev-token", {
-      schema: { tags: ["认证"], summary: "生成开发环境访问令牌", body: devTokenBodySchema }
+      schema: { tags: ["B端 / 认证"], summary: "生成开发环境访问令牌", body: devTokenBodySchema }
     }, async (request) => {
       const [user] = await app.db.select({ id: users.id }).from(users).where(eq(users.id, request.body.userId)).limit(1);
       if (!user) {
@@ -365,7 +364,7 @@ export async function authRoutes(app: FastifyInstance) {
 
   route.get("/b/getInfo", {
     preHandler: [app.authenticate, requireClient(AUTH_CLIENTS.B_ADMIN)],
-    schema: { tags: ["认证"], summary: "获取 B 端当前用户信息" }
+    schema: { tags: ["B端 / 认证"], summary: "获取 B 端当前用户信息" }
   }, async (request) => {
     const current = getCurrentUser(request);
     const [user] = await app.db.select({
@@ -397,7 +396,7 @@ export async function authRoutes(app: FastifyInstance) {
 
   route.get("/b/getRouters", {
     preHandler: [app.authenticate, requireClient(AUTH_CLIENTS.B_ADMIN)],
-    schema: { tags: ["认证"], summary: "获取 B 端动态路由" }
+    schema: { tags: ["B端 / 认证"], summary: "获取 B 端动态路由" }
   }, async (request) => {
     const current = getCurrentUser(request);
     const permissionCodes = await getPermissionCodes(app, current);
@@ -406,7 +405,7 @@ export async function authRoutes(app: FastifyInstance) {
 
   route.get("/client/getInfo", {
     preHandler: [app.authenticate, requireClient(AUTH_CLIENTS.C_APP, AUTH_CLIENTS.PC_AI)],
-    schema: { tags: ["认证"], summary: "获取客户端当前用户信息" }
+    schema: { tags: ["C端 / 认证", "PC AI端 / 认证"], summary: "获取客户端当前用户信息" }
   }, async (request) => {
     const current = getCurrentUser(request);
     const [user] = await app.db.select({
@@ -432,6 +431,6 @@ export async function authRoutes(app: FastifyInstance) {
 
   route.get("/me", {
     preHandler: [app.authenticate],
-    schema: { tags: ["认证"], summary: "获取当前登录用户" }
+    schema: { tags: ["共用 / 认证"], summary: "获取当前登录用户" }
   }, async (request) => ok(request, { user: getCurrentUser(request) }));
 }
