@@ -1,6 +1,7 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { and, eq, gt, isNull } from "drizzle-orm";
+import type { DbExecutor } from "../../db/client.js";
 import { refreshTokens, users } from "../../db/schema.js";
 import { env } from "../../config/env.js";
 import { UnauthorizedError } from "../../shared/errors.js";
@@ -26,14 +27,15 @@ export async function issueTokenPair(
   app: FastifyInstance,
   request: FastifyRequest,
   userId: string,
-  clientType: AuthClient = AUTH_CLIENTS.B_ADMIN
+  clientType: AuthClient = AUTH_CLIENTS.B_ADMIN,
+  db: DbExecutor = app.db
 ) {
   const refreshToken = createOpaqueRefreshToken();
   const refreshTokenHash = hashRefreshToken(refreshToken);
   const accessJti = randomUUID();
   const expiresAt = new Date(Date.now() + env.REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000);
 
-  const [record] = await app.db.insert(refreshTokens).values({
+  const [record] = await db.insert(refreshTokens).values({
     userId,
     clientType,
     accessJti,

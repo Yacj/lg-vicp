@@ -34,6 +34,12 @@
 - 存储：开发环境 MinIO，生产环境优先阿里云 OSS。
 - 部署：Docker Compose + Nginx。
 
+## 接口响应约定
+
+- 成功响应使用 HTTP `200`，结构为 `{ success: true, data, requestId }`。
+- 业务错误统一使用 HTTP `200`，具体错误通过 `error.code` 和 `error.message` 返回，例如 `VALIDATION_ERROR`、`UNAUTHORIZED`、`FORBIDDEN`。
+- 未捕获的服务器异常仍使用 HTTP `500`，返回 `INTERNAL_SERVER_ERROR`，避免监控将真实故障识别为业务成功。
+
 目录职责：
 
 | 目录 | 职责 |

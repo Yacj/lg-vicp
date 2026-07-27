@@ -5,12 +5,13 @@ import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { env } from "../../config/env.js";
+import type { DbExecutor } from "../../db/client.js";
 import { departments, loginLogs, refreshTokens, userDepartments, userIdentities, users } from "../../db/schema.js";
 import { AUTH_CLIENTS, AUDIT_ACTIONS } from "../../shared/constants.js";
 import type { AuthClient } from "../../shared/auth-user.js";
 import { requireClient } from "../../shared/client-guard.js";
 import { getCurrentUser } from "../../shared/current-user.js";
-import { ForbiddenError, NotFoundError, ServiceUnavailableError, TooManyRequestsError, UnauthorizedError } from "../../shared/errors.js";
+import { ForbiddenError, ConflictError, NotFoundError, ServiceUnavailableError, TooManyRequestsError, UnauthorizedError } from "../../shared/errors.js";
 import { ok } from "../../shared/response.js";
 import { writeAuditLog } from "../audit-logs/audit-log.service.js";
 import { hashRefreshToken, issueTokenPair, rotateRefreshToken, signAccessToken } from "./auth.service.js";
@@ -36,10 +37,15 @@ const clientSmsSendBodySchema = z.object({
 const clientSmsLoginBodySchema = clientSmsSendBodySchema.extend({
   code: z.string().trim().regex(/^\d{6}$/, "短信验证码格式不正确")
 });
-const clientPasswordLoginBodySchema = z.object({
+export const clientPasswordLoginBodySchema = z.object({
   clientType: clientTypeSchema,
   phone: z.string().trim().regex(/^\+?[0-9]{6,20}$/, "手机号格式不正确"),
   password: z.string().min(1, "请输入密码")
+});
+export const clientRegisterBodySchema = z.object({
+  clientType: clientTypeSchema,
+  phone: z.string().trim().regex(/^\+?[0-9]{6,20}$/, "手机号格式不正确"),
+  password: z.string().min(5, "密码至少需要 5 个字符").max(128, "密码不能超过 128 个字符")
 });
 const clientWechatLoginBodySchema = z.object({
   clientType: clientTypeSchema,
@@ -106,14 +112,21 @@ async function findPhoneUser(app: FastifyInstance, phone: string) {
   return account;
 }
 
-async function issueLogin(app: FastifyInstance, request: Parameters<typeof getCurrentUser>[0], account: LoginAccount, clientType: AuthClient) {
-  const tokens = await issueTokenPair(app, request, account.userId, clientType);
-  await app.db.insert(loginLogs).values({ userId: account.userId, identifier: account.displayName, clientType, result: "SUCCESS", action: "login", ip: request.ip, userAgent: request.headers["user-agent"], message: "登录成功" });
+async function issueLogin(
+  app: FastifyInstance,
+  request: Parameters<typeof getCurrentUser>[0],
+  account: LoginAccount,
+  clientType: AuthClient,
+  db: DbExecutor = app.db,
+  action: "login" | "register" = "login"
+) {
+  const tokens = await issueTokenPair(app, request, account.userId, clientType, db);
+  await db.insert(loginLogs).values({ userId: account.userId, identifier: account.displayName, clientType, result: "SUCCESS", action, ip: request.ip, userAgent: request.headers["user-agent"], message: action === "register" ? "注册成功" : "登录成功" });
   await writeAuditLog({
-    db: app.db,
+    db,
     request,
     actor: { id: account.userId, role: account.role, channelType: account.channelType, clientType },
-    action: AUDIT_ACTIONS.AUTH_LOGIN,
+    action: action === "register" ? AUDIT_ACTIONS.AUTH_REGISTER : AUDIT_ACTIONS.AUTH_LOGIN,
     targetType: "user",
     targetId: account.userId,
     afterJson: { clientType }
@@ -126,9 +139,13 @@ export async function authRoutes(app: FastifyInstance) {
 
   app.addHook("onError", async (request) => {
     if (!request.url.startsWith("/api/v1/auth/")) return;
-    const action = request.url.includes("captcha") ? "captcha" : request.url.includes("sms") ? "sms" : request.url.includes("refresh") ? "refresh" : request.url.includes("logout") ? "logout" : "login";
+    const action = request.url.includes("captcha") ? "captcha" : request.url.includes("sms") ? "sms" : request.url.includes("refresh") ? "refresh" : request.url.includes("logout") ? "logout" : request.url.includes("register") ? "register" : "login";
     try {
-      await app.db.insert(loginLogs).values({ identifier: typeof request.body === "object" && request.body && "identifier" in request.body ? String((request.body as Record<string, unknown>).identifier) : undefined, result: "FAILED", action, ip: request.ip, userAgent: request.headers["user-agent"], message: "认证请求失败" });
+      const body = request.body as Record<string, unknown> | null | undefined;
+      const identifier = body && ("identifier" in body || "phone" in body)
+        ? String(body.identifier ?? body.phone)
+        : undefined;
+      await app.db.insert(loginLogs).values({ identifier, result: "FAILED", action, ip: request.ip, userAgent: request.headers["user-agent"], message: "认证请求失败" });
     } catch {
       // 日志写入失败不能覆盖原始认证错误。
     }
@@ -218,6 +235,52 @@ export async function authRoutes(app: FastifyInstance) {
     if (!account) throw new NotFoundError("手机号未注册，请联系管理员创建账号");
     if (account.status !== "ACTIVE") throw new UnauthorizedError("账号已被禁用");
     return ok(request, await issueLogin(app, request, account, request.body.clientType));
+  });
+
+  route.post("/client/register/password", {
+    schema: { tags: ["认证"], summary: "客户端手机号密码注册", body: clientRegisterBodySchema }
+  }, async (request) => {
+    const phone = request.body.phone.trim();
+    const ipKey = `auth:register:ip:${request.ip}`;
+    const phoneKey = `auth:register:phone:${phone}`;
+    const ipAttempts = await app.redis.incr(ipKey);
+    const phoneAttempts = await app.redis.incr(phoneKey);
+    if (ipAttempts === 1) await app.redis.expire(ipKey, 300);
+    if (phoneAttempts === 1) await app.redis.expire(phoneKey, 300);
+    if (ipAttempts > 30 || phoneAttempts > 5) {
+      throw new TooManyRequestsError("注册请求过于频繁，请稍后再试");
+    }
+
+    const passwordHash = await argon2.hash(request.body.password, { type: argon2.argon2id });
+    const result = await app.db.transaction(async (tx) => {
+      const [existing] = await tx.select({ id: users.id }).from(users).where(eq(users.phone, phone)).limit(1);
+      if (existing) throw new ConflictError("手机号已注册，请直接登录");
+
+      const [user] = await tx.insert(users).values({
+        phone,
+        displayName: `用户${phone.slice(-4)}`,
+        role: "NORMAL_USER",
+        channelType: null,
+        status: "ACTIVE"
+      }).returning({
+        userId: users.id,
+        displayName: users.displayName,
+        role: users.role,
+        channelType: users.channelType
+      });
+      if (!user) throw new ConflictError("注册失败，请稍后重试");
+
+      await tx.insert(userIdentities).values({
+        userId: user.userId,
+        type: "PHONE",
+        identifier: phone,
+        passwordHash,
+        verifiedAt: new Date()
+      });
+      return issueLogin(app, request, user, request.body.clientType, tx, "register");
+    });
+
+    return ok(request, { message: "注册成功", ...result });
   });
 
   route.post("/client/login/password", {

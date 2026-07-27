@@ -39,6 +39,7 @@
 - API 与 Worker 共用数据库、存储和业务服务，不复制业务规则。
 - 请求输入和 AI 结构化输出使用 Zod 校验。
 - 成功响应保持 `{ success, data, requestId }`；失败响应保持 `{ success, error, requestId }`。
+- 业务错误统一返回 HTTP `200`，通过 `error.code` 和 `error.message` 表达具体错误；未捕获的服务器异常返回 HTTP `500`。
 - 面向用户、管理员和开发人员的提示、Swagger 描述、日志与 AI 提示词使用中文。
 - API 路径、JSON 字段、错误码、数据库字段、枚举和代码标识符保持英文。
 

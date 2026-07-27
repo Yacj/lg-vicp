@@ -11,6 +11,7 @@ alwaysApply: true
 - AI 不替代权限、工程计算、持久化和审计。
 - 面向人的提示、Swagger、日志、AI 提示词和协作文档使用中文。
 - API 路径、字段、错误码、枚举和代码标识保持英文。
+- 业务错误统一返回 HTTP `200`，通过 `error.code` 和 `error.message` 表达错误；未捕获的服务器异常返回 HTTP `500`。
 - 修改长期规则时同步更新 `AGENTS.md`、Codex skill 和 Cursor rules。
 - 客户端隔离固定为 `B_ADMIN`、`C_APP`、`PC_AI`。`/platform` 和 `/workspace` 只允许 `B_ADMIN`，C/AI 端不得访问后台管理接口。
 - B 端接口必须同时执行 JWT、客户端类型和具体按钮权限码校验；项目接口还必须执行项目级权限。

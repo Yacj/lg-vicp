@@ -59,6 +59,7 @@ export const AUDIT_ACTIONS = {
   MENU_UPDATED: "menu.updated",
   MENU_DELETED: "menu.deleted",
   AUTH_LOGIN: "auth.login",
+  AUTH_REGISTER: "auth.register",
   AUTH_LOGOUT: "auth.logout",
   PROJECT_CREATED: "project.created",
   PROJECT_UPDATED: "project.updated",
