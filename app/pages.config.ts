@@ -1,13 +1,5 @@
-/*
- * @Author: weisheng
- * @Date: 2025-06-23 22:23:05
- * @LastEditTime: 2025-06-27 13:04:54
- * @LastEditors: weisheng
- * @Description:
- * @FilePath: /wot-starter/pages.config.ts
- * 记得注释
- */
 import { defineUniPages } from '@uni-helper/vite-plugin-uni-pages'
+import { TABBAR_ITEMS } from './src/constants/navigation'
 
 export default defineUniPages({
   pages: [],
@@ -15,7 +7,7 @@ export default defineUniPages({
     // 导航栏配置
     navigationBarBackgroundColor: '@navBgColor',
     navigationBarTextStyle: '@navTxtStyle',
-    navigationBarTitleText: 'Wot Starter',
+    navigationBarTitleText: '蓝格智配',
 
     // 页面背景配置
     backgroundColor: '@bgColor',
@@ -43,10 +35,6 @@ export default defineUniPages({
     selectedColor: '@tabSelectedColor',
     backgroundColor: '@tabBgColor',
     borderStyle: '@tabBorderStyle',
-    list: [{
-      pagePath: 'pages/index/index',
-    }, {
-      pagePath: 'pages/about/index',
-    }],
+    list: TABBAR_ITEMS.map(({ pagePath }) => ({ pagePath })),
   },
 })

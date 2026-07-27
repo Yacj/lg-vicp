@@ -1,23 +1,39 @@
 import AdapterUniapp from '@alova/adapter-uniapp'
 import { createAlova } from 'alova'
 import vueHook from 'alova/vue'
+import { useAuthStore } from '@/store/auth'
 import mockAdapter from '../mock/mockAdapter'
 import { handleAlovaError, handleAlovaResponse } from './handlers'
 
+const defaultBaseURL = 'http://localhost:3000'
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
 export const alovaInstance = createAlova({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'https://petstore3.swagger.io/api/v3',
+  baseURL: import.meta.env.VITE_API_BASE_URL || defaultBaseURL,
   ...AdapterUniapp({
     mockRequest: mockAdapter,
   }),
   statesHook: vueHook,
   beforeRequest: (method) => {
+    const authStore = useAuthStore()
+    const headers = method.config.headers || {}
+
+    // 登录接口之外的请求统一携带当前会话令牌。
+    if (authStore.accessToken && !method.url.includes('/auth/client/')) {
+      headers.Authorization = `Bearer ${authStore.accessToken}`
+    }
+    method.config.headers = headers
+
     // Add content type for POST/PUT/PATCH requests
     if (['POST', 'PUT', 'PATCH'].includes(method.type)) {
       method.config.headers['Content-Type'] = 'application/json'
     }
 
-    // Add timestamp to prevent caching for GET requests
-    if (method.type === 'GET' && CommonUtil.isObj(method.config.params)) {
+    // GET 参数统一追加时间戳，避免列表请求被平台缓存。
+    if (method.type === 'GET' && isRecord(method.config.params)) {
       method.config.params._t = Date.now()
     }
 

@@ -6,8 +6,14 @@ const route = useRoute()
 const { activeTabbar, getTabbarItemValue, setTabbarItemActive, tabbarList } = useTabbar()
 
 function handleTabbarChange({ value }: { value: string }) {
-  setTabbarItemActive(value)
+  const previous = activeTabbar.value.name
+  if (value === previous) {
+    return
+  }
+
   router.pushTab({ name: value })
+    .then(() => setTabbarItemActive(value))
+    .catch(() => setTabbarItemActive(previous))
 }
 
 onMounted(() => {

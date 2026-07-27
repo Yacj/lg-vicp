@@ -16,10 +16,7 @@ import petMocks from './modules/pet'
 import storeMocks from './modules/store'
 import userMocks from './modules/user'
 
-const canUseGroupLogger =
-  typeof console !== 'undefined'
-  && typeof console.groupCollapsed === 'function'
-  && typeof console.groupEnd === 'function'
+const canUseGroupLogger = typeof console !== 'undefined' && typeof console.groupCollapsed === 'function' && typeof console.groupEnd === 'function'
 
 // 合并所有mock定义
 const allMocks = [
@@ -37,8 +34,8 @@ const mockAdapter = createAlovaMockAdapter(allMocks, {
   // 使用uniapp mock响应适配器
   onMockResponse: uniappMockResponse,
 
-  // 根据环境变量启用/禁用mock
-  enable: true,
+  // 只有显式开启时才启用模板 Mock，默认请求本地或部署后的真实 API。
+  enable: import.meta.env.VITE_ENABLE_API_MOCK === 'true',
 
   // 添加延迟以模拟网络延迟 (200-600ms)
   delay: Math.random() * 400 + 200,

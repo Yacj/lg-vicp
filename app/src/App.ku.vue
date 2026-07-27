@@ -5,11 +5,19 @@ const { themeVars, theme } = useManualTheme()
 
 const buttonConfig: ConfigProviderProps['button'] = {
   size: 'large',
+  variant: 'base',
+  round: true,
+}
+
+const tagConfig: ConfigProviderProps['tag'] = {
+  size: 'small',
+  variant: 'light',
+  round: true,
 }
 </script>
 
 <template>
-  <wd-config-provider :theme-vars="themeVars" :theme="theme" :button="buttonConfig" :custom-class="`page-wraper ${theme}`">
+  <wd-config-provider :theme-vars="themeVars" :theme="theme" :button="buttonConfig" :tag="tagConfig" :custom-class="`page-wraper ${theme}`">
     <ku-root-view />
     <wd-notify />
     <wd-dialog />

@@ -13,7 +13,7 @@ export default <Config>{
        * 1. openapi json file url
        * 2. local file
        */
-      input: 'https://petstore3.swagger.io/api/v3/openapi.json',
+      input: 'http://localhost:3000/docs/json',
       /**
        * input file platform. Currently only swagger is supported.
        * When this parameter is specified, the input field only needs to specify the document address without specifying the openapi file

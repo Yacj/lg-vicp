@@ -5,7 +5,13 @@
 
 type _LocationUrl =
   "/pages/index/index" |
-  "/pages/about/index";
+  "/pages/login" |
+  "/pages/about/index" |
+  "/pages/assistant/index" |
+  "/pages/profile/index" |
+  "/pages/project-create/index" |
+  "/pages/project-detail/index" |
+  "/pages/projects/index";
 
 interface NavigateToOptions {
   url: _LocationUrl;
@@ -13,7 +19,7 @@ interface NavigateToOptions {
 interface RedirectToOptions extends NavigateToOptions {}
 
 interface SwitchTabOptions {
-  url: "/pages/index/index" | "/pages/about/index"
+  url: "/pages/index/index" | "/pages/projects/index" | "/pages/assistant/index" | "/pages/profile/index"
 }
 
 type ReLaunchOptions = NavigateToOptions | SwitchTabOptions;
