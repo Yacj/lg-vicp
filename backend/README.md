@@ -37,8 +37,7 @@
 ## 接口响应约定
 
 - 成功响应使用 HTTP `200`，结构为 `{ success: true, data, requestId }`。
-- 业务错误统一使用 HTTP `200`，具体错误通过 `error.code` 和 `error.message` 返回，例如 `VALIDATION_ERROR`、`UNAUTHORIZED`、`FORBIDDEN`。
-- 未捕获的服务器异常仍使用 HTTP `500`，返回 `INTERNAL_SERVER_ERROR`，避免监控将真实故障识别为业务成功。
+- 业务错误统一使用 HTTP `200`，`error.code` 使用数值型 HTTP 语义码：访问令牌、刷新令牌和当前登录态无效使用 `401`；权限不足使用 `403`；参数错误使用 `400`；其他业务处理失败使用 `500`。未捕获的服务器异常使用 HTTP `500`，返回数值型 `500`。
 
 ## Swagger 文档规范
 

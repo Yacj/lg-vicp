@@ -13,7 +13,7 @@ alwaysApply: true
 - Swagger 路由标签统一使用“客户端边界 / 业务模块”格式；客户端边界仅允许 `B端`、`C端`、`PC AI端`、`共用`、`公共`。
 - 所有新增或修改的 Fastify 路由必须声明 `schema.tags`，新增标签必须登记到 `src/plugins/swagger.ts`；标签只用于文档分类，不替代认证、客户端隔离、权限码或项目级权限。
 - API 路径、字段、错误码、枚举和代码标识保持英文。
-- 业务错误统一返回 HTTP `200`，通过 `error.code` 和 `error.message` 表达错误；未捕获的服务器异常返回 HTTP `500`。
+- 业务错误统一返回 HTTP `200`，`error.code` 使用数值型 HTTP 语义码：访问令牌、刷新令牌和当前登录态无效使用 `401`；权限不足使用 `403`；参数错误使用 `400`；其他业务处理失败使用 `500`；未捕获的服务器异常返回 HTTP `500` 且 `error.code` 为 `500`。
 - 修改长期规则时同步更新 `AGENTS.md`、Codex skill 和 Cursor rules。
 - 客户端隔离固定为 `B_ADMIN`、`C_APP`、`PC_AI`。`/platform` 和 `/workspace` 只允许 `B_ADMIN`，C/AI 端不得访问后台管理接口。
 - B 端接口必须同时执行 JWT、客户端类型和具体按钮权限码校验；项目接口还必须执行项目级权限。

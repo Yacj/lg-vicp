@@ -20,7 +20,7 @@ description: 开发和维护蓝格 VICP Fastify 后端。用于修改 Drizzle �
 - 保持经销商和业务员同属 `CHANNEL_USER`，只用 `channelType` 区分。
 - 不允许 AI 替代权限、工程计算、持久化或审计。
 - 面向人的提示、文档和日志使用中文；程序标识和稳定错误码使用英文。
-- 业务错误统一返回 HTTP `200`，通过 `error.code` 和 `error.message` 表达错误；未捕获的服务器异常返回 HTTP `500`。
+- 业务错误统一返回 HTTP `200`，`error.code` 使用数值型 HTTP 语义码：访问令牌、刷新令牌和当前登录态无效使用 `401`；权限不足使用 `403`；参数错误使用 `400`；其他业务处理失败使用 `500`；未捕获的服务器异常返回 HTTP `500` 且 `error.code` 为 `500`。
 - 修改长期约束时，同步更新 `AGENTS.md`、`README.md` 和 `.cursor/rules`。
 
 交付前执行：

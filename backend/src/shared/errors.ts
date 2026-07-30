@@ -8,6 +8,12 @@ export class AppError extends Error {
   }
 }
 
+export class BusinessError extends AppError {
+  constructor(message = "业务处理失败") {
+    super("BUSINESS_ERROR", message, 500);
+  }
+}
+
 export class ForbiddenError extends AppError {
   constructor(message = "你没有权限执行此操作") {
     super("FORBIDDEN", message, 403);

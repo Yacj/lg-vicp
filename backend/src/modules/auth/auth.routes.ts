@@ -11,7 +11,7 @@ import { AUTH_CLIENTS, AUDIT_ACTIONS } from "../../shared/constants.js";
 import type { AuthClient } from "../../shared/auth-user.js";
 import { requireClient } from "../../shared/client-guard.js";
 import { getCurrentUser } from "../../shared/current-user.js";
-import { ForbiddenError, ConflictError, NotFoundError, ServiceUnavailableError, TooManyRequestsError, UnauthorizedError } from "../../shared/errors.js";
+import { BusinessError, ForbiddenError, ConflictError, NotFoundError, ServiceUnavailableError, TooManyRequestsError, UnauthorizedError } from "../../shared/errors.js";
 import { ok } from "../../shared/response.js";
 import { writeAuditLog } from "../audit-logs/audit-log.service.js";
 import { hashRefreshToken, issueTokenPair, rotateRefreshToken, signAccessToken } from "./auth.service.js";
@@ -188,15 +188,15 @@ export async function authRoutes(app: FastifyInstance) {
       const attempts = await app.redis.incr(verifyKey);
       if (attempts === 1) await app.redis.expire(verifyKey, CAPTCHA_TTL_SECONDS);
       if (attempts >= 5) await app.redis.del(captchaKey, verifyKey);
-      throw new UnauthorizedError("验证码错误或已过期");
+      throw new BusinessError("验证码错误或已过期");
     }
     await app.redis.del(captchaKey, verifyKey);
     const identifier = request.body.identifier.trim();
     const account = await findAccount(app, identifier);
     if (!account?.passwordHash || !(await argon2.verify(account.passwordHash, request.body.password))) {
-      throw new UnauthorizedError("用户名、手机号或密码错误");
+      throw new BusinessError("用户名、手机号或密码错误");
     }
-    if (account.status !== "ACTIVE") throw new UnauthorizedError("账号已被禁用");
+    if (account.status !== "ACTIVE") throw new BusinessError("账号已被禁用");
     if (account.role === "NORMAL_USER") throw new ForbiddenError("普通用户不能登录 B 端管理后台");
     return ok(request, await issueLogin(app, request, account, AUTH_CLIENTS.B_ADMIN));
   });
@@ -213,7 +213,7 @@ export async function authRoutes(app: FastifyInstance) {
     if (phoneAttempts > 5 || ipAttempts > 30) throw new TooManyRequestsError("短信验证码请求过于频繁，请稍后再试");
     const account = await findPhoneUser(app, request.body.phone);
     if (!account) throw new NotFoundError("手机号未注册，请联系管理员创建账号");
-    if (account.status !== "ACTIVE") throw new UnauthorizedError("账号已被禁用");
+    if (account.status !== "ACTIVE") throw new BusinessError("账号已被禁用");
     const code = String(randomInt(100000, 1000000));
     await app.redis.set(`auth:sms:login:${request.body.clientType}:${request.body.phone}`, hashCaptcha(code), "EX", 300);
     try {
@@ -230,10 +230,10 @@ export async function authRoutes(app: FastifyInstance) {
   }, async (request) => {
     const key = `auth:sms:login:${request.body.clientType}:${request.body.phone}`;
     const stored = await app.redis.getdel(key);
-    if (!stored || stored !== hashCaptcha(request.body.code)) throw new UnauthorizedError("短信验证码错误或已过期");
+    if (!stored || stored !== hashCaptcha(request.body.code)) throw new BusinessError("短信验证码错误或已过期");
     const account = await findPhoneUser(app, request.body.phone);
     if (!account) throw new NotFoundError("手机号未注册，请联系管理员创建账号");
-    if (account.status !== "ACTIVE") throw new UnauthorizedError("账号已被禁用");
+    if (account.status !== "ACTIVE") throw new BusinessError("账号已被禁用");
     return ok(request, await issueLogin(app, request, account, request.body.clientType));
   });
 
@@ -288,9 +288,9 @@ export async function authRoutes(app: FastifyInstance) {
   }, async (request) => {
     const account = await findAccount(app, request.body.phone, "PHONE");
     if (!account?.passwordHash || !(await argon2.verify(account.passwordHash, request.body.password))) {
-      throw new UnauthorizedError("手机号或密码错误");
+      throw new BusinessError("手机号或密码错误");
     }
-    if (account.status !== "ACTIVE") throw new UnauthorizedError("账号已被禁用");
+    if (account.status !== "ACTIVE") throw new BusinessError("账号已被禁用");
     return ok(request, await issueLogin(app, request, account, request.body.clientType));
   });
 
@@ -313,10 +313,10 @@ export async function authRoutes(app: FastifyInstance) {
     const account = await findAccount(app, identifier);
 
     if (!account?.passwordHash || !(await argon2.verify(account.passwordHash, request.body.password))) {
-      throw new UnauthorizedError("用户名、手机号或密码错误");
+      throw new BusinessError("用户名、手机号或密码错误");
     }
     if (account.status !== "ACTIVE") {
-      throw new UnauthorizedError("账号已被禁用");
+      throw new BusinessError("账号已被禁用");
     }
 
     const clientType = account.role === "NORMAL_USER" ? AUTH_CLIENTS.C_APP : AUTH_CLIENTS.B_ADMIN;
