@@ -100,7 +100,7 @@ export async function buildApp() {
   await app.register(authRoutes, { prefix: "/api/v1/auth" });
   await app.register(dictRoutes, { prefix: "/api/v1" });
   await app.register(permissionRoutes, { prefix: "/api/v1" });
-  await app.register(projectRoutes, { prefix: "/api/v1/projects" });
+  await app.register(projectRoutes, { prefix: "/api/v1" });
   await app.register(workspaceProjectRoutes, { prefix: "/api/v1/workspace" });
   await app.register(platformProjectRoutes, { prefix: "/api/v1/platform" });
   await app.register(userRoutes, { prefix: "/api/v1/platform" });

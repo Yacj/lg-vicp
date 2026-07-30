@@ -3,14 +3,15 @@ import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { and, count, desc, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { projects } from "../../db/schema.js";
-import { AUDIT_ACTIONS, PROJECT_VISIBILITY, VISIBILITY_POLICY } from "../../shared/constants.js";
+import { AUDIT_ACTIONS, AUTH_CLIENTS, PROJECT_VISIBILITY } from "../../shared/constants.js";
 import { getCurrentUser } from "../../shared/current-user.js";
 import { ForbiddenError, NotFoundError } from "../../shared/errors.js";
 import { getPagination, paginationQuerySchema } from "../../shared/pagination.js";
-import { canCreateProject, canManageProject, canViewProject } from "../../shared/permissions.js";
+import { canCreateProjectFromClient, canManageProject, canViewProject } from "../../shared/permissions.js";
 import { assertPermission } from "../../shared/permission-guard.js";
 import { ok } from "../../shared/response.js";
 import { writeAuditLog } from "../audit-logs/audit-log.service.js";
+import { createProjectInTransaction } from "./project.service.js";
 import {
   createProjectBodySchema,
   projectParamsSchema,
@@ -34,28 +35,17 @@ export async function workspaceProjectRoutes(app: FastifyInstance) {
     schema: { tags: ["B端 / 工作台 / 项目"], summary: "创建项目", body: createProjectBodySchema }
   }, async (request) => {
     const user = getCurrentUser(request);
-    if (!canCreateProject(user)) {
-      throw new ForbiddenError("第一期仅渠道用户和超级管理员可以创建项目");
+    await assertPermission(request, "project.create");
+    if (!canCreateProjectFromClient(user)) {
+      throw new ForbiddenError("当前登录端或账号不能创建项目");
     }
 
-    const project = await app.db.transaction(async (tx) => {
-      const [created] = await tx.insert(projects).values({
-        ...request.body,
-        visibilityPolicy: VISIBILITY_POLICY.LOGGED_IN_USERS,
-        createdById: user.id
-      }).returning();
-      await writeAuditLog({
-        db: tx,
-        request,
-        actor: user,
-        projectId: created!.id,
-        action: AUDIT_ACTIONS.PROJECT_CREATED,
-        targetType: "project",
-        targetId: created!.id,
-        afterJson: created
-      });
-      return created!;
-    });
+    const project = await app.db.transaction((tx) => createProjectInTransaction({
+      db: tx,
+      request,
+      actor: user,
+      project: request.body
+    }));
 
     return ok(request, { message: "项目创建成功", project });
   });
@@ -143,7 +133,28 @@ export async function workspaceProjectRoutes(app: FastifyInstance) {
 export async function projectRoutes(app: FastifyInstance) {
   const route = app.withTypeProvider<ZodTypeProvider>();
 
-  route.get("/public", {
+  route.post("/projects", {
+    preHandler: [app.authenticate],
+    schema: { tags: ["共用 / 项目"], summary: "创建项目", body: createProjectBodySchema }
+  }, async (request) => {
+    const user = getCurrentUser(request);
+    if (user.clientType === AUTH_CLIENTS.B_ADMIN) {
+      await assertPermission(request, "project.create");
+    }
+    if (!canCreateProjectFromClient(user)) {
+      throw new ForbiddenError("当前登录端或账号不能创建项目");
+    }
+
+    const project = await app.db.transaction((tx) => createProjectInTransaction({
+      db: tx,
+      request,
+      actor: user,
+      project: request.body
+    }));
+    return ok(request, { message: "项目创建成功", project });
+  });
+
+  route.get("/projects/public", {
     preHandler: [app.authenticate],
     schema: { tags: ["共用 / 项目"], summary: "获取公开项目", querystring: paginationQuerySchema }
   }, async (request) => {
@@ -156,7 +167,7 @@ export async function projectRoutes(app: FastifyInstance) {
     return ok(request, { items, total: totalRow?.value ?? 0, page: request.query.page, pageSize: request.query.pageSize });
   });
 
-  route.get("/:id", {
+  route.get("/projects/:id", {
     preHandler: [app.authenticate],
     schema: { tags: ["共用 / 项目"], summary: "获取项目详情", params: projectParamsSchema }
   }, async (request) => {
@@ -176,6 +187,27 @@ export async function projectRoutes(app: FastifyInstance) {
 
 export async function platformProjectRoutes(app: FastifyInstance) {
   const route = app.withTypeProvider<ZodTypeProvider>();
+  route.get("/projects/statistics", {
+    preHandler: [app.authenticate],
+    schema: {
+      tags: ["B端 / 平台 / 项目"],
+      summary: "查询项目统计",
+    }
+  }, async (request) => {
+    await assertPermission(request, "system:project:list");
+    const activeWhere = isNull(projects.deletedAt);
+    const [totalRow, publicRow, privateRow] = await Promise.all([
+      app.db.select({ value: count() }).from(projects).where(activeWhere),
+      app.db.select({ value: count() }).from(projects).where(and(activeWhere, eq(projects.visibility, PROJECT_VISIBILITY.PUBLIC))),
+      app.db.select({ value: count() }).from(projects).where(and(activeWhere, eq(projects.visibility, PROJECT_VISIBILITY.PRIVATE)))
+    ]);
+    return ok(request, {
+      total: totalRow[0]?.value ?? 0,
+      public: publicRow[0]?.value ?? 0,
+      private: privateRow[0]?.value ?? 0
+    });
+  });
+
   route.get("/projects", {
     preHandler: [app.authenticate],
     schema: {
