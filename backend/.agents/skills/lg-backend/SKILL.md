@@ -29,6 +29,7 @@ description: 开发和维护蓝格 VICP Fastify 后端。用于修改 Drizzle �
 - 运行 `pnpm lint`、`pnpm test` 和 `pnpm build`。
 - 权限、可见性、密钥处理或队列行为变化时补充针对性测试。
 - 修改认证、RBAC 或后台路由时，必须同时检查客户端隔离和接口级权限：`B_ADMIN` 才能访问 `/platform`、`/workspace`；C/AI 只允许明确开放的业务接口。
+- 客户端访问令牌按客户端类型分别配置：`B_ADMIN` 默认 `24h`，`C_APP` 默认 `30d`，`PC_AI` 默认 `30d`；refresh token 统一默认有效 `30` 天。
 - 新增或修改 Fastify 路由时，必须在 `schema.tags` 中使用“客户端边界 / 业务模块”格式；客户端边界只能是 `B端`、`C端`、`PC AI端`、`共用` 或 `公共`。
 - Swagger 标签只用于文档分类，不能替代 JWT、客户端类型、精确权限码、项目权限或文件/会话归属校验；新增标签必须登记到 `src/plugins/swagger.ts` 的 OpenAPI 标签目录。
 - 权限查询必须排除禁用角色；每个查看、新增、修改、删除、导出和分配接口使用独立权限码。

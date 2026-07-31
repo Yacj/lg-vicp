@@ -10,8 +10,15 @@ Object.assign(process.env, {
 });
 
 const { clientRegisterBodySchema } = await import("./auth.routes.js");
+const { getAccessTokenExpiresIn } = await import("./auth.service.js");
 
 describe("客户端手机号密码注册", () => {
+  it("按客户端返回不同的访问令牌有效期", () => {
+    expect(getAccessTokenExpiresIn("B_ADMIN")).toBe("24h");
+    expect(getAccessTokenExpiresIn("C_APP")).toBe("30d");
+    expect(getAccessTokenExpiresIn("PC_AI")).toBe("30d");
+  });
+
   it("接受 C_APP 和 PC_AI 注册请求", () => {
     expect(clientRegisterBodySchema.parse({
       clientType: "C_APP",

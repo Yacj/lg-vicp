@@ -20,6 +20,7 @@
 ## 客户端与权限
 
 - `/api/v1/platform/*` 和 `/api/v1/workspace/*` 必须使用 `B_ADMIN` 令牌。
+- 客户端访问令牌按客户端类型分别配置：`B_ADMIN` 默认 `24h`，`C_APP` 默认 `30d`，`PC_AI` 默认 `30d`；refresh token 统一默认有效 `30` 天。
 - B 端后台接口必须先通过 JWT 和客户端校验，再通过具体按钮权限码校验；超级管理员直通。
 - 不允许使用任意 `system:*` 作为模块级通行证；查看、新增、修改、删除、导出、分配和测试使用独立权限码。
 - C 端和 PC AI 端不能访问后台管理接口，但可以访问明确开放的 AI、公开项目、本人项目、受控文件、报告和分享业务接口。
@@ -117,6 +118,69 @@ docker compose up --build
 ```
 
 健康检查：`/health/live`、`/health/ready`，`/health` 保留兼容接口。
+
+## 部署到服务器
+
+前置条件：服务器安装 Docker、Docker Compose v2、Git，防火墙/安全组放行 `8080` 端口。
+
+### 首次部署
+
+在服务器空目录执行（`deploy/deploy.sh` 会克隆代码并生成 `.env`）：
+
+```bash
+bash deploy/deploy.sh <git 仓库地址>
+```
+
+脚本首次运行会生成随机 `JWT_SECRET`、`AI_CONFIG_ENCRYPTION_KEY`、`POSTGRES_PASSWORD` 和 MinIO 凭证，随后退出并提示你编辑 `.env`：
+
+- `BOOTSTRAP_ADMIN_PASSWORD`：管理员登录密码，至少 12 位。
+- `CORS_ORIGIN`：前端实际访问地址，例如 `https://admin.example.com`。
+
+修改完成后再次运行同一命令，脚本校验必填配置、构建镜像并启动 `postgres`、`redis`、`minio`、`api`、`worker`、`nginx` 六个服务，最后自动健康检查（最多 120 秒）。访问地址为 `http://<服务器IP>:8080`。
+
+### 一键部署（本地执行）
+
+配置好服务器 SSH 密钥免密登录，并在本地 `backend/.env` 中填写（不会上传到服务器）：
+
+```
+DEPLOY_SSH_HOST=服务器IP或域名
+DEPLOY_SSH_USER=root        # 默认 root
+DEPLOY_SSH_PORT=22          # 默认 22
+DEPLOY_REMOTE_DIR=/opt/lg-vicp   # 服务器上仓库目录，默认 /opt/lg-vicp
+```
+
+然后执行（在 `backend/` 目录）：
+
+```powershell
+pnpm deploy
+```
+
+脚本流程：自动提交并推送 `backend/` 目录的改动（不波及 `app`/`admin-web`），然后 SSH 到服务器执行 `bash deploy/deploy.sh`（git pull + 构建镜像 + 健康检查）。服务器首次部署时需先手动完成 `.env` 初始化（见上节），初始化后即可一键更新。
+
+类型检查与单元测试不在部署链路内：类型错误由服务器镜像构建时的 tsc 编译兜底（构建失败即中止，不会上线坏代码）；回归测试建议由 CI 承担，部署前需要的话可手动执行 `pnpm lint` / `pnpm test`。
+
+### 更新部署
+
+进入服务器上的项目目录后执行：
+
+```bash
+bash deploy/deploy.sh
+```
+
+脚本会 `git pull`（fast-forward）、重新构建并滚动启动服务。`.env` 已被 git 忽略，不会被覆盖；如需修改环境变量直接编辑 `.env` 后重新运行脚本。
+
+### 修改管理员密码
+
+`BOOTSTRAP_ADMIN_PASSWORD` 只在首次 seed 时生效（`src/db/seed.ts` 不会覆盖已存在用户）。修改管理员密码的正确方式：
+
+- 后台 UI（推荐）：登录后进入「用户管理 -> 重置密码」（权限码 `system:user:reset-password`，超级管理员直通，操作会写入审计日志）。
+- 接口：`POST /api/v1/platform/users/:id/reset-password`，请求体 `{ "password": "<至少12位新密码>" }`。B 端登录接口 `POST /api/v1/auth/b/login` 需要图形验证码，命令行调用较繁琐，建议直接使用后台界面。
+
+### 常见运维
+
+- 日志：`docker compose logs -f`（指定服务：`docker compose logs -f api`）。
+- 使用 80 端口：修改 `docker-compose.yml` 中 nginx 的端口映射 `8080:80` 为 `80:80`。
+- 数据备份：数据保存在 Docker 卷 `postgres_data`、`redis_data`、`minio_data`，备份 `docker compose exec postgres pg_dump` 输出和 MinIO 对象即可。
 
 ## 常用命令
 

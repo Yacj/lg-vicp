@@ -16,10 +16,21 @@ export function createOpaqueRefreshToken(): string {
   return randomBytes(48).toString("base64url");
 }
 
+export function getAccessTokenExpiresIn(clientType: AuthClient): string {
+  switch (clientType) {
+    case AUTH_CLIENTS.B_ADMIN:
+      return env.JWT_B_ACCESS_EXPIRES_IN;
+    case AUTH_CLIENTS.C_APP:
+      return env.JWT_C_ACCESS_EXPIRES_IN;
+    case AUTH_CLIENTS.PC_AI:
+      return env.JWT_PC_AI_ACCESS_EXPIRES_IN;
+  }
+}
+
 export function signAccessToken(app: FastifyInstance, userId: string, clientType: AuthClient = AUTH_CLIENTS.B_ADMIN, jti = randomUUID()): string {
   return app.jwt.sign(
     { sub: userId, tokenType: "access", clientType, jti },
-    { expiresIn: env.JWT_ACCESS_EXPIRES_IN }
+    { expiresIn: getAccessTokenExpiresIn(clientType) }
   );
 }
 

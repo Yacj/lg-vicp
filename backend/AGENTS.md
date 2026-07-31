@@ -46,6 +46,7 @@
 路由边界：
 
 - `/api/v1/platform/*`：B 端平台管理，先校验 `B_ADMIN`，再按具体权限码授权；超级管理员全量放行。
+- 客户端访问令牌按客户端类型分别配置：`B_ADMIN` 默认 `24h`，`C_APP` 默认 `30d`，`PC_AI` 默认 `30d`；refresh token 统一默认有效 `30` 天。
 - `/api/v1/workspace/*`：B 端渠道工作台，先校验 `B_ADMIN`，再执行项目级权限。
 - `/api/v1/projects/*`：登录用户共享项目读取。
 - `/api/v1/files/*`：源文件上传、状态和受控下载。
