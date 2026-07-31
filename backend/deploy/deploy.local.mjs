@@ -88,7 +88,8 @@ info(`SSH ${sshUser}@${host}:${sshPort} 执行远程部署...`);
 info(`命令：${remoteCmd}`);
 
 // 实时透传服务器输出，同时收集内容用于检测部署结果
-const ssh = spawn("ssh", ["-T", "-p", sshPort, `${sshUser}@${host}`, remoteCmd], { stdio: ["inherit", "pipe", "inherit"] });
+// accept-new：首次连接自动记录主机指纹，避免部署流程在确认提示处卡住
+const ssh = spawn("ssh", ["-T", "-o", "StrictHostKeyChecking=accept-new", "-p", sshPort, `${sshUser}@${host}`, remoteCmd], { stdio: ["inherit", "pipe", "inherit"] });
 let sshOutput = "";
 ssh.stdout.on("data", (chunk) => {
   process.stdout.write(chunk);
