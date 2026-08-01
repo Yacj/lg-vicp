@@ -1,0 +1,15 @@
+---
+description: 页面结构、组件分层与复用边界
+globs: "src/{views,components,layouts,composables}/**/*.{vue,ts,css}"
+alwaysApply: true
+---
+
+# 页面与组件规则
+
+- 修改布局、登录、工作台和 UI 组件前，必须完整阅读 `skills/vicp-admin-ui/SKILL.md`。
+- 页面遵循标题、操作、筛选、数据内容、分页或状态区的稳定结构，不得各自重造一套页面范式。
+- 通用组合放 `components/ui`，业务组合放 `components/business`，流程状态放 `composables`。
+- 仅在多处复用或存在统一复杂行为时二次封装，避免无职责的薄包装。
+- 页面不得直接处理全局外观持久化，不得直接访问 `localStorage`。
+- 系统管理页面保持专业、清晰、高密度；项目、知识库和 AI 页面体现建筑科技产品感。
+- 运行时界面不得展示内部规划、工程占位或开发进度文案。

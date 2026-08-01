@@ -1,0 +1,14 @@
+---
+description: TDesign 组件、交互与反馈规则
+globs: "src/**/*.{vue,ts}"
+alwaysApply: true
+---
+
+# TDesign UI 规则
+
+- TDesign-first 不等于禁止自定义复杂壳层组件。
+- Tabs、布局导航和命令面板在 TDesign 无法满足要求时，允许使用 Vue + UnoCSS 自定义。
+- Dialog、Popup、Dropdown、Tooltip、Drawer 等基础交互仍优先使用 `tdesign-vue-next`。
+- 对组件、属性、事件、插槽、类型或 DOM 有疑问时，先查询 TDesign MCP；不可用时必须读取当前安装版本的类型声明，禁止猜测。
+- 不引入第二套完整 UI 组件库。
+- 仅在多处复用或存在统一复杂行为时二次封装 TDesign。

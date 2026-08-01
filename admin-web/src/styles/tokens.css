@@ -1,0 +1,98 @@
+:root {
+  --vicp-bg-page: var(--td-bg-color-page);
+  --vicp-bg-surface: var(--td-bg-color-container);
+  --vicp-bg-elevated: var(--td-bg-color-container);
+  --vicp-border: var(--td-component-border);
+  --vicp-text-primary: var(--td-text-color-primary);
+  --vicp-text-secondary: var(--td-text-color-secondary);
+  --vicp-system-brand-color: var(--td-brand-color);
+  --vicp-system-brand-color-light: var(--td-brand-color-light);
+  --vicp-header-height: 60px;
+  --vicp-tabs-height: 42px;
+  --vicp-sidebar-width: 232px;
+  --vicp-sidebar-collapsed-width: 72px;
+  --vicp-dual-primary-width: 88px;
+  --vicp-dual-secondary-width: 216px;
+  --vicp-sidebar-bg-dark: var(--vicp-sidebar-bg-dark-base);
+  --vicp-sidebar-bg-dark-strong: var(--vicp-sidebar-bg-dark-strong-base);
+  --vicp-sidebar-border-dark: var(--vicp-sidebar-border-dark-base);
+  --vicp-content-max-width: 1440px;
+  --vicp-radius: var(--td-radius-medium);
+  --vicp-shadow: var(--td-shadow-1);
+  --vicp-page-gap: var(--td-size-6);
+  --vicp-panel-padding: var(--td-size-6);
+  --vicp-toolbar-height: var(--td-comp-size-l);
+  --vicp-state-min-height: 220px;
+  --vicp-metric-min-height: 144px;
+  --vicp-page-title-size: 28px;
+  --vicp-metric-value-size: 30px;
+  --vicp-login-background: var(--td-bg-color-page);
+  --vicp-brand-panel-background: color-mix(in srgb, var(--vicp-system-brand-color) 88%, var(--td-brand-color-10));
+  --vicp-hero-background:
+    linear-gradient(120deg, color-mix(in srgb, var(--td-brand-color-light) 80%, transparent), transparent 50%),
+    var(--td-bg-color-container);
+}
+
+:root[data-theme='dark'] {
+  --vicp-login-backdrop:
+    radial-gradient(circle at 16% 18%, color-mix(in srgb, var(--vicp-system-brand-color) 25%, transparent), transparent 34%),
+    radial-gradient(circle at 86% 82%, color-mix(in srgb, var(--td-brand-color-4) 22%, transparent), transparent 38%),
+    var(--td-bg-color-page);
+}
+
+:root[data-radius='square'] {
+  --td-radius-small: 0px;
+  --td-radius-default: 0px;
+  --td-radius-medium: 0px;
+  --td-radius-large: 0px;
+  --td-radius-extraLarge: 0px;
+  --vicp-radius: 0px;
+}
+
+:root[data-radius='small'] {
+  --td-radius-small: 2px;
+  --td-radius-default: 3px;
+  --td-radius-medium: 4px;
+  --td-radius-large: 6px;
+  --td-radius-extraLarge: 8px;
+  --vicp-radius: var(--td-radius-medium);
+}
+
+:root[data-radius='medium'] {
+  --td-radius-small: 4px;
+  --td-radius-default: 6px;
+  --td-radius-medium: 10px;
+  --td-radius-large: 14px;
+  --td-radius-extraLarge: 18px;
+  --vicp-radius: var(--td-radius-medium);
+}
+
+:root[data-radius='large'] {
+  --td-radius-small: 6px;
+  --td-radius-default: 8px;
+  --td-radius-medium: 14px;
+  --td-radius-large: 20px;
+  --td-radius-extraLarge: 28px;
+  --vicp-radius: var(--td-radius-medium);
+}
+
+:root[data-density='compact'] {
+  --vicp-header-height: 52px;
+  --vicp-tabs-height: 38px;
+  --vicp-page-gap: var(--td-size-4);
+  --vicp-panel-padding: var(--td-size-4);
+  --vicp-toolbar-height: var(--td-comp-size-m);
+  --vicp-state-min-height: 180px;
+  --vicp-metric-min-height: 124px;
+  --vicp-page-title-size: 24px;
+  --vicp-metric-value-size: 26px;
+  --td-comp-paddingTB-s: var(--td-size-2);
+  --td-comp-paddingTB-m: var(--td-size-4);
+  --td-comp-paddingTB-l: var(--td-size-5);
+}
+
+:root[data-density='comfortable'] {
+  --vicp-header-height: 60px;
+  --vicp-tabs-height: 42px;
+}
+

@@ -1,0 +1,18 @@
+---
+description: 蓝格 VICP 管理后台核心工程边界
+globs: "**/*"
+alwaysApply: true
+---
+
+# 项目核心规则
+
+- 本项目是蓝格 VICP 建筑节能 AI 智配系统管理后台，不是通用后台模板。
+- 仅修改 `admin-web/` 前端；不得修改 `../backend/`。
+- 不编造后端接口，不使用 Mock 冒充正式业务数据；测试仅使用通用协议夹具。
+- 不破坏现有认证、Token 刷新、动态路由和 RBAC。
+- Vue 使用 `<script setup lang="ts">`、Composition API 和 TypeScript 严格模式。
+- 优先纯函数、不可变数据投影、可判别联合类型和清晰的数据流。
+- API 模块只描述网络契约；页面状态放 composable；全局状态放 Pinia。
+- API 结果统一为 `{ success, data/error, requestId }`，业务错误统一为 `BusinessError`。
+- 路由组件必须从本地 `componentMap` 白名单加载。
+- 禁止保留脚手架、内部规划、工程占位、演示项目或开发进度文案。

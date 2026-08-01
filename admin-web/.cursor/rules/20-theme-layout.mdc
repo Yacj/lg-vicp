@@ -1,0 +1,18 @@
+---
+description: 全局主题、外观状态与布局协议
+globs: "src/{layouts,styles,stores,components/ui,components/layout,views/login,views/dashboard,views/home}/**/*.{vue,ts,css}"
+alwaysApply: true
+---
+
+# 主题与布局规则
+
+- 修改布局、主题、登录、工作台、`src/components/ui/**` 或 `src/stores/settings.ts` 前，必须完整阅读 `skills/vicp-admin-ui/SKILL.md`。
+- 外观配置只能由 settings store 作为单一事实来源，页面不得直接读写 `localStorage`。
+- 外观持久化统一使用版本化键 `vicp-admin-appearance-v1`。
+- 根节点通过 `data-theme`、`data-layout`、`data-sidebar-theme`、`data-content-width`、`data-density`、`data-tabs-style`、`data-radius`、`data-system-theme-preset`、`data-component-theme-preset`、`data-sync-theme-colors`、`data-fixed-header` 接收外观投影。
+- 颜色以 TDesign `--td-*` 为唯一来源；`--vicp-*` 只保留布局尺寸、壳层语义或 `--td-*` 兼容别名。
+- 页面不得散落颜色、圆角和阴影值，所有主题值必须来自全局 Design Token。
+- 四种布局需要独立 DOM 与菜单投影逻辑，不得只切换 class 或文案。
+- Tabs、布局导航和命令面板在 TDesign 无法满足复杂壳层要求时，允许使用 Vue + UnoCSS 自定义；基础浮层继续优先使用 TDesign。
+- 对 TDesign API 不确定时必须读取当前安装版本类型声明。
+- 禁止纯黑侧边栏、大面积无意义渐变以及所有卡片统一使用大圆角和重阴影。
