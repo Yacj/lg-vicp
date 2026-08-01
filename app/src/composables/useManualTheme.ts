@@ -84,17 +84,20 @@ export function useManualTheme() {
     store.initTheme()
   }
 
+  let themeChangeHandler: Parameters<typeof uni.onThemeChange>[0] | undefined
+
   // 组件挂载前初始化主题
   onBeforeMount(() => {
     initTheme()
 
     // 监听系统主题变化
     if (typeof uni !== 'undefined' && uni.onThemeChange) {
-      uni.onThemeChange((res) => {
+      themeChangeHandler = (res) => {
         if (store.followSystem) {
           toggleTheme(res.theme as ThemeMode, true)
         }
-      })
+      }
+      uni.onThemeChange(themeChangeHandler)
     }
   })
 
@@ -105,12 +108,9 @@ export function useManualTheme() {
 
   // 组件卸载时清理监听
   onUnmounted(() => {
-    if (typeof uni !== 'undefined' && uni.offThemeChange) {
-      uni.offThemeChange((res) => {
-        if (store.followSystem) {
-          toggleTheme(res.theme as ThemeMode, true)
-        }
-      })
+    if (typeof uni !== 'undefined' && uni.offThemeChange && themeChangeHandler) {
+      uni.offThemeChange(themeChangeHandler)
+      themeChangeHandler = undefined
     }
   })
 

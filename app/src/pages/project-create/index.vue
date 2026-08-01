@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useAuthGate } from '@/composables/useAuthGate'
+import { useBackNavigation } from '@/composables/useBackNavigation'
 
 definePage({
   name: 'project-create',
@@ -11,6 +12,7 @@ definePage({
 })
 
 const router = useRouter()
+const { goBack } = useBackNavigation()
 const { requireLogin } = useAuthGate()
 const { warning, info } = useGlobalToast()
 
@@ -49,7 +51,7 @@ function submit() {
       safe-area-inset-top
       left-arrow
       title="新建项目"
-      @click-left="router.back"
+      @click-left="goBack"
     />
     <view class="app-enter box-border px-4 py-4 pb-6">
       <view class="mb-5">
@@ -94,7 +96,7 @@ function submit() {
       </view>
 
       <view class="app-ai-soft mb-5 flex gap-3 rounded-3 p-3">
-        <wd-icon name="info" size="18px" color="var(--app-ai)" />
+        <wd-icon name="info" size="36rpx" color="var(--app-ai)" />
         <view class="app-muted text-3 leading-5">
           接口接入后，这些信息会保存到当前渠道用户的租户项目空间。
         </view>

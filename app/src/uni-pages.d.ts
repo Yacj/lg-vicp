@@ -8,10 +8,14 @@ type _LocationUrl =
   "/pages/login" |
   "/pages/about/index" |
   "/pages/assistant/index" |
+  "/pages/conversation-history/index" |
+  "/pages/node-favorites/index" |
   "/pages/profile/index" |
+  "/pages/profile-info/index" |
   "/pages/project-create/index" |
   "/pages/project-detail/index" |
-  "/pages/projects/index";
+  "/pages/projects/index" |
+  "/pages/reports/index";
 
 interface NavigateToOptions {
   url: _LocationUrl;

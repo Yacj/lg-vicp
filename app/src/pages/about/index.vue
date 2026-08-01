@@ -57,12 +57,12 @@ function donate() {
         >
           <image
             :src="member.avatar"
-            class="mx-auto mb-2 h-16 w-16 border-2 border-blue-200 rounded-full dark:border-blue-800"
+            class="mx-auto mb-2 h-16 w-16 border-2 border-[var(--app-action-primary-soft)] rounded-full"
           />
           <view class="mb-1 text-3.5 font-bold wot-text-text-main">
             {{ member.name }}
           </view>
-          <view class="mb-2 text-2.5 text-blue-600 dark:text-blue-400">
+          <view class="mb-2 text-2.5 text-[var(--app-action-primary)]">
             {{ member.title }}
           </view>
           <view class="text-2.5 leading-snug wot-text-text-secondary">
@@ -76,7 +76,7 @@ function donate() {
     <demo-block title="关于 uni-helper 团队" transparent>
       <view class="rounded-3 p-5 wot-bg-filled-oppo">
         <text class="mb-3 block text-3.5 leading-relaxed wot-text-text-secondary">
-          <text class="text-blue-600" @click="openUrl('https://uni-helper.cn/')">
+          <text class="text-[var(--app-action-primary)]" @click="openUrl('https://uni-helper.cn/')">
             uni-helper
           </text>
           是一个旨在增强 uni-app 系列产品的开发体验为爱发电的非官方组织。作为靠爱发电的非官方项目，uni-helper 提供了打包工具插件支持、编辑器扩展支持、NPM 包等并尽力维护它们。
@@ -92,14 +92,14 @@ function donate() {
       <wd-cell-group border custom-class="rounded-2! overflow-hidden">
         <wd-cell
           title="关注公众号"
-          title-width="200px"
+          title-width="400rpx"
           label="uni-app教程、组件库讯息一手掌握！"
           is-link
           @click="openWeChat"
         />
         <wd-cell
           title="捐赠"
-          title-width="200px"
+          title-width="400rpx"
           label="每一份捐赠都是对我们莫大的鼓励！"
           is-link
           @click="donate"

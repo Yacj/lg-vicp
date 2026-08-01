@@ -11,9 +11,10 @@ definePage({
 })
 
 const router = useRouter()
+const route = useRoute()
 const { requireLogin } = useAuthGate()
 const keyword = ref('')
-const activeFilter = ref('mine')
+const activeFilter = ref(route.query.scope === 'public' ? 'public' : 'mine')
 
 const filters = [
   { value: 'mine', label: '我的项目' },

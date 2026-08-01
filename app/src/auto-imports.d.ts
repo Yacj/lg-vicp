@@ -178,7 +178,9 @@ declare global {
   const useAsyncState: typeof import('@vueuse/core')['useAsyncState']
   const useAttrs: typeof import('vue')['useAttrs']
   const useAuthGate: typeof import('./composables/useAuthGate')['useAuthGate']
+  const useAuthLogout: typeof import('./composables/useAuthLogout')['useAuthLogout']
   const useAuthStore: typeof import('./store/auth')['useAuthStore']
+  const useBackNavigation: typeof import('./composables/useBackNavigation')['useBackNavigation']
   const useBase64: typeof import('@vueuse/core')['useBase64']
   const useBattery: typeof import('@vueuse/core')['useBattery']
   const useBluetooth: typeof import('@vueuse/core')['useBluetooth']
@@ -210,6 +212,7 @@ declare global {
   const useDisplayMedia: typeof import('@vueuse/core')['useDisplayMedia']
   const useDocumentVisibility: typeof import('@vueuse/core')['useDocumentVisibility']
   const useDraggable: typeof import('@vueuse/core')['useDraggable']
+  const useDrawerData: typeof import('./composables/useDrawerData')['useDrawerData']
   const useDropZone: typeof import('@vueuse/core')['useDropZone']
   const useElementBounding: typeof import('@vueuse/core')['useElementBounding']
   const useElementByPoint: typeof import('@vueuse/core')['useElementByPoint']
@@ -539,7 +542,9 @@ declare module 'vue' {
     readonly useAsyncState: UnwrapRef<typeof import('@vueuse/core')['useAsyncState']>
     readonly useAttrs: UnwrapRef<typeof import('vue')['useAttrs']>
     readonly useAuthGate: UnwrapRef<typeof import('./composables/useAuthGate')['useAuthGate']>
+    readonly useAuthLogout: UnwrapRef<typeof import('./composables/useAuthLogout')['useAuthLogout']>
     readonly useAuthStore: UnwrapRef<typeof import('./store/auth')['useAuthStore']>
+    readonly useBackNavigation: UnwrapRef<typeof import('./composables/useBackNavigation')['useBackNavigation']>
     readonly useBase64: UnwrapRef<typeof import('@vueuse/core')['useBase64']>
     readonly useBattery: UnwrapRef<typeof import('@vueuse/core')['useBattery']>
     readonly useBluetooth: UnwrapRef<typeof import('@vueuse/core')['useBluetooth']>
@@ -571,6 +576,7 @@ declare module 'vue' {
     readonly useDisplayMedia: UnwrapRef<typeof import('@vueuse/core')['useDisplayMedia']>
     readonly useDocumentVisibility: UnwrapRef<typeof import('@vueuse/core')['useDocumentVisibility']>
     readonly useDraggable: UnwrapRef<typeof import('@vueuse/core')['useDraggable']>
+    readonly useDrawerData: UnwrapRef<typeof import('./composables/useDrawerData')['useDrawerData']>
     readonly useDropZone: UnwrapRef<typeof import('@vueuse/core')['useDropZone']>
     readonly useElementBounding: UnwrapRef<typeof import('@vueuse/core')['useElementBounding']>
     readonly useElementByPoint: UnwrapRef<typeof import('@vueuse/core')['useElementByPoint']>

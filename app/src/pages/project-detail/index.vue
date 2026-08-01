@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useAuthGate } from '@/composables/useAuthGate'
+import { useBackNavigation } from '@/composables/useBackNavigation'
 
 definePage({
   name: 'project-detail',
@@ -12,6 +13,7 @@ definePage({
 
 const route = useRoute()
 const router = useRouter()
+const { goBack } = useBackNavigation()
 const { requireLogin } = useAuthGate()
 const { info } = useGlobalToast()
 
@@ -51,7 +53,7 @@ function showComingSoon(label: string) {
       safe-area-inset-top
       left-arrow
       title="项目详情"
-      @click-left="router.back"
+      @click-left="goBack"
     />
     <view class="app-enter box-border px-4 py-4 pb-6">
       <view class="mb-5">
@@ -113,7 +115,7 @@ function showComingSoon(label: string) {
               class="z-1 h-7 w-7 flex items-center justify-center rounded-full text-3 font-bold"
               :class="stage.state === 'done' ? 'bg-[var(--app-energy)] text-white' : stage.state === 'current' ? 'bg-[var(--app-action-primary)] text-white' : 'bg-[var(--app-action-primary-soft)] app-primary-text'"
             >
-              <wd-icon v-if="stage.state === 'done'" name="check" size="14px" color="#fff" />
+              <wd-icon v-if="stage.state === 'done'" name="check" size="28rpx" color="var(--app-text-inverse)" />
               <text v-else>
                 {{ index + 1 }}
               </text>

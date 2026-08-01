@@ -40,3 +40,15 @@ Interpret creatively and make unexpected choices that feel genuinely designed fo
 **IMPORTANT**: Match implementation complexity to the aesthetic vision. Maximalist designs need elaborate code with extensive animations and effects. Minimalist or refined designs need restraint, precision, and careful attention to spacing, typography, and subtle details. Elegance comes from executing the vision well.
 
 Remember: Claude is capable of extraordinary creative work. Don't hold back, show what can truly be created when thinking outside the box and committing fully to a distinctive vision.
+
+## Project Design-System Integration
+
+For this uni-app project, visual creativity must stay within the existing design system:
+
+- Before creating a page from text, screenshot, or image, inspect `.cursor/rules/design-system.mdc`, `src/styles/index.scss`, and `src/store/manualThemeStore.ts`.
+- Map visual intent to semantic roles first: canvas, surface, drawer, card, primary text, body text, secondary text, disabled text, border, action, and status.
+- Reuse existing `--app-*` variables. Do not copy arbitrary colors from a reference image or add page-local hex values just because they appear in the image.
+- If the requested visual role has no suitable token, add a semantic light/dark token to `src/styles/index.scss`, then use that token in the page.
+- All generated visual states must work in `.page-wraper.dark`; do not leave light-only backgrounds, text, borders, shadows, or gradients.
+- Prefer `wd-*` components and `wd-config-provider` theme variables. Use public component props, `themeVars`, `custom-class`, UnoCSS, and a small amount of SCSS instead of rewriting component internals.
+- Preserve the project's 750rpx sizing rule and cross-platform behavior for H5, WeChat Mini Program, and App.

@@ -164,6 +164,43 @@ router.push('/subPages/report/index')
 router.push({ name: 'detail', query: { id: '123' } })
 ```
 
+## 响应式尺寸规范
+
+生成页面时遵循以下尺寸规则：
+
+- 项目以 375 CSS px 为移动端视觉基准，使用 750rpx 设计宽度。
+- 自定义尺寸按 `原 px × 2 = rpx` 换算，例如 `16px → 32rpx`、`20px → 40rpx`、`44px → 88rpx`。
+- 优先使用 UnoCSS 原子类；不要为了换算而手写一整套重复 SCSS。
+- 在组件属性中传递尺寸时同样遵循换算，例如 `size="20px"` 改为 `size="40rpx"`。
+- `1px` 边框和细线保留 px；`vh`、`vw`、百分比、安全区变量和媒体查询断点保持原单位。
+- H5 手机端使用 rpx；如果页面有桌面 H5 场景，为内容区域增加 `max-width` 限制。
+- 不修改 Wot UI 或 `src/uni_modules` 内部样式。
+
+生成完成后检查：
+
+1. 页面自定义 `<style>` 中是否存在未经确认的可缩放 `px`。
+2. 图标、按钮、输入区、卡片间距和字号是否采用同一换算基准。
+3. 固定导航、TabBar 和底部内容是否考虑 `env(safe-area-inset-bottom)`。
+4. 页面是否能在 H5、微信小程序和 App 使用同一套尺寸规则。
+
+## 设计系统与颜色规范
+
+生成页面前必须先检查：
+
+1. `src/styles/index.scss` 中是否已有对应的 `--app-*` 颜色 Token。
+2. `src/store/manualThemeStore.ts` 是否已有对应的 Wot UI 主题变量。
+3. 当前页面属于画布、内容面、抽屉、卡片、文字、边框还是状态层级。
+
+生成规则：
+
+- 浅色页面默认使用 `--app-bg-canvas`、`--app-bg-surface`、`--app-bg-drawer`。
+- 文字默认使用 `--app-text-primary`、`--app-text-secondary`、`--app-text-tertiary`、`--app-text-disabled`。
+- 主色和状态色优先使用现有 `--app-*` Token，禁止直接写新的十六进制颜色。
+- 如果文字、截图或图片需求中出现系统没有的颜色，先在 `src/styles/index.scss` 增加浅色/深色成对的语义 Token，再在页面引用。
+- 页面不能只适配浅色；新增背景、文字、边框、阴影和状态色都必须检查 `.page-wraper.dark`。
+- 优先使用 `wd-*` 组件、`wd-config-provider` 主题变量和公开属性，不重写 Wot UI 内部样式。
+- 图片只用于品牌、内容或装饰；图片中的颜色不能替代页面语义 Token。
+
 ## 注意事项
 
 - 页面文件名固定为 `index.vue`。

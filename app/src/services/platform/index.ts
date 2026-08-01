@@ -32,6 +32,15 @@ export function getPlatformInfo(): PlatformInfo {
   }
 }
 
+export function getAppVersion() {
+  try {
+    return getPlatformInfo().version || import.meta.env.VITE_APP_VERSION || '1.0.0'
+  }
+  catch {
+    return import.meta.env.VITE_APP_VERSION || '1.0.0'
+  }
+}
+
 export function isWechatMiniProgram() {
   return getPlatformInfo().platform === 'mp-weixin'
 }
@@ -70,8 +79,8 @@ function consumeSseBuffer(buffer: string, onEvent: (event: AiStreamEvent) => voi
   const remainder = frames.pop() || ''
 
   for (const frame of frames) {
-    const event = frame.match(/^event:\s*(.+)$/m)?.[1] || 'message'
-    const data = frame.match(/^data:\s*(.+)$/m)?.[1]
+    const event = frame.match(/^event:([^\r\n]*)$/m)?.[1]?.trim() || 'message'
+    const data = frame.match(/^data:([^\r\n]*)$/m)?.[1]?.trim()
     if (data) {
       onEvent({ event, data: parseEventData(data) })
     }
@@ -83,8 +92,8 @@ function consumeSseBuffer(buffer: string, onEvent: (event: AiStreamEvent) => voi
 export function createAiStreamRequest(options: AiStreamOptions) {
   const url = `${getApiOrigin()}/api/v1/ai/conversations/${encodeURIComponent(options.conversationId)}/messages`
   const headers = {
-    Accept: 'text/event-stream',
-    Authorization: `Bearer ${options.accessToken}`,
+    'Accept': 'text/event-stream',
+    'Authorization': `Bearer ${options.accessToken}`,
     'Content-Type': 'application/json',
   }
   let abort: (() => void) | undefined

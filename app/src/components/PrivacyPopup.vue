@@ -136,7 +136,7 @@ export default {
     width: 100%;
     height: 128rpx;
     line-height: 128rpx;
-    color: rgba(0, 0, 0, 0.85);
+    color: var(--app-text-primary);
     font-size: 30rpx;
     padding: 0 12rpx;
     box-sizing: border-box;
@@ -150,11 +150,11 @@ export default {
 
     font-size: 28rpx;
     line-height: 1.8;
-    color: #3e3e3e;
+    color: var(--app-text-secondary);
     text-align: left;
     font-weight: 550;
     &-protocol {
-      color: #4d80f0;
+      color: var(--app-action-primary);
     }
   }
 

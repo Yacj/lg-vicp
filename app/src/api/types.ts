@@ -103,23 +103,6 @@ export interface ProjectRecord {
   updatedAt: string
 }
 
-export interface CreateProjectBody {
-  name: string
-  description?: string
-  region?: string
-  buildingType?: string
-  visibility?: ProjectVisibility
-  metadata?: Record<string, unknown>
-}
-
-export interface UpdateProjectBody {
-  name?: string
-  description?: string
-  region?: string
-  buildingType?: string
-  metadata?: Record<string, unknown>
-}
-
 export interface ConversationRecord {
   id: string
   userId: string

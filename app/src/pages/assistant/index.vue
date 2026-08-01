@@ -47,7 +47,7 @@ function sendMessage() {
     <wd-navbar custom-class="app-navbar app-navbar--brand" safe-area-inset-top title="筑小格">
       <template #right>
         <view class="app-navbar__action">
-          <wd-icon name="more" size="18px" color="#fff" />
+          <wd-icon name="more" size="36rpx" color="var(--app-text-inverse)" />
         </view>
       </template>
     </wd-navbar>
@@ -55,7 +55,7 @@ function sendMessage() {
     <view class="app-enter min-h-0 flex flex-1 flex-col px-4 py-4 pb-6">
       <view class="app-ai-soft mb-4 flex items-center gap-3 rounded-3 p-3">
         <view class="h-9 w-9 flex shrink-0 items-center justify-center rounded-full bg-[var(--app-ai)]">
-          <wd-icon name="chat" size="20px" color="#fff" />
+          <wd-icon name="chat" size="40rpx" color="var(--app-text-inverse)" />
         </view>
         <view class="min-w-0">
           <view class="app-ai-text text-3.5 font-bold">
@@ -76,8 +76,8 @@ function sendMessage() {
             >
               <wd-icon
                 :name="message.role === 'user' ? 'user' : 'chat'"
-                size="16px"
-                :color="message.role === 'user' ? '#fff' : 'var(--app-ai)'"
+                size="32rpx"
+                :color="message.role === 'user' ? 'var(--app-text-inverse)' : 'var(--app-ai)'"
               />
             </view>
             <view

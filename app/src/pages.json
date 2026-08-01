@@ -20,8 +20,7 @@
       "name": "home",
       "layout": "tabbar",
       "style": {
-        "navigationStyle": "custom",
-        "navigationBarTitleText": "首页"
+        "navigationStyle": "custom"
       }
     },
     {
@@ -30,8 +29,7 @@
       "name": "login",
       "layout": "default",
       "style": {
-        "navigationStyle": "custom",
-        "navigationBarTitleText": "登录"
+        "navigationStyle": "custom"
       }
     },
     {
@@ -53,6 +51,7 @@
         "navigationBarTitleText": "筑小格"
       }
     },
+    // #ifdef APP || MP-WEIXIN
     {
       "path": "pages/profile/index",
       "type": "page",
@@ -63,6 +62,18 @@
         "navigationBarTitleText": "我的"
       }
     },
+    // #endif
+    // #ifdef H5
+    {
+      "path": "pages/profile/index",
+      "type": "page",
+      "name": "profile",
+      "layout": "tabbar",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    // #endif
     {
       "path": "pages/project-create/index",
       "type": "page",
@@ -92,7 +103,60 @@
         "navigationStyle": "custom",
         "navigationBarTitleText": "项目"
       }
+    },
+    {
+      "path": "pages/conversation-history/index",
+      "type": "page",
+      "name": "conversation-history",
+      "layout": "default",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "AI 对话记录"
+      }
+    },
+    {
+      "path": "pages/node-favorites/index",
+      "type": "page",
+      "name": "node-favorites",
+      "layout": "default",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "收藏的节点图"
+      }
+    },
+    {
+      "path": "pages/profile-info/index",
+      "type": "page",
+      "name": "profile-info",
+      "layout": "default",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "个人信息"
+      }
+    },
+    // #ifdef APP || MP-WEIXIN
+    {
+      "path": "pages/reports/index",
+      "type": "page",
+      "name": "reports",
+      "layout": "default",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "我的报告"
+      }
+    },
+    // #endif
+    // #ifdef H5
+    {
+      "path": "pages/reports/index",
+      "type": "page",
+      "name": "reports",
+      "layout": "default",
+      "style": {
+        "navigationStyle": "custom"
+      }
     }
+    // #endif
   ],
   "subPackages": [],
   "tabBar": {

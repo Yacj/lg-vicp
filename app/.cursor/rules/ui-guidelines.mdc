@@ -15,6 +15,17 @@ alwaysApply: false
 ### UnoCSS 约定
 - 使用工具类: `flex`, `items-center`, `text-primary`, `m-4`.
 
+## 📐 响应式尺寸规范
+
+- 项目采用 750rpx 设计宽度，以 375 CSS px 作为移动端视觉基准。
+- 项目自有业务尺寸按 `原 px × 2 = rpx` 换算，例如 `16px → 32rpx`、`44px → 88rpx`。
+- 新增页面优先使用 UnoCSS；手写 SCSS、CSS 和组件尺寸参数使用 rpx。
+- `1px` 边框、细线保留 px，避免在不同平台上显示过粗。
+- `vh`、`vw`、百分比、`env(safe-area-inset-*)` 和媒体查询断点保持原单位。
+- 不修改 Wot UI 和 `src/uni_modules` 内部样式；第三方渲染逻辑按其平台实现处理。
+- H5 手机端使用 rpx 响应式布局，桌面端通过 `max-width` 限制内容宽度，避免页面无限放大。
+- 不把规范理解为“禁止出现 px”，应区分可缩放业务尺寸与固定细线、平台相关单位。
+
 ## 🧩 组件库
 - **核心库**: `@wot-ui/ui`（组件前缀为 `wd-`）。
 - **文档**: [Wot UI](https://wot-ui.cn).

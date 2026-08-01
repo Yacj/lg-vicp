@@ -1,0 +1,47 @@
+---
+description: 全站设计系统、颜色语义、深色模式和 Wot UI 搭配规范
+globs: src/pages/**/*.vue, src/components/**/*.vue, src/styles/**/*.scss, src/store/**/*.ts, src/composables/**/*.ts, src/App.ku.vue
+alwaysApply: false
+---
+
+# 全站设计系统
+
+## 颜色事实来源
+
+- 运行时 Token 以 `src/styles/index.scss` 为准。
+- Wot UI 主题变量以 `src/store/manualThemeStore.ts` 和 `src/App.ku.vue` 为准。
+- 生成或修改页面前，先查找已有 `--app-*` 语义变量，不直接猜颜色。
+
+## 浅色语义色
+
+- 画布：`--app-bg-canvas` = `#F5F6FA`
+- 页面/卡片面：`--app-bg-surface` = `#FFFFFF`
+- 抽屉/侧栏面：`--app-bg-drawer` = `#F7F8FA`
+- 主标题：`--app-text-primary` = `#1F1F1F`
+- 正文：`--app-text-secondary` = `#333333`
+- 次级文字：`--app-text-tertiary` = `#8C8C8C`
+- 禁用文字：`--app-text-disabled` = `#C9CDD4`
+- 默认边框：`--app-border-default` = `#E9EBF0`
+- 主色优先使用 `--app-action-primary`，状态色使用对应的 `--app-*` 语义变量。
+
+## 深色模式
+
+- 深色通过 `.page-wraper.dark` 和 `wd-config-provider` 主题链路生效，默认跟随系统，用户手动设置优先。
+- 画布 `#101114`、页面面 `#181A1F`、抽屉面 `#14161A`、卡片面 `#1D2026`。
+- 主标题 `#F5F6F8`、正文 `#D9DCE3`、次级文字 `#969BA6`、禁用文字 `#5F6570`、边框 `#2A2E36`。
+- 不用黑白反转，也不能只修改页面背景而保留浅色文字、边框或状态背景。
+
+## 页面生成与改造规则
+
+1. 先按“画布 → 内容面 → 抽屉/卡片 → 文字 → 边框 → 状态”的层级选择已有 Token。
+2. 需求来自文字、截图或图片时，只提取视觉角色和层级，不逐个复制图片颜色。
+3. 找不到合适语义色时，在 `src/styles/index.scss` 增加成对的浅色/深色 `--app-*` Token，再在页面中引用；禁止页面内硬编码新颜色。
+4. 页面局部且确实不可复用的装饰色才允许局部变量，并必须同时考虑深色模式。
+5. 颜色、背景、边框、阴影和渐变优先引用 Token；禁止直接使用新的 `#fff`、`#000` 或散落十六进制颜色。
+
+## Wot UI 搭配
+
+- 优先使用 `wd-*` 组件和 `wd-config-provider`，不要重写组件内部样式。
+- 组件视觉优先通过 `themeVars`、语义 Token、`custom-class` 和公开属性调整。
+- 页面结构使用 UnoCSS，复杂且复用的视觉规则才写 SCSS。
+- 新增页面必须同时检查 H5、微信小程序、App，以及浅色、深色两套表现。

@@ -5,6 +5,19 @@ import { useAuthStore } from '@/store/auth'
 import mockAdapter from '../mock/mockAdapter'
 import { handleAlovaError, handleAlovaResponse } from './handlers'
 
+const publicAuthPaths = [
+  '/auth/client/sms/send',
+  '/auth/client/login/password',
+  '/auth/client/login/sms',
+  '/auth/client/login/wechat',
+  '/auth/refresh',
+  '/auth/dev-token',
+]
+
+function isPublicAuthRequest(url: string) {
+  return publicAuthPaths.some(path => url.includes(path))
+}
+
 const defaultBaseURL = 'http://localhost:3000'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -21,8 +34,8 @@ export const alovaInstance = createAlova({
     const authStore = useAuthStore()
     const headers = method.config.headers || {}
 
-    // 登录接口之外的请求统一携带当前会话令牌。
-    if (authStore.accessToken && !method.url.includes('/auth/client/')) {
+    // 登录和刷新接口不携带旧会话，其余请求统一携带当前会话令牌。
+    if (authStore.accessToken && !isPublicAuthRequest(method.url)) {
       headers.Authorization = `Bearer ${authStore.accessToken}`
     }
     method.config.headers = headers

@@ -6,151 +6,207 @@ definePage({
   layout: 'tabbar',
   style: {
     navigationStyle: 'custom',
-    navigationBarTitleText: '我的',
   },
 })
 
+type ProfileEntry = 'conversations' | 'projects' | 'reports' | 'favorites' | 'agreement' | 'privacy' | 'ai-guide' | 'about'
+
+interface ProfileMenuItem {
+  key: ProfileEntry
+  label: string
+  description?: string
+  icon: string
+  route?: string
+  requiresAuth?: boolean
+}
+
+const router = useRouter()
 const { theme, toggleTheme } = useManualTheme()
 const { requireLogin } = useAuthGate()
-const { info } = useGlobalToast()
+const globalDialog = useGlobalDialog()
 const authStore = useAuthStore()
-
+const { goBack } = useBackNavigation()
 const isAuthenticated = computed(() => authStore.isAuthenticated)
-const profileName = computed(() => authStore.user?.displayName || '暂无登录')
-const profileDescription = computed(() => isAuthenticated.value ? '业务员 · 当前租户工作空间' : '点击登录后管理项目和个人归档')
-const profileStats = computed(() => isAuthenticated.value
-  ? { projects: 3, reports: 2, files: 12 }
-  : { projects: 0, reports: 0, files: 0 })
-
+const user = computed(() => authStore.user)
+const profileName = computed(() => user.value?.displayName || '暂无登录')
+const avatarText = computed(() => profileName.value.slice(0, 1))
+const profileDescription = computed(() => isAuthenticated.value ? maskPhone(user.value?.phone) || '已登录工作空间' : '点击登录后管理项目和个人归档')
 const isDark = computed({
   get: () => theme.value === 'dark',
   set: () => toggleTheme(),
 })
 
-const archiveItems = [
-  { label: '我的文件', description: '图纸、资料和项目附件', icon: 'file', value: 'files' },
-  { label: '报告归档', description: '设计说明和节能论证报告', icon: 'document', value: 'reports' },
-  { label: '节点图库', description: 'VICP 标准构造节点', icon: 'picture', value: 'nodes' },
+const workspaceItems: ProfileMenuItem[] = [
+  { key: 'conversations', label: 'AI 对话记录', icon: 'chat', route: 'conversation-history', requiresAuth: true },
+  { key: 'projects', label: '我的项目', icon: 'folder', route: 'projects', requiresAuth: true },
+  { key: 'reports', label: '我的报告', icon: 'document', route: 'reports', requiresAuth: true },
 ]
 
-const settingItems = [
-  { label: '隐私与协议', description: '隐私政策、用户协议和 AI 说明', icon: 'lock', value: 'privacy' },
-  { label: '关于蓝格智配', description: '当前版本 0.1.0 · 基础骨架', icon: 'info', value: 'about' },
+const collectionItems: ProfileMenuItem[] = [
+  { key: 'favorites', label: '收藏节点图', icon: 'star', route: 'node-favorites', requiresAuth: true },
 ]
 
-function openProfile() {
-  requireLogin({ showToast: false })
+const serviceItems: ProfileMenuItem[] = [
+  { key: 'agreement', label: '用户协议', icon: 'file', requiresAuth: false },
+  { key: 'privacy', label: '隐私政策', icon: 'lock', requiresAuth: false },
+  { key: 'ai-guide', label: 'AI 使用说明', icon: 'info', requiresAuth: false },
+  { key: 'about', label: '关于蓝格智配', description: '当前版本 0.1.0', icon: 'info', route: 'about', requiresAuth: false },
+]
+
+function maskPhone(phone?: string | null) {
+  if (!phone) {
+    return ''
+  }
+  if (phone.length < 7) {
+    return phone
+  }
+  return `${phone.slice(0, 3)} **** ${phone.slice(-4)}`
 }
 
-function handleArchiveItemClick(label: string) {
-  if (!requireLogin()) {
+function openProfileInfo() {
+  if (!requireLogin({ showToast: false })) {
+    return
+  }
+  router.push({ name: 'profile-info' })
+}
+
+function openEntry(item: ProfileMenuItem) {
+  if (item.requiresAuth && !requireLogin({ showToast: false })) {
     return
   }
 
-  info(`${label}接口待接入`)
+  if (item.route) {
+    if (item.route === 'projects') {
+      router.pushTab({ name: item.route })
+      return
+    }
+    router.push({ name: item.route })
+    return
+  }
+
+  openLegalContent(item.key)
 }
 
-function handleItemClick(label: string) {
-  info(`${label}接口待接入`)
-}
+function openLegalContent(key: ProfileEntry) {
+  const content: Record<'agreement' | 'privacy' | 'ai-guide', { title: string, message: string }> = {
+    'agreement': {
+      title: '用户协议',
+      message: '用户协议详情将在协议内容接入后展示。',
+    },
+    'privacy': {
+      title: '隐私政策',
+      message: '隐私政策详情将在协议内容接入后展示。',
+    },
+    'ai-guide': {
+      title: 'AI 使用说明',
+      message: 'AI 生成内容仅供项目分析参考，请结合实际项目资料和现行规范进行复核。',
+    },
+  }
+  const item = content[key as keyof typeof content]
+  if (!item) {
+    return
+  }
 
-function logout() {
-  authStore.clearSession()
-  info('已退出登录')
+  globalDialog.alert({
+    title: item.title,
+    msg: item.message,
+    confirmButtonText: '知道了',
+  })
 }
 </script>
 
 <template>
   <view class="app-page app-page--immersive">
-    <wd-navbar custom-class="app-navbar" safe-area-inset-top title="我的" />
+    <wd-navbar
+      custom-class="!bg-[var(--app-bg-canvas)]"
+      title="我的"
+      safe-area-inset-top 
+      left-arrow 
+      placeholder 
+      fixed
+      @click-left="goBack"
+    />
     <view class="app-enter box-border px-4 py-4 pb-6">
-      <view class="app-panel mb-5 overflow-hidden p-4" @click="openProfile">
+      <view class="app-panel mb-5 overflow-hidden p-4" @click="openProfileInfo">
         <view class="flex items-center gap-3">
-          <view class="h-14 w-14 flex items-center justify-center rounded-2xl" :class="isAuthenticated ? 'bg-[var(--app-action-primary)]' : 'bg-[var(--app-action-primary-soft)]'">
-            <wd-icon name="user" size="28px" :color="isAuthenticated ? '#fff' : 'var(--app-action-primary)'" />
-          </view>
+          <wd-avatar
+            v-if="isAuthenticated"
+            :text="avatarText"
+            size="82rpx"
+            shape="round"
+            bg-color="var(--app-action-primary)"
+            color="var(--app-text-inverse)"
+          />
+          <wd-avatar
+            v-else
+            icon="user"
+            size="112rpx"
+            shape="round"
+            bg-color="var(--app-action-primary-soft)"
+            color="var(--app-action-primary)"
+          />
           <view class="min-w-0 flex-1">
-            <view class="text-5 font-bold">
+            <view class="truncate text-38rpx font-bold">
               {{ profileName }}
             </view>
-            <view class="app-muted mt-1 text-3">
+            <view class="app-muted mt-1 truncate text-3">
               {{ profileDescription }}
             </view>
           </view>
-          <wd-tag v-if="isAuthenticated" type="success" plain>
-            已登录
-          </wd-tag>
-          <wd-tag v-else type="warning" plain>
-            点击登录
-          </wd-tag>
-        </view>
-        <view class="app-divider my-4" />
-        <view class="grid grid-cols-3 gap-3 text-center">
-          <view>
-            <view class="text-5 font-bold">
-              {{ profileStats.projects }}
-            </view>
-            <view class="app-tertiary mt-1 text-2.5">
-              我的项目
-            </view>
-          </view>
-          <view>
-            <view class="text-5 font-bold">
-              {{ profileStats.reports }}
-            </view>
-            <view class="app-tertiary mt-1 text-2.5">
-              已生成报告
-            </view>
-          </view>
-          <view>
-            <view class="text-5 font-bold">
-              {{ profileStats.files }}
-            </view>
-            <view class="app-tertiary mt-1 text-2.5">
-              我的文件
-            </view>
-          </view>
+          <wd-icon name="arrow-right" size="40rpx" color="var(--app-text-tertiary)" />
         </view>
       </view>
 
       <view class="app-section-title mb-3">
-        个人归档
+        工作空间
       </view>
-      <view class="app-panel-flat mb-5 overflow-hidden">
+      <wd-cell-group insert custom-class="mb-5! overflow-hidden !mx-0">
         <wd-cell
-          v-for="item in archiveItems"
-          :key="item.value"
+          v-for="item in workspaceItems"
+          :key="item.key"
           :title="item.label"
           :label="item.description"
-          :icon="item.icon"
+          :prefix-icon="item.icon"
           is-link
-          @click="handleArchiveItemClick(item.label)"
+          :border="true"
+          @click="openEntry(item)"
         />
-      </view>
+      </wd-cell-group>
 
       <view class="app-section-title mb-3">
-        偏好设置
+        我的收藏
       </view>
-      <view class="app-panel-flat mb-5 overflow-hidden">
-        <wd-cell title="深色模式" label="适配夜间查看和低光环境" icon="moon">
-          <template #value>
-            <wd-switch v-model="isDark" size="20px" />
+      <wd-cell-group insert custom-class="mb-5! overflow-hidden !mx-0">
+        <wd-cell
+          v-for="item in collectionItems"
+          :key="item.key"
+          :title="item.label"
+          :label="item.description"
+          :prefix-icon="item.icon"
+          is-link
+          @click="openEntry(item)"
+        />
+      </wd-cell-group>
+
+      <view class="app-section-title mb-3">
+        设置与服务
+      </view>
+      <wd-cell-group insert custom-class="mb-5! overflow-hidden !mx-0">
+        <wd-cell title="深色模式" prefix-icon="moon">
+          <template #default>
+            <wd-switch v-model="isDark" size="40rpx" />
           </template>
         </wd-cell>
         <wd-cell
-          v-for="item in settingItems"
-          :key="item.value"
+          v-for="item in serviceItems"
+          :key="item.key"
           :title="item.label"
           :label="item.description"
-          :icon="item.icon"
+          :prefix-icon="item.icon"
           is-link
-          @click="handleItemClick(item.label)"
+          @click="openEntry(item)"
         />
-      </view>
-
-      <wd-button v-if="isAuthenticated" plain block type="error" @click="logout">
-        退出登录
-      </wd-button>
+      </wd-cell-group>
 
       <view class="mt-5 text-center">
         <view class="app-tertiary text-2.5">
