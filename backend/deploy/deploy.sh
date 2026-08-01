@@ -9,6 +9,9 @@
 # 更新部署：在已克隆的仓库目录中运行
 #   bash deploy/deploy.sh
 #
+# 支持 monorepo：仓库根含 backend/ 子目录时，从 backend/ 或仓库根运行均可；
+# 脚本自动向上查找 git 仓库根执行 pull，并在 backend/ 下执行 docker compose。
+#
 # 脚本会：检查依赖 -> 获取/更新代码 -> 初始化 .env（仅首次）
 #   -> 校验必填配置 -> docker compose 构建启动 -> 健康检查
 # ============================================================
@@ -16,16 +19,15 @@ set -euo pipefail
 
 REPO_URL="${1:-}"
 
-# 定位项目根目录（支持从 deploy/ 目录内或仓库根目录运行）
+# 定位应用根目录（含 docker-compose.yml 的目录，支持从 deploy/ 目录内或仓库根目录运行）
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [[ -f "$SCRIPT_DIR/docker-compose.yml" ]]; then
-  ROOT="$SCRIPT_DIR"
+  APP_ROOT="$SCRIPT_DIR"
 elif [[ -f "$SCRIPT_DIR/../docker-compose.yml" ]]; then
-  ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+  APP_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 else
-  ROOT="$SCRIPT_DIR"
+  APP_ROOT="$(pwd)"
 fi
-cd "$ROOT"
 
 info()  { printf "\033[1;32m[部署]\033[0m %s\n" "$*"; }
 warn()  { printf "\033[1;33m[警告]\033[0m %s\n" "$*"; }
@@ -38,15 +40,25 @@ done
 docker compose version >/dev/null 2>&1 || fail "docker compose 插件不可用，请安装 Docker Compose v2"
 
 # ---------- 2. 获取或更新代码 ----------
-if [[ ! -d .git ]]; then
+# git 仓库根可能高于应用根（monorepo：backend 是仓库子目录），向上查找
+GIT_ROOT="$(git -C "$APP_ROOT" rev-parse --show-toplevel 2>/dev/null || true)"
+
+if [[ -z "$GIT_ROOT" ]]; then
   [[ -n "$REPO_URL" ]] || fail "当前目录不是 git 仓库，请提供仓库地址：bash deploy/deploy.sh <仓库地址>"
-  [[ -z "$(ls -A)" ]] || fail "当前目录不为空，无法克隆代码，请换到空目录执行"
+  [[ -z "$(ls -A "$APP_ROOT")" ]] || fail "目录 $APP_ROOT 不为空，无法克隆代码，请换到空目录执行"
   info "首次部署，克隆代码..."
-  git clone "$REPO_URL" .
+  git clone "$REPO_URL" "$APP_ROOT"
+  GIT_ROOT="$(git -C "$APP_ROOT" rev-parse --show-toplevel)"
+  # monorepo 仓库：clone 后应用根在 backend 子目录
+  if [[ ! -f "$APP_ROOT/docker-compose.yml" && -f "$GIT_ROOT/backend/docker-compose.yml" ]]; then
+    APP_ROOT="$GIT_ROOT/backend"
+  fi
 else
   info "更新代码（git pull --ff-only）..."
-  git pull --ff-only 2>/dev/null || warn "代码更新失败，继续使用本地代码部署（请确认本地没有冲突改动）"
+  git -C "$GIT_ROOT" pull --ff-only 2>/dev/null || warn "代码更新失败，继续使用本地代码部署（请确认本地没有冲突改动）"
 fi
+
+cd "$APP_ROOT"
 
 # ---------- 3. .env 初始化（仅首次） ----------
 if [[ ! -f .env ]]; then
