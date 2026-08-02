@@ -34,14 +34,23 @@ SELECT
 FROM "ai_scene_bindings" b;
 --> statement-breakpoint
 -- 数据迁移：prompt_templates → prompts + prompt_versions（每个场景 1 条 prompt + 1 个 PUBLISHED v1）
+-- 注意：旧 seed 曾产生重复 scene 的模板行（如 project_design 出现两次），此处按 scene 去重，保留 id 最小的一行
 INSERT INTO "prompts" ("scene_id", "name", "code", "description")
 SELECT s."id", t."name", s."code", NULL
-FROM "prompt_templates" t
+FROM (
+  SELECT DISTINCT ON (t."scene") t."scene", t."name"
+  FROM "prompt_templates" t
+  ORDER BY t."scene", t."id"
+) t
 JOIN "ai_scenes" s ON s."code" = t."scene";
 --> statement-breakpoint
 INSERT INTO "prompt_versions" ("prompt_id", "version", "content", "status", "change_note", "published_at", "created_at")
 SELECT p."id", 1, t."system_prompt", 'PUBLISHED', '初始版本（由 prompt_templates 迁移）', t."created_at", t."created_at"
-FROM "prompt_templates" t
+FROM (
+  SELECT DISTINCT ON (t."scene") t."scene", t."system_prompt", t."created_at"
+  FROM "prompt_templates" t
+  ORDER BY t."scene", t."id"
+) t
 JOIN "ai_scenes" s ON s."code" = t."scene"
 JOIN "prompts" p ON p."scene_id" = s."id";
 --> statement-breakpoint
