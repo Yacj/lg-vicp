@@ -25,7 +25,8 @@ const roleBodySchema = z.object({
   name: z.string().trim().min(1, "请输入角色名称").max(120),
   description: z.string().max(1000).optional(),
   dataScope: z.enum(["ALL", "DEPT", "DEPT_AND_CHILDREN", "SELF", "CUSTOM", "PROJECT_OWNER"]).default("SELF"),
-  enabled: z.boolean().default(true)
+  enabled: z.boolean().default(true),
+  permissionIds: z.array(z.uuid("权限 ID 格式不正确")).max(500).optional()
 });
 const permissionBodySchema = z.object({
   code: z.string().trim().regex(/^[a-z][a-z0-9_.-]{2,119}$/, "权限编码格式不正确"),
@@ -92,6 +93,16 @@ async function ensurePermissionCode(app: FastifyInstance, permissionCode: string
   if (!permissionCode) return;
   const [permission] = await app.db.select({ code: permissions.code }).from(permissions).where(eq(permissions.code, permissionCode)).limit(1);
   if (!permission) throw new NotFoundError("菜单绑定的权限不存在");
+}
+
+/** 校验权限 ID 均存在并去重，返回唯一 ID 列表（空数组直接通过） */
+async function ensurePermissionsExist(app: FastifyInstance, permissionIds: string[]) {
+  const uniqueIds = [...new Set(permissionIds)];
+  if (uniqueIds.length > 0) {
+    const existing = await app.db.select({ id: permissions.id }).from(permissions).where(inArray(permissions.id, uniqueIds));
+    if (existing.length !== uniqueIds.length) throw new NotFoundError("部分权限不存在");
+  }
+  return uniqueIds;
 }
 
 export async function systemManagementRoutes(app: FastifyInstance) {
@@ -164,8 +175,20 @@ export async function systemManagementRoutes(app: FastifyInstance) {
     preHandler: [app.authenticate], schema: { tags: ["B端 / 平台 / 角色权限"], summary: "创建角色", body: roleBodySchema }
   }, async (request) => {
     const actor = requireAdmin(request, "system:role:add");
-    const [role] = await app.db.insert(roles).values(request.body).returning();
-    await writeAuditLog({ db: app.db, request, actor, action: AUDIT_ACTIONS.RBAC_ROLE_CREATED, targetType: "role", targetId: role!.id, afterJson: role });
+    const { permissionIds, ...roleValues } = request.body;
+    const uniquePermissionIds = permissionIds ? await ensurePermissionsExist(app, permissionIds) : [];
+    const [role] = await app.db.transaction(async (tx) => {
+      const [created] = await tx.insert(roles).values(roleValues).returning();
+      if (uniquePermissionIds.length > 0) {
+        await tx.insert(rolePermissions).values(uniquePermissionIds.map((permissionId) => ({ roleId: created!.id, permissionId })));
+      }
+      await writeAuditLog({
+        db: tx, request, actor, action: AUDIT_ACTIONS.RBAC_ROLE_CREATED,
+        targetType: "role", targetId: created!.id,
+        afterJson: { ...created, permissionIds: uniquePermissionIds }
+      });
+      return [created] as const;
+    });
     return ok(request, { message: "角色创建成功", role });
   });
 
@@ -185,6 +208,18 @@ export async function systemManagementRoutes(app: FastifyInstance) {
     return ok(request, { message: "权限创建成功", permission });
   });
 
+  route.get("/roles/:id/permissions", {
+    preHandler: [app.authenticate],
+    schema: { tags: ["B端 / 平台 / 角色权限"], summary: "获取角色已分配权限", params: idParamsSchema }
+  }, async (request) => {
+    requireAdmin(request, "system:role:list");
+    const [role] = await app.db.select({ id: roles.id }).from(roles).where(eq(roles.id, request.params.id)).limit(1);
+    if (!role) throw new NotFoundError("角色不存在");
+    const rows = await app.db.select({ permissionId: rolePermissions.permissionId }).from(rolePermissions)
+      .where(eq(rolePermissions.roleId, role.id));
+    return ok(request, { permissionIds: rows.map((item) => item.permissionId) });
+  });
+
   route.put("/roles/:id/permissions", {
     preHandler: [app.authenticate],
     schema: { tags: ["B端 / 平台 / 角色权限"], summary: "设置角色权限", params: idParamsSchema, body: rolePermissionBodySchema }
@@ -192,11 +227,7 @@ export async function systemManagementRoutes(app: FastifyInstance) {
     const actor = requireAdmin(request, "system:role:permission");
     const [role] = await app.db.select().from(roles).where(eq(roles.id, request.params.id)).limit(1);
     if (!role) throw new NotFoundError("角色不存在");
-    const uniqueIds = [...new Set(request.body.permissionIds)];
-    if (uniqueIds.length > 0) {
-      const existing = await app.db.select({ id: permissions.id }).from(permissions).where(inArray(permissions.id, uniqueIds));
-      if (existing.length !== uniqueIds.length) throw new NotFoundError("部分权限不存在");
-    }
+    const uniqueIds = await ensurePermissionsExist(app, request.body.permissionIds);
     await app.db.transaction(async (tx) => {
       const before = await tx.select({ permissionId: rolePermissions.permissionId }).from(rolePermissions)
         .where(eq(rolePermissions.roleId, role.id));

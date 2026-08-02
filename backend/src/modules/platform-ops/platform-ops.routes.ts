@@ -75,6 +75,10 @@ export async function platformOpsRoutes(app: FastifyInstance) {
     const actor = await assertPermission(request, "system:role:data-scope"); const [role] = await app.db.select().from(roles).where(eq(roles.id, request.params.id)).limit(1); if (!role) throw new NotFoundError("角色不存在");
     await app.db.transaction(async (tx) => { await tx.delete(roleDepartments).where(eq(roleDepartments.roleId, role.id)); if (request.body.ids.length) await tx.insert(roleDepartments).values(request.body.ids.map((departmentId) => ({ roleId: role.id, departmentId }))); await writeAuditLog({ db: tx, request, actor, action: AUDIT_ACTIONS.RBAC_ROLE_DATA_SCOPE_CHANGED, targetType: "role", targetId: role.id, afterJson: { departmentIds: request.body.ids } }); }); return ok(request, { message: "角色数据权限设置成功" });
   });
+  route.get("/roles/:id/departments", { preHandler: [app.authenticate], schema: { tags: ["B端 / 平台 / 角色权限"], summary: "获取角色数据部门范围", params: idParams } }, async (request) => {
+    await assertPermission(request, "system:role:list"); const [role] = await app.db.select({ id: roles.id }).from(roles).where(eq(roles.id, request.params.id)).limit(1); if (!role) throw new NotFoundError("角色不存在");
+    const rows = await app.db.select({ departmentId: roleDepartments.departmentId }).from(roleDepartments).where(eq(roleDepartments.roleId, role.id)); return ok(request, { departmentIds: rows.map((item) => item.departmentId) });
+  });
   route.get("/roles/:id/users", { preHandler: [app.authenticate], schema: { tags: ["B端 / 平台 / 角色权限"], summary: "获取角色用户", params: idParams, querystring: paginationQuerySchema } }, async (request) => {
     await assertPermission(request, "system:role:list"); const { skip, take } = getPagination(request.query.page, request.query.pageSize); const rows = await app.db.select({ id: users.id, displayName: users.displayName, phone: users.phone, status: users.status }).from(users).innerJoin(userRoles, eq(userRoles.userId, users.id)).where(and(eq(userRoles.roleId, request.params.id), isNull(users.deletedAt))).offset(skip).limit(take); return ok(request, { items: rows, page: request.query.page, pageSize: request.query.pageSize });
   });
