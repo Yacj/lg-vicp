@@ -30,6 +30,9 @@ const HTTP_ERROR_MESSAGES: Record<number, string> = {
 const env = getAppEnv()
 const baseURL = import.meta.env.DEV && env.openProxy ? '/proxy/' : env.apiBaseUrl
 
+/** SSE 等非 axios 流式请求复用的基础地址（与 httpClient 一致）。 */
+export const httpBaseURL = baseURL
+
 export const httpClient = axios.create({
   baseURL,
   headers: {
@@ -82,6 +85,11 @@ let refreshPromise: Promise<string> | null = null
 
 export function configureHttpSession(bridge: HttpSessionBridge): void {
   sessionBridge = bridge
+}
+
+/** 当前访问令牌（SSE 等非 axios 请求复用同一会话）。 */
+export function getHttpAccessToken(): string {
+  return sessionBridge.getAccessToken()
 }
 
 async function refreshSession(): Promise<string> {
