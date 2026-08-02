@@ -1,7 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
-import { and, asc, count, desc, eq, ilike, inArray, isNull, or } from "drizzle-orm";
-import { z } from "zod";
+import { and, asc, count, desc, eq, ilike, inArray, isNull, or } from "drizzle-orm";import { z } from "zod";
 import {
   aiConversations,
   aiMessageFeedbacks,
@@ -27,6 +26,7 @@ import { getPagination, paginationQuerySchema } from "../../shared/pagination.js
 import { ok } from "../../shared/response.js";
 
 const conversationParamsSchema = z.object({ id: z.uuid("会话 ID 格式不正确") });
+const messageParamsSchema = z.object({ id: z.uuid("消息 ID 格式不正确") });
 const adminConversationQuerySchema = paginationQuerySchema.extend({
   keyword: z.string().trim().max(120).optional(),
   userId: z.uuid("用户 ID 格式不正确").optional(),
@@ -188,6 +188,49 @@ export async function aiAdminRoutes(app: FastifyInstance) {
       shareLinks: allShares,
       shareViews: shareViewRows,
       auditLogs: conversationAuditLogs
+    });
+  });
+
+  route.get("/messages/:id", {
+    preHandler: [app.authenticate],
+    schema: {
+      tags: ["B端 / 平台 / AI运营"],
+      summary: "查看 AI 消息详情",
+      params: messageParamsSchema
+    }
+  }, async (request) => {
+    requireAdmin(request, "system:ai:conversation:detail");
+    const [row] = await app.db.select({
+      message: aiMessages,
+      conversation: {
+        id: aiConversations.id,
+        title: aiConversations.title,
+        scene: aiConversations.scene,
+        projectId: aiConversations.projectId,
+        clientApp: aiConversations.clientApp
+      },
+      user: { id: users.id, displayName: users.displayName, phone: users.phone }
+    })
+      .from(aiMessages)
+      .innerJoin(aiConversations, eq(aiConversations.id, aiMessages.conversationId))
+      .innerJoin(users, eq(users.id, aiConversations.userId))
+      .where(eq(aiMessages.id, request.params.id)).limit(1);
+    if (!row) throw new NotFoundError("AI 消息不存在");
+
+    const feedbacks = await app.db.select().from(aiMessageFeedbacks)
+      .where(eq(aiMessageFeedbacks.messageId, row.message.id)).orderBy(desc(aiMessageFeedbacks.createdAt));
+    const regenerations = await app.db.select().from(aiMessageRegenerations)
+      .where(or(
+        eq(aiMessageRegenerations.originalMessageId, row.message.id),
+        eq(aiMessageRegenerations.regeneratedMessageId, row.message.id)
+      )).orderBy(asc(aiMessageRegenerations.createdAt));
+
+    return ok(request, {
+      message: row.message,
+      conversation: row.conversation,
+      user: row.user,
+      feedbacks,
+      regenerations
     });
   });
 }

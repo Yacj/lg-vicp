@@ -29,3 +29,10 @@ export function decryptSecret(ciphertext: string, iv: string, tag: string): stri
     decipher.final()
   ]).toString("utf8");
 }
+
+/** API Key 脱敏：仅保留首尾 4 位，日志、响应、审计统一使用脱敏值 */
+export function maskSecret(secret: string | null | undefined): string {
+  if (!secret) return "";
+  if (secret.length <= 8) return "****";
+  return `${secret.slice(0, 4)}****${secret.slice(-4)}`;
+}

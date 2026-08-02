@@ -64,6 +64,20 @@
       "when": 1785072423937,
       "tag": "0008_handy_lady_mastermind",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1785678540879,
+      "tag": "0009_ai_basic_platform",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1785678563358,
+      "tag": "0010_ai_drop_legacy_tables",
+      "breakpoints": true
     }
   ]
 }

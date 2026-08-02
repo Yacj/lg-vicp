@@ -16,6 +16,10 @@ const envSchema = z.object({
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().min(1).max(365).default(30),
   REDIS_URL: z.string().url().default("redis://localhost:6379"),
   AI_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(1).default(20),
+  AI_MAX_CONCURRENT_GENERATIONS: z.coerce.number().int().min(1).default(2),
+  AI_DAILY_REQUEST_LIMIT: z.coerce.number().int().min(1).default(200),
+  AI_CONTEXT_MAX_MESSAGES: z.coerce.number().int().min(2).max(100).default(20),
+  AI_CONTEXT_OUTPUT_RESERVE_RATIO: z.coerce.number().min(0).max(0.5).default(0.1),
   AI_CONFIG_ENCRYPTION_KEY: z.string().refine(
     (value) => Buffer.byteLength(value, "utf8") === 32,
     "必须恰好为 32 字节"

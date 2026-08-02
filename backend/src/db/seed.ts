@@ -1,15 +1,16 @@
 import "dotenv/config";
 import * as argon2 from "argon2";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { env } from "../config/env.js";
 import { createDatabase } from "./client.js";
 import {
   aiModels,
   aiProviders,
-  aiSceneBindings,
+  aiScenes,
   menus,
   permissions,
-  promptTemplates,
+  prompts,
+  promptVersions,
   rolePermissions,
   roles,
   userIdentities,
@@ -76,6 +77,7 @@ const permissionSeeds = [
   { code: "system:ai:provider:add", name: "新增 AI 服务商", resource: "ai_provider", action: "add" },
   { code: "system:ai:provider:edit", name: "修改 AI 服务商", resource: "ai_provider", action: "edit" },
   { code: "system:ai:provider:remove", name: "删除 AI 服务商", resource: "ai_provider", action: "remove" },
+  { code: "system:ai:provider:test", name: "测试 AI 服务商连接", resource: "ai_provider", action: "test" },
   { code: "system:ai:model:list", name: "查看 AI 模型", resource: "ai_model", action: "list" },
   { code: "system:ai:model:add", name: "新增 AI 模型", resource: "ai_model", action: "add" },
   { code: "system:ai:model:edit", name: "修改 AI 模型", resource: "ai_model", action: "edit" },
@@ -85,10 +87,14 @@ const permissionSeeds = [
   { code: "system:ai:scene:edit", name: "配置 AI 场景", resource: "ai_scene", action: "edit" },
   { code: "system:ai:prompt:list", name: "查看 AI 提示词", resource: "ai_prompt", action: "list" },
   { code: "system:ai:prompt:add", name: "新增 AI 提示词", resource: "ai_prompt", action: "add" },
+  { code: "system:ai:prompt:edit", name: "编辑 AI 提示词草稿", resource: "ai_prompt", action: "edit" },
+  { code: "system:ai:prompt:publish", name: "发布 AI 提示词", resource: "ai_prompt", action: "publish" },
   { code: "system:ai:prompt:remove", name: "删除 AI 提示词", resource: "ai_prompt", action: "remove" },
   { code: "system:ai:conversation:list", name: "查看 AI 会话列表", resource: "ai_conversation", action: "list" },
   { code: "system:ai:conversation:detail", name: "查看 AI 会话详情", resource: "ai_conversation", action: "detail" },
-  { code: "system:ai:feedback:list", name: "查看 AI 反馈", resource: "ai_feedback", action: "list" }
+  { code: "system:ai:debug:use", name: "使用 AI 调试", resource: "ai_debug", action: "use" },
+  { code: "system:ai:feedback:list", name: "查看 AI 反馈", resource: "ai_feedback", action: "list" },
+  { code: "system:ai:feedback:handle", name: "处理 AI 反馈", resource: "ai_feedback", action: "handle" }
 ] as const;
 
 try {
@@ -170,7 +176,12 @@ try {
     await ensureMenu({ parentId: systemMenuId, menuType: "MENU", name: "部门管理", routePath: "/system/dept", component: "system/dept/index", sortOrder: 40, permissionCode: "system:dept:list" });
     await ensureMenu({ parentId: systemMenuId, menuType: "MENU", name: "岗位管理", routePath: "/system/post", component: "system/post/index", sortOrder: 50, permissionCode: "system:post:list" });
     await ensureMenu({ parentId: systemMenuId, menuType: "MENU", name: "字典管理", routePath: "/system/dict", component: "system/dict/index", sortOrder: 60, permissionCode: "system:dict:list" });
-    await ensureMenu({ parentId: systemMenuId, menuType: "MENU", name: "AI 配置", routePath: "/system/ai", component: "system/ai/index", sortOrder: 70, permissionCode: "system:ai:provider:list" });
+    const aiConfigMenuId = await ensureMenu({
+      menuType: "MENU", name: "AI 配置", routePath: "/system/ai", component: "system/ai/index", sortOrder: 70, permissionCode: "system:ai:provider:list"
+    });
+    await ensureMenu({ parentId: aiConfigMenuId, menuType: "BUTTON", name: "测试服务商连接", routePath: "/system/ai/test-connection", sortOrder: 10, permissionCode: "system:ai:provider:test" });
+    await ensureMenu({ parentId: aiConfigMenuId, menuType: "BUTTON", name: "提示词发布", routePath: "/system/ai/prompt-publish", sortOrder: 20, permissionCode: "system:ai:prompt:publish" });
+    await ensureMenu({ parentId: aiConfigMenuId, menuType: "BUTTON", name: "AI 调试", routePath: "/system/ai/debug", sortOrder: 30, permissionCode: "system:ai:debug:use" });
     const monitorMenuId = await ensureMenu({
       menuType: "DIRECTORY", name: "系统监控", routePath: "/monitor", icon: "monitor", sortOrder: 20, permissionCode: "monitor:audit:list"
     });
@@ -178,13 +189,17 @@ try {
     await ensureMenu({ parentId: monitorMenuId, menuType: "MENU", name: "在线用户", routePath: "/monitor/online", component: "monitor/online/index", sortOrder: 20, permissionCode: "monitor:online:list" });
     await ensureMenu({ parentId: monitorMenuId, menuType: "MENU", name: "定时任务", routePath: "/monitor/job", component: "monitor/job/index", sortOrder: 30, permissionCode: "monitor:job:list" });
     await ensureMenu({ parentId: monitorMenuId, menuType: "MENU", name: "缓存监控", routePath: "/monitor/cache", component: "monitor/cache/index", sortOrder: 40, permissionCode: "monitor:cache:list" });
+    const aiOpsMenuId = await ensureMenu({ parentId: monitorMenuId, menuType: "MENU", name: "AI 运营", routePath: "/monitor/ai", component: "monitor/ai/index", sortOrder: 50, permissionCode: "system:ai:conversation:list" });
+    await ensureMenu({ parentId: aiOpsMenuId, menuType: "BUTTON", name: "反馈处理", routePath: "/monitor/ai/feedback-handle", sortOrder: 10, permissionCode: "system:ai:feedback:handle" });
     await ensureMenu({
       menuType: "MENU", name: "项目管理", routePath: "/project", component: "project/index", sortOrder: 30, permissionCode: "project.create"
     });
     await ensureMenu({ menuType: "MENU", name: "AI 对话", routePath: "/ai", component: "ai/index", sortOrder: 40, permissionCode: "ai.chat" });
 
     await tx.insert(aiProviders).values({
+      code: "deepseek",
       name: "DeepSeek",
+      description: "DeepSeek 官方 OpenAI 兼容接口",
       type: "OPENAI_COMPATIBLE",
       baseUrl: "https://api.deepseek.com/v1",
       enabled: true
@@ -195,8 +210,10 @@ try {
     if (deepSeekProvider) {
       await tx.insert(aiModels).values({
         providerId: deepSeekProvider.id,
+        code: "deepseek-chat",
         displayName: "DeepSeek Chat",
         modelId: "deepseek-chat",
+        description: "DeepSeek 通用对话模型",
         capabilities: {
           text: true,
           streaming: true,
@@ -207,6 +224,7 @@ try {
         contextWindow: 64_000,
         maxOutputTokens: 4_000,
         defaultTemperature: 0.2,
+        priority: 10,
         enabled: true
       }).onConflictDoUpdate({
         target: [aiModels.providerId, aiModels.modelId],
@@ -221,28 +239,71 @@ try {
           updatedAt: new Date()
         }
       });
-      const [deepSeekModel] = await tx.select({ id: aiModels.id }).from(aiModels)
-        .where(and(eq(aiModels.providerId, deepSeekProvider.id), eq(aiModels.modelId, "deepseek-chat"))).limit(1);
-      const scenePrompts = [
-        { scene: "general_chat", name: "普通对话", systemPrompt: "你是蓝格 VICP 建筑节能 AI 助手。请使用中文准确回答；资料不足时明确说明不确定。" },
-        { scene: "project_design", name: "项目设计", systemPrompt: "你是 VICP 建筑节能项目设计助手。只依据项目资料和确定性计算结果提出建议，并使用中文回答。" },
-        { scene: "material_compare", name: "材料对比", systemPrompt: "你是建筑保温材料对比助手。客观列出依据、适用条件和限制，禁止编造性能参数。" },
-        { scene: "standard_qa", name: "标准问答", systemPrompt: "你是建筑节能标准问答助手。回答必须引用资料名称和页码；没有来源时明确拒绝下结论。" },
-        { scene: "report_generate", name: "报告生成", systemPrompt: "你是 VICP 项目报告助手。输出结构化中文内容，技术结论必须可追溯，工程结论须提示专业人员复核。" },
-        { scene: "information_extract", name: "信息抽取", systemPrompt: "你是建筑资料信息抽取助手。只提取原文存在的信息，缺失字段返回空值，不得猜测。" }
-      ];
-      await tx.insert(promptTemplates).values(scenePrompts.map((prompt) => ({ ...prompt, version: 1 }))).onConflictDoNothing();
-      if (deepSeekModel) {
-        const prompts = await tx.select({ id: promptTemplates.id, scene: promptTemplates.scene })
-          .from(promptTemplates).where(eq(promptTemplates.version, 1));
-        await tx.insert(aiSceneBindings).values(scenePrompts.map((prompt) => ({
-          scene: prompt.scene,
-          primaryModelId: deepSeekModel.id,
-          promptTemplateId: prompts.find((item) => item.scene === prompt.scene)?.id,
-          settings: {},
-          enabled: true
-        }))).onConflictDoNothing();
+    }
+
+    const sceneSeeds = [
+      { code: "general_chat", name: "通用对话", description: "通用对话，不依赖项目、知识库与计算工具", allowReasoning: true, requireProject: false, allowFileUpload: false, allowKnowledgeSearch: false, allowTools: false, enabled: true, sort: 1 },
+      { code: "project_design", name: "项目设计", description: "项目设计咨询（未开放：依赖知识库与确定性计算工具）", allowReasoning: false, requireProject: true, allowFileUpload: false, allowKnowledgeSearch: false, allowTools: false, enabled: false, sort: 2 },
+      { code: "material_compare", name: "材料对比", description: "材料对比分析（未开放：依赖知识库与计算工具）", allowReasoning: false, requireProject: true, allowFileUpload: false, allowKnowledgeSearch: false, allowTools: false, enabled: false, sort: 3 },
+      { code: "standard_qa", name: "标准问答", description: "建筑标准条文问答（未开放：依赖知识库）", allowReasoning: false, requireProject: false, allowFileUpload: false, allowKnowledgeSearch: false, allowTools: false, enabled: false, sort: 4 },
+      { code: "report_generate", name: "报告生成", description: "工程报告生成（未开放：依赖知识库与报告模板）", allowReasoning: false, requireProject: true, allowFileUpload: false, allowKnowledgeSearch: false, allowTools: false, enabled: false, sort: 5 },
+      { code: "information_extract", name: "信息抽取", description: "建筑资料信息抽取（未开放：依赖知识库）", allowReasoning: false, requireProject: true, allowFileUpload: false, allowKnowledgeSearch: false, allowTools: false, enabled: false, sort: 6 }
+    ] as const;
+
+    const scenePrompts = [
+      { code: "general_chat", name: "通用对话提示词", systemPrompt: "你是蓝格 VICP 建筑节能 AI 助手。请使用中文准确回答；资料不足时明确说明不确定。" },
+      { code: "project_design", name: "项目设计提示词", systemPrompt: "你是 VICP 建筑节能项目设计助手。只依据项目资料和确定性计算结果提出建议，并使用中文回答。" },
+      { code: "material_compare", name: "材料对比提示词", systemPrompt: "你是建筑保温材料对比助手。客观列出依据、适用条件和限制，禁止编造性能参数。" },
+      { code: "standard_qa", name: "标准问答提示词", systemPrompt: "你是建筑节能标准问答助手。回答必须引用资料名称和页码；没有来源时明确拒绝下结论。" },
+      { code: "report_generate", name: "报告生成提示词", systemPrompt: "你是 VICP 项目报告助手。输出结构化中文内容，技术结论必须可追溯，工程结论须提示专业人员复核。" },
+      { code: "information_extract", name: "信息抽取提示词", systemPrompt: "你是建筑资料信息抽取助手。只提取原文存在的信息，缺失字段返回空值，不得猜测。" }
+    ] as const;
+
+    await tx.insert(aiScenes).values(sceneSeeds.map((scene) => ({
+      ...scene,
+      temperature: null,
+      maxOutputTokens: null
+    }))).onConflictDoNothing();
+
+    const [deepSeekModel] = await tx.select({ id: aiModels.id }).from(aiModels)
+      .where(and(eq(aiModels.providerId, deepSeekProvider?.id ?? ""), eq(aiModels.modelId, "deepseek-chat"))).limit(1);
+
+    const ensureScenePrompt = async (sceneCode: string) => {
+      const [scene] = await tx.select({ id: aiScenes.id }).from(aiScenes).where(eq(aiScenes.code, sceneCode)).limit(1);
+      if (!scene) return;
+      const promptSeed = scenePrompts.find((prompt) => prompt.code === sceneCode);
+      const [existingPrompt] = await tx.select({ id: prompts.id }).from(prompts).where(eq(prompts.code, sceneCode)).limit(1);
+      const promptId = existingPrompt?.id ?? (await tx.insert(prompts).values({
+        sceneId: scene.id,
+        name: promptSeed?.name ?? sceneCode,
+        code: sceneCode,
+        description: promptSeed?.systemPrompt.slice(0, 60)
+      }).onConflictDoNothing().returning({ id: prompts.id }))[0]?.id;
+      if (!promptId) return;
+      const [published] = await tx.select({ id: promptVersions.id }).from(promptVersions)
+        .where(and(eq(promptVersions.promptId, promptId), eq(promptVersions.status, "PUBLISHED"))).limit(1);
+      if (!published && promptSeed) {
+        const [v1] = await tx.insert(promptVersions).values({
+          promptId,
+          version: 1,
+          content: promptSeed.systemPrompt,
+          status: "PUBLISHED",
+          changeNote: "初始版本"
+        }).returning();
+        await tx.update(prompts).set({ activeVersionId: v1!.id, updatedAt: new Date() }).where(eq(prompts.id, promptId));
+        await tx.update(aiScenes).set({ promptId, updatedAt: new Date() }).where(eq(aiScenes.id, scene.id));
+      } else {
+        await tx.update(prompts).set({ activeVersionId: published!.id, updatedAt: new Date() })
+          .where(and(eq(prompts.id, promptId), isNull(prompts.activeVersionId)));
+        await tx.update(aiScenes).set({ promptId, updatedAt: new Date() })
+          .where(and(eq(aiScenes.id, scene.id), isNull(aiScenes.promptId)));
       }
+    };
+    for (const scene of sceneSeeds) await ensureScenePrompt(scene.code);
+
+    if (deepSeekModel) {
+      await tx.update(aiScenes).set({ defaultModelId: deepSeekModel.id, updatedAt: new Date() })
+        .where(and(eq(aiScenes.code, "general_chat"), isNull(aiScenes.defaultModelId)));
     }
   });
 

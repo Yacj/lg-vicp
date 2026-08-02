@@ -87,6 +87,8 @@ export const AUDIT_ACTIONS = {
   AI_MESSAGE_STOPPED: "ai.message_stopped",
   AI_MESSAGE_FEEDBACK_UPSERTED: "ai.message_feedback_upserted",
   AI_MESSAGE_REGENERATED: "ai.message_regenerated",
+  AI_FEEDBACK_HANDLED: "ai.feedback_handled",
+  AI_DEBUG_USED: "ai.debug_used",
   REPORT_QUEUED: "report.queued",
   REPORT_GENERATED: "report.generated",
   REPORT_PUBLISHED: "report.published",

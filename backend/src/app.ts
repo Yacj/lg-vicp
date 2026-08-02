@@ -10,6 +10,7 @@ import {
 import { env } from "./config/env.js";
 import { aiRoutes } from "./modules/ai/ai.routes.js";
 import { aiAdminRoutes } from "./modules/ai/ai-admin.routes.js";
+import { aiDebugRoutes } from "./modules/ai/ai-debug.routes.js";
 import { aiConfigRoutes } from "./modules/ai-config/ai-config.routes.js";
 import { platformAiFeedbackRoutes } from "./modules/ai-feedback/ai-feedback.routes.js";
 import { auditLogRoutes } from "./modules/audit-logs/audit-log.routes.js";
@@ -112,6 +113,7 @@ export async function buildApp() {
   await app.register(aiConfigRoutes, { prefix: "/api/v1/platform" });
   await app.register(platformAiFeedbackRoutes, { prefix: "/api/v1/platform/ai" });
   await app.register(aiAdminRoutes, { prefix: "/api/v1/platform/ai" });
+  await app.register(aiDebugRoutes, { prefix: "/api/v1/platform/ai" });
   await app.register(aiRoutes, { prefix: "/api/v1/ai" });
   await app.register(fileRoutes, { prefix: "/api/v1/files" });
   await app.register(reportRoutes, { prefix: "/api/v1" });

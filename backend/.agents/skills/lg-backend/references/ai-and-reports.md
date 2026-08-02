@@ -37,3 +37,15 @@ AI 回答是可复用资产。点赞、反馈和重新生成不得覆盖原始�
 - 用户端会话详情只返回本人会话、消息、处理阶段、检索摘要、反馈、报告和分享信息；处理阶段可以展示“正在分析项目资料……”“正在核对标准和计算结果……”“正在整理回答……”等中文状态，但不返回模型原始思考链。
 - B 端 AI 运营详情在具备 `system:ai:conversation:detail` 后可以查看用户、消息、检索记录、工具调用、报告任务、分享访问和关联审计日志，同样不得返回密钥或模型原始思考链。
 - 深度思考是会话级开关，默认关闭；它与对外展示的处理阶段分开，消息保存实际 `reasoningMode`，不能把隐藏思考链当作用户可分享内容。
+
+## 场景与提示词版本化（第一期）
+
+- 场景建模：`ai_scenes`（能力门控 + 模型绑定 + `enabled`），提示词建模：`prompts` + `prompt_versions`（DRAFT/PUBLISHED/DISABLED，同 prompt 下 PUBLISHED 全局唯一）。旧 `ai_scene_bindings` / `prompt_templates` 已随迁移 0010 废弃。
+- 仅 `general_chat` 对外开放（`enabled=true`）；其余五个场景为占位配置，未具备知识库/公式/工具能力前不得伪装完整业务能力。
+- 运行时解析链路：场景（须启用）→ 当前 PUBLISHED 提示词版本 → 按 `reasoningMode` 解析模型 → 校验 provider/model 启用 → 构造语言模型。禁止在业务代码写死模型 ID。
+- reasoningMode=ON：`allowReasoning=false` 抛 `AI_REASONING_NOT_SUPPORTED`；`reasoningModelId` 不可用降级默认模型并写入 `metadata.downgradeNote`；fallback 仅在主模型未产出任何 token 时重试一次。
+- 上下文预算：`estimateTokens`（CJK/1.5 + ASCII/4）裁剪历史窗口，预算 = contextWindow − 系统提示词 − 用户消息 − 输出预留 − 10% 安全余量，超长裁剪最早历史（默认最多 20 条）。
+- 配额：Redis 并发（`ai:active:{userId}`，默认 2）+ 每日（`ai:quota:{userId}:{yyyy-mm-dd}`，默认 200），`SUPER_ADMIN` 豁免；`GET /api/v1/ai/quota` 查询额度。
+- 错误码：统一 `AI_*` 常量（`src/shared/ai-errors.ts`），SSE error 事件、消息 `errorCode` 落库、运营查询三处共用；底层错误经 `toAiError` 映射。
+- AI 调试（`/api/v1/platform/ai/debug/*`，`system:ai:debug:use`）：SSE 复用业务事件流，不落 `ai_messages`，写审计。
+- 详细文档：`docs/ai/`（architecture、provider-model、scene-prompt、sse-protocol、error-codes、admin-api、client-api、security）。

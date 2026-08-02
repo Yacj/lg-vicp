@@ -12,7 +12,8 @@ import {
   timestamp,
   uniqueIndex,
   uuid,
-  varchar
+  varchar,
+  type PgColumn
 } from "drizzle-orm/pg-core";
 
 const timestamps = {
@@ -56,6 +57,7 @@ export const cronJobStatusEnum = pgEnum("cron_job_status", ["PAUSED", "RUNNING",
 export const cronExecutionStatusEnum = pgEnum("cron_execution_status", ["QUEUED", "RUNNING", "SUCCESS", "FAILED", "CANCELLED"]);
 export const loginResultEnum = pgEnum("login_result", ["SUCCESS", "FAILED"]);
 export const aiProviderTypeEnum = pgEnum("ai_provider_type", ["OPENAI_COMPATIBLE"]);
+export const aiPromptVersionStatusEnum = pgEnum("ai_prompt_version_status", ["DRAFT", "PUBLISHED", "DISABLED"]);
 export const menuTypeEnum = pgEnum("menu_type", ["DIRECTORY", "MENU", "BUTTON"]);
 export const dataScopeEnum = pgEnum("data_scope", ["ALL", "DEPT", "DEPT_AND_CHILDREN", "SELF", "CUSTOM", "PROJECT_OWNER"]);
 export const aiMessageRoleEnum = pgEnum("ai_message_role", ["SYSTEM", "USER", "ASSISTANT", "TOOL"]);
@@ -379,12 +381,19 @@ export const knowledgeChunks = pgTable(
 
 export const aiProviders = pgTable("ai_providers", {
   id: uuid("id").primaryKey().defaultRandom(),
+  code: varchar("code", { length: 80 }),
   name: varchar("name", { length: 120 }).notNull().unique(),
+  description: text("description"),
   type: aiProviderTypeEnum("type").notNull().default("OPENAI_COMPATIBLE"),
   baseUrl: text("base_url").notNull(),
   apiKeyCiphertext: text("api_key_ciphertext"),
   apiKeyIv: varchar("api_key_iv", { length: 64 }),
   apiKeyTag: varchar("api_key_tag", { length: 64 }),
+  timeoutMs: integer("timeout_ms").notNull().default(60000),
+  priority: integer("priority").notNull().default(0),
+  lastTestStatus: varchar("last_test_status", { length: 20 }),
+  lastTestMessage: text("last_test_message"),
+  lastTestAt: timestamp("last_test_at", { withTimezone: true }),
   enabled: boolean("enabled").notNull().default(true),
   createdById: uuid("created_by_id").references(() => users.id),
   updatedById: uuid("updated_by_id").references(() => users.id),
@@ -396,44 +405,80 @@ export const aiModels = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     providerId: uuid("provider_id").notNull().references(() => aiProviders.id, { onDelete: "cascade" }),
+    code: varchar("code", { length: 80 }),
     displayName: varchar("display_name", { length: 120 }).notNull(),
     modelId: varchar("model_id", { length: 160 }).notNull(),
+    description: text("description"),
     capabilities: jsonb("capabilities").$type<Record<string, boolean>>().notNull().default(sql`'{}'::jsonb`),
     contextWindow: integer("context_window"),
     maxOutputTokens: integer("max_output_tokens"),
     defaultTemperature: real("default_temperature"),
     timeoutMs: integer("timeout_ms").notNull().default(60000),
+    priority: integer("priority").notNull().default(0),
     enabled: boolean("enabled").notNull().default(true),
     ...timestamps
   },
   (table) => [uniqueIndex("ai_models_provider_model_unique").on(table.providerId, table.modelId)]
 );
 
-export const promptTemplates = pgTable(
-  "prompt_templates",
+export const aiScenes = pgTable(
+  "ai_scenes",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    scene: varchar("scene", { length: 80 }).notNull(),
     name: varchar("name", { length: 120 }).notNull(),
-    version: integer("version").notNull(),
-    systemPrompt: text("system_prompt").notNull(),
+    code: varchar("code", { length: 80 }).notNull().unique(),
+    description: text("description"),
+    defaultModelId: uuid("default_model_id").references(() => aiModels.id, { onDelete: "set null" }),
+    reasoningModelId: uuid("reasoning_model_id").references(() => aiModels.id, { onDelete: "set null" }),
+    fallbackModelId: uuid("fallback_model_id").references(() => aiModels.id, { onDelete: "set null" }),
+    allowReasoning: boolean("allow_reasoning").notNull().default(false),
+    requireProject: boolean("require_project").notNull().default(false),
+    allowFileUpload: boolean("allow_file_upload").notNull().default(false),
+    allowKnowledgeSearch: boolean("allow_knowledge_search").notNull().default(false),
+    allowTools: boolean("allow_tools").notNull().default(false),
+    temperature: real("temperature"),
+    maxOutputTokens: integer("max_output_tokens"),
+    promptId: uuid("prompt_id").references((): PgColumn => prompts.id, { onDelete: "set null" }),
     enabled: boolean("enabled").notNull().default(true),
-    createdById: uuid("created_by_id").references(() => users.id),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+    sort: integer("sort").notNull().default(0),
+    ...timestamps
   },
-  (table) => [uniqueIndex("prompt_templates_scene_version_unique").on(table.scene, table.version)]
+  (table) => [index("ai_scenes_enabled_sort_idx").on(table.enabled, table.sort)]
 );
 
-export const aiSceneBindings = pgTable("ai_scene_bindings", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  scene: varchar("scene", { length: 80 }).notNull().unique(),
-  primaryModelId: uuid("primary_model_id").notNull().references(() => aiModels.id),
-  fallbackModelId: uuid("fallback_model_id").references(() => aiModels.id),
-  promptTemplateId: uuid("prompt_template_id").references(() => promptTemplates.id),
-  settings: jsonb("settings").$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
-  enabled: boolean("enabled").notNull().default(true),
-  ...timestamps
-});
+export const prompts = pgTable(
+  "prompts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sceneId: uuid("scene_id").notNull().references(() => aiScenes.id, { onDelete: "cascade" }),
+    name: varchar("name", { length: 120 }).notNull(),
+    code: varchar("code", { length: 80 }).notNull().unique(),
+    description: text("description"),
+    activeVersionId: uuid("active_version_id").references((): PgColumn => promptVersions.id, { onDelete: "set null" }),
+    ...timestamps
+  },
+  (table) => [index("prompts_scene_idx").on(table.sceneId)]
+);
+
+export const promptVersions = pgTable(
+  "prompt_versions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    promptId: uuid("prompt_id").notNull().references((): PgColumn => prompts.id, { onDelete: "cascade" }),
+    version: integer("version").notNull(),
+    content: text("content").notNull(),
+    status: aiPromptVersionStatusEnum("status").notNull().default("DRAFT"),
+    changeNote: text("change_note"),
+    createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    publishedById: uuid("published_by_id").references(() => users.id, { onDelete: "set null" }),
+    publishedAt: timestamp("published_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => [
+    uniqueIndex("prompt_versions_prompt_version_unique").on(table.promptId, table.version),
+    index("prompt_versions_status_idx").on(table.promptId, table.status)
+  ]
+);
 
 export const aiConversations = pgTable(
   "ai_conversations",
@@ -446,6 +491,9 @@ export const aiConversations = pgTable(
     title: varchar("title", { length: 120 }),
     reasoningMode: aiReasoningModeEnum("reasoning_mode").notNull().default("OFF"),
     isPinned: boolean("is_pinned").notNull().default(false),
+    pinnedAt: timestamp("pinned_at", { withTimezone: true }),
+    lastMessageAt: timestamp("last_message_at", { withTimezone: true }),
+    groupId: varchar("group_id", { length: 80 }),
     status: varchar("status", { length: 32 }).notNull().default("active"),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
     ...timestamps
@@ -470,7 +518,10 @@ export const aiMessages = pgTable(
     reasoningMode: aiReasoningModeEnum("reasoning_mode").notNull().default("OFF"),
     provider: varchar("provider", { length: 120 }),
     model: varchar("model", { length: 160 }),
+    providerId: uuid("provider_id").references(() => aiProviders.id, { onDelete: "set null" }),
+    modelId: uuid("model_id").references(() => aiModels.id, { onDelete: "set null" }),
     promptTemplateVersion: integer("prompt_template_version"),
+    promptVersionId: uuid("prompt_version_id").references(() => promptVersions.id, { onDelete: "set null" }),
     tokenInput: integer("token_input"),
     tokenOutput: integer("token_output"),
     reasoningTokens: integer("reasoning_tokens"),
@@ -478,6 +529,8 @@ export const aiMessages = pgTable(
     startedAt: timestamp("started_at", { withTimezone: true }),
     finishedAt: timestamp("finished_at", { withTimezone: true }),
     errorMessage: text("error_message"),
+    errorCode: varchar("error_code", { length: 40 }),
+    requestId: varchar("request_id", { length: 120 }),
     stopReason: varchar("stop_reason", { length: 40 }),
     metadata: jsonb("metadata").$type<Record<string, unknown>>(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
@@ -526,9 +579,13 @@ export const aiMessageFeedbacks = pgTable(
     projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
     userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
     reaction: aiFeedbackReactionEnum("reaction"),
+    reasonCode: varchar("reason_code", { length: 40 }),
     tags: jsonb("tags").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
     content: text("content"),
     clientApp: varchar("client_app", { length: 40 }),
+    handledById: uuid("handled_by_id").references(() => users.id, { onDelete: "set null" }),
+    handledAt: timestamp("handled_at", { withTimezone: true }),
+    handlingNote: text("handling_note"),
     ...timestamps
   },
   (table) => [
@@ -765,5 +822,8 @@ export type Project = typeof projects.$inferSelect;
 export type FileRecord = typeof files.$inferSelect;
 export type AiProvider = typeof aiProviders.$inferSelect;
 export type AiModel = typeof aiModels.$inferSelect;
+export type AiScene = typeof aiScenes.$inferSelect;
+export type Prompt = typeof prompts.$inferSelect;
+export type PromptVersion = typeof promptVersions.$inferSelect;
 export type Report = typeof reports.$inferSelect;
 export type ShareLink = typeof shareLinks.$inferSelect;
