@@ -9,7 +9,7 @@
 //       tsc 编译兜底（构建失败即部署中止，不会上线坏代码）；
 //       回归测试建议由 CI 承担。
 //
-// 配置（backend/.env，已加入 .gitignore 不会随代码上传）：
+// 配置（优先 deploy/.env.deploy，缺失回落 backend/.env；两者均不入库）：
 //   DEPLOY_SSH_HOST     服务器 IP 或域名（必填）
 //   DEPLOY_SSH_USER     登录用户，默认 root
 //   DEPLOY_SSH_PORT     SSH 端口，默认 22
@@ -24,6 +24,8 @@ import path from "node:path";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const BACKEND_ROOT = path.resolve(__dirname, "..");
+// 部署配置独立文件优先；兼容旧环境回落 backend/.env
+const DEPLOY_ENV_PATH = path.join(__dirname, ".env.deploy");
 const ENV_PATH = path.join(BACKEND_ROOT, ".env");
 
 const fail = (msg) => {
@@ -33,16 +35,27 @@ const fail = (msg) => {
 const info = (msg) => console.log(`[部署] ${msg}`);
 
 // ---------- 1. 读取部署配置 ----------
-if (!existsSync(ENV_PATH)) fail(`未找到 ${ENV_PATH}，请先复制 .env.example 为 .env 并配置`);
-const env = Object.fromEntries(
-  readFileSync(ENV_PATH, "utf8")
-    .split(/\r?\n/)
-    .filter((line) => line && !line.trim().startsWith("#") && line.includes("="))
-    .map((line) => {
-      const i = line.indexOf("=");
-      return [line.slice(0, i).trim(), line.slice(i + 1).trim()];
-    })
-);
+const readEnvFile = (filePath) => {
+  if (!existsSync(filePath)) return null;
+  return Object.fromEntries(
+    readFileSync(filePath, "utf8")
+      .split(/\r?\n/)
+      .filter((line) => line && !line.trim().startsWith("#") && line.includes("="))
+      .map((line) => {
+        const i = line.indexOf("=");
+        return [line.slice(0, i).trim(), line.slice(i + 1).trim()];
+      })
+  );
+};
+
+let env = readEnvFile(DEPLOY_ENV_PATH);
+let envSource = DEPLOY_ENV_PATH;
+if (env === null) {
+  if (!existsSync(ENV_PATH)) fail(`未找到 ${ENV_PATH}，请先复制 .env.example 为 .env 并配置`);
+  env = readEnvFile(ENV_PATH);
+  envSource = ENV_PATH;
+}
+info(`读取部署配置：${envSource}`);
 
 const host = env.DEPLOY_SSH_HOST;
 if (!host) fail("缺少 DEPLOY_SSH_HOST（服务器 IP 或域名），请写入 backend/.env");

@@ -18,6 +18,7 @@
     "db:check": "drizzle-kit check",
     "db:studio": "drizzle-kit studio",
     "db:seed": "tsx src/db/seed.ts",
+    "db:verify": "node scripts/verify-migrations.mjs",
     "deploy": "node deploy/deploy.local.mjs"
   },
   "dependencies": {

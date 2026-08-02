@@ -89,14 +89,15 @@ schema: {
 
 ## 开发启动
 
-1. 安装 Node.js LTS、pnpm、PostgreSQL 和 Redis；或准备 Docker。
+1. 安装 Node.js LTS、pnpm；本地基础设施使用 Docker（`docker compose up -d postgres redis minio`），或单独安装 PostgreSQL 和 Redis。
 2. 复制环境变量模板：
 
    ```powershell
    Copy-Item .env.example .env
    ```
 
-3. 修改 `.env` 中的数据库地址、JWT 密钥、AI 加密密钥和管理员密码。
+3. 修改 `.env` 中的 JWT 密钥、AI 加密密钥和管理员密码。
+   `DATABASE_URL` 与 `REDIS_URL` 必须指向本地服务（默认值即本地地址），**禁止指向生产库**；生产连接只存在于服务器 `.env`。
 4. 安装依赖并执行迁移、初始化数据：
 
    ```powershell
@@ -141,7 +142,7 @@ bash deploy/deploy.sh <git 仓库地址>
 
 ### 一键部署（本地执行）
 
-配置好服务器 SSH 密钥免密登录，并在本地 `backend/.env` 中填写（不会上传到服务器）：
+配置好服务器 SSH 密钥免密登录，并在本地 `deploy/.env.deploy` 中填写（不会上传到服务器；未创建该文件时兼容读取 `backend/.env` 中的 `DEPLOY_SSH_*` 旧配置）：
 
 ```
 DEPLOY_SSH_HOST=服务器IP或域名
@@ -156,7 +157,7 @@ DEPLOY_REMOTE_DIR=/opt/lg-vicp   # 服务器上仓库目录，默认 /opt/lg-vic
 pnpm deploy
 ```
 
-脚本流程：自动提交并推送 `backend/` 目录的改动（不波及 `app`/`admin-web`），然后 SSH 到服务器执行 `bash deploy/deploy.sh`（git pull + 构建镜像 + 健康检查）。服务器首次部署时需先手动完成 `.env` 初始化（见上节），初始化后即可一键更新。
+脚本流程：自动提交并推送 `backend/` 目录的改动（不波及 `app`/`admin-web`），然后 SSH 到服务器执行 `bash deploy/deploy.sh`（git pull + 构建镜像 + 先执行数据库迁移、失败立即中止 + 健康检查）。服务器首次部署时需先手动完成 `.env` 初始化（见上节），初始化后即可一键更新。
 
 类型检查与单元测试不在部署链路内：类型错误由服务器镜像构建时的 tsc 编译兜底（构建失败即中止，不会上线坏代码）；回归测试建议由 CI 承担，部署前需要的话可手动执行 `pnpm lint` / `pnpm test`。
 
@@ -192,6 +193,7 @@ pnpm build      # 构建 API 和 Worker
 pnpm db:check   # 检查 Drizzle migration
 pnpm db:generate
 pnpm db:migrate
+pnpm db:verify  # 临时容器验证全部迁移（干净库 + 脏数据模拟两个场景）
 pnpm db:studio
 ```
 
@@ -199,7 +201,7 @@ pnpm db:studio
 
 1. 先阅读 `AGENTS.md`、`.cursor/rules/00-project-context.mdc` 和对应参考文档。
 2. 按 `.cursor/rules/90-change-map.mdc` 找到正确模块，不跨模块复制业务规则。
-3. 修改数据模型时先改 `src/db/schema.ts`，再生成并检查 migration；生产禁止使用 schema push。
+3. 修改数据模型时先改 `src/db/schema.ts`，再生成并检查 migration；数据迁移按旧数据形态编写防御性 SQL（去重、空值兜底、幂等），并用 `pnpm db:verify` 在临时容器验证；生产禁止使用 schema push。
 4. 新增或修改后台接口时同时添加客户端校验、精确权限码、项目级校验和审计日志。
 5. 数据写入和对应审计尽量放在同一个数据库事务中；耗时解析和导出必须交给 BullMQ Worker。
 6. AI 相关改动必须检查围栏、来源引用、密钥处理、停止生成、会话详情和报告来源。

@@ -102,11 +102,21 @@ if [[ "$POSTGRES_PWD" == "postgres" ]]; then
   warn "POSTGRES_PASSWORD 仍为默认值 postgres，公网服务器请务必修改"
 fi
 
-# ---------- 5. 构建并启动 ----------
+# ---------- 5. 构建镜像并执行数据库迁移 ----------
 info "构建镜像并启动服务（首次构建需拉取依赖，可能需要数分钟）..."
-docker compose up --build -d
+docker compose build api worker
 
-# ---------- 6. 健康检查 ----------
+# 迁移先行：单独执行迁移，失败立即中止，避免 api 容器反复重启后才暴露
+info "执行数据库迁移（node dist/db/migrate.js）..."
+if ! docker compose run --rm --no-deps api node dist/db/migrate.js; then
+  fail "数据库迁移失败，请检查 drizzle/ 迁移文件与数据库状态"
+fi
+
+# ---------- 6. 启动服务 ----------
+info "启动服务（api 容器内迁移幂等跳过）..."
+docker compose up -d
+
+# ---------- 7. 健康检查 ----------
 info "等待服务就绪（最多 120 秒）..."
 for i in $(seq 1 60); do
   if curl -fsS "http://127.0.0.1:8080/health/ready" >/dev/null 2>&1; then
