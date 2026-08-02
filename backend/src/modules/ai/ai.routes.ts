@@ -29,7 +29,7 @@ import { getPagination, paginationQuerySchema } from "../../shared/pagination.js
 import { estimateTokens, buildSystemMessages, type ContextMessage } from "../../shared/prompt-assembly.js";
 import { budgetHistory } from "../../shared/prompt-assembly.js";
 import { ok } from "../../shared/response.js";
-import { isAbortError, writeProgress, writeSse } from "./ai-sse.js";
+import { isAbortError, startSseStream, writeProgress, writeSse } from "./ai-sse.js";
 import { writeAuditLog } from "../audit-logs/audit-log.service.js";
 import { formatKnowledgeContext, searchProjectKnowledge } from "../knowledge/knowledge.service.js";
 import {
@@ -740,14 +740,7 @@ export async function aiRoutes(app: FastifyInstance) {
       }
     };
 
-    reply.hijack();
-    reply.raw.writeHead(200, {
-      "content-type": "text/event-stream; charset=utf-8",
-      "cache-control": "no-cache, no-transform",
-      connection: "keep-alive",
-      "x-accel-buffering": "no",
-      "x-request-id": request.id
-    });
+    startSseStream(reply, request.id);
     writeSse(reply, "message", { messageId: assistantMessage.id, conversationId: conversation.id, requestId });
     writeProgress(reply, "analyzing", conversation.projectId ? "正在分析项目资料..." : "正在分析问题...");
     request.raw.once("close", onClientClose);
@@ -1160,14 +1153,7 @@ export async function aiRoutes(app: FastifyInstance) {
       }
     };
 
-    reply.hijack();
-    reply.raw.writeHead(200, {
-      "content-type": "text/event-stream; charset=utf-8",
-      "cache-control": "no-cache, no-transform",
-      connection: "keep-alive",
-      "x-accel-buffering": "no",
-      "x-request-id": request.id
-    });
+    startSseStream(reply, request.id);
     writeSse(reply, "message", {
       messageId: assistantMessage.id,
       conversationId: row.conversation.id,

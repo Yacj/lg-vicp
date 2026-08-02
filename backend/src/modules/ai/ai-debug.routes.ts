@@ -20,7 +20,7 @@ import { ok } from "../../shared/response.js";
 import { writeAuditLog } from "../audit-logs/audit-log.service.js";
 import { resolveModelById, type ResolvedModelConfig } from "../ai-config/ai-config.service.js";
 import { resolveReasoningProviderOptions, type ProviderOptionsMap, type ReasoningMode } from "./ai-runtime.service.js";
-import { isAbortError, writeProgress, writeSse } from "./ai-sse.js";
+import { isAbortError, startSseStream, writeProgress, writeSse } from "./ai-sse.js";
 
 const debugChatBodySchema = z.object({
   scene: z.string().trim().min(1, "请输入场景编码").max(80).optional(),
@@ -120,14 +120,7 @@ export async function aiDebugRoutes(app: FastifyInstance) {
     const generation: DebugGeneration = { controller: new AbortController(), stopRequested: false };
     debugGenerations.set(debugId, generation);
 
-    reply.hijack();
-    reply.raw.writeHead(200, {
-      "content-type": "text/event-stream; charset=utf-8",
-      "cache-control": "no-cache, no-transform",
-      connection: "keep-alive",
-      "x-accel-buffering": "no",
-      "x-request-id": requestId
-    });
+    startSseStream(reply, requestId);
     writeSse(reply, "message", { messageId: debugId, requestId });
     writeProgress(reply, "analyzing", "调试请求已受理，正在连接模型...");
     writeProgress(reply, "composing", "正在整理回答...");
