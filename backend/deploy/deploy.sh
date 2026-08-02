@@ -79,7 +79,7 @@ if [[ ! -f .env ]]; then
   set_key STORAGE_SECRET_KEY 16
 
   info "请打开 $(pwd)/.env 修改以下两项后重新运行本脚本："
-  info "  BOOTSTRAP_ADMIN_PASSWORD：管理员登录密码（至少 12 位）"
+  info "  BOOTSTRAP_ADMIN_PASSWORD：管理员登录密码（至少 5 位）"
   info "  CORS_ORIGIN：前端访问地址（如 https://admin.example.com）"
   exit 0
 fi
@@ -96,8 +96,8 @@ POSTGRES_PWD="$(read_env POSTGRES_PASSWORD)"
   || fail ".env 中 JWT_SECRET 未设置或仍为示例值，请修改后重试"
 [[ -n "$AI_KEY" && "${#AI_KEY}" -eq 32 ]] \
   || fail ".env 中 AI_CONFIG_ENCRYPTION_KEY 必须恰好 32 字节（如 32 位十六进制字符）"
-[[ -n "$BOOTSTRAP_PWD" && "$BOOTSTRAP_PWD" != "请替换为至少12位的管理员密码" && "${#BOOTSTRAP_PWD}" -ge 12 ]] \
-  || fail ".env 中 BOOTSTRAP_ADMIN_PASSWORD 未设置或少于 12 位，请修改后重试"
+[[ -n "$BOOTSTRAP_PWD" && "$BOOTSTRAP_PWD" != "请替换为至少5位的管理员密码" && "${#BOOTSTRAP_PWD}" -ge 5 ]] \
+  || fail ".env 中 BOOTSTRAP_ADMIN_PASSWORD 未设置或少于 5 位，请修改后重试"
 if [[ "$POSTGRES_PWD" == "postgres" ]]; then
   warn "POSTGRES_PASSWORD 仍为默认值 postgres，公网服务器请务必修改"
 fi

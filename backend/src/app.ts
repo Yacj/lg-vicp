@@ -54,7 +54,9 @@ export async function buildApp() {
   await app.register(errorHandlerPlugin);
   await app.register(helmet);
   await app.register(cors, {
-    origin: env.CORS_ORIGIN === "*" ? true : env.CORS_ORIGIN
+    origin: env.CORS_ORIGIN === "*" ? true : env.CORS_ORIGIN,
+    // @fastify/cors 默认只允许 GET,HEAD,POST，必须显式放开业务使用的 PATCH/PUT/DELETE
+    methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE"]
   });
   await app.register(requestContextPlugin);
   await app.register(databasePlugin);

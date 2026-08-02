@@ -25,7 +25,7 @@ const userFields = z.object({
 });
 const createUserBodySchema = userFields.extend({
   identifier: z.string().trim().min(3, "用户名或手机号至少 3 个字符").max(255),
-  password: z.string().min(12, "密码至少需要 12 个字符").max(128)
+  password: z.string().min(5, "密码至少需要 5 个字符").max(128)
 }).superRefine((value, context) => {
   if (value.role === USER_ROLES.CHANNEL_USER && !value.channelType) context.addIssue({ code: "custom", path: ["channelType"], message: "渠道用户必须选择经销商或业务员" });
   if (value.role !== USER_ROLES.CHANNEL_USER && value.channelType) context.addIssue({ code: "custom", path: ["channelType"], message: "只有渠道用户可以设置渠道类型" });
@@ -40,7 +40,7 @@ const listQuerySchema = paginationQuerySchema.extend({
   includeDeleted: z.coerce.boolean().default(false)
 });
 const idsBodySchema = z.object({ ids: z.array(z.uuid()).max(1000) });
-const resetPasswordSchema = z.object({ password: z.string().min(12, "密码至少需要 12 个字符").max(128) });
+const resetPasswordSchema = z.object({ password: z.string().min(5, "密码至少需要 5 个字符").max(128) });
 const importBodySchema = z.object({ csv: z.string().min(1, "请提供 CSV 内容").max(5_000_000), dryRun: z.boolean().default(false) });
 
 function requireUserPermission(request: Parameters<typeof getCurrentUser>[0], permission: string) {
