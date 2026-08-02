@@ -54,7 +54,28 @@ describe('dashboard shortcut projection', () => {
       title: '项目列表',
       description: '进入已授权功能',
       path: '/projects',
+      target: { kind: 'internal', path: '/projects' },
       enabled: true,
+    }])
+  })
+
+  it('includes safe external targets in dashboard shortcuts', () => {
+    const shortcuts = projectAvailableShortcuts([
+      menu({
+        id: 'docs',
+        path: null,
+        target: { href: 'https://docs.example.com', kind: 'external' },
+        title: '外部文档',
+      }),
+    ], () => false)
+
+    expect(shortcuts).toEqual([{
+      description: '在新窗口打开外部资源',
+      enabled: true,
+      id: 'docs',
+      path: null,
+      target: { href: 'https://docs.example.com', kind: 'external' },
+      title: '外部文档',
     }])
   })
 

@@ -169,6 +169,27 @@ export const useTabsStore = defineStore('tabs', () => {
     }
   }
 
+  function prune(
+    validRouteNames: ReadonlySet<string>,
+    validRoutePaths: ReadonlySet<string>,
+  ): string {
+    const previousTabs = tabs.value
+    const previousActiveIndex = previousTabs.findIndex(tab => tab.fullPath === activePath.value)
+    const isAvailable = (tab: AppTab): boolean => {
+      const pathname = tab.fullPath.split(/[?#]/, 1)[0] || '/'
+      return validRouteNames.has(tab.name) && validRoutePaths.has(pathname)
+    }
+    tabs.value = previousTabs.filter(isAvailable)
+
+    if (!tabs.value.some(tab => tab.fullPath === activePath.value)) {
+      activePath.value = resolveAdjacentPath(
+        tabs.value,
+        Math.min(Math.max(previousActiveIndex, 0), tabs.value.length - 1),
+      )
+    }
+    return activePath.value
+  }
+
   function reset(): void {
     activePath.value = '/'
     refreshingPath.value = null
@@ -189,6 +210,7 @@ export const useTabsStore = defineStore('tabs', () => {
     move,
     open,
     pin,
+    prune,
     refresh,
     refreshVersion,
     refreshingPath,

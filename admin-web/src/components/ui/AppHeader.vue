@@ -1,33 +1,38 @@
 <script setup lang="ts">
 import type { DropdownOption } from 'tdesign-vue-next'
+import type { MenuNavigationTarget } from '@/types/menu'
 import { useFullscreen } from '@vueuse/core'
 import {
   BrightnessIcon,
   CloudyNightIcon,
   FullscreenExitIcon,
   FullscreenIcon,
-  MenuFoldIcon,
-  MenuUnfoldIcon,
+  LockOnIcon,
+  LogoutIcon,
   MoreIcon,
   NotificationIcon,
   PaletteIcon,
   RefreshIcon,
   RobotIcon,
   SearchIcon,
+  SettingIcon,
+  UserIcon,
 } from 'tdesign-icons-vue-next'
 import { computed, nextTick, ref } from 'vue'
+import defaultAvatar from '@/assets/avatar.png'
 import { useRoute, useRouter } from 'vue-router'
 import { confirmAndRun } from '@/composables/useAppConfirm'
 import { useResponsiveShell } from '@/composables/useResponsiveShell'
-import { flattenNavigableMenus, withHomeMenu } from '@/router/dynamic-routes'
+import { flattenNavigableMenus, findMenuById, navigateMenuTarget, withHomeMenu } from '@/router/dynamic-routes'
 import { useAuthStore } from '@/stores/auth'
 import { useRouteStore } from '@/stores/route'
 import { useSettingsStore } from '@/stores/settings'
 import { useTabsStore } from '@/stores/tabs'
 import { useUserStore } from '@/stores/user'
+import AppIcon from './AppIcon.vue'
 import AppearanceDrawer from './AppearanceDrawer.vue'
+import AppNavigationToggle from './AppNavigationToggle.vue'
 import AppUserSummary from './AppUserSummary.vue'
-import { resolveMenuIcon } from './menu-icons'
 
 defineOptions({ name: 'AppHeader' })
 
@@ -61,19 +66,23 @@ const searchKeyword = ref('')
 const { isFullscreen, isSupported: fullscreenSupported, toggle: toggleFullscreen } = useFullscreen()
 
 const userLabel = computed(() => userStore.profile?.displayName.trim() || '管理员')
-const userInitial = computed(() => Array.from(userLabel.value)[0] ?? '管')
+// 用户模型暂无头像字段，统一回退本地默认头像
+const userAvatar = defaultAvatar
 const isCompactHeader = computed(() => props.compact || shell.usesDrawer.value)
 const navigableMenus = computed(() => flattenNavigableMenus(withHomeMenu(routeStore.sidebarMenus)))
 const searchResults = computed(() => {
   const keyword = searchKeyword.value.trim().toLowerCase()
-  return navigableMenus.value.filter(item => !keyword
-    || item.title.toLowerCase().includes(keyword)
-    || item.path?.toLowerCase().includes(keyword))
+  return navigableMenus.value.filter(item => {
+    const targetText = item.target?.kind === 'external' ? item.target.href : item.path ?? ''
+    return !keyword
+      || item.title.toLowerCase().includes(keyword)
+      || targetText.toLowerCase().includes(keyword)
+  })
 })
 const assistantTarget = computed(() => navigableMenus.value.find((item) => {
   const searchable = `${item.id} ${item.title} ${item.icon ?? ''}`.toLowerCase()
   return searchable.includes('ai') || searchable.includes('筑小格') || searchable.includes('智能')
-})?.path ?? null)
+})?.target ?? null)
 const themeIcon = computed(() => settingsStore.effectiveTheme === 'dark' ? CloudyNightIcon : BrightnessIcon)
 const themeLabel = computed(() => settingsStore.effectiveTheme === 'dark' ? '切换为浅色' : '切换为深色')
 
@@ -87,9 +96,9 @@ const compactActionOptions = computed<DropdownOption[]>(() => [
   { content: '外观设置', value: 'appearance' },
 ])
 
-function navigate(path: string | null): void {
-  if (path) {
-    void router.push(path)
+function navigate(target: MenuNavigationTarget | null): void {
+  if (target) {
+    navigateMenuTarget(target, router)
   }
 }
 
@@ -104,7 +113,8 @@ function openSearch(): void {
 
 function handleSearchChange(value: string | number): void {
   if (typeof value === 'string') {
-    navigate(value)
+    const item = findMenuById(navigableMenus.value, value)
+    navigate(item?.target ?? null)
     searchVisible.value = false
   }
 }
@@ -178,22 +188,11 @@ async function handleLogout(): Promise<void> {
     :class="{ 'is-fixed': settingsStore.settings.fixedHeader, 'is-compact': isCompactHeader }"
   >
     <div class="app-header__start">
-      <t-tooltip
+      <AppNavigationToggle
         v-if="showNavigationToggle"
-        :content="shell.usesDrawer.value ? '打开导航' : (navigationCollapsed ? '展开侧边栏' : '收起侧边栏')"
-        placement="bottom-left"
-      >
-        <t-button
-          :aria-label="shell.usesDrawer.value ? '打开导航' : (navigationCollapsed ? '展开侧边栏' : '收起侧边栏')"
-          shape="square"
-          theme="default"
-          variant="text"
-          @click="emit('toggleNavigation')"
-        >
-          <MenuUnfoldIcon v-if="shell.usesDrawer.value || navigationCollapsed" />
-          <MenuFoldIcon v-else />
-        </t-button>
-      </t-tooltip>
+        :collapsed="navigationCollapsed"
+        @click="emit('toggleNavigation')"
+      />
 
       <slot name="brand" />
       <slot name="navigation" />
@@ -268,27 +267,31 @@ async function handleLogout(): Promise<void> {
 
       <t-popup v-model:visible="userPanelVisible" placement="bottom-right" trigger="click">
         <t-button aria-label="用户菜单" class="app-header__user" theme="default" variant="text">
-          <t-avatar size="small">
-            {{ userInitial }}
-          </t-avatar>
+          <t-avatar :image="userAvatar" alt="用户头像" shape="circle" size="40px" />
           <span>{{ userLabel }}</span>
         </t-button>
         <template #content>
           <div class="app-header__user-panel">
             <AppUserSummary />
             <t-divider />
-            <t-button block disabled theme="default" variant="text">
-              个人信息
-            </t-button>
-            <t-button block disabled theme="default" variant="text">
-              账号设置
-            </t-button>
-            <t-button block disabled theme="default" variant="text">
-              修改密码
-            </t-button>
+            <div class="app-header__user-actions">
+              <t-button block variant="text" class="app-header__user-action" disabled>
+                <UserIcon />
+                <span>个人信息</span>
+              </t-button>
+              <t-button block variant="text" class="app-header__user-action" disabled>
+                <SettingIcon />
+                <span>账号设置</span>
+              </t-button>
+              <t-button block variant="text" class="app-header__user-action" disabled>
+                <LockOnIcon />
+                <span>修改密码</span>
+              </t-button>
+            </div>
             <t-divider />
-            <t-button block theme="danger" variant="text" @click="handleLogout">
-              退出登录
+            <t-button block variant="text" class="app-header__user-action is-danger" @click="handleLogout">
+              <LogoutIcon />
+              <span>退出登录</span>
             </t-button>
           </div>
         </template>
@@ -321,9 +324,9 @@ async function handleLogout(): Promise<void> {
           :value="route.path"
           @change="handleSearchChange"
         >
-          <t-menu-item v-for="item in searchResults" :key="item.id" :value="item.path ?? item.id">
+          <t-menu-item v-for="item in searchResults" :key="item.id" :value="item.id">
             <template #icon>
-              <component :is="resolveMenuIcon(item.icon)" />
+              <AppIcon :name="item.icon" />
             </template>
             {{ item.title }}
           </t-menu-item>
@@ -380,7 +383,6 @@ async function handleLogout(): Promise<void> {
 }
 
 .app-header__start :deep(.t-breadcrumb),
-.app-header__module-title,
 .app-header__mobile-title {
   min-width: 0;
   overflow: hidden;
@@ -390,6 +392,8 @@ async function handleLogout(): Promise<void> {
 
 .app-header__user {
   gap: var(--td-size-2);
+  height: auto; /* 覆盖 text variant 的 32px 固定高度，避免 40px 头像上下被裁切 */
+  padding-block: var(--td-size-1);
   padding-inline: var(--td-size-2);
 }
 
@@ -398,6 +402,52 @@ async function handleLogout(): Promise<void> {
   width: 260px;
   gap: var(--td-size-2);
   padding: var(--td-size-4);
+}
+
+.app-header__user-actions {
+  display: grid;
+  gap: var(--td-size-1);
+}
+
+.app-header__user-action {
+  height: auto;
+  justify-content: flex-start;
+  padding: var(--td-size-2) var(--td-size-3);
+  border-radius: var(--td-radius-default);
+}
+
+/* t-button 全局把 .t-button__text 设为 inline-flex，会导致行内图标/头像与文字基线错位，
+   这里统一还原为行内布局，用 vertical-align 对齐 */
+.app-header__user :deep(.t-button__text),
+.app-header__user-action :deep(.t-button__text) {
+  display: inline;
+}
+
+.app-header__user :deep(.t-avatar),
+.app-header__user :deep(.t-button__text > span) {
+  vertical-align: middle;
+}
+
+.app-header__user :deep(.t-button__text > span) {
+  margin-left: var(--td-size-2);
+}
+
+.app-header__user-action :deep(.t-button__text) {
+  font-size: var(--td-font-size-body-medium);
+}
+
+.app-header__user-action :deep(.t-button__text svg) {
+  margin-right: var(--td-size-3);
+  font-size: var(--td-font-size-body-large);
+  vertical-align: middle;
+}
+
+.app-header__user-action:not(:disabled):hover {
+  background: var(--td-bg-color-container-hover);
+}
+
+.app-header__user-action.is-danger {
+  color: var(--td-error-color);
 }
 
 .app-header__user-panel :deep(.t-divider) {

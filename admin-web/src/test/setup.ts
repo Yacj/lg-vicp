@@ -1,5 +1,11 @@
 import { afterEach, vi } from 'vitest'
 
+// jsdom 未实现 scrollIntoView，TDesign 表单 scroll-to-first-error 依赖它
+Object.defineProperty(Element.prototype, 'scrollIntoView', {
+  configurable: true,
+  value: vi.fn(),
+})
+
 Object.defineProperty(window, 'matchMedia', {
   configurable: true,
   value: vi.fn().mockImplementation((query: string) => ({
@@ -22,9 +28,7 @@ const appearanceAttributes = [
   'data-density',
   'data-tabs-style',
   'data-radius',
-  'data-system-theme-preset',
-  'data-component-theme-preset',
-  'data-sync-theme-colors',
+  'data-primary-color',
   'data-fixed-header',
 ]
 
@@ -33,6 +37,9 @@ afterEach(() => {
   sessionStorage.clear()
   document.documentElement.className = ''
   document.documentElement.style.colorScheme = ''
+  for (let index = 1; index <= 10; index += 1) {
+    document.documentElement.style.removeProperty(`--td-brand-color-${index}`)
+  }
   appearanceAttributes.forEach(attribute => document.documentElement.removeAttribute(attribute))
   vi.mocked(window.matchMedia).mockReset()
   vi.mocked(window.matchMedia).mockImplementation((query: string) => ({

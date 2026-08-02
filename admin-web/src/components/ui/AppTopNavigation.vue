@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import type { DropdownOption } from 'tdesign-vue-next'
-import type { SidebarMenuItem } from '@/types/menu'
+import type { MenuNavigationTarget, SidebarMenuItem } from '@/types/menu'
 import { useResizeObserver } from '@vueuse/core'
 import { MoreIcon } from 'tdesign-icons-vue-next'
 import { computed, nextTick, ref, watch } from 'vue'
-import { firstNavigablePath } from '@/router/dynamic-routes'
+import { findMenuById, firstNavigableTarget } from '@/router/dynamic-routes'
 
 const props = defineProps<{
   menus: SidebarMenuItem[]
@@ -13,7 +13,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   activate: [item: SidebarMenuItem]
-  navigate: [path: string]
+  navigate: [target: MenuNavigationTarget]
 }>()
 
 const containerRef = ref<HTMLElement | null>(null)
@@ -28,7 +28,7 @@ function toDropdownOption(item: SidebarMenuItem): DropdownOption {
   const children = item.children.map(toDropdownOption)
   return {
     content: item.title,
-    value: children.length > 0 ? item.id : firstNavigablePath(item) ?? item.id,
+    value: item.id,
     ...(children.length > 0 ? { children } : {}),
   }
 }
@@ -38,8 +38,13 @@ function childOptions(item: SidebarMenuItem): DropdownOption[] {
 }
 
 function handleDropdown(option: DropdownOption): void {
-  if (typeof option.value === 'string' && option.value.startsWith('/')) {
-    emit('navigate', option.value)
+  if (typeof option.value !== 'string') {
+    return
+  }
+  const item = findMenuById(props.menus, option.value)
+  const target = item ? firstNavigableTarget(item) : null
+  if (target) {
+    emit('navigate', target)
   }
 }
 

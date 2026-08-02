@@ -1,10 +1,11 @@
-import type { SidebarMenuItem } from '@/types/menu'
+import type { MenuNavigationTarget, SidebarMenuItem } from '@/types/menu'
 
 export interface DashboardShortcut {
   id: string
   title: string
   description: string
   path: string | null
+  target: MenuNavigationTarget | null
   enabled: boolean
 }
 
@@ -19,20 +20,40 @@ export function projectAvailableShortcuts(
   menus: readonly SidebarMenuItem[],
   canNavigate: (path: string) => boolean,
 ): DashboardShortcut[] {
-  const seenPaths = new Set<string>()
+  const seenTargets = new Set<string>()
 
   return collectMenuLeaves(menus).flatMap((menu): DashboardShortcut[] => {
-    if (!menu.path || menu.path === '/' || seenPaths.has(menu.path) || !canNavigate(menu.path)) {
+    const target = menu.target ?? (menu.path ? { kind: 'internal' as const, path: menu.path } : null)
+    if (!target) {
       return []
     }
 
-    seenPaths.add(menu.path)
+    if (target.kind === 'internal') {
+      if (target.path === '/' || seenTargets.has(target.path) || !canNavigate(target.path)) {
+        return []
+      }
+      seenTargets.add(target.path)
+      return [{
+        description: '进入已授权功能',
+        enabled: true,
+        id: menu.id,
+        path: target.path,
+        target,
+        title: menu.title,
+      }]
+    }
+
+    if (seenTargets.has(target.href)) {
+      return []
+    }
+    seenTargets.add(target.href)
     return [{
-      id: menu.id,
-      title: menu.title,
-      description: '进入已授权功能',
-      path: menu.path,
+      description: '在新窗口打开外部资源',
       enabled: true,
+      id: menu.id,
+      path: null,
+      target,
+      title: menu.title,
     }]
   })
 }

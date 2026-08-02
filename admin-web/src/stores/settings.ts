@@ -7,6 +7,7 @@ import {
   createDefaultAppearanceSettings,
   parseAppearanceSettings,
 } from '@/config/appearance'
+import { generateBrandColorScale } from '@/utils/color'
 
 export type EffectiveTheme = 'dark' | 'light'
 export type { AppearanceSettings, ThemeMode } from '@/types/appearance'
@@ -16,9 +17,10 @@ export function applyAppearance(settings: AppearanceSettings, effectiveTheme: Ef
   const sidebarTheme = settings.sidebarTheme === 'auto'
     ? effectiveTheme
     : settings.sidebarTheme
-  const componentThemePreset = settings.syncThemeColors
-    ? settings.systemThemePreset
-    : settings.componentThemePreset
+  const brandScale = generateBrandColorScale(settings.primaryColor)[effectiveTheme]
+  brandScale.forEach((color, index) => {
+    root.style.setProperty(`--td-brand-color-${index + 1}`, color)
+  })
   const attributes = {
     'data-theme': effectiveTheme,
     'data-layout': settings.layoutMode,
@@ -27,9 +29,7 @@ export function applyAppearance(settings: AppearanceSettings, effectiveTheme: Ef
     'data-density': settings.density,
     'data-tabs-style': settings.tabsStyle,
     'data-radius': settings.radiusLevel,
-    'data-system-theme-preset': settings.systemThemePreset,
-    'data-component-theme-preset': componentThemePreset,
-    'data-sync-theme-colors': String(settings.syncThemeColors),
+    'data-primary-color': settings.primaryColor,
     'data-fixed-header': String(settings.fixedHeader),
   }
 

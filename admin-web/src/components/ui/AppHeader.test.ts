@@ -57,6 +57,22 @@ afterEach(() => {
   document.body.innerHTML = ''
 })
 
+/** 点击用户菜单并等待面板展开；jsdom 中 TDesign trigger 监听偶发未就绪，故带重试 */
+async function openUserPanel(container: HTMLElement): Promise<boolean> {
+  for (let attempt = 0; attempt < 4; attempt++) {
+    container.querySelector('[aria-label="用户菜单"]')?.dispatchEvent(
+      new MouseEvent('click', { bubbles: true }),
+    )
+    for (let waited = 0; waited < 10; waited++) {
+      await new Promise(resolve => setTimeout(resolve, 50))
+      if (document.body.textContent?.includes('平台管理员')) {
+        return true
+      }
+    }
+  }
+  return false
+}
+
 describe('app header', () => {
   it('keeps the desktop action order and exposes the real user summary', async () => {
     const { container } = await mountHeader()
@@ -74,10 +90,8 @@ describe('app header', () => {
     ])
     expect(container.querySelector('.app-header__user')?.textContent).toContain('林管理员')
 
-    container.querySelector('[aria-label="用户菜单"]')?.dispatchEvent(
-      new MouseEvent('click', { bubbles: true }),
-    )
-    await new Promise(resolve => setTimeout(resolve, 0))
+    const opened = await openUserPanel(container)
+    expect(opened).toBe(true)
 
     expect(document.body.textContent).toContain('平台管理员')
     expect(document.body.textContent).toContain('总部')

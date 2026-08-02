@@ -7,8 +7,8 @@ import type {
   SidebarTheme,
   TabsStyle,
   ThemeMode,
-  ThemePreset,
 } from '@/types/appearance'
+import { THEME_COLOR_PRESETS } from '@/types/appearance'
 import { useAppFeedback } from '@/composables/useAppFeedback'
 import { useSettingsStore } from '@/stores/settings'
 
@@ -67,14 +67,8 @@ const radiusOptions = [
   { label: '大圆角', value: 'large' },
 ] satisfies Array<{ label: string, value: RadiusLevel }>
 
-const presetOptions = [
-  { label: 'VICP 深蓝', value: 'vicp-blue' },
-  { label: '科技蓝', value: 'technology-blue' },
-  { label: '靛青', value: 'indigo' },
-  { label: '青色', value: 'cyan' },
-  { label: '生态绿', value: 'emerald' },
-  { label: '紫色', value: 'purple' },
-] satisfies Array<{ label: string, value: ThemePreset }>
+const themeColorPresets = THEME_COLOR_PRESETS
+const themeColorValues = THEME_COLOR_PRESETS.map((preset) => preset.value)
 
 function patch<Key extends keyof typeof settingsStore.settings>(
   key: Key,
@@ -96,6 +90,7 @@ function close(): void {
 <template>
   <t-drawer
     :visible="visible"
+    attach="body"
     :close-on-overlay-click="true"
     :destroy-on-close="false"
     placement="right"
@@ -118,27 +113,26 @@ function close(): void {
           />
         </div>
         <div class="appearance-drawer__field">
-          <span>系统主题色</span>
-          <t-select
-            :options="presetOptions"
-            :value="settingsStore.settings.systemThemePreset"
-            @change="patch('systemThemePreset', $event as ThemePreset)"
+          <span>主题色</span>
+          <t-color-picker
+            :model-value="settingsStore.settings.primaryColor"
+            format="HEX"
+            :swatch-colors="themeColorValues"
+            @change="patch('primaryColor', $event)"
           />
         </div>
-        <div class="appearance-drawer__switch">
-          <span>同步组件主题色</span>
-          <t-switch
-            :value="settingsStore.settings.syncThemeColors"
-            @change="patch('syncThemeColors', Boolean($event))"
-          />
-        </div>
-        <div class="appearance-drawer__field">
-          <span>组件主题色</span>
-          <t-select
-            :disabled="settingsStore.settings.syncThemeColors"
-            :options="presetOptions"
-            :value="settingsStore.settings.componentThemePreset"
-            @change="patch('componentThemePreset', $event as ThemePreset)"
+        <div class="appearance-drawer__swatches" aria-label="主题色快捷预设">
+          <div
+            v-for="preset in themeColorPresets"
+            :key="preset.value"
+            class="appearance-drawer__swatch"
+            :class="{ 'is-active': settingsStore.settings.primaryColor === preset.value }"
+            :style="{ backgroundColor: preset.value }"
+            :title="preset.label"
+            role="button"
+            tabindex="0"
+            @click="patch('primaryColor', preset.value)"
+            @keydown.enter="patch('primaryColor', preset.value)"
           />
         </div>
       </section>
@@ -276,7 +270,8 @@ function close(): void {
 }
 
 .appearance-drawer__field :deep(.t-radio-group),
-.appearance-drawer__field :deep(.t-select) {
+.appearance-drawer__field :deep(.t-select),
+.appearance-drawer__field :deep(.t-color-picker) {
   min-width: 0;
   flex: 1;
 }
@@ -285,8 +280,32 @@ function close(): void {
   justify-content: flex-end;
 }
 
-.appearance-drawer__field :deep(.t-select) {
+.appearance-drawer__field :deep(.t-select),
+.appearance-drawer__field :deep(.t-color-picker) {
   max-width: 240px;
+}
+
+.appearance-drawer__swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.appearance-drawer__swatch {
+  width: 26px;
+  height: 26px;
+  border-radius: var(--td-radius-default);
+  border: 1px solid var(--td-component-border);
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.appearance-drawer__swatch:hover {
+  transform: scale(1.08);
+}
+
+.appearance-drawer__swatch.is-active {
+  box-shadow: 0 0 0 2px var(--td-bg-color-container), 0 0 0 4px var(--td-brand-color);
 }
 
 .appearance-drawer__footer {

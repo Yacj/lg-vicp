@@ -8,12 +8,13 @@ describe('echarts on-demand registration', () => {
   it('never imports the full echarts bundle', () => {
     const violations = fs.readdirSync(sourceRoot, { recursive: true })
       .filter((entry): entry is string => typeof entry === 'string' && entry.endsWith('.ts'))
+      .filter(entry => !entry.endsWith('.test.ts'))
       .map(entry => path.join(sourceRoot, entry))
       .flatMap((file) => {
         const source = fs.readFileSync(file, 'utf8')
         // type-only import/export 不引入运行时代码，不算全量引入
         const runtimeImports = source.split('\n').filter(line => !/^\s*(import|export)\s+type\b/.test(line))
-        return runtimeImports.some(line => line.includes("from 'echarts'") || line.includes('from "echarts"'))
+        return runtimeImports.some(line => /from\s+['"]echarts['"]/.test(line))
           ? [path.relative(sourceRoot, file)]
           : []
       })
@@ -22,7 +23,7 @@ describe('echarts on-demand registration', () => {
   })
 
   it('registers only the first-phase modules', () => {
-    const source = fs.readFileSync(path.join(sourceRoot, 'echarts.ts'), 'utf8')
+    const source = fs.readFileSync(path.join(sourceRoot, 'charts', 'echarts.ts'), 'utf8')
 
     expect(source).toContain("from 'echarts/core'")
     expect(source).toContain("from 'echarts/charts'")

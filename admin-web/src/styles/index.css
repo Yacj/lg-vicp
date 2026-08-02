@@ -42,3 +42,7 @@ a {
 button {
   color: inherit;
 }
+
+.t-dialog--default {
+  padding: 20px 24px;
+}

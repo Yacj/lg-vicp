@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import type { SidebarMenuItem } from '@/types/menu'
+import type { MenuNavigationTarget, SidebarMenuItem } from '@/types/menu'
 import { computed } from 'vue'
-import { firstNavigablePath } from '@/router/dynamic-routes'
+import { firstNavigableTarget } from '@/router/dynamic-routes'
 import { useSettingsStore } from '@/stores/settings'
+import AppIcon from './AppIcon.vue'
 import AppLogo from './AppLogo.vue'
+import AppNavigationToggle from './AppNavigationToggle.vue'
 import AppSidebar from './AppSidebar.vue'
-import { resolveMenuIcon } from './menu-icons'
 
 defineOptions({ name: 'AppDualSidebar' })
 
@@ -19,7 +20,8 @@ defineProps<{
 
 const emit = defineEmits<{
   activate: [item: SidebarMenuItem]
-  navigate: [path: string]
+  navigate: [target: MenuNavigationTarget]
+  toggleNavigation: []
 }>()
 
 const settingsStore = useSettingsStore()
@@ -55,7 +57,7 @@ const sidebarTheme = computed<'light' | 'dark'>(() => {
             :aria-label="item.title"
             class="app-dual-sidebar__primary-item"
             :class="{ 'is-active': item.id === activeId }"
-            :disabled="firstNavigablePath(item) === null"
+            :disabled="firstNavigableTarget(item) === null"
             shape="square"
             theme="default"
             variant="text"
@@ -63,13 +65,16 @@ const sidebarTheme = computed<'light' | 'dark'>(() => {
           >
             <template #icon>
               <span class="app-dual-sidebar__primary-icon" aria-hidden="true">
-                <component :is="resolveMenuIcon(item.icon)" />
+                <AppIcon :name="item.icon" />
               </span>
             </template>
             <span class="app-dual-sidebar__primary-label">{{ item.title }}</span>
           </t-button>
         </t-tooltip>
       </nav>
+      <div v-if="collapsed" class="app-dual-sidebar__primary-toggle">
+        <AppNavigationToggle :collapsed="collapsed" @click="emit('toggleNavigation')" />
+      </div>
     </div>
 
     <AppSidebar
@@ -79,7 +84,11 @@ const sidebarTheme = computed<'light' | 'dark'>(() => {
       :module-title="moduleTitle"
       :show-brand="false"
       @navigate="emit('navigate', $event)"
-    />
+    >
+      <template #footer>
+        <AppNavigationToggle :collapsed="collapsed" placement="top" @click="emit('toggleNavigation')" />
+      </template>
+    </AppSidebar>
   </aside>
 </template>
 
@@ -192,5 +201,28 @@ const sidebarTheme = computed<'light' | 'dark'>(() => {
 
 .app-dual-sidebar__secondary {
   width: var(--vicp-dual-secondary-width);
+}
+
+.app-dual-sidebar__primary-toggle {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  padding: var(--td-size-2);
+  border-top: 1px solid var(--td-component-stroke);
+}
+
+.app-dual-sidebar.is-dark .app-dual-sidebar__primary-toggle {
+  border-top-color: var(--vicp-sidebar-border-dark);
+}
+
+/* 一级栏为深色主题时，切换按钮文字需反色并对 hover 做低对比适配 */
+.app-dual-sidebar.is-dark .app-dual-sidebar__primary-toggle :deep(.t-button--variant-text) {
+  color: var(--td-text-color-anti);
+}
+
+.app-dual-sidebar.is-dark .app-dual-sidebar__primary-toggle :deep(.t-button--variant-text:not(.t-is-disabled):hover) {
+  color: var(--td-text-color-anti);
+  background: var(--vicp-sidebar-bg-dark);
 }
 </style>

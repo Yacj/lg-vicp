@@ -43,26 +43,26 @@ function handleEnter(event: KeyboardEvent): void {
       <div class="app-search-panel__fields">
         <slot />
         <slot v-if="expanded" name="advanced" />
-      </div>
 
-      <div class="app-search-panel__actions">
-        <slot name="actions" />
-        <t-button :loading="loading" theme="primary" type="button" @click="emit('search')">
-          <template #icon>
-            <SearchIcon />
-          </template>
-          {{ searchText }}
-        </t-button>
-        <t-button :disabled="loading" theme="default" type="reset" variant="outline">
-          {{ resetText }}
-        </t-button>
-        <t-button v-if="collapsible" theme="default" type="button" variant="text" @click="toggleExpanded">
-          {{ expanded ? '收起' : '展开' }}
-          <template #suffix>
-            <ChevronUpIcon v-if="expanded" />
-            <ChevronDownIcon v-else />
-          </template>
-        </t-button>
+        <div class="app-search-panel__actions">
+          <slot name="actions" />
+          <t-button :loading="loading" theme="primary" type="button" @click="emit('search')">
+            <template #icon>
+              <SearchIcon />
+            </template>
+            {{ searchText }}
+          </t-button>
+          <t-button :disabled="loading" theme="default" type="reset" variant="outline">
+            {{ resetText }}
+          </t-button>
+          <t-button v-if="collapsible" theme="default" type="button" variant="text" @click="toggleExpanded">
+            {{ expanded ? '收起' : '展开' }}
+            <template #suffix>
+              <ChevronUpIcon v-if="expanded" />
+              <ChevronDownIcon v-else />
+            </template>
+          </t-button>
+        </div>
       </div>
     </t-form>
   </section>
@@ -95,7 +95,10 @@ function handleEnter(event: KeyboardEvent): void {
   margin: 0;
 }
 
-.app-search-panel__fields :deep(.t-form__controls),
+.app-search-panel__fields :deep(.t-form__controls) {
+  min-width: 0;
+}
+
 .app-search-panel__fields :deep(.t-input),
 .app-search-panel__fields :deep(.t-select__wrap) {
   width: 100%;
@@ -108,17 +111,26 @@ function handleEnter(event: KeyboardEvent): void {
   align-items: center;
   justify-content: flex-end;
   gap: var(--td-size-2);
+  grid-column: 4;
 }
 
 @media (max-width: 1200px) {
   .app-search-panel__fields {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+
+  .app-search-panel__actions {
+    grid-column: 3;
+  }
 }
 
 @media (max-width: 900px) {
   .app-search-panel__fields {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .app-search-panel__actions {
+    grid-column: 2;
   }
 }
 
@@ -130,6 +142,7 @@ function handleEnter(event: KeyboardEvent): void {
   .app-search-panel__actions {
     flex-wrap: wrap;
     justify-content: flex-start;
+    grid-column: 1;
   }
 }
 </style>

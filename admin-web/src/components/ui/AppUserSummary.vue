@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import defaultAvatar from '@/assets/avatar.png'
 import { useUserStore } from '@/stores/user'
 
 withDefaults(defineProps<{
@@ -9,8 +10,9 @@ withDefaults(defineProps<{
 })
 
 const userStore = useUserStore()
+// 用户模型暂无头像字段，统一回退本地默认头像
+const userAvatar = defaultAvatar
 const displayName = computed(() => userStore.profile?.displayName.trim() || '管理员')
-const initial = computed(() => Array.from(displayName.value)[0] ?? '管')
 const roleLabel = computed(() => {
   if (userStore.roles.length > 0) {
     return userStore.roles.join('、')
@@ -33,9 +35,7 @@ const departmentLabel = computed(() => (
 
 <template>
   <div class="app-user-summary" :class="{ 'is-inverse': inverse }">
-    <t-avatar size="40px">
-      {{ initial }}
-    </t-avatar>
+    <t-avatar :image="userAvatar" alt="用户头像" shape="circle" size="40px" />
     <div class="app-user-summary__copy">
       <strong>{{ displayName }}</strong>
       <span>{{ roleLabel }}</span>

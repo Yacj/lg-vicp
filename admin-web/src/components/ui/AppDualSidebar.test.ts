@@ -3,6 +3,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import TDesign from 'tdesign-vue-next'
 import { afterEach, describe, expect, it } from 'vitest'
 import { createApp, h, nextTick } from 'vue'
+import { createMemoryHistory, createRouter } from 'vue-router'
 import AppDualSidebar from './AppDualSidebar.vue'
 
 let app: ReturnType<typeof createApp> | null = null
@@ -30,12 +31,20 @@ function menu(overrides: Partial<SidebarMenuItem>): SidebarMenuItem {
 async function mountSidebar(props: AppDualSidebarProps) {
   const pinia = createPinia()
   setActivePinia(pinia)
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [{ path: '/', name: 'Home', component: { render: () => h('div') } }],
+  })
+  await router.push('/')
+  await router.isReady()
+
   const container = document.createElement('div')
   document.body.append(container)
   app = createApp({
     render: () => h(AppDualSidebar, props),
   })
   app.use(pinia)
+  app.use(router)
   app.use(TDesign)
   app.mount(container)
   await nextTick()
@@ -65,6 +74,7 @@ describe('app dual sidebar', () => {
     expect(item?.querySelector('.t-button__text')?.parentElement).toBe(item)
     expect(item?.hasAttribute('disabled')).toBe(true)
     expect(container.querySelector('.app-dual-sidebar__secondary')).toBeNull()
+    expect(container.querySelector('.app-dual-sidebar__primary-toggle')).toBeNull()
     expect(container.querySelector('.app-dual-sidebar')?.classList.contains('has-secondary')).toBe(false)
   })
 
@@ -77,6 +87,7 @@ describe('app dual sidebar', () => {
 
     expect(container.querySelector('.app-dual-sidebar__primary-label')?.textContent).toBe('项目工作台')
     expect(container.querySelector('.app-dual-sidebar__secondary')).toBeNull()
+    expect(container.querySelector('.app-dual-sidebar__primary-toggle')).not.toBeNull()
     expect(container.querySelector('.app-dual-sidebar')?.classList.contains('is-collapsed')).toBe(true)
   })
 })

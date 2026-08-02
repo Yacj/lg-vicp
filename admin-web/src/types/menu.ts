@@ -20,18 +20,33 @@ export interface RouterMenuResult {
   permissions: string[]
 }
 
+export type MenuNavigationTarget =
+  | { kind: 'internal'; path: string }
+  | { kind: 'external'; href: string }
+
 export interface SidebarMenuItem {
   id: string
   title: string
   path: string | null
+  target?: MenuNavigationTarget | null
   icon: string | null
   type: Exclude<BackendMenuType, 'BUTTON'>
   children: SidebarMenuItem[]
 }
 
+export type MenuProjectionIssueReason =
+  | 'DUPLICATE_PATH'
+  | 'DUPLICATE_ROUTE_NAME'
+  | 'EXTERNAL_ROUTE'
+  | 'INVALID_EXTERNAL_URL'
+  | 'INVALID_PATH'
+  | 'MISSING_COMPONENT'
+  | 'MISSING_PATH'
+  | 'UNKNOWN_COMPONENT'
+
 export interface MenuProjectionIssue {
   menuId: string
   menuName: string
   component: string | null
-  reason: 'EXTERNAL_ROUTE' | 'INVALID_PATH' | 'MISSING_COMPONENT' | 'UNKNOWN_COMPONENT'
+  reason: MenuProjectionIssueReason
 }

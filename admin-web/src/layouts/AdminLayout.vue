@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import {
+  AppBreadcrumb,
   AppDualSidebar,
   AppHeader,
   AppLogo,
   AppMobileNavigation,
+  AppNavigationToggle,
   AppSidebar,
   AppTabs,
   AppTopNavigation,
@@ -74,10 +76,7 @@ function activatePrimaryMenu(item: Parameters<typeof navigation.activateMenu>[0]
         @toggle-navigation="shell.toggleNavigation"
       >
         <template #breadcrumb>
-          <t-breadcrumb
-            class="admin-layout__breadcrumb"
-            :options="navigation.activePrimaryMenu.value ? [{ content: navigation.activePrimaryMenu.value.title }] : []"
-          />
+          <AppBreadcrumb :items="navigation.breadcrumbItems.value" />
         </template>
       </AppHeader>
       <AppTabs class="admin-layout__tabs" />
@@ -102,6 +101,7 @@ function activatePrimaryMenu(item: Parameters<typeof navigation.activateMenu>[0]
         />
       </template>
     </AppHeader>
+    <AppBreadcrumb class="admin-layout__breadcrumb-bar" :items="navigation.breadcrumbItems.value" />
     <AppTabs class="admin-layout__tabs" />
     <AdminContent />
   </div>
@@ -111,16 +111,16 @@ function activatePrimaryMenu(item: Parameters<typeof navigation.activateMenu>[0]
     class="admin-layout admin-layout--mixed"
     :class="{ 'is-collapsed': shell.effectiveSidebarCollapsed.value, 'has-context-menu': showContextSidebar }"
   >
-    <AppHeader
-      class="admin-layout__header"
-      :navigation-collapsed="shell.effectiveSidebarCollapsed.value"
-      show-navigation-toggle
-      @toggle-navigation="shell.toggleNavigation"
-    >
+    <AppHeader class="admin-layout__header" :navigation-collapsed="shell.effectiveSidebarCollapsed.value">
       <template #brand>
         <AppLogo compact />
       </template>
       <template #navigation>
+        <AppNavigationToggle
+          v-if="showContextSidebar"
+          :collapsed="shell.effectiveSidebarCollapsed.value"
+          @click="shell.toggleNavigation"
+        />
         <AppTopNavigation
           :active-id="navigation.activePrimaryMenu.value?.id"
           :menus="navigation.primaryMenus.value"
@@ -139,6 +139,7 @@ function activatePrimaryMenu(item: Parameters<typeof navigation.activateMenu>[0]
       @navigate="navigation.navigate"
     />
     <section class="admin-layout__workspace">
+      <AppBreadcrumb class="admin-layout__breadcrumb-bar" :items="navigation.breadcrumbItems.value" />
       <AppTabs class="admin-layout__tabs" />
       <AdminContent />
     </section>
@@ -161,19 +162,12 @@ function activatePrimaryMenu(item: Parameters<typeof navigation.activateMenu>[0]
       :primary-menus="navigation.primaryMenus.value"
       @activate="activatePrimaryMenu"
       @navigate="navigation.navigate"
+      @toggle-navigation="shell.toggleNavigation"
     />
     <section class="admin-layout__workspace">
-      <AppHeader
-        class="admin-layout__header"
-        :navigation-collapsed="shell.effectiveSidebarCollapsed.value"
-        show-navigation-toggle
-        @toggle-navigation="shell.toggleNavigation"
-      >
+      <AppHeader class="admin-layout__header">
         <template #breadcrumb>
-          <span
-            v-if="!settingsStore.settings.showTabs"
-            class="admin-layout__module-title"
-          >{{ navigation.currentModuleTitle.value || '工作台' }}</span>
+          <AppBreadcrumb :items="navigation.breadcrumbItems.value" />
         </template>
       </AppHeader>
       <AppTabs class="admin-layout__tabs" />

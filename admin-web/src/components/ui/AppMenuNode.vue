@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { SidebarMenuItem } from '@/types/menu'
-import { resolveMenuIcon } from './menu-icons'
+import AppIcon from './AppIcon.vue'
 
 defineOptions({ name: 'AppMenuNode' })
 
@@ -12,13 +12,13 @@ defineProps<{
 <template>
   <t-submenu v-if="item.children.length > 0" :title="item.title" :value="item.id">
     <template #icon>
-      <component :is="resolveMenuIcon(item.icon)" />
+      <AppIcon :name="item.icon" />
     </template>
     <AppMenuNode v-for="child in item.children" :key="child.id" :item="child" />
   </t-submenu>
-  <t-menu-item v-else-if="item.path" :value="item.path">
+  <t-menu-item v-else :value="item.id">
     <template #icon>
-      <component :is="resolveMenuIcon(item.icon)" />
+      <AppIcon :name="item.icon" />
     </template>
     {{ item.title }}
   </t-menu-item>

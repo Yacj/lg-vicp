@@ -3,6 +3,7 @@ import { createPinia } from 'pinia'
 import TDesign from 'tdesign-vue-next'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp, h, nextTick } from 'vue'
+import type { VNode } from 'vue'
 import AppDataTable from './AppDataTable.vue'
 
 const columns: PrimaryTableCol<TableRowData>[] = [
@@ -11,7 +12,11 @@ const columns: PrimaryTableCol<TableRowData>[] = [
 ]
 const mountedApps: Array<ReturnType<typeof createApp>> = []
 
-function mountDataTable(props: Record<string, unknown> = {}, withOperations = false) {
+function mountDataTable(
+  props: Record<string, unknown> = {},
+  withOperations = false,
+  operationRenderer?: (row: TableRowData) => VNode,
+) {
   const container = document.createElement('div')
   document.body.append(container)
   const app = createApp({
@@ -21,7 +26,8 @@ function mountDataTable(props: Record<string, unknown> = {}, withOperations = fa
       ...props,
     }, withOperations
       ? {
-          operations: ({ row }: { row: TableRowData }) => h('span', { class: 'operation-fixture' }, `查看 ${row.name}`),
+          operations: ({ row }: { row: TableRowData }) => operationRenderer?.(row)
+            ?? h('span', { class: 'operation-fixture' }, `查看 ${row.name}`),
         }
       : undefined),
   })
@@ -96,6 +102,91 @@ describe('app data table', () => {
     expect(document.body.textContent).toContain('列配置')
   })
 
+  it('keeps nested rows collapsed when no expanded keys are provided', async () => {
+    const container = mountDataTable({
+      data: [{
+        children: [{ id: 'child-1', name: '下级节点', status: 'READY' }],
+        id: 'parent-1',
+        name: '上级节点',
+        status: 'READY',
+      }],
+      expandedTreeNodes: [],
+      total: 1,
+      tree: { childrenKey: 'children' },
+    })
+    await nextTick()
+    await nextTick()
+
+    expect(container.textContent).toContain('上级节点')
+    expect(container.textContent).not.toContain('下级节点')
+  })
+
+  it('renders nested rows when tree data is enabled', async () => {
+    const container = mountDataTable({
+      data: [{
+        children: [{ id: 'child-1', name: '下级节点', status: 'READY' }],
+        id: 'parent-1',
+        name: '上级节点',
+        status: 'READY',
+      }],
+      expandedTreeNodes: ['parent-1'],
+      total: 1,
+      tree: { childrenKey: 'children' },
+    })
+    await nextTick()
+    await nextTick()
+
+    expect(container.textContent).toContain('上级节点')
+    expect(container.textContent).toContain('下级节点')
+  })
+
+  it('does not expand a tree row when an operation is clicked', async () => {
+    const onAction = vi.fn()
+    const onExpandedTreeNodesChange = vi.fn()
+    const container = mountDataTable({
+      data: [{
+        children: [{ id: 'child-1', name: '下级节点', status: 'READY' }],
+        id: 'parent-1',
+        name: '上级节点',
+        status: 'READY',
+      }],
+      expandedTreeNodes: [],
+      onExpandedTreeNodesChange,
+      total: 1,
+      tree: { childrenKey: 'children', expandTreeNodeOnClick: true },
+    }, true, () => h('button', { class: 'operation-action', onClick: onAction }, '编辑'))
+    await nextTick()
+    await nextTick()
+
+    container.querySelector<HTMLButtonElement>('.operation-action')?.click()
+    await nextTick()
+
+    expect(onAction).toHaveBeenCalledOnce()
+    expect(onExpandedTreeNodesChange).not.toHaveBeenCalled()
+    expect(container.textContent).not.toContain('下级节点')
+  })
+
+  it('fills the available body area by default and honors explicit max height', async () => {
+    const adaptive = mountDataTable({
+      data: [{ id: 'row-1', name: '自适应表格', status: 'READY' }],
+      total: 1,
+    })
+    await nextTick()
+    await nextTick()
+
+    expect(adaptive.querySelector<HTMLElement>('.t-table__content')?.style.maxHeight).toBe('')
+
+    const fixed = mountDataTable({
+      data: [{ id: 'row-1', name: '固定高度表格', status: 'READY' }],
+      maxHeight: 640,
+      total: 1,
+    })
+    await nextTick()
+    await nextTick()
+
+    expect(fixed.querySelector<HTMLElement>('.t-table__content')?.style.maxHeight).toBe('640px')
+  })
+
   it('emits controlled pagination and delegates fullscreen to browser capability', async () => {
     const onPageChange = vi.fn()
     const container = mountDataTable({ onPageChange, pageSize: 20, total: 41 })
@@ -110,5 +201,28 @@ describe('app data table', () => {
 
     expect(onPageChange).toHaveBeenCalled()
     expect(HTMLElement.prototype.requestFullscreen).toHaveBeenCalled()
+  })
+
+  it('forwards controlled row selection for batch workflows', async () => {
+    const onSelectionChange = vi.fn()
+    const container = mountDataTable({
+      data: [{ id: 'row-1', name: '协议夹具', status: 'READY' }],
+      onSelectionChange,
+      rowSelectionType: 'multiple',
+      selectedRowKeys: [],
+      total: 1,
+    })
+    await nextTick()
+    await nextTick()
+
+    const checkboxes = container.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')
+    expect(checkboxes.length).toBeGreaterThan(0)
+    checkboxes.item(checkboxes.length - 1).click()
+    await nextTick()
+
+    expect(onSelectionChange).toHaveBeenCalledWith(
+      ['row-1'],
+      expect.objectContaining({ selectedRowData: [expect.objectContaining({ id: 'row-1' })] }),
+    )
   })
 })

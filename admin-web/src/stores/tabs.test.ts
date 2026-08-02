@@ -97,6 +97,15 @@ describe('tabs store', () => {
     expect(store.refreshingPath).toBeNull()
   })
 
+  it('prunes tabs whose route name or path is no longer available', () => {
+    const store = useTabsStore()
+    store.open(home)
+    store.open(tab(1))
+    store.open(tab(2))
+    expect(store.prune(new Set(['Home']), new Set(['/']))).toBe('/')
+    expect(store.tabs.map(item => item.fullPath)).toEqual(['/'])
+  })
+
   it('closes all closable tabs while retaining fixed tabs', () => {
     const store = useTabsStore()
     store.open(home)

@@ -16,11 +16,14 @@ withDefaults(defineProps<{
   <section class="app-page">
     <slot name="header">
       <AppPageHeader
-        v-if="title || description || eyebrow || $slots.actions"
+        v-if="title || description || eyebrow || $slots.navigation || $slots.actions"
         :description="description"
         :eyebrow="eyebrow"
         :title="title"
       >
+        <template v-if="$slots.navigation" #navigation>
+          <slot name="navigation" />
+        </template>
         <template v-if="$slots.actions" #actions>
           <slot name="actions" />
         </template>
@@ -50,6 +53,7 @@ withDefaults(defineProps<{
   display: flex;
   width: 100%;
   min-width: 0;
+  min-height: 100%;
   flex-direction: column;
   gap: var(--vicp-page-gap);
 }
@@ -63,6 +67,8 @@ withDefaults(defineProps<{
 
 .app-page__content {
   display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: var(--vicp-page-gap);
 }

@@ -1,8 +1,10 @@
-import type { BackendMenuNode } from '@/types/menu'
-import { describe, expect, it } from 'vitest'
+import type { BackendMenuNode, SidebarMenuItem } from '@/types/menu'
+import { describe, expect, it, vi } from 'vitest'
 import {
   findMenuGroup,
+  findMenuPath,
   firstNavigablePath,
+  navigateMenuTarget,
   projectContextMenus,
   projectDynamicMenus,
   projectPrimaryMenus,
@@ -147,6 +149,39 @@ describe('dynamic menu projection', () => {
     expect(projectContextMenus(primaryMenus, '/valid-page').map(item => item.id)).toEqual(['valid-child'])
   })
 
+  it('projects HTTP(S) external menus without registering Vue routes', () => {
+    const projection = projectDynamicMenus([
+      menu({
+        component: 'home/index',
+        id: 'external',
+        isExternal: true,
+        name: '外部文档',
+        routePath: 'https://docs.example.com/guide',
+      }),
+    ])
+
+    expect(projection.routes).toEqual([])
+    expect(projection.sidebarMenus[0]).toMatchObject({
+      path: null,
+      target: { href: 'https://docs.example.com/guide', kind: 'external' },
+    })
+    expect(projection.issues).toEqual([])
+  })
+
+  it('opens external targets only after HTTP(S) validation', () => {
+    const open = vi.spyOn(globalThis.window, 'open').mockImplementation(() => null)
+    const push = vi.fn()
+    const router = { push }
+
+    navigateMenuTarget({ href: 'https://docs.example.com', kind: 'external' }, router)
+    navigateMenuTarget({ href: 'javascript:blocked', kind: 'external' }, router)
+
+    expect(open).toHaveBeenCalledWith('https://docs.example.com', '_blank', 'noopener,noreferrer')
+    expect(open).toHaveBeenCalledTimes(1)
+    expect(push).not.toHaveBeenCalled()
+    open.mockRestore()
+  })
+
   it('refuses unknown component keys instead of executing backend paths', () => {
     const projection = projectDynamicMenus([
       menu({ component: '../../views/system/users.vue', id: 'unknown', name: '未知页面' }),
@@ -163,12 +198,75 @@ describe('dynamic menu projection', () => {
   })
 
   it.each([
-    [{ component: 'home/index', isExternal: true }, 'EXTERNAL_ROUTE'],
+    [{ component: 'home/index', isExternal: true }, 'INVALID_EXTERNAL_URL'],
     [{ component: 'home/index', routePath: 'relative' }, 'INVALID_PATH'],
     [{ component: null }, 'MISSING_COMPONENT'],
   ] as const)('rejects invalid route input %#', (overrides, reason) => {
     const projection = projectDynamicMenus([menu(overrides)])
     expect(projection.routes).toEqual([])
     expect(projection.issues[0]?.reason).toBe(reason)
+  })
+})
+
+describe('findMenuPath breadcrumb chain', () => {
+  const leaf: SidebarMenuItem = {
+    children: [],
+    icon: null,
+    id: 'leaf',
+    path: '/system/users',
+    target: { kind: 'internal', path: '/system/users' },
+    title: '用户管理',
+    type: 'MENU',
+  }
+  const group: SidebarMenuItem = {
+    children: [leaf],
+    icon: null,
+    id: 'group',
+    path: '/system',
+    target: null,
+    title: '系统管理',
+    type: 'DIRECTORY',
+  }
+  const home: SidebarMenuItem = {
+    children: [],
+    icon: 'home',
+    id: 'home',
+    path: '/',
+    target: { kind: 'internal', path: '/' },
+    title: '工作台',
+    type: 'MENU',
+  }
+
+  it('returns the full chain from root menu to the matching leaf', () => {
+    const chain = findMenuPath([home, group], '/system/users')
+    expect(chain.map(item => item.title)).toEqual(['系统管理', '用户管理'])
+  })
+
+  it('matches a top-level menu by its own path', () => {
+    const chain = findMenuPath([home, group], '/system')
+    expect(chain.map(item => item.id)).toEqual(['group'])
+  })
+
+  it('matches the home menu on the root path', () => {
+    const chain = findMenuPath([home, group], '/')
+    expect(chain.map(item => item.id)).toEqual(['home'])
+  })
+
+  it('returns an empty chain when no menu matches', () => {
+    expect(findMenuPath([home, group], '/missing')).toEqual([])
+  })
+
+  it('keeps the chain when the matched ancestor is a display-only directory without path', () => {
+    const pathless: SidebarMenuItem = {
+      children: [leaf],
+      icon: null,
+      id: 'pathless',
+      path: null,
+      target: null,
+      title: '无路径模块',
+      type: 'DIRECTORY',
+    }
+    const chain = findMenuPath([home, pathless], '/system/users')
+    expect(chain.map(item => item.id)).toEqual(['pathless', 'leaf'])
   })
 })

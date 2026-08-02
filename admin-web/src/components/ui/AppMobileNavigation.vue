@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { SidebarMenuItem } from '@/types/menu'
+import type { MenuNavigationTarget, SidebarMenuItem } from '@/types/menu'
 import AppLogo from './AppLogo.vue'
 import AppSidebar from './AppSidebar.vue'
 import AppUserSummary from './AppUserSummary.vue'
@@ -11,11 +11,11 @@ defineProps<{
 
 const emit = defineEmits<{
   'update:visible': [visible: boolean]
-  'navigate': [path: string]
+  'navigate': [target: MenuNavigationTarget]
 }>()
 
-function navigate(path: string): void {
-  emit('navigate', path)
+function navigate(target: MenuNavigationTarget): void {
+  emit('navigate', target)
   emit('update:visible', false)
 }
 </script>

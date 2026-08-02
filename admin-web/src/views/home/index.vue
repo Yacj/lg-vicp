@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import type { MenuNavigationTarget } from '@/types/menu'
 import type {
   AttentionPriority,
   DashboardOverview,
   KnowledgePipelineStage,
   TrendRange,
 } from '@/types/dashboard'
+import { navigateMenuTarget } from '@/router/dynamic-routes'
 import {
   Building1Icon,
   DataCheckedIcon,
@@ -203,9 +205,9 @@ function switchTrendRange(): void {
   // 后端聚合接口接入后在此按 trendRange 拉取趋势数据；当前保持空投影
 }
 
-function openShortcut(path: string | null): void {
-  if (path) {
-    void router.push(path)
+function openShortcut(target: MenuNavigationTarget | null): void {
+  if (target) {
+    navigateMenuTarget(target, router)
   }
 }
 
@@ -256,7 +258,7 @@ function openPipelineRoute(route: string | null): void {
           class="dashboard-shortcut"
           theme="default"
           variant="outline"
-          @click="openShortcut(shortcut.path)"
+          @click="openShortcut(shortcut.target)"
         >
           <span class="dashboard-shortcut__content">
             <strong>{{ shortcut.title }}</strong>
@@ -375,7 +377,7 @@ function openPipelineRoute(route: string | null): void {
             <strong id="recent-projects-title">最近项目</strong>
             <span v-if="recentProjects.length > 0">{{ recentProjects.length }} 个项目</span>
           </div>
-          <t-button v-if="recentProjects.length > 0" size="small" theme="default" variant="text" @click="openShortcut(projectListRoute)">
+          <t-button v-if="recentProjects.length > 0" size="small" theme="default" variant="text" @click="openShortcut(projectListRoute ? { kind: 'internal', path: projectListRoute } : null)">
             查看全部
           </t-button>
         </header>

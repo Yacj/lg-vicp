@@ -6,6 +6,7 @@
 // biome-ignore lint: disable
 export {}
 declare global {
+  const AI_MODEL_CAPABILITY_META: typeof import('../composables/useAiModelManagement').AI_MODEL_CAPABILITY_META
   const EffectScope: typeof import('vue').EffectScope
   const acceptHMRUpdate: typeof import('pinia').acceptHMRUpdate
   const asyncComputed: typeof import('@vueuse/core').asyncComputed
@@ -31,6 +32,7 @@ declare global {
   const createTemplatePromise: typeof import('@vueuse/core').createTemplatePromise
   const createUnrefFn: typeof import('@vueuse/core').createUnrefFn
   const customRef: typeof import('vue').customRef
+  const dataScopeDescription: typeof import('../composables/useRolePermissionScope').dataScopeDescription
   const debouncedRef: typeof import('@vueuse/core').debouncedRef
   const debouncedWatch: typeof import('@vueuse/core').debouncedWatch
   const defineAsyncComponent: typeof import('vue').defineAsyncComponent
@@ -39,6 +41,8 @@ declare global {
   const eagerComputed: typeof import('@vueuse/core').eagerComputed
   const effectScope: typeof import('vue').effectScope
   const extendRef: typeof import('@vueuse/core').extendRef
+  const filterPermissionTree: typeof import('../composables/useRolePermissionScope').filterPermissionTree
+  const flattenDepartmentTree: typeof import('../composables/useDepartmentManagement').flattenDepartmentTree
   const getActivePinia: typeof import('pinia').getActivePinia
   const getCurrentInstance: typeof import('vue').getCurrentInstance
   const getCurrentScope: typeof import('vue').getCurrentScope
@@ -53,6 +57,7 @@ declare global {
   const isReadonly: typeof import('vue').isReadonly
   const isRef: typeof import('vue').isRef
   const isShallow: typeof import('vue').isShallow
+  const isTerminalFileStatus: typeof import('../composables/useAsyncTask').isTerminalFileStatus
   const makeDestructurable: typeof import('@vueuse/core').makeDestructurable
   const mapActions: typeof import('pinia').mapActions
   const mapGetters: typeof import('pinia').mapGetters
@@ -84,6 +89,7 @@ declare global {
   const onUpdated: typeof import('vue').onUpdated
   const onWatcherCleanup: typeof import('vue').onWatcherCleanup
   const pausableWatch: typeof import('@vueuse/core').pausableWatch
+  const projectFileTaskState: typeof import('../composables/useAsyncTask').projectFileTaskState
   const provide: typeof import('vue').provide
   const provideLocal: typeof import('@vueuse/core').provideLocal
   const reactify: typeof import('@vueuse/core').reactify
@@ -129,6 +135,13 @@ declare global {
   const unrefElement: typeof import('@vueuse/core').unrefElement
   const until: typeof import('@vueuse/core').until
   const useActiveElement: typeof import('@vueuse/core').useActiveElement
+  const useAiConversationOps: typeof import('../composables/useAiConversationOps').useAiConversationOps
+  const useAiDebugger: typeof import('../composables/useAiDebugger').useAiDebugger
+  const useAiFeedbackOps: typeof import('../composables/useAiFeedbackOps').useAiFeedbackOps
+  const useAiModelManagement: typeof import('../composables/useAiModelManagement').useAiModelManagement
+  const useAiPromptManagement: typeof import('../composables/useAiPromptManagement').useAiPromptManagement
+  const useAiProviderManagement: typeof import('../composables/useAiProviderManagement').useAiProviderManagement
+  const useAiSceneBindings: typeof import('../composables/useAiSceneBindings').useAiSceneBindings
   const useAnimate: typeof import('@vueuse/core').useAnimate
   const useAppFeedback: typeof import('../composables/useAppFeedback').useAppFeedback
   const useArrayDifference: typeof import('@vueuse/core').useArrayDifference
@@ -145,6 +158,7 @@ declare global {
   const useArrayUnique: typeof import('@vueuse/core').useArrayUnique
   const useAsyncQueue: typeof import('@vueuse/core').useAsyncQueue
   const useAsyncState: typeof import('@vueuse/core').useAsyncState
+  const useAsyncTask: typeof import('../composables/useAsyncTask').useAsyncTask
   const useAttrs: typeof import('vue').useAttrs
   const useBase64: typeof import('@vueuse/core').useBase64
   const useBattery: typeof import('@vueuse/core').useBattery
@@ -159,8 +173,14 @@ declare global {
   const useCloned: typeof import('@vueuse/core').useCloned
   const useColorMode: typeof import('@vueuse/core').useColorMode
   const useConfirmDialog: typeof import('@vueuse/core').useConfirmDialog
+  const useConfirmedCrudAction: typeof import('../composables/useCrudActions').useConfirmedCrudAction
   const useCountdown: typeof import('@vueuse/core').useCountdown
   const useCounter: typeof import('@vueuse/core').useCounter
+  const useCrudBatchAction: typeof import('../composables/useCrudActions').useCrudBatchAction
+  const useCrudDelete: typeof import('../composables/useCrudActions').useCrudDelete
+  const useCrudDrawer: typeof import('../composables/useCrudDrawer').useCrudDrawer
+  const useCrudExport: typeof import('../composables/useCrudExport').useCrudExport
+  const useCrudList: typeof import('../composables/useCrudList').useCrudList
   const useCssModule: typeof import('vue').useCssModule
   const useCssSupports: typeof import('@vueuse/core').useCssSupports
   const useCssVar: typeof import('@vueuse/core').useCssVar
@@ -172,10 +192,14 @@ declare global {
   const useDebounce: typeof import('@vueuse/core').useDebounce
   const useDebounceFn: typeof import('@vueuse/core').useDebounceFn
   const useDebouncedRefHistory: typeof import('@vueuse/core').useDebouncedRefHistory
+  const useDepartmentManagement: typeof import('../composables/useDepartmentManagement').useDepartmentManagement
+  const useDepartmentMembers: typeof import('../composables/useDepartmentMembers').useDepartmentMembers
   const useDeviceMotion: typeof import('@vueuse/core').useDeviceMotion
   const useDeviceOrientation: typeof import('@vueuse/core').useDeviceOrientation
   const useDevicePixelRatio: typeof import('@vueuse/core').useDevicePixelRatio
   const useDevicesList: typeof import('@vueuse/core').useDevicesList
+  const useDictionaryItems: typeof import('../composables/useDictionaryItems').useDictionaryItems
+  const useDictionaryManagement: typeof import('../composables/useDictionaryManagement').useDictionaryManagement
   const useDisplayMedia: typeof import('@vueuse/core').useDisplayMedia
   const useDocumentVisibility: typeof import('@vueuse/core').useDocumentVisibility
   const useDraggable: typeof import('@vueuse/core').useDraggable
@@ -217,6 +241,7 @@ declare global {
   const useMediaQuery: typeof import('@vueuse/core').useMediaQuery
   const useMemoize: typeof import('@vueuse/core').useMemoize
   const useMemory: typeof import('@vueuse/core').useMemory
+  const useMenuManagement: typeof import('../composables/useMenuManagement').useMenuManagement
   const useModel: typeof import('vue').useModel
   const useMounted: typeof import('@vueuse/core').useMounted
   const useMouse: typeof import('@vueuse/core').useMouse
@@ -234,9 +259,11 @@ declare global {
   const useParentElement: typeof import('@vueuse/core').useParentElement
   const usePerformanceObserver: typeof import('@vueuse/core').usePerformanceObserver
   const usePermission: typeof import('@vueuse/core').usePermission
+  const usePermissionAccess: typeof import('../composables/usePermissionAccess').usePermissionAccess
   const usePointer: typeof import('@vueuse/core').usePointer
   const usePointerLock: typeof import('@vueuse/core').usePointerLock
   const usePointerSwipe: typeof import('@vueuse/core').usePointerSwipe
+  const usePostManagement: typeof import('../composables/usePostManagement').usePostManagement
   const usePreferredColorScheme: typeof import('@vueuse/core').usePreferredColorScheme
   const usePreferredContrast: typeof import('@vueuse/core').usePreferredContrast
   const usePreferredDark: typeof import('@vueuse/core').usePreferredDark
@@ -244,10 +271,18 @@ declare global {
   const usePreferredReducedMotion: typeof import('@vueuse/core').usePreferredReducedMotion
   const usePreferredReducedTransparency: typeof import('@vueuse/core').usePreferredReducedTransparency
   const usePrevious: typeof import('@vueuse/core').usePrevious
+  const useProjectCenter: typeof import('../composables/useProjectCenter').useProjectCenter
+  const useProjectDetail: typeof import('../composables/useProjectDetail').useProjectDetail
   const useRafFn: typeof import('@vueuse/core').useRafFn
   const useRefHistory: typeof import('@vueuse/core').useRefHistory
+  const useReportActions: typeof import('../composables/useReportActions').useReportActions
+  const useReportCenter: typeof import('../composables/useReportCenter').useReportCenter
+  const useReportDetail: typeof import('../composables/useReportDetail').useReportDetail
   const useResizeObserver: typeof import('@vueuse/core').useResizeObserver
   const useResponsiveShell: typeof import('../composables/useResponsiveShell').useResponsiveShell
+  const useRoleManagement: typeof import('../composables/useRoleManagement').useRoleManagement
+  const useRolePermissionScope: typeof import('../composables/useRolePermissionScope').useRolePermissionScope
+  const useRoleUsers: typeof import('../composables/useRoleUsers').useRoleUsers
   const useRoute: typeof import('vue-router').useRoute
   const useRouter: typeof import('vue-router').useRouter
   const useSSRWidth: typeof import('@vueuse/core').useSSRWidth
@@ -289,6 +324,7 @@ declare global {
   const useToggle: typeof import('@vueuse/core').useToggle
   const useTransition: typeof import('@vueuse/core').useTransition
   const useUrlSearchParams: typeof import('@vueuse/core').useUrlSearchParams
+  const useUserManagement: typeof import('../composables/useUserManagement').useUserManagement
   const useUserMedia: typeof import('@vueuse/core').useUserMedia
   const useVModel: typeof import('@vueuse/core').useVModel
   const useVModels: typeof import('@vueuse/core').useVModels
@@ -302,6 +338,7 @@ declare global {
   const useWindowFocus: typeof import('@vueuse/core').useWindowFocus
   const useWindowScroll: typeof import('@vueuse/core').useWindowScroll
   const useWindowSize: typeof import('@vueuse/core').useWindowSize
+  const versionActionMessages: typeof import('../composables/useAiPromptManagement').versionActionMessages
   const watch: typeof import('vue').watch
   const watchArray: typeof import('@vueuse/core').watchArray
   const watchAtMost: typeof import('@vueuse/core').watchAtMost
@@ -331,6 +368,90 @@ declare global {
   export type { FeedbackTheme, FeedbackError } from '../composables/useAppFeedback'
   import('../composables/useAppFeedback')
   // @ts-ignore
+  export type { TaskPollingStatus, FileTrackedState, TaskFileState, UseAsyncTaskOptions } from '../composables/useAsyncTask'
+  import('../composables/useAsyncTask')
+  // @ts-ignore
+  export type { ConfirmedCrudActionResult, UseConfirmedCrudActionOptions, UseCrudDeleteOptions, UseCrudBatchActionOptions } from '../composables/useCrudActions'
+  import('../composables/useCrudActions')
+  // @ts-ignore
+  export type { UseCrudDrawerOptions, CrudDrawerSubmitResult } from '../composables/useCrudDrawer'
+  import('../composables/useCrudDrawer')
+  // @ts-ignore
+  export type { CrudExportResult, UseCrudExportOptions } from '../composables/useCrudExport'
+  import('../composables/useCrudExport')
+  // @ts-ignore
+  export type { UseCrudListOptions } from '../composables/useCrudList'
+  import('../composables/useCrudList')
+  // @ts-ignore
+  export type { MenuSearchQuery, MenuTableRow } from '../composables/useMenuManagement'
+  import('../composables/useMenuManagement')
+  // @ts-ignore
+  export type { PermissionMatchMode, PermissionRequirement } from '../composables/usePermissionAccess'
+  import('../composables/usePermissionAccess')
+  // @ts-ignore
+  export type { PlatformConversationTableRow, ConversationOpsSearchQuery } from '../composables/useAiConversationOps'
+  import('../composables/useAiConversationOps')
+  // @ts-ignore
+  export type { DebugLoadStatus, DebugRunState, DebugEventLogEntry } from '../composables/useAiDebugger'
+  import('../composables/useAiDebugger')
+  // @ts-ignore
+  export type { AiFeedbackTableRow, FeedbackOpsSearchQuery } from '../composables/useAiFeedbackOps'
+  import('../composables/useAiFeedbackOps')
+  // @ts-ignore
+  export type { AiModelTableRow, AiModelSearchQuery, AiModelForm } from '../composables/useAiModelManagement'
+  import('../composables/useAiModelManagement')
+  // @ts-ignore
+  export type { PromptLoadStatus, AiPromptDraftInput, AiPromptVersionActionContext } from '../composables/useAiPromptManagement'
+  import('../composables/useAiPromptManagement')
+  // @ts-ignore
+  export type { AiProviderTableRow, AiProviderSearchQuery, AiProviderForm, AiProviderTestOutcome } from '../composables/useAiProviderManagement'
+  import('../composables/useAiProviderManagement')
+  // @ts-ignore
+  export type { AiSceneBindingTableRow, AiSceneBindingForm } from '../composables/useAiSceneBindings'
+  import('../composables/useAiSceneBindings')
+  // @ts-ignore
+  export type { DepartmentSearchQuery, DepartmentForm } from '../composables/useDepartmentManagement'
+  import('../composables/useDepartmentManagement')
+  // @ts-ignore
+  export type { DepartmentMemberSearchQuery } from '../composables/useDepartmentMembers'
+  import('../composables/useDepartmentMembers')
+  // @ts-ignore
+  export type { DictionaryItemSearchQuery, DictionaryItemForm } from '../composables/useDictionaryItems'
+  import('../composables/useDictionaryItems')
+  // @ts-ignore
+  export type { DictionarySearchQuery, DictionaryForm } from '../composables/useDictionaryManagement'
+  import('../composables/useDictionaryManagement')
+  // @ts-ignore
+  export type { PostSearchQuery, PostForm } from '../composables/usePostManagement'
+  import('../composables/usePostManagement')
+  // @ts-ignore
+  export type { ProjectForm, UseProjectCenterOptions } from '../composables/useProjectCenter'
+  import('../composables/useProjectCenter')
+  // @ts-ignore
+  export type { ProjectDetailStatus } from '../composables/useProjectDetail'
+  import('../composables/useProjectDetail')
+  // @ts-ignore
+  export type { UseReportActionsOptions } from '../composables/useReportActions'
+  import('../composables/useReportActions')
+  // @ts-ignore
+  export type { ReportCenterTableRow, ReportCenterStatus } from '../composables/useReportCenter'
+  import('../composables/useReportCenter')
+  // @ts-ignore
+  export type { ReportDetailStatus } from '../composables/useReportDetail'
+  import('../composables/useReportDetail')
+  // @ts-ignore
   export type { EffectiveLayout } from '../composables/useResponsiveShell'
   import('../composables/useResponsiveShell')
+  // @ts-ignore
+  export type { RoleTableRow, RoleSearchQuery, RoleForm, RolePermissionLoadStatus, RoleDeleteResult } from '../composables/useRoleManagement'
+  import('../composables/useRoleManagement')
+  // @ts-ignore
+  export type { RoleTreeStatus, RolePermissionScopeState, RolePermissionScopeOptions } from '../composables/useRolePermissionScope'
+  import('../composables/useRolePermissionScope')
+  // @ts-ignore
+  export type { RoleUserRow, RoleUserSearchQuery } from '../composables/useRoleUsers'
+  import('../composables/useRoleUsers')
+  // @ts-ignore
+  export type { UserTableRow, UserSearchQuery, UserForm } from '../composables/useUserManagement'
+  import('../composables/useUserManagement')
 }

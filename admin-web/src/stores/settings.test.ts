@@ -11,7 +11,7 @@ import {
   LAYOUT_MODES,
   PAGE_DENSITIES,
   RADIUS_LEVELS,
-  THEME_PRESETS,
+  THEME_COLOR_PRESETS,
 } from '@/types/appearance'
 import { useSettingsStore } from './settings'
 
@@ -27,9 +27,7 @@ const CUSTOM_APPEARANCE_SETTINGS: AppearanceSettings = {
   density: 'compact',
   tabsStyle: 'chrome',
   radiusLevel: 'large',
-  systemThemePreset: 'technology-blue',
-  componentThemePreset: 'purple',
-  syncThemeColors: false,
+  primaryColor: '#0b6cc4',
   fixedHeader: false,
   showTabs: false,
   sidebarCollapsed: true,
@@ -89,11 +87,13 @@ describe('appearance settings store', () => {
       density: 'comfortable',
       tabsStyle: 'line',
       radius: 'medium',
-      systemThemePreset: 'vicp-blue',
-      componentThemePreset: 'vicp-blue',
-      syncThemeColors: 'true',
+      primaryColor: '#0052d9',
       fixedHeader: 'true',
     })
+    expect(document.documentElement.style.getPropertyValue('--td-brand-color-7'))
+      .toBe('#0052d9')
+    expect(document.documentElement.style.getPropertyValue('--td-brand-color-1'))
+      .toMatch(/^#[0-9a-f]{6}$/)
   })
 
   it('persists and restores every appearance field with the versioned key', async () => {
@@ -117,32 +117,34 @@ describe('appearance settings store', () => {
       density: 'compact',
       tabsStyle: 'chrome',
       radius: 'large',
-      systemThemePreset: 'technology-blue',
-      componentThemePreset: 'purple',
-      syncThemeColors: 'false',
+      primaryColor: '#0b6cc4',
       fixedHeader: 'false',
     })
+    for (let level = 1; level <= 10; level += 1) {
+      expect(document.documentElement.style.getPropertyValue(`--td-brand-color-${level}`))
+        .toMatch(/^#[0-9a-f]{6}$/)
+    }
+    expect(document.documentElement.style.getPropertyValue('--td-brand-color-1'))
+      .not.toBe(document.documentElement.style.getPropertyValue('--td-brand-color-10'))
   })
 
-  it('migrates legacy themePreset into the normalized theme fields', async () => {
+  it('migrates legacy theme presets into the primary color field', async () => {
     const legacySettings: Record<string, unknown> = { ...DEFAULT_APPEARANCE_SETTINGS }
-    delete legacySettings.systemThemePreset
-    delete legacySettings.componentThemePreset
-    delete legacySettings.syncThemeColors
+    delete legacySettings.primaryColor
     delete legacySettings.fixedHeader
     legacySettings.themePreset = 'purple'
+    legacySettings.systemThemePreset = 'technology-blue'
+    legacySettings.syncThemeColors = false
     localStorage.setItem(APPEARANCE_STORAGE_KEY, JSON.stringify(legacySettings))
 
     const store = useSettingsStore()
     await nextTick()
 
-    expect(store.settings.systemThemePreset).toBe('purple')
-    expect(store.settings.componentThemePreset).toBe('purple')
-    expect(store.settings.syncThemeColors).toBe(true)
+    expect(store.settings.primaryColor).toBe('#7a3fc5')
     expect(store.settings.fixedHeader).toBe(true)
     expect(JSON.parse(localStorage.getItem(APPEARANCE_STORAGE_KEY) ?? '{}'))
       .toEqual(store.settings)
-    expect(document.documentElement.dataset.systemThemePreset).toBe('purple')
+    expect(document.documentElement.dataset.primaryColor).toBe('#7a3fc5')
   })
 
   it('tracks system theme changes without changing the selected mode', async () => {
@@ -161,29 +163,41 @@ describe('appearance settings store', () => {
     expect(document.documentElement.classList.contains('dark')).toBe(true)
   })
 
-  it('projects independent system and component theme presets', async () => {
+  it('drives the whole brand scale from a single primary color', async () => {
     const store = useSettingsStore()
-    store.patchSetting('systemThemePreset', 'technology-blue')
+    store.patchSetting('primaryColor', '#0b6cc4')
     await nextTick()
 
-    expect(document.documentElement.dataset.systemThemePreset).toBe('technology-blue')
-    expect(document.documentElement.dataset.componentThemePreset).toBe('technology-blue')
-
-    store.patchSetting('syncThemeColors', false)
-    store.patchSetting('componentThemePreset', 'purple')
-    await nextTick()
-
-    expect(document.documentElement.dataset.systemThemePreset).toBe('technology-blue')
-    expect(document.documentElement.dataset.componentThemePreset).toBe('purple')
+    expect(document.documentElement.dataset.primaryColor).toBe('#0b6cc4')
+    expect(document.documentElement.style.getPropertyValue('--td-brand-color-7'))
+      .toBe('#0b6cc4')
+    for (let level = 1; level <= 10; level += 1) {
+      expect(document.documentElement.style.getPropertyValue(`--td-brand-color-${level}`))
+        .toMatch(/^#[0-9a-f]{6}$/)
+    }
   })
 
-  it.each(THEME_PRESETS)('accepts and projects the %s theme preset', async (preset) => {
+  it('rebuilds the brand scale when the dark theme is applied', async () => {
     const store = useSettingsStore()
-    store.patchSetting('systemThemePreset', preset)
+    store.patchSetting('primaryColor', '#0b8fa8')
+    store.patchSetting('themeMode', 'dark')
     await nextTick()
 
-    expect(document.documentElement.dataset.systemThemePreset).toBe(preset)
-    expect(document.documentElement.dataset.componentThemePreset).toBe(preset)
+    expect(document.documentElement.dataset.theme).toBe('dark')
+    expect(document.documentElement.style.getPropertyValue('--td-brand-color-7'))
+      .not.toBe('#0b8fa8')
+    expect(document.documentElement.style.getPropertyValue('--td-brand-color-1'))
+      .not.toBe(document.documentElement.style.getPropertyValue('--td-brand-color-10'))
+  })
+
+  it.each(THEME_COLOR_PRESETS)('accepts and projects the %s color preset', async (preset) => {
+    const store = useSettingsStore()
+    store.patchSetting('primaryColor', preset.value)
+    await nextTick()
+
+    expect(document.documentElement.dataset.primaryColor).toBe(preset.value)
+    expect(document.documentElement.style.getPropertyValue('--td-brand-color-7'))
+      .toBe(preset.value)
   })
 
   it('projects every layout, density, content width and radius option', async () => {

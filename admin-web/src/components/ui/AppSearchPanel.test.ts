@@ -5,12 +5,15 @@ import AppSearchPanel from './AppSearchPanel.vue'
 
 const mountedApps: Array<ReturnType<typeof createApp>> = []
 
-function mountSearchPanel(props: Record<string, unknown> = {}) {
+function mountSearchPanel(props: Record<string, unknown> = {}, fieldCount = 1) {
   const container = document.createElement('div')
   document.body.append(container)
   const app = createApp({
     render: () => h(AppSearchPanel, props, {
-      default: () => h('input', { class: 'search-fixture' }),
+      default: () => Array.from({ length: fieldCount }, (_, index) => h('input', {
+        class: 'search-fixture',
+        'data-field-index': index,
+      })),
       advanced: () => h('span', { class: 'advanced-fixture' }, '高级条件'),
     }),
   })
@@ -26,6 +29,15 @@ afterEach(() => {
 })
 
 describe('app search panel', () => {
+  it('keeps the action group in the same grid flow as three search fields', () => {
+    const container = mountSearchPanel({}, 3)
+    const grid = container.querySelector('.app-search-panel__fields')
+    const directChildren = [...(grid?.children ?? [])]
+
+    expect(directChildren.filter(child => child.classList.contains('search-fixture'))).toHaveLength(3)
+    expect(directChildren.at(-1)?.classList.contains('app-search-panel__actions')).toBe(true)
+  })
+
   it('emits search from form submit and Enter through the same intent', async () => {
     const onSearch = vi.fn()
     const container = mountSearchPanel({ onSearch })
