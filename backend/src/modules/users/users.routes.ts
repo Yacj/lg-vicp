@@ -35,6 +35,8 @@ const updateStatusBodySchema = z.object({ status: z.enum(["ACTIVE", "DISABLED"])
 const listQuerySchema = paginationQuerySchema.extend({
   keyword: z.string().trim().max(120).optional(),
   departmentId: z.uuid("部门 ID 格式不正确").optional(),
+  // 为 true 时部门筛选包含全部下级部门；默认只匹配直属部门，保持向后兼容
+  includeDescendants: z.coerce.boolean().default(false),
   roleId: z.uuid("角色 ID 格式不正确").optional(),
   status: z.enum(["ACTIVE", "DISABLED"]).optional(),
   includeDeleted: z.coerce.boolean().default(false)
@@ -52,13 +54,37 @@ function csvEscape(value: unknown) {
   return /[",\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 }
 
+// 收集部门 ID 集合：includeDescendants 为 true 时在内存 BFS 展开全部后代部门
+async function collectDepartmentIds(db: FastifyInstance["db"], rootId: string, includeDescendants: boolean) {
+  const ids = [rootId];
+  if (!includeDescendants) return ids;
+  const rows = await db.select({ id: departments.id, parentId: departments.parentId }).from(departments).where(isNull(departments.deletedAt));
+  const childrenByParent = new Map<string | null, string[]>();
+  for (const row of rows) {
+    const list = childrenByParent.get(row.parentId) ?? [];
+    list.push(row.id);
+    childrenByParent.set(row.parentId, list);
+  }
+  const seen = new Set(ids);
+  const queue = [...ids];
+  while (queue.length) {
+    const parentId = queue.shift()!;
+    for (const childId of childrenByParent.get(parentId) ?? []) {
+      if (seen.has(childId)) continue;
+      seen.add(childId);
+      queue.push(childId);
+    }
+  }
+  return [...seen];
+}
+
 export async function userRoutes(app: FastifyInstance) {
   const route = app.withTypeProvider<ZodTypeProvider>();
 
-  route.get("/users", { preHandler: [app.authenticate], schema: { tags: ["B端 / 平台 / 用户管理"], summary: "获取用户列表", querystring: listQuerySchema } }, async (request) => {
+  route.get("/users", { preHandler: [app.authenticate], schema: { tags: ["B端 / 平台 / 用户管理"], summary: "获取用户列表（支持包含下级部门筛选）", querystring: listQuerySchema } }, async (request) => {
     await requireUserPermission(request, "system:user:list");
     const { skip, take } = getPagination(request.query.page, request.query.pageSize);
-    const departmentUserIds = request.query.departmentId ? (await app.db.select({ userId: userDepartments.userId }).from(userDepartments).where(eq(userDepartments.departmentId, request.query.departmentId))).map((row) => row.userId) : undefined;
+    const departmentUserIds = request.query.departmentId ? (await app.db.select({ userId: userDepartments.userId }).from(userDepartments).where(inArray(userDepartments.departmentId, await collectDepartmentIds(app.db, request.query.departmentId, request.query.includeDescendants)))).map((row) => row.userId) : undefined;
     const roleUserIds = request.query.roleId ? (await app.db.select({ userId: userRoles.userId }).from(userRoles).where(eq(userRoles.roleId, request.query.roleId))).map((row) => row.userId) : undefined;
     const filters = [request.query.includeDeleted ? undefined : isNull(users.deletedAt), request.query.status ? eq(users.status, request.query.status) : undefined, request.query.keyword ? ilike(users.displayName, `%${request.query.keyword}%`) : undefined, departmentUserIds ? inArray(users.id, departmentUserIds) : undefined, roleUserIds ? inArray(users.id, roleUserIds) : undefined];
     const base = app.db.select({ id: users.id, phone: users.phone, email: users.email, displayName: users.displayName, gender: users.gender, remark: users.remark, role: users.role, channelType: users.channelType, status: users.status, deletedAt: users.deletedAt, createdAt: users.createdAt, updatedAt: users.updatedAt }).from(users).where(and(...filters));
