@@ -154,6 +154,20 @@ export async function projectRoutes(app: FastifyInstance) {
     return ok(request, { message: "项目创建成功", project });
   });
 
+  route.get("/client/projects", {
+    preHandler: [app.authenticate],
+    schema: { tags: ["共用 / 项目"], summary: "获取我创建的项目（C 端）", querystring: paginationQuerySchema }
+  }, async (request) => {
+    const user = getCurrentUser(request);
+    const { skip, take } = getPagination(request.query.page, request.query.pageSize);
+    const where = and(eq(projects.createdById, user.id), isNull(projects.deletedAt));
+    const [items, [totalRow]] = await Promise.all([
+      app.db.select().from(projects).where(where).orderBy(desc(projects.createdAt)).offset(skip).limit(take),
+      app.db.select({ value: count() }).from(projects).where(where)
+    ]);
+    return ok(request, { items, total: totalRow?.value ?? 0, page: request.query.page, pageSize: request.query.pageSize });
+  });
+
   route.get("/projects/public", {
     preHandler: [app.authenticate],
     schema: { tags: ["共用 / 项目"], summary: "获取公开项目", querystring: paginationQuerySchema }

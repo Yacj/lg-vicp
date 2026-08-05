@@ -11,6 +11,7 @@ import { AUTH_CLIENTS, AUDIT_ACTIONS } from "../../shared/constants.js";
 import type { AuthClient } from "../../shared/auth-user.js";
 import { requireClient } from "../../shared/client-guard.js";
 import { getCurrentUser } from "../../shared/current-user.js";
+import { canCreateProjectFromClient } from "../../shared/permissions.js";
 import { BusinessError, ForbiddenError, ConflictError, NotFoundError, ServiceUnavailableError, TooManyRequestsError, UnauthorizedError } from "../../shared/errors.js";
 import { ok } from "../../shared/response.js";
 import { writeAuditLog } from "../audit-logs/audit-log.service.js";
@@ -421,9 +422,9 @@ export async function authRoutes(app: FastifyInstance) {
     return ok(request, {
       user: { ...user, clientType: current.clientType },
       capabilities: {
-        canCreateProject: current.clientType === AUTH_CLIENTS.B_ADMIN && (user.role === "SUPER_ADMIN" || user.role === "CHANNEL_USER"),
+        canCreateProject: canCreateProjectFromClient(current),
         canUseAi: true,
-        canGenerateReport: current.clientType === AUTH_CLIENTS.B_ADMIN && (user.role === "SUPER_ADMIN" || user.role === "CHANNEL_USER"),
+        canGenerateReport: canCreateProjectFromClient(current),
         canViewPublicProject: true
       }
     });

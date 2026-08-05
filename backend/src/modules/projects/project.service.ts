@@ -8,6 +8,8 @@ import { writeAuditLog } from "../audit-logs/audit-log.service.js";
 export type CreateProjectInput = {
   name: string;
   description?: string;
+  region?: string;
+  buildingType?: string;
   visibility: typeof PROJECT_VISIBILITY[keyof typeof PROJECT_VISIBILITY];
 };
 
