@@ -92,12 +92,9 @@ export async function postAiDebugChat(body: AiDebugRequestBody, options: AiDebug
     headers: {
       'Accept': 'text/event-stream',
       'Content-Type': 'application/json',
-      ...(token
-        ? {
-            'Authorization': `Bearer ${token}`,
-            'X-Client-Type': B_ADMIN_CLIENT,
-          }
-        : {}),
+      // 客户端类型与登录态无关，始终携带，避免无 token 时 preflight 被网关拦截
+      'X-Client-Type': B_ADMIN_CLIENT,
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
     },
     body: JSON.stringify(body),
     signal: options.signal,

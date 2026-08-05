@@ -155,10 +155,13 @@ async function replayAfterRefresh<T>(
 }
 
 httpClient.interceptors.request.use((config) => {
-  const accessToken = sessionBridge.getAccessToken()
-  if (!config.skipAuth && accessToken) {
-    config.headers.set('Authorization', `Bearer ${accessToken}`)
+  if (!config.skipAuth) {
+    // 客户端类型与登录态无关，必须始终携带，否则无 token 时 preflight 不带 x-client-type 会被网关拦截
     config.headers.set('X-Client-Type', B_ADMIN_CLIENT)
+    const accessToken = sessionBridge.getAccessToken()
+    if (accessToken) {
+      config.headers.set('Authorization', `Bearer ${accessToken}`)
+    }
   }
   return config
 })
