@@ -59,12 +59,15 @@ const errorDescription = computed(() => error.value
 const pageTitle = computed(() => detail.value?.conversation.title || titleFromQuery || '会话运营详情')
 
 function goBack(): void {
-  if (window.history.state?.back) {
-    router.back()
-  }
-  else {
-    void router.push('/ai-ops/conversations')
-  }
+  console.log(window.history.state?.back)
+  // if (window.history.state?.back) {
+  //   console.log('goBack back')
+  //   router.back()
+  // }
+  // else {
+  //   console.log('goBack')
+  //   void router.push('/ai-ops/conversations')
+  // }
 }
 
 function messageStatusTag(message: AiMessage): ReturnType<typeof h> {

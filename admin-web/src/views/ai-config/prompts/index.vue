@@ -397,7 +397,7 @@ const diffLines = computed(() => {
       <aside v-show="!isNarrow" class="ai-prompt-workspace__left">
         <div class="ai-prompt-workspace__left-head">
           <span class="ai-prompt-workspace__section-title">场景</span>
-          <t-button v-if="canAddPrompt" size="small" theme="primary" variant="outline" @click="openCreateDialog">
+          <t-button v-if="canAddPrompt" theme="primary" block @click="openCreateDialog">
             <template #icon>
               <AddIcon />
             </template>
@@ -885,8 +885,8 @@ const diffLines = computed(() => {
 
 .ai-prompt-workspace__left-head {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  align-items: stretch;
   gap: var(--td-comp-margin-s);
 }
 
@@ -900,12 +900,19 @@ const diffLines = computed(() => {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 2px;
   height: auto;
   padding: var(--td-comp-paddingTB-s) var(--td-comp-paddingLR-m);
   text-align: left;
   border-radius: var(--td-radius-medium);
   transition: background-color 0.2s, border-color 0.2s;
+}
+
+.ai-prompt-workspace__scene-item :deep(.t-button__text) {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  gap: 2px;
 }
 
 .ai-prompt-workspace__scene-item:hover {

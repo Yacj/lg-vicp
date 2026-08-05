@@ -159,4 +159,31 @@ describe('postAiDebugChat streaming', () => {
       expect.objectContaining({ signal: controller.signal }),
     )
   })
+
+  it('settles after a terminal event even if the connection stays open', async () => {
+    // 后端发送 done 后不关闭连接（keep-alive），前端应在终结事件后主动结束读取
+    const encoder = new TextEncoder()
+    const openStream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode(JSON_EVENT('message', { messageId: 'm1', requestId: 'req-1' })))
+        controller.enqueue(encoder.encode(JSON_EVENT('done', {
+          messageId: 'm1',
+          finishReason: 'COMPLETED',
+          usage: { inputTokens: 1, outputTokens: 1, reasoningTokens: 0 },
+          model: { id: 'model-1' },
+          latencyMs: 10,
+        })))
+        // 故意不调用 controller.close()，模拟服务端挂起连接
+      },
+    })
+    vi.mocked(globalThis.fetch).mockResolvedValue(new Response(openStream, { status: 200 }))
+    const events: AiDebugSseEvent[] = []
+    const onEvent = (event: AiDebugSseEvent) => {
+      events.push(event)
+    }
+
+    await postAiDebugChat({ scene: 'general_chat', messages: [{ role: 'user', content: 'hi' }] }, { onEvent })
+
+    expect(events.map(event => event.type)).toEqual(['message', 'done'])
+  })
 })

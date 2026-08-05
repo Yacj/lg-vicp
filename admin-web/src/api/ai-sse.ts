@@ -5,6 +5,8 @@ import { HttpRequestError } from '@/types/error'
 
 const DEBUG_CHAT_URL = '/api/v1/platform/ai/debug/chat'
 const KNOWN_SSE_EVENTS = new Set(['message', 'progress', 'delta', 'done', 'stopped', 'error'])
+/** 终结事件：到达后流中已无有效数据，前端主动结束读取（不依赖后端关闭连接）。 */
+const TERMINAL_SSE_EVENTS = new Set(['done', 'stopped', 'error'])
 
 /** 拼接基础地址与接口路径，避免 baseURL 尾斜杠导致的双斜杠（与 axios combineURLs 行为一致）。 */
 function joinApiUrl(base: string, path: string): string {
@@ -129,10 +131,21 @@ export async function postAiDebugChat(body: AiDebugRequestBody, options: AiDebug
       const text = decoder.decode(value, { stream: true })
       for (const event of parser(text)) {
         options.onEvent(event)
+        // 终结事件后流中无有效数据；主动取消读取，避免后端 keep-alive
+        // 不关闭连接时 promise 挂起（调用方 running 状态无法复位）。
+        if (TERMINAL_SSE_EVENTS.has(event.type)) {
+          await reader.cancel().catch(() => {})
+          return
+        }
       }
     }
   }
   finally {
-    reader.releaseLock()
+    try {
+      reader.releaseLock()
+    }
+    catch {
+      // cancel 后 reader 锁已释放，无需再次释放
+    }
   }
 }

@@ -17,6 +17,7 @@ import {
   fetchAiSceneBindings,
 } from '@/api/modules/ai'
 import { computed, ref } from 'vue'
+import { confirmAndRun } from './useAppConfirm'
 import { useAppFeedback } from './useAppFeedback'
 
 export type DebugLoadStatus = 'idle' | 'loading' | 'ready' | 'error'
@@ -94,6 +95,17 @@ export function useAiDebugger() {
   const lastSubmitted = ref<{ messages: AiDebugMessage[], scene: AiScene, modelId: string, promptVersionId: string, reasoningMode: AiReasoningMode } | null>(null)
   const hasLastSubmitted = computed(() => lastSubmitted.value !== null)
 
+  /** 可复制的回答文本：优先取已固化的最后一条助手消息，流式期间回退当前累积文本。 */
+  const copyableText = computed(() => {
+    for (let i = messages.value.length - 1; i >= 0; i -= 1) {
+      const message = messages.value[i]
+      if (message.role === 'assistant' && message.content.trim()) {
+        return message.content
+      }
+    }
+    return streamedText.value
+  })
+
   const sceneBinding = computed<AiSceneBinding | null>(() => bindings.value
     .find(binding => binding.scene === selectedScene.value) ?? null)
 
@@ -169,12 +181,29 @@ export function useAiDebugger() {
     }
   }
 
-  function handleSelectScene(scene: AiScene): void {
-    if (scene === selectedScene.value) {
+  /** 切换调试场景：场景决定系统提示词体系，历史对话与请求详情随之清空，避免上下文污染。 */
+  async function handleSelectScene(scene: AiScene): Promise<void> {
+    if (scene === selectedScene.value || running.value) {
       return
     }
-    selectedScene.value = scene
-    void applyDefaultConfig()
+    const applyScene = async (): Promise<void> => {
+      selectedScene.value = scene
+      clearMessages()
+      lastSubmitted.value = null
+      await applyDefaultConfig()
+    }
+    if (messages.value.length === 0) {
+      await applyScene()
+      return
+    }
+    await confirmAndRun(
+      {
+        title: '切换调试场景',
+        content: '切换场景将清空当前对话记录与请求详情，是否继续？',
+        confirmText: '切换并清空',
+      },
+      applyScene,
+    )
   }
 
   function handleSelectProvider(providerId: string): void {
@@ -214,6 +243,19 @@ export function useAiDebugger() {
     eventLog.value = []
   }
 
+  /** 将本轮流式回答固化为助手消息（空回答不追加），保证多轮上下文与历史展示。 */
+  function commitStreamedAnswer(): void {
+    const text = streamedText.value.trim()
+    if (!text) {
+      return
+    }
+    messages.value.push({ role: 'assistant', content: streamedText.value })
+    if (messages.value.length > MAX_MESSAGES) {
+      messages.value.splice(0, messages.value.length - MAX_MESSAGES)
+    }
+    streamedText.value = ''
+  }
+
   /** 发送消息（SSE 流式）；返回最终回答文本。 */
   async function send(): Promise<string> {
     if (running.value || !draftInput.value.trim()) {
@@ -246,6 +288,7 @@ export function useAiDebugger() {
     const controller = new AbortController()
     abortController.value = controller
 
+    let answer = ''
     try {
       await postAiDebugChat(body, {
         signal: controller.signal,
@@ -267,8 +310,10 @@ export function useAiDebugger() {
     finally {
       running.value = false
       abortController.value = null
+      answer = streamedText.value
+      commitStreamedAnswer()
     }
-    return streamedText.value
+    return answer
   }
 
   function handleSseEvent(event: AiDebugSseEvent): void {
@@ -352,6 +397,7 @@ export function useAiDebugger() {
     run.value.startedAt = Date.now()
     const controller = new AbortController()
     abortController.value = controller
+    let answer = ''
     try {
       await postAiDebugChat({
         scene: snapshot.scene,
@@ -378,12 +424,14 @@ export function useAiDebugger() {
     finally {
       running.value = false
       abortController.value = null
+      answer = streamedText.value
+      commitStreamedAnswer()
     }
-    return streamedText.value
+    return answer
   }
 
   async function copyResult(): Promise<boolean> {
-    const text = streamedText.value
+    const text = copyableText.value
     if (!text) {
       return false
     }
@@ -402,6 +450,7 @@ export function useAiDebugger() {
     canSend,
     clearMessages,
     copyResult,
+    copyableText,
     draftInput,
     eventLog,
     handleSelectModel,
@@ -423,6 +472,7 @@ export function useAiDebugger() {
     resetRunState,
     retry,
     run,
+    running,
     sceneBinding,
     selectedModelId,
     selectedPromptVersionId,

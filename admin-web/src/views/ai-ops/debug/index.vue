@@ -16,6 +16,7 @@ const {
   canSend,
   clearMessages,
   copyResult,
+  copyableText,
   draftInput,
   eventLog,
   handleSelectModel,
@@ -33,6 +34,7 @@ const {
   removeMessage,
   retry,
   run,
+  running,
   selectedModelId,
   selectedPromptVersionId,
   selectedProviderId,
@@ -130,13 +132,13 @@ function handleClear(): void {
         <t-select
           :model-value="selectedScene"
           :options="AI_SCENE_OPTIONS"
-          :disabled="run.startedAt !== null"
-          @change="(value) => handleSelectScene(value as never)"
+          :disabled="running"
+          @change="(value) => void handleSelectScene(value as never)"
         />
         <t-select
           :model-value="selectedProviderId"
           placeholder="选择服务商"
-          :disabled="run.startedAt !== null"
+          :disabled="running"
           @change="(value) => handleSelectProvider(String(value))"
         >
           <t-option v-for="provider in providers" :key="provider.id" :label="provider.name" :value="provider.id" />
@@ -144,14 +146,14 @@ function handleClear(): void {
         <t-select
           :model-value="selectedModelId"
           placeholder="选择模型"
-          :disabled="run.startedAt !== null"
+          :disabled="running"
           @change="(value) => handleSelectModel(String(value))"
         >
           <t-option v-for="option in modelOptions" :key="option.value" :label="option.label" :value="option.value" />
         </t-select>
         <t-select
           :model-value="selectedPromptVersionId"
-          :disabled="run.startedAt !== null"
+          :disabled="running"
           @change="(value) => selectedPromptVersionId = String(value)"
         >
           <t-option label="使用当前发布版本" value="" />
@@ -159,7 +161,7 @@ function handleClear(): void {
         </t-select>
         <t-radio-group
           :model-value="reasoningMode"
-          :disabled="run.startedAt !== null"
+          :disabled="running"
           variant="default-filled"
           @change="(value) => reasoningMode = value as never"
         >
@@ -186,8 +188,8 @@ function handleClear(): void {
             <t-select
               :model-value="selectedScene"
               :options="AI_SCENE_OPTIONS"
-              :disabled="run.startedAt !== null"
-              @change="(value) => handleSelectScene(value as never)"
+              :disabled="running"
+              @change="(value) => void handleSelectScene(value as never)"
             />
           </t-form-item>
           <t-form-item
@@ -196,7 +198,7 @@ function handleClear(): void {
           >
             <t-select
               :model-value="selectedProviderId"
-              :disabled="run.startedAt !== null"
+              :disabled="running"
               placeholder="选择服务商"
               @change="(value) => handleSelectProvider(String(value))"
             >
@@ -206,7 +208,7 @@ function handleClear(): void {
           <t-form-item label="模型">
             <t-select
               :model-value="selectedModelId"
-              :disabled="run.startedAt !== null"
+              :disabled="running"
               placeholder="选择模型"
               @change="(value) => handleSelectModel(String(value))"
             >
@@ -219,7 +221,7 @@ function handleClear(): void {
           >
             <t-select
               :model-value="selectedPromptVersionId"
-              :disabled="run.startedAt !== null"
+              :disabled="running"
               @change="(value) => selectedPromptVersionId = String(value)"
             >
               <t-option label="使用当前发布版本" value="" />
@@ -229,7 +231,7 @@ function handleClear(): void {
           <t-form-item label="回答模式">
             <t-radio-group
               :model-value="reasoningMode"
-              :disabled="run.startedAt !== null"
+              :disabled="running"
               variant="default-filled"
               @change="(value) => reasoningMode = value as never"
             >
@@ -254,7 +256,7 @@ function handleClear(): void {
             <div class="ai-debug-workspace__context-item-head">
               <t-select
                 :model-value="message.role"
-                :disabled="run.startedAt !== null"
+                :disabled="running"
                 size="small"
                 @change="(value) => message.role = value as never"
               >
@@ -275,7 +277,7 @@ function handleClear(): void {
             <t-textarea
               :model-value="message.content"
               :autosize="{ minRows: 2, maxRows: 6 }"
-              :disabled="run.startedAt !== null"
+              :disabled="running"
               placeholder="输入该条消息内容"
               @change="(value) => message.content = String(value)"
             />
@@ -305,8 +307,8 @@ function handleClear(): void {
           <div class="ai-debug-workspace__chat-title">
             <span>{{ sceneLabel }}</span>
             <AppStatusTag
-              :label="run.startedAt !== null ? '生成中' : run.error ? '失败' : run.stopped ? '已停止' : run.finishReason ? '已完成' : '待发送'"
-              :status="run.startedAt !== null ? 'processing' : run.error ? 'error' : run.stopped ? 'warning' : run.finishReason ? 'success' : 'default'"
+              :label="running ? '生成中' : run.error ? '失败' : run.stopped ? '已停止' : run.finishReason ? '已完成' : '待发送'"
+              :status="running ? 'processing' : run.error ? 'error' : run.stopped ? 'warning' : run.finishReason ? 'success' : 'default'"
             />
           </div>
           <div class="ai-debug-workspace__chat-actions">
@@ -316,7 +318,7 @@ function handleClear(): void {
             <t-button size="small" variant="text" :disabled="messages.length === 0 && !displayText" @click="handleClear">
               清空
             </t-button>
-            <t-button size="small" variant="text" :disabled="!displayText" @click="handleCopy">
+            <t-button size="small" variant="text" :disabled="!copyableText" @click="handleCopy">
               复制结果
             </t-button>
           </div>
@@ -348,14 +350,19 @@ function handleClear(): void {
                 class="ai-debug-workspace__bubble"
                 :class="`ai-debug-workspace__bubble--${message.role}`"
               >
-                <p class="ai-debug-workspace__bubble-text">
+                <p v-if="message.role === 'user'" class="ai-debug-workspace__bubble-text">
                   {{ message.content }}
                 </p>
+                <div
+                  v-else
+                  class="ai-debug-workspace__bubble-markdown"
+                  v-html="renderMarkdown(message.content)"
+                />
               </div>
             </div>
 
             <div
-              v-if="displayText || run.startedAt !== null"
+              v-if="displayText || running"
               class="ai-debug-workspace__bubble-row ai-debug-workspace__bubble-row--assistant"
             >
               <div class="ai-debug-workspace__bubble ai-debug-workspace__bubble--assistant">
@@ -364,14 +371,14 @@ function handleClear(): void {
                   class="ai-debug-workspace__bubble-markdown"
                   v-html="answerHtml"
                 />
-                <p v-else-if="run.startedAt !== null" class="ai-debug-workspace__muted-text">
+                <p v-else-if="running" class="ai-debug-workspace__muted-text">
                   {{ run.error ? run.error.message : '正在等待模型响应…' }}
                 </p>
               </div>
             </div>
 
             <AppEmptyState
-              v-if="messages.length === 0 && !displayText && run.startedAt === null"
+              v-if="messages.length === 0 && !displayText && !running"
               class="ai-debug-workspace__chat-empty"
               description="配置请求参数后输入问题，回车或点击发送"
               title="AI 调试台"
@@ -383,12 +390,12 @@ function handleClear(): void {
           <t-textarea
             v-model="draftInput"
             :autosize="{ minRows: 2, maxRows: 6 }"
-            :disabled="run.startedAt !== null"
+            :disabled="running"
             placeholder="输入测试问题，Enter 发送，Shift+Enter 换行"
             @keydown="handleTextareaKeydown"
           />
           <t-button
-            v-if="run.startedAt !== null"
+            v-if="running"
             theme="danger"
             variant="outline"
             @click="handleStop"
@@ -472,7 +479,7 @@ function handleClear(): void {
               size="small"
               theme="primary"
               variant="outline"
-              :disabled="run.startedAt !== null"
+              :disabled="running"
               @click="handleRetry"
             >
               重试
