@@ -1,17 +1,17 @@
-import { computed, onScopeDispose, ref, shallowRef } from 'vue'
-import {
-  fetchDepartmentTree,
-} from '@/api/modules/system-management'
-import {
-  fetchRoleDepartments,
-  setRoleDepartments,
-  updateRole,
-} from '@/api/modules/roles'
 import type {
   SystemDataScope,
   SystemDepartmentTreeNode,
   SystemRole,
 } from '@/types/system-management'
+import { computed, onScopeDispose, ref, shallowRef } from 'vue'
+import {
+  fetchRoleDepartments,
+  setRoleDepartments,
+  updateRole,
+} from '@/api/modules/roles'
+import {
+  fetchDepartmentTree,
+} from '@/api/modules/system-management'
 import { DATA_SCOPE_META } from '@/utils/system-role'
 import { useAppFeedback } from './useAppFeedback'
 import { usePermissionAccess } from './usePermissionAccess'

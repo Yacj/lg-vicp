@@ -1,4 +1,12 @@
 import type { TableRowData } from 'tdesign-vue-next'
+import type { CrudKey, CrudPermissionOption } from '@/types/crud'
+import type {
+  RoleMutationResult,
+  SystemPermissionResource,
+  SystemRole,
+  SystemRoleInput,
+} from '@/types/system-management'
+import type { RoleStatusFilter } from '@/utils/system-role'
 import { computed, readonly, ref, shallowRef, watch } from 'vue'
 import {
   createRole,
@@ -11,13 +19,7 @@ import {
   updateRoleStatus,
 } from '@/api/modules/roles'
 import { fetchMenus, fetchPermissionResources } from '@/api/modules/system-management'
-import type { CrudKey, CrudPermissionOption } from '@/types/crud'
-import type {
-  RoleMutationResult,
-  SystemPermissionResource,
-  SystemRole,
-  SystemRoleInput,
-} from '@/types/system-management'
+import { projectClientPage } from '@/utils/system-management'
 import { buildMenuTree } from '@/utils/system-menu'
 import {
   buildPermissionTree,
@@ -26,15 +28,14 @@ import {
   mapPermissionCodesToIds,
   mapPermissionIdsToCodes,
   matchesRoleFilter,
-  type RoleStatusFilter,
+
 } from '@/utils/system-role'
-import { projectClientPage } from '@/utils/system-management'
+import { confirmAndRun } from './useAppConfirm'
 import { useAppFeedback } from './useAppFeedback'
 import { useConfirmedCrudAction } from './useCrudActions'
 import { useCrudDrawer } from './useCrudDrawer'
 import { useCrudList } from './useCrudList'
 import { usePermissionAccess } from './usePermissionAccess'
-import { confirmAndRun } from './useAppConfirm'
 
 export type RoleTableRow = SystemRole & TableRowData
 
@@ -99,7 +100,7 @@ export function useRoleManagement() {
     createForm: createRoleForm,
     editForm: editRoleForm,
     onError: error => void feedback.messageError(error),
-    onSuccess: async result => {
+    onSuccess: async (result) => {
       await feedback.message('success', result.message)
       await roleList.refresh()
     },

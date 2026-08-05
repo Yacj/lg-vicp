@@ -176,7 +176,7 @@
 .admin-layout__content {
   min-height: 0;
   overflow: auto;
-  padding: var(--vicp-page-gap);
+  padding: 26px;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
 }

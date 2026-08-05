@@ -10,7 +10,7 @@ import type {
 } from '@/types/ai'
 import { ArrowLeftIcon } from 'tdesign-icons-vue-next'
 import { computed, h, onMounted, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { fetchPlatformConversationDetail } from '@/api/modules/ai'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
 import AppPage from '@/components/ui/AppPage.vue'
@@ -27,7 +27,6 @@ import { formatDate } from '@/utils/day'
 defineOptions({ name: 'AiOpsConversationDetail' })
 
 const route = useRoute()
-const router = useRouter()
 const conversationId = String(route.params.id)
 const titleFromQuery = String(route.query.title ?? '')
 

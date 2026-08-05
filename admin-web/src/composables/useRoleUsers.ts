@@ -1,14 +1,14 @@
 import type { TableRowData } from 'tdesign-vue-next'
+import type {
+  SystemDepartmentMember,
+  SystemRole,
+} from '@/types/system-management'
 import { computed, readonly, ref, shallowRef } from 'vue'
 import {
   fetchUserDetail,
   fetchUsers,
   setUserRoles,
 } from '@/api/modules/roles'
-import type {
-  SystemDepartmentMember,
-  SystemRole,
-} from '@/types/system-management'
 import { useAppFeedback } from './useAppFeedback'
 import { useCrudBatchAction } from './useCrudActions'
 import { useCrudList } from './useCrudList'
@@ -72,7 +72,7 @@ export function useRoleUsers() {
   })
 
   const assignedRows = computed(() => assignedList.data.value)
-  const candidateRows = computed(() => candidateList.data.value.map((row) => ({
+  const candidateRows = computed(() => candidateList.data.value.map(row => ({
     ...row,
     alreadyAssigned: assignedIds.value.has(row.id),
   })))
@@ -95,7 +95,7 @@ export function useRoleUsers() {
           pageSize: ASSIGNED_PAGE_SIZE,
           roleId: currentRole.id,
         }, controller.signal)
-        result.items.forEach((user) => ids.add(user.id))
+        result.items.forEach(user => ids.add(user.id))
         if (result.items.length < ASSIGNED_PAGE_SIZE
           || page * result.pageSize >= result.total) {
           break

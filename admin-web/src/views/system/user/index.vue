@@ -302,7 +302,7 @@ const resetPasswordRules: FormRules = {
   }],
   password: [
     { message: '请输入新密码', required: true },
-    { message: '密码至少需要 12 个字符', min: 12 },
+    { message: '密码至少需要 5 个字符', min: 5 },
     { message: '密码不能超过 128 个字符', max: 128 },
   ],
 }
@@ -732,7 +732,7 @@ onMounted(() => {
           <t-input
             v-model="resetPasswordForm.password"
             autocomplete="new-password"
-            placeholder="至少 12 位字符"
+            placeholder="至少 5 位字符"
             type="password"
           />
         </t-form-item>
