@@ -5,10 +5,11 @@ import { env } from "./config/env.js";
 import { createDatabase } from "./db/client.js";
 import { cronExecutions } from "./db/schema.js";
 import { createRedisConnection } from "./plugins/redis.js";
-import { QUEUE_NAMES } from "./queues/queues.js";
+import { QUEUE_NAMES, createQueues } from "./queues/queues.js";
 import { createObjectStorage } from "./storage/index.js";
 import { createDocumentProcessor } from "./workers/document.worker.js";
 import { createReportProcessor } from "./workers/report.worker.js";
+import { runCrawlerSource } from "./modules/knowledge/knowledge-ingest.service.js";
 import { configureConsoleEncoding } from "./shared/console-encoding.js";
 
 configureConsoleEncoding();
@@ -27,6 +28,14 @@ const workers = [
     const executionId = typeof job.data?.executionId === "string" ? job.data.executionId : undefined;
     if (executionId) await db.update(cronExecutions).set({ status: "RUNNING", startedAt: new Date() }).where(eq(cronExecutions.id, executionId));
     try {
+      // 定时任务按 job.name 分发：知识库抓取
+      if (job.name === "knowledge_crawler") {
+        const sourceId = typeof job.data?.sourceId === "string" ? job.data.sourceId : undefined;
+        if (!sourceId) throw new Error("knowledge_crawler 任务缺少 sourceId 参数");
+        const queues = createQueues(redis);
+        const result = await runCrawlerSource({ db, storage, queues }, null, sourceId);
+        return { message: result.message, sourceName: result.sourceName };
+      }
       if (executionId) await db.update(cronExecutions).set({ status: "SUCCESS", finishedAt: new Date() }).where(eq(cronExecutions.id, executionId));
       return { message: "维护任务执行完成" };
     } catch (error) {

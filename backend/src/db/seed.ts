@@ -3,10 +3,17 @@ import * as argon2 from "argon2";
 import { and, eq, isNull } from "drizzle-orm";
 import { env } from "../config/env.js";
 import { createDatabase } from "./client.js";
+import { KNOWLEDGE_PERMISSION_SEEDS } from "../shared/knowledge-permissions.js";
+import { MD_PERMISSION_SEEDS } from "../shared/md-permissions.js";
+import { CONSTRUCTION_PERMISSION_SEEDS } from "../shared/construction-permissions.js";
+import { buildRankingRuleSeeds } from "../modules/knowledge/knowledge-ingest.service.js";
 import {
   aiModels,
   aiProviders,
   aiScenes,
+  knowledgeAliases,
+  knowledgeCategories,
+  knowledgeRankingRules,
   menus,
   permissions,
   prompts,
@@ -94,7 +101,10 @@ const permissionSeeds = [
   { code: "system:ai:conversation:detail", name: "查看 AI 会话详情", resource: "ai_conversation", action: "detail" },
   { code: "system:ai:debug:use", name: "使用 AI 调试", resource: "ai_debug", action: "use" },
   { code: "system:ai:feedback:list", name: "查看 AI 反馈", resource: "ai_feedback", action: "list" },
-  { code: "system:ai:feedback:handle", name: "处理 AI 反馈", resource: "ai_feedback", action: "handle" }
+  { code: "system:ai:feedback:handle", name: "处理 AI 反馈", resource: "ai_feedback", action: "handle" },
+  ...KNOWLEDGE_PERMISSION_SEEDS,
+  ...MD_PERMISSION_SEEDS,
+  ...CONSTRUCTION_PERMISSION_SEEDS
 ] as const;
 
 try {
@@ -129,6 +139,26 @@ try {
     ]).onConflictDoNothing();
 
     await tx.insert(permissions).values([...permissionSeeds]).onConflictDoNothing();
+
+    // 知识库基础数据种子（仅元数据，不含产品参数；分类体系与别名词表待甲方确认）
+    await tx.insert(knowledgeCategories).values([
+      { code: "specification", name: "应用技术规程", description: "产品应用技术规程类文档", sortOrder: 10 },
+      { code: "detail-atlas", name: "建筑构造图集", description: "外墙保温系统建筑构造图集类文档", sortOrder: 20 },
+      { code: "standard", name: "标准规范", description: "国家标准与行业标准类文档", sortOrder: 30 },
+      { code: "application-guide", name: "应用技术资料", description: "应用技术类资料文档", sortOrder: 40 },
+      { code: "material-comparison", name: "材料对比", description: "材料对比类文档", sortOrder: 50 },
+      { code: "company-profile", name: "企业资料", description: "企业简介等公司资料", sortOrder: 60 },
+      { code: "thermal-formula", name: "热工计算表格", description: "热工计算表格与公式类文档", sortOrder: 70 }
+    ]).onConflictDoNothing();
+    await tx.insert(knowledgeAliases).values([
+      { term: "真空绝热复合保温板", alias: "VICP", termType: "ENTITY", scope: "GLOBAL" },
+      { term: "真空绝热复合保温板", alias: "VICP板", termType: "ENTITY", scope: "GLOBAL" },
+      { term: "真空绝热复合保温板", alias: "真空绝热板", termType: "ENTITY", scope: "GLOBAL" },
+      { term: "真空绝热复合保温板", alias: "复合保温板", termType: "ENTITY", scope: "GLOBAL" }
+    ]).onConflictDoNothing();
+    await tx.insert(knowledgeRankingRules).values(
+      buildRankingRuleSeeds().map((rule) => ({ ...rule, enabled: true }))
+    ).onConflictDoNothing();
 
     const seededRoles = await tx.select({ id: roles.id, code: roles.code }).from(roles);
     await tx.update(roles).set({ dataScope: "ALL" }).where(eq(roles.code, "platform_admin"));
@@ -195,6 +225,13 @@ try {
       menuType: "MENU", name: "项目管理", routePath: "/project", component: "project/index", sortOrder: 30, permissionCode: "project.create"
     });
     await ensureMenu({ menuType: "MENU", name: "AI 对话", routePath: "/ai", component: "ai/index", sortOrder: 40, permissionCode: "ai.chat" });
+    await ensureMenu({ menuType: "MENU", name: "知识库管理", routePath: "/knowledge", component: "knowledge/index", sortOrder: 35, permissionCode: "system:knowledge:doc:list" });
+    const constructionMenuId = await ensureMenu({
+      menuType: "MENU", name: "构造方案", routePath: "/construction", component: "construction/index", sortOrder: 36, permissionCode: "system:construction:list"
+    });
+    await ensureMenu({ parentId: constructionMenuId, menuType: "BUTTON", name: "构造方案新增", routePath: "/construction/add", sortOrder: 10, permissionCode: "system:construction:add" });
+    await ensureMenu({ parentId: constructionMenuId, menuType: "BUTTON", name: "构造方案审核", routePath: "/construction/approve", sortOrder: 20, permissionCode: "system:construction:approve" });
+    await ensureMenu({ parentId: constructionMenuId, menuType: "BUTTON", name: "构造方案发布", routePath: "/construction/publish", sortOrder: 30, permissionCode: "system:construction:publish" });
 
     await tx.insert(aiProviders).values({
       code: "deepseek",

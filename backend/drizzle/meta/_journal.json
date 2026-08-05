@@ -78,6 +78,34 @@
       "when": 1785678563358,
       "tag": "0010_ai_drop_legacy_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1785836276334,
+      "tag": "0011_strange_zaran",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1785840133630,
+      "tag": "0012_lyrical_boom_boom",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1785847321810,
+      "tag": "0013_faulty_sunfire",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1785916936798,
+      "tag": "0014_faithful_zeigeist",
+      "breakpoints": true
     }
   ]
 }

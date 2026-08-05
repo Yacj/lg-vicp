@@ -25,6 +25,10 @@ import {
 import { reportRoutes } from "./modules/reports/reports.routes.js";
 import { publicShareRoutes, shareRoutes } from "./modules/shares/shares.routes.js";
 import { fileRoutes } from "./modules/files/files.routes.js";
+import { knowledgeRoutes } from "./modules/knowledge/knowledge.routes.js";
+import { internalKnowledgeRoutes } from "./modules/knowledge/knowledge-internal.routes.js";
+import { masterdataRoutes } from "./modules/masterdata/masterdata.routes.js";
+import { constructionRoutes } from "./modules/construction/construction.routes.js";
 import { userRoutes } from "./modules/users/users.routes.js";
 import { systemManagementRoutes } from "./modules/system-management/system-management.routes.js";
 import { platformOpsRoutes } from "./modules/platform-ops/platform-ops.routes.js";
@@ -53,7 +57,19 @@ export async function buildApp() {
   app.setSerializerCompiler(serializerCompiler);
 
   await app.register(errorHandlerPlugin);
-  await app.register(helmet);
+  await app.register(helmet, {
+    // 纯 HTTP 公网部署下，upgrade-insecure-requests 会把页面子资源强制升级为 https，
+    // 而 8080 无 TLS，导致 swagger-ui 静态资源全部 ERR_SSL_PROTOCOL_ERROR
+    contentSecurityPolicy: {
+      useDefaults: true,
+      directives: {
+        "upgrade-insecure-requests": null
+      }
+    },
+    // COOP/HSTS 仅对可信来源（HTTPS/localhost）生效，公网 IP 明文 HTTP 下无意义且产生浏览器告警
+    crossOriginOpenerPolicy: false,
+    strictTransportSecurity: false
+  });
   await app.register(cors, {
     origin: env.CORS_ORIGIN === "*" ? true : env.CORS_ORIGIN,
     // @fastify/cors 默认只允许 GET,HEAD,POST，必须显式放开业务使用的 PATCH/PUT/DELETE
@@ -110,6 +126,10 @@ export async function buildApp() {
   await app.register(auditLogRoutes, { prefix: "/api/v1/platform" });
   await app.register(systemManagementRoutes, { prefix: "/api/v1/platform" });
   await app.register(platformOpsRoutes, { prefix: "/api/v1/platform" });
+  await app.register(knowledgeRoutes, { prefix: "/api/v1/platform/knowledge" });
+  await app.register(internalKnowledgeRoutes, { prefix: "/api/v1/internal/knowledge" });
+  await app.register(masterdataRoutes, { prefix: "/api/v1/platform/masterdata" });
+  await app.register(constructionRoutes, { prefix: "/api/v1/platform/construction" });
   await app.register(aiConfigRoutes, { prefix: "/api/v1/platform" });
   await app.register(platformAiFeedbackRoutes, { prefix: "/api/v1/platform/ai" });
   await app.register(aiAdminRoutes, { prefix: "/api/v1/platform/ai" });

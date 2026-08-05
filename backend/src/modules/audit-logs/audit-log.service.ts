@@ -5,7 +5,8 @@ import type { AuthUser } from "../../shared/auth-user.js";
 
 interface WriteAuditLogInput {
   db: DbExecutor;
-  request: FastifyRequest;
+  /** 定时任务/服务端入口（爬虫、内部 API）无 HTTP 请求上下文时可省略 */
+  request?: FastifyRequest;
   actor?: AuthUser;
   projectId?: string;
   action: string;
@@ -24,8 +25,8 @@ export async function writeAuditLog(input: WriteAuditLogInput) {
     targetId: input.targetId,
     beforeJson: input.beforeJson,
     afterJson: input.afterJson,
-    ip: input.request.ip,
-    userAgent: input.request.headers["user-agent"],
-    requestId: input.request.id
+    ip: input.request?.ip,
+    userAgent: input.request?.headers["user-agent"],
+    requestId: input.request?.id
   });
 }

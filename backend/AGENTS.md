@@ -46,6 +46,10 @@
 路由边界：
 
 - `/api/v1/platform/*`：B 端平台管理，先校验 `B_ADMIN`，再按具体权限码授权；超级管理员全量放行。
+- `/api/v1/platform/knowledge/*`：B 端平台知识库管理（分类/文档/版本/解析/审核/发布/检索日志/别名词典/批量导入/抓取源/排序规则/检索评测），按 `system:knowledge:*` 权限码授权；批量导入返回预签名地址，直传后走 upload-complete 确认。
+- `/api/v1/platform/masterdata/*`：B 端平台主数据管理（企业内容/证书、产品系列/规格/性能参数/附件、材料/材料参数版本），按 `system:md:*` 权限码授权；统一审核状态机 DRAFT -> PENDING_REVIEW -> APPROVED -> PUBLISHED（可驳回 REJECTED，发布后 new-version 派生新草稿），已发布读取接口 `/published/*` 只返回 PUBLISHED 且生效中的数据，供计算模块确定性取数。
+- `/api/v1/platform/construction/*`：B 端平台构造方案管理（保温系统、构造方案/构造层/产品选项/方案文档），按 `system:construction:*` 权限码授权；版本化状态机复用 masterdata `md-workflow.service.ts`（`registerVersionedEntity` 注册 + 共用工作流工厂），new-version 同事务复制子表；submit/publish 前强制结构校验（层序连续、基层/产品层唯一、产品层厚度落在选项区间、引用规格/材料已发布生效）；已发布读取接口 `/published/*` 只返回 PUBLISHED 且生效中的数据，供未来图集热工查表模块取数。详见 `docs/construction/README.md`。
+- `/api/v1/internal/knowledge/*`：服务间受控接口（静态密钥 `x-internal-key` = `env.INTERNAL_API_KEY`，未配置则整体禁用）；服务端直写对象存储并投递解析，产物为 DRAFT 待审核，不自动发布；不校验 B_ADMIN 客户端。
 - 客户端访问令牌按客户端类型分别配置：`B_ADMIN` 默认 `24h`，`C_APP` 默认 `30d`，`PC_AI` 默认 `30d`；refresh token 统一默认有效 `30` 天。
 - `/api/v1/workspace/*`：B 端渠道工作台，先校验 `B_ADMIN`，再执行项目级权限。
 - `/api/v1/projects/*`：登录用户共享项目读取。
@@ -96,6 +100,7 @@
 - `PROJECT` 分享只暴露项目摘要和已发布报告快照；不得返回项目源文件、知识库原文、未发布报告、原始会话或后台权限信息。
 - 源文件使用预签名直传；解析、OCR、索引和报告导出必须通过 BullMQ Worker。
 - OCR 未配置时将文件标记为 `OCR_REQUIRED`，不得把空解析结果当成功。
+- 知识库文档版本化：版本状态机 DRAFT -> APPROVED -> PUBLISHED -> DISABLED（照抄 prompt_versions 风格），只有 PUBLISHED 版本参与检索，已发布版本不可直接修改（编辑派生新草稿）；解析任务走 `parsing_jobs` 领域表，与通用 `async_tasks` 职责分离；知识库多来源（B 端上传/批量导入/爬虫/内部 API）统一走 `knowledge-ingest.service` 入库链路，插入 `files` 前按 SHA-256 查重（已发布版本冲突抛 409，仅草稿提示先处理），爬虫与内部 API 产物默认 DRAFT/REVIEW_PENDING 待审核；检索权重来自 `knowledge_ranking_rules` 可配置，检索评测存 `knowledge_search_evaluations`。详见 `docs/knowledge/README.md`。
 - 报告以结构化 JSON 为事实源，模板生成 HTML、图片、Word 和 PDF。
 
 ## 需求变更定位
@@ -104,6 +109,9 @@
 - 项目可见性：`src/shared/permissions.ts` 与项目模块。
 - 用户、角色、部门、字典：用户、权限和系统管理模块。
 - 文件上传、解析、OCR：文件模块、存储适配器和文档 Worker。
+- 知识库文档、版本、解析、检索：知识库模块（`src/modules/knowledge/`）、`knowledge_*`/`parsing_jobs` 表及 `drizzle/` 最新迁移；后台知识库接口按 `system:knowledge:*` 权限码授权。
+- 企业/产品/材料参数主数据：主数据模块（`src/modules/masterdata/`，服务层 + `md-workflow.service.ts` 通用状态机 + `md.schemas.ts` DTO + `masterdata.routes.ts`）、`md_*` 表；权限码见 `src/shared/md-permissions.ts`；已发布读取服务 `md-read.service.ts` 只返回 PUBLISHED 且生效中的数据；导入示例 `pnpm md:import-example`。详见 `docs/masterdata/README.md`。
+- 保温系统/构造方案/构造层/产品选项/方案文档：构造模块（`src/modules/construction/`，服务层 + 结构校验器 `construction-structure.service.ts` + 已发布读取 `construction-read.service.ts` + `construction.schemas.ts` DTO + `construction.routes.ts`）、`insulation_systems`/`construction_schemes`/`construction_layers`/`scheme_product_options`/`scheme_documents` 表；版本化状态机与工作流工厂复用 masterdata（`registerVersionedEntity`/`registerVersionedWorkflow`，见 `src/modules/masterdata/md-workflow.service.ts` 与 `workflow-routes.ts`）；权限码见 `src/shared/construction-permissions.ts`；导入示例 `pnpm construction:import-example`。详见 `docs/construction/README.md`。
 - AI 模型配置、围栏、对话：AI 配置模块、AI 模块和知识检索模块；后台 AI 配置与运营接口按 `system:ai:*` 权限码授权。
 - AI 停止生成和会话深度思考：`src/modules/ai/ai.routes.ts`、`ai_messages`/`ai_conversations` 状态字段及 `drizzle/` 最新迁移。
 - AI 回答点赞、反馈和重新生成：AI 模块、平台 AI 反馈模块、`ai_message_feedbacks`、`ai_message_regenerations`。

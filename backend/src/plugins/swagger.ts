@@ -10,10 +10,13 @@ const swaggerTags = [
   { name: "B端 / 平台 / 角色权限", description: "B 端平台角色、权限、菜单和部门接口" },
   { name: "B端 / 平台 / 岗位管理", description: "B 端平台岗位和组织管理接口" },
   { name: "B端 / 平台 / AI配置", description: "B 端平台 AI 服务商、模型和提示词配置接口" },
+  { name: "B端 / 平台 / 知识库", description: "B 端平台知识文档、版本、页面、分块与检索接口" },
   { name: "B端 / 平台 / AI运营", description: "B 端平台 AI 会话运营、反馈和审计接口" },
   { name: "B端 / 平台 / AI调试", description: "B 端平台 AI 调试接口（流式验证，不落业务库）" },
   { name: "B端 / 平台 / 审计监控", description: "B 端平台审计日志、缓存和任务监控接口" },
   { name: "B端 / 平台 / 基础数据", description: "B 端平台字典等基础数据接口" },
+  { name: "B端 / 平台 / 主数据", description: "B 端平台企业内容、产品系列/规格/参数、材料参数主数据接口" },
+  { name: "B端 / 平台 / 构造方案", description: "B 端平台保温系统、构造方案、构造层与产品选项接口" },
   { name: "B端 / 平台 / 项目", description: "B 端平台项目管理接口" },
   { name: "B端 / 工作台 / 项目", description: "B 端渠道工作台项目接口" },
   { name: "B端 / 认证", description: "B 端管理后台认证接口" },
@@ -27,7 +30,8 @@ const swaggerTags = [
   { name: "共用 / 分享", description: "登录用户创建和管理分享链接接口" },
   { name: "公共 / 分享", description: "匿名访问公开分享内容接口" },
   { name: "公共 / 基础字典", description: "客户端和后台共用的基础字典接口" },
-  { name: "公共 / 健康检查", description: "服务健康和依赖状态检查接口" }
+  { name: "公共 / 健康检查", description: "服务健康和依赖状态检查接口" },
+  { name: "公共 / 内部接口", description: "服务间受控调用接口（静态密钥鉴权，不对外开放）" }
 ];
 
 export const swaggerPlugin = fp(async (app) => {

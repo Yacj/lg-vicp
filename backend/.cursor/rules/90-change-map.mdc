@@ -7,6 +7,9 @@ alwaysApply: true
 - 用户、角色、权限、部门或字典：用户、权限、系统管理模块、Drizzle schema。
 - 文件上传和下载：文件模块与 `src/storage`。
 - PDF/DOCX 解析、OCR 和知识切片：文档 Worker、OCR 服务、知识模块。
+- 知识库文档、版本、解析、检索、多来源接入（批量导入/爬虫/内部 API）和评测：`src/modules/knowledge/`、`knowledge_*`/`parsing_jobs` 表；后台知识库接口按 `system:knowledge:*` 权限码授权，内部受控接口 `/api/v1/internal/knowledge/*` 用 `x-internal-key` 服务密钥鉴权，详见 `docs/knowledge/README.md`。
+- 企业/产品/材料参数主数据（企业内容与证书、产品系列/规格/性能参数/附件、材料与材料参数版本）：`src/modules/masterdata/`、`md_*` 表；统一审核状态机 `md-workflow.service.ts`，权限码 `src/shared/md-permissions.ts`，只读已发布读取 `md-read.service.ts`，路由 `masterdata.routes.ts`（前缀 `/api/v1/platform/masterdata`），导入示例 `pnpm md:import-example`，详见 `docs/masterdata/README.md`。
+- 保温系统/构造方案/构造层/产品选项/方案文档：`src/modules/construction/`、`insulation_systems`/`construction_schemes`/`construction_layers`/`scheme_product_options`/`scheme_documents` 表；状态机与工作流工厂复用 masterdata（`registerVersionedEntity`/`registerVersionedWorkflow`），结构校验 `construction-structure.service.ts`，已发布读取 `construction-read.service.ts`，路由 `construction.routes.ts`（前缀 `/api/v1/platform/construction`），权限码 `src/shared/construction-permissions.ts`，导入示例 `pnpm construction:import-example`，详见 `docs/construction/README.md`。
 - Redis/BullMQ：队列定义、Fastify 插件、`src/worker.ts`。
 - AI 服务商、模型、场景和提示词：AI 配置模块。
 - AI 对话、围栏和检索：AI 模块、知识模块、AI 参考规则。
