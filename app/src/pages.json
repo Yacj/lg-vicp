@@ -48,22 +48,12 @@
       "layout": "tabbar",
       "style": {
         "navigationStyle": "custom",
-        "navigationBarTitleText": "筑小格"
+        "navigationBarTitleText": "筑小格",
+        "app-plus": {
+          "softinputMode": "adjustResize"
+        }
       }
     },
-    // #ifdef APP || MP-WEIXIN
-    {
-      "path": "pages/profile/index",
-      "type": "page",
-      "name": "profile",
-      "layout": "tabbar",
-      "style": {
-        "navigationStyle": "custom",
-        "navigationBarTitleText": "我的"
-      }
-    },
-    // #endif
-    // #ifdef H5
     {
       "path": "pages/profile/index",
       "type": "page",
@@ -73,7 +63,6 @@
         "navigationStyle": "custom"
       }
     },
-    // #endif
     {
       "path": "pages/project-create/index",
       "type": "page",
@@ -111,7 +100,8 @@
       "layout": "default",
       "style": {
         "navigationStyle": "custom",
-        "navigationBarTitleText": "AI 对话记录"
+        "navigationBarTitleText": "AI 对话记录",
+        "enablePullDownRefresh": true
       }
     },
     {
@@ -134,19 +124,6 @@
         "navigationBarTitleText": "个人信息"
       }
     },
-    // #ifdef APP || MP-WEIXIN
-    {
-      "path": "pages/reports/index",
-      "type": "page",
-      "name": "reports",
-      "layout": "default",
-      "style": {
-        "navigationStyle": "custom",
-        "navigationBarTitleText": "我的报告"
-      }
-    },
-    // #endif
-    // #ifdef H5
     {
       "path": "pages/reports/index",
       "type": "page",
@@ -156,7 +133,6 @@
         "navigationStyle": "custom"
       }
     }
-    // #endif
   ],
   "subPackages": [],
   "tabBar": {

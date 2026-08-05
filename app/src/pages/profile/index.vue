@@ -25,7 +25,6 @@ const { theme, toggleTheme } = useManualTheme()
 const { requireLogin } = useAuthGate()
 const globalDialog = useGlobalDialog()
 const authStore = useAuthStore()
-const { goBack } = useBackNavigation()
 const isAuthenticated = computed(() => authStore.isAuthenticated)
 const user = computed(() => authStore.user)
 const profileName = computed(() => user.value?.displayName || '暂无登录')
@@ -120,11 +119,7 @@ function openLegalContent(key: ProfileEntry) {
     <wd-navbar
       custom-class="!bg-[var(--app-bg-canvas)]"
       title="我的"
-      safe-area-inset-top 
-      left-arrow 
-      placeholder 
-      fixed
-      @click-left="goBack"
+      safe-area-inset-top
     />
     <view class="app-enter box-border px-4 py-4 pb-6">
       <view class="app-panel mb-5 overflow-hidden p-4" @click="openProfileInfo">

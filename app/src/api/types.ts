@@ -87,6 +87,21 @@ export interface ClientInfo {
 
 export type ProjectVisibility = 'PRIVATE' | 'PUBLIC'
 
+export interface CreateProjectBody {
+  name: string
+  description?: string
+  region?: string
+  buildingType?: string
+  visibility?: ProjectVisibility
+}
+
+export interface UpdateProjectBody extends Partial<Omit<CreateProjectBody, 'visibility'>> {
+  name?: string
+  description?: string
+  region?: string
+  buildingType?: string
+}
+
 export interface ProjectRecord {
   id: string
   name: string
@@ -103,12 +118,15 @@ export interface ProjectRecord {
   updatedAt: string
 }
 
+export type AiScene = 'general_chat' | 'project_design' | 'material_compare' | 'standard_qa' | 'report_generate' | 'information_extract'
+export type AiFeedbackReaction = 'LIKE' | 'DISLIKE'
+
 export interface ConversationRecord {
   id: string
   userId: string
   projectId: string | null
   clientApp: 'c_app' | 'pc_ai' | 'b_admin'
-  scene: string
+  scene: AiScene
   title: string | null
   reasoningMode: 'OFF' | 'ON'
   status: string
@@ -120,7 +138,7 @@ export interface ConversationRecord {
 export interface CreateConversationBody {
   projectId?: string
   clientApp: 'c_app' | 'pc_ai' | 'b_admin'
-  scene: 'general_chat' | 'project_design' | 'material_compare' | 'standard_qa' | 'report_generate' | 'information_extract'
+  scene: AiScene
   title?: string
   reasoningMode?: 'OFF' | 'ON'
 }
@@ -142,7 +160,7 @@ export interface SendMessageBody {
 }
 
 export interface MessageFeedbackBody {
-  reaction?: 'LIKE' | 'DISLIKE' | null
+  reaction?: AiFeedbackReaction | null
   tags?: string[]
   content?: string | null
   clientApp?: ConversationRecord['clientApp']
@@ -153,25 +171,160 @@ export interface ReportDraftBody {
   requirements?: string
 }
 
+export interface AiSourceRef {
+  title: string
+  page: number | null
+}
+
+export interface AiRetrievalRecord {
+  id: string
+  conversationId: string
+  messageId: string | null
+  documentId: string | null
+  chunkId: string | null
+  score: number | null
+  sourcePage: number | null
+  sourceTitle: string | null
+  createdAt: string
+}
+
+export interface AiRegenerationRecord {
+  id: string
+  conversationId: string
+  originalMessageId: string
+  regeneratedMessageId: string
+  userId: string | null
+  reason: string | null
+  createdAt: string
+}
+
+export interface AiShareLinkRecord {
+  id: string
+  token: string
+  targetType: ShareTargetType
+  targetId: string | null
+  projectId: string | null
+  createdById: string | null
+  title: string
+  enabled: boolean
+  expiresAt: string | null
+  maxViews: number | null
+  viewCount: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ReportItem extends ReportRecord {
+  artifacts: Array<{
+    id: string
+    reportId: string
+    artifactType: ReportArtifactType
+    fileId: string
+    sortOrder: number
+    status: string
+    file: {
+      id: string
+      originalName: string
+      mimeType: string
+      sizeBytes: number
+      status: string
+    }
+  }>
+  sources: unknown[]
+}
+
+/**
+ * SSE 流事件负载（后端 ai-sse 事件序列：message → progress* → delta* → done|stopped|error）。
+ * send 与 regenerate 共用，regenerate 的 message/done 事件额外携带 originalMessageId/regeneratedMessageId。
+ */
+export type AiStreamEventPayload
+  = | {
+    event: 'message'
+    data: {
+      messageId: string
+      conversationId: string
+      originalMessageId?: string
+      requestId: string
+    }
+  }
+  | {
+    event: 'progress'
+    data: {
+      stage: 'analyzing' | 'checking' | 'composing' | 'completed'
+      message: string
+    }
+  }
+  | {
+    event: 'delta'
+    data: { text: string }
+  }
+  | {
+    event: 'done'
+    data: {
+      messageId: string
+      conversationId: string
+      finishReason: string
+      sources: AiSourceRef[]
+      model?: { id: string } | null
+      regeneratedMessageId?: string
+    }
+  }
+  | {
+    event: 'stopped'
+    data: {
+      messageId: string
+      content: string
+    }
+  }
+  | {
+    event: 'error'
+    data: {
+      code: string
+      message: string
+      requestId: string
+      retryable?: boolean
+    }
+  }
+
 export interface ConversationMessage {
   id: string
   conversationId: string
   userId: string | null
-  role: 'USER' | 'ASSISTANT'
+  role: 'USER' | 'ASSISTANT' | 'SYSTEM'
   content: string
   status: 'PENDING' | 'STREAMING' | 'COMPLETED' | 'STOPPED' | 'FAILED'
   reasoningMode: 'OFF' | 'ON'
-  createdAt: string
+  model?: string | null
+  durationMs?: number | null
+  startedAt?: string | null
   finishedAt?: string | null
+  stopReason?: string | null
+  createdAt: string
+}
+
+export interface AiMessageFeedback {
+  id: string
+  messageId: string
+  conversationId: string
+  userId: string
+  reaction: AiFeedbackReaction | null
+  tags: string[]
+  content: string | null
+  createdAt: string
 }
 
 export interface ConversationDetail {
   conversation: ConversationRecord
   messages: ConversationMessage[]
-  reports: unknown[]
-  retrievals: unknown[]
-  feedbacks: unknown[]
-  shares: unknown[]
+  processingSummary?: {
+    stages: Array<{ stage: string, message: string }>
+    note?: string
+  }
+  retrievals: AiRetrievalRecord[]
+  feedbacks: AiMessageFeedback[]
+  regenerations: AiRegenerationRecord[]
+  reports: ReportItem[]
+  shareLinks: AiShareLinkRecord[]
 }
 
 export interface UploadIntentBody {

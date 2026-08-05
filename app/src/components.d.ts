@@ -7,12 +7,15 @@ export {}
 
 declare module 'vue' {
   export interface GlobalComponents {
-    AppDrawer: typeof import('./components/AppDrawer.vue')['default']
+    AiAiComposer: typeof import('./components/ai/AiComposer.vue')['default']
+    AiAiMessageList: typeof import('./components/ai/AiMessageList.vue')['default']
+    AiAiWelcomeHero: typeof import('./components/ai/AiWelcomeHero.vue')['default']
     DemoBlock: typeof import('./components/DemoBlock.vue')['default']
     GlobalDialog: typeof import('./components/GlobalDialog.vue')['default']
     GlobalLoading: typeof import('./components/GlobalLoading.vue')['default']
     GlobalToast: typeof import('./components/GlobalToast.vue')['default']
     PrivacyPopup: typeof import('./components/PrivacyPopup.vue')['default']
+    WdActionSheet: typeof import('@wot-ui/ui/components/wd-action-sheet/wd-action-sheet.vue')['default']
     WdAvatar: typeof import('@wot-ui/ui/components/wd-avatar/wd-avatar.vue')['default']
     WdButton: typeof import('@wot-ui/ui/components/wd-button/wd-button.vue')['default']
     WdCell: typeof import('@wot-ui/ui/components/wd-cell/wd-cell.vue')['default']
@@ -22,6 +25,7 @@ declare module 'vue' {
     WdDialog: typeof import('@wot-ui/ui/components/wd-dialog/wd-dialog.vue')['default']
     WdEmpty: typeof import('@wot-ui/ui/components/wd-empty/wd-empty.vue')['default']
     WdForm: typeof import('@wot-ui/ui/components/wd-form/wd-form.vue')['default']
+    WdGap: typeof import('@wot-ui/ui/components/wd-gap/wd-gap.vue')['default']
     WdIcon: typeof import('@wot-ui/ui/components/wd-icon/wd-icon.vue')['default']
     WdInput: typeof import('@wot-ui/ui/components/wd-input/wd-input.vue')['default']
     WdLoading: typeof import('@wot-ui/ui/components/wd-loading/wd-loading.vue')['default']
@@ -30,6 +34,8 @@ declare module 'vue' {
     WdPopup: typeof import('@wot-ui/ui/components/wd-popup/wd-popup.vue')['default']
     WdSearch: typeof import('@wot-ui/ui/components/wd-search/wd-search.vue')['default']
     WdSwitch: typeof import('@wot-ui/ui/components/wd-switch/wd-switch.vue')['default']
+    WdTabbar: typeof import('@wot-ui/ui/components/wd-tabbar/wd-tabbar.vue')['default']
+    WdTabbarItem: typeof import('@wot-ui/ui/components/wd-tabbar-item/wd-tabbar-item.vue')['default']
     WdTag: typeof import('@wot-ui/ui/components/wd-tag/wd-tag.vue')['default']
     WdTextarea: typeof import('@wot-ui/ui/components/wd-textarea/wd-textarea.vue')['default']
     WdToast: typeof import('@wot-ui/ui/components/wd-toast/wd-toast.vue')['default']

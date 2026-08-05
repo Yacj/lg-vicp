@@ -25,7 +25,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 export const alovaInstance = createAlova({
-  baseURL: import.meta.env.VITE_API_BASE_URL || defaultBaseURL,
+  // 剥离尾部斜杠：避免与 /api/v1 拼接产生 //api/v1 双斜杠路径
+  baseURL: (import.meta.env.VITE_API_BASE_URL || defaultBaseURL).replace(/\/+$/, ''),
   ...AdapterUniapp({
     mockRequest: mockAdapter,
   }),

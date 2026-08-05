@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { ApiEnvelope } from '@/api/types'
+import { projectApi } from '@/api/modules/projects'
 import { useAuthGate } from '@/composables/useAuthGate'
 import { useBackNavigation } from '@/composables/useBackNavigation'
 
@@ -14,7 +16,8 @@ definePage({
 const router = useRouter()
 const { goBack } = useBackNavigation()
 const { requireLogin } = useAuthGate()
-const { warning, info } = useGlobalToast()
+const { warning, error: showError } = useGlobalToast()
+const globalLoading = useGlobalLoading()
 
 const form = reactive({
   name: '',
@@ -23,24 +26,38 @@ const form = reactive({
   description: '',
 })
 
-function submit() {
+async function submit() {
   if (!requireLogin()) {
     return
   }
 
-  if (!form.name.trim()) {
+  const name = form.name.trim()
+  if (!name) {
     warning('请先填写项目名称')
     return
   }
 
-  info('项目创建接口待接入，已保留表单结构')
-  router.replace({
-    name: 'project-detail',
-    query: {
-      id: 'draft-project',
-      name: form.name.trim(),
-    },
-  })
+  globalLoading.loading('正在创建项目...')
+  try {
+    const response = await projectApi.create({
+      name,
+      region: form.region.trim() || undefined,
+      buildingType: form.buildingType.trim() || undefined,
+      description: form.description.trim() || undefined,
+    }).send() as ApiEnvelope<{ project: { id: string } }>
+
+    const projectId = response.data?.project?.id
+    router.replace({
+      name: 'project-detail',
+      query: projectId ? { id: projectId } : {},
+    })
+  }
+  catch (error) {
+    showError(error instanceof Error ? error.message : '创建失败，请重试')
+  }
+  finally {
+    globalLoading.close()
+  }
 }
 </script>
 
@@ -98,7 +115,7 @@ function submit() {
       <view class="app-ai-soft mb-5 flex gap-3 rounded-3 p-3">
         <wd-icon name="info" size="36rpx" color="var(--app-ai)" />
         <view class="app-muted text-3 leading-5">
-          接口接入后，这些信息会保存到当前渠道用户的租户项目空间。
+          创建后可继续在筑小格中整理项目参数与节能方案。
         </view>
       </view>
 

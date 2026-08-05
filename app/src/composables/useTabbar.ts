@@ -1,4 +1,5 @@
-import { TABBAR_ITEMS, type TabbarName } from '@/constants/navigation'
+import type { TabbarName } from '@/constants/navigation'
+import { TABBAR_ITEMS } from '@/constants/navigation'
 
 export interface TabbarItem {
   name: TabbarName
@@ -6,6 +7,7 @@ export interface TabbarItem {
   active: boolean
   title: string
   icon: string
+  iconActive: string
 }
 
 const tabbarItems = ref<TabbarItem[]>(
