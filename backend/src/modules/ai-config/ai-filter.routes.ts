@@ -29,15 +29,28 @@ const filterBodySchema = z.object({
   sceneCodes: sceneCodesSchema,
   hitMessage: z.string().trim().max(200, "提示语不能超过 200 个字符").optional(),
   enabled: z.boolean().default(true)
-}).superRefine((value, context) => {
-  if (value.matchType === "REGEX") {
+}).superRefine(regexKeywordCheck);
+
+// PATCH 单独定义全 optional 字段：Zod v4 的 .partial() 会保留 default 且不允许用于含 superRefine 的 schema
+const filterPatchBodySchema = z.object({
+  keyword: z.string().trim().min(1, "请输入关键词").max(100, "关键词不能超过 100 个字符").optional(),
+  matchType: z.enum(CONTENT_FILTER_MATCH_TYPES).optional(),
+  sceneCodes: sceneCodesSchema,
+  hitMessage: z.string().trim().max(200, "提示语不能超过 200 个字符").optional(),
+  enabled: z.boolean().optional()
+}).superRefine(regexKeywordCheck)
+  .refine((value) => Object.keys(value).length > 0, "至少需要修改一个字段");
+
+// matchType=REGEX 时校验关键词是合法正则；PATCH 场景 keyword 可能未传入
+function regexKeywordCheck(value: { matchType?: string; keyword?: string }, context: z.RefinementCtx): void {
+  if (value.matchType === "REGEX" && value.keyword !== undefined) {
     try {
       new RegExp(value.keyword, "iu");
     } catch {
       context.addIssue({ code: z.ZodIssueCode.custom, path: ["keyword"], message: "正则表达式格式不正确" });
     }
   }
-});
+}
 
 const filterListQuerySchema = paginationQuerySchema.extend({
   keyword: z.string().trim().max(100).optional(),
@@ -125,7 +138,7 @@ export async function aiFilterRoutes(app: FastifyInstance) {
       tags: ["B端 / 平台 / AI配置"],
       summary: "修改 AI 对话围栏词条",
       params: filterParamsSchema,
-      body: filterBodySchema.partial().refine((value) => Object.keys(value).length > 0, "至少需要修改一个字段")
+      body: filterPatchBodySchema
     }
   }, async (request) => {
     const actor = requireFilterAdmin(request, AI_PERMISSIONS.FILTER_UPDATE);
