@@ -16,6 +16,7 @@ import { aiFilterRoutes } from "./modules/ai-config/ai-filter.routes.js";
 import { platformAiFeedbackRoutes } from "./modules/ai-feedback/ai-feedback.routes.js";
 import { auditLogRoutes } from "./modules/audit-logs/audit-log.routes.js";
 import { authRoutes } from "./modules/auth/auth.routes.js";
+import { clientProfileRoutes } from "./modules/client-profile/client-profile.routes.js";
 import { dictRoutes } from "./modules/dicts/dicts.routes.js";
 import { permissionRoutes } from "./modules/permissions/permissions.routes.js";
 import {
@@ -118,6 +119,7 @@ export async function buildApp() {
   });
 
   await app.register(authRoutes, { prefix: "/api/v1/auth" });
+  await app.register(clientProfileRoutes, { prefix: "/api/v1/client" });
   await app.register(dictRoutes, { prefix: "/api/v1" });
   await app.register(permissionRoutes, { prefix: "/api/v1" });
   await app.register(projectRoutes, { prefix: "/api/v1" });
