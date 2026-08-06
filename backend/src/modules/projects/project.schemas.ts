@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { paginationQuerySchema } from "../../shared/pagination.js";
 import { PROJECT_VISIBILITY } from "../../shared/constants.js";
 
 export const createProjectBodySchema = z.object({
@@ -7,6 +8,11 @@ export const createProjectBodySchema = z.object({
   region: z.string().trim().max(80, "地区不能超过 80 个字符").optional(),
   buildingType: z.string().trim().max(80, "建筑类型不能超过 80 个字符").optional(),
   visibility: z.enum([PROJECT_VISIBILITY.PRIVATE, PROJECT_VISIBILITY.PUBLIC]).default(PROJECT_VISIBILITY.PRIVATE)
+});
+
+export const clientProjectListQuerySchema = paginationQuerySchema.extend({
+  visibility: z.enum([PROJECT_VISIBILITY.PRIVATE, PROJECT_VISIBILITY.PUBLIC]).optional(),
+  keyword: z.string().trim().max(120, "搜索关键词不能超过 120 个字符").optional()
 });
 
 export const projectParamsSchema = z.object({

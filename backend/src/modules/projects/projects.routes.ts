@@ -5,14 +5,15 @@ import { z } from "zod";
 import { projects } from "../../db/schema.js";
 import { AUDIT_ACTIONS, AUTH_CLIENTS, PROJECT_VISIBILITY } from "../../shared/constants.js";
 import { getCurrentUser } from "../../shared/current-user.js";
-import { ForbiddenError, NotFoundError } from "../../shared/errors.js";
+import { ForbiddenError, NotFoundError,BusinessError } from "../../shared/errors.js";
 import { getPagination, paginationQuerySchema } from "../../shared/pagination.js";
 import { canCreateProjectFromClient, canManageProject, canViewProject } from "../../shared/permissions.js";
 import { assertPermission } from "../../shared/permission-guard.js";
 import { ok } from "../../shared/response.js";
 import { writeAuditLog } from "../audit-logs/audit-log.service.js";
-import { createProjectInTransaction } from "./project.service.js";
+import { createProjectInTransaction, listCreatedProjects } from "./project.service.js";
 import {
+  clientProjectListQuerySchema,
   createProjectBodySchema,
   projectParamsSchema,
   updateProjectBodySchema,
@@ -37,7 +38,7 @@ export async function workspaceProjectRoutes(app: FastifyInstance) {
     const user = getCurrentUser(request);
     await assertPermission(request, "project.create");
     if (!canCreateProjectFromClient(user)) {
-      throw new ForbiddenError("当前登录端或账号不能创建项目");
+      throw new BusinessError("当前登录端或账号不能创建项目");
     }
 
     const project = await app.db.transaction((tx) => createProjectInTransaction({
@@ -142,7 +143,7 @@ export async function projectRoutes(app: FastifyInstance) {
       await assertPermission(request, "project.create");
     }
     if (!canCreateProjectFromClient(user)) {
-      throw new ForbiddenError("当前登录端或账号不能创建项目");
+      throw new BusinessError("当前登录端或账号不能创建项目");
     }
 
     const project = await app.db.transaction((tx) => createProjectInTransaction({
@@ -156,16 +157,18 @@ export async function projectRoutes(app: FastifyInstance) {
 
   route.get("/client/projects", {
     preHandler: [app.authenticate],
-    schema: { tags: ["共用 / 项目"], summary: "获取我创建的项目（C 端）", querystring: paginationQuerySchema }
+    schema: { tags: ["共用 / 项目"], summary: "获取我创建的项目（C 端）", querystring: clientProjectListQuerySchema }
   }, async (request) => {
     const user = getCurrentUser(request);
-    const { skip, take } = getPagination(request.query.page, request.query.pageSize);
-    const where = and(eq(projects.createdById, user.id), isNull(projects.deletedAt));
-    const [items, [totalRow]] = await Promise.all([
-      app.db.select().from(projects).where(where).orderBy(desc(projects.createdAt)).offset(skip).limit(take),
-      app.db.select({ value: count() }).from(projects).where(where)
-    ]);
-    return ok(request, { items, total: totalRow?.value ?? 0, page: request.query.page, pageSize: request.query.pageSize });
+    const data = await listCreatedProjects({
+      db: app.db,
+      ownerUserId: user.id,
+      page: request.query.page,
+      pageSize: request.query.pageSize,
+      visibility: request.query.visibility,
+      keyword: request.query.keyword
+    });
+    return ok(request, data);
   });
 
   route.get("/projects/public", {
