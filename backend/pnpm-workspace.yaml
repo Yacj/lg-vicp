@@ -3,5 +3,7 @@ onlyBuiltDependencies:
   - esbuild
 allowBuilds:
   argon2: true
+  cpu-features: true
   esbuild: true
   msgpackr-extract: true
+  ssh2: true
