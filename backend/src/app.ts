@@ -12,6 +12,7 @@ import { aiRoutes } from "./modules/ai/ai.routes.js";
 import { aiAdminRoutes } from "./modules/ai/ai-admin.routes.js";
 import { aiDebugRoutes } from "./modules/ai/ai-debug.routes.js";
 import { aiConfigRoutes } from "./modules/ai-config/ai-config.routes.js";
+import { aiFilterRoutes } from "./modules/ai-config/ai-filter.routes.js";
 import { platformAiFeedbackRoutes } from "./modules/ai-feedback/ai-feedback.routes.js";
 import { auditLogRoutes } from "./modules/audit-logs/audit-log.routes.js";
 import { authRoutes } from "./modules/auth/auth.routes.js";
@@ -131,6 +132,7 @@ export async function buildApp() {
   await app.register(masterdataRoutes, { prefix: "/api/v1/platform/masterdata" });
   await app.register(constructionRoutes, { prefix: "/api/v1/platform/construction" });
   await app.register(aiConfigRoutes, { prefix: "/api/v1/platform" });
+  await app.register(aiFilterRoutes, { prefix: "/api/v1/platform" });
   await app.register(platformAiFeedbackRoutes, { prefix: "/api/v1/platform/ai" });
   await app.register(aiAdminRoutes, { prefix: "/api/v1/platform/ai" });
   await app.register(aiDebugRoutes, { prefix: "/api/v1/platform/ai" });

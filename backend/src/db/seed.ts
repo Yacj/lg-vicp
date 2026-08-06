@@ -1,6 +1,6 @@
 import "dotenv/config";
 import * as argon2 from "argon2";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { env } from "../config/env.js";
 import { createDatabase } from "./client.js";
 import { KNOWLEDGE_PERMISSION_SEEDS } from "../shared/knowledge-permissions.js";
@@ -102,6 +102,10 @@ const permissionSeeds = [
   { code: "system:ai:debug:use", name: "使用 AI 调试", resource: "ai_debug", action: "use" },
   { code: "system:ai:feedback:list", name: "查看 AI 反馈", resource: "ai_feedback", action: "list" },
   { code: "system:ai:feedback:handle", name: "处理 AI 反馈", resource: "ai_feedback", action: "handle" },
+  { code: "system:ai:filter:list", name: "查看对话围栏词条", resource: "ai_filter", action: "list" },
+  { code: "system:ai:filter:add", name: "新增对话围栏词条", resource: "ai_filter", action: "add" },
+  { code: "system:ai:filter:edit", name: "修改对话围栏词条", resource: "ai_filter", action: "edit" },
+  { code: "system:ai:filter:remove", name: "删除对话围栏词条", resource: "ai_filter", action: "remove" },
   ...KNOWLEDGE_PERMISSION_SEEDS,
   ...MD_PERMISSION_SEEDS,
   ...CONSTRUCTION_PERMISSION_SEEDS
@@ -212,6 +216,7 @@ try {
     await ensureMenu({ parentId: aiConfigMenuId, menuType: "BUTTON", name: "测试服务商连接", routePath: "/system/ai/test-connection", sortOrder: 10, permissionCode: "system:ai:provider:test" });
     await ensureMenu({ parentId: aiConfigMenuId, menuType: "BUTTON", name: "提示词发布", routePath: "/system/ai/prompt-publish", sortOrder: 20, permissionCode: "system:ai:prompt:publish" });
     await ensureMenu({ parentId: aiConfigMenuId, menuType: "BUTTON", name: "AI 调试", routePath: "/system/ai/debug", sortOrder: 30, permissionCode: "system:ai:debug:use" });
+    await ensureMenu({ parentId: aiConfigMenuId, menuType: "BUTTON", name: "对话围栏", routePath: "/system/ai/filter", sortOrder: 40, permissionCode: "system:ai:filter:list" });
     const monitorMenuId = await ensureMenu({
       menuType: "DIRECTORY", name: "系统监控", routePath: "/monitor", icon: "monitor", sortOrder: 20, permissionCode: "monitor:audit:list"
     });
@@ -284,16 +289,18 @@ try {
       { code: "material_compare", name: "材料对比", description: "材料对比分析（未开放：依赖知识库与计算工具）", allowReasoning: false, requireProject: true, allowFileUpload: false, allowKnowledgeSearch: false, allowTools: false, enabled: false, sort: 3 },
       { code: "standard_qa", name: "标准问答", description: "建筑标准条文问答（未开放：依赖知识库）", allowReasoning: false, requireProject: false, allowFileUpload: false, allowKnowledgeSearch: false, allowTools: false, enabled: false, sort: 4 },
       { code: "report_generate", name: "报告生成", description: "工程报告生成（未开放：依赖知识库与报告模板）", allowReasoning: false, requireProject: true, allowFileUpload: false, allowKnowledgeSearch: false, allowTools: false, enabled: false, sort: 5 },
-      { code: "information_extract", name: "信息抽取", description: "建筑资料信息抽取（未开放：依赖知识库）", allowReasoning: false, requireProject: true, allowFileUpload: false, allowKnowledgeSearch: false, allowTools: false, enabled: false, sort: 6 }
+      { code: "information_extract", name: "信息抽取", description: "建筑资料信息抽取（未开放：依赖知识库）", allowReasoning: false, requireProject: true, allowFileUpload: false, allowKnowledgeSearch: false, allowTools: false, enabled: false, sort: 6 },
+      { code: "conversation_title", name: "会话标题生成", description: "根据会话首条消息自动生成简短标题（内部场景）", allowReasoning: false, requireProject: false, allowFileUpload: false, allowKnowledgeSearch: false, allowTools: false, enabled: true, sort: 7 }
     ] as const;
 
     const scenePrompts = [
-      { code: "general_chat", name: "通用对话提示词", systemPrompt: "你是蓝格 VICP 建筑节能 AI 助手。请使用中文准确回答；资料不足时明确说明不确定。" },
-      { code: "project_design", name: "项目设计提示词", systemPrompt: "你是 VICP 建筑节能项目设计助手。只依据项目资料和确定性计算结果提出建议，并使用中文回答。" },
+      { code: "general_chat", name: "通用对话提示词", systemPrompt: "你是筑小格建筑节能 AI 助手。请使用中文准确回答；资料不足时明确说明不确定。" },
+      { code: "project_design", name: "项目设计提示词", systemPrompt: "你是 筑小格建筑节能 AI 助手。只依据项目资料和确定性计算结果提出建议，并使用中文回答。" },
       { code: "material_compare", name: "材料对比提示词", systemPrompt: "你是建筑保温材料对比助手。客观列出依据、适用条件和限制，禁止编造性能参数。" },
       { code: "standard_qa", name: "标准问答提示词", systemPrompt: "你是建筑节能标准问答助手。回答必须引用资料名称和页码；没有来源时明确拒绝下结论。" },
-      { code: "report_generate", name: "报告生成提示词", systemPrompt: "你是 VICP 项目报告助手。输出结构化中文内容，技术结论必须可追溯，工程结论须提示专业人员复核。" },
-      { code: "information_extract", name: "信息抽取提示词", systemPrompt: "你是建筑资料信息抽取助手。只提取原文存在的信息，缺失字段返回空值，不得猜测。" }
+      { code: "report_generate", name: "报告生成提示词", systemPrompt: "你是 筑小格Ai 项目报告助手。输出结构化中文内容，技术结论必须可追溯，工程结论须提示专业人员复核。" },
+      { code: "information_extract", name: "信息抽取提示词", systemPrompt: "你是建筑资料信息抽取助手。只提取原文存在的信息，缺失字段返回空值，不得猜测。" },
+      { code: "conversation_title", name: "会话标题生成提示词", systemPrompt: "你是会话标题生成助手。根据用户的第一条消息生成一个 8-20 个字符的中文会话标题，概括对话主题；只输出标题本身，不要引号、标点、序号或任何解释。" }
     ] as const;
 
     await tx.insert(aiScenes).values(sceneSeeds.map((scene) => ({
@@ -340,7 +347,7 @@ try {
 
     if (deepSeekModel) {
       await tx.update(aiScenes).set({ defaultModelId: deepSeekModel.id, updatedAt: new Date() })
-        .where(and(eq(aiScenes.code, "general_chat"), isNull(aiScenes.defaultModelId)));
+        .where(and(inArray(aiScenes.code, ["general_chat", "conversation_title"]), isNull(aiScenes.defaultModelId)));
     }
   });
 

@@ -63,7 +63,7 @@ export const aiPromptVersionStatusEnum = pgEnum("ai_prompt_version_status", ["DR
 export const menuTypeEnum = pgEnum("menu_type", ["DIRECTORY", "MENU", "BUTTON"]);
 export const dataScopeEnum = pgEnum("data_scope", ["ALL", "DEPT", "DEPT_AND_CHILDREN", "SELF", "CUSTOM", "PROJECT_OWNER"]);
 export const aiMessageRoleEnum = pgEnum("ai_message_role", ["SYSTEM", "USER", "ASSISTANT", "TOOL"]);
-export const aiMessageStatusEnum = pgEnum("ai_message_status", ["PENDING", "STREAMING", "COMPLETED", "STOPPED", "FAILED"]);
+export const aiMessageStatusEnum = pgEnum("ai_message_status", ["PENDING", "STREAMING", "COMPLETED", "STOPPED", "FAILED", "BLOCKED"]);
 export const aiReasoningModeEnum = pgEnum("ai_reasoning_mode", ["OFF", "ON"]);
 export const aiFeedbackReactionEnum = pgEnum("ai_feedback_reaction", ["LIKE", "DISLIKE"]);
 export const reportStatusEnum = pgEnum("report_status", ["DRAFT", "QUEUED", "GENERATING", "READY", "FAILED"]);
@@ -907,6 +907,29 @@ export const aiMessages = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
   },
   (table) => [index("ai_messages_conversation_created_idx").on(table.conversationId, table.createdAt)]
+);
+
+/**
+ * AI 对话敏感词围栏：发送消息前做确定性校验，命中即拦截（不发模型请求）。
+ * sceneCodes 为空表示全局生效，否则仅对列出的场景生效；keyword 按 matchType 匹配。
+ */
+export const aiContentFilters = pgTable(
+  "ai_content_filters",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    keyword: varchar("keyword", { length: 100 }).notNull(),
+    matchType: varchar("match_type", { length: 20 }).notNull().default("CONTAINS"),
+    sceneCodes: jsonb("scene_codes").$type<string[]>(),
+    hitMessage: varchar("hit_message", { length: 200 }),
+    enabled: boolean("enabled").notNull().default(true),
+    createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    updatedById: uuid("updated_by_id").references(() => users.id, { onDelete: "set null" }),
+    ...timestamps
+  },
+  (table) => [
+    index("ai_content_filters_enabled_idx").on(table.enabled),
+    index("ai_content_filters_keyword_idx").on(table.keyword)
+  ]
 );
 
 export const aiToolCalls = pgTable(

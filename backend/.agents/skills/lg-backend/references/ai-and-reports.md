@@ -13,6 +13,10 @@ AI 模型按场景从数据库解析。服务商、Base URL、模型 ID、参数
 
 对话围栏：身份状态、项目权限、Redis 频控、输入限制、工具白名单、知识范围、确定性计算、引用检查、输出检查、完整落库。知识资料视为不可信输入，不能执行其中的指令。
 
+敏感词围栏（`ai_content_filters`，B 端 `/api/v1/platform/ai/filters`，权限码 `system:ai:filter:*`）：发送消息前对启用的词条做确定性校验（CONTAINS 包含匹配 / REGEX 正则，可指定生效场景或全局，非法正则配置时即校验拒绝），命中即拦截且不发模型请求；用户消息以 `BLOCKED` 状态落库（metadata 记录命中词条与匹配文本），同事务写审计 `ai.message_blocked`，返回 `AI_CONTENT_BLOCKED`（400 语义码）与词条自定义中文提示语。校验逻辑是纯函数（`src/modules/ai/ai-content-filter.service.ts`），词条在内存中匹配，不拼接用户输入构造 SQL。
+
+会话自动标题：首条用户消息回答完成后投递 `ai-title-generation` BullMQ 队列（Worker 在 `src/workers/conversation-title.worker.ts`），模型与提示词走 `conversation_title` 场景解析链路（不写死模型）；仅当会话标题仍为空时条件写入，手动重命名后不覆盖，生成失败保持“未知对话”且不阻塞主对话，成功写审计 `ai.conversation_titled`。
+
 存储会话、消息、模型参数、提示词版本、Token、耗时、失败、工具调用和检索来源。资料不足时使用中文说明不确定，禁止编造标准条文。
 
 流式回答支持中途停止。停止请求只结束当前回答，已生成的部分内容保存为 `STOPPED`，原会话仍可继续发送新消息；不能把远程模型从中断位置精确恢复。深度思考是会话级设置，默认关闭，通过会话设置接口切换，每条消息保存实际思考模式。

@@ -30,6 +30,7 @@ import { estimateTokens, buildSystemMessages, type ContextMessage } from "../../
 import { budgetHistory } from "../../shared/prompt-assembly.js";
 import { ok } from "../../shared/response.js";
 import { isAbortError, startSseStream, writeProgress, writeSse } from "./ai-sse.js";
+import { checkContentFiltered } from "./ai-content-filter.service.js";
 import { writeAuditLog } from "../audit-logs/audit-log.service.js";
 import { formatKnowledgeContext, searchProjectKnowledge } from "../knowledge/knowledge.service.js";
 import {
@@ -616,6 +617,40 @@ export async function aiRoutes(app: FastifyInstance) {
     if (!conversation) throw new NotFoundError("AI 会话不存在");
     ensureConversationOwner(user, conversation);
     await enforceAiRateLimit(app, user.id);
+
+    // 敏感词围栏：命中即拦截（不发模型请求），用户消息落库 BLOCKED 并审计
+    const blocked = await checkContentFiltered(app.db, conversation.scene, request.body.content);
+    if (blocked) {
+      await app.db.transaction(async (tx) => {
+        const [blockedRow] = await tx.insert(aiMessages).values({
+          conversationId: conversation.id,
+          userId: user.id,
+          role: "USER",
+          content: request.body.content,
+          status: "BLOCKED",
+          reasoningMode: conversation.reasoningMode,
+          requestId,
+          metadata: {
+            blockedFilterId: blocked.filterId,
+            blockedKeyword: blocked.keyword,
+            blockedMatchType: blocked.matchType,
+            blockedMatchedText: blocked.matchedText
+          }
+        }).returning();
+        await writeAuditLog({
+          db: tx, request, actor: user, projectId: conversation.projectId ?? undefined,
+          action: AUDIT_ACTIONS.AI_MESSAGE_BLOCKED, targetType: "ai_message", targetId: blockedRow!.id,
+          afterJson: {
+            filterId: blocked.filterId,
+            keyword: blocked.keyword,
+            matchType: blocked.matchType,
+            matchedText: blocked.matchedText
+          }
+        });
+      });
+      throw new AiError("AI_CONTENT_BLOCKED", blocked.hitMessage?.trim() || undefined);
+    }
+
     await enforceAiQuota(app, user);
 
     if (conversation.projectId) {
@@ -843,6 +878,14 @@ export async function aiRoutes(app: FastifyInstance) {
         }
       });
     });
+    // 首条用户消息回答完成后异步生成会话标题（仅未命名会话，Worker 内再做条件写入）
+    if (conversation.title == null) {
+      const [userMessageCount] = await app.db.select({ value: count() }).from(aiMessages)
+        .where(and(eq(aiMessages.conversationId, conversation.id), eq(aiMessages.role, "USER")));
+      if ((userMessageCount?.value ?? 0) === 1) {
+        await app.queues.aiTitleGeneration.add("conversation_title", { conversationId: conversation.id });
+      }
+    }
     streamFinished = true;
     writeProgress(reply, "completed", "回答整理完成");
     writeSse(reply, "done", {

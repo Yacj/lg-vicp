@@ -9,6 +9,7 @@
 | `AI_MODEL_TIMEOUT` | 500 | true | 模型响应超时 |
 | `AI_PROVIDER_RATE_LIMIT` | 429 | true | 服务商限流（HTTP 429 / rate limit 文案） |
 | `AI_CONTENT_REJECTED` | 400 | false | 模型拒绝内容（内容审查 / refusal） |
+| `AI_CONTENT_BLOCKED` | 400 | false | 命中对话围栏敏感词，消息已拦截落库（`BLOCKED`） |
 | `AI_CONTEXT_TOO_LONG` | 400 | false | 上下文超长 |
 | `AI_STREAM_INTERRUPTED` | 500 | true | 流式生成中断（预留） |
 | `AI_CONFIG_INVALID` | 500 | false | 场景/提示词/密钥配置不完整 |

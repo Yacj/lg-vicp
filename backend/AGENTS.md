@@ -91,6 +91,8 @@
 - AI 流式回答支持停止：停止只结束当前生成，必须保存已生成内容并将消息标记为 `STOPPED`；会话保持可继续发送新消息。
 - 深度思考是会话级设置，默认 `OFF`；每条消息保存实际 `reasoningMode`，不能用全局开关覆盖用户会话。
 - AI 场景与提示词版本化：模型按场景解析（`ai_scenes` + `prompts` + `prompt_versions`），提示词只有 DRAFT/PUBLISHED/DISABLED 三种状态、同场景全局唯一生效版本；已发布版本不可直接修改（编辑派生新草稿）。
+- AI 对话敏感词围栏：发送消息前对 `ai_content_filters` 启用的词条做确定性校验（CONTAINS/REGEX，可指定生效场景），命中即拦截且不发模型请求；用户消息以 `BLOCKED` 状态落库并记录命中词条、写审计，返回 `AI_CONTENT_BLOCKED` 错误（400 语义码 + 可配置中文提示）。B 端通过 `/api/v1/platform/ai/filters` 管理词条，按 `system:ai:filter:*` 权限码授权。
+- AI 会话自动标题：会话首条用户消息回答完成后投递 `ai-title-generation` BullMQ 队列异步生成标题，模型与提示词走 `conversation_title` 场景解析；仅当会话标题仍为空（未手动重命名）时写入，生成失败保持“未知对话”不阻塞主对话。
 - 仅 `general_chat` 场景对外开放；其他场景未具备知识库/公式/工具能力前不得对外宣称完整业务能力（`enabled` 门控）。
 - AI 配额：并发生成（Redis 计数）+ 每日请求数双重限制，`SUPER_ADMIN` 豁免；错误使用统一 `AI_*` 错误码（`src/shared/ai-errors.ts`）。
 - AI 配置、运营、反馈处理与调试使用独立 `system:ai:*` 权限码并写审计，详见 `docs/ai/`。

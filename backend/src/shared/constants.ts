@@ -85,6 +85,11 @@ export const AUDIT_ACTIONS = {
   AI_CONVERSATION_RESTORED: "ai.conversation_restored",
   AI_MESSAGE_SENT: "ai.message_sent",
   AI_MESSAGE_STOPPED: "ai.message_stopped",
+  AI_MESSAGE_BLOCKED: "ai.message_blocked",
+  AI_CONVERSATION_TITLED: "ai.conversation_titled",
+  AI_FILTER_CREATED: "ai.filter_created",
+  AI_FILTER_UPDATED: "ai.filter_updated",
+  AI_FILTER_DELETED: "ai.filter_deleted",
   AI_MESSAGE_FEEDBACK_UPSERTED: "ai.message_feedback_upserted",
   AI_MESSAGE_REGENERATED: "ai.message_regenerated",
   AI_FEEDBACK_HANDLED: "ai.feedback_handled",
@@ -141,7 +146,8 @@ export const AI_SCENES = {
   MATERIAL_COMPARE: "material_compare",
   STANDARD_QA: "standard_qa",
   REPORT_GENERATE: "report_generate",
-  INFORMATION_EXTRACT: "information_extract"
+  INFORMATION_EXTRACT: "information_extract",
+  CONVERSATION_TITLE: "conversation_title"
 } as const;
 
 export const CLIENT_APPS = {

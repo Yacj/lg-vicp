@@ -40,6 +40,17 @@
 | `POST /api/v1/platform/ai/prompts/:id/versions/:versionId/rollback` | `system:ai:prompt:publish` |
 | `DELETE /api/v1/platform/ai/prompts/:id` | `system:ai:prompt:remove` |
 
+### 对话围栏（`ai-filter` 模块）
+
+| 接口 | 权限码 |
+| --- | --- |
+| `GET /api/v1/platform/ai/filters`（分页列表，支持关键词/匹配方式/启用筛选） | `system:ai:filter:list` |
+| `POST /api/v1/platform/ai/filters` | `system:ai:filter:add` |
+| `PATCH /api/v1/platform/ai/filters/:id` | `system:ai:filter:edit` |
+| `DELETE /api/v1/platform/ai/filters/:id` | `system:ai:filter:remove` |
+
+词条字段：`keyword`（关键词或正则）、`matchType`（`CONTAINS`/`REGEX`，REGEX 提交时校验合法性）、`sceneCodes`（空 = 全局，否则仅指定场景生效，取值见 `AI_SCENES`）、`hitMessage`（命中提示语，缺省使用默认中文提示）、`enabled`。增删改均写审计。
+
 ## AI 运营（`ai-admin` 模块）
 
 | 接口 | 权限码 |

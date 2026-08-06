@@ -25,7 +25,11 @@ export const AI_PERMISSIONS = {
   CONVERSATION_LIST: "system:ai:conversation:list",
   CONVERSATION_DETAIL: "system:ai:conversation:detail",
   FEEDBACK_LIST: "system:ai:feedback:list",
-  FEEDBACK_HANDLE: "system:ai:feedback:handle"
+  FEEDBACK_HANDLE: "system:ai:feedback:handle",
+  FILTER_LIST: "system:ai:filter:list",
+  FILTER_CREATE: "system:ai:filter:add",
+  FILTER_UPDATE: "system:ai:filter:edit",
+  FILTER_DELETE: "system:ai:filter:remove"
 } as const;
 
 export type AiPermission = (typeof AI_PERMISSIONS)[keyof typeof AI_PERMISSIONS];

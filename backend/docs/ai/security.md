@@ -21,6 +21,15 @@
 - 永久删除会话仅 `SUPER_ADMIN` 且写审计。
 - AI 不能执行任意 SQL / Shell / 文件操作；工程计算由确定性代码完成。
 
+## 对话敏感词围栏
+
+- 发送消息前（`POST /api/v1/ai/conversations/:id/messages`）对 `ai_content_filters` 启用的词条做确定性校验，命中即拦截，**不发模型请求**（省 token、结果可控），不依赖模型自觉规避。
+- 匹配方式：`CONTAINS` 包含匹配 / `REGEX` 正则（配置时校验正则合法性，运行时非法正则自动跳过）。
+- 词条可按场景配置生效范围：`scene_codes` 为空表示全局，否则仅对列出的场景生效。
+- 命中处理：用户消息以 `BLOCKED` 状态落库（metadata 记录命中词条），同事务写审计 `ai.message_blocked`，返回 `AI_CONTENT_BLOCKED`（400 语义码）与词条自定义提示语（未配置时使用默认中文提示）。
+- 管理接口 `/api/v1/platform/ai/filters` 按 `system:ai:filter:list/add/edit/remove` 权限码授权，增删改均写审计。
+- 校验逻辑为纯函数（`src/modules/ai/ai-content-filter.service.ts`），词条在内存中匹配，不拼接用户输入构造 SQL。
+
 ## 配额与防滥用
 
 - Redis 并发限制（默认 2/用户）+ 每日请求限制（默认 200/用户），`SUPER_ADMIN` 豁免；上限见 `AI_MAX_CONCURRENT_GENERATIONS` / `AI_DAILY_REQUEST_LIMIT`。

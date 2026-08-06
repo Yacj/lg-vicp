@@ -9,6 +9,7 @@ import { QUEUE_NAMES, createQueues } from "./queues/queues.js";
 import { createObjectStorage } from "./storage/index.js";
 import { createDocumentProcessor } from "./workers/document.worker.js";
 import { createReportProcessor } from "./workers/report.worker.js";
+import { createConversationTitleProcessor } from "./workers/conversation-title.worker.js";
 import { runCrawlerSource } from "./modules/knowledge/knowledge-ingest.service.js";
 import { configureConsoleEncoding } from "./shared/console-encoding.js";
 
@@ -24,6 +25,7 @@ await storage.ensureBucket();
 const workers = [
   new Worker(QUEUE_NAMES.DOCUMENT_PROCESSING, createDocumentProcessor(db, storage), { connection: redis, concurrency: 2, lockDuration: 5 * 60 * 1000 }),
   new Worker(QUEUE_NAMES.REPORT_GENERATION, createReportProcessor(db, storage), { connection: redis, concurrency: 1, lockDuration: 10 * 60 * 1000 }),
+  new Worker(QUEUE_NAMES.AI_TITLE_GENERATION, createConversationTitleProcessor(db), { connection: redis, concurrency: 2, lockDuration: 2 * 60 * 1000 }),
   new Worker(QUEUE_NAMES.MAINTENANCE, async (job) => {
     const executionId = typeof job.data?.executionId === "string" ? job.data.executionId : undefined;
     if (executionId) await db.update(cronExecutions).set({ status: "RUNNING", startedAt: new Date() }).where(eq(cronExecutions.id, executionId));
