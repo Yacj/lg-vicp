@@ -55,14 +55,17 @@ const columns: PrimaryTableCol<TableRowData>[] = [
     title: '反馈内容',
   },
   {
-    cell: (_h, { row }) => {
-      const content = (row as AiFeedbackItem).message.content
-      return content.length > 60 ? `${content.slice(0, 60)}...` : content
-    },
+    cell: (_h, { row }) => h(
+      'span',
+      {
+        class: 'ai-feedback-page__view-link',
+        onClick: () => openMessage(row),
+      },
+      '查看消息',
+    ),
     colKey: 'message.content',
-    ellipsis: true,
-    minWidth: 220,
-    title: '消息预览',
+    title: '查看消息',
+    width: 110,
   },
   {
     cell: (_h, { row }) => getAiSceneLabel((row as AiFeedbackItem).conversation.scene),
@@ -232,9 +235,6 @@ function formatDuration(durationMs: number | null): string {
     >
       <template #operations="{ row }">
         <div class="ai-feedback-page__operations">
-          <t-button variant="text" theme="primary" @click="openMessage(row)">
-            查看消息
-          </t-button>
           <t-button
             v-if="canHandleFeedback && !(row as AiFeedbackItem).feedback.handledAt"
             variant="text"
@@ -254,14 +254,14 @@ function formatDuration(durationMs: number | null): string {
       </template>
     </AppDataTable>
 
-    <t-drawer
+    <t-dialog
       :cancel-btn="null"
       confirm-text="关闭"
-      :footer="false"
       header="消息详情"
       :visible="viewVisible"
-      size="min(720px, 92vw)"
+      width="min(720px, 92vw)"
       @close="viewVisible = false"
+      @confirm="viewVisible = false"
     >
       <template v-if="viewItem">
         <t-descriptions bordered :column="2" size="medium">
@@ -292,7 +292,7 @@ function formatDuration(durationMs: number | null): string {
         </h4>
         <pre class="ai-feedback-page__view-content">{{ viewItem.message.content }}</pre>
       </template>
-    </t-drawer>
+    </t-dialog>
 
     <t-dialog
       :cancel-btn="{ content: '取消' }"
@@ -364,6 +364,12 @@ function formatDuration(durationMs: number | null): string {
   gap: var(--td-size-1);
 }
 
+.ai-feedback-page__view-link {
+  color: var(--td-brand-color);
+  cursor: pointer;
+  font-size: var(--td-font-size-body-medium);
+}
+
 .ai-feedback-page__view-title {
   margin: var(--td-size-5) 0 var(--td-size-3);
   font-size: var(--td-font-size-body-medium);
@@ -374,6 +380,7 @@ function formatDuration(durationMs: number | null): string {
   margin: 0;
   padding: var(--td-size-4);
   overflow: auto;
+  max-height: min(420px, 60vh);
   white-space: pre-wrap;
   word-break: break-word;
   background: var(--td-bg-color-container);

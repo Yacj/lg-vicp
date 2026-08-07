@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { AiScene, ApiEnvelope, ProjectRecord } from '@/api/types'
+import { projectApi } from '@/api/modules/projects'
 import AiComposer from '@/components/ai/AiComposer.vue'
 import AiMessageList from '@/components/ai/AiMessageList.vue'
 import AiWelcomeHero from '@/components/ai/AiWelcomeHero.vue'
@@ -9,7 +11,6 @@ definePage({
   layout: 'tabbar',
   style: {
     'navigationStyle': 'custom',
-    'navigationBarTitleText': '筑小格',
     'app-plus': {
       softinputMode: 'adjustResize',
     },
@@ -27,8 +28,13 @@ const input = ref('')
 /** 跨 Tab 传入的项目上下文：发送时创建/复用该项目会话 */
 const pendingProjectId = ref<string>()
 const pendingProjectName = ref<string>()
+const pendingScene = ref<AiScene>()
+let projectNameRevision = 0
 
+const activeProjectId = computed(() => pendingProjectId.value ?? assistantStore.projectId ?? undefined)
+const activeProjectName = computed(() => pendingProjectName.value)
 const messages = computed(() => assistantStore.messages)
+const navbarTitle = computed(() => assistantStore.conversation?.title?.trim() || '筑小格 Ai助手')
 const streaming = computed(() => assistantStore.isStreaming)
 const loadingConversation = computed(() => assistantStore.loadState === 'loading')
 const failedConversationId = ref<string>()
@@ -80,12 +86,32 @@ watch(latestMessageFingerprint, () => {
   void scrollToLatest()
 })
 
+async function loadProjectName(projectId: string) {
+  const currentRevision = ++projectNameRevision
+  try {
+    const response = await projectApi.getDetail(projectId).send() as ApiEnvelope<{ project: ProjectRecord }>
+    if (currentRevision === projectNameRevision && activeProjectId.value === projectId) {
+      pendingProjectName.value = response.data.project.name
+    }
+  }
+  catch {
+    // 项目名只是关联提示的增强信息，不阻断对话加载与发送。
+  }
+}
+
 async function loadConversationSafely(id: string) {
   failedConversationId.value = undefined
   try {
     await assistantStore.loadConversation(id)
     pendingProjectId.value = undefined
-    pendingProjectName.value = undefined
+    pendingScene.value = undefined
+    const linkedProjectId = assistantStore.projectId
+    if (linkedProjectId && !pendingProjectName.value) {
+      void loadProjectName(linkedProjectId)
+    }
+    else if (!linkedProjectId) {
+      pendingProjectName.value = undefined
+    }
   }
   catch {
     failedConversationId.value = id
@@ -93,19 +119,32 @@ async function loadConversationSafely(id: string) {
   }
 }
 
-// 跨 Tab 一次性导航上下文：会话 / 项目 / 预设问题消费
+// 跨 Tab 一次性导航上下文：会话 / 项目 / 场景 / 预设问题消费
 onShow(() => {
   const context = assistantStore.consumeNavContext()
-  pendingProjectName.value = context.projectName
 
   if (context.conversationId && context.conversationId !== assistantStore.conversationId) {
+    projectNameRevision += 1
     pendingProjectId.value = undefined
+    pendingProjectName.value = context.projectName
+    pendingScene.value = undefined
     void loadConversationSafely(context.conversationId)
   }
-  else if (context.projectId && context.projectId !== assistantStore.projectId) {
-    failedConversationId.value = undefined
-    assistantStore.newConversation()
-    pendingProjectId.value = context.projectId
+  else if (context.projectId) {
+    const contextScene = context.scene
+    const shouldStartProjectConversation = context.projectId !== assistantStore.projectId
+      || (contextScene && contextScene !== assistantStore.conversation?.scene)
+
+    if (shouldStartProjectConversation) {
+      failedConversationId.value = undefined
+      assistantStore.newConversation()
+      pendingProjectId.value = context.projectId
+      pendingScene.value = contextScene
+    }
+    pendingProjectName.value = context.projectName
+    if (!context.projectName) {
+      void loadProjectName(context.projectId)
+    }
   }
 
   if (context.presetQuestion) {
@@ -121,10 +160,12 @@ watch(() => assistantStore.error, (message) => {
 })
 
 function resetConversation() {
+  projectNameRevision += 1
   assistantStore.newConversation()
   failedConversationId.value = undefined
   pendingProjectId.value = undefined
   pendingProjectName.value = undefined
+  pendingScene.value = undefined
   input.value = ''
   isComposerActive.value = false
   followLatest.value = true
@@ -157,7 +198,11 @@ async function sendMessage() {
     return
   }
   try {
-    const accepted = await assistantStore.sendMessage(content, { projectId: pendingProjectId.value })
+    const accepted = await assistantStore.sendMessage(content, {
+      projectId: activeProjectId.value,
+      scene: pendingScene.value ?? assistantStore.conversation?.scene,
+    })
+    console.log('accepted', accepted)
     if (accepted) {
       input.value = ''
       followLatest.value = true
@@ -190,7 +235,7 @@ function handleFeedback(messageId: string, reaction: 'LIKE' | 'DISLIKE' | null) 
 
 <template>
   <view class="app-page app-page--immersive assistant-page box-border flex flex-col">
-    <wd-navbar custom-class="!bg-transparent" safe-area-inset-top title="筑小格">
+    <wd-navbar custom-class="!bg-transparent" safe-area-inset-top :title="navbarTitle">
       <template #left>
         <view class="assistant-navbar-actions flex items-center">
           <view class="assistant-navbar-action flex items-center justify-center" aria-label="查看历史会话" @click="openConversationHistory">
@@ -204,10 +249,10 @@ function handleFeedback(messageId: string, reaction: 'LIKE' | 'DISLIKE' | null) 
     </wd-navbar>
 
     <view class="app-enter assistant-page__body relative min-h-0 flex flex-1 flex-col px-4">
-      <view v-if="pendingProjectName" class="app-panel-flat mb-3 flex items-center gap-2 rounded-3 px-3 py-2">
+      <view v-if="activeProjectId" class="app-panel-flat mb-3 flex items-center gap-2 rounded-3 px-3 py-2">
         <wd-icon name="home" size="30rpx" color="var(--app-action-primary)" />
         <text class="app-muted min-w-0 flex-1 truncate text-2.5">
-          当前会话关联项目：{{ pendingProjectName }}
+          {{ activeProjectName ? `当前会话关联项目：${activeProjectName}` : '当前会话已关联项目' }}
         </text>
       </view>
 
@@ -288,8 +333,8 @@ function handleFeedback(messageId: string, reaction: 'LIKE' | 'DISLIKE' | null) 
 }
 
 .assistant-navbar-action {
-  width: 88rpx;
-  height: 88rpx;
+  width: 68rpx;
+  height: 68rpx;
   color: var(--app-text-primary);
   background: transparent;
   transition: color var(--app-transition-fast) ease, opacity var(--app-transition-fast) ease, transform var(--app-transition-fast) ease;

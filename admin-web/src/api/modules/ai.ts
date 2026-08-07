@@ -1,5 +1,8 @@
 import type {
   AiConnectionTestResult,
+  AiContentFilter,
+  AiContentFilterInput,
+  AiContentFilterMutationResult,
   AiFeedbackHandleInput,
   AiFeedbackPageResult,
   AiFeedbackQuery,
@@ -23,6 +26,7 @@ import type {
   PlatformConversationPageResult,
   PlatformConversationQuery,
 } from '@/types/ai'
+import type { PageResult } from '@/types/api'
 import type { ProjectConversationPageResult } from '@/types/project'
 import { api } from '@/api/http/client'
 
@@ -179,4 +183,31 @@ export function handleAiFeedback(id: string, input: AiFeedbackHandleInput): Prom
 /** 停止 AI 调试生成（POST /debug/:id/stop；流式侧同时 abort 本地 fetch）。 */
 export function stopAiDebugChat(id: string): Promise<{ message: string, debugId: string }> {
   return api.post<{ message: string, debugId: string }>(`${PLATFORM_AI_PREFIX}/debug/${encodeURIComponent(id)}/stop`)
+}
+
+/** 对话围栏词条分页列表（GET /filters；keyword 模糊、matchType/enabled 精确筛选）。 */
+export function fetchAiContentFilters(
+  query: Record<string, unknown>,
+  signal?: AbortSignal,
+): Promise<PageResult<AiContentFilter>> {
+  return api.get<PageResult<AiContentFilter>>(`${PLATFORM_AI_PREFIX}/filters`, { params: query, signal })
+}
+
+export function createAiContentFilter(input: AiContentFilterInput): Promise<AiContentFilterMutationResult> {
+  return api.post<AiContentFilterMutationResult>(`${PLATFORM_AI_PREFIX}/filters`, input)
+}
+
+export function updateAiContentFilter(
+  id: string,
+  input: Partial<AiContentFilterInput>,
+): Promise<AiContentFilterMutationResult> {
+  return api.patch<AiContentFilterMutationResult>(`${PLATFORM_AI_PREFIX}/filters/${encodeURIComponent(id)}`, input)
+}
+
+export function updateAiContentFilterStatus(id: string, enabled: boolean): Promise<AiContentFilterMutationResult> {
+  return updateAiContentFilter(id, { enabled })
+}
+
+export function deleteAiContentFilter(id: string): Promise<{ message: string }> {
+  return api.delete<{ message: string }>(`${PLATFORM_AI_PREFIX}/filters/${encodeURIComponent(id)}`)
 }

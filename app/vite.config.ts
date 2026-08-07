@@ -13,6 +13,7 @@ import dayjs from 'dayjs'
 import UnoCSS from 'unocss/vite'
 import AutoImport from 'unplugin-auto-import/vite'
 import { defineConfig, loadEnv } from 'vite'
+import { mpNodeEnvPolyfill } from './vite/mp-node-env-polyfill'
 import { WotResolver } from './src/resolver'
 // https://vitejs.dev/config/
 export default defineConfig(({ command, mode }) => {
@@ -91,6 +92,9 @@ export default defineConfig(({ command, mode }) => {
             .replace('%BUILD_TIME%', dayjs().format('YYYY-MM-DD HH:mm:ss'))
         },
       },
+      // 小程序环境缺少 atob/btoa/Buffer 全局能力（entities 等库模块顶层会用到），
+      // 注入到 common/vendor.js 头部，先于三方依赖的顶层代码执行
+      isMpWeixin && mpNodeEnvPolyfill(),
     ],
     css: {
       preprocessorOptions: {

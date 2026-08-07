@@ -85,7 +85,22 @@ export interface ClientInfo {
   capabilities: ClientCapabilities
 }
 
+export interface ProfileSummary {
+  projects: {
+    total: number
+    public: number
+  }
+  conversations: {
+    total: number
+  }
+}
+
 export type ProjectVisibility = 'PRIVATE' | 'PUBLIC'
+
+export interface ProjectListQuery extends PageQuery {
+  visibility?: ProjectVisibility
+  keyword?: string
+}
 
 export interface CreateProjectBody {
   name: string
@@ -131,8 +146,22 @@ export interface ConversationRecord {
   reasoningMode: 'OFF' | 'ON'
   status: string
   isPinned: boolean
+  lastMessageAt?: string | null
   createdAt: string
   updatedAt: string
+}
+
+/** 会话列表项在会话本体外附带的聚合信息（GET /ai/conversations 专有，详情接口不返回） */
+export interface ConversationListItem extends ConversationRecord {
+  project: { id: string, name: string } | null
+  messageCount: number
+  lastMessage: {
+    id: string
+    role: 'USER' | 'ASSISTANT'
+    status: ConversationMessage['status']
+    preview: string
+    createdAt: string
+  } | null
 }
 
 export interface CreateConversationBody {
@@ -356,7 +385,7 @@ export interface FileRecord {
   mimeType: string
   sizeBytes: number
   sha256: string | null
-  status: 'UPLOADING' | 'QUEUED' | 'PROCESSING' | 'READY' | 'FAILED' | 'DELETED'
+  status: 'UPLOADING' | 'UPLOADED' | 'QUEUED' | 'PARSING' | 'OCR_REQUIRED' | 'INDEXING' | 'READY' | 'FAILED' | 'DELETED'
   errorMessage: string | null
   version: number
   createdAt: string

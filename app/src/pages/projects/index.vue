@@ -1,130 +1,196 @@
 <script setup lang="ts">
-import type { ApiEnvelope, ApiPage, ProjectRecord } from '@/api/types'
+import type { ApiEnvelope, ApiPage, ProjectRecord, ProjectVisibility } from '@/api/types'
 import { projectApi } from '@/api/modules/projects'
 import { useAuthGate } from '@/composables/useAuthGate'
+import { getPlatformInfo } from '@/services/platform'
 
 definePage({
   name: 'projects',
   layout: 'tabbar',
   style: {
     navigationStyle: 'custom',
-    navigationBarTitleText: '项目',
   },
 })
 
-type LoadStatus = 'idle' | 'loading' | 'success' | 'error'
-type ProjectScope = 'mine' | 'public'
+type ProjectFilter = 'ALL' | ProjectVisibility
+
+interface ProjectFilterOption {
+  value: ProjectFilter
+  label: string
+}
+
+interface ProjectPagingRef {
+  reload: (animate?: boolean) => Promise<unknown>
+  complete: (data?: ProjectRecord[] | false, success?: boolean) => Promise<unknown>
+  completeByTotal: (data: ProjectRecord[], total: number, success?: boolean) => Promise<unknown>
+  completeByError: (cause: string) => Promise<unknown>
+}
+
+const filters: ProjectFilterOption[] = [
+  { value: 'ALL', label: '全部' },
+  { value: 'PUBLIC', label: '公开' },
+  { value: 'PRIVATE', label: '私有' },
+]
 
 const router = useRouter()
 const route = useRoute()
-const authStore = useAuthStore()
 const { requireLogin, isAuthenticated } = useAuthGate()
-const { error: showError } = useGlobalToast()
 
+const initialScope = route.query.scope
+const activeFilter = ref<ProjectFilter>(
+  initialScope === 'public' ? 'PUBLIC' : initialScope === 'private' ? 'PRIVATE' : 'ALL',
+)
 const keyword = ref('')
-const activeFilter = ref<ProjectScope>(route.query.scope === 'public' ? 'public' : 'mine')
-
-const filters = [
-  { value: 'mine', label: '我的项目' },
-  { value: 'public', label: '公开项目' },
-] as const
-
-const items = ref<ProjectRecord[]>([])
-const status = ref<LoadStatus>('idle')
-const page = ref(1)
-const pageSize = 10
+const queryKeyword = ref('')
+const projects = ref<ProjectRecord[]>([])
+const paging = ref<ProjectPagingRef>()
 const total = ref(0)
-const loadingMore = ref(false)
+const pageMounted = ref(false)
+const hasShown = ref(false)
+let searchTimer: ReturnType<typeof setTimeout> | undefined
 
-const hasMore = computed(() => items.value.length < total.value)
-const canCreate = computed(() => {
-  // 未登录：入口可见，点击时引导登录；已登录按后端能力位控制
+// custom navigationStyle 下避开状态栏；微信端继续避开右上角胶囊。
+const platformInfo = getPlatformInfo()
+let projectTopInset = platformInfo.statusBarHeight
+  ? `${platformInfo.statusBarHeight}px`
+  : 'env(safe-area-inset-top)'
+
+// #ifdef MP-WEIXIN
+const menuButtonRect = uni.getMenuButtonBoundingClientRect()
+projectTopInset = `${menuButtonRect.bottom + 4}px`
+// #endif
+
+const pageStyle = {
+  '--project-top-inset': projectTopInset,
+}
+
+const pagingStyle = {
+  background: 'var(--app-project-page-gradient)',
+}
+
+const searchStyle = [
+  '--wot-search-padding: 12rpx 32rpx 24rpx',
+  '--wot-search-light-bg: transparent',
+  '--wot-search-light-block-bg: var(--app-bg-surface)',
+  '--wot-search-light-cover-bg: var(--app-bg-surface)',
+  '--wot-search-input-height: 72rpx',
+  '--wot-search-field-padding: 0 24rpx',
+  '--wot-search-block-margin-right: 0',
+  '--wot-search-input-font-size: 26rpx',
+  '--wot-search-input-color: var(--app-text-primary)',
+  '--wot-search-placeholder-color: var(--app-text-tertiary)',
+  '--wot-search-placeholder-font-size: 26rpx',
+  '--wot-search-icon-color: var(--app-text-tertiary)',
+  '--wot-search-clear-icon-color: var(--app-text-tertiary)',
+].join(';')
+
+const activeFilterIndex = computed(() => Math.max(filters.findIndex(item => item.value === activeFilter.value), 0))
+const tabIndicatorStyle = computed(() => ({
+  transform: `translateX(${activeFilterIndex.value * 100}%)`,
+}))
+const activeFilterLabel = computed(() => filters[activeFilterIndex.value]?.label || '全部')
+
+const emptyTitle = computed(() => {
   if (!isAuthenticated.value) {
-    return true
+    return '登录后查看项目'
   }
-  return authStore.capabilities?.canCreateProject === true
+  if (keyword.value.trim()) {
+    return '没有找到匹配项目'
+  }
+  if (activeFilter.value === 'PUBLIC') {
+    return '暂无公开项目'
+  }
+  if (activeFilter.value === 'PRIVATE') {
+    return '暂无私有项目'
+  }
+  return '暂无项目'
 })
 
-const filteredProjects = computed(() => {
-  const normalizedKeyword = keyword.value.trim().toLowerCase()
-  if (!normalizedKeyword) {
-    return items.value
+watch(keyword, (value) => {
+  if (searchTimer) {
+    clearTimeout(searchTimer)
   }
 
-  return items.value.filter(project => `${project.name}${project.region ?? ''}${project.buildingType ?? ''}`.toLowerCase().includes(normalizedKeyword))
+  searchTimer = setTimeout(() => {
+    searchTimer = undefined
+    const normalizedKeyword = value.trim()
+    if (normalizedKeyword === queryKeyword.value) {
+      return
+    }
+
+    queryKeyword.value = normalizedKeyword
+    if (pageMounted.value && isAuthenticated.value) {
+      void paging.value?.reload()
+    }
+  }, 300)
 })
 
-function loadScope(scope: ProjectScope) {
-  if (scope === 'mine' && !requireLogin()) {
+onMounted(() => {
+  pageMounted.value = true
+})
+
+onUnmounted(() => {
+  if (searchTimer) {
+    clearTimeout(searchTimer)
+  }
+})
+
+// 初次进入由 z-paging 自动查询；从登录、新建或详情页返回时刷新当前筛选。
+onShow(() => {
+  if (hasShown.value && pageMounted.value && isAuthenticated.value) {
+    void paging.value?.reload()
+  }
+  hasShown.value = true
+})
+
+async function queryProjects(pageNo: number, pageSize: number) {
+  if (!isAuthenticated.value) {
+    total.value = 0
+    await paging.value?.complete([])
     return
-  }
-  activeFilter.value = scope
-  void reload()
-}
-
-async function reload() {
-  page.value = 1
-  items.value = []
-  total.value = 0
-  status.value = 'idle'
-  await loadPage(1)
-}
-
-async function loadPage(targetPage: number) {
-  const scope = activeFilter.value
-  if (scope === 'mine' && !authStore.isAuthenticated) {
-    return
-  }
-
-  if (targetPage === 1) {
-    status.value = 'loading'
-  }
-  else {
-    loadingMore.value = true
   }
 
   try {
-    const request = scope === 'mine' ? projectApi.getMy : projectApi.getPublic
-    const response = await request({ page: targetPage, pageSize }).send() as ApiEnvelope<ApiPage<ProjectRecord>>
+    const response = await projectApi.getMy({
+      page: pageNo,
+      pageSize,
+      visibility: activeFilter.value === 'ALL' ? undefined : activeFilter.value,
+      keyword: queryKeyword.value || undefined,
+    }).send() as ApiEnvelope<ApiPage<ProjectRecord>>
     const data = response.data || { items: [], total: 0 }
-    items.value = targetPage === 1 ? (data.items || []) : [...items.value, ...(data.items || [])]
+
     total.value = data.total || 0
-    page.value = targetPage
-    status.value = 'success'
+    await paging.value?.completeByTotal(data.items || [], total.value)
   }
   catch {
-    if (targetPage === 1) {
-      status.value = 'error'
+    if (pageNo === 1) {
+      total.value = 0
     }
-    else {
-      showError('加载更多失败，请重试')
-    }
-  }
-  finally {
-    loadingMore.value = false
+    await paging.value?.completeByError('项目加载失败，请稍后重试')
   }
 }
 
-// Tab 页每次显示刷新；未登录时 mine 由登录引导兜底
-onShow(() => {
-  if (status.value === 'idle' || status.value === 'error') {
-    void reload()
-  }
-})
-
-onReachBottom(() => {
-  if (status.value !== 'success' || !hasMore.value || loadingMore.value) {
+function selectFilter(filter: ProjectFilter) {
+  if (filter === activeFilter.value) {
     return
   }
-  void loadPage(page.value + 1)
-})
-
-function createProject() {
   if (!requireLogin()) {
     return
   }
-  if (authStore.capabilities?.canCreateProject === false) {
-    showError('当前账号暂无新建项目权限')
+
+  activeFilter.value = filter
+  void paging.value?.reload()
+}
+
+function clearSearch() {
+  if (!keyword.value) {
+    return
+  }
+  keyword.value = ''
+}
+
+function createProject() {
+  if (!requireLogin()) {
     return
   }
   router.push({ name: 'project-create' })
@@ -134,11 +200,8 @@ function openProject(id: string) {
   if (!requireLogin()) {
     return
   }
-  router.push({ name: 'project-detail', query: { id } })
-}
-
-function handleLoginPrompt() {
-  requireLogin({ showToast: false })
+  console.log(id)
+  router.push({ name: 'project-detail', params: { id } })
 }
 
 function formatTime(value: string) {
@@ -152,117 +215,307 @@ function formatTime(value: string) {
 </script>
 
 <template>
-  <view class="app-page app-page--immersive">
-    <wd-navbar custom-class="app-navbar" safe-area-inset-top title="项目" />
+  <view class="app-page projects-page" :style="pageStyle">
+    <z-paging
+      ref="paging"
+      v-model="projects"
+      :default-page-size="10"
+      :paging-style="pagingStyle"
+      :use-page-scroll="true"
+      loading-more-no-more-text="没有更多项目了"
+      @query="queryProjects"
+    >
+      <template #top>
+        <view class="projects-top">
+          <view class="projects-top__safe" />
+          <view class="projects-top__inner">
+            <view class="projects-tabs relative flex items-end">
+              <view
+                v-for="filter in filters"
+                :key="filter.value"
+                class="projects-tab app-pressable flex-1 text-center"
+                :class="{ 'projects-tab--active': activeFilter === filter.value }"
+                @click="selectFilter(filter.value)"
+              >
+                <text>{{ filter.label }}</text>
+              </view>
+              <view class="projects-tab-indicator" :style="tabIndicatorStyle">
+                <view class="projects-tab-indicator__line" />
+              </view>
+            </view>
 
-    <view class="app-enter box-border px-4 py-4 pb-6">
-      <view class="mb-4 flex justify-end">
-        <wd-button v-if="canCreate" type="primary" size="small" icon="add" @click="createProject">
-          新建项目
-        </wd-button>
-      </view>
-
-      <wd-search
-        v-model="keyword"
-        placeholder="搜索项目名称、地区或建筑类型"
-        shape="round"
-        custom-class="mb-4!"
-      />
-
-      <view class="app-panel-flat mb-4 flex p-1">
-        <view
-          v-for="filter in filters"
-          :key="filter.value"
-          class="flex-1 rounded-2 py-2.5 text-center text-3.5 transition-colors"
-          :class="activeFilter === filter.value ? 'bg-[var(--app-action-primary)] text-white font-bold' : 'app-muted'"
-          @click="loadScope(filter.value)"
-        >
-          {{ filter.label }}
-        </view>
-      </view>
-
-      <view class="mb-3 flex items-center justify-between">
-        <view class="app-section-title">
-          {{ activeFilter === 'mine' ? '我的项目' : '公开项目' }}
-        </view>
-        <view v-if="status === 'success'" class="app-tertiary text-3">
-          {{ total }} 个项目
-        </view>
-      </view>
-
-      <view v-if="activeFilter === 'mine' && !isAuthenticated" class="app-panel-flat flex items-center gap-3 p-4" @click="handleLoginPrompt">
-        <view class="h-22 w-22 flex shrink-0 items-center justify-center rounded-2xl bg-[var(--app-action-primary-soft)]">
-          <wd-icon name="home" size="40rpx" color="var(--app-action-primary)" />
-        </view>
-        <view class="min-w-0 flex-1">
-          <view class="text-3.5 font-medium">
-            登录后查看我的项目
-          </view>
-          <view class="app-muted mt-0.5 text-2.5">
-            项目档案与进度跟进都在这里
+            <wd-search
+              v-model="keyword"
+              hide-cancel
+              placeholder-left
+              variant="light"
+              placeholder="搜索项目名称、地区或建筑类型"
+              :custom-style="searchStyle"
+              class="mt-2"
+              @clear="clearSearch"
+            />
           </view>
         </view>
-        <wd-icon name="arrow-right" size="32rpx" color="var(--app-text-tertiary)" />
-      </view>
+      </template>
 
-      <view v-else-if="status === 'loading'" class="app-panel-flat flex items-center justify-center gap-2 py-12">
-        <wd-loading size="32rpx" color="var(--app-action-primary)" />
-        <view class="app-tertiary text-3">
-          加载中
+      <view v-if="projects.length" class="projects-content">
+        <view class="projects-summary flex items-center justify-between">
+          <text>{{ activeFilterLabel }}项目</text>
+          <text>共 {{ total }} 个</text>
         </view>
-      </view>
 
-      <view v-else-if="status === 'error'" class="app-panel-flat flex items-center justify-center gap-2 py-12" @click="reload">
-        <wd-icon name="refresh" size="32rpx" color="var(--app-text-tertiary)" />
-        <view class="app-tertiary text-3">
-          加载失败，点击重试
-        </view>
-      </view>
-
-      <view v-else-if="status === 'success' && !filteredProjects.length" class="py-10">
-        <wd-empty
-          :icon="keyword ? 'search' : 'public'"
-          :tip="keyword ? '没有找到匹配项目' : '暂无项目，点击右上角新建'"
-        />
-      </view>
-
-      <view v-else class="space-y-3">
-        <view
-          v-for="project in filteredProjects"
-          :key="project.id"
-          class="app-panel-flat app-pressable p-4"
-          @click="openProject(project.id)"
-        >
-          <view class="flex items-start justify-between gap-3">
+        <view class="projects-list">
+          <view
+            v-for="project in projects"
+            :key="project.id"
+            class="project-row app-pressable flex items-center gap-3"
+            @click="openProject(project.id)"
+          >
             <view class="min-w-0 flex-1">
-              <view class="truncate text-4 font-bold">
-                {{ project.name }}
+              <view class="flex items-center gap-2">
+                <text class="project-row__name truncate">
+                  {{ project.name }}
+                </text>
+                <text
+                  class="project-visibility shrink-0"
+                  :class="project.visibility === 'PUBLIC' ? 'project-visibility--public' : 'project-visibility--private'"
+                >
+                  {{ project.visibility === 'PUBLIC' ? '公开' : '私有' }}
+                </text>
               </view>
-              <view class="app-muted mt-1 text-3">
-                {{ [project.region, project.buildingType].filter(Boolean).join(' · ') || '未填写地区与建筑类型' }}
+              <view class="project-row__meta mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+                <!-- <text>{{ [project.region, project.buildingType].filter(Boolean).join(' · ') || '未填写地区与建筑类型' }}</text> -->
+                <text class="project-row__divider">
+                  ·
+                </text>
+                <text>更新于 {{ formatTime(project.updatedAt) }}</text>
               </view>
             </view>
-            <wd-tag :type="project.visibility === 'PUBLIC' ? 'primary' : 'info'" custom-class="shrink-0!" plain>
-              {{ project.visibility === 'PUBLIC' ? '公开' : '私有' }}
-            </wd-tag>
-          </view>
-          <view class="mt-4 flex items-center justify-between">
-            <view class="app-tertiary text-2.5">
-              更新于 {{ formatTime(project.updatedAt) }}
-            </view>
-            <view class="app-primary-text text-2.5 font-bold">
-              查看详情
-            </view>
-          </view>
-        </view>
-
-        <view v-if="hasMore" class="flex items-center justify-center gap-2 py-3" @click="loadPage(page + 1)">
-          <wd-loading v-if="loadingMore" size="28rpx" color="var(--app-action-primary)" />
-          <view class="app-tertiary text-2.5">
-            {{ loadingMore ? '加载中' : '点击加载更多' }}
+            <wd-icon name="arrow-right" size="30rpx" color="var(--app-text-tertiary)" />
           </view>
         </view>
       </view>
+
+      <template #empty="{ isLoadFailed }">
+        <!-- <view class="projects-empty flex flex-col items-center text-center">
+          <view class="projects-empty__icon flex items-center justify-center">
+            <wd-icon
+              :name="isLoadFailed ? 'refresh' : keyword ? 'search' : 'home'"
+              size="48rpx"
+              color="var(--app-action-primary)"
+            />
+          </view>
+          <view class="projects-empty__title">
+            {{ isLoadFailed ? '项目加载失败' : emptyTitle }}
+          </view>
+          <view class="projects-empty__description">
+            {{ isLoadFailed ? '请检查网络后重新加载' : emptyDescription }}
+          </view>
+          <view
+            class="projects-empty__action app-pressable"
+            @click="handleEmptyAction(isLoadFailed)"
+          >
+            {{ emptyActionLabel(isLoadFailed) }}
+          </view>
+        </view> -->
+        <wd-empty :tip="isLoadFailed ? '项目加载失败' : emptyTitle">
+          <template #icon>
+            <wd-icon name="search" size="48rpx" color="var(--app-action-primary)" />
+          </template>
+        </wd-empty>
+      </template>
+    </z-paging>
+
+    <view
+      class="projects-fab app-pressable flex items-center justify-center"
+      role="button"
+      aria-label="新建项目"
+      @click="createProject"
+    >
+      <wd-icon name="plus" size="44rpx" color="var(--app-text-inverse)" />
     </view>
   </view>
 </template>
+
+<style lang="scss" scoped>
+.projects-page {
+  min-height: 100vh;
+  background: var(--app-project-page-gradient);
+}
+
+.projects-top {
+  // border-bottom: 1px solid var(--app-border-default);
+  background: transparent;
+}
+
+.projects-top__safe {
+  height: var(--project-top-inset);
+}
+
+.projects-top__inner,
+.projects-content {
+  width: 100%;
+  max-width: 750px;
+  margin: 0 auto;
+}
+
+.projects-tabs {
+  height: 88rpx;
+  padding: 0 48rpx;
+}
+
+.projects-tab {
+  height: 88rpx;
+  color: var(--app-text-tertiary);
+  font-size: 30rpx;
+  font-weight: 500;
+  line-height: 88rpx;
+}
+
+.projects-tab--active {
+  color: var(--app-text-primary);
+  font-weight: 700;
+}
+
+.projects-tab-indicator {
+  position: absolute;
+  bottom: 0;
+  left: 48rpx;
+  width: calc((100% - 96rpx) / 3);
+  height: 6rpx;
+  pointer-events: none;
+  transition: transform var(--app-transition-base) ease;
+}
+
+.projects-tab-indicator__line {
+  width: 40rpx;
+  height: 6rpx;
+  margin: 0 auto;
+  border-radius: 3rpx;
+  background: var(--app-action-primary);
+}
+
+.projects-content {
+  padding: 24rpx 32rpx calc(var(--app-current-tabbar-offset) + 112rpx);
+}
+
+.projects-summary {
+  padding: 0 4rpx 16rpx;
+  color: var(--app-text-tertiary);
+  font-size: 24rpx;
+}
+
+.projects-list {
+
+}
+
+.project-row {
+  min-height: 144rpx;
+  padding:0 28rpx;
+  // border-bottom: 1px solid var(--app-border-default);
+  background: var(--app-bg-surface);
+  border-radius: var(--app-radius-sm);
+  margin-bottom: 16rpx;
+}
+
+// .project-row:last-child {
+//   border-bottom: 0;
+// }
+
+.project-row__name {
+  max-width: 430rpx;
+  color: var(--app-text-primary);
+  font-size: 30rpx;
+  font-weight: 600;
+  line-height: 42rpx;
+}
+
+.project-row__meta {
+  color: var(--app-text-tertiary);
+  font-size: 23rpx;
+  line-height: 34rpx;
+}
+
+.project-row__divider {
+  color: var(--app-text-disabled);
+}
+
+.project-visibility {
+  padding: 4rpx 10rpx;
+  border: 1px solid transparent;
+  border-radius: 6rpx;
+  font-size: 20rpx;
+  line-height: 28rpx;
+}
+
+.project-visibility--public {
+  border-color: var(--app-action-primary-soft);
+  color: var(--app-action-primary);
+  background: var(--app-action-primary-soft);
+}
+
+.project-visibility--private {
+  border-color: var(--app-border-default);
+  color: var(--app-text-tertiary);
+  background: var(--app-bg-drawer);
+}
+
+.projects-empty {
+  width: 100%;
+  max-width: 750px;
+  margin: 0 auto;
+  padding: 144rpx 48rpx calc(var(--app-current-tabbar-offset) + 80rpx);
+}
+
+.projects-empty__icon {
+  width: 88rpx;
+  height: 88rpx;
+  border: 1px solid var(--app-border-default);
+  border-radius: 12rpx;
+  background: var(--app-action-primary-soft);
+}
+
+.projects-empty__title {
+  margin-top: 28rpx;
+  color: var(--app-text-primary);
+  font-size: 30rpx;
+  font-weight: 600;
+  line-height: 42rpx;
+}
+
+.projects-empty__description {
+  margin-top: 12rpx;
+  color: var(--app-text-tertiary);
+  font-size: 24rpx;
+  line-height: 36rpx;
+}
+
+.projects-empty__action {
+  min-width: 176rpx;
+  margin-top: 32rpx;
+  padding: 16rpx 28rpx;
+  border: 1px solid var(--app-action-primary);
+  border-radius: 12rpx;
+  color: var(--app-action-primary);
+  font-size: 26rpx;
+  line-height: 34rpx;
+}
+
+.projects-fab {
+  position: fixed;
+  z-index: 100;
+  right: 32rpx;
+  bottom: calc(var(--app-current-tabbar-offset) + 32rpx);
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 50%;
+  background: var(--app-action-primary);
+  box-shadow: var(--app-shadow-float);
+}
+
+@media screen and (min-width: 751px) {
+  .projects-fab {
+    right: calc(50% - 343px);
+  }
+}
+</style>

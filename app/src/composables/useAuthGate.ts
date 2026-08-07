@@ -26,7 +26,7 @@ export function useAuthGate() {
 
     const timer = setTimeout(() => {
       clearTimeout(timer)
-      router.push({ name: 'login', query: { redirect } }).catch(() => {})
+      router.push({ name: 'login', params: { redirect } }).catch(() => {})
     }, options.showToast === false ? 0 : 300)
   }
 

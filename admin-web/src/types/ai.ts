@@ -576,3 +576,36 @@ export type AiDebugSseEvent
     | { type: 'done', data: AiDebugDoneData }
     | { type: 'stopped', data: AiDebugStoppedData }
     | { type: 'error', data: AiDebugErrorData }
+
+/** 对话围栏匹配方式，与后端 CONTENT_FILTER_MATCH_TYPES 对齐。 */
+export type AiContentFilterMatchType = 'CONTAINS' | 'REGEX'
+
+/** AI 对话敏感词围栏词条（与后端 ai_content_filters 表对齐）。 */
+export interface AiContentFilter {
+  id: string
+  keyword: string
+  matchType: AiContentFilterMatchType
+  /** 生效场景；null 表示所有场景生效。 */
+  sceneCodes: string[] | null
+  hitMessage: string | null
+  enabled: boolean
+  createdById: string | null
+  updatedById: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+/** 创建/修改围栏词条请求体；编辑时省略字段表示不修改。 */
+export interface AiContentFilterInput {
+  keyword: string
+  matchType?: AiContentFilterMatchType
+  sceneCodes?: string[]
+  hitMessage?: string
+  enabled?: boolean
+}
+
+/** 围栏词条变更响应。 */
+export interface AiContentFilterMutationResult {
+  message: string
+  filter?: AiContentFilter
+}

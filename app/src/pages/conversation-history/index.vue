@@ -10,7 +10,6 @@ definePage({
   layout: 'default',
   style: {
     navigationStyle: 'custom',
-    navigationBarTitleText: 'AI 对话记录',
     enablePullDownRefresh: true,
   },
 })
@@ -298,33 +297,21 @@ function formatTime(value: string) {
 <template>
   <view class="app-page app-page--immersive min-h-screen">
     <wd-navbar
-      custom-class="app-navbar"
       safe-area-inset-top
       left-arrow
-      title="AI 对话记录"
+      fixed
+      placeholder
+      title="对话记录"
       @click-left="goBack"
     />
 
     <view class="app-enter conversation-history box-border px-4 py-4 pb-8">
-      <view class="conversation-history__intro mb-4">
-        <view class="app-eyebrow">
-          CONVERSATIONS
-        </view>
-        <view class="mt-1 text-5 font-bold">
-          你的 AI 工作记录
-        </view>
-        <view class="app-muted mt-1 text-2.5">
-          保留重要讨论，继续推进每一次设计判断。
-        </view>
-      </view>
-
       <view v-if="status === 'loading'" class="flex flex-col items-center justify-center py-16">
         <wd-loading size="48rpx" color="var(--app-action-primary)" />
         <view class="app-muted mt-3 text-3">
           正在加载对话记录
         </view>
       </view>
-
       <view v-else-if="status === 'error'" class="py-10">
         <wd-empty icon="no-result" tip="对话记录加载失败，点击重试" @click="reloadConversations" />
       </view>
@@ -407,7 +394,6 @@ function formatTime(value: string) {
       cancel-text="取消"
       :actions="actionItems"
       :close-on-click-action="true"
-      safe-area-inset-bottom
       @select="handleActionSelect"
     />
   </view>

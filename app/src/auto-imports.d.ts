@@ -9,6 +9,7 @@ declare global {
   const Apis: typeof import('./api/index')['Apis']
   const CommonUtil: typeof import('@wot-ui/ui')['CommonUtil']
   const EffectScope: typeof import('vue')['EffectScope']
+  const UPLOAD_PHASE_LABELS: typeof import('./composables/useFileUpload')['UPLOAD_PHASE_LABELS']
   const acceptHMRUpdate: typeof import('pinia')['acceptHMRUpdate']
   const aiApi: typeof import('./api/index')['aiApi']
   const alovaInstance: typeof import('./api/index')['alovaInstance']
@@ -180,6 +181,8 @@ declare global {
   const useAssistantNavigation: typeof import('./composables/useAssistantNavigation')['useAssistantNavigation']
   const useAssistantStore: typeof import('./store/assistant')['useAssistantStore']
   const useAsyncQueue: typeof import('@vueuse/core')['useAsyncQueue']
+  const useAsyncResource: typeof import('./composables/useAsyncResource')['useAsyncResource']
+  const useAsyncSection: typeof import('./composables/useAsyncSection')['useAsyncSection']
   const useAsyncState: typeof import('@vueuse/core')['useAsyncState']
   const useAttrs: typeof import('vue')['useAttrs']
   const useAuthGate: typeof import('./composables/useAuthGate')['useAuthGate']
@@ -231,6 +234,7 @@ declare global {
   const useFetch: typeof import('@vueuse/core')['useFetch']
   const useFileDialog: typeof import('@vueuse/core')['useFileDialog']
   const useFileSystemAccess: typeof import('@vueuse/core')['useFileSystemAccess']
+  const useFileUpload: typeof import('./composables/useFileUpload')['useFileUpload']
   const useFocus: typeof import('@vueuse/core')['useFocus']
   const useFocusWithin: typeof import('@vueuse/core')['useFocusWithin']
   const useFps: typeof import('@vueuse/core')['useFps']
@@ -378,6 +382,7 @@ declare module 'vue' {
     readonly Apis: UnwrapRef<typeof import('./api/index')['Apis']>
     readonly CommonUtil: UnwrapRef<typeof import('@wot-ui/ui')['CommonUtil']>
     readonly EffectScope: UnwrapRef<typeof import('vue')['EffectScope']>
+    readonly UPLOAD_PHASE_LABELS: UnwrapRef<typeof import('./composables/useFileUpload')['UPLOAD_PHASE_LABELS']>
     readonly acceptHMRUpdate: UnwrapRef<typeof import('pinia')['acceptHMRUpdate']>
     readonly aiApi: UnwrapRef<typeof import('./api/index')['aiApi']>
     readonly alovaInstance: UnwrapRef<typeof import('./api/index')['alovaInstance']>
@@ -549,6 +554,8 @@ declare module 'vue' {
     readonly useAssistantNavigation: UnwrapRef<typeof import('./composables/useAssistantNavigation')['useAssistantNavigation']>
     readonly useAssistantStore: UnwrapRef<typeof import('./store/assistant')['useAssistantStore']>
     readonly useAsyncQueue: UnwrapRef<typeof import('@vueuse/core')['useAsyncQueue']>
+    readonly useAsyncResource: UnwrapRef<typeof import('./composables/useAsyncResource')['useAsyncResource']>
+    readonly useAsyncSection: UnwrapRef<typeof import('./composables/useAsyncSection')['useAsyncSection']>
     readonly useAsyncState: UnwrapRef<typeof import('@vueuse/core')['useAsyncState']>
     readonly useAttrs: UnwrapRef<typeof import('vue')['useAttrs']>
     readonly useAuthGate: UnwrapRef<typeof import('./composables/useAuthGate')['useAuthGate']>
@@ -600,6 +607,7 @@ declare module 'vue' {
     readonly useFetch: UnwrapRef<typeof import('@vueuse/core')['useFetch']>
     readonly useFileDialog: UnwrapRef<typeof import('@vueuse/core')['useFileDialog']>
     readonly useFileSystemAccess: UnwrapRef<typeof import('@vueuse/core')['useFileSystemAccess']>
+    readonly useFileUpload: UnwrapRef<typeof import('./composables/useFileUpload')['useFileUpload']>
     readonly useFocus: UnwrapRef<typeof import('@vueuse/core')['useFocus']>
     readonly useFocusWithin: UnwrapRef<typeof import('@vueuse/core')['useFocusWithin']>
     readonly useFps: UnwrapRef<typeof import('@vueuse/core')['useFps']>

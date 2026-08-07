@@ -34,6 +34,17 @@ interface ApiResponse {
   }
 }
 
+/**
+ * 取后端业务错误码（如 AI_CONFIG_INVALID）。
+ * ApiError.code 是 Number() 转换后的 HTTP 语义码，字符串业务码只保留在 data.error.code 里。
+ */
+export function getApiErrorCode(error: unknown): string | undefined {
+  if (!(error instanceof ApiError)) {
+    return undefined
+  }
+  return (error.data as ApiResponse | undefined)?.error?.code
+}
+
 function redirectAfterSessionExpiry() {
   const authStore = useAuthStore()
   if (!authStore.accessToken) {
@@ -65,8 +76,10 @@ export async function handleAlovaResponse(
 
   // Handle HTTP error status codes
   if (code >= 400) {
-    globalToast.error(`Request failed with status: ${code}`)
-    throw new ApiError(`Request failed with status: ${code}`, code, data)
+    console.log('[Alova Response]', data)
+    const message = data?.error?.message || '请求失败'
+    globalToast.error(message)
+    throw new ApiError(message, code, data)
   }
 
   // The data is already parsed by UniApp adapter
@@ -77,7 +90,11 @@ export async function handleAlovaResponse(
 
   if (!json.success) {
     const message = json.error?.message || '请求失败'
-    globalToast.error(message)
+    // AI 场景配置是可降级错误，由 assistant store 立即回退到 general_chat；
+    // 此处不提前提示，避免用户看到一次已被自动恢复的失败。
+    if (json.error?.code !== 'AI_CONFIG_INVALID') {
+      globalToast.error(message)
+    }
     throw new ApiError(message, code || 400, json)
   }
 

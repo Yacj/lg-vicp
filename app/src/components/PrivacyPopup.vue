@@ -16,9 +16,13 @@ withDefaults(defineProps<Props>(), {
 })
 
 const emit = defineEmits(['agree', 'disagree'])
-const showPopup = ref<boolean>(true) // 是否展示popup
+// 默认不显示，挂载后按“是否需要授权”决定；避免每个页面重新挂载时都弹出
+const showPopup = ref<boolean>(false)
 
 const privacyResolves = ref(new Set()) // onNeedPrivacyAuthorization的reslove
+
+// App 端本地记录同意状态；微信端由微信侧记录，不使用该标记
+const PRIVACY_AGREED_KEY = 'privacy-agreed'
 
 function privacyHandler(resolve: any) {
   showPopup.value = true
@@ -26,14 +30,28 @@ function privacyHandler(resolve: any) {
 }
 
 onBeforeMount(() => {
-  // 注册监听
+  // #ifdef MP-WEIXIN
+  // 仅在微信提示“需要授权”时弹出；用户同意过则 needAuthorization 为 false
+  wx.getPrivacySetting?.({
+    success: (res: any) => {
+      if (res.needAuthorization) {
+        showPopup.value = true
+      }
+    },
+  })
+  // 注册监听：调用受隐私保护接口时按需弹出
   if (wx.onNeedPrivacyAuthorization) {
     wx.onNeedPrivacyAuthorization((resolve: any) => {
-      if (typeof privacyHandler === 'function') {
-        privacyHandler(resolve)
-      }
+      privacyHandler(resolve)
     })
   }
+  // #endif
+
+  // #ifdef APP-PLUS
+  if (!uni.getStorageSync(PRIVACY_AGREED_KEY)) {
+    showPopup.value = true
+  }
+  // #endif
 })
 
 /**
@@ -41,6 +59,9 @@ onBeforeMount(() => {
  */
 function handleAgree() {
   showPopup.value = false
+  // #ifdef APP-PLUS
+  uni.setStorageSync(PRIVACY_AGREED_KEY, true)
+  // #endif
   privacyResolves.value.forEach((resolve: any) => {
     resolve({
       event: 'agree',
@@ -68,7 +89,9 @@ function handleDisagree() {
  * 打开隐私协议
  */
 function openPrivacyContract() {
+  // #ifdef MP-WEIXIN
   wx.openPrivacyContract({})
+  // #endif
 }
 
 /**

@@ -23,18 +23,22 @@ function normalizeApiPath(url: string) {
   return `${API_PREFIX}${url.startsWith('/') ? url : `/${url}`}`
 }
 
+/** 写方法统一带 JSON 头（instance.ts / uni.request 默认），空 body 会被后端 400 拒绝，兜底为 {} */
+const BODY_METHODS = new Set<MethodType>(['POST', 'PUT', 'PATCH', 'DELETE'])
+
 export function request<TData = unknown>(
   method: MethodType,
   url: string,
   config: RequestConfig<TData> = {},
 ) {
   const { pathParams, data, ...methodConfig } = config
+  const body = data ?? (BODY_METHODS.has(method) ? {} : undefined)
   return new Method(
     method,
     alovaInstance,
     normalizeApiPath(replacePathParams(url, pathParams)),
     methodConfig,
-    data as RequestBody,
+    body as RequestBody,
   )
 }
 

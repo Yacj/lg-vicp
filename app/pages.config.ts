@@ -7,7 +7,7 @@ export default defineUniPages({
     // 导航栏配置
     navigationBarBackgroundColor: '@navBgColor',
     navigationBarTextStyle: '@navTxtStyle',
-    navigationBarTitleText: '蓝格智配',
+    navigationBarTitleText: '筑小格 AI 助手',
 
     // 页面背景配置
     backgroundColor: '@bgColor',
@@ -37,4 +37,9 @@ export default defineUniPages({
     borderStyle: '@tabBorderStyle',
     list: TABBAR_ITEMS.map(({ pagePath }) => ({ pagePath })),
   },
+  easycom: {
+	  custom: {
+	    "^(?!z-paging-refresh|z-paging-load-more)z-paging(.*)": "z-paging/components/z-paging$1/z-paging$1.vue"
+	   }
+ }
 })

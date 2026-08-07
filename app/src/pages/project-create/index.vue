@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ApiEnvelope } from '@/api/types'
+import type { ApiEnvelope, CreateProjectBody } from '@/api/types'
 import { projectApi } from '@/api/modules/projects'
 import { useAuthGate } from '@/composables/useAuthGate'
 import { useBackNavigation } from '@/composables/useBackNavigation'
@@ -9,42 +9,99 @@ definePage({
   layout: 'default',
   style: {
     navigationStyle: 'custom',
-    navigationBarTitleText: '新建项目',
   },
 })
+
+interface ProjectFormRef {
+  validate: () => Promise<{ valid: boolean }>
+}
+
+type ProjectCreateForm = Required<Pick<CreateProjectBody, 'name' | 'region' | 'buildingType' | 'description' | 'visibility'>>
 
 const router = useRouter()
 const { goBack } = useBackNavigation()
 const { requireLogin } = useAuthGate()
-const { warning, error: showError } = useGlobalToast()
+const { error: showError } = useGlobalToast()
 const globalLoading = useGlobalLoading()
 
-const form = reactive({
+const formRef = ref<ProjectFormRef>()
+const isSubmitting = ref(false)
+const form = reactive<ProjectCreateForm>({
   name: '',
   region: '',
   buildingType: '',
   description: '',
+  visibility: 'PRIVATE',
 })
 
+const projectFormSchema = {
+  validate(model: Record<string, unknown>) {
+    return String(model.name || '').trim()
+      ? []
+      : [{ path: ['name'], message: '请输入项目名称' }]
+  },
+  isRequired(path: string) {
+    return path === 'name'
+  },
+}
+
+const formStyle = [
+  '--wot-cell-bg: transparent',
+  '--wot-cell-title-color: var(--app-text-primary)',
+  '--wot-cell-label-color: var(--app-text-tertiary)',
+  '--wot-cell-padding: 20rpx 0',
+].join(';')
+
+const inputStyle = [
+  '--wot-input-padding: 0 24rpx',
+  '--wot-input-bg: var(--app-bg-drawer)',
+  '--wot-input-inner-height: 80rpx',
+  '--wot-input-inner-font-size: 28rpx',
+  '--wot-input-inner-color: var(--app-text-primary)',
+  '--wot-input-inner-placeholder-color: var(--app-text-tertiary)',
+  '--wot-input-icon-color: var(--app-text-tertiary)',
+].join(';')
+
+const textareaStyle = [
+  '--wot-textarea-padding: 20rpx 24rpx',
+  '--wot-textarea-bg: var(--app-bg-drawer)',
+  '--wot-textarea-inner-min-height: 144rpx',
+  '--wot-textarea-inner-font-size: 28rpx',
+  '--wot-textarea-inner-line-height: 42rpx',
+  '--wot-textarea-inner-color: var(--app-text-primary)',
+  '--wot-textarea-inner-placeholder-color: var(--app-text-tertiary)',
+].join(';')
+
+const visibilityRadioStyle = [
+  '--wot-radio-button-bg: var(--app-bg-surface)',
+  '--wot-radio-button-checked-bg: var(--app-action-primary-soft)',
+  '--wot-radio-button-border-radius: 8rpx',
+  '--wot-radio-button-min-width: 128rpx',
+  '--wot-radio-button-padding: 12rpx 28rpx',
+  '--wot-radio-label-color: var(--app-text-secondary)',
+].join(';')
+
 async function submit() {
-  if (!requireLogin()) {
+  if (!requireLogin() || isSubmitting.value) {
     return
   }
 
-  const name = form.name.trim()
-  if (!name) {
-    warning('请先填写项目名称')
+  const validation = await formRef.value?.validate()
+  if (!validation?.valid) {
     return
   }
 
+  isSubmitting.value = true
   globalLoading.loading('正在创建项目...')
   try {
-    const response = await projectApi.create({
-      name,
+    const payload: CreateProjectBody = {
+      name: form.name.trim(),
       region: form.region.trim() || undefined,
       buildingType: form.buildingType.trim() || undefined,
       description: form.description.trim() || undefined,
-    }).send() as ApiEnvelope<{ project: { id: string } }>
+      visibility: form.visibility,
+    }
+    const response = await projectApi.create(payload).send() as ApiEnvelope<{ project: { id: string } }>
 
     const projectId = response.data?.project?.id
     router.replace({
@@ -56,6 +113,7 @@ async function submit() {
     showError(error instanceof Error ? error.message : '创建失败，请重试')
   }
   finally {
+    isSubmitting.value = false
     globalLoading.close()
   }
 }
@@ -64,64 +122,135 @@ async function submit() {
 <template>
   <view class="app-page app-page--immersive">
     <wd-navbar
-      custom-class="app-navbar"
+      placeholder
       safe-area-inset-top
       left-arrow
+      :fixed="true"
       title="新建项目"
       @click-left="goBack"
     />
-    <view class="app-enter box-border px-4 py-4 pb-6">
-      <view class="mb-5">
-        <view class="app-eyebrow mb-1">
-          NEW PROJECT
-        </view>
-        <view class="text-6 font-bold leading-8">
-          创建项目
-        </view>
-        <view class="app-muted mt-1 text-3.5">
-          先建立项目档案，再逐步补齐计算参数。
-        </view>
+    <view class="project-create-page box-border px-4 py-4 pb-8">
+      <view class="project-create-panel">
+        <wd-form
+          ref="formRef"
+          :model="form"
+          :schema="projectFormSchema"
+          :custom-style="formStyle"
+          error-type="message"
+          layout="vertical"
+          validate-trigger="blur"
+        >
+          <wd-form-item prop="name" title="项目名称" required>
+            <wd-input
+              v-model="form.name"
+              :compact="false"
+              :custom-style="inputStyle"
+              clearable
+              :maxlength="120"
+              placeholder="例如：滨江花园住宅项目"
+            />
+          </wd-form-item>
+
+          <!-- <wd-form-item prop="region" title="项目地区">
+            <wd-input
+              v-model="form.region"
+              :compact="false"
+              :custom-style="inputStyle"
+              clearable
+              :maxlength="80"
+              placeholder="例如：浙江省 · 杭州市"
+            />
+          </wd-form-item>
+
+          <wd-form-item prop="buildingType" title="建筑类型" >
+            <wd-input
+              v-model="form.buildingType"
+              :compact="false"
+              :custom-style="inputStyle"
+              clearable
+              :maxlength="80"
+              placeholder="例如：居住建筑、公共建筑"
+            />
+          </wd-form-item> -->
+
+          <wd-form-item prop="description" title="项目说明">
+            <wd-textarea
+              v-model="form.description"
+              :compact="false"
+              :custom-style="textareaStyle"
+              auto-height
+              clearable
+              :maxlength="2000"
+              placeholder="补充项目背景、节能等级或其他备注"
+              show-word-limit
+            />
+          </wd-form-item>
+
+          <wd-form-item prop="visibility" title="是否可见">
+            <view>
+              <wd-radio-group
+                v-model="form.visibility"
+                direction="horizontal"
+                type="button"
+              >
+                <wd-radio value="PRIVATE">
+                  私有
+                </wd-radio>
+                <wd-radio value="PUBLIC">
+                  公开
+                </wd-radio>
+              </wd-radio-group>
+              <view class="project-visibility-control__desc">
+                {{ form.visibility === 'PUBLIC' ? '公开后，登录用户可在公开案例中查看' : '仅当前项目创建者可查看与管理' }}
+              </view>
+            </view>
+          </wd-form-item>
+        </wd-form>
       </view>
 
-      <view class="app-panel-flat mb-4 overflow-hidden p-4">
-        <view class="mb-4">
-          <view class="mb-2 text-3.5 font-bold">
-            项目名称 <text class="text-red-500">
-              *
-            </text>
-          </view>
-          <wd-input v-model="form.name" placeholder="例如：滨江花园住宅项目" clearable no-border />
-        </view>
-        <view class="mb-4">
-          <view class="mb-2 text-3.5 font-bold">
-            项目地区
-          </view>
-          <wd-input v-model="form.region" placeholder="例如：浙江省·杭州市" clearable no-border />
-        </view>
-        <view class="mb-4">
-          <view class="mb-2 text-3.5 font-bold">
-            建筑类型
-          </view>
-          <wd-input v-model="form.buildingType" placeholder="例如：居住建筑、公共建筑" clearable no-border />
-        </view>
-        <view>
-          <view class="mb-2 text-3.5 font-bold">
-            项目说明
-          </view>
-          <wd-textarea v-model="form.description" placeholder="补充项目背景、节能等级或其他备注" no-border />
-        </view>
-      </view>
-
-      <view class="app-ai-soft mb-5 flex gap-3 rounded-3 p-3">
-        <wd-icon name="info" size="36rpx" color="var(--app-ai)" />
-        <view class="app-muted text-3 leading-5">
-          创建后可继续在筑小格中整理项目参数与节能方案。
-        </view>
-      </view>
-
-      <wd-button type="primary" block @click="submit">
-        创建并继续
+      <wd-button 
+      custom-class="!mt-5"
+      type="primary" block :loading="isSubmitting" @click="submit">
+        
+        创建项目
       </wd-button>
     </view>
   </view>
 </template>
+
+<style lang="scss" scoped>
+.project-create-page {
+  width: 100%;
+  max-width: 750px;
+  margin: 0 auto;
+}
+
+.project-create-panel {
+  padding: 12rpx 32rpx;
+  border: 1px solid var(--app-border-default);
+  border-radius: 12rpx;
+  background: var(--app-bg-surface);
+}
+
+.project-visibility-control {
+  margin-top: 8rpx;
+  padding: 20rpx 24rpx;
+  border: 1px solid var(--app-border-default);
+  border-radius: 12rpx;
+  background: var(--app-bg-drawer);
+}
+
+.project-visibility-control__desc {
+  margin-top: 4rpx;
+  color: var(--app-text-tertiary);
+  font-size: 22rpx;
+  line-height: 32rpx;
+}
+
+.project-create-note {
+  padding: 24rpx;
+  border: 1px solid var(--app-border-default);
+  border-radius: 12rpx;
+  background: var(--app-ai-soft);
+}
+</style>

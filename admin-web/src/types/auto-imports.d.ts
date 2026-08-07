@@ -135,6 +135,7 @@ declare global {
   const unrefElement: typeof import('@vueuse/core').unrefElement
   const until: typeof import('@vueuse/core').until
   const useActiveElement: typeof import('@vueuse/core').useActiveElement
+  const useAiContentFilters: typeof import('../composables/useAiContentFilters').useAiContentFilters
   const useAiConversationOps: typeof import('../composables/useAiConversationOps').useAiConversationOps
   const useAiDebugger: typeof import('../composables/useAiDebugger').useAiDebugger
   const useAiFeedbackOps: typeof import('../composables/useAiFeedbackOps').useAiFeedbackOps
@@ -388,6 +389,9 @@ declare global {
   // @ts-ignore
   export type { PermissionMatchMode, PermissionRequirement } from '../composables/usePermissionAccess'
   import('../composables/usePermissionAccess')
+  // @ts-ignore
+  export type { AiContentFilterTableRow, AiContentFilterForm, AiContentFilterSearchQuery } from '../composables/useAiContentFilters'
+  import('../composables/useAiContentFilters')
   // @ts-ignore
   export type { PlatformConversationTableRow, ConversationOpsSearchQuery } from '../composables/useAiConversationOps'
   import('../composables/useAiConversationOps')

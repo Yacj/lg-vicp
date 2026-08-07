@@ -85,6 +85,15 @@ export const staticRoutes: RouteRecordRaw[] = [
         },
       },
       {
+        path: 'ai-config/filters',
+        name: 'AiConfigFilters',
+        component: () => import('@/views/ai-config/filters/index.vue'),
+        meta: {
+          permissions: ['system:ai:filter:list'],
+          title: '对话围栏',
+        },
+      },
+      {
         path: 'ai-ops/conversations',
         name: 'AiOpsConversations',
         component: () => import('@/views/ai-ops/conversations/index.vue'),

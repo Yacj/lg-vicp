@@ -7,9 +7,9 @@
  * @FilePath: /wot-starter/uno.config.ts
  * 记得注释
  */
+import { FileSystemIconLoader } from '@iconify/utils/lib/loader/node-loaders'
 import { presetUni } from '@uni-helper/unocss-preset-uni'
 import { presetWot } from '@wot-ui/unocss-preset'
-import { FileSystemIconLoader } from '@iconify/utils/lib/loader/node-loaders'
 
 import {
   defineConfig,
@@ -33,7 +33,7 @@ export default defineConfig({
         'display': 'inline-block',
         'vertical-align': 'middle',
       },
-      
+
       // HBuilderX 必须针对要使用的 Collections 做异步导入
       // collections: {
       //   carbon: () => import('@iconify-json/carbon/icons.json').then(i => i.default),

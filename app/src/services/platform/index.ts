@@ -86,13 +86,16 @@ function parseEventData(raw: string) {
 async function readStreamError(response: { status: number, text: () => Promise<string> }) {
   let message = `AI 请求失败（${response.status}）`
   try {
-    const parsed = JSON.parse(await response.text()) as { error?: { message?: string } }
+    const body = await response.text()
+    const parsed = JSON.parse(body) as { error?: { message?: string } }
+    // 打印完整错误包络（status / error.code / requestId），便于排查受限内容等 4xx
+    console.error('[ai-stream] HTTP 错误', { status: response.status, body })
     if (parsed.error?.message) {
       message = parsed.error.message
     }
   }
   catch {
-    // 非 JSON 错误体，保留默认文案
+    console.error('[ai-stream] HTTP 错误', { status: response.status })
   }
   return message
 }
@@ -206,14 +209,56 @@ function responseText(data: unknown) {
   return JSON.stringify(data ?? '')
 }
 
-function responseErrorMessage(statusCode: number, data: unknown) {
+/** HTTP 2xx 下返回的 JSON 业务错误包络（success:false / error 字段），提取错误文案；非错误 JSON 返回 null。 */
+function extractBusinessError(body: string) {
   try {
-    const parsed = JSON.parse(responseText(data)) as { error?: { message?: string } }
-    return parsed.error?.message || `AI 请求失败（${statusCode}）`
+    const parsed = JSON.parse(body) as { success?: boolean, error?: { message?: string } }
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && (parsed.success === false || parsed.error)) {
+      return new Error(parsed.error?.message || 'AI 请求失败')
+    }
   }
   catch {
-    return `AI 请求失败（${statusCode}）`
+    // 非 JSON（SSE 文本等），不是业务错误包络
   }
+  return null
+}
+
+/**
+ * uni.request 响应正文路由：按首个非空字符嗅探。
+ * '{' 开头视为 JSON 错误包络（整段缓冲，finish 时判错），否则按 SSE 帧实时消费。
+ * 微信 enableChunked 下 success.data 恒为空、statusCode 部分基础库不可靠，
+ * 4xx 的错误包络只会从 onChunkReceived 以 chunk 形式到达，必须在流层识别。
+ */
+function createChunkRouter(consumer: ReturnType<typeof createSseConsumer>) {
+  let route: 'pending' | 'sse' | 'json' = 'pending'
+  let buffer = ''
+
+  const push = (text: string) => {
+    if (route === 'sse') {
+      consumer.push(text)
+      return
+    }
+    buffer += text
+    if (route === 'pending' && buffer.trim()) {
+      route = buffer.trimStart().startsWith('{') ? 'json' : 'sse'
+      if (route === 'sse') {
+        consumer.push(buffer)
+        buffer = ''
+      }
+    }
+  }
+
+  /** 收尾：JSON 包络返回业务错误（无则 null）；SSE 正常冲刷缓冲 */
+  const finish = (tail = '') => {
+    push(tail)
+    if (route === 'sse') {
+      consumer.finish('')
+      return null
+    }
+    return extractBusinessError(buffer)
+  }
+
+  return { push, finish, get route() { return route } }
 }
 
 export type AiStreamMode = 'stream' | 'buffered'
@@ -234,79 +279,144 @@ export function createAiStreamRequest(options: AiStreamOptions) {
     'Authorization': `Bearer ${options.accessToken}`,
     'Content-Type': 'application/json',
   }
-  const body = isSend ? JSON.stringify({ content: options.content }) : undefined
+  // 声明了 application/json 就必须有 body，空 body 会被后端 400 拒绝；regenerate 无参数时发 {}
+  const body = JSON.stringify(isSend ? { content: options.content } : {})
   const platform = getPlatformInfo().platform
   const mode: AiStreamMode = platform === 'app' ? 'buffered' : 'stream'
   let abort: (() => void) | undefined
+
+  // 受理信号：HTTP 2xx（SSE 流建立）即受理；4xx/5xx（如内容受限）拒绝。
+  // 与 promise（整段流结束）分离，调用方据此判断"接口是否真正接受了请求"。
+  let resolveAccept!: () => void
+  let rejectAccept!: (error: Error) => void
+  const accepted = new Promise<void>((resolve, reject) => {
+    resolveAccept = resolve
+    rejectAccept = reject
+  })
 
   const promise = new Promise<void>((resolve, reject) => {
     if (platform === 'h5' && typeof fetch === 'function') {
       const controller = new AbortController()
       const consumer = createSseConsumer(options.onEvent)
       abort = () => controller.abort()
+      console.log('[ai-stream] 发起请求', { url, method: 'POST', mode })
       fetch(url, {
         method: 'POST',
         headers,
         body,
         signal: controller.signal,
       }).then(async (response) => {
+        const contentType = response.headers.get('content-type') || ''
+        console.log('[ai-stream] 响应', { status: response.status, ok: response.ok, contentType })
+
         if (!response.ok || !response.body) {
-          throw new Error(await readStreamError(response))
+          const error = new Error(await readStreamError(response))
+          console.error('[ai-stream] 非 2xx，拒绝发送', error.message)
+          rejectAccept(error)
+          throw error
         }
+
+        // HTTP 2xx 但返回 JSON 业务错误包络（success:false / error），同样拒绝发送
+        if (contentType.includes('application/json')) {
+          const body = await response.text()
+          const error = extractBusinessError(body)
+          if (error) {
+            console.error('[ai-stream] 业务错误包络，拒绝发送', { body })
+            rejectAccept(error)
+            throw error
+          }
+          console.log('[ai-stream] 2xx JSON 非错误包络，按空流结束')
+          resolveAccept()
+          consumer.finish(body)
+          resolve()
+          return
+        }
+
+        resolveAccept()
+        console.log('[ai-stream] 已受理，开始读取 SSE 流')
 
         const reader = response.body.getReader()
         const decoder = new TextDecoder()
+        let frameCount = 0
         while (true) {
           const chunk = await reader.read()
           if (chunk.done) {
             consumer.finish(decoder.decode())
             break
           }
-          consumer.push(decoder.decode(chunk.value, { stream: true }))
+          const text = decoder.decode(chunk.value, { stream: true })
+          if (frameCount === 0) {
+            console.log('[ai-stream] 首帧片段', text.slice(0, 200))
+          }
+          consumer.push(text)
+          frameCount += 1
         }
+        console.log('[ai-stream] SSE 流正常结束', { frameCount })
         resolve()
-      }).catch(reject)
+      }).catch((error) => {
+        console.error('[ai-stream] promise 拒绝', error)
+        reject(error)
+      })
       return
     }
 
     const useChunks = platform === 'mp-weixin'
     const consumer = createSseConsumer(options.onEvent)
+    const router = createChunkRouter(consumer)
     const decodeChunk = createUtf8ChunkDecoder()
     let receivedChunks = false
 
     const requestOptions = {
       url,
       method: 'POST' as const,
-      data: body ? JSON.parse(body) : undefined,
+      data: JSON.parse(body) as Record<string, unknown>,
       header: headers,
       responseType: useChunks ? 'arraybuffer' as const : 'text' as const,
       ...(useChunks ? { enableChunked: true } : {}),
       success(response: { statusCode: number, data: unknown }) {
-        if (response.statusCode < 200 || response.statusCode >= 300) {
-          reject(new Error(responseErrorMessage(response.statusCode, response.data)))
+        console.log('[ai-stream] 响应', { statusCode: response.statusCode, receivedChunks })
+        // chunk 模式正文来自 onChunkReceived（success.data 恒为空）；buffered/降级模式正文在 success.data
+        const tail = useChunks && receivedChunks
+          ? decodeChunk(undefined, true)
+          : responseText(response.data)
+        const businessError = router.finish(tail)
+        const httpError = response.statusCode < 200 || response.statusCode >= 300
+
+        if (businessError || httpError) {
+          const error = businessError ?? new Error(`AI 请求失败（${response.statusCode}）`)
+          console.error('[ai-stream] 请求被拒绝', { statusCode: response.statusCode, message: error.message })
+          rejectAccept(error)
+          reject(error)
           return
         }
 
-        if (useChunks && receivedChunks) {
-          consumer.finish(decodeChunk(undefined, true))
-        }
-        else {
-          consumer.finish(responseText(response.data))
-        }
+        resolveAccept()
+        console.log('[ai-stream] 响应消费完成')
         resolve()
       },
-      fail: reject,
+      fail: (error: unknown) => {
+        console.error('[ai-stream] 请求失败（网络层）', error)
+        rejectAccept(error instanceof Error ? error : new Error('AI 请求失败'))
+        reject(error)
+      },
     }
 
     const task = uni.request(requestOptions as Parameters<typeof uni.request>[0]) as unknown as ChunkCapableRequestTask
     if (useChunks && task.onChunkReceived) {
       task.onChunkReceived(({ data }) => {
         receivedChunks = true
-        consumer.push(decodeChunk(data))
+        router.push(decodeChunk(data))
+        // 首个 chunk 被判定为 SSE 帧即视为受理，与 H5 的 2xx 受理时机对齐
+        if (router.route === 'sse') {
+          resolveAccept()
+        }
       })
     }
     abort = () => task.abort()
   })
 
-  return { mode, promise, abort: () => abort?.() }
+  // fetch 网络异常等路径可能不经过 rejectAccept，兜底让 accepted 跟随 promise 结算，避免调用方 await 悬空
+  promise.catch(error => rejectAccept(error instanceof Error ? error : new Error('AI 请求失败')))
+
+  return { mode, accepted, promise, abort: () => abort?.() }
 }

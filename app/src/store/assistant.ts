@@ -11,7 +11,9 @@ import type {
 } from '@/api/types'
 import type { AiStreamEvent } from '@/services/platform'
 import { defineStore } from 'pinia'
+import { getApiErrorCode } from '@/api/core/handlers'
 import { aiApi } from '@/api/modules/ai'
+import { FALLBACK_SCENE, markSceneUnavailable, resolveScene } from '@/constants/aiScene'
 import { createAiStreamRequest } from '@/services/platform'
 import { useAuthStore } from '@/store/auth'
 
@@ -22,7 +24,7 @@ import { useAuthStore } from '@/store/auth'
  */
 export interface AssistantNavContext {
   conversationId?: string
-  scene?: string
+  scene?: AiScene
   projectId?: string
   projectName?: string
   presetQuestion?: string
@@ -194,13 +196,16 @@ export const useAssistantStore = defineStore('assistant', {
     },
 
     /**
-     * 获取可用会话：当前会话匹配则复用，否则创建。
-     * projectId 用于项目关联会话；同一项目内复用，切换项目自动开新会话。
+     * 获取可用会话：项目与场景都匹配才复用，否则创建。
+     * 目标场景未开放时，本次启动内记住结果并降级到通用场景。
      */
     async ensureConversation(options: { projectId?: string, scene?: AiScene } = {}): Promise<ConversationRecord> {
-      const { projectId, scene = 'general_chat' } = options
+      const { projectId } = options
+      const targetScene = resolveScene(options.scene)
       const current = this.conversation
-      if (current && current.projectId === (projectId ?? null)) {
+      if (current
+        && current.projectId === (projectId ?? null)
+        && current.scene === targetScene) {
         return current
       }
       if (this.creatingConversation && this.creatingConversationRevision === this.loadRevision) {
@@ -208,9 +213,23 @@ export const useAssistantStore = defineStore('assistant', {
       }
 
       const creationRevision = this.loadRevision
-      const creation = (async () => {
+      const requestConversation = async (scene: AiScene) => {
         const response = await aiApi.createConversation({ clientApp: 'c_app', scene, projectId }).send() as ApiEnvelope<{ conversation: ConversationRecord }>
-        const conversation = response.data.conversation
+        return response.data.conversation
+      }
+      const creation = (async () => {
+        let conversation: ConversationRecord
+        try {
+          conversation = await requestConversation(targetScene)
+        }
+        catch (error) {
+          if (targetScene === FALLBACK_SCENE || getApiErrorCode(error) !== 'AI_CONFIG_INVALID') {
+            throw error
+          }
+          markSceneUnavailable(targetScene)
+          conversation = await requestConversation(FALLBACK_SCENE)
+        }
+
         if (creationRevision === this.loadRevision) {
           this.conversation = conversation
         }
@@ -305,7 +324,9 @@ export const useAssistantStore = defineStore('assistant', {
 
       const loadRevision = this.loadRevision
       this.loadError = ''
+      console.log('[assistant] 步骤1 发送前检查通过，准备会话')
       const conversation = await this.ensureConversation(options)
+      console.log('[assistant] 步骤2 会话就绪', { conversationId: conversation.id })
       if (loadRevision !== this.loadRevision || this.conversation?.id !== conversation.id) {
         return false
       }
@@ -323,6 +344,7 @@ export const useAssistantStore = defineStore('assistant', {
       const assistantMessage = createPlaceholderMessage(conversation.id, `local-assistant-${Date.now()}`)
       this.messages.push(userMessage, assistantMessage)
       const streamRevision = this.startStreaming(assistantMessage.id)
+      console.log('[assistant] 步骤3 已插入乐观消息并开始流式', { streamRevision })
 
       const stream = createAiStreamRequest({
         kind: 'send',
@@ -336,14 +358,37 @@ export const useAssistantStore = defineStore('assistant', {
         this.progressMessage = '正在生成，完成后显示回答'
       }
       this.activeAbort = stream.abort
+      console.log('[assistant] 步骤4 流请求已发起', { mode: stream.mode })
 
-      void stream.promise.catch((error) => {
+      void stream.promise.then(
+        () => console.log('[assistant] 步骤5 流正常结束'),
+        (error) => {
+          if (streamRevision !== this.streamRevision) {
+            console.warn('[assistant] 流错误已过期，忽略', { streamRevision, current: this.streamRevision })
+            return
+          }
+          console.error('[assistant] 步骤5 流失败，捕捉到错误', error)
+          const message = error instanceof Error ? error.message : 'AI 回答生成失败'
+          this.loadError = message
+          this.markStreamFailure(streamRevision, message)
+        },
+      )
+
+      // 等待受理：被拒绝（内容受限等）时回滚乐观消息，错误抛给页面 Toast，不进入对话
+      try {
+        await stream.accepted
+      }
+      catch (error) {
         if (streamRevision !== this.streamRevision) {
-          return
+          return false
         }
-        this.loadError = error instanceof Error ? error.message : 'AI 回答生成失败'
-        this.markStreamFailure(streamRevision)
-      })
+        console.error('[assistant] 请求被拒绝，回滚对话', error)
+        this.messages = this.messages.filter(
+          message => message.id !== userMessage.id && message.id !== assistantMessage.id,
+        )
+        this.finishStreaming(streamRevision)
+        throw error instanceof Error ? error : new Error('发送失败，请重试')
+      }
       return true
     },
 
@@ -378,9 +423,11 @@ export const useAssistantStore = defineStore('assistant', {
       }
 
       const conversationId = this.conversation.id
+      const original = this.messages[index]
       const placeholder = createPlaceholderMessage(conversationId, `local-regen-${Date.now()}`)
       this.messages.splice(index, 1, placeholder)
       const streamRevision = this.startStreaming(placeholder.id)
+      console.log('[assistant] 重新生成：占位替换并开始流式', { streamRevision })
 
       const stream = createAiStreamRequest({
         kind: 'regenerate',
@@ -398,9 +445,28 @@ export const useAssistantStore = defineStore('assistant', {
         if (streamRevision !== this.streamRevision) {
           return
         }
-        this.loadError = error instanceof Error ? error.message : '重新生成失败'
-        this.markStreamFailure(streamRevision)
+        console.error('[assistant] 重新生成流失败', error)
+        const message = error instanceof Error ? error.message : '重新生成失败'
+        this.loadError = message
+        this.markStreamFailure(streamRevision, message)
       })
+
+      // 等待受理：被拒绝时恢复原回答，错误抛给页面 Toast
+      try {
+        await stream.accepted
+      }
+      catch (error) {
+        if (streamRevision !== this.streamRevision) {
+          return false
+        }
+        console.error('[assistant] 重新生成被拒绝，恢复原回答', error)
+        const placeholderIndex = this.messages.findIndex(message => message.id === placeholder.id)
+        if (placeholderIndex !== -1) {
+          this.messages.splice(placeholderIndex, 1, original)
+        }
+        this.finishStreaming(streamRevision)
+        throw error instanceof Error ? error : new Error('重新生成失败，请重试')
+      }
       return true
     },
 
@@ -504,7 +570,7 @@ export const useAssistantStore = defineStore('assistant', {
     },
 
     /** 网络层失败且未收到完成事件时，把当前流式消息标记失败。 */
-    markStreamFailure(streamRevision: number) {
+    markStreamFailure(streamRevision: number, errorMessage?: string) {
       if (streamRevision !== this.streamRevision) {
         return
       }
@@ -513,7 +579,7 @@ export const useAssistantStore = defineStore('assistant', {
         const message = this.messages.find(item => item.id === messageId)
         if (message) {
           message.status = 'FAILED'
-          message.errorMessage = message.errorMessage || '网络异常，请重试'
+          message.errorMessage = errorMessage || message.errorMessage || '网络异常，请重试'
           message.finishedAt = new Date().toISOString()
         }
       }

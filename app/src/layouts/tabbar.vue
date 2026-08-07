@@ -49,17 +49,27 @@ export default {
     <wd-tabbar
       v-show="!isKeyboardVisible"
       :model-value="activeTabbar.name"
+      active-color="var(--app-action-primary)"
+      inactive-color="var(--app-text-tertiary)"
       bordered
       safe-area-inset-bottom
       fixed
       @change="handleTabbarChange"
     >
       <wd-tabbar-item
-        v-for="(item, index) in tabbarList" :key="index" :name="item.name"
-        :value="getTabbarItemValue(item.name)" :title="item.title"
+        v-for="item in tabbarList"
+        :key="item.name"
+        :name="item.name"
+        :value="getTabbarItemValue(item.name)"
+        :title="item.title"
       >
         <template #icon="{ active }">
-          <image class="tabbar-item__icon" :src="active ? item.iconActive : item.icon" />
+          <image
+            class="tabbar-item__icon"
+            :class="{ 'tabbar-item__icon--active': active }"
+            :src="active ? item.iconActive : item.icon"
+            mode="aspectFit"
+          />
         </template>
       </wd-tabbar-item>
     </wd-tabbar>
@@ -75,7 +85,14 @@ export default {
 }
 
 .tabbar-item__icon {
-  width: 56rpx;
-  height: 56rpx;
+  width: 52rpx;
+  height: 52rpx;
+  opacity: 0.55;
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.tabbar-item__icon--active {
+  opacity: 1;
+  transform: translateY(-2rpx);
 }
 </style>

@@ -1,30 +1,31 @@
+// SVG 作为静态资源由 uni-app image 组件跨端渲染
 export const TABBAR_ITEMS = [
   {
     name: 'home',
     title: '首页',
-    icon: '/static/tabbar/home.png',
-    iconActive: '/static/tabbar/home-active.png',
+    icon: '/static/my-icons/tab-home.svg',
+    iconActive: '/static/my-icons/tab-home-active.svg',
     pagePath: 'pages/index/index',
   },
   {
     name: 'projects',
     title: '项目',
-    icon: '/static/tabbar/project.png',
-    iconActive: '/static/tabbar/project-active.png',
+    icon: '/static/my-icons/tab-project.svg',
+    iconActive: '/static/my-icons/tab-project-active.svg',
     pagePath: 'pages/projects/index',
   },
   {
     name: 'assistant',
     title: '筑小格',
-    icon: '/static/tabbar/ai.png',
-    iconActive: '/static/tabbar/ai-active.png',
+    icon: '/static/my-icons/tab-assistant.svg',
+    iconActive: '/static/my-icons/tab-assistant-active.svg',
     pagePath: 'pages/assistant/index',
   },
   {
     name: 'profile',
     title: '我的',
-    icon: '/static/tabbar/user.png',
-    iconActive: '/static/tabbar/user-active.png',
+    icon: '/static/my-icons/tab-profile.svg',
+    iconActive: '/static/my-icons/tab-profile-active.svg',
     pagePath: 'pages/profile/index',
   },
 ] as const

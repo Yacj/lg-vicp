@@ -1,5 +1,5 @@
 // 全局 Design Token：页面和 Wot 组件共享同一套语义基线。
-:root {
+:root, page {
   // Base color
   --app-color-ink: #142b45;
   --app-color-ocean: #2F6BFF;
@@ -16,6 +16,12 @@
   --app-bg-elevated: #FFFFFF;
   --app-bg-drawer: #F7F8FA;
   --app-bg-soft: #F1F5FF;
+  --app-home-page-gradient: linear-gradient(180deg, #EDF4FF 0%, #F5F6FA 38%, #F5F6FA 100%);
+  --app-project-page-gradient: linear-gradient(180deg, #EEF4FF 0%, #F5F6FA 46%, #F5F6FA 100%);
+  --app-profile-page-gradient: linear-gradient(180deg, #F0EBFA 0%, #EDF6F5 30%, #F5F6FA 64%, #F5F6FA 100%);
+  --app-profile-account-gradient: linear-gradient(135deg, #EFE8FA 0%, #E9F4F7 54%, #EEF7F1 100%);
+  --app-home-header-bg: #EAF1FA;
+  --app-home-header-border: #DCE5F0;
   --app-text-primary: #1F1F1F;
   --app-text-secondary: #333333;
   --app-text-tertiary: #8C8C8C;
@@ -29,11 +35,13 @@
   --app-energy-soft: #EAF7F0;
   --app-ai: #47C4FF;
   --app-ai-soft: #EFFAFF;
-  --app-warning: #b7791f;
-  --app-warning-soft: #FFF7E8;
-  --app-danger: #c05640;
-  --app-danger-soft: #FFF1EE;
   --app-overlay: rgba(0, 0, 0, 0.45);
+  --app-on-brand-strong: rgba(255, 255, 255, 0.92);
+  --app-on-brand-medium: rgba(255, 255, 255, 0.78);
+  --app-on-brand-border: rgba(255, 255, 255, 0.26);
+  --app-on-brand-surface: rgba(255, 255, 255, 0.16);
+  --app-on-brand-surface-soft: rgba(255, 255, 255, 0.12);
+  --app-on-brand-glow: rgba(255, 255, 255, 0.18);
 
   // Component token
   --app-gradient-brand: linear-gradient(135deg, #2F6BFF 0%, #1747B5 100%);
@@ -46,6 +54,7 @@
   --app-radius-lg: 44rpx;
   --app-radius-pill: 999rpx;
   --app-shadow-card: 0 16rpx 48rpx rgba(20, 43, 69, 0.06);
+  --app-shadow-dock: 0 12rpx 32rpx rgba(20, 43, 69, 0.1);
   --app-shadow-input: 0 8rpx 24rpx rgba(20, 43, 69, 0.08);
   --app-shadow-float: 0 28rpx 64rpx rgba(47, 107, 255, 0.18);
   --app-transition-fast: 140ms;
@@ -115,6 +124,12 @@
   --app-bg-elevated: #1D2026;
   --app-bg-drawer: #14161A;
   --app-bg-soft: #22262F;
+  --app-home-page-gradient: linear-gradient(180deg, #17202B 0%, #101114 38%, #101114 100%);
+  --app-project-page-gradient: linear-gradient(180deg, #18212D 0%, #101114 46%, #101114 100%);
+  --app-profile-page-gradient: linear-gradient(180deg, #201B2A 0%, #172324 30%, #101114 64%, #101114 100%);
+  --app-profile-account-gradient: linear-gradient(135deg, #241E30 0%, #1B2A30 54%, #1D3028 100%);
+  --app-home-header-bg: #17202B;
+  --app-home-header-border: #283443;
   --app-text-primary: #F5F6F8;
   --app-text-secondary: #D9DCE3;
   --app-text-tertiary: #969BA6;
@@ -133,6 +148,12 @@
   --app-danger: #ef9b83;
   --app-danger-soft: #4A2C2A;
   --app-overlay: rgba(0, 0, 0, 0.68);
+  --app-on-brand-strong: rgba(255, 255, 255, 0.92);
+  --app-on-brand-medium: rgba(255, 255, 255, 0.78);
+  --app-on-brand-border: rgba(255, 255, 255, 0.26);
+  --app-on-brand-surface: rgba(255, 255, 255, 0.16);
+  --app-on-brand-surface-soft: rgba(255, 255, 255, 0.12);
+  --app-on-brand-glow: rgba(255, 255, 255, 0.18);
 
   --app-project-draft: #9aadb4;
   --app-project-active: #60a5fa;
@@ -161,6 +182,7 @@
   --app-login-input-bg: #252B35;
   --app-shadow-input: 0 8rpx 24rpx rgba(0, 0, 0, 0.2);
   --app-shadow-card: 0 16rpx 48rpx rgba(0, 0, 0, 0.18);
+  --app-shadow-dock: 0 12rpx 32rpx rgba(0, 0, 0, 0.28);
   --app-shadow-float: 0 28rpx 64rpx rgba(0, 0, 0, 0.26);
 }
 
@@ -177,6 +199,14 @@
 .page-wraper text,
 .page-wraper view {
   box-sizing: border-box;
+}
+
+/* wot-ui 以下组件源码显式声明 content-box（高度 = 固定内容高 + 安全区 padding），
+   会被上面的全局 border-box 压制导致高度塌陷（如 navbar 按钮顶进状态栏），这里按组件源码还原。 */
+.page-wraper .wd-navbar,
+.page-wraper .wd-tabbar__placeholder,
+.page-wraper .wd-tour__highlight {
+  box-sizing: content-box;
 }
 
 .app-page {
@@ -407,9 +437,7 @@
   background: transparent;
 }
 
-.page-wraper .wd-cell:active {
-  background: var(--app-bg-soft);
-}
+
 
 .page-wraper .wd-input,
 .page-wraper .wd-textarea {
@@ -461,6 +489,7 @@
   animation: app-fade-up var(--app-transition-slow) ease both;
 }
 
+/* #ifdef H5 */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -470,3 +499,4 @@
     scroll-behavior: auto !important;
   }
 }
+/* #endif */
