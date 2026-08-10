@@ -4,6 +4,7 @@ import {
   isChannelUserRole,
   userGenderLabels,
   userRoleLabels,
+  userRoleOptionsFor,
   userStatusLabels,
 } from './system-user'
 
@@ -27,5 +28,21 @@ describe('system user fixed enums', () => {
     expect(isChannelUserRole('CHANNEL_USER')).toBe(true)
     expect(isChannelUserRole('SUPER_ADMIN')).toBe(false)
     expect(isChannelUserRole('NORMAL_USER')).toBe(false)
+  })
+
+  it('hides SUPER_ADMIN from role options for non-super-admin actors', () => {
+    expect(userRoleOptionsFor('SUPER_ADMIN').map((option) => option.value)).toEqual([
+      'SUPER_ADMIN',
+      'CHANNEL_USER',
+      'NORMAL_USER',
+    ])
+    expect(userRoleOptionsFor('CHANNEL_USER').map((option) => option.value)).toEqual([
+      'CHANNEL_USER',
+      'NORMAL_USER',
+    ])
+    expect(userRoleOptionsFor('NORMAL_USER').map((option) => option.value)).toEqual([
+      'CHANNEL_USER',
+      'NORMAL_USER',
+    ])
   })
 })

@@ -302,3 +302,73 @@ AI 流式要求：
 - 动态路由的 `component` 字段只作为白名单 key，不可直接拼接 import 路径执行。
 - 未实现接口不写成页面真实能力；统一进入 `api-gaps.md`。
 - 数据库表、worker、内部 service 不作为页面能力依据。
+
+## 8. VICP 专业业务模块（一期交付）
+
+> 本节记录 B 端专业业务模块（企业内容/知识中心/产品中心/基础数据/系统构造/热工中心/材料对比/标准政策/节点图库/报告中心/审核中心）的目标架构与真实状态。菜单由后端 `seed.ts` 重组（11 个一级目录，旧单级菜单按 routePath 幂等转目录），前端动态路由由 `getRouters` 递归投影，页面组件落在 `src/views/**/*.vue` 即自动进入构建期 `componentMap` 白名单。
+
+### 8.1 菜单架构
+
+```text
+企业内容 /content           企业简介 /content/profile、企业证书 /content/certificates
+知识中心 /knowledge         文档资料 /knowledge/documents、分类管理 /knowledge/categories、
+                           别名词典 /knowledge/aliases、知识抓取源 /knowledge/crawlers、检索日志 /knowledge/search-logs
+产品中心 /products          产品系列 /products/series、产品规格 /products/specs、
+                           产品参数 /products/parameters、产品附件 /products/attachments
+基础数据 /masterdata        材料库 /masterdata/materials、材料参数版本 /masterdata/parameter-versions
+系统构造 /construction      保温系统 /construction/systems、构造方案 /construction/schemes
+热工中心 /thermal           图集参考表 /thermal/sets、计算规则 /thermal/calc-rules、
+                           标准限值 /thermal/standard-limits、计算记录 /thermal/calc-records
+材料对比 /comparison        对比版本 /comparison/versions
+标准政策 /standard          采集来源 /standard/sources、标准文档 /standard/documents、
+                           指标管理 /standard/indicators、替代关系 /standard/replacements
+节点图库 /nodes             节点图纸 /nodes/drawings
+报告中心 /reports           报告模板 /reports/templates、模板报告 /reports/center
+审核中心 /review-center     审核队列 /review-center/queue
+```
+
+### 8.2 页面状态（28 页全部已实现）
+
+| 页面 | 路由 | 状态与差异 |
+| --- | --- | --- |
+| 企业简介 | `/content/profile` | **已实现**；版本化审核实体，工作流提交/通过/驳回/发布/停用/新版本 |
+| 企业证书 | `/content/certificates` | **已实现**；同上，含证书有效期展示 |
+| 文档资料 | `/knowledge/documents` | **已实现**；文档 CRUD + 当前版本状态展示；文档级启停无后端端点，版本上传/解析/审核在版本页（后续批次） |
+| 分类管理 | `/knowledge/categories` | **已实现**；扁平分类树（parentId），启停 |
+| 别名词典 | `/knowledge/aliases` | **已实现**；术语/别名/类型/作用域，启停 |
+| 知识抓取源 | `/knowledge/crawlers` | **已实现**；CRUD + 手动触发抓取（`crawler:run`） |
+| 检索日志 | `/knowledge/search-logs` | **已实现**；只读，归一化词/匹配模式/最高命中 |
+| 产品系列 | `/products/series` | **已实现**；版本化审核实体 + 工作流 |
+| 产品规格 | `/products/specs` | **已实现**；规格等级/标准类型/生产状态筛选 + 工作流 |
+| 产品参数 | `/products/parameters` | **已实现**；参数来源枚举筛选 + 工作流 |
+| 产品附件 | `/products/attachments` | **已实现**；非版本化实体，按目标类型筛选 + 审核流 |
+| 材料库 | `/masterdata/materials` | **已实现**；版本化审核实体 + 工作流 |
+| 材料参数版本 | `/masterdata/parameter-versions` | **已实现**；数值参数（密度/导热系数等）+ 工作流 |
+| 保温系统 | `/construction/systems` | **已实现**；版本化审核实体 + 工作流；系统发布后构造方案才能挂载 |
+| 构造方案 | `/construction/schemes` | **已实现**；按系统筛选 + 工作流；构造层/产品选项子表编辑在后续批次 |
+| 图集参考表 | `/thermal/sets` | **已实现**；版本化审核实体 + 工作流 |
+| 计算规则 | `/thermal/calc-rules` | **已实现**；公式版本/参数码配置 + 工作流 |
+| 标准限值 | `/thermal/standard-limits` | **已实现**；地区标准限值 + 工作流 |
+| 计算记录 | `/thermal/calc-records` | **已实现**；只读 + 数据快照查看 |
+| 对比版本 | `/comparison/versions` | **已实现**；版本化审核实体 + 结构校验 + 工作流；材料/维度/规则子表编辑在后续批次 |
+| 采集来源 | `/standard/sources` | **已实现**；抓取源启停 + 手动抓取（`standard:run`） |
+| 标准文档 | `/standard/documents` | **已实现**；列表（纯数组）+ 人工组合录入（指标至少 1 条）+ 审核/发布；列表无服务端分页（后端返回纯数组，前端本地适配分页壳） |
+| 指标管理 | `/standard/indicators` | **已实现**；只读指标列表（按文档/审核状态/类型筛选） |
+| 替代关系 | `/standard/replacements` | **已实现**；新旧标准替代/废止，确认/驳回 |
+| 节点图纸 | `/nodes/drawings` | **已实现**；版本化审核实体 + 工作流；节点链接编辑在后续批次 |
+| 报告模板 | `/reports/templates` | **已实现**；章节配置（DATA/TEXT）行编辑 + 结构校验弹窗 + 版本化工作流 |
+| 模板报告 | `/reports/center` | **已实现**；按项目上下文列表 + 提交审核/通过/驳回；报告生成入口（候选确认后）在后续批次 |
+| 审核队列 | `/review-center/queue` | **已实现**；统一审核中心（16 类实体），实体类型/状态筛选，详情含实体数据预览，通过/驳回决议 |
+
+### 8.3 关键契约
+
+- 统一前缀 `/api/v1/platform/{module}`；全部端点 `preHandler: [app.authenticate]` + 权限码校验（`SUPER_ADMIN` 直通）。
+- 工作流六端点：`POST /{resource}/:id/{submit|approve|reject|publish|disable|new-version}`；approve 可选 `approvalNote`，reject 必填 `rejectReason`，new-version 可选 `changeNote`。前端统一封装 `useWorkflowActions` + `postWorkflow`。
+- 权限码模式：各域 `list/add/edit/remove/approve/publish`（如 `system:knowledge:doc:list`）；审核中心 `system:review:list/approve`；模板报告 `system:report:generate/review`。
+- 列表分页差异：标准政策模块列表接口返回纯数组（无分页），前端本地适配；其余模块服务端分页。
+- 证据等级 `evidenceLevel`（A/B/C）后端无正式语义定义，前端只做原文展示（`evidenceLevelLabels`）。
+- 知识文档状态为 `ACTIVE|DISABLED`、版本状态为 `DRAFT|APPROVED|PUBLISHED|DISABLED`（与专业主数据 `md_review_status` 不同），状态映射见 `src/utils/professional-status.ts`。
+
+### 8.4 后续批次（未交付）
+
+构造层/产品选项/方案文档子表编辑、热工行编辑与导入向导、材料对比子表（材料/维度/规则/证据）编辑、知识文档版本页/切片/重建解析、节点链接编辑、报告生成详情（候选确认 + `POST /reports/generate`）、计算器与候选查询页（多个条件返回多个候选，用户自选）。

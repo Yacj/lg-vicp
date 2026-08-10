@@ -6,7 +6,7 @@ import type { CrudDrawerMode } from '@/types/crud'
 const props = withDefaults(defineProps<{
   visible: boolean
   mode: CrudDrawerMode
-  formData: Record<string, unknown>
+  formData: object
   rules?: FormRules
   title?: string
   description?: string

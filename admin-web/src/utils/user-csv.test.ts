@@ -3,6 +3,7 @@ import {
   USER_IMPORT_HEADERS,
   buildUserExportFilename,
   buildUserImportTemplate,
+  buildUserImportTips,
   isUserImportHeaderComplete,
 } from './user-csv'
 
@@ -31,6 +32,12 @@ describe('user import csv utilities', () => {
     expect(isUserImportHeaderComplete(['identifier', 'password', 'displayName', 'role', 'email'])).toBe(true)
     expect(isUserImportHeaderComplete(['identifier', 'password'])).toBe(false)
     expect(isUserImportHeaderComplete([])).toBe(false)
+  })
+
+  it('hides SUPER_ADMIN from import tips for non-super-admin actors', () => {
+    expect(buildUserImportTips('SUPER_ADMIN')).toContain('SUPER_ADMIN / CHANNEL_USER / NORMAL_USER')
+    expect(buildUserImportTips('NORMAL_USER')).not.toContain('SUPER_ADMIN')
+    expect(buildUserImportTips('CHANNEL_USER')).toContain('超级管理员仅由超级管理员创建')
   })
 
   it('generates a timestamped export filename', () => {

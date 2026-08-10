@@ -15,7 +15,7 @@ export interface AppTableAction {
   loading?: boolean
 }
 
-export interface CrudListRequest<TQuery extends Record<string, unknown>> {
+export interface CrudListRequest<TQuery> {
   query: Readonly<TQuery>
   page: number
   pageSize: number
@@ -24,7 +24,7 @@ export interface CrudListRequest<TQuery extends Record<string, unknown>> {
 
 export type CrudListFetcher<
   TItem,
-  TQuery extends Record<string, unknown>,
+  TQuery,
 > = (request: CrudListRequest<TQuery>) => Promise<PageResult<TItem>>
 
 export interface CrudDrawerSubmitContext<TForm, TEntity> {

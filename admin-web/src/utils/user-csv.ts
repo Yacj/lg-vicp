@@ -1,3 +1,5 @@
+import type { SystemUserRole } from '@/types/system-management'
+
 /**
  * 用户导入 CSV 工具：模板与表头完全对齐后端 /platform/users/import 的契约
  * （见 backend/src/modules/users/users.routes.ts 的 importBodySchema）。
@@ -16,13 +18,19 @@ export const USER_IMPORT_HEADERS = [
 
 const USER_IMPORT_REQUIRED_HEADERS = ['identifier', 'password', 'displayName', 'role'] as const
 
-export const USER_IMPORT_TIPS = [
-  '表头必须包含 identifier、password、displayName、role 四个字段',
-  'identifier 为登录用户名或手机号（手机号格式自动识别为手机号账号）',
-  'role 取值：SUPER_ADMIN / CHANNEL_USER / NORMAL_USER',
-  'role 为 CHANNEL_USER 时必须填写 channelType（DEALER 经销商 / SALESPERSON 业务员）',
-  'password 长度 12-128 位',
-].join('；')
+/** 导入提示按操作者角色投影：非超级管理员不提示可导入超级管理员。 */
+export function buildUserImportTips(actorRole: SystemUserRole): string {
+  const roleHint = actorRole === 'SUPER_ADMIN'
+    ? 'role 取值：SUPER_ADMIN / CHANNEL_USER / NORMAL_USER'
+    : 'role 取值：CHANNEL_USER / NORMAL_USER（超级管理员仅由超级管理员创建）'
+  return [
+    '表头必须包含 identifier、password、displayName、role 四个字段',
+    'identifier 为登录用户名或手机号（手机号格式自动识别为手机号账号）',
+    roleHint,
+    'role 为 CHANNEL_USER 时必须填写 channelType（DEALER 经销商 / SALESPERSON 业务员）',
+    'password 长度 12-128 位',
+  ].join('；')
+}
 
 /** 生成导入模板 CSV 文本（不含 BOM，下载时由调用方添加）。 */
 export function buildUserImportTemplate(): string {

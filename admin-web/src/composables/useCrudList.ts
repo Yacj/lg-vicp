@@ -13,7 +13,7 @@ import type { CrudKey, CrudListFetcher, CrudListStatus } from '@/types/crud'
 
 export interface UseCrudListOptions<
   TItem extends TableRowData,
-  TQuery extends Record<string, unknown>,
+  TQuery,
 > {
   createQuery: () => TQuery
   fetcher: CrudListFetcher<TItem, TQuery>
@@ -31,9 +31,9 @@ function positiveInteger(value: number, fallback: number): number {
 
 export function useCrudList<
   TItem extends TableRowData,
-  TQuery extends Record<string, unknown>,
+  TQuery,
 >(options: UseCrudListOptions<TItem, TQuery>) {
-  const query = reactive(options.createQuery()) as TQuery
+  const query = reactive(options.createQuery() as object) as TQuery
   const data = shallowRef<TItem[]>([])
   const current = ref(positiveInteger(options.initialPage ?? 1, 1))
   const pageSize = ref(positiveInteger(options.pageSize ?? 20, 20))
@@ -136,8 +136,8 @@ export function useCrudList<
   }
 
   async function reset(): Promise<void> {
-    Object.keys(query).forEach(key => delete query[key])
-    Object.assign(query, options.createQuery())
+    Object.keys(query as object).forEach(key => delete (query as Record<string, unknown>)[key])
+    Object.assign(query as object, options.createQuery() as object)
     current.value = 1
     clearSelection()
     await load()
@@ -170,7 +170,7 @@ export function useCrudList<
   }
 
   function setQuery(patch: Partial<TQuery>): void {
-    Object.assign(query, patch)
+    Object.assign(query as object, patch as object)
   }
 
   function cancel(): void {

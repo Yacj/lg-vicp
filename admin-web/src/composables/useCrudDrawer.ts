@@ -6,7 +6,7 @@ import type {
 } from '@/types/crud'
 
 export interface UseCrudDrawerOptions<
-  TForm extends Record<string, unknown>,
+  TForm,
   TEntity,
   TResult,
 > {
@@ -24,14 +24,14 @@ export type CrudDrawerSubmitResult<TResult>
     | { ok: true, value: TResult }
 
 export function useCrudDrawer<
-  TForm extends Record<string, unknown>,
+  TForm,
   TEntity,
   TResult = unknown,
 >(options: UseCrudDrawerOptions<TForm, TEntity, TResult>) {
   const visible = ref(false)
   const mode = ref<CrudDrawerMode>('create')
   const entity = shallowRef<TEntity | null>(null)
-  const formData = reactive(options.createForm()) as TForm
+  const formData = reactive(options.createForm() as object) as TForm
   const status = ref<CrudMutationStatus>('idle')
   const error = shallowRef<unknown>(null)
 
@@ -39,8 +39,8 @@ export function useCrudDrawer<
   const isReadonly = computed(() => mode.value === 'view')
 
   function replaceForm(nextForm: TForm): void {
-    Object.keys(formData).forEach(key => delete formData[key])
-    Object.assign(formData, nextForm)
+    Object.keys(formData as object).forEach(key => delete (formData as Record<string, unknown>)[key])
+    Object.assign(formData as object, nextForm as object)
   }
 
   function begin(nextMode: CrudDrawerMode, nextEntity: TEntity | null, nextForm: TForm): void {

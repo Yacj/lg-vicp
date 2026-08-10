@@ -341,6 +341,7 @@ declare global {
   const useWindowFocus: typeof import('@vueuse/core').useWindowFocus
   const useWindowScroll: typeof import('@vueuse/core').useWindowScroll
   const useWindowSize: typeof import('@vueuse/core').useWindowSize
+  const useWorkflowActions: typeof import('../composables/useWorkflowActions').useWorkflowActions
   const versionActionMessages: typeof import('../composables/useAiPromptManagement').versionActionMessages
   const watch: typeof import('vue').watch
   const watchArray: typeof import('@vueuse/core').watchArray
@@ -358,6 +359,7 @@ declare global {
   const watchTriggerable: typeof import('@vueuse/core').watchTriggerable
   const watchWithFilter: typeof import('@vueuse/core').watchWithFilter
   const whenever: typeof import('@vueuse/core').whenever
+  const workflowActionsForStatus: typeof import('../composables/useWorkflowActions').workflowActionsForStatus
 }
 // for type re-export
 declare global {
@@ -460,4 +462,7 @@ declare global {
   // @ts-ignore
   export type { UserTableRow, UserSearchQuery, UserForm } from '../composables/useUserManagement'
   import('../composables/useUserManagement')
+  // @ts-ignore
+  export type { WorkflowTarget, UseWorkflowActionsOptions, WorkflowActions } from '../composables/useWorkflowActions'
+  import('../composables/useWorkflowActions')
 }

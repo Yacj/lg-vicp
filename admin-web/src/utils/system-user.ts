@@ -22,6 +22,18 @@ export const userRoleOptions: Array<{ label: string; value: SystemUserRole }> = 
   { label: userRoleLabels.NORMAL_USER, value: 'NORMAL_USER' },
 ]
 
+/**
+ * 按操作者角色投影可分配的账号类型：
+ * 仅超级管理员可创建/编辑超级管理员，其余操作者不出现 SUPER_ADMIN 选项。
+ */
+export function userRoleOptionsFor(
+  actorRole: SystemUserRole,
+): Array<{ label: string; value: SystemUserRole }> {
+  return actorRole === 'SUPER_ADMIN'
+    ? userRoleOptions
+    : userRoleOptions.filter((option) => option.value !== 'SUPER_ADMIN')
+}
+
 /** 渠道类型仅对渠道用户有意义，非渠道用户后端强制为 null。 */
 export const channelTypeLabels: Record<SystemChannelType, string> = {
   DEALER: '经销商',

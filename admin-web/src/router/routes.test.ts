@@ -24,6 +24,7 @@ describe('static route boundaries', () => {
       'AiConfigModels',
       'AiConfigScenes',
       'AiConfigPrompts',
+      'AiConfigFilters',
       'AiOpsConversations',
       'AiOpsConversationDetail',
       'AiOpsFeedbacks',

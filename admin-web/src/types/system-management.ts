@@ -203,6 +203,8 @@ export interface RoleDepartmentIdsResult {
 }
 
 export interface SystemDepartmentMember extends SystemRecord {
+  /** 登录账号（后端从 user_identities 取最早一条 identifier）。 */
+  loginIdentifier: string | null
   phone: string | null
   email: string | null
   displayName: string

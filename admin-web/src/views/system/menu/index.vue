@@ -266,7 +266,7 @@ watch(() => menuDrawer.formData.menuType, type => resetTypeFields(type))
       <t-form-item label="菜单类型" name="menuType">
         <t-select
           v-model="menuDrawer.formData.menuType"
-          :disabled="menuDrawerMode === 'edit' && Boolean(menuDrawer.entity)"
+          :disabled="Boolean(menuDrawer.entity)"
           :options="[
             { label: '目录', value: 'DIRECTORY' },
             { label: '菜单', value: 'MENU' },

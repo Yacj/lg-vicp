@@ -19,6 +19,7 @@ import {
   type UserForm,
   type UserTableRow,
 } from '@/composables/useUserManagement'
+import { useUserStore } from '@/stores/user'
 import type { AppTableAction } from '@/types/crud'
 import type {
   SystemUserDetail,
@@ -33,10 +34,10 @@ import {
   isChannelUserRole,
   userGenderOptions,
   userRoleLabels,
-  userRoleOptions,
+  userRoleOptionsFor,
   userStatusLabels,
 } from '@/utils/system-user'
-import { USER_IMPORT_TIPS } from '@/utils/user-csv'
+import { buildUserImportTips } from '@/utils/user-csv'
 
 const {
   closeDetail,
@@ -70,6 +71,25 @@ const {
 } = useUserManagement()
 const { canAccess } = usePermissionAccess()
 const { isMobile } = useResponsiveShell()
+const userStore = useUserStore()
+
+/**
+ * 账号类型下拉按操作者角色投影：非超级管理员不可分配超级管理员。
+ * profile 未加载时按最保守（非超管）处理。
+ */
+const actorRole = computed<SystemUserRole>(() => userStore.profile?.role ?? 'NORMAL_USER')
+
+/**
+ * 编辑兜底：若被编辑用户恰为超级管理员而操作者非超管，
+ * 保留原值作为禁用选项，避免下拉空白且保证提交不回改角色。
+ */
+const accountRoleOptions = computed(() => {
+  const selectable = userRoleOptionsFor(actorRole.value)
+  const current = userDrawer.formData.role
+  return selectable.some((option) => option.value === current)
+    ? selectable
+    : [...selectable, { label: userRoleLabels[current], value: current, disabled: true }]
+})
 
 const canList = computed(() => canAccess({ permissions: ['system:user:list'] }))
 const canAdd = computed(() => canAccess({ permissions: ['system:user:add'] }))
@@ -148,7 +168,7 @@ const importUploadRef = ref<InstanceType<typeof AppImportUpload> | null>(null)
 // ---------- 列表列 ----------
 
 function renderAccount(row: TableRowData): string {
-  return row.phone ?? row.email ?? '—'
+  return row.loginIdentifier ?? row.phone ?? row.email ?? '—'
 }
 
 function renderRole(_h: unknown, { row }: { row: TableRowData }) {
@@ -268,7 +288,7 @@ const rules = computed<FormRules<UserForm>>(() => ({
         ],
         password: [
           { message: '请输入初始密码', required: true },
-          { message: '密码至少需要 12 个字符', min: 12 },
+          { message: '密码至少需要 5 个字符', min: 5 },
           { message: '密码不能超过 128 个字符', max: 128 },
         ],
       }
@@ -551,7 +571,7 @@ onMounted(() => {
           <dl class="vicp-user-card__meta">
             <div>
               <dt>登录账号 / 手机号</dt>
-              <dd>{{ user.phone ?? user.email ?? '—' }}</dd>
+              <dd>{{ user.loginIdentifier ?? user.phone ?? user.email ?? '—' }}</dd>
             </div>
             <div>
               <dt>账号类型 / 渠道</dt>
@@ -621,7 +641,7 @@ onMounted(() => {
         <t-input
           v-model="userDrawer.formData.password"
           autocomplete="new-password"
-          placeholder="至少 12 位字符"
+          placeholder="至少 5 位字符"
           type="password"
         />
       </t-form-item>
@@ -645,7 +665,7 @@ onMounted(() => {
       <t-form-item label="账号类型" name="role">
         <t-select
           v-model="userDrawer.formData.role"
-          :options="userRoleOptions"
+          :options="accountRoleOptions"
           placeholder="请选择账号类型"
         />
       </t-form-item>
@@ -801,7 +821,7 @@ onMounted(() => {
           :handler="handleImportFile"
           :max="1"
           placeholder="选择 CSV 文件"
-          :tips="USER_IMPORT_TIPS"
+          :tips="buildUserImportTips(actorRole)"
         />
         <template v-if="importState.result">
           <t-alert
@@ -839,7 +859,7 @@ onMounted(() => {
           </div>
           <div>
             <dt>登录账号 / 手机号</dt>
-            <dd>{{ detailState.data.user.phone ?? detailState.data.user.email ?? '—' }}</dd>
+            <dd>{{ detailState.data.user.loginIdentifier ?? detailState.data.user.phone ?? detailState.data.user.email ?? '—' }}</dd>
           </div>
           <div>
             <dt>账号类型</dt>
