@@ -6,11 +6,15 @@ import { createDatabase } from "./client.js";
 import { KNOWLEDGE_PERMISSION_SEEDS } from "../shared/knowledge-permissions.js";
 import { MD_PERMISSION_SEEDS } from "../shared/md-permissions.js";
 import { CONSTRUCTION_PERMISSION_SEEDS } from "../shared/construction-permissions.js";
+import { THERMAL_PERMISSION_SEEDS } from "../shared/thermal-permissions.js";
+import { STANDARD_PERMISSION_SEEDS } from "../shared/standard-permissions.js";
+import { COMPARISON_PERMISSION_SEEDS } from "../shared/comparison-permissions.js";
 import { buildRankingRuleSeeds } from "../modules/knowledge/knowledge-ingest.service.js";
 import {
   aiModels,
   aiProviders,
   aiScenes,
+  comparisonDimensions,
   knowledgeAliases,
   knowledgeCategories,
   knowledgeRankingRules,
@@ -108,7 +112,10 @@ const permissionSeeds = [
   { code: "system:ai:filter:remove", name: "删除对话围栏词条", resource: "ai_filter", action: "remove" },
   ...KNOWLEDGE_PERMISSION_SEEDS,
   ...MD_PERMISSION_SEEDS,
-  ...CONSTRUCTION_PERMISSION_SEEDS
+  ...CONSTRUCTION_PERMISSION_SEEDS,
+  ...THERMAL_PERMISSION_SEEDS,
+  ...STANDARD_PERMISSION_SEEDS,
+  ...COMPARISON_PERMISSION_SEEDS
 ] as const;
 
 try {
@@ -237,6 +244,27 @@ try {
     await ensureMenu({ parentId: constructionMenuId, menuType: "BUTTON", name: "构造方案新增", routePath: "/construction/add", sortOrder: 10, permissionCode: "system:construction:add" });
     await ensureMenu({ parentId: constructionMenuId, menuType: "BUTTON", name: "构造方案审核", routePath: "/construction/approve", sortOrder: 20, permissionCode: "system:construction:approve" });
     await ensureMenu({ parentId: constructionMenuId, menuType: "BUTTON", name: "构造方案发布", routePath: "/construction/publish", sortOrder: 30, permissionCode: "system:construction:publish" });
+    const thermalMenuId = await ensureMenu({
+      menuType: "MENU", name: "图集热工参考表", routePath: "/thermal", component: "thermal/index", sortOrder: 37, permissionCode: "system:thermal:list"
+    });
+    await ensureMenu({ parentId: thermalMenuId, menuType: "BUTTON", name: "图集热工导入", routePath: "/thermal/import", sortOrder: 10, permissionCode: "system:thermal:import" });
+    await ensureMenu({ parentId: thermalMenuId, menuType: "BUTTON", name: "图集热工审核", routePath: "/thermal/approve", sortOrder: 20, permissionCode: "system:thermal:approve" });
+    await ensureMenu({ parentId: thermalMenuId, menuType: "BUTTON", name: "图集热工发布", routePath: "/thermal/publish", sortOrder: 30, permissionCode: "system:thermal:publish" });
+    const comparisonMenuId = await ensureMenu({
+      menuType: "MENU", name: "材料对比规则", routePath: "/comparison", component: "comparison/index", sortOrder: 38, permissionCode: "system:comparison:list"
+    });
+    await ensureMenu({ parentId: comparisonMenuId, menuType: "BUTTON", name: "材料对比新增", routePath: "/comparison/add", sortOrder: 10, permissionCode: "system:comparison:add" });
+    await ensureMenu({ parentId: comparisonMenuId, menuType: "BUTTON", name: "材料对比审核", routePath: "/comparison/approve", sortOrder: 20, permissionCode: "system:comparison:approve" });
+    await ensureMenu({ parentId: comparisonMenuId, menuType: "BUTTON", name: "材料对比发布", routePath: "/comparison/publish", sortOrder: 30, permissionCode: "system:comparison:publish" });
+
+    // 材料对比五维（固定，服务层禁止删除/禁用）与可扩展子指标目录
+    await tx.insert(comparisonDimensions).values([
+      { code: "thermal", name: "保温", sortOrder: 10, remark: "五维固定维度" },
+      { code: "fire", name: "防火", sortOrder: 20, remark: "五维固定维度" },
+      { code: "durability", name: "耐久", sortOrder: 30, remark: "五维固定维度" },
+      { code: "construction", name: "施工", sortOrder: 40, remark: "五维固定维度" },
+      { code: "approval", name: "报审", sortOrder: 50, remark: "五维固定维度" }
+    ]).onConflictDoNothing();
 
     await tx.insert(aiProviders).values({
       code: "deepseek",
@@ -286,7 +314,7 @@ try {
     const sceneSeeds = [
       { code: "general_chat", name: "通用对话", description: "通用对话，不依赖项目、知识库与计算工具", allowReasoning: true, requireProject: false, allowFileUpload: false, allowKnowledgeSearch: false, allowTools: false, enabled: true, sort: 1 },
       { code: "project_design", name: "项目设计", description: "项目设计咨询（未开放：依赖知识库与确定性计算工具）", allowReasoning: false, requireProject: true, allowFileUpload: false, allowKnowledgeSearch: false, allowTools: false, enabled: false, sort: 2 },
-      { code: "material_compare", name: "材料对比", description: "材料对比分析（未开放：依赖知识库与计算工具）", allowReasoning: false, requireProject: true, allowFileUpload: false, allowKnowledgeSearch: false, allowTools: false, enabled: false, sort: 3 },
+      { code: "material_compare", name: "材料对比", description: "材料对比分析（消费后台已审核对比规则）", allowReasoning: false, requireProject: true, allowFileUpload: false, allowKnowledgeSearch: false, allowTools: false, enabled: true, sort: 3 },
       { code: "standard_qa", name: "标准问答", description: "建筑标准条文问答（未开放：依赖知识库）", allowReasoning: false, requireProject: false, allowFileUpload: false, allowKnowledgeSearch: false, allowTools: false, enabled: false, sort: 4 },
       { code: "report_generate", name: "报告生成", description: "工程报告生成（未开放：依赖知识库与报告模板）", allowReasoning: false, requireProject: true, allowFileUpload: false, allowKnowledgeSearch: false, allowTools: false, enabled: false, sort: 5 },
       { code: "information_extract", name: "信息抽取", description: "建筑资料信息抽取（未开放：依赖知识库）", allowReasoning: false, requireProject: true, allowFileUpload: false, allowKnowledgeSearch: false, allowTools: false, enabled: false, sort: 6 },
@@ -347,7 +375,7 @@ try {
 
     if (deepSeekModel) {
       await tx.update(aiScenes).set({ defaultModelId: deepSeekModel.id, updatedAt: new Date() })
-        .where(and(inArray(aiScenes.code, ["general_chat", "conversation_title"]), isNull(aiScenes.defaultModelId)));
+        .where(and(inArray(aiScenes.code, ["general_chat", "material_compare", "conversation_title"]), isNull(aiScenes.defaultModelId)));
     }
   });
 

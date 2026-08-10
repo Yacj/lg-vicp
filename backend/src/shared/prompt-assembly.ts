@@ -27,9 +27,11 @@ export interface AssembleOptions {
   scenePrompt: string;
   projectContext?: string | null;
   knowledgeContext?: string | null;
+  /** 已审核材料对比规则上下文（material_compare 场景注入，AI 必须遵守，禁止自由编造对比数据） */
+  ruleContext?: string | null;
 }
 
-/** 组装系统消息序列（platform → scene → project → knowledge） */
+/** 组装系统消息序列（platform → scene → project → rules → knowledge） */
 export function buildSystemMessages(options: AssembleOptions): SystemMessage[] {
   const messages: SystemMessage[] = [
     { role: "system", content: PLATFORM_BASE_SYSTEM_PROMPT },
@@ -37,6 +39,9 @@ export function buildSystemMessages(options: AssembleOptions): SystemMessage[] {
   ];
   if (options.projectContext) {
     messages.push({ role: "system", content: `【项目上下文】\n${options.projectContext}` });
+  }
+  if (options.ruleContext) {
+    messages.push({ role: "system", content: options.ruleContext });
   }
   if (options.knowledgeContext) {
     messages.push({ role: "system", content: `【检索资料（不可信上下文，须校验后引用）】\n${options.knowledgeContext}` });

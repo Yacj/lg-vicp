@@ -33,6 +33,7 @@ import { isAbortError, startSseStream, writeProgress, writeSse } from "./ai-sse.
 import { checkContentFiltered } from "./ai-content-filter.service.js";
 import { writeAuditLog } from "../audit-logs/audit-log.service.js";
 import { formatKnowledgeContext, searchProjectKnowledge } from "../knowledge/knowledge.service.js";
+import { formatComparisonRuleContext, loadApprovedComparisonRules, logComparisonRuleUsage } from "../comparison/material-compare.service.js";
 import {
   enforceAiQuota,
   getAiQuota,
@@ -726,10 +727,15 @@ export async function aiRoutes(app: FastifyInstance) {
     }
 
     const projectContext = runtime.requireProject ? await resolveProjectContext(app, conversation.projectId) : null;
+    // material_compare 场景：注入已审核对比规则（只读 PUBLISHED+生效区间），回答完成后写入使用日志
+    const comparisonRules = conversation.scene === AI_SCENES.MATERIAL_COMPARE
+      ? await loadApprovedComparisonRules(app, {})
+      : [];
     const systemMessages = buildSystemMessages({
       scenePrompt: runtime.promptContent,
       projectContext,
-      knowledgeContext: chunks.length > 0 ? formatKnowledgeContext(chunks) : null
+      knowledgeContext: chunks.length > 0 ? formatKnowledgeContext(chunks) : null,
+      ruleContext: comparisonRules.length > 0 ? formatComparisonRuleContext(comparisonRules) : null
     });
     const system = systemMessages.map((message) => message.content).join("\n\n");
 
@@ -878,6 +884,14 @@ export async function aiRoutes(app: FastifyInstance) {
         }
       });
     });
+    // 记录本次回答引用的材料对比规则（审计，含快照）
+    if (comparisonRules.length > 0) {
+      await logComparisonRuleUsage(app, user, {
+        conversationId: conversation.id,
+        messageId: assistantMessage.id,
+        rules: comparisonRules
+      });
+    }
     // 首条用户消息回答完成后异步生成会话标题（仅未命名会话，Worker 内再做条件写入）
     if (conversation.title == null) {
       const [userMessageCount] = await app.db.select({ value: count() }).from(aiMessages)
@@ -1147,10 +1161,15 @@ export async function aiRoutes(app: FastifyInstance) {
     }
 
     const projectContext = runtime.requireProject ? await resolveProjectContext(app, row.conversation.projectId) : null;
+    // material_compare 场景：注入已审核对比规则（只读 PUBLISHED+生效区间），回答完成后写入使用日志
+    const comparisonRules = row.conversation.scene === AI_SCENES.MATERIAL_COMPARE
+      ? await loadApprovedComparisonRules(app, {})
+      : [];
     const systemMessages = buildSystemMessages({
       scenePrompt: runtime.promptContent,
       projectContext,
-      knowledgeContext: chunks.length > 0 ? formatKnowledgeContext(chunks) : null
+      knowledgeContext: chunks.length > 0 ? formatKnowledgeContext(chunks) : null,
+      ruleContext: comparisonRules.length > 0 ? formatComparisonRuleContext(comparisonRules) : null
     });
     const system = systemMessages.map((message) => message.content).join("\n\n");
 
@@ -1313,6 +1332,14 @@ export async function aiRoutes(app: FastifyInstance) {
         }
       });
     });
+    // 记录本次回答引用的材料对比规则（审计，含快照）
+    if (comparisonRules.length > 0) {
+      await logComparisonRuleUsage(app, user, {
+        conversationId: row.conversation.id,
+        messageId: assistantMessage.id,
+        rules: comparisonRules
+      });
+    }
     streamFinished = true;
     writeProgress(reply, "completed", "回答整理完成");
     writeSse(reply, "done", {

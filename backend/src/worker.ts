@@ -10,7 +10,9 @@ import { createObjectStorage } from "./storage/index.js";
 import { createDocumentProcessor } from "./workers/document.worker.js";
 import { createReportProcessor } from "./workers/report.worker.js";
 import { createConversationTitleProcessor } from "./workers/conversation-title.worker.js";
+import { createThermalImportProcessor } from "./workers/thermal-import.worker.js";
 import { runCrawlerSource } from "./modules/knowledge/knowledge-ingest.service.js";
+import { runStandardCrawl } from "./modules/standard/standard-crawl.service.js";
 import { configureConsoleEncoding } from "./shared/console-encoding.js";
 
 configureConsoleEncoding();
@@ -26,6 +28,7 @@ const workers = [
   new Worker(QUEUE_NAMES.DOCUMENT_PROCESSING, createDocumentProcessor(db, storage), { connection: redis, concurrency: 2, lockDuration: 5 * 60 * 1000 }),
   new Worker(QUEUE_NAMES.REPORT_GENERATION, createReportProcessor(db, storage), { connection: redis, concurrency: 1, lockDuration: 10 * 60 * 1000 }),
   new Worker(QUEUE_NAMES.AI_TITLE_GENERATION, createConversationTitleProcessor(db), { connection: redis, concurrency: 2, lockDuration: 2 * 60 * 1000 }),
+  new Worker(QUEUE_NAMES.THERMAL_IMPORT, createThermalImportProcessor(db, storage), { connection: redis, concurrency: 2, lockDuration: 5 * 60 * 1000 }),
   new Worker(QUEUE_NAMES.MAINTENANCE, async (job) => {
     const executionId = typeof job.data?.executionId === "string" ? job.data.executionId : undefined;
     if (executionId) await db.update(cronExecutions).set({ status: "RUNNING", startedAt: new Date() }).where(eq(cronExecutions.id, executionId));
@@ -37,6 +40,13 @@ const workers = [
         const queues = createQueues(redis);
         const result = await runCrawlerSource({ db, storage, queues }, null, sourceId);
         return { message: result.message, sourceName: result.sourceName };
+      }
+      // 定时任务按 job.name 分发：地方标准站点抓取
+      if (job.name === "standard_crawl") {
+        const crawlJobId = typeof job.data?.crawlJobId === "string" ? job.data.crawlJobId : undefined;
+        if (!crawlJobId) throw new Error("standard_crawl 任务缺少 crawlJobId 参数");
+        const stats = await runStandardCrawl({ db, storage }, crawlJobId);
+        return { message: `标准抓取完成：新增 ${stats.new}、变更 ${stats.changed}、失败 ${stats.failed}`, crawlJobId };
       }
       if (executionId) await db.update(cronExecutions).set({ status: "SUCCESS", finishedAt: new Date() }).where(eq(cronExecutions.id, executionId));
       return { message: "维护任务执行完成" };
@@ -53,7 +63,7 @@ for (const worker of workers) {
   worker.on("error", (error) => console.error(`队列 Worker 异常：${worker.name}`, error));
 }
 
-console.info("文档、报告和维护任务 Worker 已启动");
+console.info("文档、报告、维护和图集热工任务 Worker 已启动");
 
 async function shutdown(signal: string) {
   console.info(`收到 ${signal}，正在关闭任务 Worker`);

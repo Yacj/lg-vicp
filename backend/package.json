@@ -21,6 +21,8 @@
     "db:verify": "node scripts/verify-migrations.mjs",
     "md:import-example": "node scripts/md-import-example.mjs",
     "construction:import-example": "node scripts/construction-import-example.mjs",
+    "comparison:import-example": "node scripts/comparison-import-example.mjs",
+    "thermal:template": "node scripts/generate-thermal-template.mjs",
     "deploy": "node deploy/deploy.local.mjs"
   },
   "dependencies": {

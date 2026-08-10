@@ -113,6 +113,48 @@
       "when": 1785978308957,
       "tag": "0015_ancient_lady_ursula",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1786328151172,
+      "tag": "0017_sloppy_patch",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1786332925306,
+      "tag": "0018_thermal_calc_engine",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1786339792763,
+      "tag": "0019_thermal_candidate_query",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1786344149156,
+      "tag": "0019_tough_harpoon",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1786346441705,
+      "tag": "0020_massive_purifiers",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1786351018829,
+      "tag": "0021_married_pandemic",
+      "breakpoints": true
     }
   ]
 }

@@ -18,7 +18,7 @@ const deptBody = z.object({ parentId: z.uuid("上级部门 ID 格式不正确").
 const rolePatch = z.object({ name: z.string().trim().min(1).max(120).optional(), description: z.string().max(1000).nullable().optional(), dataScope: z.enum(["ALL", "DEPT", "DEPT_AND_CHILDREN", "SELF", "CUSTOM", "PROJECT_OWNER"]).optional(), enabled: z.boolean().optional() }).refine((v) => Object.keys(v).length > 0, "至少需要修改一个字段");
 const dictPatch = z.object({ name: z.string().trim().min(1).max(120).optional(), description: z.string().max(1000).nullable().optional(), enabled: z.boolean().optional() }).refine((v) => Object.keys(v).length > 0, "至少需要修改一个字段");
 const itemBody = z.object({ value: z.string().trim().min(1).max(120), label: z.string().trim().min(1).max(120), sortOrder: z.number().int().default(0), enabled: z.boolean().default(true), metadata: z.record(z.string(), z.unknown()).optional() });
-const cronBody = z.object({ name: z.string().trim().min(1).max(120), jobType: z.enum(["maintenance", "document_cleanup", "audit_cleanup"]), cronExpression: z.string().trim().min(5).max(120), queueName: z.enum(["maintenance"]), payload: z.record(z.string(), z.unknown()).optional(), status: z.enum(["PAUSED", "RUNNING", "DISABLED"]).default("PAUSED") });
+const cronBody = z.object({ name: z.string().trim().min(1).max(120), jobType: z.enum(["maintenance", "document_cleanup", "audit_cleanup", "standard_crawl"]), cronExpression: z.string().trim().min(5).max(120), queueName: z.enum(["maintenance"]), payload: z.record(z.string(), z.unknown()).optional(), status: z.enum(["PAUSED", "RUNNING", "DISABLED"]).default("PAUSED") });
 
 function assertWhiteListKey(key: string) {
   const allowed = ["auth:", "dict:", "ai:rate:", "ai:quota:", "captcha:"];

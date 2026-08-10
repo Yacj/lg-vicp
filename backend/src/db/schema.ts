@@ -3,6 +3,7 @@ import {
   bigint,
   boolean,
   date,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -121,7 +122,8 @@ export const knowledgeFileSourceEnum = pgEnum("knowledge_file_source", [
   "USER_UPLOAD",
   "BATCH_IMPORT",
   "CRAWLER",
-  "INTERNAL_API"
+  "INTERNAL_API",
+  "THERMAL_IMPORT"
 ]);
 // 版本处理管线状态：与 versions.status（受控审核 DRAFT/APPROVED/PUBLISHED/DISABLED）双轨
 export const knowledgePipelineStatusEnum = pgEnum("knowledge_pipeline_status", [
@@ -174,6 +176,92 @@ export const constructionLayerTypeEnum = pgEnum("construction_layer_type", [
 ]);
 // 方案文档挂载目标：保温系统 / 构造方案（多态引用，应用层校验目标存在）
 export const schemeDocumentTargetTypeEnum = pgEnum("scheme_document_target_type", ["SYSTEM", "SCHEME"]);
+// 图集热工参考表导入作业状态：创建 / 已投递 / 解析中 / 解析完成 / 已应用到参考集 / 失败
+export const thermalImportJobStatusEnum = pgEnum("thermal_import_job_status", [
+  "CREATED",
+  "QUEUED",
+  "PARSING",
+  "PARSED",
+  "APPLIED",
+  "FAILED"
+]);
+// 热工计算模式：查图集参考行 / 整体当量法 / 分层法
+export const thermalCalcModeEnum = pgEnum("thermal_calc_mode", [
+  "REFERENCE_TABLE",
+  "EQUIVALENT",
+  "LAYERED"
+]);
+// 最终结果取整方式：四舍五入 / 银行家舍入 / 截断 / 不取整
+export const thermalRoundingModeEnum = pgEnum("thermal_rounding_mode", [
+  "HALF_UP",
+  "HALF_EVEN",
+  "TRUNCATE",
+  "NONE"
+]);
+// 合格判定比较字段：K 值 / 总热阻
+export const thermalCompareFieldEnum = pgEnum("thermal_compare_field", [
+  "K_VALUE",
+  "TOTAL_RESISTANCE"
+]);
+// 合格判定比较方向：不大于（K 值限值）/ 不小于（热阻限值）
+export const thermalCompareOperatorEnum = pgEnum("thermal_compare_operator", [
+  "LTE",
+  "GTE"
+]);
+// 标准数据来源通道：定时抓取 / 人工录入维护
+export const standardIngestTypeEnum = pgEnum("standard_ingest_type", ["CRAWL", "MANUAL"]);
+// 标准文档状态：征求意见 / 正式 / 被替代 / 废止
+export const standardDocumentStatusEnum = pgEnum("standard_document_status", [
+  "DRAFT_CONSULTATION",
+  "OFFICIAL",
+  "SUPERSEDED",
+  "REPEALED"
+]);
+// 标准指标类型：K 值限值 / 热阻限值 / 其他
+export const standardIndicatorTypeEnum = pgEnum("standard_indicator_type", [
+  "K_VALUE",
+  "HEAT_RESISTANCE",
+  "OTHER"
+]);
+// 标准替代类型：替代（新版接替旧版）/ 废止（旧版废止无接替）
+export const standardReplacementTypeEnum = pgEnum("standard_replacement_type", ["SUPERSEDE", "REPEAL"]);
+// 替代关系确认状态
+export const standardReplacementStatusEnum = pgEnum("standard_replacement_status", [
+  "PENDING",
+  "CONFIRMED",
+  "REJECTED"
+]);
+// 标准抓取作业状态
+export const standardCrawlStatusEnum = pgEnum("standard_crawl_status", [
+  "QUEUED",
+  "RUNNING",
+  "SUCCESS",
+  "FAILED"
+]);
+// 标准抓取触发方式
+export const standardCrawlTriggerEnum = pgEnum("standard_crawl_trigger", ["SCHEDULE", "MANUAL"]);
+// 标准文档解析状态：待解析 / 已解析 / 解析失败
+export const standardParseStatusEnum = pgEnum("standard_parse_status", ["PENDING", "PARSED", "FAILED"]);
+// ---------------------------------------------------------------- 材料对比规则引擎
+// 材料类别：VICP 及五类对比对象（EPS/XPS/岩棉/聚氨酯/传统一体板）
+export const comparisonMaterialCategoryEnum = pgEnum("comparison_material_category", [
+  "VICP",
+  "EPS",
+  "XPS",
+  "ROCK_WOOL",
+  "PU",
+  "TRADITIONAL_BOARD"
+]);
+// 统一比较基准：同厚度 / 同导热系数 / 同热阻 / 单方性能表现 / 其他
+export const comparisonBenchmarkTypeEnum = pgEnum("comparison_benchmark_type", [
+  "SAME_THICKNESS",
+  "SAME_LAMBDA",
+  "SAME_R_VALUE",
+  "PERFORMANCE",
+  "OTHER"
+]);
+// 证据归属侧：VICP 侧数据 / 竞品侧数据
+export const comparisonEvidenceSideEnum = pgEnum("comparison_evidence_side", ["VICP", "COMPETITOR"]);
 
 export const users = pgTable(
   "users",
@@ -1450,6 +1538,631 @@ export const schemeDocuments = pgTable(
   ]
 );
 
+// ---------------------------------------------------------------- 图集热工参考选用表
+// 一期方案筛选的第一优先数据源：知识库负责条文检索/解释/页码，本模块保存图集节能计算参考选用表的
+// 精确可查询数据。核心关系：保温系统 -> 构造方案 -> 构造层 -> 产品规格 -> 图集热工结果 -> 地区限值。
+// 参考集为版本化实体（导入产生 DRAFT，经 submit/approve/publish 发布）；参考行随集版本化，无独立审核列。
+// 关键约束：行必须同时保存 Excel 原始值（raw*）与标准化数值，禁止 AI/OCR 直接发布。
+
+/** 图集热工参考集：同 code 多版本行并存（一本图集一个集，按来源文档/页码分组行） */
+export const thermalReferenceSets = pgTable(
+  "thermal_reference_sets",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    code: varchar("code", { length: 80 }).notNull(),
+    version: integer("version").notNull().default(1),
+    name: varchar("name", { length: 160 }).notNull(),
+    description: text("description"),
+    /** 适用建筑类型（候选查询 buildingType 条件做包含匹配，空数组 = 未配置/不限制） */
+    buildingTypes: jsonb("building_types").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    /** 甲方配置优先级（数字小优先，候选查询排序维度之一） */
+    priority: integer("priority").notNull().default(0),
+    atlasDocumentId: uuid("atlas_document_id").references(() => knowledgeDocuments.id, { onDelete: "set null" }),
+    changeNote: text("change_note"),
+    ...mdEvidenceColumns,
+    ...mdReviewColumns,
+    ...timestamps
+  },
+  (table) => [
+    uniqueIndex("thermal_reference_sets_code_version_unique").on(table.code, table.version),
+    index("thermal_reference_sets_status_updated_idx").on(table.status, table.updatedAt)
+  ]
+);
+
+/** 图集热工参考行：同一集内 (schemeId, productSpecId, thicknessMm) 唯一；跨集版本（code+version）可并存 */
+export const thermalReferenceRows = pgTable(
+  "thermal_reference_rows",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    setId: uuid("set_id").notNull().references(() => thermalReferenceSets.id, { onDelete: "cascade" }),
+    schemeId: uuid("scheme_id").notNull().references(() => constructionSchemes.id, { onDelete: "restrict" }),
+    productSpecId: uuid("product_spec_id").notNull().references(() => productSpecs.id, { onDelete: "restrict" }),
+    thicknessMm: numeric("thickness_mm", { precision: 8, scale: 2, mode: "number" }).notNull(),
+    productThermalResistance: numeric("product_thermal_resistance", { precision: 10, scale: 4, mode: "number" }).notNull(),
+    totalThermalResistance: numeric("total_thermal_resistance", { precision: 10, scale: 4, mode: "number" }).notNull(),
+    kValue: numeric("k_value", { precision: 10, scale: 4, mode: "number" }).notNull(),
+    rawThickness: text("raw_thickness").notNull(),
+    rawProductResistance: text("raw_product_resistance").notNull(),
+    rawTotalResistance: text("raw_total_resistance").notNull(),
+    rawKValue: text("raw_k_value").notNull(),
+    evidenceSource: text("evidence_source").notNull(),
+    evidenceRef: varchar("evidence_ref", { length: 120 }).notNull(),
+    evidenceLevel: knowledgeEvidenceLevelEnum("evidence_level").notNull().default("A"),
+    createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    updatedById: uuid("updated_by_id").references(() => users.id, { onDelete: "set null" }),
+    ...timestamps
+  },
+  (table) => [
+    uniqueIndex("thermal_reference_rows_set_scheme_spec_thickness_unique").on(
+      table.setId,
+      table.schemeId,
+      table.productSpecId,
+      table.thicknessMm
+    ),
+    index("thermal_reference_rows_scheme_idx").on(table.schemeId),
+    index("thermal_reference_rows_spec_idx").on(table.productSpecId)
+  ]
+);
+
+/** 图集热工参考表导入作业：记录 Excel 解析结果（result 有效行快照 + 错误清单），apply 后回填 setId */
+export const thermalImportJobs = pgTable(
+  "thermal_import_jobs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    setCode: varchar("set_code", { length: 80 }).notNull(),
+    name: varchar("name", { length: 160 }),
+    setId: uuid("set_id").references(() => thermalReferenceSets.id, { onDelete: "set null" }),
+    fileId: uuid("file_id").notNull().references(() => files.id, { onDelete: "restrict" }),
+    templateVersion: integer("template_version").notNull().default(1),
+    status: thermalImportJobStatusEnum("status").notNull().default("CREATED"),
+    rowCount: integer("row_count").notNull().default(0),
+    validCount: integer("valid_count").notNull().default(0),
+    errorCount: integer("error_count").notNull().default(0),
+    result: jsonb("result").$type<unknown>(),
+    errorSummary: text("error_summary"),
+    errorMessage: text("error_message"),
+    appliedById: uuid("applied_by_id").references(() => users.id, { onDelete: "set null" }),
+    appliedAt: timestamp("applied_at", { withTimezone: true }),
+    createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    ...timestamps
+  },
+  (table) => [
+    index("thermal_import_jobs_set_code_idx").on(table.setCode),
+    index("thermal_import_jobs_file_idx").on(table.fileId),
+    index("thermal_import_jobs_status_idx").on(table.status)
+  ]
+);
+
+/** 图集热工参考表导入错误：Excel 行级错误清单，错误行不允许静默入库 */
+export const thermalImportErrors = pgTable(
+  "thermal_import_errors",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    jobId: uuid("job_id").notNull().references(() => thermalImportJobs.id, { onDelete: "cascade" }),
+    sheetName: varchar("sheet_name", { length: 120 }),
+    rowNumber: integer("row_number").notNull(),
+    rawRow: jsonb("raw_row").$type<Record<string, unknown>>(),
+    errorType: varchar("error_type", { length: 60 }).notNull(),
+    message: text("message").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => [
+    index("thermal_import_errors_job_idx").on(table.jobId)
+  ]
+);
+
+// ---------------------------------------------------------------- 确定性热工计算引擎
+// 三模式：REFERENCE_TABLE 直接查已发布图集参考行；EQUIVALENT 按产品总厚度/当量导热系数/修正系数；
+// LAYERED 按构造层逐层求热阻汇总。规则与标准限值为版本化审核实体（禁止绕过审核读取草稿值）；
+// 计算记录保存输入/构造层/参数/规则/标准/公式版本与中间过程快照，历史结果不随后台参数漂移。
+
+/** 热工计算规则：同 code 多版本行并存；内外表面换热阻/精度/取整/合格判定全部由此配置 */
+export const thermalCalcRules = pgTable(
+  "thermal_calc_rules",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    code: varchar("code", { length: 80 }).notNull(),
+    version: integer("version").notNull().default(1),
+    name: varchar("name", { length: 160 }).notNull(),
+    /** 公式实现标识（如 VICP-CALC-1），决定 calculator 使用的公式族；升级公式时派生新版本规则 */
+    formulaVersion: varchar("formula_version", { length: 40 }).notNull(),
+    /** 内表面换热阻（m²·K/W） */
+    interiorSurfaceResistance: numeric("interior_surface_resistance", { precision: 12, scale: 6, mode: "number" }).notNull(),
+    /** 外表面换热阻（m²·K/W） */
+    exteriorSurfaceResistance: numeric("exterior_surface_resistance", { precision: 12, scale: 6, mode: "number" }).notNull(),
+    /** 最终结果小数位（0-8） */
+    precision: integer("precision").notNull().default(4),
+    roundingMode: thermalRoundingModeEnum("rounding_mode").notNull().default("HALF_UP"),
+    compareField: thermalCompareFieldEnum("compare_field").notNull().default("K_VALUE"),
+    compareOperator: thermalCompareOperatorEnum("compare_operator").notNull().default("LTE"),
+    /** 整体当量法是否并入其余构造层（基层/固定层等）分层热阻；false 时仅产品层+表面换热阻 */
+    includeNonProductLayers: boolean("include_non_product_layers").notNull().default(true),
+    /** 总热阻是否加内外表面换热阻 */
+    includeSurfaceResistances: boolean("include_surface_resistances").notNull().default(true),
+    /** 当量法参数码映射：{ equivalentConductivity, correctionFactor } 对应 product_parameters.parameter_code */
+    parameterCodes: jsonb("parameter_codes").$type<{ equivalentConductivity: string; correctionFactor: string }>().notNull(),
+    /** product_parameters 多来源取值优先级（param_source 顺序）；空数组 = 无优先级限制，取最新版本 */
+    paramSourcePriority: jsonb("param_source_priority").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    /** 产品参数用途过滤值（product_parameters.allowed_usage），空 = 不按用途过滤 */
+    usage: varchar("usage", { length: 40 }),
+    applicableScope: text("applicable_scope"),
+    changeNote: text("change_note"),
+    ...mdEvidenceColumns,
+    ...mdReviewColumns,
+    ...timestamps
+  },
+  (table) => [
+    uniqueIndex("thermal_calc_rules_code_version_unique").on(table.code, table.version),
+    index("thermal_calc_rules_status_updated_idx").on(table.status, table.updatedAt)
+  ]
+);
+
+/** 地区标准限值：同 (regionCode, basisCode) 多版本行并存；合格判定只取已发布且生效中的限值 */
+export const thermalStandardLimits = pgTable(
+  "thermal_standard_limits",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    regionCode: varchar("region_code", { length: 40 }).notNull(),
+    version: integer("version").notNull().default(1),
+    regionName: varchar("region_name", { length: 120 }).notNull(),
+    /** 标准依据逻辑键（如 GB50176-2016），与版本行配套 */
+    basisCode: varchar("basis_code", { length: 80 }).notNull(),
+    basisName: varchar("basis_name", { length: 160 }).notNull(),
+    /** 来源标准文档（抓取/人工通道审核发布后同步，溯源用；手动录入通道为空） */
+    standardDocumentId: uuid("standard_document_id").references(() => standardDocuments.id, { onDelete: "set null" }),
+    clauseRef: varchar("clause_ref", { length: 120 }).notNull(),
+    /** K 值限值（W/(m²·K)） */
+    limitKValue: numeric("limit_k_value", { precision: 10, scale: 4, mode: "number" }).notNull(),
+    changeNote: text("change_note"),
+    ...mdEvidenceColumns,
+    ...mdReviewColumns,
+    ...timestamps
+  },
+  (table) => [
+    uniqueIndex("thermal_standard_limits_region_basis_version_unique").on(table.regionCode, table.basisCode, table.version),
+    index("thermal_standard_limits_region_status_idx").on(table.regionCode, table.status),
+    index("thermal_standard_limits_status_updated_idx").on(table.status, table.updatedAt)
+  ]
+);
+
+// ---------------------------------------------------------------- 地方标准采集（抓取/人工双通道）
+// 数据流：standard_sources/crawl_jobs（抓取）→ standard_documents（双通道汇入）→ 审核 → 指标 publish
+// 同事务转换落库 thermal_standard_limits（消费模型），候选查询/计算引擎零改造。
+
+/** 栏目 URL 配置：paginationMode=url 时按 pageParam 循环翻页；scroll 用浏览器渲染滚动加载；none 仅当前页 */
+export type StandardCatalogUrl = {
+  label: string;
+  url: string;
+  listSelector?: string;
+  itemLinkSelector?: string;
+  paginationMode: "url" | "scroll" | "none";
+  pageParam?: string;
+  pageLimit?: number;
+};
+
+/** 栏目级抓取结果审计 */
+export type StandardCatalogResult = {
+  url: string;
+  fetched: number;
+  discovered: number;
+  new: number;
+  changed: number;
+  failed: number;
+  error?: string;
+};
+
+/** 省份标准来源配置：B 端按省份/站点配置栏目、分页、提取规则；enabled 与 cron_jobs 双保险 */
+export const standardSources = pgTable(
+  "standard_sources",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** GB/T 2260 省级行政区划码（如 440000） */
+    provinceCode: varchar("province_code", { length: 40 }).notNull(),
+    provinceName: varchar("province_name", { length: 120 }).notNull(),
+    officialDomain: varchar("official_domain", { length: 255 }).notNull(),
+    /** 栏目配置（见 StandardCatalogUrl） */
+    catalogUrls: jsonb("catalog_urls").$type<StandardCatalogUrl[]>().notNull().default(sql`'[]'::jsonb`),
+    parserType: varchar("parser_type", { length: 40 }).notNull().default("generic-list"),
+    /** 提取规则 {field,pattern,flags}（documentNo/title/日期/标准状态/K 值等）；空=用内置默认规则 */
+    extractRules: jsonb("extract_rules").$type<{ field: string; pattern: string; flags?: string }[]>().notNull().default(sql`'[]'::jsonb`),
+    /** 列表项关键字过滤 {titleKeywords[], excludeKeywords[]} */
+    keywords: jsonb("keywords").$type<{ titleKeywords: string[]; excludeKeywords: string[] }>().notNull().default(sql`'{}'::jsonb`),
+    /** 抓取范围：today=仅当天发布项；all=全量分页 */
+    crawlScope: varchar("crawl_scope", { length: 20 }).notNull().default("today"),
+    enabled: boolean("enabled").notNull().default(true),
+    lastCrawledAt: timestamp("last_crawled_at", { withTimezone: true }),
+    createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    ...timestamps
+  },
+  (table) => [
+    uniqueIndex("standard_sources_province_domain_unique").on(table.provinceCode, table.officialDomain),
+    index("standard_sources_enabled_idx").on(table.enabled)
+  ]
+);
+
+/** 抓取作业：状态机 QUEUED→RUNNING→SUCCESS/FAILED；单栏目失败不中断整体（记录后继续） */
+export const crawlJobs = pgTable(
+  "crawl_jobs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sourceId: uuid("source_id").references(() => standardSources.id, { onDelete: "cascade" }).notNull(),
+    status: standardCrawlStatusEnum("status").notNull().default("QUEUED"),
+    triggeredBy: standardCrawlTriggerEnum("triggered_by").notNull(),
+    /** 本次实际抓取范围（手动触发可覆盖来源配置） */
+    scope: varchar("scope", { length: 20 }).notNull().default("today"),
+    /** 栏目级结果审计（见 StandardCatalogResult） */
+    catalogResults: jsonb("catalog_results").$type<StandardCatalogResult[]>().notNull().default(sql`'[]'::jsonb`),
+    statsJson: jsonb("stats_json").$type<Record<string, unknown>>(),
+    errorMessage: text("error_message"),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+    ...timestamps
+  },
+  (table) => [
+    index("crawl_jobs_source_status_idx").on(table.sourceId, table.status),
+    index("crawl_jobs_status_created_idx").on(table.status, table.createdAt)
+  ]
+);
+
+/** 标准文档（双通道汇入核心表）：CRAWL 带原文哈希/截图证据链，MANUAL 人工录入；均需人工审核后发布 */
+export const standardDocuments = pgTable(
+  "standard_documents",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** 双通道：CRAWL=爬虫采集；MANUAL=人工录入 */
+    ingestType: standardIngestTypeEnum("ingest_type").notNull(),
+    /** 省份主维度（GB/T 2260 省级码）：爬虫自 source 带入、人工手选 */
+    provinceCode: varchar("province_code", { length: 40 }).notNull(),
+    provinceName: varchar("province_name", { length: 120 }).notNull(),
+    sourceId: uuid("source_id").references(() => standardSources.id, { onDelete: "set null" }),
+    crawlJobId: uuid("crawl_job_id").references(() => crawlJobs.id, { onDelete: "set null" }),
+    /** 标准编号（如 DBJ50/T-xxx-2023） */
+    documentNo: varchar("document_no", { length: 120 }).notNull(),
+    title: varchar("title", { length: 300 }).notNull(),
+    category: varchar("category", { length: 80 }),
+    standardStatus: standardDocumentStatusEnum("standard_status").notNull().default("OFFICIAL"),
+    publishDate: date("publish_date", { mode: "date" }),
+    implementDate: date("implement_date", { mode: "date" }),
+    effectiveAt: timestamp("effective_at", { withTimezone: true }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    originUrl: text("origin_url"),
+    /** 详情页原始 HTML（OSS key，CRAWL 必填）；SHA-256 变更检测 */
+    pageHtmlObjectKey: varchar("page_html_object_key", { length: 500 }),
+    pageHtmlSha256: varchar("page_html_sha256", { length: 64 }),
+    /** 标准原文 PDF 附件（sha256 幂等，重复抓取跳过） */
+    fileObjectKey: varchar("file_object_key", { length: 500 }),
+    fileSha256: varchar("file_sha256", { length: 64 }),
+    fileSize: bigint("file_size", { mode: "number" }),
+    screenshotObjectKey: varchar("screenshot_object_key", { length: 500 }),
+    /** 提取结果：原文片段与匹配位置（规则变更后可重跑不重抓） */
+    parsedMetaJson: jsonb("parsed_meta_json").$type<Record<string, unknown>>(),
+    parseStatus: standardParseStatusEnum("parse_status").notNull().default("PENDING"),
+    /** 被哪份新标准替代（标准状态=SUPERSEDED 时指向新文档；自引用 FK 见表级定义） */
+    supersededById: uuid("superseded_by_id"),
+    version: integer("version").notNull().default(1),
+    ...mdReviewColumns,
+    ...timestamps
+  },
+  (table) => [
+    foreignKey({ columns: [table.supersededById], foreignColumns: [table.id] }).onDelete("set null"),
+    uniqueIndex("standard_documents_province_no_version_unique").on(table.provinceCode, table.documentNo, table.version),
+    index("standard_documents_document_no_idx").on(table.documentNo),
+    index("standard_documents_status_idx").on(table.standardStatus),
+    index("standard_documents_review_status_idx").on(table.status),
+    index("standard_documents_publish_date_idx").on(table.publishDate),
+    index("standard_documents_ingest_type_idx").on(table.ingestType)
+  ]
+);
+
+/** 标准适用范围：同文档可覆盖多地区；指标按 (document, region) 粒度审核发布 */
+export const standardApplicability = pgTable(
+  "standard_applicability",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    documentId: uuid("document_id").references(() => standardDocuments.id, { onDelete: "cascade" }).notNull(),
+    regionCode: varchar("region_code", { length: 40 }).notNull(),
+    regionName: varchar("region_name", { length: 120 }).notNull(),
+    buildingTypes: jsonb("building_types").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    structureTypes: jsonb("structure_types").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    scopeText: text("scope_text"),
+    effectiveAt: timestamp("effective_at", { withTimezone: true }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    evidenceRef: varchar("evidence_ref", { length: 120 }),
+    ...mdReviewColumns,
+    ...timestamps
+  },
+  (table) => [
+    uniqueIndex("standard_applicability_document_region_unique").on(table.documentId, table.regionCode),
+    index("standard_applicability_region_status_idx").on(table.regionCode, table.status)
+  ]
+);
+
+/** 标准指标（K 值等）：提取/录入即 PENDING_REVIEW；publish 时同事务转换落库 thermal_standard_limits */
+export const standardIndicators = pgTable(
+  "standard_indicators",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    documentId: uuid("document_id").references(() => standardDocuments.id, { onDelete: "cascade" }).notNull(),
+    applicabilityId: uuid("applicability_id").references(() => standardApplicability.id, { onDelete: "set null" }),
+    indicatorType: standardIndicatorTypeEnum("indicator_type").notNull().default("K_VALUE"),
+    indicatorName: varchar("indicator_name", { length: 120 }).notNull(),
+    /** 指标值（K 值 W/(m²·K)，precision 10 scale 4） */
+    value: numeric("value", { precision: 12, scale: 4, mode: "number" }).notNull(),
+    unit: varchar("unit", { length: 40 }),
+    /** 原文该指标所在段落（审计证据） */
+    rawText: text("raw_text"),
+    evidenceRef: varchar("evidence_ref", { length: 120 }),
+    evidenceLevel: knowledgeEvidenceLevelEnum("evidence_level"),
+    screenshotObjectKey: varchar("screenshot_object_key", { length: 500 }),
+    /** 审核状态默认 PENDING_REVIEW（爬虫提取/人工录入即入待审队列） */
+    status: mdReviewStatusEnum("status").notNull().default("PENDING_REVIEW"),
+    reviewedById: uuid("reviewed_by_id").references(() => users.id, { onDelete: "set null" }),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    effectiveAt: timestamp("effective_at", { withTimezone: true }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    version: integer("version").notNull().default(1),
+    ...timestamps
+  },
+  (table) => [
+    uniqueIndex("standard_indicators_doc_app_type_version_unique").on(table.documentId, table.applicabilityId, table.indicatorType, table.version),
+    index("standard_indicators_status_updated_idx").on(table.status, table.updatedAt)
+  ]
+);
+
+/** 新旧标准替代关系：CONFIRMED 后旧标准过渡期 expiresAt 生效，过渡期结束自动失效 */
+export const standardReplacements = pgTable(
+  "standard_replacements",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    oldDocumentId: uuid("old_document_id").references(() => standardDocuments.id, { onDelete: "cascade" }).notNull(),
+    newDocumentId: uuid("new_document_id").references(() => standardDocuments.id, { onDelete: "cascade" }).notNull(),
+    replacementType: standardReplacementTypeEnum("replacement_type").notNull().default("SUPERSEDE"),
+    transitionStartAt: timestamp("transition_start_at", { withTimezone: true }),
+    transitionEndAt: timestamp("transition_end_at", { withTimezone: true }),
+    status: standardReplacementStatusEnum("status").notNull().default("PENDING"),
+    note: text("note"),
+    confirmedById: uuid("confirmed_by_id").references(() => users.id, { onDelete: "set null" }),
+    confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+    ...timestamps
+  },
+  (table) => [
+    uniqueIndex("standard_replacements_old_new_unique").on(table.oldDocumentId, table.newDocumentId),
+    index("standard_replacements_status_idx").on(table.status)
+  ]
+);
+
+/** 热工计算记录：输入/构造层/参数/规则/标准/公式版本与中间过程快照，历史结果不随后台参数漂移 */
+export const thermalCalcRecords = pgTable(
+  "thermal_calc_records",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    requestId: varchar("request_id", { length: 120 }),
+    mode: thermalCalcModeEnum("mode").notNull(),
+    projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
+    ruleId: uuid("rule_id").references(() => thermalCalcRules.id, { onDelete: "set null" }),
+    ruleVersion: integer("rule_version"),
+    standardLimitId: uuid("standard_limit_id").references(() => thermalStandardLimits.id, { onDelete: "set null" }),
+    limitVersion: integer("limit_version"),
+    /** 计算入参原样（mode/schemeId/productSpecId/thicknessMm/regionCode/ruleCode/projectId） */
+    inputJson: jsonb("input_json").$type<Record<string, unknown>>().notNull(),
+    /** 构造层快照：layerOrder/layerType/layerName/materialId/thicknessM/lambda/correctionFactor/resistance/evidenceRef */
+    layersJson: jsonb("layers_json").$type<unknown[]>().notNull().default(sql`'[]'::jsonb`),
+    /** 参数快照：id/version/code/value/unit/source/evidenceRef */
+    parametersJson: jsonb("parameters_json").$type<unknown[]>().notNull().default(sql`'[]'::jsonb`),
+    /** 规则版本快照（REFERENCE_TABLE 无规则时 null） */
+    ruleJson: jsonb("rule_json").$type<Record<string, unknown> | null>(),
+    /** 标准限值版本快照（无地区或未发布限值时 null） */
+    standardJson: jsonb("standard_json").$type<Record<string, unknown> | null>(),
+    /** 公式版本与各步公式表达式 */
+    formulaJson: jsonb("formula_json").$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
+    /** 中间过程：每层热阻/表面换热阻/汇总/未取整 K 值 */
+    stepsJson: jsonb("steps_json").$type<unknown[]>().notNull().default(sql`'[]'::jsonb`),
+    /** 结果：productResistance/totalResistance/kValue（取整与原始值）/compliant/limitKValue */
+    resultJson: jsonb("result_json").$type<Record<string, unknown>>().notNull(),
+    createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => [
+    index("thermal_calc_records_mode_created_idx").on(table.mode, table.createdAt),
+    index("thermal_calc_records_project_created_idx").on(table.projectId, table.createdAt),
+    index("thermal_calc_records_rule_idx").on(table.ruleId),
+    index("thermal_calc_records_limit_idx").on(table.standardLimitId)
+  ]
+);
+
+/** 候选方案确认记录：查询条件 + 用户确认的最终候选全快照（行/集/方案/规格版本与结果），历史确认不随后台参数漂移 */
+export const thermalCandidateSelections = pgTable(
+  "thermal_candidate_selections",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    requestId: varchar("request_id", { length: 120 }),
+    projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
+    /** 查询条件快照（CandidateQuery 原样 + 缺失条件清单） */
+    queryJson: jsonb("query_json").$type<Record<string, unknown>>().notNull(),
+    /** 确认候选快照：行/集/方案/规格版本、thicknessMm/kValue/热阻、证据、matchType */
+    candidateJson: jsonb("candidate_json").$type<Record<string, unknown>>().notNull(),
+    /** 用户选择理由（可为空，报审是否必填待甲方确认） */
+    selectionReason: text("selection_reason"),
+    selectedById: uuid("selected_by_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => [
+    index("thermal_candidate_selections_project_created_idx").on(table.projectId, table.createdAt),
+    index("thermal_candidate_selections_user_created_idx").on(table.selectedById, table.createdAt)
+  ]
+);
+
+// ---------------------------------------------------------------- 材料对比规则引擎
+// VICP 与 EPS/XPS/岩棉/聚氨酯/传统一体板的对比以"版本批次"为审核/发布单元：comparison_versions 为
+// 版本化实体（复用 masterdata 工作流工厂），材料/规则/证据为子表随版本同事务复制，历史版本不漂移；
+// AI 只消费 PUBLISHED 且生效（effectiveAt/expiresAt 窗口）的规则。五维（保温/防火/耐久/施工/报审）
+// 固定由种子写入 comparison_dimensions，子指标由 B 端扩展。规则必须同时保存双方材料、统一比较基准、
+// 双方数值与单位、VICP 优势文案、适用条件、必要披露与禁止措辞，定量不足时仅保留 VICP 侧数值。
+
+/** 材料对比版本：同 code 多版本行并存（一个版本 = 一套已审核对比规则批次） */
+export const comparisonVersions = pgTable(
+  "comparison_versions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    code: varchar("code", { length: 80 }).notNull(),
+    version: integer("version").notNull().default(1),
+    name: varchar("name", { length: 160 }).notNull(),
+    description: text("description"),
+    changeNote: text("change_note"),
+    ...mdEvidenceColumns,
+    ...mdReviewColumns,
+    ...timestamps
+  },
+  (table) => [
+    uniqueIndex("comparison_versions_code_version_unique").on(table.code, table.version),
+    index("comparison_versions_status_updated_idx").on(table.status, table.updatedAt)
+  ]
+);
+
+/** 材料对比材料目录：随版本复制；型号/密度/测试条件承载"同一比较口径"，防止不同型号混比 */
+export const comparisonMaterials = pgTable(
+  "comparison_materials",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    versionId: uuid("version_id").notNull().references(() => comparisonVersions.id, { onDelete: "cascade" }),
+    category: comparisonMaterialCategoryEnum("category").notNull(),
+    name: varchar("name", { length: 160 }).notNull(),
+    model: varchar("model", { length: 120 }).notNull(),
+    density: numeric("density", { precision: 10, scale: 2, mode: "number" }),
+    densityUnit: varchar("density_unit", { length: 40 }),
+    testConditions: text("test_conditions"),
+    description: text("description"),
+    ...mdEvidenceColumns,
+    createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    updatedById: uuid("updated_by_id").references(() => users.id, { onDelete: "set null" }),
+    ...timestamps
+  },
+  (table) => [
+    uniqueIndex("comparison_materials_version_category_name_model_unique").on(
+      table.versionId,
+      table.category,
+      table.name,
+      table.model
+    ),
+    index("comparison_materials_version_idx").on(table.versionId),
+    index("comparison_materials_category_idx").on(table.category)
+  ]
+);
+
+/** 材料对比维度：五维固定（种子写入，服务层禁止删除/禁用五维行），子指标 B 端扩展；结构配置不挂审核状态机 */
+export const comparisonDimensions = pgTable(
+  "comparison_dimensions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    code: varchar("code", { length: 80 }).notNull(),
+    name: varchar("name", { length: 80 }).notNull(),
+    parentId: uuid("parent_id"),
+    sortOrder: integer("sort_order").notNull().default(0),
+    enabled: boolean("enabled").notNull().default(true),
+    remark: varchar("remark", { length: 255 }),
+    createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    updatedById: uuid("updated_by_id").references(() => users.id, { onDelete: "set null" }),
+    ...timestamps
+  },
+  (table) => [
+    uniqueIndex("comparison_dimensions_code_unique").on(table.code),
+    index("comparison_dimensions_parent_idx").on(table.parentId)
+  ]
+);
+
+/** 材料对比规则：随版本复制；同一版本内引用双方材料，VICP 侧数值必填、竞品侧定量不足时可为空 */
+export const comparisonRules = pgTable(
+  "comparison_rules",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    versionId: uuid("version_id").notNull().references(() => comparisonVersions.id, { onDelete: "cascade" }),
+    dimensionId: uuid("dimension_id").notNull().references(() => comparisonDimensions.id, { onDelete: "restrict" }),
+    /** 维度名/子指标名快照：历史版本展示不随后台配置漂移 */
+    dimensionName: varchar("dimension_name", { length: 80 }).notNull(),
+    subIndicatorName: varchar("sub_indicator_name", { length: 120 }),
+    vicpMaterialId: uuid("vicp_material_id").notNull().references(() => comparisonMaterials.id, { onDelete: "restrict" }),
+    competitorMaterialId: uuid("competitor_material_id")
+      .notNull()
+      .references(() => comparisonMaterials.id, { onDelete: "restrict" }),
+    benchmarkType: comparisonBenchmarkTypeEnum("benchmark_type").notNull(),
+    benchmarkDesc: varchar("benchmark_desc", { length: 255 }).notNull(),
+    vicpValue: numeric("vicp_value", { precision: 12, scale: 4, mode: "number" }).notNull(),
+    vicpUnit: varchar("vicp_unit", { length: 40 }).notNull(),
+    competitorValue: numeric("competitor_value", { precision: 12, scale: 4, mode: "number" }),
+    competitorUnit: varchar("competitor_unit", { length: 40 }),
+    /** VICP 优势文案（营销/展示口径，须有证据支撑） */
+    advantageText: text("advantage_text").notNull(),
+    /** 适用条件：技术/合规场景强制输出 */
+    applicability: text("applicability").notNull(),
+    /** 必要披露：影响安全、适用性、计算或报审的条件与风险提示，发布前强制完整 */
+    mandatoryDisclosure: text("mandatory_disclosure").notNull(),
+    /** 禁止措辞：该规则对应的不得使用的表述（如绝对化用语），仅记录不参与输出 */
+    forbiddenWording: text("forbidden_wording"),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    updatedById: uuid("updated_by_id").references(() => users.id, { onDelete: "set null" }),
+    ...timestamps
+  },
+  (table) => [
+    uniqueIndex("comparison_rules_version_dimension_materials_benchmark_unique").on(
+      table.versionId,
+      table.dimensionId,
+      table.vicpMaterialId,
+      table.competitorMaterialId,
+      table.benchmarkType
+    ),
+    index("comparison_rules_version_idx").on(table.versionId),
+    index("comparison_rules_dimension_idx").on(table.dimensionId),
+    index("comparison_rules_vicp_material_idx").on(table.vicpMaterialId),
+    index("comparison_rules_competitor_material_idx").on(table.competitorMaterialId)
+  ]
+);
+
+/** 材料对比证据：可挂规则或材料（应用层保证至少其一）；竞品侧数值存在时其证据必填 */
+export const comparisonEvidence = pgTable(
+  "comparison_evidence",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    versionId: uuid("version_id").notNull().references(() => comparisonVersions.id, { onDelete: "cascade" }),
+    ruleId: uuid("rule_id").references(() => comparisonRules.id, { onDelete: "cascade" }),
+    materialId: uuid("material_id").references(() => comparisonMaterials.id, { onDelete: "cascade" }),
+    side: comparisonEvidenceSideEnum("side").notNull(),
+    source: varchar("source", { length: 255 }).notNull(),
+    pageRef: varchar("page_ref", { length: 120 }),
+    clauseRef: varchar("clause_ref", { length: 120 }),
+    evidenceLevel: knowledgeEvidenceLevelEnum("evidence_level").notNull(),
+    quote: text("quote"),
+    createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    ...timestamps
+  },
+  (table) => [
+    index("comparison_evidence_version_idx").on(table.versionId),
+    index("comparison_evidence_rule_idx").on(table.ruleId),
+    index("comparison_evidence_material_idx").on(table.materialId)
+  ]
+);
+
+/** AI 材料对比规则使用日志：AI 回答引用已审核规则时落库（含规则快照），审计可追溯且历史不漂移 */
+export const aiRuleUsageLogs = pgTable(
+  "ai_rule_usage_logs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    conversationId: uuid("conversation_id").notNull().references(() => aiConversations.id, { onDelete: "cascade" }),
+    messageId: uuid("message_id").references(() => aiMessages.id, { onDelete: "set null" }),
+    ruleId: uuid("rule_id").notNull().references(() => comparisonRules.id, { onDelete: "restrict" }),
+    ruleCode: varchar("rule_code", { length: 80 }).notNull(),
+    versionId: uuid("version_id").references(() => comparisonVersions.id, { onDelete: "set null" }),
+    ruleVersion: integer("rule_version").notNull(),
+    ruleSnapshot: jsonb("rule_snapshot").$type<Record<string, unknown>>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => [
+    index("ai_rule_usage_logs_message_idx").on(table.messageId),
+    index("ai_rule_usage_logs_rule_created_idx").on(table.ruleId, table.createdAt)
+  ]
+);
+
 export const loginLogs = pgTable(
   "login_logs",
   {
@@ -1583,3 +2296,22 @@ export type ConstructionScheme = typeof constructionSchemes.$inferSelect;
 export type ConstructionLayer = typeof constructionLayers.$inferSelect;
 export type SchemeProductOption = typeof schemeProductOptions.$inferSelect;
 export type SchemeDocument = typeof schemeDocuments.$inferSelect;
+export type ThermalReferenceSet = typeof thermalReferenceSets.$inferSelect;
+export type ThermalReferenceRow = typeof thermalReferenceRows.$inferSelect;
+export type ThermalImportJob = typeof thermalImportJobs.$inferSelect;
+export type ThermalImportError = typeof thermalImportErrors.$inferSelect;
+export type ThermalCalcRule = typeof thermalCalcRules.$inferSelect;
+export type ThermalStandardLimit = typeof thermalStandardLimits.$inferSelect;
+export type ThermalCalcRecord = typeof thermalCalcRecords.$inferSelect;
+export type StandardSource = typeof standardSources.$inferSelect;
+export type CrawlJob = typeof crawlJobs.$inferSelect;
+export type StandardDocument = typeof standardDocuments.$inferSelect;
+export type StandardApplicability = typeof standardApplicability.$inferSelect;
+export type StandardIndicator = typeof standardIndicators.$inferSelect;
+export type StandardReplacement = typeof standardReplacements.$inferSelect;
+export type ComparisonVersion = typeof comparisonVersions.$inferSelect;
+export type ComparisonMaterial = typeof comparisonMaterials.$inferSelect;
+export type ComparisonDimension = typeof comparisonDimensions.$inferSelect;
+export type ComparisonRule = typeof comparisonRules.$inferSelect;
+export type ComparisonEvidence = typeof comparisonEvidence.$inferSelect;
+export type AiRuleUsageLog = typeof aiRuleUsageLogs.$inferSelect;

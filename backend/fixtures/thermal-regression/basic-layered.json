@@ -1,0 +1,49 @@
+{
+  "name": "LAYERED 分层法最小自检样例（待甲方样例到位后替换）",
+  "description": "产品层 20mm（λ=0.03，修正系数 1.2）+ 基层 20mm（λ=0.93）+ 内外表面换热阻 0.15；K=1.3754 > 限值 0.6 不合格",
+  "mode": "LAYERED",
+  "rules": {
+    "ruleId": "self-check-1",
+    "ruleVersion": 1,
+    "ruleCode": "SELF-CHECK-1",
+    "formulaVersion": "VICP-CALC-1",
+    "interiorSurfaceResistance": 0.11,
+    "exteriorSurfaceResistance": 0.04,
+    "precision": 4,
+    "roundingMode": "HALF_UP",
+    "compareField": "K_VALUE",
+    "compareOperator": "LTE",
+    "includeNonProductLayers": true,
+    "includeSurfaceResistances": true
+  },
+  "layers": [
+    {
+      "layerOrder": 1,
+      "layerType": "PRODUCT_LAYER",
+      "layerName": "岩棉板保温层",
+      "materialId": "mat-prod",
+      "thicknessM": 0.02,
+      "lambda": 0.03,
+      "correctionFactor": 1.2,
+      "evidenceRef": "P8"
+    },
+    {
+      "layerOrder": 2,
+      "layerType": "BASE_LAYER",
+      "layerName": "基层墙体",
+      "materialId": "mat-base",
+      "thicknessM": 0.02,
+      "lambda": 0.93,
+      "correctionFactor": null,
+      "evidenceRef": "P8"
+    }
+  ],
+  "standardLimit": { "limitKValue": 0.6 },
+  "expected": {
+    "valid": true,
+    "productResistanceRounded": 0.5556,
+    "totalResistanceRounded": 0.7271,
+    "kValueRounded": 1.3754,
+    "compliant": false
+  }
+}

@@ -316,7 +316,7 @@ export async function deleteConstructionScheme(
 // ---------------------------------------------------------------- new-version 子表复制（同事务快照）
 
 /** 复制层/产品选项/文档到新版本方案：id 由数据库重新生成，schemeId 指向新行 */
-async function copySchemeChildren(
+export async function copySchemeChildren(
   tx: DbExecutor,
   oldRow: Record<string, unknown>,
   newRow: Record<string, unknown>

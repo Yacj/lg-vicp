@@ -11,6 +11,7 @@ import {
   createInsulationSystem,
   createSchemeDocument,
   createSchemeProductOption,
+  copySchemeChildren,
   deleteConstructionLayer,
   deleteConstructionScheme,
   deleteInsulationSystem,
@@ -249,6 +250,7 @@ export async function constructionRoutes(app: FastifyInstance) {
   registerVersionedWorkflow({
     ...workflowCtx, app, base: "/construction-schemes", label: "构造方案", entity: "constructionScheme",
     perms: SCHEME_PERMS, dto: constructionSchemeDto,
+    copyChildren: copySchemeChildren,
     validate: (instance, id) => validateSchemeStructure(instance, id)
   });
 

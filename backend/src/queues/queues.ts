@@ -5,7 +5,8 @@ export const QUEUE_NAMES = {
   DOCUMENT_PROCESSING: "document-processing",
   REPORT_GENERATION: "report-generation",
   MAINTENANCE: "maintenance",
-  AI_TITLE_GENERATION: "ai-title-generation"
+  AI_TITLE_GENERATION: "ai-title-generation",
+  THERMAL_IMPORT: "thermal-import"
 } as const;
 
 export interface AppQueues {
@@ -13,6 +14,7 @@ export interface AppQueues {
   reportGeneration: Queue;
   maintenance: Queue;
   aiTitleGeneration: Queue;
+  thermalImport: Queue;
 }
 
 export function createQueues(redis: Redis): AppQueues {
@@ -30,7 +32,8 @@ export function createQueues(redis: Redis): AppQueues {
     documentProcessing: new Queue(QUEUE_NAMES.DOCUMENT_PROCESSING, defaults),
     reportGeneration: new Queue(QUEUE_NAMES.REPORT_GENERATION, defaults),
     maintenance: new Queue(QUEUE_NAMES.MAINTENANCE, defaults),
-    aiTitleGeneration: new Queue(QUEUE_NAMES.AI_TITLE_GENERATION, defaults)
+    aiTitleGeneration: new Queue(QUEUE_NAMES.AI_TITLE_GENERATION, defaults),
+    thermalImport: new Queue(QUEUE_NAMES.THERMAL_IMPORT, defaults)
   };
 }
 
@@ -39,6 +42,7 @@ export async function closeQueues(queues: AppQueues): Promise<void> {
     queues.documentProcessing.close(),
     queues.reportGeneration.close(),
     queues.maintenance.close(),
-    queues.aiTitleGeneration.close()
+    queues.aiTitleGeneration.close(),
+    queues.thermalImport.close()
   ]);
 }

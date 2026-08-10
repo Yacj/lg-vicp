@@ -1,0 +1,40 @@
+{
+  "name": "EQUIVALENT 整体当量法最小自检样例",
+  "description": "产品层总厚 40mm，当量导热系数 0.04 × 修正系数 1.1；无标准限值时不判定（compliant=null）",
+  "mode": "EQUIVALENT",
+  "rules": {
+    "ruleId": "self-check-2",
+    "ruleVersion": 1,
+    "ruleCode": "SELF-CHECK-2",
+    "formulaVersion": "VICP-CALC-1",
+    "interiorSurfaceResistance": 0.11,
+    "exteriorSurfaceResistance": 0.04,
+    "precision": 4,
+    "roundingMode": "HALF_UP",
+    "compareField": "K_VALUE",
+    "compareOperator": "LTE",
+    "includeNonProductLayers": true,
+    "includeSurfaceResistances": true
+  },
+  "layers": [
+    {
+      "layerOrder": 1,
+      "layerType": "PRODUCT_LAYER",
+      "layerName": "保温系统产品层",
+      "materialId": null,
+      "thicknessM": 0.04,
+      "lambda": null,
+      "correctionFactor": null,
+      "evidenceRef": "P10"
+    }
+  ],
+  "equivalentParams": { "conductivity": 0.04, "correctionFactor": 1.1 },
+  "standardLimit": null,
+  "expected": {
+    "valid": true,
+    "productResistanceRounded": 0.9091,
+    "totalResistanceRounded": 1.0591,
+    "kValueRounded": 0.9442,
+    "compliant": null
+  }
+}
