@@ -19,6 +19,7 @@ import { ConflictError } from "../../shared/errors.js";
 import { StandardError } from "../../shared/standard-errors.js";
 import type { ObjectStorage } from "../../storage/index.js";
 import { writeAuditLog } from "../audit-logs/audit-log.service.js";
+import { upsertProfessionalReview } from "../review-center/professional-review.js";
 
 /**
  * 地方标准采集业务服务（双通道：爬虫 CRAWL / 人工 MANUAL）。
@@ -72,6 +73,23 @@ async function transition(
       beforeJson: { status: current },
       afterJson: { status: to }
     });
+    // 统一审核记录（审核中心队列数据源）：submit/approve/reject 与状态变更同事务 upsert
+    const reviewStatus = to === "PENDING_REVIEW" ? "PENDING_REVIEW" as const
+      : to === "APPROVED" ? "APPROVED" as const
+      : to === "REJECTED" ? "REJECTED" as const
+      : null;
+    if (reviewStatus) {
+      await upsertProfessionalReview({
+        db: tx,
+        entityType: targetType,
+        entityId: id,
+        entityVersion: null,
+        status: reviewStatus,
+        comment: (extraSet.approvalNote as string | undefined) ?? (extraSet.rejectReason as string | undefined) ?? null,
+        actorUserId: actor.id,
+        requestId: request.id
+      });
+    }
     return updated as Record<string, unknown>;
   });
 }

@@ -11,6 +11,7 @@ import { ForbiddenError, NotFoundError } from "../../shared/errors.js";
 import { canManageProject, canViewProject } from "../../shared/permissions.js";
 import { ok } from "../../shared/response.js";
 import { writeAuditLog } from "../audit-logs/audit-log.service.js";
+import { assertPublishable } from "./report-review.service.js";
 
 const createReportBodySchema = z.object({
   projectId: z.uuid("项目 ID 格式不正确"),
@@ -226,7 +227,8 @@ export async function reportRoutes(app: FastifyInstance) {
     const user = getCurrentUser(request);
     const row = await getReportWithProject(app, request.params.id);
     if (!row || !canManageProject(user, row.project)) throw new NotFoundError("报告不存在或无权发布");
-    if (row.report.status !== "READY") throw new ForbiddenError("报告尚未生成完成，不能发布");
+    // 模板报告必须先审核通过（APPROVED）才能发布；AI 会话报告保持现状（READY 即可发布）
+    assertPublishable(row.report);
     const report = await app.db.transaction(async (tx) => {
       const [updated] = await tx.update(reports).set({ publishedAt: new Date(), updatedAt: new Date() })
         .where(eq(reports.id, row.report.id)).returning();

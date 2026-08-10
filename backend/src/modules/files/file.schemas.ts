@@ -4,7 +4,10 @@ export const supportedMimeTypes = [
   "application/pdf",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   "image/png",
-  "image/jpeg"
+  "image/jpeg",
+  "image/svg+xml",
+  "application/acad",
+  "application/dxf"
 ] as const;
 
 export const createUploadIntentBodySchema = z.object({

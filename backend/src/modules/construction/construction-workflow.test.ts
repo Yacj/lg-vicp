@@ -116,7 +116,7 @@ describe("构造方案 new-version（子表同事务复制）", () => {
 describe("构造模块注册的实体复用通用状态机", () => {
   it("submit：构造方案 DRAFT -> PENDING_REVIEW（经 registerVersionedEntity 注册后直接可用）", async () => {
     const draftRow = { ...schemeRow, status: "DRAFT" };
-    const { db, setCalls } = makeDb([[draftRow], [{ ...draftRow, status: "PENDING_REVIEW" }]]);
+    const { db, setCalls } = makeDb([[draftRow], [{ ...draftRow, status: "PENDING_REVIEW" }], [], [{ id: "pr-1" }]]);
     const result = await submitForReview(app(db), request, actor, "constructionScheme", "row-1");
     expect(result.status).toBe("PENDING_REVIEW");
     expect(setCalls[0]).toMatchObject({ status: "PENDING_REVIEW", submittedById: "u-1" });

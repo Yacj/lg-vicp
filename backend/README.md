@@ -84,6 +84,7 @@ schema: {
 - 用户端详情只展示本人消息、处理阶段、检索摘要、反馈、报告和分享；不展示模型原始思考链。
 - B 端 AI 运营详情是独立后台接口，需要 `system:ai:conversation:*` 权限，可查看工具调用、任务、分享访问和审计摘要。
 - AI 配置（服务商/模型/场景/提示词版本化）、SSE 协议、错误码、配额与安全细则见 `docs/ai/`。
+- 主数据/构造方案/图集热工/标准采集/材料对比/节点图库/报告与审核中心细则见 `docs/masterdata|construction|thermal|standard|comparison|nodes|reports/README.md`。
 - API Key 使用 AES-256-GCM 加密，任何接口都不能返回密钥明文或完整密文。
 - 报告来源通过 `report_sources` 保存回答快照和顺序，报告由 Worker 导出 HTML、PDF、图片和 Word。
 

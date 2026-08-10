@@ -9,12 +9,17 @@ import { CONSTRUCTION_PERMISSION_SEEDS } from "../shared/construction-permission
 import { THERMAL_PERMISSION_SEEDS } from "../shared/thermal-permissions.js";
 import { STANDARD_PERMISSION_SEEDS } from "../shared/standard-permissions.js";
 import { COMPARISON_PERMISSION_SEEDS } from "../shared/comparison-permissions.js";
+import { NODE_PERMISSION_SEEDS } from "../shared/node-permissions.js";
+import { REPORT_PERMISSION_SEEDS } from "../shared/report-permissions.js";
+import { REVIEW_PERMISSION_SEEDS } from "../shared/review-permissions.js";
 import { buildRankingRuleSeeds } from "../modules/knowledge/knowledge-ingest.service.js";
+import { DEFAULT_REPORT_SECTIONS } from "../modules/reports/report-template.service.js";
 import {
   aiModels,
   aiProviders,
   aiScenes,
   comparisonDimensions,
+  reportTemplates,
   knowledgeAliases,
   knowledgeCategories,
   knowledgeRankingRules,
@@ -115,7 +120,10 @@ const permissionSeeds = [
   ...CONSTRUCTION_PERMISSION_SEEDS,
   ...THERMAL_PERMISSION_SEEDS,
   ...STANDARD_PERMISSION_SEEDS,
-  ...COMPARISON_PERMISSION_SEEDS
+  ...COMPARISON_PERMISSION_SEEDS,
+  ...NODE_PERMISSION_SEEDS,
+  ...REPORT_PERMISSION_SEEDS,
+  ...REVIEW_PERMISSION_SEEDS
 ] as const;
 
 try {
@@ -209,7 +217,7 @@ try {
       return menu!.id;
     };
     const systemMenuId = await ensureMenu({
-      menuType: "DIRECTORY", name: "系统管理", routePath: "/system", icon: "settings", sortOrder: 10, permissionCode: "platform.manage"
+      menuType: "DIRECTORY", name: "系统管理", routePath: "/system", icon: "settings", sortOrder: 200, permissionCode: "platform.manage"
     });
     await ensureMenu({ parentId: systemMenuId, menuType: "MENU", name: "用户管理", routePath: "/system/user", component: "system/user/index", sortOrder: 10, permissionCode: "system:user:list" });
     await ensureMenu({ parentId: systemMenuId, menuType: "MENU", name: "角色管理", routePath: "/system/role", component: "system/role/index", sortOrder: 20, permissionCode: "system:role:list" });
@@ -225,7 +233,7 @@ try {
     await ensureMenu({ parentId: aiConfigMenuId, menuType: "BUTTON", name: "AI 调试", routePath: "/system/ai/debug", sortOrder: 30, permissionCode: "system:ai:debug:use" });
     await ensureMenu({ parentId: aiConfigMenuId, menuType: "BUTTON", name: "对话围栏", routePath: "/system/ai/filter", sortOrder: 40, permissionCode: "system:ai:filter:list" });
     const monitorMenuId = await ensureMenu({
-      menuType: "DIRECTORY", name: "系统监控", routePath: "/monitor", icon: "monitor", sortOrder: 20, permissionCode: "monitor:audit:list"
+      menuType: "DIRECTORY", name: "系统监控", routePath: "/monitor", icon: "monitor", sortOrder: 210, permissionCode: "monitor:audit:list"
     });
     await ensureMenu({ parentId: monitorMenuId, menuType: "MENU", name: "审计日志", routePath: "/monitor/audit", component: "monitor/audit/index", sortOrder: 10, permissionCode: "monitor:audit:list" });
     await ensureMenu({ parentId: monitorMenuId, menuType: "MENU", name: "在线用户", routePath: "/monitor/online", component: "monitor/online/index", sortOrder: 20, permissionCode: "monitor:online:list" });
@@ -234,28 +242,253 @@ try {
     const aiOpsMenuId = await ensureMenu({ parentId: monitorMenuId, menuType: "MENU", name: "AI 运营", routePath: "/monitor/ai", component: "monitor/ai/index", sortOrder: 50, permissionCode: "system:ai:conversation:list" });
     await ensureMenu({ parentId: aiOpsMenuId, menuType: "BUTTON", name: "反馈处理", routePath: "/monitor/ai/feedback-handle", sortOrder: 10, permissionCode: "system:ai:feedback:handle" });
     await ensureMenu({
-      menuType: "MENU", name: "项目管理", routePath: "/project", component: "project/index", sortOrder: 30, permissionCode: "project.create"
+      menuType: "MENU", name: "项目管理", routePath: "/project", component: "project/index", sortOrder: 220, permissionCode: "project.create"
     });
-    await ensureMenu({ menuType: "MENU", name: "AI 对话", routePath: "/ai", component: "ai/index", sortOrder: 40, permissionCode: "ai.chat" });
-    await ensureMenu({ menuType: "MENU", name: "知识库管理", routePath: "/knowledge", component: "knowledge/index", sortOrder: 35, permissionCode: "system:knowledge:doc:list" });
+    await ensureMenu({ menuType: "MENU", name: "AI 对话", routePath: "/ai", component: "ai/index", sortOrder: 230, permissionCode: "ai.chat" });
+
+    // ===== 专业业务菜单：11 个一级模块（信息架构 2026-08 重组）=====
+    // 旧单级业务菜单（/knowledge、/construction、/thermal、/comparison、/nodes、/review-center）就地转为目录
+    // （menuId 不变，角色关联不破坏）；旧业务按钮与旧报告菜单路径先清理，避免幽灵菜单与重复按钮。
+    await tx.delete(menus).where(inArray(menus.routePath, [
+      "/construction/add", "/construction/approve", "/construction/publish",
+      "/thermal/import", "/thermal/approve", "/thermal/publish",
+      "/comparison/add", "/comparison/approve", "/comparison/publish",
+      "/nodes/add", "/nodes/approve", "/nodes/publish",
+      "/report-template/add", "/report-template/approve", "/report-template/publish",
+      "/report-center/review", "/review-center/approve",
+      "/report-template", "/report-center"
+    ]));
+
+    const ensureButtons = async (
+      parentId: string,
+      actions: ReadonlyArray<{ routePath: string; name: string; permissionCode: string }>
+    ) => {
+      for (const [index, button] of actions.entries()) {
+        await ensureMenu({
+          parentId,
+          menuType: "BUTTON",
+          routePath: button.routePath,
+          name: button.name,
+          permissionCode: button.permissionCode,
+          sortOrder: (index + 1) * 10
+        });
+      }
+    };
+
+    // 1. 企业内容（企业简介 / 企业证书）
+    const contentMenuId = await ensureMenu({
+      menuType: "DIRECTORY", name: "企业内容", routePath: "/content", icon: "tdesign:file", sortOrder: 10
+    });
+    await ensureMenu({ parentId: contentMenuId, menuType: "MENU", name: "企业简介", routePath: "/content/profile", component: "content/profile/index", sortOrder: 10, permissionCode: "system:md:enterprise:list" });
+    await ensureMenu({ parentId: contentMenuId, menuType: "MENU", name: "企业证书", routePath: "/content/certificates", component: "content/certificates/index", sortOrder: 20, permissionCode: "system:md:enterprise:list" });
+    await ensureButtons(contentMenuId, [
+      { routePath: "/content/add", name: "企业内容新增", permissionCode: "system:md:enterprise:add" },
+      { routePath: "/content/edit", name: "企业内容编辑", permissionCode: "system:md:enterprise:edit" },
+      { routePath: "/content/remove", name: "企业内容删除", permissionCode: "system:md:enterprise:remove" },
+      { routePath: "/content/approve", name: "企业内容审核", permissionCode: "system:md:enterprise:approve" },
+      { routePath: "/content/publish", name: "企业内容发布", permissionCode: "system:md:enterprise:publish" }
+    ]);
+
+    // 2. 知识中心（文档资料 / 分类 / 别名 / 抓取源 / 检索日志）
+    const knowledgeMenuId = await ensureMenu({
+      menuType: "DIRECTORY", name: "知识中心", routePath: "/knowledge", icon: "tdesign:book", sortOrder: 20
+    });
+    const knowledgeDocsMenuId = await ensureMenu({ parentId: knowledgeMenuId, menuType: "MENU", name: "文档资料", routePath: "/knowledge/documents", component: "knowledge/documents/index", sortOrder: 10, permissionCode: "system:knowledge:doc:list" });
+    await ensureButtons(knowledgeDocsMenuId, [
+      { routePath: "/knowledge/documents/add", name: "知识文档新增", permissionCode: "system:knowledge:doc:add" },
+      { routePath: "/knowledge/documents/edit", name: "知识文档编辑", permissionCode: "system:knowledge:doc:edit" },
+      { routePath: "/knowledge/documents/upload", name: "知识文档上传", permissionCode: "system:knowledge:doc:upload" },
+      { routePath: "/knowledge/documents/parse", name: "知识文档解析", permissionCode: "system:knowledge:doc:parse" },
+      { routePath: "/knowledge/documents/approve", name: "知识文档审核", permissionCode: "system:knowledge:doc:approve" },
+      { routePath: "/knowledge/documents/publish", name: "知识文档发布", permissionCode: "system:knowledge:doc:publish" },
+      { routePath: "/knowledge/documents/remove", name: "知识文档删除", permissionCode: "system:knowledge:doc:remove" }
+    ]);
+    const knowledgeCategoryMenuId = await ensureMenu({ parentId: knowledgeMenuId, menuType: "MENU", name: "分类管理", routePath: "/knowledge/categories", component: "knowledge/categories/index", sortOrder: 20, permissionCode: "system:knowledge:category:list" });
+    await ensureButtons(knowledgeCategoryMenuId, [
+      { routePath: "/knowledge/categories/add", name: "知识分类新增", permissionCode: "system:knowledge:category:add" },
+      { routePath: "/knowledge/categories/edit", name: "知识分类编辑", permissionCode: "system:knowledge:category:edit" },
+      { routePath: "/knowledge/categories/remove", name: "知识分类删除", permissionCode: "system:knowledge:category:remove" }
+    ]);
+    const knowledgeAliasMenuId = await ensureMenu({ parentId: knowledgeMenuId, menuType: "MENU", name: "别名词典", routePath: "/knowledge/aliases", component: "knowledge/aliases/index", sortOrder: 30, permissionCode: "system:knowledge:alias:list" });
+    await ensureButtons(knowledgeAliasMenuId, [
+      { routePath: "/knowledge/aliases/add", name: "别名新增", permissionCode: "system:knowledge:alias:add" },
+      { routePath: "/knowledge/aliases/edit", name: "别名编辑", permissionCode: "system:knowledge:alias:edit" },
+      { routePath: "/knowledge/aliases/remove", name: "别名删除", permissionCode: "system:knowledge:alias:remove" }
+    ]);
+    const knowledgeCrawlerMenuId = await ensureMenu({ parentId: knowledgeMenuId, menuType: "MENU", name: "抓取源", routePath: "/knowledge/crawlers", component: "knowledge/crawlers/index", sortOrder: 40, permissionCode: "system:knowledge:crawler:list" });
+    await ensureButtons(knowledgeCrawlerMenuId, [
+      { routePath: "/knowledge/crawlers/add", name: "抓取源新增", permissionCode: "system:knowledge:crawler:add" },
+      { routePath: "/knowledge/crawlers/edit", name: "抓取源编辑", permissionCode: "system:knowledge:crawler:edit" },
+      { routePath: "/knowledge/crawlers/run", name: "手动触发抓取", permissionCode: "system:knowledge:crawler:run" },
+      { routePath: "/knowledge/crawlers/remove", name: "抓取源删除", permissionCode: "system:knowledge:crawler:remove" }
+    ]);
+    await ensureMenu({ parentId: knowledgeMenuId, menuType: "MENU", name: "检索日志", routePath: "/knowledge/search-logs", component: "knowledge/search-logs/index", sortOrder: 50, permissionCode: "system:knowledge:search-log:list" });
+
+    // 3. 产品中心（产品系列 / 产品规格 / 产品参数 / 产品附件）
+    const productsMenuId = await ensureMenu({
+      menuType: "DIRECTORY", name: "产品中心", routePath: "/products", icon: "tdesign:app", sortOrder: 30
+    });
+    const productSeriesMenuId = await ensureMenu({ parentId: productsMenuId, menuType: "MENU", name: "产品系列", routePath: "/products/series", component: "products/series/index", sortOrder: 10, permissionCode: "system:md:product:list" });
+    const productSpecsMenuId = await ensureMenu({ parentId: productsMenuId, menuType: "MENU", name: "产品规格", routePath: "/products/specs", component: "products/specs/index", sortOrder: 20, permissionCode: "system:md:product:list" });
+    const productParamsMenuId = await ensureMenu({ parentId: productsMenuId, menuType: "MENU", name: "产品参数", routePath: "/products/parameters", component: "products/parameters/index", sortOrder: 30, permissionCode: "system:md:product:list" });
+    const productAttachmentsMenuId = await ensureMenu({ parentId: productsMenuId, menuType: "MENU", name: "产品附件", routePath: "/products/attachments", component: "products/attachments/index", sortOrder: 40, permissionCode: "system:md:product:list" });
+    const productButtons = (prefix: string) => [
+      { routePath: `${prefix}/add`, name: "产品数据新增", permissionCode: "system:md:product:add" },
+      { routePath: `${prefix}/edit`, name: "产品数据编辑", permissionCode: "system:md:product:edit" },
+      { routePath: `${prefix}/remove`, name: "产品数据删除", permissionCode: "system:md:product:remove" },
+      { routePath: `${prefix}/approve`, name: "产品数据审核", permissionCode: "system:md:product:approve" },
+      { routePath: `${prefix}/publish`, name: "产品数据发布", permissionCode: "system:md:product:publish" }
+    ];
+    await ensureButtons(productSeriesMenuId, productButtons("/products/series"));
+    await ensureButtons(productSpecsMenuId, productButtons("/products/specs"));
+    await ensureButtons(productParamsMenuId, productButtons("/products/parameters"));
+    await ensureButtons(productAttachmentsMenuId, productButtons("/products/attachments"));
+
+    // 4. 基础数据（材料库 / 材料参数版本）
+    const masterdataMenuId = await ensureMenu({
+      menuType: "DIRECTORY", name: "基础数据", routePath: "/masterdata", icon: "tdesign:folder", sortOrder: 40
+    });
+    const materialMenuId = await ensureMenu({ parentId: masterdataMenuId, menuType: "MENU", name: "材料库", routePath: "/masterdata/materials", component: "masterdata/materials/index", sortOrder: 10, permissionCode: "system:md:material:list" });
+    const materialVersionMenuId = await ensureMenu({ parentId: masterdataMenuId, menuType: "MENU", name: "材料参数版本", routePath: "/masterdata/parameter-versions", component: "masterdata/parameter-versions/index", sortOrder: 20, permissionCode: "system:md:material:list" });
+    const materialButtons = (prefix: string) => [
+      { routePath: `${prefix}/add`, name: "材料数据新增", permissionCode: "system:md:material:add" },
+      { routePath: `${prefix}/edit`, name: "材料数据编辑", permissionCode: "system:md:material:edit" },
+      { routePath: `${prefix}/remove`, name: "材料数据删除", permissionCode: "system:md:material:remove" },
+      { routePath: `${prefix}/approve`, name: "材料数据审核", permissionCode: "system:md:material:approve" },
+      { routePath: `${prefix}/publish`, name: "材料数据发布", permissionCode: "system:md:material:publish" }
+    ];
+    await ensureButtons(materialMenuId, materialButtons("/masterdata/materials"));
+    await ensureButtons(materialVersionMenuId, materialButtons("/masterdata/parameter-versions"));
+
+    // 5. 系统构造（保温系统 / 构造方案）
     const constructionMenuId = await ensureMenu({
-      menuType: "MENU", name: "构造方案", routePath: "/construction", component: "construction/index", sortOrder: 36, permissionCode: "system:construction:list"
+      menuType: "DIRECTORY", name: "系统构造", routePath: "/construction", icon: "tdesign:building", sortOrder: 50
     });
-    await ensureMenu({ parentId: constructionMenuId, menuType: "BUTTON", name: "构造方案新增", routePath: "/construction/add", sortOrder: 10, permissionCode: "system:construction:add" });
-    await ensureMenu({ parentId: constructionMenuId, menuType: "BUTTON", name: "构造方案审核", routePath: "/construction/approve", sortOrder: 20, permissionCode: "system:construction:approve" });
-    await ensureMenu({ parentId: constructionMenuId, menuType: "BUTTON", name: "构造方案发布", routePath: "/construction/publish", sortOrder: 30, permissionCode: "system:construction:publish" });
+    const insulationSystemMenuId = await ensureMenu({ parentId: constructionMenuId, menuType: "MENU", name: "保温系统", routePath: "/construction/systems", component: "construction/systems/index", sortOrder: 10, permissionCode: "system:construction:list" });
+    const constructionSchemeMenuId = await ensureMenu({ parentId: constructionMenuId, menuType: "MENU", name: "构造方案", routePath: "/construction/schemes", component: "construction/schemes/index", sortOrder: 20, permissionCode: "system:construction:list" });
+    const constructionButtons = (prefix: string) => [
+      { routePath: `${prefix}/add`, name: "构造数据新增", permissionCode: "system:construction:add" },
+      { routePath: `${prefix}/edit`, name: "构造数据编辑", permissionCode: "system:construction:edit" },
+      { routePath: `${prefix}/remove`, name: "构造数据删除", permissionCode: "system:construction:remove" },
+      { routePath: `${prefix}/approve`, name: "构造数据审核", permissionCode: "system:construction:approve" },
+      { routePath: `${prefix}/publish`, name: "构造数据发布", permissionCode: "system:construction:publish" }
+    ];
+    await ensureButtons(insulationSystemMenuId, constructionButtons("/construction/systems"));
+    await ensureButtons(constructionSchemeMenuId, constructionButtons("/construction/schemes"));
+
+    // 6. 热工中心（图集参考表 / 计算规则 / 标准限值 / 计算记录）
     const thermalMenuId = await ensureMenu({
-      menuType: "MENU", name: "图集热工参考表", routePath: "/thermal", component: "thermal/index", sortOrder: 37, permissionCode: "system:thermal:list"
+      menuType: "DIRECTORY", name: "热工中心", routePath: "/thermal", icon: "tdesign:chart", sortOrder: 60
     });
-    await ensureMenu({ parentId: thermalMenuId, menuType: "BUTTON", name: "图集热工导入", routePath: "/thermal/import", sortOrder: 10, permissionCode: "system:thermal:import" });
-    await ensureMenu({ parentId: thermalMenuId, menuType: "BUTTON", name: "图集热工审核", routePath: "/thermal/approve", sortOrder: 20, permissionCode: "system:thermal:approve" });
-    await ensureMenu({ parentId: thermalMenuId, menuType: "BUTTON", name: "图集热工发布", routePath: "/thermal/publish", sortOrder: 30, permissionCode: "system:thermal:publish" });
+    const thermalSetMenuId = await ensureMenu({ parentId: thermalMenuId, menuType: "MENU", name: "图集参考表", routePath: "/thermal/sets", component: "thermal/sets/index", sortOrder: 10, permissionCode: "system:thermal:list" });
+    await ensureButtons(thermalSetMenuId, [
+      { routePath: "/thermal/sets/add", name: "参考集新增", permissionCode: "system:thermal:add" },
+      { routePath: "/thermal/sets/edit", name: "参考集编辑", permissionCode: "system:thermal:edit" },
+      { routePath: "/thermal/sets/import", name: "参考表导入", permissionCode: "system:thermal:import" },
+      { routePath: "/thermal/sets/remove", name: "参考集删除", permissionCode: "system:thermal:remove" },
+      { routePath: "/thermal/sets/approve", name: "参考集审核", permissionCode: "system:thermal:approve" },
+      { routePath: "/thermal/sets/publish", name: "参考集发布", permissionCode: "system:thermal:publish" }
+    ]);
+    const thermalCalcRuleMenuId = await ensureMenu({ parentId: thermalMenuId, menuType: "MENU", name: "计算规则", routePath: "/thermal/calc-rules", component: "thermal/calc-rules/index", sortOrder: 20, permissionCode: "system:thermal:list" });
+    await ensureButtons(thermalCalcRuleMenuId, [
+      { routePath: "/thermal/calc-rules/add", name: "计算规则新增", permissionCode: "system:thermal:add" },
+      { routePath: "/thermal/calc-rules/edit", name: "计算规则编辑", permissionCode: "system:thermal:edit" },
+      { routePath: "/thermal/calc-rules/remove", name: "计算规则删除", permissionCode: "system:thermal:remove" },
+      { routePath: "/thermal/calc-rules/approve", name: "计算规则审核", permissionCode: "system:thermal:approve" },
+      { routePath: "/thermal/calc-rules/publish", name: "计算规则发布", permissionCode: "system:thermal:publish" }
+    ]);
+    const thermalLimitMenuId = await ensureMenu({ parentId: thermalMenuId, menuType: "MENU", name: "标准限值", routePath: "/thermal/standard-limits", component: "thermal/standard-limits/index", sortOrder: 30, permissionCode: "system:thermal:list" });
+    await ensureButtons(thermalLimitMenuId, [
+      { routePath: "/thermal/standard-limits/add", name: "标准限值新增", permissionCode: "system:thermal:add" },
+      { routePath: "/thermal/standard-limits/edit", name: "标准限值编辑", permissionCode: "system:thermal:edit" },
+      { routePath: "/thermal/standard-limits/remove", name: "标准限值删除", permissionCode: "system:thermal:remove" },
+      { routePath: "/thermal/standard-limits/approve", name: "标准限值审核", permissionCode: "system:thermal:approve" },
+      { routePath: "/thermal/standard-limits/publish", name: "标准限值发布", permissionCode: "system:thermal:publish" }
+    ]);
+    await ensureMenu({ parentId: thermalMenuId, menuType: "MENU", name: "计算记录", routePath: "/thermal/calc-records", component: "thermal/calc-records/index", sortOrder: 40, permissionCode: "system:thermal:list" });
+
+    // 7. 材料对比（对比版本）
     const comparisonMenuId = await ensureMenu({
-      menuType: "MENU", name: "材料对比规则", routePath: "/comparison", component: "comparison/index", sortOrder: 38, permissionCode: "system:comparison:list"
+      menuType: "DIRECTORY", name: "材料对比", routePath: "/comparison", icon: "tdesign:swap", sortOrder: 70
     });
-    await ensureMenu({ parentId: comparisonMenuId, menuType: "BUTTON", name: "材料对比新增", routePath: "/comparison/add", sortOrder: 10, permissionCode: "system:comparison:add" });
-    await ensureMenu({ parentId: comparisonMenuId, menuType: "BUTTON", name: "材料对比审核", routePath: "/comparison/approve", sortOrder: 20, permissionCode: "system:comparison:approve" });
-    await ensureMenu({ parentId: comparisonMenuId, menuType: "BUTTON", name: "材料对比发布", routePath: "/comparison/publish", sortOrder: 30, permissionCode: "system:comparison:publish" });
+    const comparisonVersionMenuId = await ensureMenu({ parentId: comparisonMenuId, menuType: "MENU", name: "对比版本", routePath: "/comparison/versions", component: "comparison/versions/index", sortOrder: 10, permissionCode: "system:comparison:list" });
+    await ensureButtons(comparisonVersionMenuId, [
+      { routePath: "/comparison/versions/add", name: "对比版本新增", permissionCode: "system:comparison:add" },
+      { routePath: "/comparison/versions/edit", name: "对比版本编辑", permissionCode: "system:comparison:edit" },
+      { routePath: "/comparison/versions/remove", name: "对比版本删除", permissionCode: "system:comparison:remove" },
+      { routePath: "/comparison/versions/approve", name: "对比版本审核", permissionCode: "system:comparison:approve" },
+      { routePath: "/comparison/versions/publish", name: "对比版本发布", permissionCode: "system:comparison:publish" }
+    ]);
+
+    // 8. 标准政策（采集来源 / 标准文档 / 指标管理 / 替代关系）
+    const standardMenuId = await ensureMenu({
+      menuType: "DIRECTORY", name: "标准政策", routePath: "/standard", icon: "tdesign:certificate", sortOrder: 80
+    });
+    const standardSourceMenuId = await ensureMenu({ parentId: standardMenuId, menuType: "MENU", name: "采集来源", routePath: "/standard/sources", component: "standard/sources/index", sortOrder: 10, permissionCode: "system:standard:list" });
+    await ensureButtons(standardSourceMenuId, [
+      { routePath: "/standard/sources/add", name: "采集来源新增", permissionCode: "system:standard:add" },
+      { routePath: "/standard/sources/edit", name: "采集来源编辑", permissionCode: "system:standard:edit" },
+      { routePath: "/standard/sources/run", name: "触发站点抓取", permissionCode: "system:standard:run" },
+      { routePath: "/standard/sources/remove", name: "采集来源删除", permissionCode: "system:standard:remove" }
+    ]);
+    const standardDocumentMenuId = await ensureMenu({ parentId: standardMenuId, menuType: "MENU", name: "标准文档", routePath: "/standard/documents", component: "standard/documents/index", sortOrder: 20, permissionCode: "system:standard:list" });
+    await ensureButtons(standardDocumentMenuId, [
+      { routePath: "/standard/documents/add", name: "标准文档新增", permissionCode: "system:standard:add" },
+      { routePath: "/standard/documents/edit", name: "标准文档编辑", permissionCode: "system:standard:edit" },
+      { routePath: "/standard/documents/approve", name: "标准文档审核", permissionCode: "system:standard:approve" },
+      { routePath: "/standard/documents/publish", name: "标准文档发布", permissionCode: "system:standard:publish" },
+      { routePath: "/standard/documents/remove", name: "标准文档删除", permissionCode: "system:standard:remove" }
+    ]);
+    const standardIndicatorMenuId = await ensureMenu({ parentId: standardMenuId, menuType: "MENU", name: "指标管理", routePath: "/standard/indicators", component: "standard/indicators/index", sortOrder: 30, permissionCode: "system:standard:list" });
+    await ensureButtons(standardIndicatorMenuId, [
+      { routePath: "/standard/indicators/approve", name: "指标审核", permissionCode: "system:standard:approve" },
+      { routePath: "/standard/indicators/publish", name: "指标发布", permissionCode: "system:standard:publish" }
+    ]);
+    const standardReplacementMenuId = await ensureMenu({ parentId: standardMenuId, menuType: "MENU", name: "替代关系", routePath: "/standard/replacements", component: "standard/replacements/index", sortOrder: 40, permissionCode: "system:standard:list" });
+    await ensureButtons(standardReplacementMenuId, [
+      { routePath: "/standard/replacements/add", name: "替代关系新增", permissionCode: "system:standard:add" },
+      { routePath: "/standard/replacements/approve", name: "替代关系确认", permissionCode: "system:standard:approve" },
+      { routePath: "/standard/replacements/remove", name: "替代关系删除", permissionCode: "system:standard:remove" }
+    ]);
+
+    // 9. 节点图库（节点图纸）
+    const nodesMenuId = await ensureMenu({
+      menuType: "DIRECTORY", name: "节点图库", routePath: "/nodes", icon: "tdesign:image", sortOrder: 90
+    });
+    const nodeDrawingMenuId = await ensureMenu({ parentId: nodesMenuId, menuType: "MENU", name: "节点图纸", routePath: "/nodes/drawings", component: "nodes/drawings/index", sortOrder: 10, permissionCode: "system:node:list" });
+    await ensureButtons(nodeDrawingMenuId, [
+      { routePath: "/nodes/drawings/add", name: "节点图新增", permissionCode: "system:node:add" },
+      { routePath: "/nodes/drawings/edit", name: "节点图编辑", permissionCode: "system:node:edit" },
+      { routePath: "/nodes/drawings/remove", name: "节点图删除", permissionCode: "system:node:remove" },
+      { routePath: "/nodes/drawings/approve", name: "节点图审核", permissionCode: "system:node:approve" },
+      { routePath: "/nodes/drawings/publish", name: "节点图发布", permissionCode: "system:node:publish" }
+    ]);
+
+    // 10. 报告中心（报告模板 / 模板报告）
+    const reportsMenuId = await ensureMenu({
+      menuType: "DIRECTORY", name: "报告中心", routePath: "/reports", icon: "tdesign:file-copy", sortOrder: 100
+    });
+    const reportTemplateMenuId = await ensureMenu({ parentId: reportsMenuId, menuType: "MENU", name: "报告模板", routePath: "/reports/templates", component: "reports/templates/index", sortOrder: 10, permissionCode: "system:report:template:list" });
+    await ensureButtons(reportTemplateMenuId, [
+      { routePath: "/reports/templates/add", name: "报告模板新增", permissionCode: "system:report:template:add" },
+      { routePath: "/reports/templates/edit", name: "报告模板编辑", permissionCode: "system:report:template:edit" },
+      { routePath: "/reports/templates/remove", name: "报告模板删除", permissionCode: "system:report:template:remove" },
+      { routePath: "/reports/templates/approve", name: "报告模板审核", permissionCode: "system:report:template:approve" },
+      { routePath: "/reports/templates/publish", name: "报告模板发布", permissionCode: "system:report:template:publish" }
+    ]);
+    const reportCenterMenuId = await ensureMenu({ parentId: reportsMenuId, menuType: "MENU", name: "模板报告", routePath: "/reports/center", component: "reports/center/index", sortOrder: 20, permissionCode: "system:report:generate" });
+    await ensureButtons(reportCenterMenuId, [
+      { routePath: "/reports/center/review", name: "模板报告审核", permissionCode: "system:report:review" }
+    ]);
+
+    // 11. 审核中心（审核队列）
+    const reviewCenterMenuId = await ensureMenu({
+      menuType: "DIRECTORY", name: "审核中心", routePath: "/review-center", icon: "tdesign:seal", sortOrder: 110
+    });
+    const reviewQueueMenuId = await ensureMenu({ parentId: reviewCenterMenuId, menuType: "MENU", name: "审核队列", routePath: "/review-center/queue", component: "review-center/queue/index", sortOrder: 10, permissionCode: "system:review:list" });
+    await ensureButtons(reviewQueueMenuId, [
+      { routePath: "/review-center/queue/approve", name: "审核决议", permissionCode: "system:review:approve" }
+    ]);
 
     // 材料对比五维（固定，服务层禁止删除/禁用）与可扩展子指标目录
     await tx.insert(comparisonDimensions).values([
@@ -265,6 +498,18 @@ try {
       { code: "construction", name: "施工", sortOrder: 40, remark: "五维固定维度" },
       { code: "approval", name: "报审", sortOrder: 50, remark: "五维固定维度" }
     ]).onConflictDoNothing();
+
+    // 默认报告模板（章节齐全、按标准工程报告顺序；免责声明文案待甲方确认，配置可在 B 端调整）
+    await tx.insert(reportTemplates).values({
+      code: "standard_report",
+      version: 1,
+      name: "标准工程报告",
+      description: "默认工程报告模板：企业/项目条件/标准限值/候选方案/用户选择/热工计算/节点/构造/对比/验收/来源/免责声明",
+      sectionsJson: DEFAULT_REPORT_SECTIONS,
+      changeNote: "初始默认模板",
+      status: "PUBLISHED",
+      publishedAt: new Date()
+    }).onConflictDoNothing();
 
     await tx.insert(aiProviders).values({
       code: "deepseek",

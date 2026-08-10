@@ -67,7 +67,17 @@ export const aiMessageRoleEnum = pgEnum("ai_message_role", ["SYSTEM", "USER", "A
 export const aiMessageStatusEnum = pgEnum("ai_message_status", ["PENDING", "STREAMING", "COMPLETED", "STOPPED", "FAILED", "BLOCKED"]);
 export const aiReasoningModeEnum = pgEnum("ai_reasoning_mode", ["OFF", "ON"]);
 export const aiFeedbackReactionEnum = pgEnum("ai_feedback_reaction", ["LIKE", "DISLIKE"]);
-export const reportStatusEnum = pgEnum("report_status", ["DRAFT", "QUEUED", "GENERATING", "READY", "FAILED"]);
+export const reportStatusEnum = pgEnum("report_status", [
+  "DRAFT",
+  "QUEUED",
+  "GENERATING",
+  "READY",
+  "FAILED",
+  // 模板报告审核状态：READY -> PENDING_REVIEW -> APPROVED（可发布）/ REJECTED（可重新提交）
+  "PENDING_REVIEW",
+  "APPROVED",
+  "REJECTED"
+]);
 export const reportArtifactTypeEnum = pgEnum("report_artifact_type", ["HTML", "IMAGE", "WORD", "PDF"]);
 export const shareTargetTypeEnum = pgEnum("share_target_type", ["AI_MESSAGES", "REPORT", "REPORT_ARTIFACT", "PROJECT"]);
 
@@ -1106,6 +1116,15 @@ export const reports = pgTable(
     templateVersion: varchar("template_version", { length: 40 }).notNull().default("1"),
     promptTemplateVersion: integer("prompt_template_version"),
     publishedAt: timestamp("published_at", { withTimezone: true }),
+    /** 模板报告审核列：READY 提交审核后 PENDING_REVIEW -> APPROVED（可发布）/ REJECTED（可重新提交） */
+    submittedById: uuid("submitted_by_id").references(() => users.id, { onDelete: "set null" }),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }),
+    approvedById: uuid("approved_by_id").references(() => users.id, { onDelete: "set null" }),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
+    approvalNote: text("approval_note"),
+    rejectedById: uuid("rejected_by_id").references(() => users.id, { onDelete: "set null" }),
+    rejectedAt: timestamp("rejected_at", { withTimezone: true }),
+    rejectReason: text("reject_reason"),
     errorMessage: text("error_message"),
     createdById: uuid("created_by_id").notNull().references(() => users.id),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
@@ -1535,6 +1554,58 @@ export const schemeDocuments = pgTable(
   (table) => [
     uniqueIndex("scheme_documents_target_document_unique").on(table.targetType, table.targetId, table.knowledgeDocumentId),
     index("scheme_documents_document_idx").on(table.knowledgeDocumentId)
+  ]
+);
+
+// ---------------------------------------------------------------- 节点图库（构造节点大样图）
+// 节点检索按 系统 + 部位 精确返回；节点关联构造方案（多对多，子表随版本复制）、图集页码、高清图/CAD 与说明。
+// 节点为版本化审核实体，数值/页码/证据随版本冻结；已发布读取只返回 PUBLISHED 且生效中的节点。
+
+/** 节点图：版本化审核实体，部位为自由文本（标准词汇表待甲方确认，后续可迁字典） */
+export const nodeDrawings = pgTable(
+  "node_drawings",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    code: varchar("code", { length: 80 }).notNull(),
+    version: integer("version").notNull().default(1),
+    name: varchar("name", { length: 160 }).notNull(),
+    /** 部位（自由文本，精确匹配检索） */
+    position: varchar("position", { length: 80 }).notNull(),
+    systemId: uuid("system_id").references(() => insulationSystems.id, { onDelete: "set null" }),
+    atlasPage: varchar("atlas_page", { length: 40 }),
+    imageFileId: uuid("image_file_id").references(() => files.id, { onDelete: "set null" }),
+    cadFileId: uuid("cad_file_id").references(() => files.id, { onDelete: "set null" }),
+    description: text("description"),
+    changeNote: text("change_note"),
+    ...mdEvidenceColumns,
+    ...mdReviewColumns,
+    ...timestamps
+  },
+  (table) => [
+    uniqueIndex("node_drawings_code_version_unique").on(table.code, table.version),
+    index("node_drawings_system_position_idx").on(table.systemId, table.position),
+    index("node_drawings_position_idx").on(table.position),
+    index("node_drawings_status_updated_idx").on(table.status, table.updatedAt)
+  ]
+);
+
+/** 节点-方案关联：子表随节点 new-version 复制；同一节点在不同方案下的图集页码可不同 */
+export const nodeSchemeLinks = pgTable(
+  "node_scheme_links",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    nodeDrawingId: uuid("node_drawing_id").notNull().references(() => nodeDrawings.id, { onDelete: "cascade" }),
+    schemeId: uuid("scheme_id").notNull().references(() => constructionSchemes.id, { onDelete: "restrict" }),
+    atlasPage: varchar("atlas_page", { length: 40 }),
+    remark: text("remark"),
+    createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    updatedById: uuid("updated_by_id").references(() => users.id, { onDelete: "set null" }),
+    ...mdEvidenceColumns,
+    ...timestamps
+  },
+  (table) => [
+    uniqueIndex("node_scheme_links_drawing_scheme_unique").on(table.nodeDrawingId, table.schemeId),
+    index("node_scheme_links_scheme_idx").on(table.schemeId)
   ]
 );
 
@@ -1990,6 +2061,105 @@ export const thermalCandidateSelections = pgTable(
   (table) => [
     index("thermal_candidate_selections_project_created_idx").on(table.projectId, table.createdAt),
     index("thermal_candidate_selections_user_created_idx").on(table.selectedById, table.createdAt)
+  ]
+);
+
+// ---------------------------------------------------------------- 报告模板 / 报告快照 / 统一审核记录
+// 模板报告：B 端选择已确认候选（thermal_candidate_selections）+ 已发布报告模板生成，快照冻结全部章节数据，
+// 历史报告可完整还原；Worker 只做确定性渲染，不向 AI 索要数值。统一审核记录由各域 transition 同事务 upsert。
+
+/** 报告模板章节配置：key 固定枚举；DATA 章节由报告快照数据确定性渲染，TEXT 章节（如免责声明）使用配置文案 */
+export type ReportTemplateSection = {
+  key:
+    | "enterprise" // 企业介绍
+    | "project" // 项目条件
+    | "standards" // 引用标准与地区限值
+    | "candidates" // 候选方案
+    | "selection" // 用户选择与理由
+    | "thermal" // 热工计算
+    | "nodes" // 节点图库
+    | "construction" // 构造方案
+    | "comparison" // 材料对比
+    | "acceptance" // 施工验收
+    | "sources" // 来源
+    | "disclaimer"; // 免责声明
+  title: string;
+  enabled: boolean;
+  order: number;
+  sourceType: "DATA" | "TEXT";
+  content?: string;
+};
+
+/** 报告模板：版本化审核实体（发布后供报告生成引用），章节顺序/启用集在 B 端配置 */
+export const reportTemplates = pgTable(
+  "report_templates",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    code: varchar("code", { length: 80 }).notNull(),
+    version: integer("version").notNull().default(1),
+    name: varchar("name", { length: 160 }).notNull(),
+    description: text("description"),
+    sectionsJson: jsonb("sections_json").$type<ReportTemplateSection[]>().notNull().default(sql`'[]'::jsonb`),
+    changeNote: text("change_note"),
+    ...mdEvidenceColumns,
+    ...mdReviewColumns,
+    ...timestamps
+  },
+  (table) => [
+    uniqueIndex("report_templates_code_version_unique").on(table.code, table.version),
+    index("report_templates_status_updated_idx").on(table.status, table.updatedAt)
+  ]
+);
+
+/** 报告数据快照：模板报告生成时冻结全部章节数据（候选/计算/企业/标准/节点/来源/免责声明），历史报告可完整还原 */
+export const reportSnapshots = pgTable(
+  "report_snapshots",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    reportId: uuid("report_id").notNull().references(() => reports.id, { onDelete: "cascade" }),
+    templateId: uuid("template_id").references(() => reportTemplates.id, { onDelete: "set null" }),
+    templateVersion: integer("template_version"),
+    /** 数据生效时点：按 asOfDate 判定已发布数据生效窗，历史不随后台参数漂移 */
+    asOfDate: timestamp("as_of_date", { withTimezone: true }),
+    /** 整份章节数据快照：projectJson/enterpriseJson/standardsJson/selectionJson/calcJson/nodesJson/acceptanceJson/sourcesJson/disclaimerText */
+    dataJson: jsonb("data_json").$type<Record<string, unknown>>().notNull(),
+    generatedById: uuid("generated_by_id").references(() => users.id, { onDelete: "set null" }),
+    generatedAt: timestamp("generated_at", { withTimezone: true }).notNull().defaultNow(),
+    ...timestamps
+  },
+  (table) => [uniqueIndex("report_snapshots_report_unique").on(table.reportId)]
+);
+
+/** 统一审核状态：跨域（产品/构造/热工/标准/比较/报告）审核记录状态 */
+export const professionalReviewStatusEnum = pgEnum("professional_review_status", [
+  "PENDING_REVIEW",
+  "APPROVED",
+  "REJECTED"
+]);
+
+/** 统一审核记录：每 (entityType, entityId) 一行，由各域 transition 同事务 upsert，供审核中心队列读取 */
+export const professionalReviews = pgTable(
+  "professional_reviews",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** 实体类型：复用审计 targetType（md_product_spec/construction_scheme/thermal_reference_set/standard.document/report 等） */
+    entityType: varchar("entity_type", { length: 80 }).notNull(),
+    entityId: uuid("entity_id").notNull(),
+    entityVersion: integer("entity_version"),
+    status: professionalReviewStatusEnum("status").notNull(),
+    /** 审核意见（approve）或驳回原因（reject） */
+    comment: text("comment"),
+    projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
+    submittedById: uuid("submitted_by_id").references(() => users.id, { onDelete: "set null" }),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }),
+    reviewedById: uuid("reviewed_by_id").references(() => users.id, { onDelete: "set null" }),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    requestId: varchar("request_id", { length: 120 }),
+    ...timestamps
+  },
+  (table) => [
+    uniqueIndex("professional_reviews_entity_unique").on(table.entityType, table.entityId),
+    index("professional_reviews_status_idx").on(table.status)
   ]
 );
 

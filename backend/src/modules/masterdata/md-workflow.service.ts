@@ -14,6 +14,7 @@ import type { AuthUser } from "../../shared/auth-user.js";
 import { AUDIT_ACTIONS } from "../../shared/constants.js";
 import { MdError } from "../../shared/md-errors.js";
 import { writeAuditLog } from "../audit-logs/audit-log.service.js";
+import { upsertProfessionalReview } from "../review-center/professional-review.js";
 
 /**
  * 主数据通用审核状态机（事务+审计）：
@@ -192,7 +193,37 @@ async function transition(
       beforeJson: { status: row.status },
       afterJson: { status: to }
     });
+    // 统一审核记录（审核中心队列数据源）：submit/approve/reject 与状态变更同事务 upsert
+    await syncProfessionalReview(tx, meta.kind, id, row, to, options.extraSet, actor, request.id);
     return updated!;
+  });
+}
+
+/** 提交/审核/驳回时同步统一审核记录；发布/停用等非审核动作不写入 */
+async function syncProfessionalReview(
+  tx: DbExecutor,
+  entityType: string,
+  entityId: string,
+  row: Record<string, unknown>,
+  to: MdReviewStatus,
+  extraSet: Record<string, unknown> | undefined,
+  actor: AuthUser,
+  requestId: string
+) {
+  const status = to === "PENDING_REVIEW" ? "PENDING_REVIEW" as const
+    : to === "APPROVED" ? "APPROVED" as const
+    : to === "REJECTED" ? "REJECTED" as const
+    : null;
+  if (!status) return;
+  await upsertProfessionalReview({
+    db: tx,
+    entityType,
+    entityId,
+    entityVersion: typeof row.version === "number" ? row.version : null,
+    status,
+    comment: (extraSet?.approvalNote as string | undefined) ?? (extraSet?.rejectReason as string | undefined) ?? null,
+    actorUserId: actor.id,
+    requestId
   });
 }
 

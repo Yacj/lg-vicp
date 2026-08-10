@@ -4,8 +4,13 @@ import { eq } from "drizzle-orm";
 import { chromium } from "playwright-core";
 import { env } from "../config/env.js";
 import type { Database } from "../db/client.js";
-import { asyncTasks, auditLogs, files, reportArtifacts, reports } from "../db/schema.js";
+import { asyncTasks, auditLogs, files, reportArtifacts, reportSnapshots, reports } from "../db/schema.js";
 import type { ObjectStorage } from "../storage/index.js";
+import {
+  renderTemplateHtml,
+  renderTemplateWord,
+  type ReportSnapshotPayload
+} from "../modules/reports/report-template-render.js";
 
 interface ReportJobData {
   taskId: string;
@@ -59,10 +64,26 @@ export function createReportProcessor(db: Database, storage: ObjectStorage) {
     try {
       const [report] = await db.select().from(reports).where(eq(reports.id, reportId)).limit(1);
       if (!report) throw new Error("待生成报告不存在");
-      const content = report.contentJson ?? {};
-      const title = report.reportType === "energy_design" ? "建筑节能设计报告" : report.reportType === "design_note" ? "VICP 设计说明" : "VICP 项目说明";
-      const html = createReportHtml(title, content);
-      const word = await createWord(title, content);
+
+      // 模板报告：渲染源为报告数据快照（已确认候选 + 计算记录 + 已发布数据在生成时点冻结），
+      // 只做确定性章节渲染，不向 AI 索要数值；AI 会话报告保持原有 contentJson 渲染链路。
+      let html: string;
+      let word: Buffer;
+      let title: string;
+      if (report.reportType === "TEMPLATE") {
+        const [snapshot] = await db.select().from(reportSnapshots)
+          .where(eq(reportSnapshots.reportId, reportId)).limit(1);
+        if (!snapshot) throw new Error("模板报告缺少数据快照，无法渲染");
+        const payload = snapshot.dataJson as ReportSnapshotPayload;
+        title = payload.title ?? "VICP 项目报告";
+        html = renderTemplateHtml(payload);
+        word = await renderTemplateWord(payload);
+      } else {
+        const content = report.contentJson ?? {};
+        title = report.reportType === "energy_design" ? "建筑节能设计报告" : report.reportType === "design_note" ? "VICP 设计说明" : "VICP 项目说明";
+        html = createReportHtml(title, content);
+        word = await createWord(title, content);
+      }
       await job.updateProgress(30);
 
       if (!env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH) {

@@ -1,7 +1,7 @@
 import * as argon2 from "argon2";
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
-import { and, count, desc, eq, ilike, inArray, isNull } from "drizzle-orm";
+import { and, count, desc, eq, ilike, inArray, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { departments, posts, roles, userDepartments, userIdentities, userPosts, userRoles, users } from "../../db/schema.js";
 import { AUDIT_ACTIONS, CHANNEL_TYPES, USER_ROLES } from "../../shared/constants.js";
@@ -11,6 +11,18 @@ import { getPagination, paginationQuerySchema } from "../../shared/pagination.js
 import { ok } from "../../shared/response.js";
 import { assertPermission } from "../../shared/permission-guard.js";
 import { writeAuditLog } from "../audit-logs/audit-log.service.js";
+
+/**
+ * 登录账号：取该用户最早一条身份凭证的 identifier（创建时仅写入一条），
+ * 列表与详情共用，保证展示与登录账号一致。
+ */
+const loginIdentifierExpr = sql<string>`(
+  select ui.identifier
+  from ${userIdentities} ui
+  where ui.user_id = ${users.id}
+  order by ui.created_at asc
+  limit 1
+)`.as("loginIdentifier");
 
 const userParamsSchema = z.object({ id: z.uuid("用户 ID 格式不正确") });
 const roleEnum = z.enum([USER_ROLES.SUPER_ADMIN, USER_ROLES.CHANNEL_USER, USER_ROLES.NORMAL_USER]);
@@ -87,7 +99,7 @@ export async function userRoutes(app: FastifyInstance) {
     const departmentUserIds = request.query.departmentId ? (await app.db.select({ userId: userDepartments.userId }).from(userDepartments).where(inArray(userDepartments.departmentId, await collectDepartmentIds(app.db, request.query.departmentId, request.query.includeDescendants)))).map((row) => row.userId) : undefined;
     const roleUserIds = request.query.roleId ? (await app.db.select({ userId: userRoles.userId }).from(userRoles).where(eq(userRoles.roleId, request.query.roleId))).map((row) => row.userId) : undefined;
     const filters = [request.query.includeDeleted ? undefined : isNull(users.deletedAt), request.query.status ? eq(users.status, request.query.status) : undefined, request.query.keyword ? ilike(users.displayName, `%${request.query.keyword}%`) : undefined, departmentUserIds ? inArray(users.id, departmentUserIds) : undefined, roleUserIds ? inArray(users.id, roleUserIds) : undefined];
-    const base = app.db.select({ id: users.id, phone: users.phone, email: users.email, displayName: users.displayName, gender: users.gender, remark: users.remark, role: users.role, channelType: users.channelType, status: users.status, deletedAt: users.deletedAt, createdAt: users.createdAt, updatedAt: users.updatedAt }).from(users).where(and(...filters));
+    const base = app.db.select({ id: users.id, loginIdentifier: loginIdentifierExpr, phone: users.phone, email: users.email, displayName: users.displayName, gender: users.gender, remark: users.remark, role: users.role, channelType: users.channelType, status: users.status, deletedAt: users.deletedAt, createdAt: users.createdAt, updatedAt: users.updatedAt }).from(users).where(and(...filters));
     const rows = await base.orderBy(desc(users.createdAt)).offset(skip).limit(take);
     const [totalRow] = await app.db.select({ value: count() }).from(users).where(and(...filters));
     return ok(request, { items: rows, total: totalRow?.value ?? 0, page: request.query.page, pageSize: request.query.pageSize });
@@ -140,7 +152,7 @@ export async function userRoutes(app: FastifyInstance) {
 
   route.get("/users/:id", { preHandler: [app.authenticate], schema: { tags: ["B端 / 平台 / 用户管理"], summary: "获取用户详情", params: userParamsSchema } }, async (request) => {
     await requireUserPermission(request, "system:user:list");
-    const [user] = await app.db.select().from(users).where(eq(users.id, request.params.id)).limit(1);
+    const [user] = await app.db.select({ id: users.id, loginIdentifier: loginIdentifierExpr, phone: users.phone, email: users.email, displayName: users.displayName, gender: users.gender, remark: users.remark, role: users.role, channelType: users.channelType, status: users.status, deletedAt: users.deletedAt, createdAt: users.createdAt, updatedAt: users.updatedAt }).from(users).where(eq(users.id, request.params.id)).limit(1);
     if (!user) throw new NotFoundError("用户不存在");
     const [departmentRows, postRows, roleRows] = await Promise.all([
       app.db.select({ id: userDepartments.departmentId, isPrimary: userDepartments.isPrimary }).from(userDepartments).where(eq(userDepartments.userId, user.id)),

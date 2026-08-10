@@ -65,21 +65,21 @@ const pendingRow = { id: "row-1", code: "XPS-01", version: 1, status: "PENDING_R
 
 describe("主数据版本化实体状态机", () => {
   it("submit：DRAFT -> PENDING_REVIEW，写入 submittedById", async () => {
-    const { db, setCalls } = makeDb([[draftRow], [pendingRow]]);
+    const { db, setCalls } = makeDb([[draftRow], [pendingRow], [], [{ id: "pr-1" }]]);
     const result = await submitForReview(app(db), request, actor, "productSeries", "row-1");
     expect(result.status).toBe("PENDING_REVIEW");
     expect(setCalls[0]).toMatchObject({ status: "PENDING_REVIEW", submittedById: "u-1" });
   });
 
   it("approve：PENDING_REVIEW -> APPROVED，记录审核意见", async () => {
-    const { db, setCalls } = makeDb([[pendingRow], [{ ...pendingRow, status: "APPROVED", approvalNote: "同意" }]]);
+    const { db, setCalls } = makeDb([[pendingRow], [{ ...pendingRow, status: "APPROVED", approvalNote: "同意" }], [], [{ id: "pr-2" }]]);
     const result = await approveEntity(app(db), request, actor, "productSeries", "row-1", "同意");
     expect(result.status).toBe("APPROVED");
     expect(setCalls[0]).toMatchObject({ status: "APPROVED", approvedById: "u-1", approvalNote: "同意" });
   });
 
   it("reject：PENDING_REVIEW -> REJECTED，驳回原因落库", async () => {
-    const { db, setCalls } = makeDb([[pendingRow], [{ ...pendingRow, status: "REJECTED", rejectReason: "证据不足" }]]);
+    const { db, setCalls } = makeDb([[pendingRow], [{ ...pendingRow, status: "REJECTED", rejectReason: "证据不足" }], [], [{ id: "pr-3" }]]);
     const result = await rejectEntity(app(db), request, actor, "productSeries", "row-1", "证据不足");
     expect(result.status).toBe("REJECTED");
     expect(setCalls[0]).toMatchObject({ status: "REJECTED", rejectedById: "u-1", rejectReason: "证据不足" });
