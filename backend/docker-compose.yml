@@ -96,6 +96,7 @@ services:
     depends_on:
       api:
         condition: service_healthy
+    stop_grace_period: 16m
     restart: unless-stopped
 
   nginx:

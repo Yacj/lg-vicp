@@ -3,7 +3,6 @@ import { eq, inArray } from "drizzle-orm";
 import ExcelJS from "exceljs";
 import { fileTypeFromBuffer } from "file-type";
 import mammoth from "mammoth";
-import { extractText } from "unpdf";
 import type { Database, DbExecutor } from "../db/client.js";
 import {
   asyncTasks,
@@ -18,6 +17,9 @@ import {
   parsingJobs
 } from "../db/schema.js";
 import type { ObjectStorage } from "../storage/index.js";
+import type { DocumentJobData } from "./document-job-state.js";
+import { reconcileDocumentJobFailure } from "./document-job-state.js";
+import { extractPdfTextInWorker } from "./pdf-text-extractor.js";
 import {
   buildChunksFromPages,
   buildChunksFromSheet,
@@ -31,15 +33,6 @@ import {
 
 // 兼容既有测试与调用方：splitText 由分块纯函数模块提供
 export { splitText };
-
-interface DocumentJobData {
-  taskId?: string;
-  fileId: string;
-  parsingJobId?: string;
-  versionId?: string;
-  /** 知识库链路任务类型；缺省视为 PARSE */
-  jobType?: "PARSE" | "REPARSE" | "CHUNK_REBUILD" | "OCR";
-}
 
 interface ParsedPage {
   page: number | null;
@@ -108,10 +101,10 @@ async function parseWorkbook(data: Buffer): Promise<ParsedDocument> {
 
 async function parseDocument(data: Buffer, mimeType: string): Promise<ParsedDocument> {
   if (mimeType === "application/pdf") {
-    const result = await extractText(new Uint8Array(data), { mergePages: false });
+    const pages = await extractPdfTextInWorker(data);
     return {
       parser: "unpdf",
-      pages: result.text.map((text, index) => ({ page: index + 1, text }))
+      pages: pages.map((text, index) => ({ page: index + 1, text }))
     };
   }
   if (mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
@@ -334,13 +327,7 @@ async function handleParseJob(
     return { status: "READY" };
   } catch (error) {
     const message = error instanceof Error ? error.message : "文档解析失败";
-    await db.update(files).set({ status: "FAILED", errorMessage: message, updatedAt: new Date() }).where(eq(files.id, fileId));
-    await db.update(knowledgeDocumentVersions).set({ parseStatus: "FAILED", pipelineStatus: "FAILED", updatedAt: new Date() })
-      .where(eq(knowledgeDocumentVersions.id, versionId));
-    await db.update(parsingJobs).set({
-      status: "FAILED", errorMessage: message, attempts: job.attemptsMade + 1,
-      finishedAt: new Date(), updatedAt: new Date()
-    }).where(eq(parsingJobs.id, parsingJobId));
+    await reconcileDocumentJobFailure(db, job.data, message, job.attemptsMade + 1);
     throw error;
   }
 }
@@ -387,10 +374,7 @@ async function handleChunkRebuild(
     return { status: "READY" };
   } catch (error) {
     const message = error instanceof Error ? error.message : "分块重建失败";
-    await db.update(parsingJobs).set({
-      status: "FAILED", errorMessage: message, attempts: job.attemptsMade + 1,
-      finishedAt: new Date(), updatedAt: new Date()
-    }).where(eq(parsingJobs.id, parsingJobId));
+    await reconcileDocumentJobFailure(db, job.data, message, job.attemptsMade + 1);
     throw error;
   }
 }
@@ -483,11 +467,7 @@ async function handleLegacyJob(
     return { status: "READY" };
   } catch (error) {
     const message = error instanceof Error ? error.message : "文档解析失败";
-    await db.update(files).set({ status: "FAILED", errorMessage: message, updatedAt: new Date() }).where(eq(files.id, fileId));
-    await db.update(asyncTasks).set({
-      status: "FAILED", errorMessage: message, attempts: job.attemptsMade + 1,
-      finishedAt: new Date(), updatedAt: new Date()
-    }).where(eq(asyncTasks.id, taskId));
+    await reconcileDocumentJobFailure(db, job.data, message, job.attemptsMade + 1);
     throw error;
   }
 }
