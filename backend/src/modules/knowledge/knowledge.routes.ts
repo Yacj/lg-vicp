@@ -17,6 +17,7 @@ import {
   deleteAlias,
   deleteCategory,
   deleteDocument,
+  deleteDocumentVersion,
   disableVersion,
   enqueueChunkRebuild,
   enqueueParsing,
@@ -369,6 +370,18 @@ export async function knowledgeRoutes(app: FastifyInstance) {
   }, async (request) => {
     const actor = requirePermission(request, KNOWLEDGE_PERMISSIONS.DOC_PUBLISH);
     return ok(request, await rollbackVersion(app, request, actor, request.params.id, request.params.versionId));
+  });
+
+  route.delete("/versions/:versionId", {
+    preHandler: [app.authenticate],
+    schema: {
+      tags: ["B端 / 平台 / 知识库"],
+      summary: "删除草稿版本（仅 DRAFT；级联清理页面/分块/术语/引用/解析任务与源文件）",
+      params: versionParams
+    }
+  }, async (request) => {
+    const actor = requirePermission(request, KNOWLEDGE_PERMISSIONS.DOC_DELETE);
+    return ok(request, await deleteDocumentVersion(app, request, actor, request.params.versionId));
   });
 
   // ---------------------------------------------------------------- 内容查看

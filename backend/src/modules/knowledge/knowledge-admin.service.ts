@@ -657,6 +657,42 @@ export async function rollbackVersion(
   return { message: `已基于版本 ${source.version} 生成新草稿（版本 ${draft.version}）`, version: draft };
 }
 
+/** 删除草稿版本：仅 DRAFT 允许；级联清理页面/分块/术语/引用/解析任务与源文件对象 */
+export async function deleteDocumentVersion(
+  app: FastifyInstance,
+  request: FastifyRequest,
+  actor: AuthUser,
+  versionId: string
+) {
+  const version = await requireVersion(app, versionId);
+  if (version.status !== "DRAFT") {
+    throw new ConflictError("仅草稿版本可以删除；已审核或已发布的版本请使用停用");
+  }
+  await app.db.transaction(async (tx) => {
+    await tx.delete(knowledgeDocumentVersions).where(eq(knowledgeDocumentVersions.id, versionId));
+    if (version.fileId) {
+      await tx.delete(files).where(eq(files.id, version.fileId));
+    }
+    await writeAuditLog({
+      db: tx, request, actor,
+      action: AUDIT_ACTIONS.KNOWLEDGE_VERSION_DELETED, targetType: "knowledge_document_version", targetId: versionId,
+      beforeJson: { version: version.version, title: version.title, status: version.status }
+    });
+  });
+  // 删除 OSS/MinIO 对象（对象删除失败不阻断版本删除，任务文件会由后台清理）
+  try {
+    const [file] = version.fileId
+      ? await app.db.select({ objectKey: files.objectKey }).from(files).where(eq(files.id, version.fileId)).limit(1)
+      : [undefined];
+    if (file) {
+      await app.storage.removeObject(file.objectKey);
+    }
+  } catch {
+    app.log.warn({ versionId }, "版本源文件对象删除失败，将由后台任务清理");
+  }
+  return { message: `草稿版本 v${version.version} 已删除` };
+}
+
 // ---------------------------------------------------------------- 别名
 
 export async function listAliases(

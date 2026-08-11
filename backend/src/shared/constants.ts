@@ -121,6 +121,7 @@ export const AUDIT_ACTIONS = {
   KNOWLEDGE_VERSION_PUBLISHED: "knowledge.version_published",
   KNOWLEDGE_VERSION_DISABLED: "knowledge.version_disabled",
   KNOWLEDGE_VERSION_ROLLED_BACK: "knowledge.version_rolled_back",
+  KNOWLEDGE_VERSION_DELETED: "knowledge.version_deleted",
   KNOWLEDGE_CHUNKS_REBUILT: "knowledge.chunks_rebuilt",
   KNOWLEDGE_CHUNK_EDITED: "knowledge.chunk_edited",
   KNOWLEDGE_CHUNK_SPLIT: "knowledge.chunk_split",

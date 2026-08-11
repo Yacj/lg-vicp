@@ -38,7 +38,8 @@ const envSchema = z.object({
   OSS_ENDPOINT: optionalString,
   OSS_INTERNAL: z.stringbool().default(false),
   STORAGE_PRESIGN_EXPIRES_SECONDS: z.coerce.number().int().min(60).max(3600).default(900),
-  MAX_UPLOAD_BYTES: z.coerce.number().int().positive().default(50 * 1024 * 1024),
+  // 单文件上传上限：默认 1GB（甲方图纸/规范文件可达数百 MB），对象存储直传本身无此限制
+  MAX_UPLOAD_BYTES: z.coerce.number().int().positive().default(1024 * 1024 * 1024),
   PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH: optionalString,
   BOOTSTRAP_ADMIN_USERNAME: z.string().min(3).default("admin"),
   BOOTSTRAP_ADMIN_PASSWORD: z.string().min(5),
