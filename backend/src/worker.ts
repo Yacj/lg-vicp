@@ -22,7 +22,12 @@ const redis = createRedisConnection();
 redis.on("error", (error) => console.error("Redis 连接异常", error));
 await redis.connect();
 const storage = createObjectStorage(env);
-await storage.ensureBucket();
+try {
+  await storage.ensureBucket();
+} catch (error) {
+  // 启动自检失败（如 OSS 对象级权限 AK 无法读取 bucket 元信息）不阻断 Worker 启动，任务内会重试
+  console.warn("对象存储启动自检失败，Worker 继续启动", error);
+}
 
 const workers = [
   new Worker(QUEUE_NAMES.DOCUMENT_PROCESSING, createDocumentProcessor(db, storage), { connection: redis, concurrency: 2, lockDuration: 5 * 60 * 1000 }),

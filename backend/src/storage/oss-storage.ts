@@ -20,7 +20,15 @@ export class OssStorage implements ObjectStorage {
   }
 
   async ensureBucket(): Promise<void> {
-    await this.client.getBucketInfo(this.bucket);
+    try {
+      await this.client.getBucketInfo(this.bucket);
+    } catch (error) {
+      // 对象级权限的 AK 无法读取 bucket 元信息（AccessDenied）；若 bucket 确实不存在，对象写入会报 NoSuchBucket，由调用方按任务失败重试
+      if ((error as { code?: string }).code === "AccessDenied") {
+        return;
+      }
+      throw error;
+    }
   }
 
   async createUploadUrl(objectKey: string, contentType: string, expiresSeconds: number): Promise<UploadUrlResult> {
@@ -77,6 +85,14 @@ export class OssStorage implements ObjectStorage {
   }
 
   async healthCheck(): Promise<void> {
-    await this.client.getBucketInfo(this.bucket);
+    try {
+      await this.client.getBucketInfo(this.bucket);
+    } catch (error) {
+      // 对象级权限的 AK 无法读取 bucket 元信息（AccessDenied），但对象读写与签名不受影响，视为健康
+      if ((error as { code?: string }).code === "AccessDenied") {
+        return;
+      }
+      throw error;
+    }
   }
 }
