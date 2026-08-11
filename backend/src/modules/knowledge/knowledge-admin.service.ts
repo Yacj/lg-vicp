@@ -2,7 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import path from "node:path";
 import { fileTypeFromBuffer } from "file-type";
 import type { FastifyInstance, FastifyRequest } from "fastify";
-import { and, count, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { DbExecutor } from "../../db/client.js";
 import type { AuthUser } from "../../shared/auth-user.js";
 import { AUDIT_ACTIONS } from "../../shared/constants.js";
@@ -12,6 +12,7 @@ import {
   files,
   knowledgeAliases,
   knowledgeCategories,
+  knowledgeChunkEdits,
   knowledgeChunkTerms,
   knowledgeChunks,
   knowledgeDocumentVersions,
@@ -21,6 +22,8 @@ import {
 } from "../../db/schema.js";
 import { writeAuditLog } from "../audit-logs/audit-log.service.js";
 import { assertNoDuplicateSha256 } from "./knowledge-ingest.service.js";
+import { extractAnchors, extractKeywords } from "./knowledge-chunking.js";
+import { normalizeSearchText } from "./knowledge.normalize.js";
 
 /**
  * 知识库管理服务：分类、文档、版本（上传/解析/审核/发布/停用/版本替代）、
@@ -783,7 +786,13 @@ export async function listVersionChunks(
       keywords: knowledgeChunks.keywords,
       aliasTerms: knowledgeChunks.aliasTerms,
       citationAnchor: knowledgeChunks.citationAnchor,
-      sortWeight: knowledgeChunks.sortWeight
+      sortWeight: knowledgeChunks.sortWeight,
+      searchText: knowledgeChunks.searchText,
+      metadata: knowledgeChunks.metadata,
+      annotation: knowledgeChunks.annotation,
+      invalid: knowledgeChunks.invalid,
+      invalidReason: knowledgeChunks.invalidReason,
+      editedAt: knowledgeChunks.editedAt
     }).from(knowledgeChunks).where(where)
       .orderBy(knowledgeChunks.chunkIndex).offset(skip).limit(take),
     app.db.select({ value: count() }).from(knowledgeChunks).where(where)
@@ -835,4 +844,296 @@ export async function listChunkTerms(app: FastifyInstance, chunkId: string) {
     .where(eq(knowledgeChunks.id, chunkId)).limit(1);
   if (!chunk) throw new NotFoundError("知识分块不存在");
   return app.db.select().from(knowledgeChunkTerms).where(eq(knowledgeChunkTerms.chunkId, chunkId));
+}
+
+// ---------------------------------------------------------------- 分块人工干预
+
+export type KnowledgeChunkEditType = "META_EDIT" | "FLAG_INVALID" | "SPLIT" | "MERGE";
+
+/**
+ * 分块人工编辑门控：分块所属版本必须是未发布/未停用的草稿流程（与重解析一致），
+ * 保证已发布版本的分块数据不可变；编辑动作全部写入 knowledge_chunk_edits 审计。
+ */
+async function requireEditableChunk(app: FastifyInstance, chunkId: string) {
+  const [row] = await app.db.select({
+    id: knowledgeChunks.id,
+    versionId: knowledgeChunks.versionId,
+    versionStatus: knowledgeDocumentVersions.status,
+    version: knowledgeDocumentVersions.version
+  }).from(knowledgeChunks)
+    .innerJoin(knowledgeDocumentVersions, eq(knowledgeDocumentVersions.id, knowledgeChunks.versionId))
+    .where(eq(knowledgeChunks.id, chunkId)).limit(1);
+  if (!row) throw new NotFoundError("知识分块不存在");
+  if (row.versionStatus === "PUBLISHED" || row.versionStatus === "DISABLED") {
+    throw new ConflictError(`版本 ${row.version} 已发布或已停用，不允许人工调整分块；请基于历史版本回滚生成新草稿`);
+  }
+  return row;
+}
+
+/** 按别名词典重算分块关键词/别名/锚点/检索文本，并重建分块术语（与解析 worker 标注规则一致） */
+async function relabelChunk(
+  db: DbExecutor,
+  chunkId: string,
+  content: string,
+  sourceSection: string | null,
+  headingLevel: number,
+  citationAnchor: string | null,
+  keywordsOverride?: string[]
+) {
+  const rows = await db.select({ term: knowledgeAliases.term, alias: knowledgeAliases.alias })
+    .from(knowledgeAliases).where(eq(knowledgeAliases.enabled, true));
+  const aliases = rows.map((row) => ({ term: row.term, alias: row.alias }));
+  const extraction = extractKeywords(content, aliases);
+  const keywords = keywordsOverride ?? extraction.keywords;
+  const anchors = extractAnchors(content);
+  await db.update(knowledgeChunks).set({
+    sourceSection,
+    headingLevel,
+    searchText: normalizeSearchText(content),
+    keywords,
+    aliasTerms: extraction.aliasTerms,
+    citationAnchor: citationAnchor ?? anchors[0] ?? null,
+    editedAt: new Date()
+  }).where(eq(knowledgeChunks.id, chunkId));
+  await db.delete(knowledgeChunkTerms).where(eq(knowledgeChunkTerms.chunkId, chunkId));
+  const termValues = [
+    ...keywords.map((term) => ({ chunkId, term, termType: "KEYWORD" as const, weight: 0 })),
+    ...extraction.aliasTerms.map((term) => ({ chunkId, term, termType: "SYNONYM" as const, weight: 0 }))
+  ];
+  if (termValues.length > 0) await db.insert(knowledgeChunkTerms).values(termValues);
+}
+
+/** 重排版本内所有分块的 chunkIndex（0..n-1，按当前顺序补齐，保证唯一索引连续） */
+async function renumberChunks(db: DbExecutor, versionId: string) {
+  const rows = await db.select({ id: knowledgeChunks.id, chunkIndex: knowledgeChunks.chunkIndex })
+    .from(knowledgeChunks).where(eq(knowledgeChunks.versionId, versionId))
+    .orderBy(knowledgeChunks.chunkIndex);
+  for (let index = 0; index < rows.length; index++) {
+    if (rows[index]!.chunkIndex !== index) {
+      await db.update(knowledgeChunks).set({ chunkIndex: index }).where(eq(knowledgeChunks.id, rows[index]!.id));
+    }
+  }
+}
+
+async function writeChunkEditAudit(
+  db: DbExecutor,
+  chunkId: string,
+  editType: KnowledgeChunkEditType,
+  actor: AuthUser,
+  beforeJson: Record<string, unknown> | null,
+  afterJson: Record<string, unknown> | null,
+  note?: string | null
+) {
+  await db.insert(knowledgeChunkEdits).values({
+    chunkId,
+    editType,
+    note: note ?? null,
+    beforeJson,
+    afterJson,
+    createdById: actor.id
+  });
+}
+
+/** PATCH /chunks/:chunkId：人工调整分块元数据（标题路径/关键词/锚点/标注/标记错误切片） */
+export async function updateChunkMetadata(
+  app: FastifyInstance,
+  request: FastifyRequest,
+  actor: AuthUser,
+  chunkId: string,
+  input: {
+    keywords?: string[];
+    heading?: string | null;
+    headingLevel?: number;
+    citationAnchor?: string | null;
+    annotation?: string | null;
+    invalid?: boolean;
+    invalidReason?: string | null;
+  }
+) {
+  await requireEditableChunk(app, chunkId);
+  const [current] = await app.db.select().from(knowledgeChunks).where(eq(knowledgeChunks.id, chunkId)).limit(1);
+  if (!current) throw new NotFoundError("知识分块不存在");
+
+  const nextInvalid = input.invalid ?? current.invalid;
+  const nextInvalidReason = input.invalidReason === undefined ? current.invalidReason : input.invalidReason;
+  if (nextInvalid && !nextInvalidReason) {
+    throw new ForbiddenError("标记错误切片时必须填写原因");
+  }
+
+  return app.db.transaction(async (tx) => {
+    await relabelChunk(
+      tx,
+      chunkId,
+      current.content,
+      input.heading === undefined ? current.sourceSection : input.heading,
+      input.headingLevel ?? current.headingLevel,
+      input.citationAnchor === undefined ? current.citationAnchor : input.citationAnchor,
+      input.keywords
+    );
+    const [updated] = await tx.update(knowledgeChunks).set({
+      annotation: input.annotation === undefined ? current.annotation : input.annotation,
+      invalid: nextInvalid,
+      invalidReason: nextInvalidReason,
+      editedById: actor.id,
+      editedAt: new Date()
+    }).where(eq(knowledgeChunks.id, chunkId)).returning();
+    const editType: KnowledgeChunkEditType =
+      nextInvalid === true && current.invalid === false ? "FLAG_INVALID" : "META_EDIT";
+    await writeChunkEditAudit(
+      tx, chunkId, editType, actor,
+      {
+        sourceSection: current.sourceSection,
+        headingLevel: current.headingLevel,
+        keywords: current.keywords,
+        aliasTerms: current.aliasTerms,
+        citationAnchor: current.citationAnchor,
+        annotation: current.annotation,
+        invalid: current.invalid,
+        invalidReason: current.invalidReason
+      },
+      {
+        sourceSection: updated!.sourceSection,
+        headingLevel: updated!.headingLevel,
+        keywords: updated!.keywords,
+        aliasTerms: updated!.aliasTerms,
+        citationAnchor: updated!.citationAnchor,
+        annotation: updated!.annotation,
+        invalid: updated!.invalid,
+        invalidReason: updated!.invalidReason
+      },
+      input.annotation === undefined ? (nextInvalid ? nextInvalidReason : null) : input.annotation
+    );
+    await writeAuditLog({
+      db: tx, request, actor,
+      action: AUDIT_ACTIONS.KNOWLEDGE_CHUNK_EDITED, targetType: "knowledge_chunk", targetId: chunkId,
+      beforeJson: { versionId: current.versionId, chunkIndex: current.chunkIndex, invalid: current.invalid },
+      afterJson: { versionId: current.versionId, chunkIndex: updated!.chunkIndex, invalid: updated!.invalid }
+    });
+    return updated!;
+  });
+}
+
+/** POST /chunks/:chunkId/split：按 content 字符位置拆分（TABLE 结构化分块禁止拆分） */
+export async function splitChunk(
+  app: FastifyInstance,
+  request: FastifyRequest,
+  actor: AuthUser,
+  chunkId: string,
+  at: number,
+  heading?: string
+) {
+  await requireEditableChunk(app, chunkId);
+  const [current] = await app.db.select().from(knowledgeChunks).where(eq(knowledgeChunks.id, chunkId)).limit(1);
+  if (!current) throw new NotFoundError("知识分块不存在");
+  if (current.contentType === "TABLE") {
+    throw new ConflictError("表格分块为结构化内容，禁止按字符位置拆分；表格拆分规则需另行配置");
+  }
+  const first = current.content.slice(0, at).trim();
+  const second = current.content.slice(at).trim();
+  if (!first || !second) throw new ForbiddenError("拆分位置会生成空分块，请调整拆分位置");
+
+  const result = await app.db.transaction(async (tx) => {
+    await tx.update(knowledgeChunks).set({
+      content: first,
+      editedById: actor.id,
+      editedAt: new Date()
+    }).where(eq(knowledgeChunks.id, chunkId));
+    const [secondRow] = await tx.insert(knowledgeChunks).values({
+      documentId: current.documentId,
+      versionId: current.versionId,
+      projectId: current.projectId,
+      chunkIndex: current.chunkIndex + 1,
+      content: second,
+      sourcePage: current.sourcePage,
+      pageEnd: current.pageEnd,
+      sourceSection: heading ?? current.sourceSection,
+      headingLevel: current.headingLevel,
+      contentType: current.contentType,
+      searchText: normalizeSearchText(second),
+      keywords: [],
+      aliasTerms: [],
+      citationAnchor: null,
+      metadata: current.metadata,
+      sortWeight: 0,
+      editedById: actor.id,
+      editedAt: new Date()
+    }).returning();
+    await relabelChunk(tx, chunkId, first, current.sourceSection, current.headingLevel, current.citationAnchor);
+    await relabelChunk(tx, secondRow!.id, second, heading ?? current.sourceSection, current.headingLevel, null);
+    await renumberChunks(tx, current.versionId);
+    await writeChunkEditAudit(
+      tx, chunkId, "SPLIT", actor,
+      { chunkIndex: current.chunkIndex, contentLength: current.content.length, content: current.content.slice(0, 80) },
+      {
+        at,
+        first: { chunkId, chunkIndex: current.chunkIndex, content: first.slice(0, 80) },
+        second: { chunkId: secondRow!.id, content: second.slice(0, 80) }
+      },
+      heading ? `拆分位置 ${at}，第二块标题：${heading}` : `按字符位置 ${at} 拆分`
+    );
+    await writeAuditLog({
+      db: tx, request, actor,
+      action: AUDIT_ACTIONS.KNOWLEDGE_CHUNK_SPLIT, targetType: "knowledge_chunk", targetId: chunkId,
+      beforeJson: { versionId: current.versionId, chunkIndex: current.chunkIndex },
+      afterJson: { versionId: current.versionId, firstChunkId: chunkId, secondChunkId: secondRow!.id }
+    });
+    return tx.select().from(knowledgeChunks)
+      .where(inArray(knowledgeChunks.id, [chunkId, secondRow!.id])).orderBy(knowledgeChunks.chunkIndex);
+  });
+  return { chunks: result };
+}
+
+/** POST /chunks/:chunkId/merge：把当前分块并入目标分块（TABLE 结构化分块禁止合并） */
+export async function mergeChunks(
+  app: FastifyInstance,
+  request: FastifyRequest,
+  actor: AuthUser,
+  chunkId: string,
+  intoChunkId: string
+) {
+  if (intoChunkId === chunkId) throw new ForbiddenError("不能将分块合并到自身");
+  const source = await requireEditableChunk(app, chunkId);
+  const target = await requireEditableChunk(app, intoChunkId);
+  if (source.versionId !== target.versionId) throw new ConflictError("只能合并同一版本内的分块");
+
+  const [sourceRow, targetRow] = await Promise.all([
+    app.db.select().from(knowledgeChunks).where(eq(knowledgeChunks.id, chunkId)).limit(1),
+    app.db.select().from(knowledgeChunks).where(eq(knowledgeChunks.id, intoChunkId)).limit(1)
+  ]);
+  if (!sourceRow[0] || !targetRow[0]) throw new NotFoundError("知识分块不存在");
+  if (sourceRow[0].contentType === "TABLE" || targetRow[0].contentType === "TABLE") {
+    throw new ConflictError("表格分块为结构化内容，禁止合并");
+  }
+  const sourceChunk = sourceRow[0];
+  const targetChunk = targetRow[0];
+  const ordered = [sourceChunk, targetChunk].sort((a, b) => a.chunkIndex - b.chunkIndex);
+  const mergedContent = ordered.map((row) => row.content).join("\n").trim();
+
+  return app.db.transaction(async (tx) => {
+    await tx.delete(knowledgeChunks).where(eq(knowledgeChunks.id, chunkId));
+    await tx.delete(knowledgeChunkTerms).where(eq(knowledgeChunkTerms.chunkId, chunkId));
+    await tx.update(knowledgeChunks).set({
+      content: mergedContent,
+      editedById: actor.id,
+      editedAt: new Date()
+    }).where(eq(knowledgeChunks.id, intoChunkId));
+    await relabelChunk(
+      tx, intoChunkId, mergedContent, targetChunk.sourceSection, targetChunk.headingLevel, targetChunk.citationAnchor
+    );
+    await renumberChunks(tx, source.versionId);
+    await writeChunkEditAudit(
+      tx, chunkId, "MERGE", actor,
+      { merged: [sourceChunk.id, targetChunk.id].sort() },
+      { intoChunkId, content: mergedContent.slice(0, 80) },
+      `分块并入 ${intoChunkId}`
+    );
+    await writeAuditLog({
+      db: tx, request, actor,
+      action: AUDIT_ACTIONS.KNOWLEDGE_CHUNK_MERGED, targetType: "knowledge_chunk", targetId: intoChunkId,
+      beforeJson: { versionId: source.versionId, sourceChunkId: chunkId, targetChunkId: intoChunkId },
+      afterJson: { versionId: source.versionId, targetChunkId: intoChunkId, mergedContentLength: mergedContent.length }
+    });
+    const [updated] = await tx.select().from(knowledgeChunks).where(eq(knowledgeChunks.id, intoChunkId)).limit(1);
+    return updated!;
+  });
 }

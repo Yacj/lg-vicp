@@ -122,6 +122,9 @@ export const AUDIT_ACTIONS = {
   KNOWLEDGE_VERSION_DISABLED: "knowledge.version_disabled",
   KNOWLEDGE_VERSION_ROLLED_BACK: "knowledge.version_rolled_back",
   KNOWLEDGE_CHUNKS_REBUILT: "knowledge.chunks_rebuilt",
+  KNOWLEDGE_CHUNK_EDITED: "knowledge.chunk_edited",
+  KNOWLEDGE_CHUNK_SPLIT: "knowledge.chunk_split",
+  KNOWLEDGE_CHUNK_MERGED: "knowledge.chunk_merged",
   KNOWLEDGE_SEARCHED: "knowledge.searched",
   KNOWLEDGE_BATCH_IMPORTED: "knowledge.batch_imported",
   KNOWLEDGE_CRAWLER_CREATED: "knowledge.crawler_created",
@@ -201,7 +204,8 @@ export const AI_SCENES = {
   STANDARD_QA: "standard_qa",
   REPORT_GENERATE: "report_generate",
   INFORMATION_EXTRACT: "information_extract",
-  CONVERSATION_TITLE: "conversation_title"
+  CONVERSATION_TITLE: "conversation_title",
+  KNOWLEDGE_QA: "knowledge_qa"
 } as const;
 
 export const CLIENT_APPS = {

@@ -162,6 +162,13 @@
       "when": 1786362980497,
       "tag": "0022_purple_shinko_yamashiro",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1786418567157,
+      "tag": "0023_lively_shadow_king",
+      "breakpoints": true
     }
   ]
 }

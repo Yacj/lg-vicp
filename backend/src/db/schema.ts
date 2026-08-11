@@ -151,6 +151,13 @@ export const knowledgeEvaluationJudgementEnum = pgEnum("knowledge_evaluation_jud
   "REJECTED",
   "PARTIAL"
 ]);
+// 分块人工干预类型：人工编辑元数据 / 标记错误切片 / 按位置拆分 / 合并到目标块（审计用）
+export const knowledgeChunkEditTypeEnum = pgEnum("knowledge_chunk_edit_type", [
+  "META_EDIT",
+  "FLAG_INVALID",
+  "SPLIT",
+  "MERGE"
+]);
 // ---------------------------------------------------------------- 主数据（企业/产品/材料参数）
 // 审核状态机：DRAFT -> PENDING_REVIEW -> APPROVED -> PUBLISHED -> DISABLED；PENDING_REVIEW 可驳回为 REJECTED。
 // 与知识库版本状态枚举差异：主数据需要"驳回"决议（甲方验收：参数冲突可见且有审核决议）。
@@ -681,6 +688,12 @@ export const knowledgeChunks = pgTable(
     citationAnchor: varchar("citation_anchor", { length: 255 }),
     sortWeight: real("sort_weight").notNull().default(0),
     metadata: jsonb("metadata").$type<Record<string, unknown>>(),
+    // 人工干预（B 端可编辑）：标注说明 / 标记错误切片与原因 / 编辑人 / 编辑时间
+    annotation: text("annotation"),
+    invalid: boolean("invalid").notNull().default(false),
+    invalidReason: text("invalid_reason"),
+    editedById: uuid("edited_by_id").references(() => users.id, { onDelete: "set null" }),
+    editedAt: timestamp("edited_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
   },
   (table) => [
@@ -707,6 +720,24 @@ export const knowledgeChunkTerms = pgTable(
   (table) => [
     uniqueIndex("knowledge_chunk_terms_chunk_term_unique").on(table.chunkId, table.term),
     index("knowledge_chunk_terms_term_idx").on(table.term, table.termType)
+  ]
+);
+
+export const knowledgeChunkEdits = pgTable(
+  "knowledge_chunk_edits",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    chunkId: uuid("chunk_id").notNull().references(() => knowledgeChunks.id, { onDelete: "cascade" }),
+    editType: knowledgeChunkEditTypeEnum("edit_type").notNull(),
+    note: text("note"),
+    beforeJson: jsonb("before_json").$type<Record<string, unknown>>(),
+    afterJson: jsonb("after_json").$type<Record<string, unknown>>(),
+    createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => [
+    index("knowledge_chunk_edits_chunk_idx").on(table.chunkId),
+    index("knowledge_chunk_edits_created_idx").on(table.createdAt)
   ]
 );
 

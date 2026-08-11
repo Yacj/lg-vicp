@@ -32,6 +32,9 @@ import {
   rollbackVersion,
   updateAlias,
   updateCategory,
+  updateChunkMetadata,
+  splitChunk,
+  mergeChunks,
   updateDocument
 } from "./knowledge-admin.service.js";
 import { searchKnowledge, listSearchLogs } from "./knowledge.service.js";
@@ -411,6 +414,60 @@ export async function knowledgeRoutes(app: FastifyInstance) {
   }, async (request) => {
     requirePermission(request, KNOWLEDGE_PERMISSIONS.DOC_LIST);
     return ok(request, { items: await listChunkTerms(app, request.params.chunkId) });
+  });
+
+  // ---------------------------------------------------------------- 分块人工干预
+
+  route.patch("/chunks/:chunkId", {
+    preHandler: [app.authenticate],
+    schema: {
+      tags: ["B端 / 平台 / 知识库"],
+      summary: "人工调整分块元数据（标题路径/关键词/锚点/标注/标记错误切片，仅未发布版本）",
+      params: chunkParams,
+      body: z.object({
+        keywords: z.array(z.string().trim().min(1).max(80)).max(50).optional(),
+        heading: z.string().trim().max(255).nullable().optional(),
+        headingLevel: z.number().int().min(0).max(6).optional(),
+        citationAnchor: z.string().trim().max(255).nullable().optional(),
+        annotation: z.string().trim().max(1000).nullable().optional(),
+        invalid: z.boolean().optional(),
+        invalidReason: z.string().trim().max(500).nullable().optional()
+      })
+    }
+  }, async (request) => {
+    const actor = requirePermission(request, KNOWLEDGE_PERMISSIONS.CHUNK_EDIT);
+    return ok(request, { chunk: await updateChunkMetadata(app, request, actor, request.params.chunkId, request.body) });
+  });
+
+  route.post("/chunks/:chunkId/split", {
+    preHandler: [app.authenticate],
+    schema: {
+      tags: ["B端 / 平台 / 知识库"],
+      summary: "按内容字符位置拆分分块（TABLE 结构化分块禁止拆分，仅未发布版本）",
+      params: chunkParams,
+      body: z.object({
+        at: z.number().int().min(1),
+        heading: z.string().trim().max(255).optional()
+      })
+    }
+  }, async (request) => {
+    const actor = requirePermission(request, KNOWLEDGE_PERMISSIONS.CHUNK_SPLIT);
+    return ok(request, await splitChunk(app, request, actor, request.params.chunkId, request.body.at, request.body.heading));
+  });
+
+  route.post("/chunks/:chunkId/merge", {
+    preHandler: [app.authenticate],
+    schema: {
+      tags: ["B端 / 平台 / 知识库"],
+      summary: "把当前分块并入目标分块（TABLE 结构化分块禁止合并，仅未发布版本）",
+      params: chunkParams,
+      body: z.object({
+        intoChunkId: z.uuid("目标分块 ID 格式不正确")
+      })
+    }
+  }, async (request) => {
+    const actor = requirePermission(request, KNOWLEDGE_PERMISSIONS.CHUNK_MERGE);
+    return ok(request, { chunk: await mergeChunks(app, request, actor, request.params.chunkId, request.body.intoChunkId) });
   });
 
   // ---------------------------------------------------------------- 检索与日志

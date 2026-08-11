@@ -30,7 +30,11 @@ export const KNOWLEDGE_PERMISSIONS = {
   RANKING_UPDATE: "system:knowledge:ranking:edit",
   EVAL_CREATE: "system:knowledge:eval:add",
   EVAL_LIST: "system:knowledge:eval:list",
-  EVAL_JUDGE: "system:knowledge:eval:judge"
+  EVAL_JUDGE: "system:knowledge:eval:judge",
+  CHUNK_EDIT: "system:knowledge:chunk:edit",
+  CHUNK_SPLIT: "system:knowledge:chunk:split",
+  CHUNK_MERGE: "system:knowledge:chunk:merge",
+  SEARCH_ANSWER: "system:knowledge:search:answer"
 } as const;
 
 export type KnowledgePermission = (typeof KNOWLEDGE_PERMISSIONS)[keyof typeof KNOWLEDGE_PERMISSIONS];
@@ -68,5 +72,9 @@ export const KNOWLEDGE_PERMISSION_SEEDS: ReadonlyArray<{
   { code: KNOWLEDGE_PERMISSIONS.RANKING_UPDATE, name: "修改检索排序规则", resource: "knowledge_ranking_rule", action: "edit" },
   { code: KNOWLEDGE_PERMISSIONS.EVAL_CREATE, name: "提交检索评测", resource: "knowledge_search_evaluation", action: "add" },
   { code: KNOWLEDGE_PERMISSIONS.EVAL_LIST, name: "查看检索评测", resource: "knowledge_search_evaluation", action: "list" },
-  { code: KNOWLEDGE_PERMISSIONS.EVAL_JUDGE, name: "判定检索评测", resource: "knowledge_search_evaluation", action: "judge" }
+  { code: KNOWLEDGE_PERMISSIONS.EVAL_JUDGE, name: "判定检索评测", resource: "knowledge_search_evaluation", action: "judge" },
+  { code: KNOWLEDGE_PERMISSIONS.CHUNK_EDIT, name: "调整知识分块元数据", resource: "knowledge_chunk", action: "edit" },
+  { code: KNOWLEDGE_PERMISSIONS.CHUNK_SPLIT, name: "拆分知识分块", resource: "knowledge_chunk", action: "split" },
+  { code: KNOWLEDGE_PERMISSIONS.CHUNK_MERGE, name: "合并知识分块", resource: "knowledge_chunk", action: "merge" },
+  { code: KNOWLEDGE_PERMISSIONS.SEARCH_ANSWER, name: "知识检索问答", resource: "knowledge_search", action: "answer" }
 ];
