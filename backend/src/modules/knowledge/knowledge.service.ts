@@ -169,10 +169,10 @@ export async function runSearch(app: FastifyInstance, query: string, options: Ru
 
   const keywordCount = keywordPatterns.length === 0
     ? sql`0`
-    : sql`(select count(*) from unnest(${keywordPatterns}) p where kc.search_text ilike p)`;
+    : sql`(select count(*) from unnest(${keywordPatterns}::text[]) p where kc.search_text ilike p)`;
   const aliasCount = aliasPatterns.length === 0
     ? sql`0`
-    : sql`(select count(*) from unnest(${aliasPatterns}) p where kc.search_text ilike p)`;
+    : sql`(select count(*) from unnest(${aliasPatterns}::text[]) p where kc.search_text ilike p)`;
   const fulltextMatch = sql`to_tsvector('simple', kc.search_text) @@ plainto_tsquery('simple', ${normalizedQuery})`;
   const fuzzyMatch = sql`word_similarity(${normalizedQuery}, kc.search_text)`;
   // 条款号命中：citation_anchor 或 chunk 内容包含任一条款号 token
