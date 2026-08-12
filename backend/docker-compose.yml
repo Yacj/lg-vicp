@@ -91,12 +91,19 @@ services:
 
   worker:
     build: .
-    command: ["node", "dist/worker.js"]
+    # 显式堆上限让 V8 在接近上限时激进 GC 并抛出可捕获的 JS OOM（该任务失败重试即可），
+    # 而不是让容器整体被宿主 OOM Killer 强杀，导致所有在跑任务一起 stalled。
+    # exec 让 node 取代 sh 成为 PID 1，保证 SIGTERM 直达进程以触发优雅停机
+    command: ["sh", "-c", "exec node --max-old-space-size=${WORKER_MAX_OLD_SPACE_MB:-768} dist/worker.js"]
     environment: *backend-env
+    # 0 表示不限制；宿主内存紧张时按实际可用内存设置（如 1500m），需高于堆上限以容纳堆外 Buffer
+    mem_limit: ${WORKER_MEMORY_LIMIT:-0}
     depends_on:
       api:
         condition: service_healthy
-    stop_grace_period: 16m
+    # 必须大于 PDF 解析的整体超时（src/workers/pdf-text-extractor.ts，当前 20 分钟），
+    # 让活动任务自行结束而不是被强杀
+    stop_grace_period: 21m
     restart: unless-stopped
 
   nginx:

@@ -1,8 +1,9 @@
 import type { Job } from "bullmq";
-import { eq, inArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import ExcelJS from "exceljs";
 import { fileTypeFromBuffer } from "file-type";
 import mammoth from "mammoth";
+import { toInsertBatches } from "../db/batch-insert.js";
 import type { Database, DbExecutor } from "../db/client.js";
 import {
   asyncTasks,
@@ -19,7 +20,7 @@ import {
 import type { ObjectStorage } from "../storage/index.js";
 import type { DocumentJobData } from "./document-job-state.js";
 import { reconcileDocumentJobFailure } from "./document-job-state.js";
-import { extractPdfTextInWorker } from "./pdf-text-extractor.js";
+import { extractPdfTextInWorker, type PdfPageProgress } from "./pdf-text-extractor.js";
 import {
   buildChunksFromPages,
   buildChunksFromSheet,
@@ -99,9 +100,13 @@ async function parseWorkbook(data: Buffer): Promise<ParsedDocument> {
   return { parser: "exceljs", pages, sheets };
 }
 
-async function parseDocument(data: Buffer, mimeType: string): Promise<ParsedDocument> {
+async function parseDocument(
+  data: Buffer,
+  mimeType: string,
+  onPage?: (progress: PdfPageProgress) => void
+): Promise<ParsedDocument> {
   if (mimeType === "application/pdf") {
-    const pages = await extractPdfTextInWorker(data);
+    const pages = await extractPdfTextInWorker(data, onPage);
     return {
       parser: "unpdf",
       pages: pages.map((text, index) => ({ page: index + 1, text }))
@@ -119,6 +124,15 @@ async function parseDocument(data: Buffer, mimeType: string): Promise<ParsedDocu
     return { parser: "unsupported_doc", pages: [] };
   }
   return { parser: "ocr_required", pages: [] };
+}
+
+/** PDF 逐页提取进度日志：按页抽样输出，数百页文档不刷屏 */
+function logPdfProgress(fileId: string) {
+  return ({ pageNumber, totalPages }: PdfPageProgress): void => {
+    if (pageNumber % 50 === 0 || pageNumber === totalPages) {
+      console.info("PDF 文本提取进度", { fileId, pageNumber, totalPages });
+    }
+  };
 }
 
 /** 读取启用的别名词典（term, alias），供分块关键词标注使用 */
@@ -161,22 +175,110 @@ interface WriteParsedResult {
   chunkCount: number;
 }
 
+/** 单批分块行数：压低分块及其派生行的内存峰值，实际批量仍会再按绑定参数上限二次切分 */
+const CHUNK_WRITE_BATCH_SIZE = 500;
+/** 单批页面行数：页面行携带整页原文，批量过大会让单条 SQL 文本膨胀到数 MB */
+const PAGE_WRITE_BATCH_SIZE = 200;
+
+interface ChunkWriteContext {
+  documentId: string;
+  versionId: string;
+  projectId: string | null;
+  evidenceLevel: "A" | "B" | "C" | null;
+}
+
+/**
+ * 分块写入器：累积到批阈值就把分块连同派生的术语与引用一起落库并释放缓冲，
+ * 使内存占用与文档规模解耦。批内依赖 INSERT ... RETURNING 的返回顺序与 VALUES 顺序一致。
+ */
+function createChunkWriter(tx: DbExecutor, context: ChunkWriteContext) {
+  const { documentId, versionId, projectId, evidenceLevel } = context;
+  const isClause = (anchor: string): boolean => /^第\s*\d+(?:\.\d+)*\s*条$/.test(anchor);
+  let buffer: ExtractedChunk[] = [];
+  let written = 0;
+
+  const flush = async (): Promise<void> => {
+    if (buffer.length === 0) return;
+    const batch = buffer;
+    buffer = [];
+
+    const chunkValues = batch.map((chunk, offset) => ({
+      documentId,
+      versionId,
+      projectId,
+      chunkIndex: written + offset,
+      content: chunk.content,
+      sourcePage: chunk.sourcePage,
+      pageEnd: chunk.pageEnd,
+      sourceSection: chunk.sourceSection,
+      headingLevel: chunk.headingLevel,
+      contentType: chunk.contentType,
+      searchText: chunk.searchText,
+      keywords: chunk.keywords,
+      aliasTerms: chunk.aliasTerms,
+      citationAnchor: chunk.citationAnchor,
+      metadata: chunk.metadata ?? null,
+      sortWeight: 0
+    }));
+    const chunkIds: string[] = [];
+    for (const values of toInsertBatches(chunkValues)) {
+      const inserted = await tx.insert(knowledgeChunks).values(values).returning({ id: knowledgeChunks.id });
+      for (const row of inserted) chunkIds.push(row.id);
+    }
+
+    const termValues = batch.flatMap((chunk, offset) => [
+      ...chunk.keywords.map((term) => ({ chunkId: chunkIds[offset]!, term, termType: "KEYWORD" as const, weight: 0 })),
+      ...chunk.aliasTerms.map((term) => ({ chunkId: chunkIds[offset]!, term, termType: "SYNONYM" as const, weight: 0 }))
+    ]);
+    for (const values of toInsertBatches(termValues)) {
+      await tx.insert(knowledgeChunkTerms).values(values);
+    }
+
+    const citationValues = batch.flatMap((chunk, offset) =>
+      extractAnchors(chunk.content).slice(0, 3).map((anchor) => ({
+        chunkId: chunkIds[offset]!,
+        documentId,
+        versionId,
+        sourceType: "OTHER" as const,
+        pageNumber: chunk.sourcePage,
+        clauseNo: isClause(anchor) ? anchor : null,
+        evidenceLevel,
+        note: isClause(anchor) ? null : anchor
+      }))
+    );
+    for (const values of toInsertBatches(citationValues)) {
+      await tx.insert(knowledgeCitations).values(values);
+    }
+
+    written += batch.length;
+  };
+
+  return {
+    async push(chunks: readonly ExtractedChunk[]): Promise<void> {
+      for (const chunk of chunks) {
+        buffer.push(chunk);
+        if (buffer.length >= CHUNK_WRITE_BATCH_SIZE) await flush();
+      }
+    },
+    async finish(): Promise<number> {
+      await flush();
+      return written;
+    }
+  };
+}
+
 /**
  * 将解析结果按版本写入：页面 + 分块 + 分块术语 + 引用。
  * 先清空该版本旧内容（版本替代/重新解析场景；历史版本数据不受影响），
  * 文本流中表格区域独立成块；XLSX 每工作表一个页面并按行产出结构化 TABLE 块。
+ * 页面与分块均分批写入，行数由文档规模决定，不能用单条语句一次插完。
  */
 async function writeParsedContent(tx: DbExecutor, input: WriteParsedInput): Promise<WriteParsedResult> {
   const { documentId, versionId, projectId, pages, aliases, evidenceLevel, sheets } = input;
 
-  const oldChunks = await tx.select({ id: knowledgeChunks.id }).from(knowledgeChunks)
-    .where(eq(knowledgeChunks.versionId, versionId));
-  if (oldChunks.length > 0) {
-    const chunkIds = oldChunks.map((chunk) => chunk.id);
-    await tx.delete(knowledgeChunkTerms).where(inArray(knowledgeChunkTerms.chunkId, chunkIds));
-    await tx.delete(knowledgeCitations).where(inArray(knowledgeCitations.chunkId, chunkIds));
-    await tx.delete(knowledgeChunks).where(eq(knowledgeChunks.versionId, versionId));
-  }
+  // knowledge_chunk_terms 与 knowledge_citations 的 chunk_id 均为 ON DELETE CASCADE，
+  // 删除分块即可级联清理；按 id 列表逐表删除会随分块数量线性放大绑定参数
+  await tx.delete(knowledgeChunks).where(eq(knowledgeChunks.versionId, versionId));
   await tx.delete(knowledgePages).where(eq(knowledgePages.versionId, versionId));
 
   const pageValues = pages.map((page) => {
@@ -192,57 +294,21 @@ async function writeParsedContent(tx: DbExecutor, input: WriteParsedInput): Prom
       parseStatus: "PARSED" as const
     };
   });
-  if (pageValues.length > 0) await tx.insert(knowledgePages).values(pageValues);
+  for (const values of toInsertBatches(pageValues, PAGE_WRITE_BATCH_SIZE)) {
+    await tx.insert(knowledgePages).values(values);
+  }
 
-  const chunks: ExtractedChunk[] = [...buildChunksFromPages(pages, aliases)];
+  const writer = createChunkWriter(tx, { documentId, versionId, projectId, evidenceLevel });
+  // buildChunksFromPages 按页独立成块，逐页调用与整体调用结果一致，但分块不再全量驻留
+  for (const page of pages) {
+    await writer.push(buildChunksFromPages([page], aliases));
+  }
   for (const sheet of sheets ?? []) {
-    chunks.push(...buildChunksFromSheet(sheet.data, aliases)
+    await writer.push(buildChunksFromSheet(sheet.data, aliases)
       .map((chunk) => ({ ...chunk, sourcePage: sheet.pageNumber, pageEnd: sheet.pageNumber })));
   }
-  if (chunks.length === 0) return { pageCount: pages.length, chunkCount: 0 };
 
-  const chunkValues = chunks.map((chunk: ExtractedChunk, index: number) => ({
-    documentId,
-    versionId,
-    projectId,
-    chunkIndex: index,
-    content: chunk.content,
-    sourcePage: chunk.sourcePage,
-    pageEnd: chunk.pageEnd,
-    sourceSection: chunk.sourceSection,
-    headingLevel: chunk.headingLevel,
-    contentType: chunk.contentType,
-    searchText: chunk.searchText,
-    keywords: chunk.keywords,
-    aliasTerms: chunk.aliasTerms,
-    citationAnchor: chunk.citationAnchor,
-    metadata: chunk.metadata ?? null,
-    sortWeight: 0
-  }));
-  const inserted = await tx.insert(knowledgeChunks).values(chunkValues).returning({ id: knowledgeChunks.id });
-
-  const termValues = chunks.flatMap((chunk, index) => [
-    ...chunk.keywords.map((term) => ({ chunkId: inserted[index]!.id, term, termType: "KEYWORD" as const, weight: 0 })),
-    ...chunk.aliasTerms.map((term) => ({ chunkId: inserted[index]!.id, term, termType: "SYNONYM" as const, weight: 0 }))
-  ]);
-  if (termValues.length > 0) await tx.insert(knowledgeChunkTerms).values(termValues);
-
-  const citationValues = chunks.flatMap((chunk, index) => {
-    const anchors = extractAnchors(chunk.content);
-    return anchors.slice(0, 3).map((anchor) => ({
-      chunkId: inserted[index]!.id,
-      documentId,
-      versionId,
-      sourceType: "OTHER" as const,
-      pageNumber: chunk.sourcePage,
-      clauseNo: /^第\s*\d+(?:\.\d+)*\s*条$/.test(anchor) ? anchor : null,
-      evidenceLevel,
-      note: /^第\s*\d+(?:\.\d+)*\s*条$/.test(anchor) ? null : anchor
-    }));
-  });
-  if (citationValues.length > 0) await tx.insert(knowledgeCitations).values(citationValues);
-
-  return { pageCount: pages.length, chunkCount: chunks.length };
+  return { pageCount: pages.length, chunkCount: await writer.finish() };
 }
 
 /** 知识库链路解析任务：PARSE / REPARSE（重新读取 OSS 文件解析并重写页面与分块） */
@@ -271,7 +337,7 @@ async function handleParseJob(
       await db.update(files).set({ mimeType, updatedAt: new Date() }).where(eq(files.id, file.id));
     }
     await job.updateProgress(20);
-    const parsed = await parseDocument(data, mimeType);
+    const parsed = await parseDocument(data, mimeType, logPdfProgress(file.id));
     const totalTextLength = parsed.pages.reduce((sum, page) => sum + page.text.trim().length, 0);
     // OCR/格式不支持判定：老格式（.doc/.xls）与纯图片显式标记；文本过短阈值仅对文本型格式生效，
     // 电子表格内容少是正常现象（表格块按行落库），只有整簿无内容才需要 OCR。
@@ -404,7 +470,7 @@ async function handleLegacyJob(
       await db.update(files).set({ mimeType, updatedAt: new Date() }).where(eq(files.id, file.id));
     }
     await job.updateProgress(20);
-    const parsed = await parseDocument(data, mimeType);
+    const parsed = await parseDocument(data, mimeType, logPdfProgress(file.id));
     const totalTextLength = parsed.pages.reduce((sum, page) => sum + page.text.trim().length, 0);
     if (parsed.parser === "ocr_required" || totalTextLength < 20) {
       await db.update(files).set({ status: "OCR_REQUIRED", errorMessage: null, updatedAt: new Date() }).where(eq(files.id, file.id));
