@@ -198,7 +198,10 @@ export async function runSearch(app: FastifyInstance, query: string, options: Ru
   if (options.region) filterClauses.push(sql`kd.region = ${options.region}`);
   if (options.purpose) filterClauses.push(sql`(kd.allowed_purposes = '[]'::jsonb or kd.allowed_purposes @> ${JSON.stringify([options.purpose])}::jsonb)`);
   const filterFragment = filterClauses.length > 0
-    ? sql` and ${filterClauses[0]!}${filterClauses.slice(1).map((clause) => sql` and ${clause}`)}`
+    ? filterClauses.slice(1).reduce(
+        (combined, clause) => sql`${combined} and ${clause}`,
+        filterClauses[0]!
+      )
     : sql``;
 
   const rows = await sql<SearchRow[]>`
