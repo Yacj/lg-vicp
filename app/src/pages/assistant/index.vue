@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import type { AiScene, ApiEnvelope, ProjectRecord } from '@/api/types'
+import type { AiScene, ApiEnvelope, CreateShareResult, ProjectRecord } from '@/api/types'
 import { projectApi } from '@/api/modules/projects'
 import AiComposer from '@/components/ai/AiComposer.vue'
+import AiFeedbackPanel from '@/components/ai/AiFeedbackPanel.vue'
 import AiMessageList from '@/components/ai/AiMessageList.vue'
+import AiSharePanel from '@/components/ai/AiSharePanel.vue'
+import AiShareSelectBar from '@/components/ai/AiShareSelectBar.vue'
 import AiWelcomeHero from '@/components/ai/AiWelcomeHero.vue'
 import { useAssistantStore } from '@/store/assistant'
 
@@ -42,6 +45,29 @@ const composerDisabled = computed(() => loadingConversation.value || Boolean(fai
 const followLatest = ref(true)
 const messageScrollTarget = ref('')
 let lastMessageScrollTop = 0
+
+/** 分享选择模式 */
+const isSelecting = ref(false)
+const selectedIds = ref<string[]>([])
+const sharePanelVisible = ref(false)
+const shareToken = ref('')
+const shareTitle = ref('')
+const SHARE_LIMIT = 20
+
+/** 点踩反馈弹窗 */
+const feedbackPanelVisible = ref(false)
+const pendingFeedbackMessageId = ref<string>()
+
+const shareableMessages = computed(() =>
+  messages.value.filter(
+    message => message.status === 'COMPLETED' && (message.role === 'USER' || message.role === 'ASSISTANT'),
+  ),
+)
+const shareableCount = computed(() => shareableMessages.value.length)
+const allSelected = computed(
+  () => shareableCount.value > 0 && selectedIds.value.length === Math.min(shareableCount.value, SHARE_LIMIT),
+)
+const shareDefaultTitle = computed(() => assistantStore.conversation?.title?.trim() || '筑小格 AI 对话分享')
 
 const latestMessageFingerprint = computed(() => {
   const latest = messages.value[messages.value.length - 1]
@@ -227,10 +253,85 @@ async function handleRegenerate(messageId: string) {
 }
 
 function handleFeedback(messageId: string, reaction: 'LIKE' | 'DISLIKE' | null) {
+  if (reaction === 'DISLIKE') {
+    pendingFeedbackMessageId.value = messageId
+    feedbackPanelVisible.value = true
+    return
+  }
   void assistantStore.feedback(messageId, reaction).catch(() => {
     showError('反馈提交失败，请重试')
   })
 }
+
+function handleFeedbackConfirm(payload: { tags: string[]; content: string }) {
+  const messageId = pendingFeedbackMessageId.value
+  if (!messageId) {
+    return
+  }
+  void assistantStore.feedback(messageId, 'DISLIKE', payload).catch(() => {
+    showError('反馈提交失败，请重试')
+  })
+}
+
+function enterSelectMode() {
+  if (streaming.value) {
+    showError('回答生成中，暂不能分享')
+    return
+  }
+  if (!shareableCount.value) {
+    showError('暂无可分享的消息')
+    return
+  }
+  isSelecting.value = true
+  selectedIds.value = []
+}
+
+function toggleSelect(messageId: string) {
+  const index = selectedIds.value.indexOf(messageId)
+  if (index >= 0) {
+    selectedIds.value.splice(index, 1)
+    return
+  }
+  if (selectedIds.value.length >= SHARE_LIMIT) {
+    showError(`一次最多分享 ${SHARE_LIMIT} 条消息`)
+    return
+  }
+  selectedIds.value.push(messageId)
+}
+
+function toggleAll() {
+  if (allSelected.value) {
+    selectedIds.value = []
+    return
+  }
+  selectedIds.value = shareableMessages.value.slice(0, SHARE_LIMIT).map(message => message.id)
+  if (shareableCount.value > SHARE_LIMIT) {
+    showError(`一次最多分享 ${SHARE_LIMIT} 条，已为你选中前 ${SHARE_LIMIT} 条`)
+  }
+}
+
+function cancelSelect() {
+  isSelecting.value = false
+  selectedIds.value = []
+}
+
+function confirmShare() {
+  if (selectedIds.value.length) {
+    sharePanelVisible.value = true
+  }
+}
+
+function handleShareSuccess(share: CreateShareResult) {
+  shareToken.value = share.share.token
+  shareTitle.value = share.share.title
+}
+
+onShareAppMessage(() => {
+  return {
+    title: shareTitle.value || 'AI 对话分享',
+    path: `/pages/share/index?token=${shareToken.value}`,
+  }
+})
 </script>
 
 <template>
@@ -291,8 +392,12 @@ function handleFeedback(messageId: string, reaction: 'LIKE' | 'DISLIKE' | null) 
           :streaming-message-id="assistantStore.streamingMessageId"
           :progress-message="assistantStore.progressMessage"
           :feedbacks="assistantStore.feedbacks"
+          :selection-mode="isSelecting"
+          :selected-ids="selectedIds"
           @regenerate="handleRegenerate"
           @feedback="handleFeedback"
+          @share="enterSelectMode"
+          @toggle-select="toggleSelect"
         />
         <view id="assistant-message-end" class="h-1" />
       </scroll-view>
@@ -307,7 +412,16 @@ function handleFeedback(messageId: string, reaction: 'LIKE' | 'DISLIKE' | null) 
       </view>
 
       <view class="assistant-page__composer pt-2">
+        <AiShareSelectBar
+          v-if="isSelecting"
+          :selected-count="selectedIds.length"
+          :all-selected="allSelected"
+          @toggle-all="toggleAll"
+          @cancel="cancelSelect"
+          @confirm="confirmShare"
+        />
         <AiComposer
+          v-else
           v-model="input"
           v-model:active="isComposerActive"
           :streaming="streaming"
@@ -317,6 +431,18 @@ function handleFeedback(messageId: string, reaction: 'LIKE' | 'DISLIKE' | null) 
         />
       </view>
     </view>
+
+    <AiSharePanel
+      v-model="sharePanelVisible"
+      :message-ids="selectedIds"
+      :default-title="shareDefaultTitle"
+      @success="handleShareSuccess"
+    />
+
+    <AiFeedbackPanel
+      v-model="feedbackPanelVisible"
+      @confirm="handleFeedbackConfirm"
+    />
   </view>
 </template>
 

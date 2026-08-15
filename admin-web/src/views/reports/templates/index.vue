@@ -3,7 +3,7 @@ import type { PageInfo, PrimaryTableCol, TableRowData } from 'tdesign-vue-next'
 import { AddIcon, DeleteIcon } from 'tdesign-icons-vue-next'
 import { computed, h, onMounted, reactive, ref } from 'vue'
 import AppCrudFormDialog from '@/components/business/AppCrudFormDialog.vue'
-import AppEvidenceSource from '@/components/business/AppEvidenceSource.vue'
+import { createEvidenceColumn } from '@/components/business/evidence-column'
 import AppStatusTag from '@/components/ui/AppStatusTag.vue'
 import AppTableActions from '@/components/business/AppTableActions.vue'
 import AppDataTable from '@/components/ui/AppDataTable.vue'
@@ -214,7 +214,7 @@ const sectionKeyLabel: Record<ReportSectionKey, string> = {
   construction: '构造做法',
   comparison: '对比结论',
   acceptance: '验收建议',
-  sources: '证据来源',
+  sources: '资料出处',
   disclaimer: '免责声明',
 }
 
@@ -228,7 +228,7 @@ const columns: PrimaryTableCol<TableRowData>[] = [
     h('div', { class: 'vicp-tpl-sections' }, row.sections.filter((s: ReportSection) => s.enabled).map((s: ReportSection) => sectionKeyLabel[s.key] ?? s.key).join(' / ')),
   ]), colKey: 'sections', minWidth: 260, title: '章节配置' },
   { cell: (_, { row }) => h(AppStatusTag, mdReviewStatusMetaFor(row.status)), colKey: 'status', width: 100, title: '状态' },
-  { cell: (_, { row }) => h(AppEvidenceSource, { evidence: row }), colKey: 'evidence', minWidth: 190, title: '来源与证据' },
+  createEvidenceColumn(190),
   { cell: (_, { row }) => formatDate(new Date(row.updatedAt), 'YYYY-MM-DD'), colKey: 'updatedAt', minWidth: 110, title: '更新时间' },
 ]
 

@@ -236,4 +236,213 @@ export interface KnowledgeParsingJobQuery {
   status?: KnowledgeParsingJobStatus
 }
 
+// ===== 文档版本与上传 =====
+
+export interface KnowledgeUploadIntent {
+  fileId: string
+  uploadUrl: string
+  headers: Record<string, string> | null
+  expiresAt: string
+}
+
+export interface KnowledgeDocumentDetail {
+  document: KnowledgeDocument
+  versions: KnowledgeDocumentVersion[]
+}
+
+export interface KnowledgeVersionInput {
+  title?: string
+  changeNote?: string
+  evidenceLevel?: EvidenceLevel
+}
+
+export interface KnowledgeUploadIntentInput {
+  fileName: string
+  mimeType: string
+  sizeBytes: number
+  sha256?: string
+}
+
+// ===== 页面与分块 =====
+
+export interface KnowledgePage {
+  id: string
+  documentId: string
+  versionId: string
+  pageNumber: number
+  parsedText: string | null
+  pageImageObjectKey: string | null
+  sectionPath: string | null
+  hasTables: boolean
+  hasImages: boolean
+  parseStatus: string
+  createdAt: string
+}
+
+export const knowledgeChunkContentTypes = [
+  'PARAGRAPH',
+  'TITLE',
+  'SECTION',
+  'CLAUSE',
+  'TABLE',
+  'NOTE',
+  'FORMULA',
+  'IMAGE_CAPTION',
+] as const
+export type KnowledgeChunkContentType = (typeof knowledgeChunkContentTypes)[number]
+
+export interface KnowledgeChunk {
+  id: string
+  chunkIndex: number
+  content: string
+  contentType: KnowledgeChunkContentType
+  sourcePage: number | null
+  pageEnd: number | null
+  sourceSection: string | null
+  headingLevel: number | null
+  keywords: string[] | null
+  aliasTerms: string[] | null
+  citationAnchor: string | null
+  sortWeight: number | null
+  searchText: string | null
+  metadata: Record<string, unknown> | null
+  annotation: string | null
+  invalid: boolean | null
+  invalidReason: string | null
+  editedAt: string | null
+}
+
+export interface KnowledgeChunkTerm {
+  id: string
+  chunkId: string
+  term: string
+  termType: KnowledgeTermType
+  weight: number
+}
+
+export interface KnowledgeChunkEditInput {
+  keywords?: string[]
+  heading?: string | null
+  headingLevel?: number
+  citationAnchor?: string | null
+  annotation?: string | null
+  invalid?: boolean
+  invalidReason?: string | null
+}
+
+// ===== 检索 =====
+
+export interface KnowledgeSearchHit {
+  chunkId: string
+  documentId: string
+  content: string
+  sourcePage: number | null
+  sourceSection: string | null
+  sourceTitle: string
+  version: number
+  docNumber: string | null
+  citationAnchor: string | null
+  contentType: string
+  score: number
+  hitReason: string
+  rankScore: number
+  snippet: string
+  matchedTerms: string[]
+  matchReasons: string[]
+  evidenceLevel: string | null
+  usageScope: string[] | null
+  region: string | null
+}
+
+export interface KnowledgeSearchQuery {
+  query: string
+  docType?: KnowledgeDocType
+  categoryId?: string
+  projectId?: string
+  region?: string
+  purpose?: string
+  limit?: number
+}
+
+export interface KnowledgeSearchResult {
+  items: KnowledgeSearchHit[]
+  took: number
+}
+
+// ===== 检索评测 =====
+
+export const knowledgeEvaluationJudgements = ['PENDING', 'APPROVED', 'REJECTED', 'PARTIAL'] as const
+export type KnowledgeEvaluationJudgement = (typeof knowledgeEvaluationJudgements)[number]
+
+export interface KnowledgeEvaluation {
+  id: string
+  query: string
+  normalizedQuery: string
+  parsedKeywords: string[] | null
+  expectedDocumentId: string | null
+  expectedPage: number | null
+  actualTopResults: Record<string, unknown>[] | null
+  judgement: KnowledgeEvaluationJudgement
+  judgedById: string | null
+  judgedAt: string | null
+  note: string | null
+  createdById: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface KnowledgeEvaluationInput {
+  query: string
+  expectedDocumentId?: string
+  expectedPage?: number
+}
+
+export interface KnowledgeEvaluationQuery {
+  page: number
+  pageSize: number
+  judgement?: KnowledgeEvaluationJudgement | 'ALL'
+}
+
+// ===== 知识问答（检索 + AI 回答，SSE） =====
+
+export interface KnowledgeQaRequest {
+  query: string
+  categoryId?: string
+  docType?: KnowledgeDocType
+  region?: string
+  purpose?: string
+  limit?: number
+  reasoningMode?: 'OFF' | 'ON'
+}
+
+export interface KnowledgeQaSource {
+  chunkId: string
+  documentId: string
+  title: string
+  page: number | null
+  section: string | null
+  score: number
+  evidenceLevel: string | null
+}
+
+export type KnowledgeQaSseEvent =
+  | { type: 'message'; data: { messageId: string; conversationId: string; requestId: string } }
+  | { type: 'progress'; data: { stage: string; message: string } }
+  | { type: 'delta'; data: { text: string } }
+  | {
+      type: 'done'
+      data: {
+        messageId: string
+        conversationId: string
+        finishReason: string
+        model: { id: string }
+        promptVersion: { id: string; version: number }
+        sources: KnowledgeQaSource[]
+        latencyMs: number
+        usage?: { inputTokens?: number | null; outputTokens?: number | null; reasoningTokens?: number | null }
+      }
+    }
+  | { type: 'stopped'; data: { messageId: string; partialContent: string; content: string } }
+  | { type: 'error'; data: { code: string; message: string; requestId: string; retryable: boolean } }
+
 export type { EvidenceLevel, PageResult }

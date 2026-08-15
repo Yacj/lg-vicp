@@ -250,7 +250,7 @@ function getActions(row: TableRowData): AppTableAction[] {
       <t-form-item label="限值 K W/(m²·K)" name="limitKValue" required-mark>
         <t-input-number v-model="drawer.formData.limitKValue" :min="0" :precision="3" :step="0.01" />
       </t-form-item>
-      <t-form-item label="证据等级" name="evidenceLevel">
+      <t-form-item label="资料可信度" name="evidenceLevel">
         <t-select
           v-model="drawer.formData.evidenceLevel"
           :options="[
@@ -262,7 +262,7 @@ function getActions(row: TableRowData): AppTableAction[] {
           placeholder="选填"
         />
       </t-form-item>
-      <t-form-item label="证据来源" name="evidenceSource">
+      <t-form-item label="资料出处" name="evidenceSource">
         <t-input v-model="drawer.formData.evidenceSource" maxlength="500" placeholder="如：地方标准原文" />
       </t-form-item>
       <t-form-item label="页码 / 条款" name="evidenceRef">

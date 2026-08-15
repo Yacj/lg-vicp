@@ -239,7 +239,7 @@ export async function streamConversationReply(options: {
   };
 
   startSseStream(reply, request.id);
-  writeSse(reply, "message", { messageId: assistantMessage.id, conversationId: conversation.id, requestId });
+  writeSse(reply, "message", { messageId: assistantMessage.id, userMessageId: userMessage.id, conversationId: conversation.id, requestId });
   writeProgress(reply, "analyzing", conversation.projectId ? "正在分析项目资料..." : "正在分析问题...");
   request.raw.once("close", onClientClose);
   await app.db.update(aiMessages).set({ status: "STREAMING", startedAt: new Date() }).where(eq(aiMessages.id, assistantMessage.id));

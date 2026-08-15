@@ -3,7 +3,7 @@ import type { PrimaryTableCol, TableRowData } from 'tdesign-vue-next'
 import { AddIcon } from 'tdesign-icons-vue-next'
 import { computed, h, onMounted, ref } from 'vue'
 import AppCrudFormDialog from '@/components/business/AppCrudFormDialog.vue'
-import AppEvidenceSource from '@/components/business/AppEvidenceSource.vue'
+import { createEvidenceColumn } from '@/components/business/evidence-column'
 import AppTableActions from '@/components/business/AppTableActions.vue'
 import AppVersionMeta from '@/components/business/AppVersionMeta.vue'
 import AppDataTable from '@/components/ui/AppDataTable.vue'
@@ -155,7 +155,7 @@ const columns: PrimaryTableCol<TableRowData>[] = [
   { cell: (_, { row }) => row.density ?? '—', colKey: 'density', minWidth: 100, title: '密度 kg/m³' },
   { cell: (_, { row }) => row.combustionGrade ?? '—', colKey: 'combustionGrade', minWidth: 110, title: '燃烧等级' },
   { cell: (_, { row }) => h(AppStatusTag, mdReviewStatusMetaFor(row.status)), colKey: 'status', title: '状态', width: 100 },
-  { cell: (_, { row }) => h(AppEvidenceSource, { evidence: row }), colKey: 'evidence', minWidth: 200, title: '来源与证据' },
+  createEvidenceColumn(200),
   { cell: (_, { row }) => formatDate(new Date(row.updatedAt)), colKey: 'updatedAt', minWidth: 160, title: '更新时间' },
 ]
 
@@ -319,7 +319,7 @@ onMounted(loadMaterialOptions)
       <t-form-item class="vicp-form-wide" label="适用范围" name="applicableScope">
         <t-input v-model="drawer.formData.applicableScope" maxlength="500" placeholder="选填" />
       </t-form-item>
-      <t-form-item label="证据等级" name="evidenceLevel">
+      <t-form-item label="资料可信度" name="evidenceLevel">
         <t-select
           v-model="drawer.formData.evidenceLevel"
           :options="[
@@ -331,7 +331,7 @@ onMounted(loadMaterialOptions)
           placeholder="选填"
         />
       </t-form-item>
-      <t-form-item label="证据来源" name="evidenceSource">
+      <t-form-item label="资料出处" name="evidenceSource">
         <t-input v-model="drawer.formData.evidenceSource" maxlength="500" placeholder="如：型式检验报告" />
       </t-form-item>
       <t-form-item label="页码 / 条款" name="evidenceRef">

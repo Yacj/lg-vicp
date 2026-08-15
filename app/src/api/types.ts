@@ -272,6 +272,7 @@ export type AiStreamEventPayload
     data: {
       messageId: string
       conversationId: string
+      userMessageId?: string
       originalMessageId?: string
       requestId: string
     }
@@ -470,4 +471,32 @@ export interface CreateShareBody {
   projectId?: string
   expiresAt?: string
   maxViews?: number
+}
+
+export interface ShareMessageSnapshot {
+  index: number
+  id: string
+  role?: 'USER' | 'ASSISTANT'
+  content: string
+  model?: string | null
+  createdAt: string
+}
+
+export interface SharePublicPayload {
+  type: ShareTargetType
+  conversationId?: string
+  scene?: string | null
+  messages?: ShareMessageSnapshot[]
+}
+
+export interface CreateShareResult {
+  message: string
+  share: AiShareLinkRecord
+  url: string
+}
+
+export interface PublicShareResult {
+  title: string
+  targetType: ShareTargetType
+  payload: SharePublicPayload
 }

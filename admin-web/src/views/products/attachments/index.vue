@@ -248,7 +248,7 @@ function getActions(row: TableRowData): AppTableAction[] {
       <t-form-item label="附件名称" name="name">
         <t-input v-model="drawer.formData.name" maxlength="160" placeholder="选填" />
       </t-form-item>
-      <t-form-item label="证据等级" name="evidenceLevel">
+      <t-form-item label="资料可信度" name="evidenceLevel">
         <t-select
           v-model="drawer.formData.evidenceLevel"
           :options="[
@@ -260,7 +260,7 @@ function getActions(row: TableRowData): AppTableAction[] {
           placeholder="选填"
         />
       </t-form-item>
-      <t-form-item label="证据来源" name="evidenceSource">
+      <t-form-item label="资料出处" name="evidenceSource">
         <t-input v-model="drawer.formData.evidenceSource" maxlength="500" placeholder="选填" />
       </t-form-item>
       <t-form-item label="页码 / 条款" name="evidenceRef">

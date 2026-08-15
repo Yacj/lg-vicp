@@ -9,6 +9,7 @@ interface GlobalToast {
 const defaultOptions: ToastOptions = {
   duration: 2000,
   show: false,
+  zIndex: 3000,
 }
 export const useGlobalToast = defineStore('global-toast', {
   state: (): GlobalToast => ({

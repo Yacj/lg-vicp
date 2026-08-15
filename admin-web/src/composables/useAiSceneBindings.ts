@@ -63,7 +63,7 @@ function toForm(binding: AiSceneBinding | null, scene: AiScene): AiSceneBindingF
   }
 }
 
-/** 场景为固定枚举，绑定按 scene upsert；列表恒为 6 行，未绑定行展示空态。 */
+/** 场景为固定枚举，绑定按 scene upsert；列表恒为场景枚举行数，未绑定行展示空态。 */
 export function useAiSceneBindings() {
   const feedback = useAppFeedback()
   const bindings = ref<AiSceneBinding[]>([])

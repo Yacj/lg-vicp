@@ -233,11 +233,12 @@ AI 流式要求：
 
 | 能力 | 真实状态 | 说明 |
 | --- | --- | --- |
-| 文档资料库 | **后端无管理接口** | `knowledge_documents`/`knowledge_chunks` 由 worker 写入、内部检索 service 使用；无后台查询/管理路由（`GAP-013`） |
-| PDF 解析 | **部分可用（无管理面）** | PDF/DOCX 文本提取和切片由 worker 完成，文件状态可查；无解析摘要、切片、重建索引接口（`GAP-013`） |
-| OCR | **不可用** | 扫描件只落 `OCR_REQUIRED`；OCR provider 未配置且无执行/结果接口（`GAP-014`） |
+| 文档资料库 | **已实现** | 文档/版本 CRUD、预签名上传、解析任务（进度/错误/重试）、分块列表与人工干预（元数据编辑/标记无效/拆分/合并 + `knowledge_chunk_edits` 审计）、版本审核发布状态机（DRAFT→APPROVED→PUBLISHED，停用/回滚） |
+| PDF 解析 | **已实现** | PDF/DOCX 文本提取与确定性分块由 worker 完成；解析任务列表、失败重试、`OCR_REQUIRED` 提示均可用 |
+| OCR | **不可用** | 扫描件只落 `OCR_REQUIRED`；OCR provider 未配置且无执行/结果接口（`GAP-014`），入口显示转换后重传提示 |
 | 表格提取 | **不可用** | 文件解析不支持 Excel/CSV 表格提取；无结构化结果接口（`GAP-015`） |
-| 结构化审核 | **不可用** | 无审核状态、审核人、审核意见字段和接口（`GAP-016`） |
+| 结构化审核 | **已实现** | 版本审核发布状态机 + 分块干预审计 + 检索评测判定（APPROVED/REJECTED/PARTIAL） |
+| 检索与 AI 问答 | **已实现** | `/knowledge/search-test` 检索测试页：可解释排序结果（命中原因/权重/高亮）、SSE AI 回答（引用标注 + 页码定位）、评测提交与判定；AI 回答仅依据已发布资料，模型/提示词由 B 端 AI 配置页绑定（场景 `knowledge_qa`） |
 | 分类/关键词/同义词 | **不可用** | 无对应表或路由；动态字典不是业务分类体系（`GAP-017`） |
 | 公式规则库 | **不可用** | 无对应表或路由；AI 报告不提供确定性公式执行接口（`GAP-018`） |
 | 方案库 | **不可用** | 无对应表或路由；报告中心不是方案库（`GAP-019`） |
@@ -312,7 +313,8 @@ AI 流式要求：
 ```text
 企业内容 /content           企业简介 /content/profile、企业证书 /content/certificates
 知识中心 /knowledge         文档资料 /knowledge/documents、分类管理 /knowledge/categories、
-                           别名词典 /knowledge/aliases、知识抓取源 /knowledge/crawlers、检索日志 /knowledge/search-logs
+                           别名词典 /knowledge/aliases、知识抓取源 /knowledge/crawlers、
+                           检索日志 /knowledge/search-logs、检索测试 /knowledge/search-test
 产品中心 /products          产品系列 /products/series、产品规格 /products/specs、
                            产品参数 /products/parameters、产品附件 /products/attachments
 基础数据 /masterdata        材料库 /masterdata/materials、材料参数版本 /masterdata/parameter-versions
@@ -327,17 +329,19 @@ AI 流式要求：
 审核中心 /review-center     审核队列 /review-center/queue
 ```
 
-### 8.2 页面状态（28 页全部已实现）
+### 8.2 页面状态（30 页全部已实现）
 
 | 页面 | 路由 | 状态与差异 |
 | --- | --- | --- |
 | 企业简介 | `/content/profile` | **已实现**；版本化审核实体，工作流提交/通过/驳回/发布/停用/新版本 |
 | 企业证书 | `/content/certificates` | **已实现**；同上，含证书有效期展示 |
-| 文档资料 | `/knowledge/documents` | **已实现**；文档 CRUD + 当前版本状态展示；文档级启停无后端端点，版本上传/解析/审核在版本页（后续批次） |
+| 文档资料 | `/knowledge/documents` | **已实现**；文档 CRUD + 当前版本状态展示 + 证据等级/用途/状态筛选；"版本管理"入口跳转文档详情 | 
+| 文档详情 | `/knowledge/documents/:id` | **已实现**（静态隐藏路由，`doc:list`）；版本元信息、上传/解析/重试、审核发布/停用/回滚、页面视图、分块视图（人工干预：编辑/标记无效/拆分/合并）、原文件预览、审核时间线 |
 | 分类管理 | `/knowledge/categories` | **已实现**；扁平分类树（parentId），启停 |
 | 别名词典 | `/knowledge/aliases` | **已实现**；术语/别名/类型/作用域，启停 |
 | 知识抓取源 | `/knowledge/crawlers` | **已实现**；CRUD + 手动触发抓取（`crawler:run`） |
 | 检索日志 | `/knowledge/search-logs` | **已实现**；只读，归一化词/匹配模式/最高命中 |
+| 检索测试 | `/knowledge/search-test` | **已实现**；可解释检索结果（命中原因/权重/高亮/页码）+ AI 回答（SSE，`search:answer` 权限，引用可点击跳转文档详情分块）+ 评测提交/判定（内嵌 evaluations 视图） |
 | 产品系列 | `/products/series` | **已实现**；版本化审核实体 + 工作流 |
 | 产品规格 | `/products/specs` | **已实现**；规格等级/标准类型/生产状态筛选 + 工作流 |
 | 产品参数 | `/products/parameters` | **已实现**；参数来源枚举筛选 + 工作流 |
@@ -368,7 +372,8 @@ AI 流式要求：
 - 列表分页差异：标准政策模块列表接口返回纯数组（无分页），前端本地适配；其余模块服务端分页。
 - 证据等级 `evidenceLevel`（A/B/C）后端无正式语义定义，前端只做原文展示（`evidenceLevelLabels`）。
 - 知识文档状态为 `ACTIVE|DISABLED`、版本状态为 `DRAFT|APPROVED|PUBLISHED|DISABLED`（与专业主数据 `md_review_status` 不同），状态映射见 `src/utils/professional-status.ts`。
+- 知识检索问答：`POST /api/v1/ai/knowledge-qa`（SSE，`system:knowledge:search:answer`），后端先执行真实检索（仅 PUBLISHED 版本 + ACTIVE 文档），检索结果注入提示词并随 `done.sources` 返回引用标注；场景 `knowledge_qa` 的模型/提示词由 B 端 AI 配置页绑定，业务代码不写死模型。
 
 ### 8.4 后续批次（未交付）
 
-构造层/产品选项/方案文档子表编辑、热工行编辑与导入向导、材料对比子表（材料/维度/规则/证据）编辑、知识文档版本页/切片/重建解析、节点链接编辑、报告生成详情（候选确认 + `POST /reports/generate`）、计算器与候选查询页（多个条件返回多个候选，用户自选）。
+构造层/产品选项/方案文档子表编辑、热工行编辑与导入向导、材料对比子表（材料/维度/规则/证据）编辑、节点链接编辑、报告生成详情（候选确认 + `POST /reports/generate`）、计算器与候选查询页（多个条件返回多个候选，用户自选）。

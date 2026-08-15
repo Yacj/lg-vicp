@@ -247,7 +247,7 @@ function getActions(row: TableRowData): AppTableAction[] {
 </script>
 
 <template>
-  <AppPage title="计算规则" description="图集无结果且规则已审核通过时允许计算；规则版本化审核发布，历史计算快照引用规则版本不漂移。">
+  <AppPage title="计算规则" description="图集无结果且规则已审核通过时允许计算；规则版本化审核发布，历史计算结果始终引用当时的规则版本，不随后台修改变化。">
     <template #search>
       <AppSearchPanel :loading="list.isLoading.value" @reset="list.reset" @search="list.search">
         <t-form-item label="关键词">
@@ -350,7 +350,7 @@ function getActions(row: TableRowData): AppTableAction[] {
       <t-form-item label="用途" name="usage">
         <t-input v-model="drawer.formData.usage" maxlength="40" placeholder="如：住宅、公建" />
       </t-form-item>
-      <t-form-item label="证据等级" name="evidenceLevel">
+      <t-form-item label="资料可信度" name="evidenceLevel">
         <t-select
           v-model="drawer.formData.evidenceLevel"
           :options="[
@@ -362,7 +362,7 @@ function getActions(row: TableRowData): AppTableAction[] {
           placeholder="选填"
         />
       </t-form-item>
-      <t-form-item label="证据来源" name="evidenceSource">
+      <t-form-item label="资料出处" name="evidenceSource">
         <t-input v-model="drawer.formData.evidenceSource" maxlength="500" placeholder="如：国标、技术规程" />
       </t-form-item>
       <t-form-item label="页码 / 条款" name="evidenceRef">

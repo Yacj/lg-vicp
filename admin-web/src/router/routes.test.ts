@@ -20,6 +20,7 @@ describe('static route boundaries', () => {
       'SystemDeptMembers',
       'SystemDictItems',
       'ProjectDetail',
+      'KnowledgeDocumentDetail',
       'AiConfigProviders',
       'AiConfigModels',
       'AiConfigScenes',
@@ -38,7 +39,7 @@ describe('static route boundaries', () => {
   })
 
   it('marks login and error pages outside tabs', () => {
-    for (const name of ['Login', 'Forbidden', 'NotFound', 'SystemDeptMembers', 'SystemDictItems', 'ProjectDetail', 'AiOpsConversationDetail', 'ReportDetail']) {
+    for (const name of ['Login', 'Forbidden', 'NotFound', 'SystemDeptMembers', 'SystemDictItems', 'ProjectDetail', 'KnowledgeDocumentDetail', 'AiOpsConversationDetail', 'ReportDetail']) {
       expect(routes.find(route => route.name === name)?.meta?.noTab).toBe(true)
     }
   })

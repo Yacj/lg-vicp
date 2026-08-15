@@ -3,7 +3,7 @@ import type { PrimaryTableCol, TableRowData } from 'tdesign-vue-next'
 import { AddIcon } from 'tdesign-icons-vue-next'
 import { computed, h } from 'vue'
 import AppCrudFormDialog from '@/components/business/AppCrudFormDialog.vue'
-import AppEvidenceSource from '@/components/business/AppEvidenceSource.vue'
+import { createEvidenceColumn } from '@/components/business/evidence-column'
 import AppTableActions from '@/components/business/AppTableActions.vue'
 import AppVersionMeta from '@/components/business/AppVersionMeta.vue'
 import AppDataTable from '@/components/ui/AppDataTable.vue'
@@ -117,7 +117,7 @@ const columns: PrimaryTableCol<TableRowData>[] = [
   { cell: (_, { row }) => row.category ?? '—', colKey: 'category', minWidth: 140, title: '分类' },
   { cell: (_, { row }) => h(AppVersionMeta, { version: row.version, changeNote: row.changeNote }), colKey: 'version', minWidth: 130, title: '版本' },
   { cell: (_, { row }) => h(AppStatusTag, mdReviewStatusMetaFor(row.status)), colKey: 'status', title: '状态', width: 100 },
-  { cell: (_, { row }) => h(AppEvidenceSource, { evidence: row }), colKey: 'evidence', minWidth: 200, title: '来源与证据' },
+  createEvidenceColumn(200),
   { cell: (_, { row }) => formatDate(new Date(row.updatedAt)), colKey: 'updatedAt', minWidth: 160, title: '更新时间' },
 ]
 
@@ -234,7 +234,7 @@ function getActions(row: TableRowData): AppTableAction[] {
       <t-form-item label="分类" name="category">
         <t-input v-model="drawer.formData.category" maxlength="120" placeholder="选填，如：保温板" />
       </t-form-item>
-      <t-form-item label="证据等级" name="evidenceLevel">
+      <t-form-item label="资料可信度" name="evidenceLevel">
         <t-select
           v-model="drawer.formData.evidenceLevel"
           :options="[
@@ -246,7 +246,7 @@ function getActions(row: TableRowData): AppTableAction[] {
           placeholder="选填"
         />
       </t-form-item>
-      <t-form-item label="证据来源" name="evidenceSource">
+      <t-form-item label="资料出处" name="evidenceSource">
         <t-input v-model="drawer.formData.evidenceSource" maxlength="500" placeholder="如：检测报告、产品标准" />
       </t-form-item>
       <t-form-item label="页码 / 条款" name="evidenceRef">

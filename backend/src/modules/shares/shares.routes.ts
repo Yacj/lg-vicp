@@ -30,7 +30,7 @@ const shareTargetValues = [
 
 const createShareBodySchema = z.object({
   targetType: z.enum(shareTargetValues),
-  messageIds: z.array(z.uuid("AI 回答 ID 格式不正确")).max(20, "一次最多分享 20 条 AI 回答").optional(),
+  messageIds: z.array(z.uuid("消息 ID 格式不正确")).max(20, "一次最多分享 20 条消息").optional(),
   reportId: z.uuid("报告 ID 格式不正确").optional(),
   artifactType: z.enum(["HTML", "IMAGE", "WORD", "PDF"]).optional(),
   title: z.string().trim().min(1, "请输入分享标题").max(160, "分享标题不能超过 160 个字符").optional(),
@@ -108,30 +108,30 @@ export async function shareRoutes(app: FastifyInstance) {
       };
     } else if (request.body.targetType === SHARE_TARGET_TYPES.AI_MESSAGES) {
       const messageIds = uniqueIds(request.body.messageIds);
-      if (messageIds.length === 0) throw new NotFoundError("请选择要分享的 AI 回答");
+      if (messageIds.length === 0) throw new NotFoundError("请选择要分享的消息");
       const rows = await app.db.select({ message: aiMessages, conversation: aiConversations })
         .from(aiMessages)
         .innerJoin(aiConversations, eq(aiConversations.id, aiMessages.conversationId))
         .where(inArray(aiMessages.id, messageIds));
-      if (rows.length !== messageIds.length) throw new NotFoundError("选择的 AI 回答不存在或无权分享");
+      if (rows.length !== messageIds.length) throw new NotFoundError("选择的消息不存在或无权分享");
       const orderedRows = messageIds
         .map((id) => rows.find((row) => row.message.id === id))
         .filter((row): row is NonNullable<typeof row> => Boolean(row));
       const firstConversationId = orderedRows[0]!.conversation.id;
       for (const row of orderedRows) {
         if (
-          row.message.role !== "ASSISTANT" ||
+          (row.message.role !== "USER" && row.message.role !== "ASSISTANT") ||
           row.message.status !== "COMPLETED" ||
           row.conversation.status !== "active" ||
           row.conversation.userId !== user.id ||
           row.conversation.id !== firstConversationId
         ) {
-          throw new NotFoundError("选择的 AI 回答不存在或无权分享");
+          throw new NotFoundError("选择的消息不存在或无权分享");
         }
       }
       projectId = orderedRows[0]!.conversation.projectId;
       targetId = orderedRows[0]!.message.id;
-      title ??= orderedRows[0]!.conversation.title ?? "AI 回答分享";
+      title ??= orderedRows[0]!.conversation.title ?? "对话分享";
       snapshotJson = {
         type: SHARE_TARGET_TYPES.AI_MESSAGES,
         conversationId: firstConversationId,
@@ -139,6 +139,7 @@ export async function shareRoutes(app: FastifyInstance) {
         messages: orderedRows.map((row, index) => ({
           index: index + 1,
           id: row.message.id,
+          role: row.message.role,
           content: row.message.content,
           model: row.message.model,
           createdAt: row.message.createdAt

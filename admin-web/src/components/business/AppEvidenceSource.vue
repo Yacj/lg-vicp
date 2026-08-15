@@ -5,8 +5,8 @@ import { evidenceLevelLabels } from '@/utils/professional-status'
 import { formatDate } from '@/utils/day'
 
 /**
- * 来源与证据展示：资料来源、页码/条款、证据等级、生效/失效时间。
- * 证据等级只做原文展示（A/B/C 的正式语义待甲方确认）。
+ * 来源与可信度展示：资料来源、页码/条款、可信度等级、生效/失效时间。
+ * 可信度等级语义见 types/professional.ts 的 evidenceLevelMeta。
  */
 const props = withDefaults(defineProps<{
   evidence?: (Partial<EvidenceMeta> & Record<string, unknown>) | null

@@ -19,6 +19,8 @@ describe('ai scene labels', () => {
     expect(getAiSceneLabel('standard_qa')).toBe('规范问答')
     expect(getAiSceneLabel('report_generate')).toBe('报告生成')
     expect(getAiSceneLabel('information_extract')).toBe('信息抽取')
+    expect(getAiSceneLabel('conversation_title')).toBe('会话标题生成')
+    expect(getAiSceneLabel('knowledge_qa')).toBe('知识问答')
   })
 
   it('falls back to the raw value for unknown scenes', () => {

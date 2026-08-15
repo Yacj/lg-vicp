@@ -9,11 +9,15 @@ const props = defineProps<{
   streamingMessageId: string | null
   progressMessage: string | null
   feedbacks?: Record<string, AiMessageFeedback[]>
+  selectionMode?: boolean
+  selectedIds?: string[]
 }>()
 
 const emit = defineEmits<{
   regenerate: [messageId: string]
   feedback: [messageId: string, reaction: 'LIKE' | 'DISLIKE' | null]
+  share: []
+  toggleSelect: [messageId: string]
 }>()
 
 const { info: toastInfo } = useGlobalToast()
@@ -83,6 +87,21 @@ function copyMessage(message: LocalMessage) {
 function isUser(message: LocalMessage) {
   return message.role === 'USER'
 }
+
+function isShareable(message: LocalMessage) {
+  return message.status === 'COMPLETED' && (message.role === 'USER' || message.role === 'ASSISTANT')
+}
+
+function isSelected(messageId: string) {
+  return props.selectedIds?.includes(messageId) ?? false
+}
+
+function handleToggleSelect(message: LocalMessage) {
+  if (!isShareable(message)) {
+    return
+  }
+  emit('toggleSelect', message.id)
+}
 </script>
 
 <template>
@@ -91,8 +110,20 @@ function isUser(message: LocalMessage) {
       v-for="message in messages"
       :key="message.id"
       class="flex gap-2.5"
-      :class="isUser(message) ? 'justify-end' : 'items-start'"
+      :class="isUser(message) ? 'items-center justify-end' : 'items-start'"
     >
+      <view
+        v-if="selectionMode"
+        class="ai-select flex shrink-0 items-center justify-center"
+        :class="[
+          isSelected(message.id) ? 'ai-select--checked' : '',
+          isShareable(message) ? '' : 'ai-select--disabled',
+        ]"
+        @click="handleToggleSelect(message)"
+      >
+        <wd-icon v-if="isSelected(message.id)" name="check" size="28rpx" color="var(--app-text-inverse)" />
+      </view>
+
       <view v-if="!isUser(message)" class="ai-avatar flex shrink-0 items-center justify-center rounded-full">
         <image class="ai-avatar__logo" src="/static/my-icons/logo.svg" mode="aspectFit" />
       </view>
@@ -177,9 +208,9 @@ function isUser(message: LocalMessage) {
             </view>
           </view>
 
-          <!-- 操作行：重新生成 / 复制 / 点赞 / 点踩 -->
+          <!-- 操作行：重新生成 / 复制 / 点赞 / 点踩 / 分享 -->
           <view
-            v-if="message.status === 'COMPLETED' || message.status === 'STOPPED'"
+            v-if="!selectionMode && (message.status === 'COMPLETED' || message.status === 'STOPPED')"
             class="app-muted mt-1 flex items-center"
           >
             <view class="ai-action" @click="emit('regenerate', message.id)">
@@ -207,6 +238,9 @@ function isUser(message: LocalMessage) {
                 :name="currentReaction(message.id) === 'DISLIKE' ? 'thumb-down-fill' : 'thumb-down'"
                 size="32rpx"
               />
+            </view>
+            <view class="ai-action" aria-label="分享" @click="emit('share')">
+              <text class="i-my-icons-share text-4" />
             </view>
           </view>
         </template>
@@ -251,6 +285,25 @@ function isUser(message: LocalMessage) {
   padding: 12rpx 20rpx 4rpx 0;
   color: var(--app-text-tertiary);
   cursor: pointer;
+}
+
+.ai-select {
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 50%;
+  border: 2rpx solid var(--app-border-default);
+  background: var(--app-bg-surface);
+  transition: border-color var(--app-transition-fast) ease, background var(--app-transition-fast) ease,
+    opacity var(--app-transition-fast) ease, transform var(--app-transition-fast) ease;
+}
+
+.ai-select--checked {
+  border-color: var(--app-action-primary);
+  background: var(--app-action-primary);
+}
+
+.ai-select--disabled {
+  opacity: 0.4;
 }
 
 .ai-streaming-dot {

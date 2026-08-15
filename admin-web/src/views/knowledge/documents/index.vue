@@ -2,6 +2,8 @@
 import type { PageInfo, PrimaryTableCol, TableRowData } from 'tdesign-vue-next'
 import { AddIcon } from 'tdesign-icons-vue-next'
 import { computed, h, onMounted, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import AppEvidenceColumnHeader from '@/components/business/AppEvidenceColumnHeader.vue'
 import AppCrudFormDialog from '@/components/business/AppCrudFormDialog.vue'
 import AppStatusTag from '@/components/ui/AppStatusTag.vue'
 import AppTableActions from '@/components/business/AppTableActions.vue'
@@ -32,9 +34,11 @@ import { evidenceLevelLabels, knowledgeVersionStatusMeta } from '@/utils/profess
 import { formatDate } from '@/utils/day'
 
 const { canAccess } = usePermissionAccess()
+const router = useRouter()
 const canAdd = computed(() => canAccess({ permissions: ['system:knowledge:doc:add'] }))
 const canEdit = computed(() => canAccess({ permissions: ['system:knowledge:doc:edit'] }))
 const canRemove = computed(() => canAccess({ permissions: ['system:knowledge:doc:remove'] }))
+const canViewDetail = computed(() => canAccess({ permissions: ['system:knowledge:doc:list'] }))
 
 const keyword = ref('')
 const docType = ref<KnowledgeDocType | undefined>(undefined)
@@ -131,7 +135,7 @@ const deleteAction = useConfirmedCrudAction<KnowledgeDocument, unknown>({
   action: async (row) => {
     await deleteKnowledgeDocument(row.id)
   },
-  confirm: (row) => ({ title: '删除文档', content: `确定删除「${row.title}」？关联版本与切片将一并清理。`, danger: true }),
+  confirm: (row) => ({ title: '删除文档', content: `确定删除「${row.title}」？关联版本与解析内容将一并清理。`, danger: true }),
   successMessage: '已删除',
   onSuccess: () => load(),
 })
@@ -180,7 +184,7 @@ const columns: PrimaryTableCol<TableRowData>[] = [
   ]), colKey: 'title', minWidth: 300, title: '文档' },
   { cell: (_, { row }) => categoryName((row as KnowledgeDocument).categoryId), colKey: 'categoryId', minWidth: 120, title: '分类' },
   { cell: (_, { row }) => versionStatusCell(row as KnowledgeDocument), colKey: 'currentVersion', minWidth: 160, title: '当前版本' },
-  { cell: (_, { row }) => (row.evidenceLevel ? evidenceLevelLabels[row.evidenceLevel as EvidenceLevel] : '—'), colKey: 'evidenceLevel', minWidth: 80, title: '证据等级' },
+  { cell: (_, { row }) => (row.evidenceLevel ? evidenceLevelLabels[row.evidenceLevel as EvidenceLevel] : '—'), colKey: 'evidenceLevel', minWidth: 130, title: () => h(AppEvidenceColumnHeader, { title: '资料可信度' }) },
   { cell: (_, { row }) => (row.status === 'ACTIVE' ? '启用' : '停用'), colKey: 'status', minWidth: 70, title: '状态' },
   { cell: (_, { row }) => formatDate(new Date(row.updatedAt), 'YYYY-MM-DD'), colKey: 'updatedAt', minWidth: 110, title: '更新时间' },
 ]
@@ -188,6 +192,13 @@ const columns: PrimaryTableCol<TableRowData>[] = [
 function getActions(row: TableRowData): AppTableAction[] {
   const entity = row as KnowledgeDocument
   const actions: AppTableAction[] = []
+  if (canViewDetail.value) {
+    actions.push({
+      key: 'detail',
+      label: '版本管理',
+      handler: () => router.push({ name: 'KnowledgeDocumentDetail', params: { id: entity.id } }),
+    })
+  }
   if (canEdit.value) {
     actions.push({ key: 'edit', label: '编辑', handler: () => drawer.openEdit(entity) })
   }
@@ -207,7 +218,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <AppPage title="文档资料" description="知识文档库：规范、图集、标准等资料及版本管理；版本上传、解析与审核在文档版本页（后续开放）。">
+  <AppPage title="文档资料" description="知识文档库：规范、图集、标准等资料及版本管理；版本上传、解析、审核与发布在「版本管理」详情页完成。">
     <template #search>
       <AppSearchPanel :loading="isLoading" @reset="reset" @search="search">
         <t-form-item label="关键词">
@@ -238,7 +249,7 @@ onMounted(() => {
       empty-description="可新增第一个知识文档"
       empty-title="暂无文档"
       :error-description="errorDescription"
-      :operations-width="170"
+      :operations-width="220"
       row-key="id"
       :status="isLoading ? 'loading' : error ? 'error' : 'ready'"
       :total="total"
@@ -288,7 +299,7 @@ onMounted(() => {
       <t-form-item label="发布/施行日期" name="issueDate">
         <t-date-picker v-model="drawer.formData.issueDate" clearable style="width: 100%" />
       </t-form-item>
-      <t-form-item label="证据等级" name="evidenceLevel">
+      <t-form-item label="资料可信度" name="evidenceLevel">
         <t-select
           v-model="drawer.formData.evidenceLevel"
           :options="(Object.keys(evidenceLevelLabels) as (keyof typeof evidenceLevelLabels)[]).map((value) => ({ label: evidenceLevelLabels[value], value }))"

@@ -17,7 +17,8 @@ type _LocationUrl =
   "/pages/project-detail/index" |
   "/pages/project-files/index" |
   "/pages/projects/index" |
-  "/pages/reports/index";
+  "/pages/reports/index" |
+  "/pages/share/index";
 
 interface NavigateToOptions {
   url: _LocationUrl;

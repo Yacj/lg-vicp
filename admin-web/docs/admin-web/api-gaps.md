@@ -244,24 +244,19 @@ AI 运营接口属于 `platform` 后台入口，天然 RBAC 强于项目规则�
 
 前端不能自行按项目过滤假装安全，因为真实数据仍以后端返回为准。
 
-### GAP-013 知识文档、解析摘要、切片、重试/重建索引查询接口缺失
+### GAP-013 知识文档、解析摘要、切片、重试/重建索引查询接口缺失（已解决）
 
-现状：
+> 状态：已解决（2026-03）。知识中心后台完整落地：文档/版本/上传/解析/分块/检索/评测接口全部就绪，前端文档列表与版本详情页已实现。
 
-- `knowledgeDocuments` 与 `knowledgeChunks` 由 `document.worker.ts` 在解析成功后写入，只被内部 `searchProjectKnowledge` service 使用。
-- `GET /api/v1/files/:id/status` 只返回文件和最近任务，不返回解析摘要、切片列表或索引数量。
-- 没有“重建索引/重试解析”的管理接口。
+现状（已落地）：
 
-禁止的前端假设：不能因为数据库有 `knowledge_documents`/`knowledge_chunks` 表，就认为后台可以查询或管理知识文档。
-
-建议后端契约：
-
-```http
-GET    /api/v1/platform/knowledge/documents?projectId=&page=&pageSize=
-GET    /api/v1/platform/knowledge/documents/:id
-GET    /api/v1/platform/knowledge/documents/:id/chunks
-POST   /api/v1/platform/knowledge/documents/:id/reindex
-```
+- `GET /api/v1/platform/knowledge/documents`：文档列表（版本、状态、证据等级、用途筛选）。
+- `GET /api/v1/platform/knowledge/documents/:id`：文档详情（含版本列表）。
+- 版本管理：创建版本、预签名上传意向、上传完成确认、解析/重解析/重建分块任务、审核、发布、停用、回滚（`GET/POST /versions/*` 系列）。
+- `GET /api/v1/platform/knowledge/versions/:id/pages`、`/versions/:id/chunks`（含 `metadata`/`searchText`/干预字段投影）：页面与分块视图。
+- `GET /api/v1/platform/knowledge/parsing-jobs`：解析任务列表（进度、错误、重试入口）。
+- 分块人工干预：`PATCH /chunks/:chunkId`、`POST /chunks/:chunkId/split`、`/merge`，写 `knowledge_chunk_edits` 审计。
+- 检索：`POST /search`（可解释排序）、`POST /search/answer`（AI 问答经 `/api/v1/ai/knowledge-qa` SSE 端点）、`GET /search-logs`、`GET /evaluations` + 评测判定。
 
 ### GAP-014 OCR 执行与结果接口缺失
 
@@ -296,22 +291,16 @@ POST   /api/v1/platform/files/:id/table-extract
 GET    /api/v1/platform/files/:id/table-result
 ```
 
-### GAP-016 结构化数据审核工作流、人工确认和审核意见接口缺失
+### GAP-016 结构化数据审核工作流、人工确认和审核意见接口缺失（已解决）
 
-现状：
+> 状态：已解决（2026-03）。知识文档版本已引入完整审核发布状态机：DRAFT → PARSING/CHUNKING → REVIEW_PENDING/PARSED/PARTIAL → APPROVED → PUBLISHED，含停用与回滚。
 
-- 文件解析结果直接进入 `knowledge_documents`/`knowledge_chunks`，没有待审核状态、审核人、审核意见字段。
-- 没有审核列表、确认、驳回接口。
+现状（已落地）：
 
-禁止的前端假设：不能把知识文档列表当作审核工作台，也不能把文件状态当作审核状态。
-
-建议后端契约：
-
-```http
-GET    /api/v1/platform/review/tasks?status=pending
-POST   /api/v1/platform/review/tasks/:id/approve
-POST   /api/v1/platform/review/tasks/:id/reject
-```
+- 版本状态机与接口：`POST /versions/:id/approve`（审核通过）、`/publish`（发布）、`/disable`（停用）、`/rollback`（回滚），审核记录通过 `AppReviewTimeline` 展示。
+- 分块人工干预审计：`knowledge_chunk_edits` 表记录 `META_EDIT`/`FLAG_INVALID`/`SPLIT`/`MERGE` 全量 before/after JSON，干预人、时间可追溯。
+- 检索评测判定：`POST /evaluations/:id/judge`（APPROVED/REJECTED/PARTIAL），评测列表按判定筛选。
+- 文档列表 `currentVersion.status` 筛选，版本详情页按状态机收敛操作按钮（无权限/非法状态不展示操作入口）。
 
 ### GAP-017 分类、关键词、同义词的实体、维护和审核接口缺失
 
@@ -554,7 +543,8 @@ DELETE /api/v1/platform/ai/prompts/:id                    # 删除未发布过�
 | `/shares/list` | `GAP-003`、`GAP-010` | 暂不实现完整列表 |
 | `/shares/:id` | `GAP-003`、`GAP-012` | 暂不实现后台详情 |
 | `/account/profile` | `GAP-006` | 只读资料、退出登录可用 |
-| 文档资料库 | `GAP-013`、`GAP-014`、`GAP-015`、`GAP-016` | 暂不实现完整能力；可复用文件列表展示状态 |
+| 文档资料库 | `GAP-014`、`GAP-015` | 文档/版本/解析/分块/审核发布/人工干预完整可用；`.doc/.xls` 老格式解析显示 OCR_REQUIRED 提示（转换后重传，不伪造 OCR 能力） |
+| 检索测试与 AI 问答 | — | 已实现：可解释检索结果 + SSE AI 回答（含引用标注）+ 评测提交与判定；`.doc/.xls` 老格式解析显示 OCR_REQUIRED 提示（转换后重传，不伪造 OCR 能力） |
 | 表格提取/结构化审核 | `GAP-015`、`GAP-016` | 暂不实现 |
 | 分类关键词和同义词 | `GAP-017` | 暂不实现 |
 | 公式规则和方案库 | `GAP-018`、`GAP-019` | 暂不实现 |
@@ -571,7 +561,7 @@ DELETE /api/v1/platform/ai/prompts/:id                    # 删除未发布过�
 3. 项目表单字段来源，尤其是 `region` 与 `buildingType`。
 4. 项目/报告/分享是否需要按钮级权限码。
 5. AI 运营接口对渠道用户的可见范围。
-6. `GAP-013` 至 `GAP-020` 的知识库后台是否进入产品范围，以及对应的实体与流程定义。
+6. `GAP-014`、`GAP-015`、`GAP-017` 至 `GAP-020` 的知识库后台是否进入产品范围，以及对应的实体与流程定义（`GAP-013` 文档/版本/解析/分块管理、`GAP-016` 审核发布工作流已实现）。
 
 未确认前的前端原则：
 

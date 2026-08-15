@@ -349,7 +349,7 @@ onMounted(loadSeriesOptions)
           placeholder="输入后回车创建，如：华北、华东"
         />
       </t-form-item>
-      <t-form-item label="证据等级" name="evidenceLevel">
+      <t-form-item label="资料可信度" name="evidenceLevel">
         <t-select
           v-model="drawer.formData.evidenceLevel"
           :options="[
@@ -361,7 +361,7 @@ onMounted(loadSeriesOptions)
           placeholder="选填"
         />
       </t-form-item>
-      <t-form-item label="证据来源" name="evidenceSource">
+      <t-form-item label="资料出处" name="evidenceSource">
         <t-input v-model="drawer.formData.evidenceSource" maxlength="500" placeholder="如：产品标准、型式检验报告" />
       </t-form-item>
       <t-form-item label="页码 / 条款" name="evidenceRef">

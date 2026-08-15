@@ -1,7 +1,7 @@
 /** 状态标签主题（与 AppStatusTag 的 status prop 保持一致的结构化字面量） */
 export type AppStatus = 'default' | 'info' | 'processing' | 'success' | 'warning' | 'error' | 'disabled'
 
-import type { EvidenceLevel, MdReviewStatus, ProfessionalReviewStatus } from '@/types/professional'
+import { evidenceLevelMeta, type EvidenceLevel, type MdReviewStatus, type ProfessionalReviewStatus } from '@/types/professional'
 
 export interface StatusMeta {
   label: string
@@ -26,13 +26,15 @@ export const professionalReviewStatusMeta: Record<ProfessionalReviewStatus, Stat
 }
 
 /**
- * 证据等级展示标签。A/B/C 的正式语义在甲方资料中未定义，只做原文展示，不附加解释。
+ * 证据等级展示标签：「A · 标准规范」形式，一眼可读。
+ * 释义来自 evidenceLevelMeta（types/professional.ts），列头另有完整说明。
  */
-export const evidenceLevelLabels: Record<EvidenceLevel, string> = {
-  A: '证据等级 A',
-  B: '证据等级 B',
-  C: '证据等级 C',
-}
+export const evidenceLevelLabels = Object.fromEntries(
+  (Object.keys(evidenceLevelMeta) as EvidenceLevel[]).map((level) => [
+    level,
+    `${level} · ${evidenceLevelMeta[level].name}`,
+  ]),
+) as Record<EvidenceLevel, string>
 
 /** 知识文档版本状态映射（DRAFT→APPROVED→PUBLISHED→DISABLED） */
 export const knowledgeVersionStatusMeta: Record<'DRAFT' | 'APPROVED' | 'PUBLISHED' | 'DISABLED', StatusMeta> = {
@@ -44,12 +46,12 @@ export const knowledgeVersionStatusMeta: Record<'DRAFT' | 'APPROVED' | 'PUBLISHE
 
 /** 知识文档解析状态映射 */
 export const knowledgeParseStatusMeta: Record<'PENDING' | 'PARSING' | 'PARSED' | 'PARTIAL' | 'OCR_REQUIRED' | 'FAILED', StatusMeta> = {
-  PENDING: { label: '待解析', status: 'default' },
-  PARSING: { label: '解析中', status: 'processing' },
-  PARSED: { label: '已解析', status: 'success' },
-  PARTIAL: { label: '部分解析', status: 'warning' },
-  OCR_REQUIRED: { label: '需 OCR', status: 'warning' },
-  FAILED: { label: '解析失败', status: 'error' },
+  PENDING: { label: '待识别', status: 'default' },
+  PARSING: { label: '识别中', status: 'processing' },
+  PARSED: { label: '已识别', status: 'success' },
+  PARTIAL: { label: '部分识别', status: 'warning' },
+  OCR_REQUIRED: { label: '需人工处理', status: 'warning' },
+  FAILED: { label: '识别失败', status: 'error' },
 }
 
 /** 未知审核状态的安全回退（不吞掉原始值，展示原文） */

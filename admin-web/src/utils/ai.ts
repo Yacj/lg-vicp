@@ -18,6 +18,8 @@ export const AI_SCENE_META: Record<AiScene, { label: string, description: string
   standard_qa: { description: '建筑节能规范与标准问答', label: '规范问答' },
   report_generate: { description: '生成节能设计报告与文档', label: '报告生成' },
   information_extract: { description: '从资料中抽取结构化信息', label: '信息抽取' },
+  conversation_title: { description: '根据会话首条消息自动生成简短标题（内部场景）', label: '会话标题生成' },
+  knowledge_qa: { description: '知识库检索测试问答：仅依据已发布资料回答，无依据不回答（B 端检索测试页）', label: '知识问答' },
 }
 
 export const AI_SCENE_OPTIONS = (Object.keys(AI_SCENE_META) as AiScene[]).map(value => ({

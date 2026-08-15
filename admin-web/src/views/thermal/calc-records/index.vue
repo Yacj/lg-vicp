@@ -82,7 +82,7 @@ function getActions(row: TableRowData): AppTableAction[] {
   const entity = row as ThermalCalcRecord
   const actions: AppTableAction[] = []
   if (canList.value) {
-    actions.push({ key: 'detail', label: '查看快照', handler: () => void openDetail(entity) })
+    actions.push({ key: 'detail', label: '查看详情', handler: () => void openDetail(entity) })
   }
   return actions
 }
@@ -98,7 +98,7 @@ function formatJson(value: unknown): string {
 </script>
 
 <template>
-  <AppPage title="计算记录" description="热工计算历史（全快照只读）；历史结果不随后台参数漂移，可完整还原当时输入与规则。">
+  <AppPage title="计算记录" description="热工计算历史（只读）；历史结果不随后台参数变化，可完整查看当时的输入与规则。">
     <template #search>
       <AppSearchPanel :loading="list.isLoading.value" @reset="list.reset" @search="list.search">
         <t-form-item label="计算方式">
@@ -134,7 +134,7 @@ function formatJson(value: unknown): string {
     <t-drawer
       :cancel-btn="{ content: '关闭' }"
       :footer="false"
-      :header="`计算快照 · ${detail?.id ?? ''}`"
+      :header="`计算详情 · ${detail?.id ?? ''}`"
       placement="right"
       :size="'min(560px, 100vw)'"
       :visible="detailVisible"

@@ -177,7 +177,7 @@ async function submitForm(): Promise<void> {
     return
   }
   if (validIndicators.some((item) => !item.evidenceRef.trim())) {
-    await feedback.message('warning', '每条指标必须填写证据条款引用')
+    await feedback.message('warning', '每条指标必须填写条款引用')
     return
   }
 
@@ -444,13 +444,13 @@ function getActions(row: TableRowData): AppTableAction[] {
       <t-form-item label="失效日期" name="expiresAt">
         <t-date-picker v-model="form.expiresAt" clearable placeholder="选填" />
       </t-form-item>
-      <t-form-item class="vicp-form-wide" label="证据来源" name="evidenceSource">
+      <t-form-item class="vicp-form-wide" label="资料出处" name="evidenceSource">
         <t-input v-model="form.evidenceSource" maxlength="500" placeholder="如：省住建厅官网发布页" />
       </t-form-item>
 
       <div class="vicp-indicators vicp-form-wide">
         <div class="vicp-indicators__head">
-          <span class="vicp-indicators__title">指标（至少 1 条，每条证据条款引用必填）</span>
+          <span class="vicp-indicators__title">指标（至少 1 条，每条条款引用必填）</span>
           <t-button size="small" theme="primary" variant="outline" @click="addIndicator">
             添加指标
           </t-button>

@@ -68,6 +68,7 @@ function parseStreamEvent(event: string, data: Record<string, unknown>): AiStrea
         data: {
           messageId: data.messageId,
           conversationId: data.conversationId,
+          userMessageId: typeof data.userMessageId === 'string' ? data.userMessageId : undefined,
           originalMessageId: typeof data.originalMessageId === 'string' ? data.originalMessageId : undefined,
           requestId: typeof data.requestId === 'string' ? data.requestId : '',
         },
@@ -470,8 +471,13 @@ export const useAssistantStore = defineStore('assistant', {
       return true
     },
 
-    async feedback(messageId: string, reaction: AiFeedbackReaction | null) {
-      const response = await aiApi.feedbackMessage(messageId, { reaction, clientApp: 'c_app' }).send() as ApiEnvelope<{ feedback: AiMessageFeedback }>
+    async feedback(messageId: string, reaction: AiFeedbackReaction | null, options: { tags?: string[], content?: string } = {}) {
+      const response = await aiApi.feedbackMessage(messageId, {
+        reaction,
+        tags: options.tags,
+        content: options.content,
+        clientApp: 'c_app',
+      }).send() as ApiEnvelope<{ feedback: AiMessageFeedback }>
       const feedback = response.data.feedback
       this.feedbacks[feedback.messageId] = [feedback]
       return feedback
@@ -490,13 +496,21 @@ export const useAssistantStore = defineStore('assistant', {
 
       switch (payload.event) {
         case 'message': {
-          const { messageId } = payload.data
+          const { messageId, userMessageId } = payload.data
           const placeholder = this.messages.find(message => message.id === this.streamingMessageId)
           if (placeholder && placeholder.id.startsWith('local-')) {
             placeholder.id = messageId
           }
           else if (!this.messages.some(message => message.id === messageId)) {
             this.messages.push(createPlaceholderMessage(payload.data.conversationId, messageId))
+          }
+          if (userMessageId) {
+            const userPlaceholder = this.messages.find(
+              message => message.role === 'USER' && message.id.startsWith('local-user-'),
+            )
+            if (userPlaceholder) {
+              userPlaceholder.id = userMessageId
+            }
           }
           this.streamingMessageId = messageId
           break

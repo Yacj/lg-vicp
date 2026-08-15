@@ -151,6 +151,15 @@
       "style": {
         "navigationStyle": "custom"
       }
+    },
+    {
+      "path": "pages/share/index",
+      "type": "page",
+      "name": "share",
+      "layout": "default",
+      "style": {
+        "navigationStyle": "custom"
+      }
     }
   ],
   "subPackages": [],

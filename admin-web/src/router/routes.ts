@@ -49,6 +49,17 @@ export const staticRoutes: RouteRecordRaw[] = [
         },
       },
       {
+        path: 'knowledge/documents/:id',
+        name: 'KnowledgeDocumentDetail',
+        component: () => import('@/views/knowledge/documents/detail.vue'),
+        meta: {
+          hidden: true,
+          noTab: true,
+          permissions: ['system:knowledge:doc:list'],
+          title: '文档详情',
+        },
+      },
+      {
         path: 'ai-config/providers',
         name: 'AiConfigProviders',
         component: () => import('@/views/ai-config/providers/index.vue'),

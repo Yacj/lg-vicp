@@ -8,7 +8,10 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     AiAiComposer: typeof import('./components/ai/AiComposer.vue')['default']
+    AiAiFeedbackPanel: typeof import('./components/ai/AiFeedbackPanel.vue')['default']
     AiAiMessageList: typeof import('./components/ai/AiMessageList.vue')['default']
+    AiAiSharePanel: typeof import('./components/ai/AiSharePanel.vue')['default']
+    AiAiShareSelectBar: typeof import('./components/ai/AiShareSelectBar.vue')['default']
     AiAiWelcomeHero: typeof import('./components/ai/AiWelcomeHero.vue')['default']
     DemoBlock: typeof import('./components/DemoBlock.vue')['default']
     GlobalDialog: typeof import('./components/GlobalDialog.vue')['default']
@@ -37,6 +40,7 @@ declare module 'vue' {
     WdLoading: typeof import('@wot-ui/ui/components/wd-loading/wd-loading.vue')['default']
     WdNavbar: typeof import('@wot-ui/ui/components/wd-navbar/wd-navbar.vue')['default']
     WdNotify: typeof import('@wot-ui/ui/components/wd-notify/wd-notify.vue')['default']
+    WdPopup: typeof import('@wot-ui/ui/components/wd-popup/wd-popup.vue')['default']
     WdRadio: typeof import('@wot-ui/ui/components/wd-radio/wd-radio.vue')['default']
     WdRadioGroup: typeof import('@wot-ui/ui/components/wd-radio-group/wd-radio-group.vue')['default']
     WdSearch: typeof import('@wot-ui/ui/components/wd-search/wd-search.vue')['default']

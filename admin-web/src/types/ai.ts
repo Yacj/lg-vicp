@@ -9,6 +9,8 @@ export type AiScene
     | 'standard_qa'
     | 'report_generate'
     | 'information_extract'
+    | 'conversation_title'
+    | 'knowledge_qa'
 
 /** 客户端类型，与后端 CLIENT_APPS 对齐。 */
 export type AiClientApp = 'pc_ai' | 'b_admin' | 'c_app'

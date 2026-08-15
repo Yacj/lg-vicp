@@ -41,8 +41,9 @@ describe('professional-status 状态映射', () => {
     expect(professionalReviewStatusMetaFor('APPROVED')).toEqual(professionalReviewStatusMeta.APPROVED)
   })
 
-  it('证据等级只做原文展示', () => {
-    expect(evidenceLevelLabels.A).toBe('证据等级 A')
-    expect(evidenceLevelLabels.C).toBe('证据等级 C')
+  it('证据等级标签派生自业务语义，覆盖 A/B/C', () => {
+    expect(evidenceLevelLabels.A).toBe('A · 标准规范')
+    expect(evidenceLevelLabels.B).toBe('B · 检测认证')
+    expect(evidenceLevelLabels.C).toBe('C · 厂商资料')
   })
 })

@@ -19,9 +19,20 @@ export type MdReviewStatus = (typeof mdReviewStatuses)[number]
 export const professionalReviewStatuses = ['PENDING_REVIEW', 'APPROVED', 'REJECTED'] as const
 export type ProfessionalReviewStatus = (typeof professionalReviewStatuses)[number]
 
-/** 证据等级（knowledge_evidence_level 枚举；A/B/C 的正式语义待甲方确认，前端只做原文展示） */
+/**
+ * 证据等级（knowledge_evidence_level 枚举）。
+ * 业务口径（A=标准规范 / B=检测认证 / C=厂商资料）为演示评审临时确定的行业通行语义，
+ * 待甲方最终确认后按确认结果调整。
+ */
 export const evidenceLevels = ['A', 'B', 'C'] as const
 export type EvidenceLevel = (typeof evidenceLevels)[number]
+
+/** 证据等级业务语义：等级 + 业务名 + 释义 */
+export const evidenceLevelMeta: Record<EvidenceLevel, { name: string; description: string }> = {
+  A: { name: '标准规范', description: '国家标准、行业标准、地方标准及法规条文' },
+  B: { name: '检测认证', description: '第三方检测报告、型式检验报告、认证证书、标准图集' },
+  C: { name: '厂商资料', description: '产品样本、企业技术手册、经验值等参考信息' },
+}
 
 /** 来源与页码/条款证据（mdEvidenceColumns） */
 export interface EvidenceMeta {
