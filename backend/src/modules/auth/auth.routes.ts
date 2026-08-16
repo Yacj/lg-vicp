@@ -93,6 +93,7 @@ async function findAccount(app: FastifyInstance, identifier: string, type?: "USE
     eq(userIdentities.identifier, identifier),
     type ? eq(userIdentities.type, type) : undefined,
     isNotNull(userIdentities.passwordHash),
+    isNull(userIdentities.deletedAt),
     isNull(users.deletedAt)
   )).limit(1);
   return account;
@@ -105,9 +106,25 @@ async function findPhoneUser(app: FastifyInstance, phone: string) {
     role: users.role,
     channelType: users.channelType,
     status: users.status
-  }).from(userIdentities).innerJoin(users, eq(users.id, userIdentities.userId)).where(and(
-    eq(userIdentities.type, "PHONE"),
-    eq(userIdentities.identifier, phone),
+  }).from(users).where(and(
+    eq(users.phone, phone),
+    isNull(users.deletedAt)
+  )).limit(1);
+  return account;
+}
+
+async function findPhoneAccount(app: FastifyInstance, phone: string) {
+  const [account] = await app.db.select({
+    userId: users.id,
+    displayName: users.displayName,
+    role: users.role,
+    channelType: users.channelType,
+    status: users.status,
+    passwordHash: userIdentities.passwordHash
+  }).from(users).innerJoin(userIdentities, eq(userIdentities.userId, users.id)).where(and(
+    eq(users.phone, phone),
+    isNotNull(userIdentities.passwordHash),
+    isNull(userIdentities.deletedAt),
     isNull(users.deletedAt)
   )).limit(1);
   return account;
@@ -254,7 +271,7 @@ export async function authRoutes(app: FastifyInstance) {
 
     const passwordHash = await argon2.hash(request.body.password, { type: argon2.argon2id });
     const result = await app.db.transaction(async (tx) => {
-      const [existing] = await tx.select({ id: users.id }).from(users).where(eq(users.phone, phone)).limit(1);
+      const [existing] = await tx.select({ id: users.id }).from(users).where(and(eq(users.phone, phone), isNull(users.deletedAt))).limit(1);
       if (existing) throw new ConflictError("手机号已注册，请直接登录");
 
       const [user] = await tx.insert(users).values({
@@ -287,7 +304,7 @@ export async function authRoutes(app: FastifyInstance) {
   route.post("/client/login/password", {
     schema: { tags: ["C端 / 认证", "PC AI端 / 认证"], summary: "客户端手机号密码登录", body: clientPasswordLoginBodySchema }
   }, async (request) => {
-    const account = await findAccount(app, request.body.phone, "PHONE");
+    const account = await findPhoneAccount(app, request.body.phone);
     if (!account?.passwordHash || !(await argon2.verify(account.passwordHash, request.body.password))) {
       throw new BusinessError("手机号或密码错误");
     }

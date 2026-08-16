@@ -296,8 +296,8 @@ export const users = pgTable(
     ...timestamps
   },
   (table) => [
-    uniqueIndex("users_phone_unique").on(table.phone),
-    uniqueIndex("users_email_unique").on(table.email),
+    uniqueIndex("users_phone_unique").on(table.phone).where(sql`${table.deletedAt} is null`),
+    uniqueIndex("users_email_unique").on(table.email).where(sql`${table.deletedAt} is null`),
     index("users_role_status_idx").on(table.role, table.status)
   ]
 );
@@ -311,10 +311,11 @@ export const userIdentities = pgTable(
     identifier: varchar("identifier", { length: 255 }).notNull(),
     passwordHash: text("password_hash"),
     verifiedAt: timestamp("verified_at", { withTimezone: true }),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
     ...timestamps
   },
   (table) => [
-    uniqueIndex("user_identities_type_identifier_unique").on(table.type, table.identifier),
+    uniqueIndex("user_identities_type_identifier_unique").on(table.type, table.identifier).where(sql`${table.deletedAt} is null`),
     index("user_identities_user_idx").on(table.userId)
   ]
 );

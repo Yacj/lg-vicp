@@ -1,7 +1,7 @@
 import * as argon2 from "argon2";
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
-import { and, count, desc, eq, ilike, inArray, isNull, sql } from "drizzle-orm";
+import { and, count, desc, eq, ilike, inArray, isNull, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { departments, posts, roles, userDepartments, userIdentities, userPosts, userRoles, users } from "../../db/schema.js";
 import { AUDIT_ACTIONS, CHANNEL_TYPES, USER_ROLES } from "../../shared/constants.js";
@@ -19,7 +19,7 @@ import { writeAuditLog } from "../audit-logs/audit-log.service.js";
 const loginIdentifierExpr = sql<string>`(
   select ui.identifier
   from ${userIdentities} ui
-  where ui.user_id = ${users.id}
+  where ui.user_id = "users"."id"
   order by ui.created_at asc
   limit 1
 )`.as("loginIdentifier");
@@ -143,12 +143,14 @@ export async function userRoutes(app: FastifyInstance) {
     const passwordHash = await argon2.hash(request.body.password, { type: argon2.argon2id });
     const isPhone = /^\+?[0-9]{6,20}$/.test(request.body.identifier);
     const phone = request.body.phone ?? (isPhone ? request.body.identifier : undefined);
+    if (request.body.role === USER_ROLES.NORMAL_USER && !phone) throw new ForbiddenError("普通用户必须填写手机号码");
     const created = await app.db.transaction(async (tx) => {
-      // 登录账号全局唯一：登录按 identifier 匹配（不区分身份类型），故跨身份类型判重。
-      const [identityTaken] = await tx.select({ id: userIdentities.id }).from(userIdentities).where(eq(userIdentities.identifier, request.body.identifier)).limit(1);
+      // 登录账号全局唯一：登录按 identifier 匹配（不区分身份类型），故跨身份类型判重；
+      // 软删除用户已释放该标识，判重时排除已删除用户及其身份凭证。
+      const [identityTaken] = await tx.select({ id: userIdentities.id }).from(userIdentities).innerJoin(users, eq(users.id, userIdentities.userId)).where(and(eq(userIdentities.identifier, request.body.identifier), isNull(users.deletedAt), isNull(userIdentities.deletedAt))).limit(1);
       if (identityTaken) throw new ConflictError("登录账号已存在");
       if (phone) {
-        const [phoneTaken] = await tx.select({ id: users.id }).from(users).where(eq(users.phone, phone)).limit(1);
+        const [phoneTaken] = await tx.select({ id: users.id }).from(users).where(and(eq(users.phone, phone), isNull(users.deletedAt))).limit(1);
         if (phoneTaken) throw new ConflictError("手机号已存在");
       }
       const [user] = await tx.insert(users).values({ displayName: request.body.displayName, gender: request.body.gender, email: request.body.email, remark: request.body.remark, phone, role: request.body.role, channelType: request.body.role === USER_ROLES.CHANNEL_USER ? request.body.channelType : null }).returning();
@@ -178,6 +180,8 @@ export async function userRoutes(app: FastifyInstance) {
     const nextRole = request.body.role ?? before.role;
     const nextChannelType = nextRole === USER_ROLES.CHANNEL_USER ? request.body.channelType ?? before.channelType : null;
     if (nextRole === USER_ROLES.CHANNEL_USER && !nextChannelType) throw new ForbiddenError("渠道用户必须选择渠道类型");
+    const nextPhone = "phone" in request.body ? request.body.phone : before.phone;
+    if (nextRole === USER_ROLES.NORMAL_USER && !nextPhone) throw new ForbiddenError("普通用户必须填写手机号码");
     const [updated] = await app.db.transaction(async (tx) => {
       const [row] = await tx.update(users).set({ ...request.body, role: nextRole, channelType: nextChannelType, updatedAt: new Date() }).where(eq(users.id, before.id)).returning();
       await writeAuditLog({ db: tx, request, actor, action: AUDIT_ACTIONS.USER_UPDATED, targetType: "user", targetId: before.id, beforeJson: before, afterJson: row });
@@ -205,7 +209,9 @@ export async function userRoutes(app: FastifyInstance) {
     const [before] = await app.db.select().from(users).where(and(eq(users.id, request.params.id), isNull(users.deletedAt))).limit(1);
     if (!before) throw new NotFoundError("用户不存在");
     await app.db.transaction(async (tx) => {
-      await tx.update(users).set({ deletedAt: new Date(), status: "DISABLED", updatedAt: new Date() }).where(eq(users.id, before.id));
+      const deletedAt = new Date();
+      await tx.update(users).set({ deletedAt, status: "DISABLED", updatedAt: new Date() }).where(eq(users.id, before.id));
+      await tx.update(userIdentities).set({ deletedAt, updatedAt: new Date() }).where(eq(userIdentities.userId, before.id));
       await writeAuditLog({ db: tx, request, actor, action: AUDIT_ACTIONS.USER_DELETED, targetType: "user", targetId: before.id, beforeJson: before });
     });
     return ok(request, { message: "用户删除成功" });
@@ -215,14 +221,35 @@ export async function userRoutes(app: FastifyInstance) {
     const actor = await requireUserPermission(request, "system:user:edit");
     const [before] = await app.db.select().from(users).where(eq(users.id, request.params.id)).limit(1);
     if (!before) throw new NotFoundError("用户不存在");
-    const [user] = await app.db.update(users).set({ deletedAt: null, status: "ACTIVE", updatedAt: new Date() }).where(eq(users.id, before.id)).returning();
-    await writeAuditLog({ db: app.db, request, actor, action: AUDIT_ACTIONS.USER_RESTORED, targetType: "user", targetId: before.id });
+
+    // 软删除期间标识可能被其他有效用户重新使用，恢复前必须重新判重。
+    if (before.phone) {
+      const [phoneTaken] = await app.db.select({ id: users.id }).from(users).where(and(eq(users.phone, before.phone), isNull(users.deletedAt), ne(users.id, before.id))).limit(1);
+      if (phoneTaken) throw new ConflictError("该手机号已被其他用户使用，无法恢复");
+    }
+    if (before.email) {
+      const [emailTaken] = await app.db.select({ id: users.id }).from(users).where(and(eq(users.email, before.email), isNull(users.deletedAt), ne(users.id, before.id))).limit(1);
+      if (emailTaken) throw new ConflictError("该邮箱已被其他用户使用，无法恢复");
+    }
+    const identityRows = await app.db.select({ identifier: userIdentities.identifier }).from(userIdentities).where(eq(userIdentities.userId, before.id));
+    for (const identity of identityRows) {
+      const [taken] = await app.db.select({ id: userIdentities.id }).from(userIdentities).innerJoin(users, eq(users.id, userIdentities.userId)).where(and(eq(userIdentities.identifier, identity.identifier), isNull(userIdentities.deletedAt), isNull(users.deletedAt), ne(users.id, before.id))).limit(1);
+      if (taken) throw new ConflictError("该登录账号已被其他用户使用，无法恢复");
+    }
+
+    const [user] = await app.db.transaction(async (tx) => {
+      const restoredAt = new Date();
+      const [row] = await tx.update(users).set({ deletedAt: null, status: "ACTIVE", updatedAt: restoredAt }).where(eq(users.id, before.id)).returning();
+      await tx.update(userIdentities).set({ deletedAt: null, updatedAt: restoredAt }).where(eq(userIdentities.userId, before.id));
+      await writeAuditLog({ db: tx, request, actor, action: AUDIT_ACTIONS.USER_RESTORED, targetType: "user", targetId: before.id });
+      return [row] as const;
+    });
     return ok(request, { message: "用户恢复成功", user });
   });
 
   route.post("/users/:id/reset-password", { preHandler: [app.authenticate], schema: { tags: ["B端 / 平台 / 用户管理"], summary: "重置用户密码", params: userParamsSchema, body: resetPasswordSchema } }, async (request) => {
     const actor = await requireUserPermission(request, "system:user:reset-password");
-    const [identity] = await app.db.select().from(userIdentities).where(and(eq(userIdentities.userId, request.params.id), inArray(userIdentities.type, ["USERNAME", "PHONE"]))).limit(1);
+    const [identity] = await app.db.select().from(userIdentities).where(and(eq(userIdentities.userId, request.params.id), inArray(userIdentities.type, ["USERNAME", "PHONE"]), isNull(userIdentities.deletedAt))).limit(1);
     if (!identity) throw new NotFoundError("用户登录身份不存在");
     await app.db.update(userIdentities).set({ passwordHash: await argon2.hash(request.body.password, { type: argon2.argon2id }), updatedAt: new Date() }).where(eq(userIdentities.id, identity.id));
     await writeAuditLog({ db: app.db, request, actor, action: AUDIT_ACTIONS.USER_PASSWORD_RESET, targetType: "user", targetId: request.params.id });

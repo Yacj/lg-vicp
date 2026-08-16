@@ -169,6 +169,13 @@
       "when": 1786418567157,
       "tag": "0023_lively_shadow_king",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1786890135256,
+      "tag": "0024_powerful_obadiah_stane",
+      "breakpoints": true
     }
   ]
 }
