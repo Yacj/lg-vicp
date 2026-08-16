@@ -6,7 +6,7 @@ import { z } from "zod";
 import { departments, posts, roles, userDepartments, userIdentities, userPosts, userRoles, users } from "../../db/schema.js";
 import { AUDIT_ACTIONS, CHANNEL_TYPES, USER_ROLES } from "../../shared/constants.js";
 import { getCurrentUser } from "../../shared/current-user.js";
-import { ForbiddenError, NotFoundError } from "../../shared/errors.js";
+import { ConflictError, ForbiddenError, NotFoundError } from "../../shared/errors.js";
 import { getPagination, paginationQuerySchema } from "../../shared/pagination.js";
 import { ok } from "../../shared/response.js";
 import { assertPermission } from "../../shared/permission-guard.js";
@@ -142,8 +142,16 @@ export async function userRoutes(app: FastifyInstance) {
     const actor = await requireUserPermission(request, "system:user:add");
     const passwordHash = await argon2.hash(request.body.password, { type: argon2.argon2id });
     const isPhone = /^\+?[0-9]{6,20}$/.test(request.body.identifier);
+    const phone = request.body.phone ?? (isPhone ? request.body.identifier : undefined);
     const created = await app.db.transaction(async (tx) => {
-      const [user] = await tx.insert(users).values({ displayName: request.body.displayName, gender: request.body.gender, email: request.body.email, remark: request.body.remark, phone: request.body.phone ?? (isPhone ? request.body.identifier : undefined), role: request.body.role, channelType: request.body.role === USER_ROLES.CHANNEL_USER ? request.body.channelType : null }).returning();
+      // 登录账号全局唯一：登录按 identifier 匹配（不区分身份类型），故跨身份类型判重。
+      const [identityTaken] = await tx.select({ id: userIdentities.id }).from(userIdentities).where(eq(userIdentities.identifier, request.body.identifier)).limit(1);
+      if (identityTaken) throw new ConflictError("登录账号已存在");
+      if (phone) {
+        const [phoneTaken] = await tx.select({ id: users.id }).from(users).where(eq(users.phone, phone)).limit(1);
+        if (phoneTaken) throw new ConflictError("手机号已存在");
+      }
+      const [user] = await tx.insert(users).values({ displayName: request.body.displayName, gender: request.body.gender, email: request.body.email, remark: request.body.remark, phone, role: request.body.role, channelType: request.body.role === USER_ROLES.CHANNEL_USER ? request.body.channelType : null }).returning();
       await tx.insert(userIdentities).values({ userId: user!.id, type: isPhone ? "PHONE" : "USERNAME", identifier: request.body.identifier, passwordHash, verifiedAt: new Date() });
       await writeAuditLog({ db: tx, request, actor, action: AUDIT_ACTIONS.USER_CREATED, targetType: "user", targetId: user!.id, afterJson: { ...user, identifier: request.body.identifier } });
       return user!;
