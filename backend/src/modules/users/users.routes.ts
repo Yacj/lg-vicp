@@ -36,13 +36,14 @@ const userFields = z.object({
   channelType: channelEnum.nullable().optional()
 });
 const createUserBodySchema = userFields.extend({
-  identifier: z.string().trim().min(1, "请输入登录账号或手机号").max(255),
-  password: z.string().min(5, "密码至少需要 5 个字符").max(128)
+  identifier: z.string().trim().min(1, "请输入登录账号").max(255),
+  password: z.string().min(5, "密码至少需要 5 个字符").max(128),
+  phone: z.string().trim().regex(/^\+?[0-9]{6,20}$/, "手机号格式不正确").nullable().optional()
 }).superRefine((value, context) => {
   if (value.role === USER_ROLES.CHANNEL_USER && !value.channelType) context.addIssue({ code: "custom", path: ["channelType"], message: "渠道用户必须选择经销商或业务员" });
   if (value.role !== USER_ROLES.CHANNEL_USER && value.channelType) context.addIssue({ code: "custom", path: ["channelType"], message: "只有渠道用户可以设置渠道类型" });
 });
-const updateUserBodySchema = userFields.partial().extend({ phone: z.string().trim().min(1, "请输入手机号").max(32).nullable().optional() }).refine((v) => Object.keys(v).length > 0, "至少需要修改一个字段");
+const updateUserBodySchema = userFields.partial().extend({ phone: z.string().trim().regex(/^\+?[0-9]{6,20}$/, "手机号格式不正确").nullable().optional() }).refine((v) => Object.keys(v).length > 0, "至少需要修改一个字段");
 const updateStatusBodySchema = z.object({ status: z.enum(["ACTIVE", "DISABLED"]) });
 const listQuerySchema = paginationQuerySchema.extend({
   keyword: z.string().trim().max(120).optional(),
@@ -127,7 +128,7 @@ export async function userRoutes(app: FastifyInstance) {
           const parsed = createUserBodySchema.safeParse({ ...row, email: row.email || undefined, channelType: row.channelType || undefined, gender: row.gender || "UNKNOWN", remark: row.remark || undefined });
           if (!parsed.success) { errors.push({ row: index + 2, message: parsed.error.issues[0]?.message ?? "数据格式不正确" }); continue; }
           try {
-            const isPhone = /^\+?[0-9]{1,31}$/.test(parsed.data.identifier); const [user] = await tx.insert(users).values({ displayName: parsed.data.displayName, gender: parsed.data.gender, email: parsed.data.email, remark: parsed.data.remark, phone: isPhone ? parsed.data.identifier : undefined, role: parsed.data.role, channelType: parsed.data.role === USER_ROLES.CHANNEL_USER ? parsed.data.channelType : null }).returning();
+            const isPhone = /^\+?[0-9]{6,20}$/.test(parsed.data.identifier); const [user] = await tx.insert(users).values({ displayName: parsed.data.displayName, gender: parsed.data.gender, email: parsed.data.email, remark: parsed.data.remark, phone: parsed.data.phone ?? (isPhone ? parsed.data.identifier : undefined), role: parsed.data.role, channelType: parsed.data.role === USER_ROLES.CHANNEL_USER ? parsed.data.channelType : null }).returning();
             await tx.insert(userIdentities).values({ userId: user!.id, type: isPhone ? "PHONE" : "USERNAME", identifier: parsed.data.identifier, passwordHash: await argon2.hash(parsed.data.password, { type: argon2.argon2id }), verifiedAt: new Date() }); imported.push(parsed.data.identifier);
           } catch { errors.push({ row: index + 2, message: "用户名或手机号已存在" }); }
         }
@@ -140,9 +141,9 @@ export async function userRoutes(app: FastifyInstance) {
   route.post("/users", { preHandler: [app.authenticate], schema: { tags: ["B端 / 平台 / 用户管理"], summary: "创建用户", body: createUserBodySchema } }, async (request) => {
     const actor = await requireUserPermission(request, "system:user:add");
     const passwordHash = await argon2.hash(request.body.password, { type: argon2.argon2id });
-    const isPhone = /^\+?[0-9]{1,31}$/.test(request.body.identifier);
+    const isPhone = /^\+?[0-9]{6,20}$/.test(request.body.identifier);
     const created = await app.db.transaction(async (tx) => {
-      const [user] = await tx.insert(users).values({ displayName: request.body.displayName, gender: request.body.gender, email: request.body.email, remark: request.body.remark, phone: isPhone ? request.body.identifier : undefined, role: request.body.role, channelType: request.body.role === USER_ROLES.CHANNEL_USER ? request.body.channelType : null }).returning();
+      const [user] = await tx.insert(users).values({ displayName: request.body.displayName, gender: request.body.gender, email: request.body.email, remark: request.body.remark, phone: request.body.phone ?? (isPhone ? request.body.identifier : undefined), role: request.body.role, channelType: request.body.role === USER_ROLES.CHANNEL_USER ? request.body.channelType : null }).returning();
       await tx.insert(userIdentities).values({ userId: user!.id, type: isPhone ? "PHONE" : "USERNAME", identifier: request.body.identifier, passwordHash, verifiedAt: new Date() });
       await writeAuditLog({ db: tx, request, actor, action: AUDIT_ACTIONS.USER_CREATED, targetType: "user", targetId: user!.id, afterJson: { ...user, identifier: request.body.identifier } });
       return user!;
