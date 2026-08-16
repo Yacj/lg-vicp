@@ -71,6 +71,16 @@ const viewOptions = computed(() => [
 
 const activeList = computed(() => projectCenter.activeList.value)
 
+const reportTableStatus = computed(() => {
+  if (status.value === 'loading') {
+    return 'loading'
+  }
+  if (status.value === 'error') {
+    return 'error'
+  }
+  return 'ready'
+})
+
 function isManagerOf(project: ProjectItem): boolean {
   return isProjectManager(project, userStore.profile?.id ?? null, userStore.isSuperAdmin)
 }
@@ -420,7 +430,7 @@ const reportColumns: PrimaryTableCol<TableRowData>[] = [
         empty-title="暂无报告"
         :error-description="errorDescription"
         row-key="id"
-        :status="status === 'loading' ? 'loading' : status === 'error' ? 'error' : 'ready'"
+        :status="reportTableStatus"
         @refresh="selectedProject && selectProject(selectedProject)"
         @retry="selectedProject && selectProject(selectedProject)"
       >
@@ -467,6 +477,7 @@ const reportColumns: PrimaryTableCol<TableRowData>[] = [
 
 .report-center-project-cards {
   display: grid;
+  min-width: 0;
   gap: var(--td-size-3);
 }
 

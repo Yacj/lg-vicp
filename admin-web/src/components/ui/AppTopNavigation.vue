@@ -37,8 +37,8 @@ function childOptions(item: SidebarMenuItem): DropdownOption[] {
   return item.children.map(toDropdownOption)
 }
 
-function handleDropdown(option: DropdownOption): void {
-  if (typeof option.value !== 'string') {
+function handleDropdown(option: DropdownOption['value']): void {
+  if (typeof option !== 'object' || option === null || typeof option.value !== 'string') {
     return
   }
   const item = findMenuById(props.menus, option.value)

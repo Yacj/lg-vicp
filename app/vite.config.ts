@@ -104,5 +104,8 @@ export default defineConfig(({ command, mode }) => {
         },
       },
     },
+    server: {
+      port: 8871
+    }
   }
 })

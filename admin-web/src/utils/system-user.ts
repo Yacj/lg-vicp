@@ -65,3 +65,7 @@ export const userStatusLabels: Record<SystemUserStatus, string> = {
 export function isChannelUserRole(role: SystemUserRole): boolean {
   return role === 'CHANNEL_USER'
 }
+
+export function isNormalUserRole(role: SystemUserRole): boolean {
+  return role === 'NORMAL_USER'
+}

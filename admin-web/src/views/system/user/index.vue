@@ -1,5 +1,13 @@
 <script setup lang="ts">
 import type { FormInstanceFunctions, FormRules, PrimaryTableCol, TableRowData, TreeProps } from 'tdesign-vue-next'
+import type { UserForm, UserTableRow } from '@/composables/useUserManagement'
+import type { AppTableAction } from '@/types/crud'
+import type {
+  SystemUserDetail,
+  SystemUserRole,
+  SystemUserStatus,
+} from '@/types/system-management'
+import type { DepartmentTreeOption } from '@/utils/system-management'
 import { AddIcon, ChevronDownIcon, DownloadIcon, SearchIcon, UploadIcon } from 'tdesign-icons-vue-next'
 import { computed, h, onMounted, reactive, ref, watch } from 'vue'
 import AppCrudFormDialog from '@/components/business/AppCrudFormDialog.vue'
@@ -15,23 +23,16 @@ import { normalizeFeedbackError } from '@/composables/useAppFeedback'
 import { usePermissionAccess } from '@/composables/usePermissionAccess'
 import { useResponsiveShell } from '@/composables/useResponsiveShell'
 import {
+
   useUserManagement,
-  type UserForm,
-  type UserTableRow,
 } from '@/composables/useUserManagement'
 import { useUserStore } from '@/stores/user'
-import type { AppTableAction } from '@/types/crud'
-import type {
-  SystemUserDetail,
-  SystemUserRole,
-  SystemUserStatus,
-} from '@/types/system-management'
 import { formatDate } from '@/utils/day'
-import { type DepartmentTreeOption } from '@/utils/system-management'
 import {
   channelTypeLabels,
   channelTypeOptions,
   isChannelUserRole,
+  isNormalUserRole,
   userGenderOptions,
   userRoleLabels,
   userRoleOptionsFor,
@@ -86,7 +87,7 @@ const actorRole = computed<SystemUserRole>(() => userStore.profile?.role ?? 'NOR
 const accountRoleOptions = computed(() => {
   const selectable = userRoleOptionsFor(actorRole.value)
   const current = userDrawer.formData.role
-  return selectable.some((option) => option.value === current)
+  return selectable.some(option => option.value === current)
     ? selectable
     : [...selectable, { label: userRoleLabels[current], value: current, disabled: true }]
 })
@@ -167,8 +168,12 @@ const importUploadRef = ref<InstanceType<typeof AppImportUpload> | null>(null)
 
 // ---------- 列表列 ----------
 
-function renderAccount(row: TableRowData): string {
-  return row.loginIdentifier ?? row.phone ?? row.email ?? '—'
+function renderLoginIdentifier(_h: unknown, { row }: { row: TableRowData }): string {
+  return row.loginIdentifier ?? '—'
+}
+
+function renderPhone(_h: unknown, { row }: { row: TableRowData }): string {
+  return row.phone ?? '—'
 }
 
 function renderRole(_h: unknown, { row }: { row: TableRowData }) {
@@ -195,7 +200,8 @@ function renderStatus(_h: unknown, { row }: { row: TableRowData }) {
 
 const columns: PrimaryTableCol<TableRowData>[] = [
   { colKey: 'displayName', minWidth: 160, title: '用户姓名' },
-  { cell: renderAccount, colKey: 'phone', minWidth: 180, title: '登录账号 / 手机号' },
+  { cell: renderLoginIdentifier, colKey: 'loginIdentifier', minWidth: 160, title: '登录账号' },
+  { cell: renderPhone, colKey: 'phone', minWidth: 160, title: '手机号码' },
   { cell: renderRole, colKey: 'role', minWidth: 120, title: '账号类型' },
   { cell: renderChannel, colKey: 'channelType', minWidth: 110, title: '渠道类型' },
   { cell: renderStatus, colKey: 'status', title: '状态', width: 110 },
@@ -281,24 +287,23 @@ const formRole = computed(() => userDrawer.formData.role)
 const rules = computed<FormRules<UserForm>>(() => ({
   ...(isCreate.value
     ? {
-        identifier: [
-          { message: '请输入登录账号或手机号', required: true },
-          { message: '登录账号或手机号至少 3 个字符', min: 3 },
-          { message: '登录账号或手机号不能超过 255 个字符', max: 255 },
-        ],
+        identifier: [{ message: '请输入登录账号', required: true }],
         password: [
           { message: '请输入初始密码', required: true },
           { message: '密码至少需要 5 个字符', min: 5 },
           { message: '密码不能超过 128 个字符', max: 128 },
         ],
       }
-    : {
-        phone: [{ message: '手机号格式不正确', pattern: /^\+?[0-9]{6,20}$/ }],
-      }),
-  channelType: [{
-    message: '渠道用户必须选择渠道类型',
-    validator: (value) => !isChannelUserRole(formRole.value) || Boolean(value),
-  }],
+    : {}),
+  phone: [
+    ...(isNormalUserRole(formRole.value)
+      ? [{ message: '请输入手机号码', required: true }]
+      : []),
+    { message: '手机号格式不正确', pattern: /^\+?\d{6,20}$/ },
+  ],
+  channelType: isChannelUserRole(formRole.value)
+    ? [{ message: '请选择渠道类型', required: true }]
+    : [],
   displayName: [
     { message: '请输入用户姓名', required: true },
     { message: '用户姓名不能超过 120 个字符', max: 120 },
@@ -318,7 +323,7 @@ const resetPasswordFormRef = ref<FormInstanceFunctions | null>(null)
 const resetPasswordRules: FormRules = {
   confirm: [{
     message: '两次输入的密码不一致',
-    validator: (value) => value === resetPasswordForm.password,
+    validator: value => value === resetPasswordForm.password,
   }],
   password: [
     { message: '请输入新密码', required: true },
@@ -466,143 +471,149 @@ onMounted(() => {
         <!-- 桌面端：表格 + 工具栏 -->
         <AppDataTable
           v-if="!isMobile"
-      :columns="columns"
-      :current="userList.current.value"
-      :data="userList.data.value"
-      empty-description="可新增第一个用户"
-      empty-title="暂无用户"
-      :error-description="errorDescription"
-      :operations-width="260"
-      :page-size="userList.pageSize.value"
-      row-key="id"
-      :status="userList.tableStatus.value"
-      :total="userList.total.value"
-      @page-change="userList.changePage"
-      @refresh="userList.refresh"
-      @retry="userList.retry"
-    >
-      <template #toolbar>
-        <t-button v-if="canAdd" theme="primary" @click="userDrawer.openCreate">
-          <template #icon>
-            <AddIcon />
-          </template>
-          新增用户
-        </t-button>
-        <t-button
-          v-if="canImport"
-          :disabled="referenceLoading"
-          theme="default"
-          variant="outline"
-          @click="openImport"
+          :columns="columns"
+          :current="userList.current.value"
+          :data="userList.data.value"
+          empty-description="可新增第一个用户"
+          empty-title="暂无用户"
+          :error-description="errorDescription"
+          :operations-width="260"
+          :page-size="userList.pageSize.value"
+          row-key="id"
+          :status="userList.tableStatus.value"
+          :total="userList.total.value"
+          @page-change="userList.changePage"
+          @refresh="userList.refresh"
+          @retry="userList.retry"
         >
-          <template #icon>
-            <UploadIcon />
+          <template #toolbar>
+            <t-button v-if="canAdd" theme="primary" @click="userDrawer.openCreate">
+              <template #icon>
+                <AddIcon />
+              </template>
+              新增用户
+            </t-button>
+            <t-button
+              v-if="canImport"
+              :disabled="referenceLoading"
+              theme="default"
+              variant="outline"
+              @click="openImport"
+            >
+              <template #icon>
+                <UploadIcon />
+              </template>
+              导入
+            </t-button>
+            <t-button
+              v-if="canExport"
+              :loading="exportAction.status.value === 'submitting'"
+              theme="default"
+              variant="outline"
+              @click="exportAction.run"
+            >
+              <template #icon>
+                <DownloadIcon />
+              </template>
+              导出
+            </t-button>
           </template>
-          导入
-        </t-button>
-        <t-button
-          v-if="canExport"
-          :loading="exportAction.status.value === 'submitting'"
-          theme="default"
-          variant="outline"
-          @click="exportAction.run"
-        >
-          <template #icon>
-            <DownloadIcon />
+          <template #operations="{ row }">
+            <AppTableActions :actions="getActions(row)" />
           </template>
-          导出
-        </t-button>
-      </template>
-      <template #operations="{ row }">
-        <AppTableActions :actions="getActions(row)" />
-      </template>
-    </AppDataTable>
+        </AppDataTable>
 
-    <!-- 移动端：卡片列表 -->
-    <section v-else class="vicp-user-cards">
-      <div class="vicp-user-cards__toolbar">
-        <t-button v-if="canAdd" size="small" theme="primary" @click="userDrawer.openCreate">
-          <template #icon>
-            <AddIcon />
-          </template>
-          新增用户
-        </t-button>
-        <t-button
-          v-if="canImport"
-          :disabled="referenceLoading"
-          size="small"
-          theme="default"
-          variant="outline"
-          @click="openImport"
-        >
-          导入
-        </t-button>
-        <t-button
-          v-if="canExport"
-          :loading="exportAction.status.value === 'submitting'"
-          size="small"
-          theme="default"
-          variant="outline"
-          @click="exportAction.run"
-        >
-          导出
-        </t-button>
-      </div>
-
-      <AppErrorState
-        v-if="userList.tableStatus.value === 'error'"
-        :description="errorDescription"
-        title="数据加载失败"
-        @action="userList.retry"
-      />
-
-      <template v-else>
-        <div v-if="userList.data.value.length === 0" class="vicp-user-cards__empty">
-          <AppEmptyState :description="userList.isLoading.value ? '' : '可新增第一个用户'" title="暂无用户" />
-        </div>
-        <article v-for="user in userList.data.value" :key="user.id" class="vicp-user-card">
-          <div class="vicp-user-card__head">
-            <span class="vicp-user-card__name">{{ user.displayName }}</span>
-            <AppStatusTag
-              :label="user.deletedAt ? '已删除' : userStatusLabels[user.status as SystemUserStatus]"
-              :status="user.deletedAt ? 'error' : user.status === 'ACTIVE' ? 'success' : 'warning'"
-            />
+        <!-- 移动端：卡片列表 -->
+        <section v-else class="vicp-user-cards">
+          <div class="vicp-user-cards__toolbar">
+            <t-button v-if="canAdd" size="small" theme="primary" @click="userDrawer.openCreate">
+              <template #icon>
+                <AddIcon />
+              </template>
+              新增用户
+            </t-button>
+            <t-button
+              v-if="canImport"
+              :disabled="referenceLoading"
+              size="small"
+              theme="default"
+              variant="outline"
+              @click="openImport"
+            >
+              导入
+            </t-button>
+            <t-button
+              v-if="canExport"
+              :loading="exportAction.status.value === 'submitting'"
+              size="small"
+              theme="default"
+              variant="outline"
+              @click="exportAction.run"
+            >
+              导出
+            </t-button>
           </div>
-          <dl class="vicp-user-card__meta">
-            <div>
-              <dt>登录账号 / 手机号</dt>
-              <dd>{{ user.loginIdentifier ?? user.phone ?? user.email ?? '—' }}</dd>
-            </div>
-            <div>
-              <dt>账号类型 / 渠道</dt>
-              <dd>
-                {{ userRoleLabels[user.role as SystemUserRole] }}
-                <template v-if="user.channelType"> / {{ channelTypeLabels[user.channelType as keyof typeof channelTypeLabels] }}</template>
-              </dd>
-            </div>
-            <div>
-              <dt>创建时间</dt>
-              <dd>{{ formatDate(new Date(user.createdAt)) }}</dd>
-            </div>
-          </dl>
-          <div class="vicp-user-card__actions">
-            <AppTableActions :actions="getActions(user)" :max-visible="1" />
-          </div>
-        </article>
-      </template>
 
-      <t-pagination
-        v-if="userList.total.value > 0"
-        :current="userList.current.value"
-        :page-size="userList.pageSize.value"
-        :page-size-options="[10, 20, 50, 100]"
-        :show-jumper="true"
-        :show-page-size="true"
-        :total="userList.total.value"
-        :total-content="false"
-        @change="userList.changePage"
-      />
-    </section>
+          <AppErrorState
+            v-if="userList.tableStatus.value === 'error'"
+            :description="errorDescription"
+            title="数据加载失败"
+            @action="userList.retry"
+          />
+
+          <template v-else>
+            <div v-if="userList.data.value.length === 0" class="vicp-user-cards__empty">
+              <AppEmptyState :description="userList.isLoading.value ? '' : '可新增第一个用户'" title="暂无用户" />
+            </div>
+            <article v-for="user in userList.data.value" :key="user.id" class="vicp-user-card">
+              <div class="vicp-user-card__head">
+                <span class="vicp-user-card__name">{{ user.displayName }}</span>
+                <AppStatusTag
+                  :label="user.deletedAt ? '已删除' : userStatusLabels[user.status as SystemUserStatus]"
+                  :status="user.deletedAt ? 'error' : user.status === 'ACTIVE' ? 'success' : 'warning'"
+                />
+              </div>
+              <dl class="vicp-user-card__meta">
+                <div>
+                  <dt>登录账号</dt>
+                  <dd>{{ user.loginIdentifier ?? '—' }}</dd>
+                </div>
+                <div>
+                  <dt>手机号码</dt>
+                  <dd>{{ user.phone ?? '—' }}</dd>
+                </div>
+                <div>
+                  <dt>账号类型 / 渠道</dt>
+                  <dd>
+                    {{ userRoleLabels[user.role as SystemUserRole] }}
+                    <template v-if="user.channelType">
+                      / {{ channelTypeLabels[user.channelType as keyof typeof channelTypeLabels] }}
+                    </template>
+                  </dd>
+                </div>
+                <div>
+                  <dt>创建时间</dt>
+                  <dd>{{ formatDate(new Date(user.createdAt)) }}</dd>
+                </div>
+              </dl>
+              <div class="vicp-user-card__actions">
+                <AppTableActions :actions="getActions(user)" :max-visible="1" />
+              </div>
+            </article>
+          </template>
+
+          <t-pagination
+            v-if="userList.total.value > 0"
+            :current="userList.current.value"
+            :page-size="userList.pageSize.value"
+            :page-size-options="[10, 20, 50, 100]"
+            :show-jumper="true"
+            :show-page-size="true"
+            :total="userList.total.value"
+            :total-content="false"
+            @change="userList.changePage"
+          />
+        </section>
       </div>
     </div>
 
@@ -621,20 +632,26 @@ onMounted(() => {
       @update:visible="userDrawer.setVisible"
     >
       <p v-if="!isCreate" class="vicp-user-form__hint vicp-user-form__wide">
-        登录账号创建后不可修改；手机号可在下方调整。
+        登录账号创建后不可修改，手机号码可调整。
       </p>
-      <t-form-item v-if="isCreate" label="登录账号 / 手机号" name="identifier">
+      <t-form-item v-if="isCreate" label="登录账号" name="identifier">
         <t-input
           v-model="userDrawer.formData.identifier"
-          maxlength="255"
-          placeholder="用户名或手机号，手机号格式自动识别"
+          placeholder="请输入登录账号"
         />
       </t-form-item>
-      <t-form-item v-if="!isCreate" label="手机号" name="phone">
+      <t-form-item v-if="!isCreate" label="登录账号" name="identifier">
+        <t-input
+          v-model="userDrawer.formData.identifier"
+          disabled
+          placeholder="登录账号创建后不可修改"
+        />
+      </t-form-item>
+      <t-form-item label="手机号码" name="phone">
         <t-input
           v-model="userDrawer.formData.phone"
           maxlength="32"
-          placeholder="手机号用于登录或联系"
+          :placeholder="isNormalUserRole(formRole) ? '请输入手机号码' : '选填'"
         />
       </t-form-item>
       <t-form-item v-if="isCreate" label="初始密码" name="password">
@@ -784,7 +801,7 @@ onMounted(() => {
       destroy-on-close
       :header="`分配角色 · ${roleAssign.displayName}`"
       :visible="roleAssign.visible"
-      :width="'min(480px, 92vw)'"
+      width="min(480px, 92vw)"
       @close="setRoleAssignVisible(false)"
       @confirm="submitRoleAssign"
     >
@@ -858,8 +875,12 @@ onMounted(() => {
             <dd>{{ detailState.data.user.displayName }}</dd>
           </div>
           <div>
-            <dt>登录账号 / 手机号</dt>
-            <dd>{{ detailState.data.user.loginIdentifier ?? detailState.data.user.phone ?? detailState.data.user.email ?? '—' }}</dd>
+            <dt>登录账号</dt>
+            <dd>{{ detailState.data.user.loginIdentifier ?? '—' }}</dd>
+          </div>
+          <div>
+            <dt>手机号码</dt>
+            <dd>{{ detailState.data.user.phone ?? '—' }}</dd>
           </div>
           <div>
             <dt>账号类型</dt>

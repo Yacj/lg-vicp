@@ -11,7 +11,7 @@ import AppTableActions from '@/components/business/AppTableActions.vue'
 import AppDataTable from '@/components/ui/AppDataTable.vue'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
 import AppPage from '@/components/ui/AppPage.vue'
-import AppPageToolbar from '@/components/ui/AppPageToolbar.vue'
+import AppSearchPanel from '@/components/ui/AppSearchPanel.vue'
 import AppStatusTag from '@/components/ui/AppStatusTag.vue'
 import { normalizeFeedbackError } from '@/composables/useAppFeedback'
 import { usePermissionAccess } from '@/composables/usePermissionAccess'
@@ -166,130 +166,119 @@ function handleVisibilityChange(value: unknown): void {
   const visibility = typeof value === 'string' ? normalizeVisibilityFilter(value) : undefined
   applyVisibilityFilter(visibility)
 }
+
+function handleResetFilters(): void {
+  applyVisibilityFilter(undefined)
+}
 </script>
 
 <template>
-  <AppPage>
-    <template #header>
-      <AppPageHeader
-        description="管理建筑节能项目：创建者与超级管理员可管理项目，公开项目对其他登录用户只读"
-        title="项目中心"
-      >
-        <template #actions>
-          <t-button v-if="canCreateProject" theme="primary" @click="projectDrawer.openCreate">
-            <template #icon>
-              <AddIcon />
-            </template>
-            新建项目
-          </t-button>
+  <AppPage
+    description="管理建筑节能项目：创建者与超级管理员可管理项目，公开项目对其他登录用户只读"
+    title="项目中心"
+  >
+    <template #actions>
+      <t-button v-if="canCreateProject" theme="primary" @click="projectDrawer.openCreate">
+        <template #icon>
+          <AddIcon />
         </template>
-      </AppPageHeader>
+        新建项目
+      </t-button>
     </template>
 
-    <section class="project-center-workspace">
-      <AppPageToolbar class="project-center-toolbar" divided>
-        <div class="project-center-view-control">
-          <span class="project-center-toolbar__label">项目范围</span>
-          <t-radio-group
-            :value="activeView"
-            theme="button"
-            variant="default-filled"
-            @change="handleViewChange"
+    <t-tabs :value="activeView" @change="handleViewChange">
+      <t-tab-panel
+        v-for="view in viewOptions"
+        :key="view.value"
+        :label="view.label"
+        :value="view.value"
+      >
+        <template v-if="view.value === 'all'">
+          <AppSearchPanel
+            :loading="allList.isLoading.value"
+            @reset="handleResetFilters"
+            @search="allList.search"
           >
-            <t-radio-button
-              v-for="view in viewOptions"
-              :key="view.value"
-              :value="view.value"
-            >
-              {{ view.label }}
-            </t-radio-button>
-          </t-radio-group>
+            <t-form-item label="可见性">
+              <t-select
+                :model-value="allList.query.visibility ?? ''"
+                :options="[
+                  { label: '全部可见性', value: '' },
+                  ...visibilityOptions,
+                ]"
+                clearable
+                placeholder="全部可见性"
+                @change="handleVisibilityChange"
+              />
+            </t-form-item>
+          </AppSearchPanel>
+        </template>
+
+        <div v-if="!isMobile">
+          <AppDataTable
+            :columns="columns"
+            :current="activeList.current.value"
+            :data="activeList.data.value"
+            empty-description="暂无符合条件的项目"
+            empty-title="暂无项目"
+            :error-description="tableErrorDescription"
+            :page-size="activeList.pageSize.value"
+            row-key="id"
+            :status="activeList.tableStatus.value"
+            title="项目列表"
+            :total="activeList.total.value"
+            @page-change="activeList.changePage"
+            @refresh="activeList.refresh"
+            @retry="activeList.retry"
+          >
+            <template #operations="{ row }">
+              <AppTableActions :actions="getActions(row)" />
+            </template>
+          </AppDataTable>
         </div>
 
-        <template v-if="activeView === 'all'" #actions>
-          <div class="project-center-filter">
-            <span class="project-center-toolbar__label">可见性</span>
-            <t-select
-              class="project-center-filter__select"
-              :model-value="allList.query.visibility ?? ''"
-              :options="[
-                { label: '全部可见性', value: '' },
-                ...visibilityOptions,
-              ]"
-              clearable
-              placeholder="全部可见性"
-              @change="handleVisibilityChange"
-            />
-          </div>
-        </template>
-      </AppPageToolbar>
-
-      <div v-if="!isMobile" class="project-center-table">
-        <AppDataTable
-          :columns="columns"
-          :current="activeList.current.value"
-          :data="activeList.data.value"
-          empty-description="暂无符合条件的项目"
-          empty-title="暂无项目"
-          :error-description="tableErrorDescription"
-          :page-size="activeList.pageSize.value"
-          row-key="id"
-          :status="activeList.tableStatus.value"
-          :total="activeList.total.value"
-          @page-change="activeList.changePage"
-          @refresh="activeList.refresh"
-          @retry="activeList.retry"
-        >
-          <template #toolbar>
-            <strong class="project-center-table__title">项目列表</strong>
-          </template>
-          <template #operations="{ row }">
-            <AppTableActions :actions="getActions(row)" />
-          </template>
-        </AppDataTable>
-      </div>
-
-      <div v-else class="project-center-cards">
-        <article
-          v-for="project in activeList.data.value"
-          :key="project.id"
-          class="project-card"
-          @click="openProject(project)"
-        >
-          <div class="project-card__main">
-            <div class="project-card__title-row">
-              <strong class="project-card__name">{{ project.name }}</strong>
-              <AppStatusTag
-                :label="projectVisibilityMeta(project.visibility).label"
-                :status="projectVisibilityMeta(project.visibility).status"
-              />
+        <div v-else class="project-center-cards">
+          <article
+            v-for="project in activeList.data.value"
+            :key="project.id"
+            class="project-card"
+            @click="openProject(project)"
+          >
+            <div class="project-card__main">
+              <div class="project-card__title-row">
+                <strong class="project-card__name">{{ project.name }}</strong>
+                <AppStatusTag
+                  :label="projectVisibilityMeta(project.visibility).label"
+                  :status="projectVisibilityMeta(project.visibility).status"
+                />
+              </div>
+              <p v-if="project.description" class="project-card__description">
+                {{ project.description }}
+              </p>
+              <p class="project-card__meta">
+                <span>更新时间 {{ formatDate(new Date(project.updatedAt)) }}</span>
+                <AppStatusTag
+                  :label="projectStatusMeta(project.status).label"
+                  :status="projectStatusMeta(project.status).status"
+                />
+              </p>
             </div>
-            <p v-if="project.description" class="project-card__description">
-              {{ project.description }}
-            </p>
-            <p class="project-card__meta">
-              <span>更新时间 {{ formatDate(new Date(project.updatedAt)) }}</span>
-              <AppStatusTag
-                :label="projectStatusMeta(project.status).label"
-                :status="projectStatusMeta(project.status).status"
-              />
-            </p>
-          </div>
-          <div class="project-card__side">
-            <div class="project-card__actions" @click.stop>
-              <AppTableActions :actions="getActions(project)" :max-visible="0" />
+            <div class="project-card__side">
+              <div class="project-card__actions" @click.stop>
+                <AppTableActions :actions="getActions(project)" :max-visible="0" />
+              </div>
+              <ChevronRightIcon class="project-card__chevron" />
             </div>
-            <ChevronRightIcon class="project-card__chevron" />
-          </div>
-        </article>
+          </article>
 
-        <AppEmptyState
-          v-if="activeList.data.value.length === 0 && activeList.tableStatus.value === 'ready'"
-          description="暂无符合条件的项目"
-          title="暂无项目"
-        />
-      </div>
-    </section>
+          <AppEmptyState
+            v-if="activeList.data.value.length === 0 && activeList.tableStatus.value === 'ready'"
+            description="暂无符合条件的项目"
+            title="暂无项目"
+          />
+        </div>
+      </t-tab-panel>
+    </t-tabs>
 
     <AppCrudFormDialog
       :description="projectDrawer.mode.value === 'create'
@@ -331,58 +320,10 @@ function handleVisibilityChange(value: unknown): void {
 </template>
 
 <style scoped>
-.project-center-workspace {
-  min-width: 0;
-  overflow: hidden;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: var(--vicp-radius);
-  background: var(--td-bg-color-container);
-}
-
-.project-center-toolbar {
-  min-width: 0;
-  padding: var(--vicp-panel-padding) var(--vicp-panel-padding) 0;
-}
-
-.project-center-view-control,
-.project-center-filter {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: var(--td-size-3);
-}
-
-.project-center-toolbar__label {
-  flex: 0 0 auto;
-  color: var(--td-text-color-secondary);
-  font-size: var(--td-font-size-body-small);
-  white-space: nowrap;
-}
-
-.project-center-filter__select {
-  width: 180px;
-}
-
-.project-center-table {
-  min-width: 0;
-}
-
-.project-center-table :deep(.app-data-table) {
-  border: 0;
-  border-radius: 0;
-}
-
-.project-center-table__title {
-  color: var(--td-text-color-primary);
-  font-size: var(--td-font-size-title-small);
-  font-weight: 600;
-}
-
 .project-center-cards {
   display: grid;
   min-width: 0;
   gap: var(--td-size-3);
-  padding: var(--vicp-panel-padding);
 }
 
 .project-card {
@@ -453,29 +394,5 @@ function handleVisibilityChange(value: unknown): void {
 
 .project-card__actions {
   min-width: 0;
-}
-
-@media (max-width: 640px) {
-  .project-center-view-control,
-  .project-center-filter {
-    width: 100%;
-    align-items: stretch;
-    flex-direction: column;
-    gap: var(--td-size-2);
-  }
-
-  .project-center-view-control :deep(.t-radio-group) {
-    display: grid;
-    width: 100%;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .project-center-view-control :deep(.t-radio-button) {
-    justify-content: center;
-  }
-
-  .project-center-filter__select {
-    width: 100%;
-  }
 }
 </style>

@@ -3,6 +3,7 @@ import { ArrowLeftIcon } from 'tdesign-icons-vue-next'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
+import AppErrorState from '@/components/ui/AppErrorState.vue'
 import AppPage from '@/components/ui/AppPage.vue'
 import AppStatusTag from '@/components/ui/AppStatusTag.vue'
 import ReportPreviewDialog from '@/components/business/ReportPreviewDialog.vue'
@@ -57,6 +58,8 @@ onMounted(() => {
 const errorAlert = computed(() => status.value === 'error' ? errorDescription.value : '请检查网络连接后重试')
 
 const report = computed(() => detail.value?.report ?? null)
+
+const reportTitle = computed(() => (report.value ? `${getReportTypeLabel(report.value.reportType)}报告` : '报告详情'))
 
 function goBack(): void {
   if (window.history.state?.back) {
@@ -116,9 +119,9 @@ async function previewHtml(): Promise<void> {
 </script>
 
 <template>
-  <AppPage>
+  <AppPage :title="reportTitle">
     <template #navigation>
-      <t-button theme="default" variant="outline" @click="goBack">
+      <t-button variant="text" @click="goBack">
         <template #icon>
           <ArrowLeftIcon />
         </template>
@@ -126,78 +129,66 @@ async function previewHtml(): Promise<void> {
       </t-button>
     </template>
 
+    <template #actions>
+      <template v-if="report">
+        <AppStatusTag v-bind="reportStateMeta(report)" />
+        <AppStatusTag v-if="report.publishedAt" label="已发布" status="success" />
+        <t-tag v-if="polling" theme="primary" variant="light" size="small">
+          生成中，自动刷新
+        </t-tag>
+        <t-button
+          v-if="canPublishReport(report)"
+          :loading="actions.publishAction.running.value"
+          theme="success"
+          @click="actions.publishAction.run(report)"
+        >
+          发布
+        </t-button>
+        <t-button
+          v-if="canRegenerateReport(report.status)"
+          :loading="actions.retryAction.running.value"
+          variant="outline"
+          @click="actions.retryAction.run(report)"
+        >
+          重试
+        </t-button>
+        <t-button
+          v-if="assets && assets.artifacts.some(item => item.type === 'HTML')"
+          variant="outline"
+          @click="previewHtml"
+        >
+          预览
+        </t-button>
+        <t-button
+          v-if="report.status === 'READY'"
+          variant="outline"
+          @click="shareDialogVisible = true"
+        >
+          分享
+        </t-button>
+        <t-button
+          :loading="actions.deleteAction.running.value"
+          theme="danger"
+          variant="outline"
+          @click="actions.deleteAction.run(report)"
+        >
+          删除
+        </t-button>
+      </template>
+    </template>
+
     <div v-if="status === 'loading'" class="report-detail__center">
-      <t-loading text="正在加载报告详情..." />
+      <t-loading size="large" text="正在加载报告详情" />
     </div>
 
-    <div v-else-if="status === 'error'" class="report-detail__center">
-      <t-alert theme="error" :title="errorAlert" />
-      <t-button class="report-detail__retry" theme="primary" @click="load">
-        重新加载
-      </t-button>
-    </div>
+    <AppErrorState
+      v-else-if="status === 'error'"
+      :description="errorAlert"
+      title="报告加载失败"
+      @action="load"
+    />
 
     <template v-else-if="report">
-      <!-- 概览 -->
-      <div class="report-detail__header">
-        <div class="report-detail__header-main">
-          <h2 class="report-detail__title">
-            {{ getReportTypeLabel(report.reportType) }}报告
-          </h2>
-          <div class="report-detail__header-tags">
-            <AppStatusTag v-bind="reportStateMeta(report)" />
-            <AppStatusTag
-              v-if="report.publishedAt"
-              label="已发布"
-              status="success"
-            />
-            <t-tag v-if="polling" theme="primary" variant="light" size="small">
-              生成中，自动刷新
-            </t-tag>
-          </div>
-        </div>
-        <div class="report-detail__header-actions">
-          <t-button
-            v-if="canPublishReport(report)"
-            :loading="actions.publishAction.running.value"
-            theme="success"
-            @click="actions.publishAction.run(report)"
-          >
-            发布
-          </t-button>
-          <t-button
-            v-if="canRegenerateReport(report.status)"
-            :loading="actions.retryAction.running.value"
-            variant="outline"
-            @click="actions.retryAction.run(report)"
-          >
-            重试
-          </t-button>
-          <t-button
-            v-if="assets && assets.artifacts.some(item => item.type === 'HTML')"
-            variant="outline"
-            @click="previewHtml"
-          >
-            预览
-          </t-button>
-          <t-button
-            v-if="report.status === 'READY'"
-            variant="outline"
-            @click="shareDialogVisible = true"
-          >
-            分享
-          </t-button>
-          <t-button
-            :loading="actions.deleteAction.running.value"
-            theme="danger"
-            variant="outline"
-            @click="actions.deleteAction.run(report)"
-          >
-            删除
-          </t-button>
-        </div>
-      </div>
-
       <t-alert
         v-if="report.status === 'FAILED' && report.errorMessage"
         class="report-detail__alert"
@@ -208,7 +199,7 @@ async function previewHtml(): Promise<void> {
       </t-alert>
 
       <!-- 项目信息 -->
-      <t-card class="report-detail__card" title="项目信息" :bordered="false">
+      <t-card title="项目信息">
         <t-descriptions v-if="project" bordered :column="3" size="medium">
           <t-descriptions-item label="项目名称">
             {{ project.name }}
@@ -236,7 +227,7 @@ async function previewHtml(): Promise<void> {
       </t-card>
 
       <!-- 使用方案与计算结果 -->
-      <t-card class="report-detail__card" title="使用方案与计算结果" :bordered="false">
+      <t-card title="使用方案与计算结果">
         <template v-if="simpleContentEntries.length > 0 || nestedContentEntries.length > 0">
           <t-descriptions v-if="simpleContentEntries.length > 0" :column="2" size="medium">
             <t-descriptions-item
@@ -262,7 +253,7 @@ async function previewHtml(): Promise<void> {
       </t-card>
 
       <!-- 来源资料 -->
-      <t-card class="report-detail__card" title="来源资料" :bordered="false">
+      <t-card title="来源资料">
         <template v-if="assets && assets.sources.length > 0">
           <div v-for="source in assets.sources" :key="source.id" class="report-detail__source">
             <div class="report-detail__source-head">
@@ -281,7 +272,7 @@ async function previewHtml(): Promise<void> {
       </t-card>
 
       <!-- 生成日志 -->
-      <t-card class="report-detail__card" title="生成日志" :bordered="false">
+      <t-card title="生成日志">
         <div class="report-detail__log">
           <div class="report-detail__log-item">
             <span class="report-detail__log-time">
@@ -313,7 +304,7 @@ async function previewHtml(): Promise<void> {
       </t-card>
 
       <!-- 文件版本 -->
-      <t-card class="report-detail__card" title="文件版本" :bordered="false">
+      <t-card title="文件版本">
         <template v-if="assets && assets.artifacts.length > 0">
           <div v-for="artifact in assets.artifacts" :key="artifact.id" class="report-detail__artifact">
             <div class="report-detail__artifact-main">
@@ -352,7 +343,7 @@ async function previewHtml(): Promise<void> {
       </t-card>
 
       <!-- 分享记录 -->
-      <t-card class="report-detail__card" title="分享记录" :bordered="false">
+      <t-card title="分享记录">
         <template v-if="shareLinks.length > 0">
           <div v-for="share in shareLinks" :key="share.id" class="report-detail__share">
             <div class="report-detail__share-main">
@@ -416,57 +407,15 @@ async function previewHtml(): Promise<void> {
 <style scoped>
 .report-detail__center {
   display: flex;
-  min-height: 320px;
+  min-height: var(--vicp-state-min-height);
   align-items: center;
   justify-content: center;
   flex-direction: column;
   gap: var(--td-size-4);
 }
 
-.report-detail__retry {
-  margin-top: var(--td-size-4);
-}
-
-.report-detail__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--td-size-4);
-}
-
-.report-detail__header-main {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: var(--td-size-3);
-}
-
-.report-detail__title {
-  margin: 0;
-  font-size: var(--td-font-size-title-large);
-  font-weight: 600;
-}
-
-.report-detail__header-tags {
-  display: flex;
-  align-items: center;
-  gap: var(--td-size-2);
-}
-
-.report-detail__header-actions {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: var(--td-size-2);
-}
-
 .report-detail__alert {
   margin-bottom: var(--td-size-4);
-}
-
-.report-detail__card {
-  margin-top: var(--td-size-4);
-  border: 1px solid var(--td-component-border);
 }
 
 .report-detail__collapse {

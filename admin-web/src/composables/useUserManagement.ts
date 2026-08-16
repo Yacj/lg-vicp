@@ -83,7 +83,7 @@ function createUserForm(): UserForm {
     email: '',
     gender: 'UNKNOWN',
     identifier: '',
-    password: '',
+    password: '123456',
     phone: '',
     postIds: [],
     remark: '',
@@ -103,7 +103,7 @@ function editUserForm(user: SystemDepartmentMember, detail: SystemUserDetail | u
     displayName: user.displayName,
     email: user.email ?? '',
     gender: user.gender,
-    identifier: '',
+    identifier: user.loginIdentifier ?? '',
     password: '',
     phone: user.phone ?? '',
     postIds: (detail?.posts ?? []).map(item => item.id),
@@ -135,6 +135,7 @@ function toCreateInput(data: UserForm): CreateSystemUserInput {
     identifier: data.identifier.trim(),
     password: data.password,
     channelType: isChannelUserRole(data.role) ? data.channelType : null,
+    phone: trimToNull(data.phone) ?? undefined,
   }
 }
 

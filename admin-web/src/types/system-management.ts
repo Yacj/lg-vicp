@@ -248,7 +248,7 @@ export interface SystemUserDetail {
   roles: SystemUserRoleBrief[]
 }
 
-/** 创建用户：identifier 为用户名或手机号，后端按格式自动识别；role/channelType 组合有服务端校验。 */
+/** 创建用户：identifier 为登录账号（必填、不限位数）；phone 为手机号码（选填，6-20 位数字）；role/channelType 组合有服务端校验。 */
 export interface CreateSystemUserInput {
   identifier: string
   password: string
@@ -258,6 +258,7 @@ export interface CreateSystemUserInput {
   remark?: string
   role: SystemUserRole
   channelType?: SystemChannelType | null
+  phone?: string
 }
 
 /** 编辑用户：后端仅允许更新资料字段；部门/岗位/角色通过独立分配接口维护。 */

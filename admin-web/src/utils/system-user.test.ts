@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   channelTypeLabels,
   isChannelUserRole,
+  isNormalUserRole,
   userGenderLabels,
   userRoleLabels,
   userRoleOptionsFor,
@@ -28,6 +29,12 @@ describe('system user fixed enums', () => {
     expect(isChannelUserRole('CHANNEL_USER')).toBe(true)
     expect(isChannelUserRole('SUPER_ADMIN')).toBe(false)
     expect(isChannelUserRole('NORMAL_USER')).toBe(false)
+  })
+
+  it('keeps normal user semantics bound to the normal user role only', () => {
+    expect(isNormalUserRole('NORMAL_USER')).toBe(true)
+    expect(isNormalUserRole('CHANNEL_USER')).toBe(false)
+    expect(isNormalUserRole('SUPER_ADMIN')).toBe(false)
   })
 
   it('hides SUPER_ADMIN from role options for non-super-admin actors', () => {

@@ -99,12 +99,28 @@ const settingsStore = useSettingsStore()
 const containerRef = ref<HTMLElement | null>(null)
 const columnControllerVisible = ref(false)
 const internalDisplayColumns = ref<Array<string | number>>(props.displayColumns ? [...props.displayColumns] : [])
+const innerCurrent = ref(props.current)
+const innerPageSize = ref(props.pageSize)
 const { isFullscreen, isSupported: fullscreenSupported, toggle: toggleFullscreen } = useFullscreen(containerRef)
 
 watch(
   () => props.displayColumns,
   value => {
     internalDisplayColumns.value = value ? [...value] : []
+  },
+)
+
+watch(
+  () => props.current,
+  value => {
+    innerCurrent.value = value
+  },
+)
+
+watch(
+  () => props.pageSize,
+  value => {
+    innerPageSize.value = value
   },
 )
 
@@ -165,6 +181,10 @@ const hasToolbar = computed(() => props.showToolbar && (
 ))
 
 function handlePageChange(pageInfo: PageInfo): void {
+  innerCurrent.value = pageInfo.current
+  if (pageInfo.pageSize) {
+    innerPageSize.value = pageInfo.pageSize
+  }
   emit('page-change', pageInfo)
 }
 
@@ -259,8 +279,8 @@ function handleColumnControllerVisibleChange(visible: boolean): void {
       <footer v-if="showPagination" class="app-data-table__pagination">
         <span class="app-data-table__total">共 {{ total }} 条</span>
         <t-pagination
-          :current="current"
-          :page-size="pageSize"
+          :current="innerCurrent"
+          :page-size="innerPageSize"
           :page-size-options="pageSizeOptions"
           :show-jumper="true"
           :show-page-size="true"

@@ -115,7 +115,7 @@ const deleteAction = useCrudDelete<ProjectItem, { message: string }>({
     title: '删除项目',
   }),
   onSuccess: async () => {
-    await router.push('/project')
+    await router.push('/projects')
   },
   successMessage: (_project, result) => result.message,
 })
@@ -232,62 +232,53 @@ const auditColumns: PrimaryTableCol<TableRowData>[] = [
 ]
 
 function goBack(): void {
-  void router.push('/project')
+  void router.push('/projects')
 }
 </script>
 
 <template>
-  <AppPage>
-    <template #header>
-      <div class="project-detail-header">
-        <t-button
-          aria-label="返回项目列表"
-          shape="square"
-          theme="default"
-          variant="text"
-          @click="goBack"
-        >
+  <AppPage
+    :title="currentProject?.name ?? '项目详情'"
+    :description="currentProject?.description ?? ''"
+  >
+    <template #navigation>
+      <t-button variant="text" @click="goBack">
+        <template #icon>
           <ArrowLeftIcon />
+        </template>
+        返回项目列表
+      </t-button>
+    </template>
+
+    <template #actions>
+      <template v-if="currentProject">
+        <AppStatusTag
+          :label="projectVisibilityMeta(currentProject.visibility).label"
+          :status="projectVisibilityMeta(currentProject.visibility).status"
+        />
+        <AppStatusTag
+          :label="projectStatusMeta(currentProject.status).label"
+          :status="projectStatusMeta(currentProject.status).status"
+        />
+      </template>
+      <template v-if="isManager">
+        <t-button theme="default" variant="outline" @click="projectDrawer.openEdit(currentProject!)">
+          编辑
         </t-button>
-
-        <div class="project-detail-header__main">
-          <div class="project-detail-header__title-row">
-            <h1>{{ currentProject?.name ?? '项目详情' }}</h1>
-            <template v-if="currentProject">
-              <AppStatusTag
-                :label="projectVisibilityMeta(currentProject.visibility).label"
-                :status="projectVisibilityMeta(currentProject.visibility).status"
-              />
-              <AppStatusTag
-                :label="projectStatusMeta(currentProject.status).label"
-                :status="projectStatusMeta(currentProject.status).status"
-              />
-            </template>
-          </div>
-          <p v-if="currentProject?.description" class="project-detail-header__description">
-            {{ currentProject.description }}
-          </p>
-        </div>
-
-        <div v-if="isManager" class="project-detail-header__actions">
-          <t-button theme="default" variant="outline" @click="projectDrawer.openEdit(currentProject!)">
-            编辑
-          </t-button>
-          <t-button
-            theme="default"
-            variant="outline"
-            @click="visibilityAction.run({
-              project: currentProject!,
-              visibility: currentProject!.visibility === 'PUBLIC' ? 'PRIVATE' : 'PUBLIC',
-            })"
-          >
-            {{ currentProject?.visibility === 'PUBLIC' ? '设为私有' : '设为公开' }}
-          </t-button>
-          <t-button theme="danger" variant="outline" @click="deleteAction.run(currentProject!)">
-            删除
-          </t-button>
-        </div>
-      </div>
+        <t-button
+          theme="default"
+          variant="outline"
+          @click="visibilityAction.run({
+            project: currentProject!,
+            visibility: currentProject!.visibility === 'PUBLIC' ? 'PRIVATE' : 'PUBLIC',
+          })"
+        >
+          {{ currentProject?.visibility === 'PUBLIC' ? '设为私有' : '设为公开' }}
+        </t-button>
+        <t-button theme="danger" variant="outline" @click="deleteAction.run(currentProject!)">
+          删除
+        </t-button>
+      </template>
     </template>
 
     <AppErrorState
@@ -307,42 +298,26 @@ function goBack(): void {
         >
           <!-- 项目概况 -->
           <section v-if="tab.key === 'overview'" class="project-overview">
-            <div class="project-overview__grid">
-              <div class="project-overview__item">
-                <span class="project-overview__label">项目名称</span>
-                <span class="project-overview__value">{{ currentProject.name }}</span>
-              </div>
-              <div class="project-overview__item">
-                <span class="project-overview__label">可见性</span>
-                <span class="project-overview__value">
+            <t-card title="项目概况">
+              <t-descriptions bordered :column="2" size="medium">
+                <t-descriptions-item label="项目名称">{{ currentProject.name }}</t-descriptions-item>
+                <t-descriptions-item label="可见性">
                   {{ projectVisibilityMeta(currentProject.visibility).label }}
-                </span>
-              </div>
-              <div class="project-overview__item">
-                <span class="project-overview__label">状态</span>
-                <span class="project-overview__value">
+                </t-descriptions-item>
+                <t-descriptions-item label="状态">
                   {{ projectStatusMeta(currentProject.status).label }}
-                </span>
-              </div>
-              <div class="project-overview__item">
-                <span class="project-overview__label">创建时间</span>
-                <span class="project-overview__value">
+                </t-descriptions-item>
+                <t-descriptions-item label="创建时间">
                   {{ formatDate(new Date(currentProject.createdAt)) }}
-                </span>
-              </div>
-              <div class="project-overview__item">
-                <span class="project-overview__label">更新时间</span>
-                <span class="project-overview__value">
+                </t-descriptions-item>
+                <t-descriptions-item label="更新时间">
                   {{ formatDate(new Date(currentProject.updatedAt)) }}
-                </span>
-              </div>
-              <div class="project-overview__item project-overview__item--wide">
-                <span class="project-overview__label">项目描述</span>
-                <span class="project-overview__value">
+                </t-descriptions-item>
+                <t-descriptions-item label="项目描述" :span="2">
                   {{ currentProject.description || '暂无描述' }}
-                </span>
-              </div>
-            </div>
+                </t-descriptions-item>
+              </t-descriptions>
+            </t-card>
           </section>
 
           <!-- 资料文件 -->
@@ -456,50 +431,6 @@ function goBack(): void {
 </template>
 
 <style scoped>
-.project-detail-header {
-  display: flex;
-  min-width: 0;
-  align-items: flex-start;
-  gap: var(--td-size-3);
-}
-
-.project-detail-header__main {
-  min-width: 0;
-  flex: 1;
-}
-
-.project-detail-header__title-row {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: var(--td-size-2);
-}
-
-.project-detail-header h1 {
-  overflow: hidden;
-  margin: 0;
-  color: var(--td-text-color-primary);
-  font-size: var(--vicp-page-title-size);
-  font-weight: 600;
-  line-height: var(--td-line-height-title-large);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.project-detail-header__description {
-  max-width: 760px;
-  margin: var(--td-size-2) 0 0;
-  color: var(--td-text-color-secondary);
-  line-height: var(--td-line-height-body-medium);
-}
-
-.project-detail-header__actions {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: var(--td-size-2);
-}
-
 .project-detail-tabs {
   min-width: 0;
 }
@@ -507,39 +438,6 @@ function goBack(): void {
 /* 移动端 Tabs 横向滚动 */
 .project-detail-tabs :deep(.t-tabs__nav-container) {
   overflow-x: auto;
-}
-
-.project-overview__grid {
-  display: grid;
-  min-width: 0;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--td-size-4);
-  padding: var(--vicp-panel-padding);
-  border: 1px solid var(--td-component-stroke);
-  border-radius: var(--vicp-radius);
-  background: var(--td-bg-color-container);
-}
-
-.project-overview__item {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: var(--td-size-1);
-}
-
-.project-overview__item--wide {
-  grid-column: 1 / -1;
-}
-
-.project-overview__label {
-  color: var(--td-text-color-placeholder);
-  font-size: var(--td-font-size-body-small);
-}
-
-.project-overview__value {
-  overflow-wrap: anywhere;
-  color: var(--td-text-color-primary);
-  line-height: var(--td-line-height-body-medium);
 }
 
 .project-files,
@@ -559,21 +457,5 @@ function goBack(): void {
   display: grid;
   min-height: var(--vicp-state-min-height);
   place-content: center;
-}
-
-@media (max-width: 768px) {
-  .project-detail-header {
-    flex-wrap: wrap;
-  }
-
-  .project-detail-header__actions {
-    width: 100%;
-    flex-wrap: wrap;
-    justify-content: flex-start;
-  }
-
-  .project-overview__grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }
 </style>

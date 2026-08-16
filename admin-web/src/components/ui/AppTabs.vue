@@ -75,8 +75,8 @@ function navigateResult(path: string, currentPath: string): void {
   }
 }
 
-function applyAction(tab: AppTab, option: DropdownOption): void {
-  if (typeof option.value !== 'string') {
+function applyAction(tab: AppTab, option: DropdownOption['value']): void {
+  if (typeof option !== 'object' || option === null || typeof option.value !== 'string') {
     return
   }
 
@@ -109,8 +109,8 @@ function applyAction(tab: AppTab, option: DropdownOption): void {
   }
 }
 
-function handleOverflow(option: DropdownOption): void {
-  if (typeof option.value === 'string') {
+function handleOverflow(option: DropdownOption['value']): void {
+  if (typeof option === 'object' && option !== null && typeof option.value === 'string') {
     activate(option.value)
   }
 }

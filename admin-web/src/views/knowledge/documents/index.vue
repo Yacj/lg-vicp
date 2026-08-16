@@ -103,12 +103,6 @@ function onPageChange(pageInfo: PageInfo): void {
   void load()
 }
 
-function onPageSizeChange(pageSize: number): void {
-  query.pageSize = pageSize
-  query.page = 1
-  void load()
-}
-
 const drawer = useCrudDrawer<KnowledgeDocumentInput, KnowledgeDocument>({
   createForm: () => ({ title: '', docType: 'OTHER', allowedPurposes: ['检索'] }),
   editForm: (entity) => ({
@@ -245,16 +239,17 @@ onMounted(() => {
 
     <AppDataTable
       :columns="columns"
+      :current="query.page"
       :data="documents"
       empty-description="可新增第一个知识文档"
       empty-title="暂无文档"
       :error-description="errorDescription"
       :operations-width="220"
+      :page-size="query.pageSize"
       row-key="id"
       :status="isLoading ? 'loading' : error ? 'error' : 'ready'"
       :total="total"
       @page-change="onPageChange"
-      @page-size-change="onPageSizeChange"
       @refresh="load"
       @retry="load"
     >

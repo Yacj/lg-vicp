@@ -131,7 +131,10 @@ function openAssistant(): void {
   navigate(assistantTarget.value)
 }
 
-function handleCompactAction(option: DropdownOption): void {
+function handleCompactAction(option: DropdownOption['value']): void {
+  if (typeof option !== 'object' || option === null) {
+    return
+  }
   switch (option.value) {
     case 'search':
       openSearch()

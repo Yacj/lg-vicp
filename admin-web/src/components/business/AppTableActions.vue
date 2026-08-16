@@ -28,7 +28,10 @@ function run(action: AppTableAction): void {
   void action.handler()
 }
 
-function runOverflow(option: DropdownOption): void {
+function runOverflow(option: DropdownOption['value']): void {
+  if (typeof option !== 'object' || option === null) {
+    return
+  }
   const action = overflowActions.value.find(item => item.key === option.value)
   if (action) {
     run(action)
