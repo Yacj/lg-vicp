@@ -6,7 +6,7 @@
 - `CHANNEL_USER`：经销商或业务员，可以创建和管理自己的项目。
 - `NORMAL_USER`：可以查看公开项目，第一期不能创建项目。
 
-经销商和业务员使用 `channelType` 区分，不拆基础权限。动态 RBAC 只控制后台菜单和操作，项目权限必须独立校验。
+经销商和业务员使用 `channelType` 区分，不拆基础权限。动态 RBAC 只控制后台菜单和操作，项目权限必须独立校验。渠道用户默认角色 `channel_operator` 拥有：创建/管理项目、AI 对话、模板报告生成与审核（`system:report:generate`、`system:report:review`）；报告模板管理（`system:report:template:*`）不授予渠道用户。
 
 项目规则：
 

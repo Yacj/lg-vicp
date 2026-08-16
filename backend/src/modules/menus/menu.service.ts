@@ -98,5 +98,17 @@ export async function getMenuTree(app: FastifyInstance, user: AuthUser) {
     }
     return items;
   };
-  return attach(roots);
+  return pruneMenuTree(attach(roots));
+}
+
+/**
+ * 权限过滤后目录下没有任何可见 MENU 时整体隐藏，避免返回空壳目录（BUTTON 不构成路由）。
+ * 可见目录下的 BUTTON 保留，供前端做按钮级控制；按钮权限码仍以 /b/getInfo 的 permissions 为准。
+ */
+export function pruneMenuTree(items: MenuTreeItem[]): MenuTreeItem[] {
+  return items.flatMap((item) => {
+    item.children = pruneMenuTree(item.children);
+    if (item.menuType === "DIRECTORY" && !item.children.some((child) => child.menuType === "MENU")) return [];
+    return [item];
+  });
 }

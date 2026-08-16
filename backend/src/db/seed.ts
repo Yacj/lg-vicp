@@ -10,7 +10,7 @@ import { THERMAL_PERMISSION_SEEDS } from "../shared/thermal-permissions.js";
 import { STANDARD_PERMISSION_SEEDS } from "../shared/standard-permissions.js";
 import { COMPARISON_PERMISSION_SEEDS } from "../shared/comparison-permissions.js";
 import { NODE_PERMISSION_SEEDS } from "../shared/node-permissions.js";
-import { REPORT_PERMISSION_SEEDS } from "../shared/report-permissions.js";
+import { REPORT_PERMISSIONS, REPORT_PERMISSION_SEEDS } from "../shared/report-permissions.js";
 import { REVIEW_PERMISSION_SEEDS } from "../shared/review-permissions.js";
 import { buildRankingRuleSeeds } from "../modules/knowledge/knowledge-ingest.service.js";
 import { DEFAULT_REPORT_SECTIONS } from "../modules/reports/report-template.service.js";
@@ -197,10 +197,14 @@ try {
     const projectCreate = seededPermissions.find((permission) => permission.code === "project.create");
     const publicProjectRead = seededPermissions.find((permission) => permission.code === "project.read_public");
     const aiChat = seededPermissions.find((permission) => permission.code === "ai.chat");
-    if (channelRole && projectCreate && aiChat) {
+    const reportGenerate = seededPermissions.find((permission) => permission.code === REPORT_PERMISSIONS.GENERATE);
+    const reportReview = seededPermissions.find((permission) => permission.code === REPORT_PERMISSIONS.REVIEW);
+    if (channelRole && projectCreate && aiChat && reportGenerate && reportReview) {
       await tx.insert(rolePermissions).values([
         { roleId: channelRole.id, permissionId: projectCreate.id },
-        { roleId: channelRole.id, permissionId: aiChat.id }
+        { roleId: channelRole.id, permissionId: aiChat.id },
+        { roleId: channelRole.id, permissionId: reportGenerate.id },
+        { roleId: channelRole.id, permissionId: reportReview.id }
       ]).onConflictDoNothing();
     }
     if (normalRole && publicProjectRead && aiChat) {
