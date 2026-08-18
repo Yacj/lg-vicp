@@ -45,7 +45,11 @@ const envSchema = z.object({
   BOOTSTRAP_ADMIN_PASSWORD: z.string().min(5),
   CORS_ORIGIN: z.string().default("*"),
   /** 内部服务间调用密钥（/api/v1/internal/* 鉴权）；空值视为未配置，内部接口整体禁用 */
-  INTERNAL_API_KEY: z.preprocess((value) => value === "" ? undefined : value, z.string().min(16).optional())
+  INTERNAL_API_KEY: z.preprocess((value) => value === "" ? undefined : value, z.string().min(16).optional()),
+  /** 百度短语音识别极速版：API Key（未配置时语音识别接口返回 503） */
+  BAIDU_ASR_API_KEY: optionalString,
+  /** 百度短语音识别极速版：Secret Key */
+  BAIDU_ASR_SECRET_KEY: optionalString
 });
 
 export type Env = z.infer<typeof envSchema>;
