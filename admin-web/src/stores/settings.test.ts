@@ -81,8 +81,8 @@ describe('appearance settings store', () => {
     expect(store.effectiveTheme).toBe('light')
     expect(document.documentElement.dataset).toMatchObject({
       theme: 'light',
-      layout: 'mixed',
-      sidebarTheme: 'dark',
+      layout: 'dual',
+      sidebarTheme: 'light',
       contentWidth: 'fluid',
       density: 'comfortable',
       tabsStyle: 'line',

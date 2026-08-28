@@ -1,16 +1,7 @@
-/*
- * @Author: weisheng
- * @Date: 2025-08-28 20:59:43
- * @LastEditTime: 2025-11-17 14:28:09
- * @LastEditors: weisheng
- * @Description:
- * @FilePath: /wot-starter/manifest.config.ts
- * 记得注释
- */
 import { defineManifestConfig } from '@uni-helper/vite-plugin-uni-manifest'
 
 export default defineManifestConfig({
-  'name': 'wot-starter',
+  'name': 'lg-app',
   'appid': '__UNI__1208592',
   'description': '',
   'versionName': '1.0.0',
@@ -49,6 +40,7 @@ export default defineManifestConfig({
           '<uses-permission android:name="android.permission.FLASHLIGHT"/>',
           '<uses-feature android:name="android.hardware.camera"/>',
           '<uses-permission android:name="android.permission.WRITE_SETTINGS"/>',
+          '<uses-permission android:name="android.permission.RECORD_AUDIO"/>',
         ],
       },
       /* ios打包配置 */
@@ -71,6 +63,11 @@ export default defineManifestConfig({
     usingComponents: true,
     darkmode: true,
     themeLocation: 'theme.json',
+    permission: {
+      'scope.record': {
+        desc: '用于语音输入转文字',
+      },
+    },
   },
   'app-harmony': {},
   'mp-harmony': {},

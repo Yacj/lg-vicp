@@ -52,3 +52,13 @@
 | `AI_CONTEXT_MAX_MESSAGES` | 20 | 历史窗口最大条数 |
 | `AI_CONTEXT_OUTPUT_RESERVE_RATIO` | 0.1 | 输出预留 + 安全余量比例 |
 | `AI_CONFIG_ENCRYPTION_KEY` | 无默认 | 密钥加密主密钥（32 字节） |
+| `BAIDU_ASR_API_KEY` | 无默认 | 百度短语音识别极速版 API Key（未配置时语音转写接口返回 503） |
+| `BAIDU_ASR_SECRET_KEY` | 无默认 | 百度短语音识别极速版 Secret Key |
+
+> 环境变量变更提醒：新增或修改任何环境变量后，必须同步以下三处，否则 Docker 容器内不会生效：
+>
+> 1. `backend/.env.example`：模板，供新环境首次初始化。
+> 2. `backend/.env`：本地 / 服务器实际值；已部署的服务器需手动更新（该文件不入 git）。
+> 3. `backend/docker-compose.yml`：在 `api` 服务的 `environment` 锚点内声明 `${VAR}` 映射。
+>
+> 原因：Docker Compose 只注入 `environment:` 中显式声明的变量，`.env` 里的键不会自动透传进容器。

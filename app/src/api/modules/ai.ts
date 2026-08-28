@@ -6,6 +6,7 @@ import type {
   MoveConversationBody,
   ReportDraftBody,
   SendMessageBody,
+  TranscribeVoiceBody,
   UpdateConversationBody,
 } from '../types'
 import { request } from '../request'
@@ -53,6 +54,10 @@ export const aiApi = {
       data,
       headers: { Accept: 'text/event-stream' },
     })
+  },
+
+  transcribeVoice(data: TranscribeVoiceBody) {
+    return request('POST', '/ai/voice/transcribe', { data })
   },
 
   stopMessage(id: string) {

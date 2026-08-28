@@ -188,6 +188,18 @@ export interface SendMessageBody {
   content: string
 }
 
+export interface TranscribeVoiceBody {
+  speech: string
+  format: 'm4a' | 'wav'
+  rate: 16000
+  channel: 1
+  durationMs?: number
+}
+
+export interface TranscribeVoiceResult {
+  text: string
+}
+
 export interface MessageFeedbackBody {
   reaction?: AiFeedbackReaction | null
   tags?: string[]

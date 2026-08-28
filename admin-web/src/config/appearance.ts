@@ -14,8 +14,8 @@ export const APPEARANCE_STORAGE_KEY = 'vicp-admin-appearance-v1'
 
 export const DEFAULT_APPEARANCE_SETTINGS: Readonly<AppearanceSettings> = Object.freeze({
   themeMode: 'system',
-  layoutMode: 'mixed',
-  sidebarTheme: 'dark',
+  layoutMode: 'dual',
+  sidebarTheme: 'light',
   contentWidth: 'fluid',
   density: 'comfortable',
   tabsStyle: 'line',

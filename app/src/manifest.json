@@ -1,5 +1,5 @@
 {
-  "name": "wot-starter",
+  "name": "lg-app",
   "appid": "__UNI__1208592",
   "description": "",
   "versionName": "1.0.0",
@@ -33,7 +33,8 @@
           "<uses-permission android:name=\"android.permission.WAKE_LOCK\"/>",
           "<uses-permission android:name=\"android.permission.FLASHLIGHT\"/>",
           "<uses-feature android:name=\"android.hardware.camera\"/>",
-          "<uses-permission android:name=\"android.permission.WRITE_SETTINGS\"/>"
+          "<uses-permission android:name=\"android.permission.WRITE_SETTINGS\"/>",
+          "<uses-permission android:name=\"android.permission.RECORD_AUDIO\"/>"
         ]
       },
       "ios": {},
@@ -57,7 +58,12 @@
       "subPackages": true
     },
     "darkmode": true,
-    "themeLocation": "theme.json"
+    "themeLocation": "theme.json",
+    "permission": {
+      "scope.record": {
+        "desc": "用于语音输入转文字"
+      }
+    }
   },
   "mp-alipay": {
     "usingComponents": true,

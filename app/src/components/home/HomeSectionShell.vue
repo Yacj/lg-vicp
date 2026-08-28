@@ -36,22 +36,10 @@ const emit = defineEmits<{
         <wd-icon name="arrow-right" size="22rpx" />
       </view>
     </view>
-
     <view v-if="status === 'loading' || status === 'idle'" class="home-section__state px-4 pb-4 pt-2">
       <wd-skeleton :row-col="skeletonRowCol" animation="gradient" />
     </view>
-
-    <view
-      v-else-if="status === 'error'"
-      class="home-section__state app-pressable flex items-center justify-center gap-2 py-6"
-      @click="emit('retry')"
-    >
-      <wd-icon name="refresh" size="32rpx" color="var(--app-text-tertiary)" />
-      <view class="app-tertiary text-3">
-        加载失败，点击重试
-      </view>
-    </view>
-
+    <wd-empty icon="no-content" tip="暂无内容"       v-else-if="status === 'error'"/>
     <view v-else-if="empty" class="home-section__state">
       <wd-empty :icon="emptyIcon" :tip="emptyTip" />
     </view>

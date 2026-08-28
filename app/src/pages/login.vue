@@ -122,8 +122,8 @@ async function submitLogin() {
 
     success('登录成功')
     const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : ''
-    console.log(redirect)
-    await router.replaceAll(redirect ? { path: redirect } : { name: 'home' })
+    console.log('12')
+    await router.replaceAll({ name: 'home' })
   }
   catch {
     authStore.clearSession()
@@ -257,7 +257,7 @@ async function submitLogin() {
 :deep(.login-input) {
   margin-bottom: 24rpx;
   overflow: hidden;
-  border-radius: var(--app-radius-sm);
+  border-radius: 999rpx;
   background: var(--app-login-input-bg);
   padding: 24rpx;
 }

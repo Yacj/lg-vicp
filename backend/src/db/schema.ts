@@ -647,12 +647,39 @@ export const knowledgeDocumentVersions = pgTable(
   ]
 );
 
+/** Wiki 章节树：同一文档版本内 sectionKey 是稳定的层级路径键，历史版本独立保留。 */
+export const knowledgeSections = pgTable(
+  "knowledge_sections",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    documentId: uuid("document_id").notNull().references(() => knowledgeDocuments.id, { onDelete: "cascade" }),
+    versionId: uuid("version_id").notNull().references(() => knowledgeDocumentVersions.id, { onDelete: "cascade" }),
+    parentId: uuid("parent_id").references((): PgColumn => knowledgeSections.id, { onDelete: "cascade" }),
+    sectionKey: varchar("section_key", { length: 500 }).notNull(),
+    title: varchar("title", { length: 255 }).notNull(),
+    level: integer("level").notNull().default(1),
+    headingPath: jsonb("heading_path").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    sortOrder: integer("sort_order").notNull().default(0),
+    startPage: integer("start_page"),
+    endPage: integer("end_page"),
+    sourceAnchor: varchar("source_anchor", { length: 255 }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => [
+    uniqueIndex("knowledge_sections_version_key_unique").on(table.versionId, table.sectionKey),
+    index("knowledge_sections_document_version_idx").on(table.documentId, table.versionId),
+    index("knowledge_sections_parent_sort_idx").on(table.parentId, table.sortOrder),
+    index("knowledge_sections_title_idx").on(table.title)
+  ]
+);
+
 export const knowledgePages = pgTable(
   "knowledge_pages",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     documentId: uuid("document_id").notNull().references(() => knowledgeDocuments.id, { onDelete: "cascade" }),
     versionId: uuid("version_id").notNull().references(() => knowledgeDocumentVersions.id, { onDelete: "cascade" }),
+    sectionId: uuid("section_id").references(() => knowledgeSections.id, { onDelete: "set null" }),
     pageNumber: integer("page_number").notNull(),
     parsedText: text("parsed_text"),
     pageImageObjectKey: varchar("page_image_object_key", { length: 512 }),
@@ -665,7 +692,35 @@ export const knowledgePages = pgTable(
   (table) => [
     uniqueIndex("knowledge_pages_version_page_unique").on(table.versionId, table.pageNumber),
     index("knowledge_pages_document_version_idx").on(table.documentId, table.versionId),
-    index("knowledge_pages_version_section_idx").on(table.versionId, table.sectionPath)
+    index("knowledge_pages_version_section_idx").on(table.versionId, table.sectionPath),
+    index("knowledge_pages_version_section_id_idx").on(table.versionId, table.sectionId)
+  ]
+);
+
+/** 页面内部可读内容块：这是 Wiki 默认阅读和引用的最小内容单元，Chunk 仅作辅助检索索引。 */
+export const knowledgePageBlocks = pgTable(
+  "knowledge_page_blocks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    documentId: uuid("document_id").notNull().references(() => knowledgeDocuments.id, { onDelete: "cascade" }),
+    versionId: uuid("version_id").notNull().references(() => knowledgeDocumentVersions.id, { onDelete: "cascade" }),
+    pageId: uuid("page_id").notNull().references(() => knowledgePages.id, { onDelete: "cascade" }),
+    sectionId: uuid("section_id").references(() => knowledgeSections.id, { onDelete: "set null" }),
+    blockIndex: integer("block_index").notNull(),
+    content: text("content").notNull(),
+    contentType: knowledgeChunkContentTypeEnum("content_type").notNull().default("PARAGRAPH"),
+    searchText: text("search_text"),
+    sourceAnchor: varchar("source_anchor", { length: 255 }),
+    startOffset: integer("start_offset"),
+    endOffset: integer("end_offset"),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => [
+    uniqueIndex("knowledge_page_blocks_page_index_unique").on(table.pageId, table.blockIndex),
+    index("knowledge_page_blocks_version_section_idx").on(table.versionId, table.sectionId),
+    index("knowledge_page_blocks_document_page_idx").on(table.documentId, table.pageId),
+    index("knowledge_page_blocks_search_text_trgm_idx").using("gin", sql`${table.searchText} gin_trgm_ops`)
   ]
 );
 
@@ -675,6 +730,8 @@ export const knowledgeChunks = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     documentId: uuid("document_id").notNull().references(() => knowledgeDocuments.id, { onDelete: "cascade" }),
     versionId: uuid("version_id").notNull().references(() => knowledgeDocumentVersions.id, { onDelete: "cascade" }),
+    sectionId: uuid("section_id").references(() => knowledgeSections.id, { onDelete: "set null" }),
+    pageBlockId: uuid("page_block_id").references(() => knowledgePageBlocks.id, { onDelete: "set null" }),
     projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }),
     chunkIndex: integer("chunk_index").notNull(),
     content: text("content").notNull(),
@@ -701,8 +758,10 @@ export const knowledgeChunks = pgTable(
     uniqueIndex("knowledge_chunks_version_index_unique").on(table.versionId, table.chunkIndex),
     index("knowledge_chunks_document_version_idx").on(table.documentId, table.versionId),
     index("knowledge_chunks_project_idx").on(table.projectId),
-    index("knowledge_chunks_version_content_type_idx").on(table.versionId, table.contentType),
     index("knowledge_chunks_version_section_idx").on(table.versionId, table.sourceSection),
+    index("knowledge_chunks_version_section_id_idx").on(table.versionId, table.sectionId),
+    index("knowledge_chunks_version_page_block_idx").on(table.versionId, table.pageBlockId),
+    index("knowledge_chunks_version_content_type_idx").on(table.versionId, table.contentType),
     index("knowledge_chunks_keywords_gin_idx").using("gin", sql`${table.keywords} jsonb_ops`),
     index("knowledge_chunks_search_text_trgm_idx").using("gin", sql`${table.searchText} gin_trgm_ops`)
   ]

@@ -182,7 +182,6 @@ function handlePressCancel() {
 
 <style lang="scss" scoped>
 .ai-composer {
-  border-color: var(--app-border-strong);
   border-radius: 32rpx;
   background: var(--app-bg-surface);
   box-shadow: var(--app-shadow-input);

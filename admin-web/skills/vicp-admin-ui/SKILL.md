@@ -78,8 +78,8 @@ description: 蓝格 VICP 管理后台的布局、主题、页面结构和组件�
 ```ts
 export const defaultAppearanceSettings = {
   themeMode: 'system',
-  layoutMode: 'mixed',
-  sidebarTheme: 'dark',
+  layoutMode: 'dual',
+  sidebarTheme: 'light',
   contentWidth: 'fluid',
   density: 'comfortable',
   tabsStyle: 'line',

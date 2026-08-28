@@ -125,7 +125,7 @@ function handleToggleSelect(message: LocalMessage) {
       </view>
 
       <view v-if="!isUser(message)" class="ai-avatar flex shrink-0 items-center justify-center rounded-full">
-        <image class="ai-avatar__logo" src="/static/my-icons/logo.svg" mode="aspectFit" />
+        <image class="ai-avatar__logo" src="/static/cover.png" mode="aspectFit" />
       </view>
 
       <view
@@ -259,8 +259,8 @@ function handleToggleSelect(message: LocalMessage) {
 }
 
 .ai-avatar__logo {
-  width: 38rpx;
-  height: 38rpx;
+  width: 55px;
+  height: 55rpx;
 }
 
 .ai-message__assistant {

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { Job } from "bullmq";
 import { eq } from "drizzle-orm";
 import ExcelJS from "exceljs";
@@ -14,7 +15,9 @@ import {
   knowledgeCitations,
   knowledgeDocumentVersions,
   knowledgeDocuments,
+  knowledgePageBlocks,
   knowledgePages,
+  knowledgeSections,
   parsingJobs
 } from "../db/schema.js";
 import type { ObjectStorage } from "../storage/index.js";
@@ -159,9 +162,103 @@ function detectPageMarks(text: string): { hasTables: boolean; hasImages: boolean
   };
 }
 
+/** 生成稳定 UUID：解析重试时页面、章节和内容块的身份仍可由文档版本和位置确定。 */
+function stableUuid(versionId: string, kind: string, key: string): string {
+  const hex = createHash("sha256").update(`${versionId}:${kind}:${key}`).digest("hex").slice(0, 32).split("");
+  hex[12] = "5";
+  hex[16] = ((Number.parseInt(hex[16]!, 16) & 0x3) | 0x8).toString(16);
+  const value = hex.join("");
+  return `${value.slice(0, 8)}-${value.slice(8, 12)}-${value.slice(12, 16)}-${value.slice(16, 20)}-${value.slice(20)}`;
+}
+
+interface WikiSectionDraft {
+  id: string;
+  parentId: string | null;
+  sectionKey: string;
+  title: string;
+  level: number;
+  headingPath: string[];
+  sortOrder: number;
+  startPage: number | null;
+  endPage: number | null;
+  sourceAnchor: string | null;
+}
+
+interface WikiStructure {
+  sections: WikiSectionDraft[];
+  pageIds: Map<number, string>;
+  pageSectionIds: Map<number, string>;
+  pageTitleSectionIds: Map<string, string>;
+}
+
+/**
+ * 从页面顺序构建 Wiki 章节树。章节键使用完整标题路径，不依赖数据库自增 ID；
+ * 页面没有标题时挂在文档根章节下，保证纯正文和旧版本也有稳定阅读层级。
+ */
+function buildWikiStructure(versionId: string, title: string, pages: ParsedPage[]): WikiStructure {
+  const rootId = stableUuid(versionId, "section", "root");
+  const sections: WikiSectionDraft[] = [{
+    id: rootId,
+    parentId: null,
+    sectionKey: "root",
+    title: title.slice(0, 255) || "文档正文",
+    level: 1,
+    headingPath: [title.slice(0, 255) || "文档正文"],
+    sortOrder: 0,
+    startPage: pages[0]?.page ?? 0,
+    endPage: pages[pages.length - 1]?.page ?? 0,
+    sourceAnchor: null
+  }];
+  const sectionByKey = new Map<string, WikiSectionDraft>([["root", sections[0]!]]);
+  const pageIds = new Map<number, string>();
+  const pageSectionIds = new Map<number, string>();
+  const pageTitleSectionIds = new Map<string, string>();
+  let active: WikiSectionDraft = sections[0]!;
+  const stack: WikiSectionDraft[] = [];
+
+  for (const page of pages) {
+    const pageNumber = page.page ?? 0;
+    pageIds.set(pageNumber, stableUuid(versionId, "page", String(pageNumber)));
+    for (const line of page.text.split("\n")) {
+      const heading = detectHeading(line);
+      if (!heading || heading.isClause) continue;
+      while (stack.length > 0 && stack[stack.length - 1]!.level >= Math.max(1, heading.level)) stack.pop();
+      const parentSection = stack[stack.length - 1] ?? sections[0]!;
+      const headingPath = [...(parentSection === sections[0]! ? [] : parentSection.headingPath.slice(1)), heading.title];
+      const sectionKey = headingPath.join("/") || heading.title;
+      let section = sectionByKey.get(sectionKey);
+      if (!section) {
+        section = {
+          id: stableUuid(versionId, "section", sectionKey),
+          parentId: parentSection.id,
+          sectionKey,
+          title: heading.title.slice(0, 255),
+          level: Math.max(1, heading.level),
+          headingPath: [title.slice(0, 255) || "文档正文", ...headingPath],
+          sortOrder: sections.filter((item) => item.parentId === parentSection.id).length + 1,
+          startPage: pageNumber,
+          endPage: pageNumber,
+          sourceAnchor: heading.anchor
+        };
+        sectionByKey.set(sectionKey, section);
+        sections.push(section);
+      } else {
+        section.endPage = pageNumber;
+      }
+      active = section;
+      stack.push(section);
+      pageTitleSectionIds.set(`${pageNumber}:${heading.title}`, section.id);
+    }
+    active.endPage = pageNumber;
+    pageSectionIds.set(pageNumber, active.id);
+  }
+  return { sections, pageIds, pageSectionIds, pageTitleSectionIds };
+}
+
 interface WriteParsedInput {
   documentId: string;
   versionId: string;
+  versionTitle: string;
   projectId: string | null;
   pages: ParsedPage[];
   aliases: AliasDictEntry[];
@@ -173,6 +270,8 @@ interface WriteParsedInput {
 interface WriteParsedResult {
   pageCount: number;
   chunkCount: number;
+  sectionCount: number;
+  blockCount: number;
 }
 
 /** 单批分块行数：压低分块及其派生行的内存峰值，实际批量仍会再按绑定参数上限二次切分 */
@@ -185,43 +284,75 @@ interface ChunkWriteContext {
   versionId: string;
   projectId: string | null;
   evidenceLevel: "A" | "B" | "C" | null;
+  pageIds: Map<number, string>;
+  pageSectionIds: Map<number, string>;
+  rootSectionId: string;
 }
 
 /**
- * 分块写入器：累积到批阈值就把分块连同派生的术语与引用一起落库并释放缓冲，
- * 使内存占用与文档规模解耦。批内依赖 INSERT ... RETURNING 的返回顺序与 VALUES 顺序一致。
+ * 分块写入器：Wiki 页面块先于兼容 Chunk 写入，Chunk 通过 pageBlockId/sectionId 关联回可读层。
+ * 批量写入仍保留，避免大文档把所有派生记录一次性驻留内存。
  */
 function createChunkWriter(tx: DbExecutor, context: ChunkWriteContext) {
-  const { documentId, versionId, projectId, evidenceLevel } = context;
+  const { documentId, versionId, projectId, evidenceLevel, pageIds, pageSectionIds, rootSectionId } = context;
   const isClause = (anchor: string): boolean => /^第\s*\d+(?:\.\d+)*\s*条$/.test(anchor);
+  const pageBlockIndexes = new Map<number, number>();
   let buffer: ExtractedChunk[] = [];
   let written = 0;
+  let blockWritten = 0;
 
   const flush = async (): Promise<void> => {
     if (buffer.length === 0) return;
     const batch = buffer;
     buffer = [];
+    const blockRows = batch.map((chunk) => {
+      const pageNumber = chunk.sourcePage ?? 0;
+      const blockIndex = pageBlockIndexes.get(pageNumber) ?? 0;
+      pageBlockIndexes.set(pageNumber, blockIndex + 1);
+      const pageId = pageIds.get(pageNumber) ?? pageIds.get(0);
+      if (!pageId) throw new Error(`页面 ${pageNumber} 不存在，无法写入 Wiki 内容块`);
+      return {
+        id: stableUuid(versionId, "block", `${pageNumber}:${blockIndex}`),
+        documentId,
+        versionId,
+        pageId,
+        sectionId: pageSectionIds.get(pageNumber) ?? rootSectionId,
+        blockIndex,
+        content: chunk.content,
+        contentType: chunk.contentType,
+        searchText: chunk.searchText,
+        sourceAnchor: chunk.citationAnchor,
+        metadata: chunk.metadata ?? null
+      };
+    });
+    for (const values of toInsertBatches(blockRows)) await tx.insert(knowledgePageBlocks).values(values);
 
-    const chunkValues = batch.map((chunk, offset) => ({
-      documentId,
-      versionId,
-      projectId,
-      chunkIndex: written + offset,
-      content: chunk.content,
-      sourcePage: chunk.sourcePage,
-      pageEnd: chunk.pageEnd,
-      sourceSection: chunk.sourceSection,
-      headingLevel: chunk.headingLevel,
-      contentType: chunk.contentType,
-      searchText: chunk.searchText,
-      keywords: chunk.keywords,
-      aliasTerms: chunk.aliasTerms,
-      citationAnchor: chunk.citationAnchor,
-      metadata: chunk.metadata ?? null,
-      sortWeight: 0
-    }));
+    const chunkRows = batch.map((chunk, offset) => {
+      const block = blockRows[offset]!;
+      const pageId = pageIds.get(chunk.sourcePage ?? 0) ?? pageIds.get(0);
+      return {
+        documentId,
+        versionId,
+        sectionId: block.sectionId,
+        pageBlockId: block.id,
+        projectId,
+        chunkIndex: written + offset,
+        content: chunk.content,
+        sourcePage: chunk.sourcePage,
+        pageEnd: chunk.pageEnd,
+        sourceSection: chunk.sourceSection,
+        headingLevel: chunk.headingLevel,
+        contentType: chunk.contentType,
+        searchText: chunk.searchText,
+        keywords: chunk.keywords,
+        aliasTerms: chunk.aliasTerms,
+        citationAnchor: chunk.citationAnchor,
+        metadata: { ...(chunk.metadata ?? {}), pageId, blockIndex: block.blockIndex },
+        sortWeight: 0
+      };
+    });
     const chunkIds: string[] = [];
-    for (const values of toInsertBatches(chunkValues)) {
+    for (const values of toInsertBatches(chunkRows)) {
       const inserted = await tx.insert(knowledgeChunks).values(values).returning({ id: knowledgeChunks.id });
       for (const row of inserted) chunkIds.push(row.id);
     }
@@ -230,9 +361,7 @@ function createChunkWriter(tx: DbExecutor, context: ChunkWriteContext) {
       ...chunk.keywords.map((term) => ({ chunkId: chunkIds[offset]!, term, termType: "KEYWORD" as const, weight: 0 })),
       ...chunk.aliasTerms.map((term) => ({ chunkId: chunkIds[offset]!, term, termType: "SYNONYM" as const, weight: 0 }))
     ]);
-    for (const values of toInsertBatches(termValues)) {
-      await tx.insert(knowledgeChunkTerms).values(values);
-    }
+    for (const values of toInsertBatches(termValues)) await tx.insert(knowledgeChunkTerms).values(values);
 
     const citationValues = batch.flatMap((chunk, offset) =>
       extractAnchors(chunk.content).slice(0, 3).map((anchor) => ({
@@ -246,11 +375,9 @@ function createChunkWriter(tx: DbExecutor, context: ChunkWriteContext) {
         note: isClause(anchor) ? null : anchor
       }))
     );
-    for (const values of toInsertBatches(citationValues)) {
-      await tx.insert(knowledgeCitations).values(values);
-    }
-
+    for (const values of toInsertBatches(citationValues)) await tx.insert(knowledgeCitations).values(values);
     written += batch.length;
+    blockWritten += batch.length;
   };
 
   return {
@@ -260,9 +387,9 @@ function createChunkWriter(tx: DbExecutor, context: ChunkWriteContext) {
         if (buffer.length >= CHUNK_WRITE_BATCH_SIZE) await flush();
       }
     },
-    async finish(): Promise<number> {
+    async finish(): Promise<{ chunkCount: number; blockCount: number }> {
       await flush();
-      return written;
+      return { chunkCount: written, blockCount: blockWritten };
     }
   };
 }
@@ -274,19 +401,41 @@ function createChunkWriter(tx: DbExecutor, context: ChunkWriteContext) {
  * 页面与分块均分批写入，行数由文档规模决定，不能用单条语句一次插完。
  */
 async function writeParsedContent(tx: DbExecutor, input: WriteParsedInput): Promise<WriteParsedResult> {
-  const { documentId, versionId, projectId, pages, aliases, evidenceLevel, sheets } = input;
+  const { documentId, versionId, versionTitle, projectId, pages, aliases, evidenceLevel, sheets } = input;
+  const wiki = buildWikiStructure(versionId, versionTitle, pages);
 
-  // knowledge_chunk_terms 与 knowledge_citations 的 chunk_id 均为 ON DELETE CASCADE，
-  // 删除分块即可级联清理；按 id 列表逐表删除会随分块数量线性放大绑定参数
+  // 删除旧的兼容索引后再删除 Wiki 层，保证重新解析不会留下悬挂内容块。
   await tx.delete(knowledgeChunks).where(eq(knowledgeChunks.versionId, versionId));
+  await tx.delete(knowledgePageBlocks).where(eq(knowledgePageBlocks.versionId, versionId));
   await tx.delete(knowledgePages).where(eq(knowledgePages.versionId, versionId));
+  await tx.delete(knowledgeSections).where(eq(knowledgeSections.versionId, versionId));
+
+  for (const values of toInsertBatches(wiki.sections.map((section) => ({
+    id: section.id,
+    documentId,
+    versionId,
+    parentId: section.parentId,
+    sectionKey: section.sectionKey,
+    title: section.title,
+    level: section.level,
+    headingPath: section.headingPath,
+    sortOrder: section.sortOrder,
+    startPage: section.startPage,
+    endPage: section.endPage,
+    sourceAnchor: section.sourceAnchor
+  })))) {
+    await tx.insert(knowledgeSections).values(values);
+  }
 
   const pageValues = pages.map((page) => {
+    const pageNumber = page.page ?? 0;
     const marks = detectPageMarks(page.text);
     return {
+      id: wiki.pageIds.get(pageNumber) ?? stableUuid(versionId, "page", String(pageNumber)),
       documentId,
       versionId,
-      pageNumber: page.page ?? 0,
+      sectionId: wiki.pageSectionIds.get(pageNumber) ?? wiki.sections[0]!.id,
+      pageNumber,
       parsedText: page.text,
       sectionPath: detectPageSection(page.text),
       hasTables: marks.hasTables,
@@ -298,17 +447,28 @@ async function writeParsedContent(tx: DbExecutor, input: WriteParsedInput): Prom
     await tx.insert(knowledgePages).values(values);
   }
 
-  const writer = createChunkWriter(tx, { documentId, versionId, projectId, evidenceLevel });
-  // buildChunksFromPages 按页独立成块，逐页调用与整体调用结果一致，但分块不再全量驻留
-  for (const page of pages) {
-    await writer.push(buildChunksFromPages([page], aliases));
-  }
+  const writer = createChunkWriter(tx, {
+    documentId,
+    versionId,
+    projectId,
+    evidenceLevel,
+    pageIds: wiki.pageIds,
+    pageSectionIds: wiki.pageSectionIds,
+    rootSectionId: wiki.sections[0]!.id
+  });
+  // buildChunksFromPages 按页独立成块，逐页调用与整体调用结果一致，但分块不再全量驻留。
+  for (const page of pages) await writer.push(buildChunksFromPages([page], aliases));
   for (const sheet of sheets ?? []) {
     await writer.push(buildChunksFromSheet(sheet.data, aliases)
       .map((chunk) => ({ ...chunk, sourcePage: sheet.pageNumber, pageEnd: sheet.pageNumber })));
   }
-
-  return { pageCount: pages.length, chunkCount: await writer.finish() };
+  const written = await writer.finish();
+  return {
+    pageCount: pages.length,
+    chunkCount: written.chunkCount,
+    sectionCount: wiki.sections.length,
+    blockCount: written.blockCount
+  };
 }
 
 /** 知识库链路解析任务：PARSE / REPARSE（重新读取 OSS 文件解析并重写页面与分块） */
@@ -371,6 +531,7 @@ async function handleParseJob(
       const written = await writeParsedContent(tx, {
         documentId: version.documentId,
         versionId,
+        versionTitle: version.title,
         projectId: document?.projectId ?? null,
         pages: parsed.pages,
         aliases,
@@ -423,6 +584,7 @@ async function handleChunkRebuild(
       const written = await writeParsedContent(tx, {
         documentId: version.documentId,
         versionId,
+        versionTitle: version.title,
         projectId: document?.projectId ?? null,
         pages: pageRows.map((page) => ({ page: page.pageNumber, text: page.parsedText ?? "" })),
         aliases,
@@ -516,6 +678,7 @@ async function handleLegacyJob(
       const written = await writeParsedContent(tx, {
         documentId: document!.id,
         versionId: version!.id,
+        versionTitle: version!.title,
         projectId: file.projectId,
         pages: parsed.pages,
         aliases,

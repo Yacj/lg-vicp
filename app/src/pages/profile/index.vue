@@ -226,7 +226,7 @@ function openLegalContent(key: LegalEntry) {
       <view class="mx-auto box-border max-w-750px w-full px-4 pb-2">
         <view
           v-if="isAuthenticated"
-          class="app-pressable mt-4 flex items-center"
+          class="app-pressable pt-4 flex items-center"
           role="button"
           aria-label="查看个人信息"
           @click="openProfileInfo"
@@ -249,7 +249,7 @@ function openLegalContent(key: LegalEntry) {
           <wd-icon name="arrow-right" size="34rpx" color="var(--app-text-tertiary)" />
         </view>
 
-        <view v-else class="mt-4 flex items-center">
+        <view v-else class="pt-4 flex items-center">
           <wd-avatar
             icon="user"
             size="104rpx"
@@ -386,8 +386,7 @@ function openLegalContent(key: LegalEntry) {
   min-width: 112rpx;
   margin-left: 24rpx;
   padding: 14rpx 20rpx;
-  border: 1px solid var(--app-border-strong);
-  border-radius: 8rpx;
+  border-radius: 999rpx;
   color: var(--app-action-primary);
   background: var(--app-bg-surface);
   font-size: 26rpx;

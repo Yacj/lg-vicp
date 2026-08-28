@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { and, count, desc, eq, ilike } from "drizzle-orm";
-import { knowledgeAliases, knowledgeSearchLogs, users } from "../../db/schema.js";
+import { knowledgeAliases, knowledgeDocumentVersions, knowledgeDocuments, knowledgePageBlocks, knowledgePages, knowledgeSearchLogs, knowledgeSections, users } from "../../db/schema.js";
 import type { AuthUser } from "../../shared/auth-user.js";
 import { normalizeSearchText } from "./knowledge.normalize.js";
 import { loadRankingWeights } from "./knowledge-ingest.service.js";
@@ -14,11 +14,19 @@ import { loadRankingWeights } from "./knowledge-ingest.service.js";
  */
 
 export interface RetrievedKnowledgeChunk {
+  /** 默认回答/阅读单位为页面内容块；旧版本只有 Chunk 时使用 chunkId 作为 sourceId */
+  sourceId: string;
   chunkId: string;
+  pageBlockId?: string | null;
+  pageId?: string | null;
+  sectionId?: string | null;
   documentId: string;
   content: string;
+  /** 命中块所在页面的全文，用于来源详情和上层页面上下文聚合；AI 注入只使用 content */
+  pageContext?: string | null;
   sourcePage: number | null;
   sourceSection: string | null;
+  headingPath?: string[] | null;
   sourceTitle: string;
   score: number;
   /** 二期新增：AI 侧拼上下文/引用时可用 */
