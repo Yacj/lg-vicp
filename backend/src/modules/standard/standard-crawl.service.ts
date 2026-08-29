@@ -539,7 +539,14 @@ export async function runStandardCrawl(deps: CrawlDeps, crawlJobId: string): Pro
     errorMessage: allFailed ? "全部栏目抓取失败" : null,
     updatedAt: new Date()
   }).where(eq(crawlJobs.id, crawlJobId));
-  await db.update(standardSources).set({ lastCrawledAt: new Date(), updatedAt: new Date() }).where(eq(standardSources.id, source.id));
+  // 运营回写：最近一次抓取结果与失败原因（B 端来源列表可见）
+  await db.update(standardSources).set({
+    lastCrawledAt: new Date(),
+    lastCrawlStatus: nextStatus,
+    lastCrawlSummary: stats as unknown as Record<string, unknown>,
+    lastErrorMessage: allFailed ? "全部栏目抓取失败" : (stats.failed > 0 ? `${stats.failed} 个详情页抓取失败` : null),
+    updatedAt: new Date()
+  }).where(eq(standardSources.id, source.id));
 
   // 顺带扫描：过渡期已结束的旧标准文档自动失效（无需独立定时任务）
   if (!allFailed) {

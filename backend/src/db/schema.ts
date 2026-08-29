@@ -62,7 +62,8 @@ export const loginResultEnum = pgEnum("login_result", ["SUCCESS", "FAILED"]);
 export const aiProviderTypeEnum = pgEnum("ai_provider_type", ["OPENAI_COMPATIBLE"]);
 export const aiPromptVersionStatusEnum = pgEnum("ai_prompt_version_status", ["DRAFT", "PUBLISHED", "DISABLED"]);
 export const menuTypeEnum = pgEnum("menu_type", ["DIRECTORY", "MENU", "BUTTON"]);
-export const dataScopeEnum = pgEnum("data_scope", ["ALL", "DEPT", "DEPT_AND_CHILDREN", "SELF", "CUSTOM", "PROJECT_OWNER"]);
+/** 数据范围：ALL 全量；CHANNEL/CHANNEL_AND_CHILDREN 渠道隔离预留；DEPT/DEPT_AND_CHILDREN 部门（历史值）；SELF 本人；PROJECT_OWNER 项目创建者；CUSTOM 自定义 */
+export const dataScopeEnum = pgEnum("data_scope", ["ALL", "DEPT", "DEPT_AND_CHILDREN", "SELF", "CUSTOM", "PROJECT_OWNER", "CHANNEL", "CHANNEL_AND_CHILDREN"]);
 export const aiMessageRoleEnum = pgEnum("ai_message_role", ["SYSTEM", "USER", "ASSISTANT", "TOOL"]);
 export const aiMessageStatusEnum = pgEnum("ai_message_status", ["PENDING", "STREAMING", "COMPLETED", "STOPPED", "FAILED", "BLOCKED"]);
 export const aiReasoningModeEnum = pgEnum("ai_reasoning_mode", ["OFF", "ON"]);
@@ -94,6 +95,8 @@ export const knowledgeDocTypeEnum = pgEnum("knowledge_doc_type", [
 // 证据等级取值与对应关系待甲方确认（见 docs/knowledge/README.md）
 export const knowledgeEvidenceLevelEnum = pgEnum("knowledge_evidence_level", ["A", "B", "C"]);
 export const knowledgeDocStatusEnum = pgEnum("knowledge_doc_status", ["ACTIVE", "DISABLED"]);
+/** 文档可见性：PUBLIC 进入 C 端公开文库；PRIVATE 仅项目/平台内部使用 */
+export const knowledgeDocVisibilityEnum = pgEnum("knowledge_doc_visibility", ["PUBLIC", "PRIVATE"]);
 export const knowledgeVersionStatusEnum = pgEnum("knowledge_version_status", [
   "DRAFT",
   "PENDING_REVIEW",
@@ -291,6 +294,9 @@ export const users = pgTable(
     remark: text("remark"),
     role: userRoleEnum("role").notNull().default("NORMAL_USER"),
     channelType: channelTypeEnum("channel_type"),
+    // 渠道数据隔离预留（第一期不启用业务过滤）：channelId 指向所属渠道账号（经销商），parentChannelId 指向上一级渠道
+    channelId: uuid("channel_id").references((): PgColumn => users.id, { onDelete: "set null" }),
+    parentChannelId: uuid("parent_channel_id").references((): PgColumn => users.id, { onDelete: "set null" }),
     status: userStatusEnum("status").notNull().default("ACTIVE"),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
     ...timestamps
@@ -595,10 +601,13 @@ export const knowledgeDocuments = pgTable(
     allowedPurposes: jsonb("allowed_purposes").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
     categoryId: uuid("category_id").references((): PgColumn => knowledgeCategories.id, { onDelete: "set null" }),
     currentVersionId: uuid("current_version_id").references((): PgColumn => knowledgeDocumentVersions.id, { onDelete: "set null" }),
+    // Wiki 体系标注：该文档适用的保温体系（空 = 不限定体系）；AI 会话按会话体系加权检索
+    insulationSystemId: uuid("insulation_system_id").references((): PgColumn => insulationSystems.id, { onDelete: "set null" }),
     version: integer("version").notNull().default(1),
     pageCount: integer("page_count"),
     parser: varchar("parser", { length: 80 }).notNull().default("none"),
     status: knowledgeDocStatusEnum("status").notNull().default("ACTIVE"),
+    visibility: knowledgeDocVisibilityEnum("visibility").notNull().default("PRIVATE"),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
     createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
     updatedById: uuid("updated_by_id").references(() => users.id, { onDelete: "set null" }),
@@ -608,6 +617,8 @@ export const knowledgeDocuments = pgTable(
     uniqueIndex("knowledge_documents_file_version_unique").on(table.fileId, table.version),
     index("knowledge_documents_status_category_idx").on(table.status, table.categoryId),
     index("knowledge_documents_doc_type_status_idx").on(table.docType, table.status),
+    index("knowledge_documents_visibility_status_idx").on(table.visibility, table.status),
+    index("knowledge_documents_insulation_system_idx").on(table.insulationSystemId),
     index("knowledge_documents_deleted_idx").on(table.deletedAt)
   ]
 );
@@ -662,6 +673,8 @@ export const knowledgeSections = pgTable(
     sortOrder: integer("sort_order").notNull().default(0),
     startPage: integer("start_page"),
     endPage: integer("end_page"),
+    /** 章节检索文本：标题 + 标题路径（层级检索第一层；正文命中由页面块/Chunk 承担） */
+    searchText: text("search_text"),
     sourceAnchor: varchar("source_anchor", { length: 255 }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
   },
@@ -669,7 +682,8 @@ export const knowledgeSections = pgTable(
     uniqueIndex("knowledge_sections_version_key_unique").on(table.versionId, table.sectionKey),
     index("knowledge_sections_document_version_idx").on(table.documentId, table.versionId),
     index("knowledge_sections_parent_sort_idx").on(table.parentId, table.sortOrder),
-    index("knowledge_sections_title_idx").on(table.title)
+    index("knowledge_sections_title_idx").on(table.title),
+    index("knowledge_sections_search_text_trgm_idx").using("gin", sql`${table.searchText} gin_trgm_ops`)
   ]
 );
 
@@ -908,6 +922,11 @@ export const knowledgeCrawlerSources = pgTable(
     downloadUrlPattern: text("download_url_pattern").notNull(),
     docType: knowledgeDocTypeEnum("doc_type").notNull().default("STANDARD"),
     enabled: boolean("enabled").notNull().default(true),
+    // 运营回写：最近抓取时间/结果与失败原因（由抓取收尾处更新），人工备注由 B 端维护
+    lastCrawledAt: timestamp("last_crawled_at", { withTimezone: true }),
+    lastCrawlStatus: varchar("last_crawl_status", { length: 20 }),
+    lastErrorMessage: text("last_error_message"),
+    operatorRemark: text("operator_remark"),
     createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
     ...timestamps
   },
@@ -1046,6 +1065,8 @@ export const aiConversations = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     userId: uuid("user_id").notNull().references(() => users.id),
     projectId: uuid("project_id").references(() => projects.id),
+    // 会话级保温体系上下文：专业场景必选、可切换；历史会话允许为空（发送专业消息前提示补选）
+    insulationSystemId: uuid("insulation_system_id").references((): PgColumn => insulationSystems.id, { onDelete: "set null" }),
     clientApp: varchar("client_app", { length: 40 }).notNull(),
     scene: varchar("scene", { length: 80 }).notNull(),
     title: varchar("title", { length: 120 }),
@@ -1309,6 +1330,51 @@ export const auditLogs = pgTable(
     index("audit_logs_actor_created_idx").on(table.actorUserId, table.createdAt),
     index("audit_logs_project_created_idx").on(table.projectId, table.createdAt),
     index("audit_logs_action_created_idx").on(table.action, table.createdAt)
+  ]
+);
+
+// ---------------------------------------------------------------- 消息通知（B 端提醒闭环，轮询读取）
+
+/** 通知类型：AI 反馈提醒 / 标准待审核 / 知识解析失败 / 报告生成失败 */
+export const notificationTypeEnum = pgEnum("notification_type", [
+  "AI_FEEDBACK",
+  "STANDARD_PENDING_REVIEW",
+  "KNOWLEDGE_PARSE_FAILED",
+  "REPORT_GENERATION_FAILED"
+]);
+
+/** 广播通知（B 端管理端轮询查看）；targetType/targetId 指向触发事件业务对象 */
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    type: notificationTypeEnum("type").notNull(),
+    title: varchar("title", { length: 200 }).notNull(),
+    content: text("content"),
+    targetType: varchar("target_type", { length: 80 }),
+    targetId: uuid("target_id"),
+    projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
+    createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    ...timestamps
+  },
+  (table) => [
+    index("notifications_type_created_idx").on(table.type, table.createdAt),
+    index("notifications_project_idx").on(table.projectId)
+  ]
+);
+
+/** 通知每用户已读记录（广播通知不 fan-out 行，只记已读差集） */
+export const notificationReads = pgTable(
+  "notification_reads",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    notificationId: uuid("notification_id").notNull().references(() => notifications.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    readAt: timestamp("read_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => [
+    uniqueIndex("notification_reads_notification_user_unique").on(table.notificationId, table.userId),
+    index("notification_reads_user_read_idx").on(table.userId, table.readAt)
   ]
 );
 
@@ -1933,6 +1999,11 @@ export const standardSources = pgTable(
     crawlScope: varchar("crawl_scope", { length: 20 }).notNull().default("today"),
     enabled: boolean("enabled").notNull().default(true),
     lastCrawledAt: timestamp("last_crawled_at", { withTimezone: true }),
+    // 运营回写：最近一次抓取结果与失败原因（由抓取收尾处更新），人工备注由 B 端维护
+    lastCrawlStatus: varchar("last_crawl_status", { length: 20 }),
+    lastCrawlSummary: jsonb("last_crawl_summary").$type<Record<string, unknown>>(),
+    lastErrorMessage: text("last_error_message"),
+    operatorRemark: text("operator_remark"),
     createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
     ...timestamps
   },

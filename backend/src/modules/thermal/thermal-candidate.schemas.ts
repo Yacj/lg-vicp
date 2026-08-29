@@ -72,6 +72,11 @@ export const thermalCandidateDto = z.object({
   missingConditions: z.array(z.string()),
   /** 与解析出的标准限值比较（K 判定）；无限值时 null */
   compliant: z.boolean().nullable(),
+  /** 目标 K 值排序信息（提供 targetK 时返回；kGap = targetK - kValue，isClosestToTarget 标记最接近目标的候选） */
+  ranking: z.object({
+    kGap: z.number(),
+    isClosestToTarget: z.boolean()
+  }).optional(),
   scheme: z.object({
     id: z.uuid(),
     code: z.string(),

@@ -481,6 +481,7 @@ export async function enqueueParsing(
 }
 
 /** 切片重建：不重新读取文件，基于现有页面原文重切分块 */
+/** 切片重建：不重新读取文件，基于现有页面原文重切分块（含 Wiki 章节/内容块重建；已发布版本允许，用于历史资料 Wiki 升级且不降级管线状态） */
 export async function enqueueChunkRebuild(
   app: FastifyInstance,
   request: FastifyRequest,
@@ -488,8 +489,8 @@ export async function enqueueChunkRebuild(
   versionId: string
 ) {
   const version = await requireVersion(app, versionId);
-  if (version.status === "PUBLISHED" || version.status === "DISABLED") {
-    throw new ConflictError("已发布或已停用的版本不允许重建分块");
+  if (version.status === "DISABLED") {
+    throw new ConflictError("已停用的版本不允许重建分块");
   }
   const [pageRow] = await app.db.select({ id: knowledgePages.id }).from(knowledgePages)
     .where(eq(knowledgePages.versionId, versionId)).limit(1);

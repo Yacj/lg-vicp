@@ -41,10 +41,32 @@
   "usage": { "inputTokens": 0, "outputTokens": 0, "reasoningTokens": 0 },
   "model": { "id": "模型行ID" },
   "promptVersion": { "id": "版本ID", "version": 1 },
-  "sources": [{ "title": "来源标题", "page": 1 }],
+  "sources": [AiSourceRef],
   "latencyMs": 1234
 }
 ```
+
+`sources` 为统一原文溯源契约（`src/modules/ai/ai-source.mapper.ts`，正常生成与 regenerate 同构）：
+
+```json
+{
+  "sourceType": "KNOWLEDGE",
+  "retrievalUnit": "SECTION | PAGE | BLOCK | CHUNK",
+  "documentId": "uuid", "versionId": "uuid",
+  "sectionId": "uuid?", "pageId": "uuid?", "blockId": "uuid?", "chunkId": "uuid?（仅 Chunk 辅助索引场景存在）",
+  "title": "文档标题",
+  "chapter": "5 设计与构造", "section": "5.2 VICP薄抹灰外保温系统",
+  "sectionPath": ["5 设计与构造", "5.2 VICP薄抹灰外保温系统"],
+  "citationAnchor": "5.2.3",
+  "pageNumber": 21, "pageStart": 21, "pageEnd": 23, "page": 21,
+  "matchedText": "本次实际命中的章节/页面/块/切片内容",
+  "snippet": "命中词 ±40 字截取",
+  "highlightRanges": [{ "pageId": "uuid", "pageNumber": 21, "blockId": "uuid", "text": "命中原文" }],
+  "evidenceLevel": "A", "score": 12.5
+}
+```
+
+无知识检索证据时 `sources` 为空数组，不伪造来源；`page` 为兼容字段（等价 `pageNumber`），客户端点击来源后调用 `GET /api/v1/ai/knowledge/source-detail` 获取完整页与高亮定位。
 
 ### `stopped`
 

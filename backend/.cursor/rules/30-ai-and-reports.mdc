@@ -5,6 +5,9 @@ alwaysApply: false
 ---
 
 - 模型按场景读取数据库配置，禁止写死 DeepSeek、Base URL、模型 ID 或 API Key。
+- 知识库为 Wiki 层级体系（Document→Section→Page→Page Block），AI 检索走 `searchWikiHierarchy`（章节/页面/内容块优先，Chunk 辅助），禁止默认全库 TopN chunk 拼接。
+- AI 来源契约统一走 `ai-source.mapper.ts`（AiSourceRef），正常生成与 regenerate 同构；无证据返回空数组，不伪造来源；来源详情走 `/api/v1/ai/knowledge/source-detail`。
+- 专业 AI 会话必须选择保温体系（会话级 `insulationSystemId`，非 general_chat 强制），体系影响 Prompt、检索加权与候选查询。
 - API Key 加密保存，任何响应不得返回密钥材料。
 - AI 不执行任意 SQL、Shell、文件操作或绕过项目权限。
 - AI 工具必须有 Zod 输入、权限检查和审计；工程计算必须由确定性服务完成。

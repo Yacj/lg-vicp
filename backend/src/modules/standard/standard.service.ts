@@ -19,6 +19,7 @@ import { ConflictError } from "../../shared/errors.js";
 import { StandardError } from "../../shared/standard-errors.js";
 import type { ObjectStorage } from "../../storage/index.js";
 import { writeAuditLog } from "../audit-logs/audit-log.service.js";
+import { createNotification } from "../notifications/notification.service.js";
 import { upsertProfessionalReview } from "../review-center/professional-review.js";
 
 /**
@@ -105,6 +106,7 @@ export interface SourceInput {
   keywords?: { titleKeywords?: string[]; excludeKeywords?: string[] };
   crawlScope?: "today" | "all";
   enabled?: boolean;
+  operatorRemark?: string | null;
 }
 
 export async function listSources(deps: StandardDeps, enabled?: boolean) {
@@ -135,6 +137,7 @@ export async function createSource(
     keywords: { titleKeywords: input.keywords?.titleKeywords ?? [], excludeKeywords: input.keywords?.excludeKeywords ?? [] } as never,
     crawlScope: input.crawlScope ?? "today",
     enabled: input.enabled ?? true,
+    operatorRemark: input.operatorRemark ?? null,
     createdById: actor.id
   }).returning();
   await writeAuditLog({
@@ -162,6 +165,7 @@ export async function updateSource(
     }) as never,
     crawlScope: input.crawlScope ?? existing.crawlScope,
     enabled: input.enabled ?? existing.enabled,
+    operatorRemark: input.operatorRemark ?? existing.operatorRemark,
     updatedAt: new Date()
   }).where(eq(standardSources.id, id)).returning();
   await writeAuditLog({
@@ -422,9 +426,19 @@ export async function deleteDocument(
 // ---------------------------------------------------------------- 文档审核流转
 
 export async function submitDocument(deps: StandardDeps, request: FastifyRequest, actor: AuthUser, id: string) {
-  return transition(deps, request, actor, standardDocuments, standardDocuments.id, standardDocuments.status,
+  const row = await transition(deps, request, actor, standardDocuments, standardDocuments.id, standardDocuments.status,
     id, ["DRAFT", "REJECTED"], "PENDING_REVIEW", AUDIT_ACTIONS.STANDARD_DOCUMENT_SUBMITTED, "standard_document", "标准文档",
     { submittedById: actor.id, submittedAt: new Date() });
+  // 提醒闭环：标准文档进入待审核时生成 B 端通知（尽力写入，失败不阻塞提交）
+  await createNotification(deps, {
+    type: "STANDARD_PENDING_REVIEW",
+    title: "地方标准文档已提交待审核",
+    content: typeof row?.title === "string" ? `《${row.title}》等待人工审核后才会对用户与 AI 可见` : null,
+    targetType: "standard_document",
+    targetId: id,
+    createdById: actor.id
+  });
+  return row;
 }
 
 export async function approveDocument(deps: StandardDeps, request: FastifyRequest, actor: AuthUser, id: string, approvalNote?: string) {

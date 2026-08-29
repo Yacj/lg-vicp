@@ -204,3 +204,46 @@ describe("排序规则（只按后台规则，不宣称最优）", () => {
     expect(outcome.candidates.slice(1).every((c) => c.matchType === "NEIGHBOR")).toBe(true);
   });
 });
+describe("目标 K 值最接近优先排序（甲方规则：K≤目标且最接近 targetK 优先）", () => {
+  // thicknessMm 与 kValue 反向（厚度越厚 K 越小）：旧排序按厚度升序，
+  // 新排序在提供 targetK 时按 targetK - kValue 升序（最接近目标优先）。
+  const gapRows = [
+    makeRow({ rowId: "row-near", thicknessMm: 30, totalThermalResistance: 4.35, kValue: 0.232 }),
+    makeRow({ rowId: "row-mid", thicknessMm: 40, totalThermalResistance: 5.1, kValue: 0.196 }),
+    makeRow({ rowId: "row-far", thicknessMm: 50, totalThermalResistance: 5.9, kValue: 0.169 }),
+    // K > targetK 的行不进入合格候选
+    makeRow({ rowId: "row-over", thicknessMm: 20, totalThermalResistance: 3.8, kValue: 0.32 })
+  ];
+
+  it("targetK=0.25：K=0.232 排在 0.196、0.169 之前（kGap 升序）", () => {
+    const outcome = matchThermalCandidates(gapRows, { specClass: "I", targetK: 0.25 });
+    expect(outcome.candidates.map((c) => c.result.kValue)).toEqual([0.232, 0.196, 0.169]);
+  });
+
+  it("K > targetK 的候选被排除，其余全部返回（不只返回第一条）", () => {
+    const outcome = matchThermalCandidates(gapRows, { specClass: "I", targetK: 0.25 });
+    expect(outcome.candidates).toHaveLength(3);
+    expect(outcome.candidates.some((c) => c.candidateId === "row-over")).toBe(false);
+  });
+
+  it("候选携带 ranking：kGap = targetK - kValue，首条标记 isClosestToTarget", () => {
+    const outcome = matchThermalCandidates(gapRows, { specClass: "I", targetK: 0.25 });
+    const [first, second] = outcome.candidates;
+    expect(first!.ranking).toEqual({ kGap: 0.018, isClosestToTarget: true });
+    expect(second!.ranking).toEqual({ kGap: 0.054, isClosestToTarget: false });
+    expect(outcome.candidates.filter((c) => c.ranking?.isClosestToTarget)).toHaveLength(1);
+  });
+
+  it("targetK 缺省由限值填充时同样生效（服务层语义一致）", () => {
+    const outcome = matchThermalCandidates(gapRows, { specClass: "I", targetK: 0.2 });
+    // targetK=0.2：仅 K ≤ 0.2 的 0.196/0.169 合格，0.196 更接近
+    expect(outcome.candidates.map((c) => c.result.kValue)).toEqual([0.196, 0.169]);
+    expect(outcome.candidates[0]!.ranking).toEqual({ kGap: 0.004, isClosestToTarget: true });
+  });
+
+  it("无 targetK 时维持原有厚度升序排序，且不产生 ranking", () => {
+    const outcome = matchThermalCandidates(gapRows, { specClass: "I" });
+    expect(outcome.candidates.map((c) => c.result.thicknessMm)).toEqual([20, 30, 40, 50]);
+    expect(outcome.candidates.every((c) => c.ranking === undefined)).toBe(true);
+  });
+});

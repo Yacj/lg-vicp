@@ -154,6 +154,11 @@ function detectPageSection(text: string): string | null {
   return null;
 }
 
+/** 章节检索文本归一化：与检索管线 normalizeSearchText 保持一致（NFKC + 空白折叠 + 小写） */
+function normalizeSectionSearchText(value: string): string {
+  return value.normalize("NFKC").replace(/\s+/g, " ").trim().toLowerCase();
+}
+
 /** 文本中是否出现表格/图片编号引用 */
 function detectPageMarks(text: string): { hasTables: boolean; hasImages: boolean } {
   return {
@@ -181,6 +186,7 @@ interface WikiSectionDraft {
   sortOrder: number;
   startPage: number | null;
   endPage: number | null;
+  searchText: string;
   sourceAnchor: string | null;
 }
 
@@ -207,6 +213,7 @@ function buildWikiStructure(versionId: string, title: string, pages: ParsedPage[
     sortOrder: 0,
     startPage: pages[0]?.page ?? 0,
     endPage: pages[pages.length - 1]?.page ?? 0,
+    searchText: normalizeSectionSearchText(title || "文档正文"),
     sourceAnchor: null
   }];
   const sectionByKey = new Map<string, WikiSectionDraft>([["root", sections[0]!]]);
@@ -238,6 +245,7 @@ function buildWikiStructure(versionId: string, title: string, pages: ParsedPage[
           sortOrder: sections.filter((item) => item.parentId === parentSection.id).length + 1,
           startPage: pageNumber,
           endPage: pageNumber,
+          searchText: normalizeSectionSearchText([title || "文档正文", ...headingPath].join(" ")),
           sourceAnchor: heading.anchor
         };
         sectionByKey.set(sectionKey, section);
@@ -422,6 +430,7 @@ async function writeParsedContent(tx: DbExecutor, input: WriteParsedInput): Prom
     sortOrder: section.sortOrder,
     startPage: section.startPage,
     endPage: section.endPage,
+    searchText: section.searchText,
     sourceAnchor: section.sourceAnchor
   })))) {
     await tx.insert(knowledgeSections).values(values);
@@ -469,6 +478,20 @@ async function writeParsedContent(tx: DbExecutor, input: WriteParsedInput): Prom
     sectionCount: wiki.sections.length,
     blockCount: written.blockCount
   };
+}
+
+import { createNotification } from "../modules/notifications/notification.service.js";
+
+/** 知识解析链路失败提醒：终态失败时生成 B 端通知（尽力写入，失败不阻塞失败状态收敛） */
+async function notifyKnowledgeParseFailure(db: Database, data: DocumentJobData, message: string): Promise<void> {
+  if (!data.versionId) return;
+  await createNotification({ db }, {
+    type: "KNOWLEDGE_PARSE_FAILED",
+    title: data.jobType === "CHUNK_REBUILD" ? "知识库分块重建失败" : "知识库文档解析失败",
+    content: message,
+    targetType: "knowledge_document_version",
+    targetId: data.versionId
+  });
 }
 
 /** 知识库链路解析任务：PARSE / REPARSE（重新读取 OSS 文件解析并重写页面与分块） */
@@ -555,6 +578,7 @@ async function handleParseJob(
   } catch (error) {
     const message = error instanceof Error ? error.message : "文档解析失败";
     await reconcileDocumentJobFailure(db, job.data, message, job.attemptsMade + 1);
+    await notifyKnowledgeParseFailure(db, job.data, message);
     throw error;
   }
 }
@@ -590,7 +614,12 @@ async function handleChunkRebuild(
         aliases,
         evidenceLevel: version.evidenceLevel
       });
-      await tx.update(knowledgeDocumentVersions).set({ pipelineStatus: "REVIEW_PENDING", updatedAt: new Date() })
+      await tx.update(knowledgeDocumentVersions).set(
+        // 已发布版本的 Wiki 层重建（历史资料升级）只重写派生内容，不把管线状态降级回 REVIEW_PENDING
+        version.status === "PUBLISHED"
+          ? { updatedAt: new Date() }
+          : { pipelineStatus: "REVIEW_PENDING", updatedAt: new Date() }
+      )
         .where(eq(knowledgeDocumentVersions.id, versionId));
       return written;
     });
@@ -603,6 +632,7 @@ async function handleChunkRebuild(
   } catch (error) {
     const message = error instanceof Error ? error.message : "分块重建失败";
     await reconcileDocumentJobFailure(db, job.data, message, job.attemptsMade + 1);
+    await notifyKnowledgeParseFailure(db, job.data, message);
     throw error;
   }
 }

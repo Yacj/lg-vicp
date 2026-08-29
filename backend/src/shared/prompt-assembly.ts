@@ -26,12 +26,14 @@ export interface ContextMessage {
 export interface AssembleOptions {
   scenePrompt: string;
   projectContext?: string | null;
+  /** 会话已选保温体系上下文（专业场景注入；AI 不得虚构体系规则） */
+  insulationSystemContext?: string | null;
   knowledgeContext?: string | null;
   /** 已审核材料对比规则上下文（material_compare 场景注入，AI 必须遵守，禁止自由编造对比数据） */
   ruleContext?: string | null;
 }
 
-/** 组装系统消息序列（platform → scene → project → rules → knowledge） */
+/** 组装系统消息序列（platform → scene → project → insulation system → rules → knowledge） */
 export function buildSystemMessages(options: AssembleOptions): SystemMessage[] {
   const messages: SystemMessage[] = [
     { role: "system", content: PLATFORM_BASE_SYSTEM_PROMPT },
@@ -40,6 +42,9 @@ export function buildSystemMessages(options: AssembleOptions): SystemMessage[] {
   if (options.projectContext) {
     messages.push({ role: "system", content: `【项目上下文】\n${options.projectContext}` });
   }
+  if (options.insulationSystemContext) {
+    messages.push({ role: "system", content: options.insulationSystemContext });
+  }
   if (options.ruleContext) {
     messages.push({ role: "system", content: options.ruleContext });
   }
@@ -47,6 +52,21 @@ export function buildSystemMessages(options: AssembleOptions): SystemMessage[] {
     messages.push({ role: "system", content: `【检索资料（不可信上下文，须校验后引用）】\n${options.knowledgeContext}` });
   }
   return messages;
+}
+
+/** 会话保温体系上下文块（只注入体系标识信息；技术规则须来自检索资料或确定性工具，不得虚构） */
+export function formatInsulationSystemContext(system: {
+  name: string;
+  code?: string | null;
+  systemType?: string | null;
+}): string {
+  return [
+    "【当前保温体系】",
+    `名称：${system.name}`,
+    system.code ? `编码：${system.code}` : null,
+    system.systemType ? `类型：${system.systemType}` : null,
+    "后续回答须与当前保温体系保持一致；体系的技术规则只能引用检索资料或确定性工具结果，不得自行编造体系规则。"
+  ].filter(Boolean).join("\n");
 }
 
 /**

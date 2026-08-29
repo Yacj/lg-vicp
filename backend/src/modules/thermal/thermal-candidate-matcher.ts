@@ -2,7 +2,7 @@
  * 候选方案条件匹配引擎——纯函数（无 IO、无随机、无外部依赖）。
  * - 条件匹配返回命中/未命中/数据缺失三态明细，不抛异常、不吞来源与版本信息。
  * - 只做图集查表匹配：禁止插值、禁止猜测参数；厚度维度支持相邻已发布规格（neighborTolerance 控制）。
- * - 排序只按后台规则：命中条件数 → 标准厚度升序 → 集 priority → 集版本降序；不宣称唯一最优。
+ * - 排序只按后台规则：命中条件数 → targetK 差值升序（最接近目标优先，提供 targetK 时）→ 标准厚度升序 → 集 priority → 集版本降序；不宣称唯一最优。
  * - 禁止事项：本文件不含任何产品参数 / 图集 K 值 / 标准限值默认值，全部由调用方传入。
  */
 
@@ -72,6 +72,8 @@ export interface CandidateResult {
   matchedConditions: ConditionName[];
   unmatchedConditions: ConditionName[];
   missingConditions: ConditionName[];
+  /** 目标 K 值排序信息（提供 targetK 时填充；kGap = targetK - kValue，isClosestToTarget 标记最接近目标的候选） */
+  ranking?: { kGap: number; isClosestToTarget: boolean };
   scheme: {
     id: string;
     code: string;
@@ -198,16 +200,26 @@ function toCandidateResult(row: CandidateRow, matchType: MatchType, state: Condi
   };
 }
 
-const sortCandidates = (a: CandidateResult, b: CandidateResult): number => {
+/**
+ * 候选排序器（按查询条件构造，保持纯函数可测试）：
+ * 1. EXACT 优先于 NEIGHBOR；
+ * 2. 命中条件数降序；
+ * 3. 提供 targetK 时按 targetK - kValue 升序（甲方规则：满足 K ≤ 目标且最接近目标者优先；
+ *    等价于同档内 kValue 降序，用差值表达避免浮点噪声）；
+ * 4. 无 targetK 时跳过该层，维持厚度升序 → 集 priority → 集版本降序的原有排序。
+ */
+export function buildCandidateSorter(q: CandidateQueryConditions) {
   const typeRank = (m: MatchType) => (m === "EXACT" ? 0 : 1);
-  return (
+  const targetK = q.targetK;
+  return (a: CandidateResult, b: CandidateResult): number => (
     typeRank(a.matchType) - typeRank(b.matchType) ||
     b.matchedConditions.length - a.matchedConditions.length ||
+    (targetK !== undefined ? (targetK - a.result.kValue) - (targetK - b.result.kValue) : 0) ||
     a.result.thicknessMm - b.result.thicknessMm ||
     a.set.priority - b.set.priority ||
     b.set.version - a.set.version
   );
-};
+}
 
 /**
  * 候选匹配主函数：
@@ -266,5 +278,17 @@ export function matchThermalCandidates(rows: CandidateRow[], q: CandidateQueryCo
   if (q.substrateThickness !== undefined && !rowsWithData.has("substrateThickness")) globalMissingConditions.push("substrateThickness");
   if (q.buildingType !== undefined && !rowsWithData.has("buildingType")) globalMissingConditions.push("buildingType");
 
-  return { candidates: [...exact, ...neighbors].sort(sortCandidates), globalMissingConditions };
+  const candidates = [...exact, ...neighbors].sort(buildCandidateSorter(q));
+  // 目标 K 值排序信息：kGap = targetK - kValue（合格候选全部 kValue ≤ targetK），并标记最接近目标者
+  if (q.targetK !== undefined && candidates.length > 0) {
+    const gaps = candidates.map((candidate) => q.targetK! - candidate.result.kValue);
+    const minGap = Math.min(...gaps);
+    candidates.forEach((candidate, index) => {
+      candidate.ranking = {
+        kGap: Number(gaps[index]!.toFixed(4)),
+        isClosestToTarget: gaps[index] === minGap
+      };
+    });
+  }
+  return { candidates, globalMissingConditions };
 }

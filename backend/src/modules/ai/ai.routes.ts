@@ -28,6 +28,10 @@ import { canManageProject, canViewProject } from "../../shared/permissions.js";
 import { getPagination, paginationQuerySchema } from "../../shared/pagination.js";
 import { estimateTokens, buildSystemMessages, type ContextMessage } from "../../shared/prompt-assembly.js";
 import { budgetHistory } from "../../shared/prompt-assembly.js";
+import { formatInsulationSystemContext } from "../../shared/prompt-assembly.js";
+import { getPublishedInsulationSystem, listPublishedInsulationSystems } from "../construction/construction-read.service.js";
+import { createNotification } from "../notifications/notification.service.js";
+import { toAiSources } from "./ai-source.mapper.js";
 import { ok } from "../../shared/response.js";
 import { isAbortError, startSseStream, writeProgress, writeSse } from "./ai-sse.js";
 import { writeAuditLog } from "../audit-logs/audit-log.service.js";
@@ -63,10 +67,15 @@ const sceneValues = [
 
 const createConversationBodySchema = z.object({
   projectId: z.uuid("项目 ID 格式不正确").optional(),
+  // 会话级保温体系：专业场景（非 general_chat）必选；general_chat 可不选
+  insulationSystemId: z.uuid("保温体系 ID 格式不正确").nullable().optional(),
   clientApp: z.enum([CLIENT_APPS.PC_AI, CLIENT_APPS.B_ADMIN, CLIENT_APPS.C_APP]),
   scene: z.enum(sceneValues),
   title: z.string().trim().max(120, "会话标题不能超过 120 个字符").optional(),
   reasoningMode: z.enum(["OFF", "ON"]).default("OFF")
+});
+const updateInsulationSystemBodySchema = z.object({
+  insulationSystemId: z.uuid("保温体系 ID 格式不正确").nullable()
 });
 const conversationParamsSchema = z.object({ id: z.uuid("会话 ID 格式不正确") });
 const conversationSettingsBodySchema = z.object({
@@ -150,6 +159,18 @@ function expectedClientApp(clientType: ReturnType<typeof getCurrentUser>["client
   return CLIENT_APPS.C_APP;
 }
 
+/** 专业场景（非 general_chat）在进入技术问答前必须选择保温体系 */
+export function isProfessionalScene(scene: string): boolean {
+  return scene !== AI_SCENES.GENERAL_CHAT;
+}
+
+/** 会话保温体系守卫（纯函数部分，便于测试）：专业场景缺失体系即拦截 */
+export function assertInsulationSystemForScene(scene: string, insulationSystemId: string | null | undefined): void {
+  if (isProfessionalScene(scene) && !insulationSystemId) {
+    throw new AiError("AI_INSULATION_SYSTEM_REQUIRED");
+  }
+}
+
 async function findAssistantMessageWithConversation(app: FastifyInstance, id: string) {
   const [row] = await app.db.select({ message: aiMessages, conversation: aiConversations })
     .from(aiMessages)
@@ -183,11 +204,18 @@ export async function aiRoutes(app: FastifyInstance) {
         throw new ForbiddenError("只有项目创建者或超级管理员可以生成项目报告");
       }
     }
+    // 专业场景必须选择保温体系；填写时校验体系已发布生效
+    assertInsulationSystemForScene(request.body.scene, request.body.insulationSystemId);
+    if (request.body.insulationSystemId) {
+      const system = await getPublishedInsulationSystem(app.db, request.body.insulationSystemId);
+      if (!system) throw new NotFoundError("保温体系不存在或尚未发布");
+    }
 
     const conversation = await app.db.transaction(async (tx) => {
       const [created] = await tx.insert(aiConversations).values({
         userId: user.id,
         projectId: request.body.projectId,
+        insulationSystemId: request.body.insulationSystemId ?? null,
         clientApp: request.body.clientApp,
         scene: request.body.scene,
         title: request.body.title,
@@ -568,6 +596,69 @@ export async function aiRoutes(app: FastifyInstance) {
     return ok(request, { message: "AI 会话深度思考设置已更新", conversation: updated });
   });
 
+  // ---------------------------------------------------------------- 会话保温体系上下文
+
+  route.get("/context/insulation-systems", {
+    preHandler: [app.authenticate],
+    schema: {
+      tags: ["共用 / AI对话"],
+      summary: "获取 C 端/PC AI 端可选保温体系（PUBLISHED 且生效中，不依赖后台 RBAC）"
+    }
+  }, async (request) => {
+    getCurrentUser(request);
+    const rows = await listPublishedInsulationSystems(app.db, {});
+    // 同一编码多版本时取最高版本，避免重复选项
+    const byCode = new Map<string, typeof rows[number]>();
+    for (const row of rows) {
+      const existing = byCode.get(row.code);
+      if (!existing || row.version > existing.version) byCode.set(row.code, row);
+    }
+    const items = [...byCode.values()].map((row) => ({
+      id: row.id,
+      code: row.code,
+      name: row.name,
+      systemType: row.systemType,
+      description: row.description
+    }));
+    return ok(request, { items });
+  });
+
+  route.patch("/conversations/:id/insulation-system", {
+    preHandler: [app.authenticate],
+    schema: {
+      tags: ["共用 / AI对话"],
+      summary: "切换会话保温体系（会话级上下文，切换后历史消息不变）",
+      params: conversationParamsSchema,
+      body: updateInsulationSystemBodySchema
+    }
+  }, async (request) => {
+    const user = getCurrentUser(request);
+    const conversation = await findConversation(app, request.params.id);
+    if (!conversation) throw new NotFoundError("AI 会话不存在");
+    ensureConversationOwner(user, conversation);
+    let systemName: string | null = null;
+    if (request.body.insulationSystemId) {
+      const system = await getPublishedInsulationSystem(app.db, request.body.insulationSystemId);
+      if (!system) throw new NotFoundError("保温体系不存在或尚未发布");
+      systemName = system.name;
+    }
+    const updated = await app.db.transaction(async (tx) => {
+      const [row] = await tx.update(aiConversations)
+        .set({ insulationSystemId: request.body.insulationSystemId, updatedAt: new Date() })
+        .where(eq(aiConversations.id, conversation.id))
+        .returning();
+      await writeAuditLog({
+        db: tx, request, actor: user, projectId: conversation.projectId ?? undefined,
+        action: "ai.conversation_insulation_system_changed",
+        targetType: "ai_conversation", targetId: conversation.id,
+        beforeJson: { insulationSystemId: conversation.insulationSystemId },
+        afterJson: { insulationSystemId: row!.insulationSystemId, insulationSystemName: systemName }
+      });
+      return row!;
+    });
+    return ok(request, { message: "AI 会话保温体系已更新", conversation: updated });
+  });
+
   route.post("/conversations/:id/messages", {
     preHandler: [app.authenticate],
     schema: {
@@ -581,6 +672,8 @@ export async function aiRoutes(app: FastifyInstance) {
     const conversation = await findConversation(app, request.params.id);
     if (!conversation) throw new NotFoundError("AI 会话不存在");
     ensureConversationOwner(user, conversation);
+    // 历史专业会话可能未选体系：发送专业消息前提示补选（不破坏 general_chat）
+    assertInsulationSystemForScene(conversation.scene, conversation.insulationSystemId);
     await streamConversationReply({
       app,
       request,
@@ -731,6 +824,19 @@ export async function aiRoutes(app: FastifyInstance) {
       return saved!;
     });
 
+    // 反馈提醒闭环：点踩或带文字反馈时生成 B 端通知（尽力写入，失败不阻塞反馈保存）
+    if (feedback.reaction === AI_FEEDBACK_REACTIONS.DISLIKE || feedback.content) {
+      await createNotification(app, {
+        type: "AI_FEEDBACK",
+        title: feedback.reaction === AI_FEEDBACK_REACTIONS.DISLIKE ? "收到新的 AI 回答点踩反馈" : "收到新的 AI 回答文字反馈",
+        content: feedback.content ?? null,
+        targetType: "ai_message_feedback",
+        targetId: feedback.id,
+        projectId: feedback.projectId,
+        createdById: user.id
+      });
+    }
+
     return ok(request, { message: "AI 回答反馈已保存", feedback });
   });
 
@@ -814,15 +920,17 @@ export async function aiRoutes(app: FastifyInstance) {
     }).returning();
     if (!assistantMessage) throw new Error("AI 消息创建失败");
 
-    const chunks = runtime.allowKnowledgeSearch && row.conversation.projectId
-      ? await searchProjectKnowledge(app, row.conversation.projectId, lastUserMessage.content)
+    const chunks = runtime.allowKnowledgeSearch && (row.conversation.projectId || row.conversation.insulationSystemId)
+      ? await searchProjectKnowledge(app, row.conversation.projectId, lastUserMessage.content, {
+        insulationSystemId: row.conversation.insulationSystemId ?? null
+      })
       : [];
     if (chunks.length > 0) {
       await app.db.insert(aiRetrievalLogs).values(chunks.map((chunk) => ({
         conversationId: row.conversation.id,
         messageId: assistantMessage.id,
         documentId: chunk.documentId,
-        chunkId: chunk.chunkId,
+        chunkId: chunk.chunkId ?? null,
         score: chunk.score,
         sourcePage: chunk.sourcePage,
         sourceTitle: chunk.sourceTitle
@@ -830,6 +938,10 @@ export async function aiRoutes(app: FastifyInstance) {
     }
 
     const projectContext = runtime.requireProject ? await resolveProjectContext(app, row.conversation.projectId) : null;
+    // 会话保温体系上下文（与正常生成链路共用同一上下文与 mapper）
+    const insulationSystem = row.conversation.insulationSystemId
+      ? await getPublishedInsulationSystem(app.db, row.conversation.insulationSystemId)
+      : null;
     // material_compare 场景：注入已审核对比规则（只读 PUBLISHED+生效区间），回答完成后写入使用日志
     const comparisonRules = row.conversation.scene === AI_SCENES.MATERIAL_COMPARE
       ? await loadApprovedComparisonRules(app, {})
@@ -837,6 +949,9 @@ export async function aiRoutes(app: FastifyInstance) {
     const systemMessages = buildSystemMessages({
       scenePrompt: runtime.promptContent,
       projectContext,
+      insulationSystemContext: insulationSystem
+        ? formatInsulationSystemContext({ name: insulationSystem.name, code: insulationSystem.code, systemType: insulationSystem.systemType })
+        : null,
       knowledgeContext: chunks.length > 0 ? formatKnowledgeContext(chunks) : null,
       ruleContext: comparisonRules.length > 0 ? formatComparisonRuleContext(comparisonRules) : null
     });
@@ -1023,7 +1138,7 @@ export async function aiRoutes(app: FastifyInstance) {
       },
       model: { id: actualModelId },
       promptVersion: { id: runtime.promptVersionId, version: runtime.promptVersionNumber },
-      sources: chunks.map((chunk) => ({ title: chunk.sourceTitle, page: chunk.sourcePage })),
+      sources: toAiSources(chunks),
       latencyMs: Date.now() - startedAt
     });
     } catch (error) {

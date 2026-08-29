@@ -37,6 +37,14 @@ export async function listPublishedInsulationSystems(
   return db.select().from(insulationSystems).where(and(...conditions)).orderBy(desc(insulationSystems.version));
 }
 
+/** 单个已发布且生效中的保温体系（会话体系选择/校验用）；不存在或未发布返回 null */
+export async function getPublishedInsulationSystem(db: DbExecutor, id: string) {
+  const [row] = await db.select().from(insulationSystems)
+    .where(and(published(insulationSystems), eq(insulationSystems.id, id)))
+    .limit(1);
+  return row ?? null;
+}
+
 export async function listPublishedConstructionSchemes(
   db: DbExecutor,
   query: { systemId?: string; schemeCode?: string; keyword?: string } = {}

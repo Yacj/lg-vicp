@@ -297,6 +297,25 @@ export function renderDownloadUrl(pattern: string, now = new Date()): string {
 }
 
 /** 抓取单个抓取源：下载 → 哈希 → 幂等入库 → 解析；定时任务与手动触发共用 */
+/** 抓取源运营回写：最近抓取时间/结果与失败原因（B 端来源列表可见） */
+async function writebackCrawlerSourceStatus(
+  deps: IngestDeps,
+  sourceId: string,
+  status: "SUCCESS" | "FAILED",
+  errorMessage: string | null
+): Promise<void> {
+  try {
+    await deps.db.update(knowledgeCrawlerSources).set({
+      lastCrawledAt: new Date(),
+      lastCrawlStatus: status,
+      lastErrorMessage: errorMessage,
+      updatedAt: new Date()
+    }).where(eq(knowledgeCrawlerSources.id, sourceId));
+  } catch {
+    // 回写失败不影响抓取主流程
+  }
+}
+
 export async function runCrawlerSource(
   deps: IngestDeps,
   request: FastifyRequest | null,
@@ -305,44 +324,50 @@ export async function runCrawlerSource(
   const [source] = await deps.db.select().from(knowledgeCrawlerSources)
     .where(and(eq(knowledgeCrawlerSources.id, sourceId), eq(knowledgeCrawlerSources.enabled, true))).limit(1);
   if (!source) throw new NotFoundError("抓取源不存在或已停用");
-  const actor = await resolveSystemActor(deps.db);
-  const url = renderDownloadUrl(source.downloadUrlPattern);
-  const response = await fetch(url, {
-    signal: AbortSignal.timeout(30_000),
-    redirect: "follow",
-    headers: { "User-Agent": "lg-vicp-knowledge-crawler/1.0" }
-  });
-  if (!response.ok) throw new ServiceUnavailableError(`抓取失败：HTTP ${response.status}`);
-  const content = Buffer.from(await response.arrayBuffer());
-  if (content.length > env.MAX_UPLOAD_BYTES) {
-    throw new ForbiddenError(`抓取文件超过 ${Math.floor(env.MAX_UPLOAD_BYTES / 1024 / 1024)} MB 上限`);
-  }
-  const contentType = response.headers.get("content-type") ?? "application/octet-stream";
-  const fileName = source.name.includes(".") ? source.name : `${source.name}.pdf`;
-  const sha256 = createHash("sha256").update(content).digest("hex");
-  const result = await ingestServerSideFile(deps, request, actor, {
-    fileName,
-    mimeType: contentType,
-    sizeBytes: content.length,
-    sha256,
-    content,
-    source: "CRAWLER",
-    docType: source.docType,
-    title: source.name
-  });
-  if (request) {
-    await writeAuditLog({
-      db: deps.db, request, actor,
-      action: AUDIT_ACTIONS.KNOWLEDGE_CRAWLER_RUN, targetType: "knowledge_crawler_source", targetId: source.id,
-      afterJson: { url, ingested: !result.skipped, fileId: result.fileId, message: result.skipped ? "skipped" : "ingested" }
+  try {
+    const actor = await resolveSystemActor(deps.db);
+    const url = renderDownloadUrl(source.downloadUrlPattern);
+    const response = await fetch(url, {
+      signal: AbortSignal.timeout(30_000),
+      redirect: "follow",
+      headers: { "User-Agent": "lg-vicp-knowledge-crawler/1.0" }
     });
+    if (!response.ok) throw new ServiceUnavailableError(`抓取失败：HTTP ${response.status}`);
+    const content = Buffer.from(await response.arrayBuffer());
+    if (content.length > env.MAX_UPLOAD_BYTES) {
+      throw new ForbiddenError(`抓取文件超过 ${Math.floor(env.MAX_UPLOAD_BYTES / 1024 / 1024)} MB 上限`);
+    }
+    const contentType = response.headers.get("content-type") ?? "application/octet-stream";
+    const fileName = source.name.includes(".") ? source.name : `${source.name}.pdf`;
+    const sha256 = createHash("sha256").update(content).digest("hex");
+    const result = await ingestServerSideFile(deps, request, actor, {
+      fileName,
+      mimeType: contentType,
+      sizeBytes: content.length,
+      sha256,
+      content,
+      source: "CRAWLER",
+      docType: source.docType,
+      title: source.name
+    });
+    if (request) {
+      await writeAuditLog({
+        db: deps.db, request, actor,
+        action: AUDIT_ACTIONS.KNOWLEDGE_CRAWLER_RUN, targetType: "knowledge_crawler_source", targetId: source.id,
+        afterJson: { url, ingested: !result.skipped, fileId: result.fileId, message: result.skipped ? "skipped" : "ingested" }
+      });
+    }
+    await writebackCrawlerSourceStatus(deps, source.id, "SUCCESS", null);
+    return {
+      sourceName: source.name,
+      ingested: !result.skipped,
+      fileId: result.fileId,
+      message: result.skipped ? "内容未变化，跳过入库（幂等）" : "抓取并入库成功，等待解析与人工审核"
+    };
+  } catch (error) {
+    await writebackCrawlerSourceStatus(deps, source.id, "FAILED", error instanceof Error ? error.message.slice(0, 500) : "抓取失败");
+    throw error;
   }
-  return {
-    sourceName: source.name,
-    ingested: !result.skipped,
-    fileId: result.fileId,
-    message: result.skipped ? "内容未变化，跳过入库（幂等）" : "抓取并入库成功，等待解析与人工审核"
-  };
 }
 
 // ---------------------------------------------------------------- 抓取源管理（B 端）
@@ -384,7 +409,7 @@ export async function updateCrawlerSource(
   request: FastifyRequest,
   actor: AuthUser,
   id: string,
-  input: { name?: string; baseUrl?: string; downloadUrlPattern?: string; docType?: CrawlerDocType; enabled?: boolean }
+  input: { name?: string; baseUrl?: string; downloadUrlPattern?: string; docType?: CrawlerDocType; enabled?: boolean; operatorRemark?: string | null }
 ) {
   const [existing] = await deps.db.select().from(knowledgeCrawlerSources).where(eq(knowledgeCrawlerSources.id, id)).limit(1);
   if (!existing) throw new NotFoundError("抓取源不存在");
@@ -394,6 +419,7 @@ export async function updateCrawlerSource(
     downloadUrlPattern: input.downloadUrlPattern ?? existing.downloadUrlPattern,
     docType: input.docType ?? existing.docType,
     enabled: input.enabled ?? existing.enabled,
+    operatorRemark: input.operatorRemark ?? existing.operatorRemark,
     updatedAt: new Date()
   }).where(eq(knowledgeCrawlerSources.id, id)).returning();
   await writeAuditLog({
@@ -460,6 +486,7 @@ export async function loadRankingWeights(deps: IngestDeps): Promise<Record<strin
 export const DEFAULT_RANKING_WEIGHTS: Record<string, number> = {
   TITLE_HIT: 30,
   CLAUSE_NO_HIT: 25,
+  INSULATION_SYSTEM_MATCH: 22,
   PHRASE_HIT: 20,
   KEYWORD_HIT: 5,
   ALIAS_HIT: 4,
@@ -476,6 +503,7 @@ export function buildRankingRuleSeeds(): Array<{ key: string; weight: number; de
   return [
     { key: "TITLE_HIT", weight: 30, description: "文档标题/版本标题命中" },
     { key: "CLAUSE_NO_HIT", weight: 25, description: "条款号/引用锚点命中" },
+    { key: "INSULATION_SYSTEM_MATCH", weight: 22, description: "文档标注保温体系与会话体系一致加分" },
     { key: "PHRASE_HIT", weight: 20, description: "完整短语命中" },
     { key: "KEYWORD_HIT", weight: 5, description: "关键词扩展命中（每个）" },
     { key: "ALIAS_HIT", weight: 4, description: "别名词命中（每个）" },

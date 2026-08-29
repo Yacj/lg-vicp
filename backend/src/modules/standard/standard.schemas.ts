@@ -71,7 +71,9 @@ export const sourceCreateSchema = z.object({
     excludeKeywords: z.array(z.string().trim().min(1)).max(100).default([])
   }).default({ titleKeywords: [], excludeKeywords: [] }),
   crawlScope: standardCrawlScopeSchema.default("today"),
-  enabled: z.boolean().default(true)
+  enabled: z.boolean().default(true),
+  // 运营补强：人工备注由 B 端维护（其余 last* 字段由抓取收尾处回写，不在创建/更新入参中）
+  operatorRemark: z.string().trim().max(1000, "人工备注不能超过 1000 个字符").nullable().optional()
 });
 export const sourceUpdateSchema = sourceCreateSchema.partial();
 
@@ -201,6 +203,10 @@ export const sourceDto = z.object({
   crawlScope: standardCrawlScopeSchema,
   enabled: z.boolean(),
   lastCrawledAt: z.date().nullable(),
+  lastCrawlStatus: z.string().nullable(),
+  lastCrawlSummary: z.record(z.string(), z.unknown()).nullable(),
+  lastErrorMessage: z.string().nullable(),
+  operatorRemark: z.string().nullable(),
   createdAt: z.date(),
   updatedAt: z.date()
 });

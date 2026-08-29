@@ -214,3 +214,46 @@ describe("替代关系与过渡期", () => {
     expect(disableSet).toBeDefined();
   });
 });
+// ---------------------------------------------------------------- P0-7 可见性回归：抓取/人工 → 审核 → 发布 → AI/候选才可消费
+
+describe("P0-7 标准可见性回归", () => {
+  it("抓取/人工新增标准（未审核指标）不能影响候选 K 限值：PENDING_REVIEW 指标发布被拒绝且不产生限值行", async () => {
+    const { db, insertValues } = stubDb({
+      selects: [
+        [{ id: "ind-crawl-1", documentId: "doc-1", status: "PENDING_REVIEW", indicatorType: "K_VALUE", applicabilityId: "app-1", value: 0.4 }]
+      ]
+    });
+    await expect(publishIndicator({ db, storage: {} as never } as never, request, actor, "ind-crawl-1"))
+      .rejects.toThrow(StandardError);
+    const hasLimit = (insertValues as unknown as Array<Record<string, unknown>>).some((values) => "limitKValue" in values);
+    expect(hasLimit).toBe(false);
+  });
+
+  it("审核驳回（REJECTED）的指标不可见：发布被拒绝且不产生限值行", async () => {
+    const { db, insertValues } = stubDb({
+      selects: [
+        [{ id: "ind-rejected", documentId: "doc-1", status: "REJECTED", indicatorType: "K_VALUE", applicabilityId: "app-1", value: 0.4 }]
+      ]
+    });
+    await expect(publishIndicator({ db, storage: {} as never } as never, request, actor, "ind-rejected"))
+      .rejects.toThrow(StandardError);
+    const hasLimit = (insertValues as unknown as Array<Record<string, unknown>>).some((values) => "limitKValue" in values);
+    expect(hasLimit).toBe(false);
+  });
+
+  it("发布新版本仅将旧 PUBLISHED 限值行置 DISABLED，不篡改其数值（历史计算/报告快照不漂移）", async () => {
+    const { db, updateSets } = stubDb({
+      selects: [
+        [{ id: "ind-1", documentId: "doc-1", status: "APPROVED", indicatorType: "K_VALUE", applicabilityId: "app-1", value: 0.5, evidenceRef: "第4.2.1条", rawText: null, evidenceLevel: "A" }],
+        [publishedDocument],
+        [{ id: "app-1", documentId: "doc-1", regionCode: "500000", regionName: "重庆市", status: "PUBLISHED" }],
+        [{ max: 1 }]
+      ]
+    });
+    await publishIndicator({ db, storage: {} as never } as never, request, actor, "ind-1");
+    const disableSet = (updateSets as Array<Record<string, unknown>>).find((set) => set.status === "DISABLED");
+    expect(disableSet).toBeDefined();
+    // 旧行只改状态与时间戳，limitKValue/regionCode/basisCode 等历史数值一律不动
+    expect(Object.keys(disableSet!).sort()).toEqual(["status", "updatedAt"]);
+  });
+});

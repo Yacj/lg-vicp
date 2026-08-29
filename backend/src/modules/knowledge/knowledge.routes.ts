@@ -40,6 +40,7 @@ import {
 } from "./knowledge-admin.service.js";
 import { searchKnowledge, listSearchLogs } from "./knowledge.service.js";
 import { createEvaluation, judgeEvaluation, listEvaluations } from "./knowledge-evaluation.service.js";
+import { listDocumentSections, listPublicDocuments } from "./knowledge-wiki-read.service.js";
 import {
   createBatchImportIntents,
   createCrawlerSource,
@@ -399,6 +400,20 @@ export async function knowledgeRoutes(app: FastifyInstance) {
     return ok(request, await listVersionPages(app, request.params.versionId, request.query.page, request.query.pageSize));
   });
 
+  // 版本 Wiki 章节树（扁平有序，前端按 parentId/level 组树）：按版本读取，
+  // DRAFT 审核与 PUBLISHED 阅读共用；与 C 端公开文库/AI 来源详情共用同一读取服务。
+  route.get("/versions/:versionId/sections", {
+    preHandler: [app.authenticate],
+    schema: {
+      tags: ["B端 / 平台 / 知识库"],
+      summary: "查看版本 Wiki 章节树（扁平有序，按 parentId/level 组树）",
+      params: versionParams
+    }
+  }, async (request) => {
+    requirePermission(request, KNOWLEDGE_PERMISSIONS.DOC_LIST);
+    return ok(request, { sections: await listDocumentSections(app, request.params.versionId) });
+  });
+
   route.get("/versions/:versionId/chunks", {
     preHandler: [app.authenticate],
     schema: {
@@ -481,6 +496,35 @@ export async function knowledgeRoutes(app: FastifyInstance) {
   }, async (request) => {
     const actor = requirePermission(request, KNOWLEDGE_PERMISSIONS.CHUNK_MERGE);
     return ok(request, { chunk: await mergeChunks(app, request, actor, request.params.chunkId, request.body.intoChunkId) });
+  });
+
+  // ---------------------------------------------------------------- 公开文库（B 端只读）
+
+  // B 端公开文库列表：与 C 端 `/client/knowledge/documents` 复用同一 listPublicDocuments 读取口径
+  // （visibility=PUBLIC + 当前版本 PUBLISHED + 生效中），仅开放给平台侧按 DOC_LIST 授权的运营人员。
+  const publicDocumentListQuerySchema = paginationQuerySchema.extend({
+    categoryId: z.uuid("分类 ID 格式不正确").optional(),
+    docType: docTypeSchema.optional(),
+    keyword: z.string().trim().max(120, "关键词不能超过 120 个字符").optional(),
+    sort: z.enum(["latest", "title"]).default("latest")
+  });
+
+  route.get("/public/documents", {
+    preHandler: [app.authenticate],
+    schema: {
+      tags: ["B端 / 平台 / 知识库"],
+      summary: "公开文库文档列表（仅 PUBLIC + PUBLISHED + 生效中，与 C 端公开文库同一读取口径）",
+      querystring: publicDocumentListQuerySchema
+    }
+  }, async (request) => {
+    requirePermission(request, KNOWLEDGE_PERMISSIONS.DOC_LIST);
+    const result = await listPublicDocuments(app, request.query);
+    return ok(request, {
+      items: result.items,
+      total: result.total,
+      page: request.query.page,
+      pageSize: request.query.pageSize
+    });
   });
 
   // ---------------------------------------------------------------- 检索与日志
@@ -658,7 +702,8 @@ export async function knowledgeRoutes(app: FastifyInstance) {
         baseUrl: z.string().trim().min(1).max(500),
         downloadUrlPattern: z.string().trim().min(1).max(500),
         docType: docTypeSchema.optional(),
-        enabled: z.boolean().optional()
+        enabled: z.boolean().optional(),
+        operatorRemark: z.string().trim().max(1000, "人工备注不能超过 1000 个字符").nullable().optional()
       })
     }
   }, async (request) => {
@@ -677,7 +722,8 @@ export async function knowledgeRoutes(app: FastifyInstance) {
         baseUrl: z.string().trim().min(1).max(500).optional(),
         downloadUrlPattern: z.string().trim().min(1).max(500).optional(),
         docType: docTypeSchema.optional(),
-        enabled: z.boolean().optional()
+        enabled: z.boolean().optional(),
+        operatorRemark: z.string().trim().max(1000, "人工备注不能超过 1000 个字符").nullable().optional()
       })
     }
   }, async (request) => {

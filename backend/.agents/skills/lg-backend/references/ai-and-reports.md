@@ -1,3 +1,5 @@
+<!-- 2026-08 Wiki 层级知识体系改造增量：AI 来源契约统一 ai-source.mapper.ts；知识检索为 searchWikiHierarchy 层级检索（Section/Page/Block 优先，Chunk 辅助）；专业会话必须选保温体系（AI_INSULATION_SYSTEM_REQUIRED）；公开文库 /api/v1/client/knowledge/*、企业介绍 /api/v1/client/content/enterprise-profile；B 端通知 /api/v1/platform/notifications（system:notification:*）。 -->
+
 # AI 与报告
 
 AI 模型按场景从数据库解析。服务商、Base URL、模型 ID、参数和提示词不能写死在业务代码中。DeepSeek 使用 OpenAI-compatible 适配器。

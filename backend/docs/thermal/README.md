@@ -118,6 +118,10 @@ flowchart LR
 | `GET/POST /calc-rules`、`GET/PATCH/DELETE /calc-rules/:id` + submit/approve/reject/publish/disable/new-version + `POST /calc-rules/:id/validate` | 计算规则 CRUD + 版本化工作流 | `system:thermal:{list,add,edit,remove,approve,publish}` |
 | `GET/POST /standard-limits`、`GET/PATCH/DELETE /standard-limits/:id` + 工作流 + `POST /standard-limits/:id/validate` | 地区标准限值 CRUD + 版本化工作流 | 同上 |
 
+## 目标 K 值最接近优先排序
+
+提供 targetK 时，同匹配级别内按 targetK-kValue 升序（最接近目标优先）；候选附 ranking.kGap/isClosestToTarget。
+
 ## 候选方案查询与确认
 
 ```mermaid

@@ -23,6 +23,7 @@
     "construction:import-example": "node scripts/construction-import-example.mjs",
     "comparison:import-example": "node scripts/comparison-import-example.mjs",
     "thermal:template": "node scripts/generate-thermal-template.mjs",
+    "backfill:knowledge-wiki": "node scripts/backfill-knowledge-wiki.mjs",
     "deploy": "node deploy/deploy.local.mjs"
   },
   "dependencies": {

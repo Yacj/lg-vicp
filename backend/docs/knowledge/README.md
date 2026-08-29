@@ -51,7 +51,19 @@ stateDiagram-v2
 - 已发布/已停用版本不允许重新解析或重建分块，需基于历史版本回滚生成新草稿。
 - 文档软删除要求该文档没有任何 PUBLISHED 版本。
 
+## Wiki 层级知识体系与层级检索
+
+知识组织与阅读层为 Document → Section（`knowledge_sections` 章节树）→ Page（`knowledge_pages` 完整页）→ Page Block（`knowledge_page_blocks` 标题/段落/表格/图片块）；`knowledge_chunks` 保留为辅助检索索引，不再是唯一、默认的知识回答单位。
+
+- AI 侧检索入口 `searchWikiHierarchy`（knowledge.service.ts）：① 章节层（search_text/标题/条款号）→ ② 页面内容块层（pg_trgm/全文）→ ③ Chunk 辅助召回（复用 `runSearch` 打分管线）；结果按 sectionId/pageId 聚合去重并带 `retrievalUnit`（SECTION/PAGE/BLOCK/CHUNK）。
+- 小资料整节进入上下文：节内内容 ≤ 2000 字（`SECTION_FULL_TEXT_LIMIT`）时整节返回，不做二次切碎。
+- 保温体系联动：`knowledge_documents.insulation_system_id` 标注列 + `INSULATION_SYSTEM_MATCH` 权重（缺省 22）对体系文档强加权，未标注文档兜底召回。
+- AI 会话检索范围：项目文档 + 平台级已发布文档（`projectScope=project-and-global`）。
+- 历史资料升级：`CHUNK_REBUILD` 从页面原文重建 章节→内容块→兼容 Chunk（已发布版本允许，且不降级管线状态）；批量回填脚本 `pnpm backfill:knowledge-wiki`（--dry-run 预览、--limit 分批）。
+- C 端公开文库与 AI 来源详情共用 `knowledge-wiki-read.service.ts`：只读 PUBLISHED+生效中版本；公开文库只暴露 `visibility=PUBLIC` 文档；来源详情支持 sectionId/pageId/blockId/chunkId 任一定位入口，高亮优先 block 文本在页全文定位、matchedText 兜底。
+
 ## 检索管线
+
 
 1. 输入归一化（NFKC + 空白折叠 + 小写，`normalizeSearchText`）。
 2. 别名词典扩展：查询含别名 → 补规范词（关键词匹配）；查询含规范词 → 补别名（别名匹配）。
@@ -113,7 +125,8 @@ document → document_versions(fileId) → files(bucket+objectKey) → OSS/MinIO
 | POST | `/versions/:versionId/parse`、`/reparse`、`/chunks/rebuild` | 解析/重解析/切片重建 |
 | POST | `/versions/:versionId/approve`、`/publish`、`/disable` | 审核/发布/停用 |
 | POST | `/documents/:id/rollback-to/:versionId` | 版本替代 |
-| GET | `/versions/:versionId/pages`、`/chunks`、`/chunks/:chunkId/terms` | 内容查看（审核/调试） |
+| GET | `/versions/:versionId/pages`、`/chunks`、`/chunks/:chunkId/terms`、`/versions/:versionId/sections` | 内容查看（页面/切片/术语 + Wiki 章节树，审核/调试） |
+| GET | `/public/documents` | 公开文库 B 端列表（仅 PUBLIC + PUBLISHED + 生效中，与 C 端 `/client/knowledge/documents` 同一读取口径） |
 | GET | `/search`、`/search-logs` | 检索（写日志）+ 日志查询 |
 | GET | `/parsing-jobs` | 解析任务查询 |
 | GET/POST | `/aliases`、`PATCH/DELETE /aliases/:id` | 别名词典 |

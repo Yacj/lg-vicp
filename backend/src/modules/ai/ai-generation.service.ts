@@ -20,7 +20,10 @@ import { budgetHistory, buildSystemMessages, estimateTokens, type ContextMessage
 import { isAbortError, startSseStream, writeProgress, writeSse } from "./ai-sse.js";
 import { checkContentFiltered } from "./ai-content-filter.service.js";
 import { writeAuditLog } from "../audit-logs/audit-log.service.js";
-import { formatKnowledgeContext, searchProjectKnowledge, type RetrievedKnowledgeChunk } from "../knowledge/knowledge.service.js";
+import { formatKnowledgeContext, searchProjectKnowledge, type WikiHit } from "../knowledge/knowledge.service.js";
+import { getPublishedInsulationSystem } from "../construction/construction-read.service.js";
+import { formatInsulationSystemContext } from "../../shared/prompt-assembly.js";
+import { toAiSources } from "./ai-source.mapper.js";
 import { formatComparisonRuleContext, loadApprovedComparisonRules, logComparisonRuleUsage } from "../comparison/material-compare.service.js";
 import { enforceAiQuota, releaseAiConcurrency, resolveSceneRuntime, type SceneRuntime } from "./ai-runtime.service.js";
 
@@ -62,7 +65,7 @@ export async function streamConversationReply(options: {
   conversation: typeof aiConversations.$inferSelect;
   content: string;
   /** 传入时跳过场景内自动检索，直接使用该检索结果（知识问答场景；空数组表示无检索结果） */
-  knowledgeChunks?: RetrievedKnowledgeChunk[];
+  knowledgeChunks?: WikiHit[];
 }): Promise<void> {
   const { app, request, reply, user, conversation, content, knowledgeChunks: providedChunks } = options;
   const startedAt = Date.now();
@@ -161,18 +164,25 @@ export async function streamConversationReply(options: {
     return [userRow!, assistantRow!];
   });
 
-  // 检索来源：外部注入优先（knowledge-qa）；否则仅场景允许检索且关联项目时执行
+  // 会话保温体系上下文（专业场景必选；只注入标识信息，技术规则仍须来自检索/工具）
+  const insulationSystem = conversation.insulationSystemId
+    ? await getPublishedInsulationSystem(app.db, conversation.insulationSystemId)
+    : null;
+
+  // 检索来源：外部注入优先（knowledge-qa）；否则场景允许检索且（关联项目或已选体系）时执行层级检索
   const chunks = providedChunks !== undefined
     ? providedChunks
-    : runtime.allowKnowledgeSearch && conversation.projectId
-      ? await searchProjectKnowledge(app, conversation.projectId, content)
+    : runtime.allowKnowledgeSearch && (conversation.projectId || conversation.insulationSystemId)
+      ? await searchProjectKnowledge(app, conversation.projectId, content, {
+        insulationSystemId: conversation.insulationSystemId ?? null
+      })
       : [];
   if (chunks.length > 0) {
     await app.db.insert(aiRetrievalLogs).values(chunks.map((chunk) => ({
       conversationId: conversation.id,
       messageId: assistantMessage.id,
       documentId: chunk.documentId,
-      chunkId: chunk.chunkId,
+      chunkId: chunk.chunkId ?? null,
       score: chunk.score,
       sourcePage: chunk.sourcePage,
       sourceTitle: chunk.sourceTitle
@@ -191,6 +201,9 @@ export async function streamConversationReply(options: {
   const systemMessages = buildSystemMessages({
     scenePrompt: runtime.promptContent,
     projectContext,
+    insulationSystemContext: insulationSystem
+      ? formatInsulationSystemContext({ name: insulationSystem.name, code: insulationSystem.code, systemType: insulationSystem.systemType })
+      : null,
     knowledgeContext,
     ruleContext: comparisonRules.length > 0 ? formatComparisonRuleContext(comparisonRules) : null
   });
@@ -370,15 +383,7 @@ export async function streamConversationReply(options: {
       },
       model: { id: actualModelId },
       promptVersion: { id: runtime.promptVersionId, version: runtime.promptVersionNumber },
-      sources: chunks.map((chunk) => ({
-        chunkId: chunk.chunkId,
-        documentId: chunk.documentId,
-        title: chunk.sourceTitle,
-        page: chunk.sourcePage,
-        section: chunk.sourceSection,
-        score: chunk.score,
-        evidenceLevel: chunk.evidenceLevel
-      })),
+      sources: toAiSources(chunks),
       latencyMs: Date.now() - startedAt
     });
   } catch (error) {

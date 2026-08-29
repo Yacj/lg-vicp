@@ -11,6 +11,7 @@ import {
   renderTemplateWord,
   type ReportSnapshotPayload
 } from "../modules/reports/report-template-render.js";
+import { createNotification } from "../modules/notifications/notification.service.js";
 
 interface ReportJobData {
   taskId: string;
@@ -170,6 +171,16 @@ export function createReportProcessor(db: Database, storage: ObjectStorage) {
           targetType: "report",
           targetId: reportId,
           afterJson: { errorMessage: message, taskId }
+        });
+        // 提醒闭环：报告生成失败生成 B 端通知（尽力写入，失败不阻塞失败状态收敛）
+        await createNotification({ db }, {
+          type: "REPORT_GENERATION_FAILED",
+          title: "报告生成失败",
+          content: message,
+          targetType: "report",
+          targetId: reportId,
+          projectId: failedReport.projectId,
+          createdById: failedReport.createdById
         });
       }
       throw error;

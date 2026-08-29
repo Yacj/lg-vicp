@@ -97,3 +97,9 @@ AI 对话**不直接读抓取库**。链路：抓取/人工录入 → 人工审�
 6. 计算引擎 `/calc` 多标准并存时是否也要候选确认（第一版不改）。
 7. 标准原文是否推送知识库供 AI 条文检索（后续迭代）。
 8. 手动录入与抓取通道同 `(regionCode, basisCode)` 并存冲突策略（当前同键新发布自动停用旧版，以最后发布为准）。
+
+## 抓取源运营补强（2026-08）
+
+- `standard_sources` / `knowledge_crawler_sources` 新增运营回写字段：`last_crawled_at`、`last_crawl_status`（SUCCESS/FAILED）、`last_crawl_summary`（标准源，统计 JSON）、`last_error_message`、`operator_remark`（人工备注，B 端 PATCH 维护）。
+- 回写时机：`runStandardCrawl` 收尾（按作业 SUCCESS/FAILED 与失败统计）、`runCrawlerSource` 成功/异常路径（异常截断 500 字）。
+- 不新建 crawler engine，仅补齐"来源收集"运营能力。
