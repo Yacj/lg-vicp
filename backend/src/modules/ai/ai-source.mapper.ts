@@ -14,6 +14,7 @@ export type AiRetrievalUnit = "DOCUMENT" | "SECTION" | "PAGE" | "BLOCK" | "CHUNK
 export interface AiSourceHighlight {
   pageId?: string;
   pageNumber?: number | null;
+  pageLabel?: string | null;
   blockId?: string;
   charStart?: number | null;
   charEnd?: number | null;
@@ -31,11 +32,20 @@ export interface AiSourceRef {
   /** 仅 Chunk 辅助索引场景存在，不再是定位必需项 */
   chunkId?: string;
   title: string;
+  /** 原文目录路径（done.sources 恒为 null；完整路径由 GET /api/v1/ai/knowledge/source-detail 返回） */
+  tocPath?: string[] | null;
   chapter?: string | null;
   section?: string | null;
   sectionPath?: string[] | null;
   citationAnchor?: string | null;
   pageNumber?: number | null;
+  /** PDF 物理页序号（程序打开正确页面用；禁止展示给用户） */
+  physicalPageNumber?: number | null;
+  /** 印刷页码标签（用户展示用：4 / 21 / A1 / A5 / D16 / G10） */
+  pageLabel?: string | null;
+  pageTitle?: string | null;
+  /** ORIGINAL 展示原文件 id（原文载体；预览地址由 source-detail 返回） */
+  originalFileId?: string | null;
   pageStart?: number | null;
   pageEnd?: number | null;
   /** 兼容一期字段：等价 pageNumber */
@@ -54,6 +64,7 @@ export function toAiSources(hits: readonly WikiHit[]): AiSourceRef[] {
     const highlight: AiSourceHighlight = {
       pageId: hit.pageId ?? undefined,
       pageNumber: hit.sourcePage,
+      pageLabel: hit.pageLabel ?? undefined,
       blockId: hit.pageBlockId ?? undefined,
       text: hit.content
     };
@@ -67,6 +78,7 @@ export function toAiSources(hits: readonly WikiHit[]): AiSourceRef[] {
       blockId: hit.pageBlockId ?? undefined,
       ...(hit.chunkId ? { chunkId: hit.chunkId } : {}),
       title: hit.sourceTitle,
+      tocPath: null,
       chapter: hit.headingPath && hit.headingPath.length > 0 ? hit.headingPath[0]! : null,
       section: hit.sourceSection ?? (hit.headingPath && hit.headingPath.length > 0
         ? hit.headingPath[hit.headingPath.length - 1]!
@@ -74,6 +86,10 @@ export function toAiSources(hits: readonly WikiHit[]): AiSourceRef[] {
       sectionPath: hit.headingPath && hit.headingPath.length > 0 ? [...hit.headingPath] : null,
       citationAnchor: hit.citationAnchor ?? null,
       pageNumber: hit.sourcePage,
+      physicalPageNumber: hit.physicalPageNumber ?? hit.sourcePage,
+      pageLabel: hit.pageLabel ?? null,
+      pageTitle: hit.pageTitle ?? null,
+      originalFileId: hit.originalFileId ?? null,
       pageStart: hit.sourcePage,
       pageEnd: hit.pageEnd ?? hit.sourcePage,
       page: hit.sourcePage,

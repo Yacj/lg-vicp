@@ -8,6 +8,8 @@ import { ok } from "../../shared/response.js";
 import {
   getPublicDocumentDetail,
   getPublicDocumentPage,
+  getPublicDocumentPageByLabel,
+  getPublicDocumentToc,
   listPublicDocuments,
   listPublicDocumentPages
 } from "./knowledge-wiki-read.service.js";
@@ -97,11 +99,37 @@ export async function knowledgeClientRoutes(app: FastifyInstance) {
     return ok(request, result);
   });
 
+  route.get("/knowledge/documents/:documentId/toc", {
+    preHandler: [...clientGuard],
+    schema: {
+      tags: ["C端 / 公开文库"],
+      summary: "公开文库原文目录（TOC；含印刷页码标签与确认状态）",
+      params: documentParamsSchema
+    }
+  }, async (request) => {
+    getCurrentUser(request);
+    const toc = await getPublicDocumentToc(app, request.params.documentId);
+    return ok(request, toc);
+  });
+
+  route.get("/knowledge/documents/:documentId/pages/by-label/:pageLabel", {
+    preHandler: [...clientGuard],
+    schema: {
+      tags: ["C端 / 公开文库"],
+      summary: "按印刷页码标签打开原文页面（A1/A5/D16/G10 等非数字页码；字符串精确匹配）",
+      params: documentParamsSchema.extend({ pageLabel: z.string().trim().min(1).max(32) })
+    }
+  }, async (request) => {
+    getCurrentUser(request);
+    const page = await getPublicDocumentPageByLabel(app, request.params.documentId, request.params.pageLabel);
+    return ok(request, { page });
+  });
+
   route.get("/knowledge/documents/:documentId/pages/:pageNumber", {
     preHandler: [...clientGuard],
     schema: {
       tags: ["C端 / 公开文库"],
-      summary: "公开文库单页完整内容（fullText + 内容块）",
+      summary: "公开文库单页完整内容（按物理页序号定位；机器提取文本仅作检索文本，原文以页面预览为准）",
       params: pageParamsSchema
     }
   }, async (request) => {

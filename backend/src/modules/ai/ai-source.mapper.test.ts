@@ -106,3 +106,30 @@ describe("toAiSources：正常生成与 regenerate 共用的 Source 契约", () 
     }
   });
 });
+
+describe("toAiSources：原文导航字段（二次优化增量）", () => {
+  it("命中携带 pageLabel/pageTitle/physicalPageNumber/originalFileId；tocPath 由来源详情返回", () => {
+    const hit: WikiHit = {
+      ...makeChunkHit(),
+      physicalPageNumber: 103,
+      pageLabel: "A5",
+      pageTitle: "VICP薄抹灰外保温系统基本构造",
+      originalFileId: "file-original-1"
+    };
+    const [source] = toAiSources([hit]);
+    expect(source!.pageLabel).toBe("A5");
+    expect(source!.pageTitle).toBe("VICP薄抹灰外保温系统基本构造");
+    expect(source!.physicalPageNumber).toBe(103);
+    expect(source!.originalFileId).toBe("file-original-1");
+    expect(source!.pageNumber).toBe(21); // 兼容字段保持
+    expect(source!.tocPath).toBeNull();
+    expect(source!.highlightRanges?.[0]?.pageLabel).toBe("A5");
+  });
+
+  it("无 pageLabel 时回退物理页序号字符串语义仍由展示层处理（mapper 不做 Number 转换）", () => {
+    const hit: WikiHit = { ...makeChunkHit(), pageLabel: null, physicalPageNumber: 103 };
+    const [source] = toAiSources([hit]);
+    expect(source!.pageLabel).toBeNull();
+    expect(source!.physicalPageNumber).toBe(103);
+  });
+});

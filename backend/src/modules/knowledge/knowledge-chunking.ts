@@ -137,12 +137,6 @@ export function extractKeywords(text: string, aliases: ReadonlyArray<AliasDictEn
   return { keywords, aliasTerms };
 }
 
-interface Accumulator {
-  lines: string[];
-  section: string | null;
-  headingLevel: number;
-}
-
 // ---------------------------------------------------------------- 表格区域
 
 export interface TableRegion {
@@ -263,112 +257,284 @@ export function buildChunksFromSheet(sheet: SheetData, aliases: ReadonlyArray<Al
   return output;
 }
 
-function flushAccumulator(
-  acc: Accumulator,
-  page: ParsedPageInput,
-  aliases: ReadonlyArray<AliasDictEntry>,
-  output: ExtractedChunk[]
-): void {
-  const buffer = acc.lines.join("\n").trim();
-  if (!buffer) return;
-  const pieces = splitText(buffer);
-  for (const piece of pieces) {
-    if (!piece) continue;
-    const { keywords, aliasTerms } = extractKeywords(piece, aliases);
-    const anchors = extractAnchors(piece);
-    output.push({
-      content: piece,
-      sourcePage: page.page,
-      pageEnd: page.page,
-      headingLevel: acc.headingLevel,
-      contentType: acc.section ? "SECTION" : "PARAGRAPH",
-      sourceSection: acc.section,
-      searchText: normalizeSearchText(piece),
-      keywords,
-      aliasTerms,
-      citationAnchor: anchors[0] ?? null
-    });
-  }
-}
-
 /**
  * 按页构建分块：检测章节标题行（生成 TITLE/SECTION 块并切换当前章节），
  * 表格区域（"表X-X"起始的连续表格行）整体独立成 TABLE 块不与条文混块，
  * 其余文本累积后按 splitText 切块。条款/图片仅打标记与锚点，不抽取结构。
+ *
+ * 兼容包装：内部走「页面 → 内容块 → 辅助 Chunk」的新管线（parsePageToBlocks + buildChunksFromBlocks），
+ * 保证 Wiki 阅读层（Block）与辅助索引（Chunk)永远同源。
  */
 export function buildChunksFromPages(
   pages: ReadonlyArray<ParsedPageInput>,
   aliases: ReadonlyArray<AliasDictEntry> = []
 ): ExtractedChunk[] {
-  const output: ExtractedChunk[] = [];
-  for (const page of pages) {
-    const lines = page.text.split("\n");
-    const regions = detectTableRegions(lines);
-    const regionByLine = new Map<number, TableRegion>();
-    for (const region of regions) {
-      for (let index = region.startLine; index <= region.endLine; index++) regionByLine.set(index, region);
+  const state: PageBlockScanState = createPageBlockScanState();
+  const blocks: BlockDraft[] = [];
+  for (const page of pages) blocks.push(...parsePageToBlocks(page, aliases, state));
+  return buildChunksFromBlocks(blocks);
+}
+
+// ---------------------------------------------------------------- 页面内容块（Wiki 阅读层，Block 级 Section 归属）
+
+/** 页面内容块草稿：Wiki 阅读层最小单位（标题/段落/表格/条款），携带所属语义章节的标题路径 */
+export interface BlockDraft {
+  content: string;
+  contentType: ChunkContentType;
+  sourcePage: number | null;
+  headingLevel: number;
+  /** 所属语义章节的标题路径（不含文档标题根）；标题行自身为路径末项；空数组 = 文档根章节 */
+  sectionDraftPath: string[];
+  /** chunk.sourceSection 兼容字段：最近一个标题（含条款标题），与旧分块行为一致 */
+  lastHeadingTitle: string | null;
+  sourceAnchor: string | null;
+  searchText: string;
+  keywords: string[];
+  aliasTerms: string[];
+  metadata?: Record<string, unknown>;
+}
+
+/** 跨页扫描状态：章节标题栈在多页之间延续（Section 跨页是常态） */
+export interface PageBlockScanState {
+  /** 语义章节栈（不含条款标题，与章节树一致） */
+  stack: Array<{ title: string; level: number }>;
+  /** 最近一个标题（含条款标题），用于 chunk.sourceSection 兼容 */
+  lastHeadingTitle: string | null;
+}
+
+export function createPageBlockScanState(): PageBlockScanState {
+  return { stack: [], lastHeadingTitle: null };
+}
+
+/**
+ * 单页 → 内容块序列：
+ * 逐行扫描，遇到标题切换 activeSection（后续 Block 记录当前 Section），
+ * 下一标题出现后再切换——同页多个小节各自归属，不再整页绑定一个 Section。
+ * 表格区域整体独立成 TABLE 块；条款行整行为 CLAUSE 块。
+ */
+export function parsePageToBlocks(
+  page: ParsedPageInput,
+  aliases: ReadonlyArray<AliasDictEntry>,
+  state: PageBlockScanState
+): BlockDraft[] {
+  const output: BlockDraft[] = [];
+  const currentPath = (): string[] => state.stack.map((item) => item.title);
+
+  const lines = page.text.split("\n");
+  const regions = detectTableRegions(lines);
+  const regionByLine = new Map<number, TableRegion>();
+  for (const region of regions) {
+    for (let index = region.startLine; index <= region.endLine; index++) regionByLine.set(index, region);
+  }
+
+  const acc: { lines: string[] } = { lines: [] };
+  const flushAccumulator = () => {
+    const buffer = acc.lines.join("\n").trim();
+    acc.lines = [];
+    if (!buffer) return;
+    const path = currentPath();
+    for (const piece of splitText(buffer)) {
+      if (!piece) continue;
+      const { keywords, aliasTerms } = extractKeywords(piece, aliases);
+      output.push({
+        content: piece,
+        contentType: path.length > 0 ? "SECTION" : "PARAGRAPH",
+        sourcePage: page.page,
+        headingLevel: state.stack.length > 0 ? Math.max(1, state.stack.length) : 0,
+        sectionDraftPath: path,
+        lastHeadingTitle: state.lastHeadingTitle,
+        sourceAnchor: extractAnchors(piece)[0] ?? null,
+        searchText: normalizeSearchText(piece),
+        keywords,
+        aliasTerms
+      });
     }
+  };
 
-    const acc: Accumulator = { lines: [], section: null, headingLevel: 0 };
-    const pushAccumulator = () => {
-      flushAccumulator(acc, page, aliases, output);
-      acc.lines = [];
-    };
-
-    let index = 0;
-    while (index < lines.length) {
-      const region = regionByLine.get(index);
-      if (region) {
-        pushAccumulator();
-        const tableLines = lines.slice(region.startLine, region.endLine + 1);
-        const content = tableLines.join("\n").trim();
-        if (content) {
-          const { keywords, aliasTerms } = extractKeywords(content, aliases);
-          output.push({
-            content,
-            sourcePage: page.page,
-            pageEnd: page.page,
-            headingLevel: 0,
-            contentType: "TABLE",
-            sourceSection: acc.section,
-            searchText: normalizeSearchText(content),
-            keywords,
-            aliasTerms,
-            citationAnchor: region.anchor,
-            metadata: { tableRegion: { startLine: region.startLine, endLine: region.endLine } }
-          });
-        }
-        index = region.endLine + 1;
-        continue;
-      }
-
-      const line = lines[index]!;
-      const heading = detectHeading(line);
-      if (heading) {
-        pushAccumulator();
-        const { keywords, aliasTerms } = extractKeywords(heading.title, aliases);
-        // 条款行整行保留作为 CLAUSE 块；其余标题行作为 TITLE/SECTION 块
-        const clauseContent = heading.isClause ? line.trim() : heading.title;
+  let index = 0;
+  while (index < lines.length) {
+    const region = regionByLine.get(index);
+    if (region) {
+      flushAccumulator();
+      const tableLines = lines.slice(region.startLine, region.endLine + 1);
+      const content = tableLines.join("\n").trim();
+      if (content) {
+        const { keywords, aliasTerms } = extractKeywords(content, aliases);
         output.push({
-          content: clauseContent,
+          content,
+          contentType: "TABLE",
           sourcePage: page.page,
-          pageEnd: page.page,
-          headingLevel: heading.level,
-          contentType: heading.isClause ? "CLAUSE" : heading.level <= 2 ? "TITLE" : "SECTION",
-          sourceSection: heading.title,
-          searchText: normalizeSearchText(clauseContent),
+          headingLevel: 0,
+          sectionDraftPath: currentPath(),
+          lastHeadingTitle: state.lastHeadingTitle,
+          sourceAnchor: region.anchor,
+          searchText: normalizeSearchText(content),
           keywords,
           aliasTerms,
-          citationAnchor: heading.anchor
+          metadata: { tableRegion: { startLine: region.startLine, endLine: region.endLine } }
         });
-        acc.section = heading.title;
-        acc.headingLevel = heading.level;
-      } else {
-        acc.lines.push(line);
       }
-      index += 1;
+      index = region.endLine + 1;
+      continue;
     }
-    pushAccumulator();
+
+    const line = lines[index]!;
+    const heading = detectHeading(line);
+    if (heading) {
+      flushAccumulator();
+      const { keywords, aliasTerms } = extractKeywords(heading.title, aliases);
+      // 条款行整行保留作为 CLAUSE 块；其余标题行作为 TITLE/SECTION 块
+      const clauseContent = heading.isClause ? line.trim() : heading.title;
+      // 先更新章节栈（同层标题弹栈），标题块归属它打开的章节；条款标题不进栈，保持当前章节
+      if (!heading.isClause) {
+        while (state.stack.length > 0 && state.stack[state.stack.length - 1]!.level >= Math.max(1, heading.level)) {
+          state.stack.pop();
+        }
+        state.stack.push({ title: heading.title, level: Math.max(1, heading.level) });
+      }
+      const headingPath = currentPath();
+      output.push({
+        content: clauseContent,
+        contentType: heading.isClause ? "CLAUSE" : heading.level <= 2 ? "TITLE" : "SECTION",
+        sourcePage: page.page,
+        headingLevel: heading.level,
+        sectionDraftPath: headingPath,
+        lastHeadingTitle: heading.title,
+        sourceAnchor: heading.anchor,
+        searchText: normalizeSearchText(clauseContent),
+        keywords,
+        aliasTerms
+      });
+      state.lastHeadingTitle = heading.title;
+    } else {
+      acc.lines.push(line);
+    }
+    index += 1;
+  }
+  flushAccumulator();
+  return output;
+}
+
+/** 章节草稿：由内容块的章节路径按首次出现顺序聚合（替代旧 buildWikiStructure 的整页猜测） */
+export interface SectionDraft {
+  sectionKey: string;
+  title: string;
+  level: number;
+  /** 完整标题路径（首项 = 文档版本标题，与旧 headingPath 兼容） */
+  headingPath: string[];
+  sortOrder: number;
+  startPage: number | null;
+  endPage: number | null;
+  searchText: string;
+}
+
+/**
+ * 由内容块聚合章节草稿：文档根章节恒为首项（path 为空的块挂在根下）；
+ * startPage/endPage 取该章节下内容块的最小/最大页；不依赖任何"目录猜测"。
+ */
+export function buildSectionDrafts(versionTitle: string, blocks: ReadonlyArray<BlockDraft>): SectionDraft[] {
+  const rootTitle = versionTitle.slice(0, 255) || "文档正文";
+  const drafts = new Map<string, SectionDraft>();
+  const rootKey = "root";
+  drafts.set(rootKey, {
+    sectionKey: rootKey,
+    title: rootTitle,
+    level: 1,
+    headingPath: [rootTitle],
+    sortOrder: 0,
+    startPage: null,
+    endPage: null,
+    searchText: normalizeSectionTitleText(rootTitle)
+  });
+
+  let nextSortOrder = 1;
+  let firstBlockPage: number | null = null;
+  let lastBlockPage: number | null = null;
+  for (const block of blocks) {
+    if (block.sourcePage != null) {
+      if (firstBlockPage == null || block.sourcePage < firstBlockPage) firstBlockPage = block.sourcePage;
+      if (lastBlockPage == null || block.sourcePage > lastBlockPage) lastBlockPage = block.sourcePage;
+    }
+  }
+  for (const block of blocks) {
+    const path = block.sectionDraftPath;
+    const key = path.length === 0 ? rootKey : path.join("/");
+    let draft = drafts.get(key);
+    if (!draft) {
+      draft = {
+        sectionKey: key,
+        title: path[path.length - 1]!.slice(0, 255),
+        level: Math.max(1, path.length),
+        headingPath: [rootTitle, ...path.map((item) => item.slice(0, 255))],
+        sortOrder: nextSortOrder,
+        startPage: block.sourcePage,
+        endPage: block.sourcePage,
+        searchText: normalizeSectionTitleText([rootTitle, ...path].join(" "))
+      };
+      drafts.set(key, draft);
+      nextSortOrder += 1;
+    }
+    if (block.sourcePage != null) {
+      if (draft.startPage == null || block.sourcePage < draft.startPage) draft.startPage = block.sourcePage;
+      if (draft.endPage == null || block.sourcePage > draft.endPage) draft.endPage = block.sourcePage;
+    }
+  }
+  const root = drafts.get(rootKey);
+  if (root) {
+    // 根章节（无标题路径的散落内容）覆盖整份文档的页码区间
+    root.startPage = firstBlockPage;
+    root.endPage = lastBlockPage;
+  }
+  return [...drafts.values()].sort((a, b) => a.sortOrder - b.sortOrder);
+}
+
+function normalizeSectionTitleText(value: string): string {
+  return value.normalize("NFKC").replace(/\s+/g, " ").trim().toLowerCase();
+}
+
+/**
+ * 由内容块派生辅助检索 Chunk（Chunk 仅是 Block 的辅助索引，不是独立知识单位）：
+ * 超长段落按 splitText 切分（保持旧 1200/150 语义），TABLE/标题/条款块 1:1。
+ */
+export function buildChunksFromBlocks(blocks: ReadonlyArray<BlockDraft>): ExtractedChunk[] {
+  const output: ExtractedChunk[] = [];
+  for (const block of blocks) {
+    const sourceSection = block.sectionDraftPath.length > 0
+      ? block.sectionDraftPath[block.sectionDraftPath.length - 1]!
+      : block.lastHeadingTitle;
+    if (block.contentType === "PARAGRAPH" || block.contentType === "SECTION") {
+      const pieces = splitText(block.content);
+      for (const piece of pieces) {
+        if (!piece) continue;
+        output.push({
+          content: piece,
+          sourcePage: block.sourcePage,
+          pageEnd: block.sourcePage,
+          headingLevel: block.headingLevel,
+          contentType: block.contentType,
+          sourceSection: sourceSection ?? null,
+          searchText: normalizeSearchText(piece),
+          keywords: block.keywords,
+          aliasTerms: block.aliasTerms,
+          citationAnchor: block.sourceAnchor,
+          metadata: block.metadata
+        });
+      }
+      continue;
+    }
+    output.push({
+      content: block.content,
+      sourcePage: block.sourcePage,
+      pageEnd: block.sourcePage,
+      headingLevel: block.headingLevel,
+      contentType: block.contentType,
+      sourceSection: sourceSection ?? null,
+      searchText: block.searchText,
+      keywords: block.keywords,
+      aliasTerms: block.aliasTerms,
+      citationAnchor: block.sourceAnchor,
+      metadata: block.metadata
+    });
   }
   return output;
 }

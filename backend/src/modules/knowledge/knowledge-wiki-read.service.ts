@@ -1,12 +1,16 @@
-import { and, asc, count, desc, eq, ilike, isNull, or } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, isNull, or } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import {
+  files,
   knowledgeChunks,
+  knowledgeDocumentAssets,
   knowledgeDocuments,
   knowledgeDocumentVersions,
+  knowledgePageMappings,
   knowledgePageBlocks,
   knowledgePages,
   knowledgeSections,
+  knowledgeTocItems,
   projects
 } from "../../db/schema.js";
 import type { AuthUser } from "../../shared/auth-user.js";
@@ -53,9 +57,19 @@ export interface WikiPageBlockDto {
 
 export interface WikiPageDto {
   id: string;
+  /** 兼容过渡字段：等价 physicalPageNumber（一期页码） */
   pageNumber: number;
+  /** PDF 物理页序号（程序定位用） */
+  physicalPageNumber: number;
+  /** 用户看到的印刷页码标签（4 / 21 / A1 / A5 / D16 / G10；非整数，禁止 Number()） */
+  pageLabel: string | null;
+  pageTitle: string | null;
+  /** 机器提取文本（不代表原 PDF 排版；原文以 ORIGINAL PDF 页面/预览图为准） */
   fullText: string;
+  /** extractedText = fullText 的明确命名别名（新接口统一使用） */
+  extractedText: string;
   blocks: WikiPageBlockDto[];
+  /** 原文页面预览图（ORIGINAL PDF 逐页渲染；未渲染为 null） */
   pageImageUrl: string | null;
 }
 
@@ -74,12 +88,32 @@ export interface SourceDetailLocation {
   section: string | null;
   sectionPath: string[] | null;
   citationAnchor: string | null;
+  /** 兼容过渡字段：等价 physicalPageNumber */
   pageNumber: number | null;
+  /** PDF 物理页序号（程序打开页面用） */
+  physicalPageNumber: number | null;
+  /** 印刷页码标签（AI 引用/展示用：4 / 21 / A1 / A5 / D16 / G10） */
+  pageLabel: string | null;
+  pageTitle: string | null;
 }
 
 export interface SourceDetail {
   document: WikiDocumentSummary;
+  /** 命中内容对应的原文目录路径（TOC = 原文件目录；无关联时回退语义章节路径） */
+  toc: { path: string[] | null };
   location: SourceDetailLocation;
+  /** 原文定位：ORIGINAL 资产与页面预览（用户看到的"原文"= 正式原 PDF 页面，而非 parsedText） */
+  original: {
+    fileId: string | null;
+    pageImageUrl: string | null;
+    /** 原文件受控下载地址（预签名，短时效） */
+    previewUrl: string | null;
+  };
+  /** 机器提取内容（检索/溯源用，非原文排版） */
+  extracted: {
+    text: string | null;
+    blocks: WikiPageBlockDto[];
+  };
   page: WikiPageDto | null;
   highlights: SourceHighlight[];
 }
@@ -127,7 +161,7 @@ export function assertReadableKnowledgeDocument(
   }
 }
 
-/** 解析文档当前可读版本：currentVersion 已发布用之，否则取最新 PUBLISHED 版本 */
+/** 解析文档当前受控且可读版本：公开读取始终只使用 currentVersionId，不回退旧版。 */
 async function resolveReadableVersion(
   app: FastifyInstance,
   documentId: string
@@ -137,14 +171,11 @@ async function resolveReadableVersion(
     .limit(1);
   if (!document) throw new NotFoundError("知识资料不存在");
 
-  const versions = await app.db.select().from(knowledgeDocumentVersions)
-    .where(eq(knowledgeDocumentVersions.documentId, documentId))
-    .orderBy(asc(knowledgeDocumentVersions.version));
-  const current = versions.find((version) => version.id === document.currentVersionId);
-  const version = current && isVersionReadable(current)
-    ? current
-    : [...versions].reverse().find((candidate) => isVersionReadable(candidate));
-  if (!version) throw new NotFoundError("知识资料不存在或尚未发布");
+  const [version] = document.currentVersionId
+    ? await app.db.select().from(knowledgeDocumentVersions)
+      .where(eq(knowledgeDocumentVersions.id, document.currentVersionId)).limit(1)
+    : [];
+  if (!version || !isVersionReadable(version)) throw new NotFoundError("知识资料不存在或尚未发布");
   return { document, version };
 }
 
@@ -207,13 +238,41 @@ async function getBlocksOfPage(app: FastifyInstance, pageId: string): Promise<Wi
   return rows;
 }
 
-function toPageDto(page: typeof knowledgePages.$inferSelect, blocks: WikiPageBlockDto[]): WikiPageDto {
+async function toPageDto(app: FastifyInstance, page: typeof knowledgePages.$inferSelect, blocks: WikiPageBlockDto[]): Promise<WikiPageDto> {
+  const text = page.parsedText ?? "";
+  let pageImageUrl: string | null = null;
+  if (page.pageImageObjectKey) {
+    try {
+      pageImageUrl = await app.storage.createDownloadUrl(page.pageImageObjectKey, `page-${page.physicalPageNumber}.${page.pageImageObjectKey.endsWith(".webp") ? "webp" : "png"}`, 3600);
+    } catch {
+      pageImageUrl = null;
+    }
+  }
   return {
     id: page.id,
     pageNumber: page.pageNumber,
-    fullText: page.parsedText ?? "",
+    physicalPageNumber: page.physicalPageNumber ?? page.pageNumber,
+    pageLabel: page.pageLabel ?? (page.physicalPageNumber != null ? String(page.physicalPageNumber) : null),
+    pageTitle: page.pageTitle,
+    fullText: text,
+    extractedText: text,
     blocks,
-    // P0 不渲染 PDF 原页图片，仅预留
+    pageImageUrl
+  };
+}
+
+/** 页面行 → DTO 的同步形态（列表场景，不生成预签 URL） */
+function toPageListItem(page: typeof knowledgePages.$inferSelect): WikiPageDto {
+  const text = page.parsedText ?? "";
+  return {
+    id: page.id,
+    pageNumber: page.pageNumber,
+    physicalPageNumber: page.physicalPageNumber ?? page.pageNumber,
+    pageLabel: page.pageLabel ?? (page.physicalPageNumber != null ? String(page.physicalPageNumber) : null),
+    pageTitle: page.pageTitle,
+    fullText: text,
+    extractedText: text,
+    blocks: [],
     pageImageUrl: null
   };
 }
@@ -269,6 +328,7 @@ export async function resolveSourceDetail(
   let page: typeof knowledgePages.$inferSelect | null = null;
   let blockId: string | null = null;
   let citationAnchor: string | null = null;
+  let hasUnmappedSearchPage = false;
 
   if (input.chunkId) {
     const [chunk] = await app.db.select().from(knowledgeChunks).where(eq(knowledgeChunks.id, input.chunkId)).limit(1);
@@ -277,9 +337,29 @@ export async function resolveSourceDetail(
     if (chunk.sectionId) section = await getSection(app, chunk.sectionId);
     if (chunk.pageBlockId) blockId = chunk.pageBlockId;
     if (!page && chunk.sourcePage != null) {
-      page = await app.db.select().from(knowledgePages)
-        .where(and(eq(knowledgePages.versionId, chunk.versionId), eq(knowledgePages.pageNumber, chunk.sourcePage)))
-        .limit(1).then((rows) => rows[0] ?? null);
+      const searchPageNumber = typeof chunk.metadata?.searchPageNumber === "number"
+        ? chunk.metadata.searchPageNumber
+        : null;
+      if (searchPageNumber != null) {
+        // 双源 Chunk 的 sourcePage 不能直接当 ORIGINAL 页；必须经显式映射回溯。
+        page = await app.db.select({ page: knowledgePages })
+          .from(knowledgePageMappings)
+          .innerJoin(knowledgePages, eq(knowledgePages.id, knowledgePageMappings.originalPageId))
+          .where(and(
+            eq(knowledgePageMappings.versionId, chunk.versionId),
+            eq(knowledgePageMappings.searchPhysicalPageNumber, searchPageNumber)
+          )).limit(1).then((rows) => rows[0]?.page ?? null);
+        hasUnmappedSearchPage = page == null;
+      } else {
+        page = await app.db.select().from(knowledgePages)
+          .where(and(eq(knowledgePages.versionId, chunk.versionId), eq(knowledgePages.physicalPageNumber, chunk.sourcePage)))
+          .limit(1).then((rows) => rows[0] ?? null);
+        if (!page) {
+          page = await app.db.select().from(knowledgePages)
+            .where(and(eq(knowledgePages.versionId, chunk.versionId), eq(knowledgePages.pageNumber, chunk.sourcePage)))
+            .limit(1).then((rows) => rows[0] ?? null);
+        }
+      }
     }
     citationAnchor = chunk.citationAnchor;
   } else if (input.blockId) {
@@ -310,12 +390,17 @@ export async function resolveSourceDetail(
     assertReadableKnowledgeDocument(context.document, actor, project ?? null);
   }
 
-  // 兜底：section 来源取章节起始页；无页时取版本首页
-  if (!page) {
-    const pageNumber = section?.startPage ?? 0;
+  // 兜底：section 来源取章节起始页（优先物理页定位）；无页时取版本首页
+  if (!page && !hasUnmappedSearchPage) {
+    const physical = section?.startPage ?? 0;
     page = await app.db.select().from(knowledgePages)
-      .where(and(eq(knowledgePages.versionId, context.version.id), eq(knowledgePages.pageNumber, pageNumber)))
+      .where(and(eq(knowledgePages.versionId, context.version.id), eq(knowledgePages.physicalPageNumber, physical)))
       .limit(1).then((rows) => rows[0] ?? null);
+    if (!page) {
+      page = await app.db.select().from(knowledgePages)
+        .where(and(eq(knowledgePages.versionId, context.version.id), eq(knowledgePages.pageNumber, physical)))
+        .limit(1).then((rows) => rows[0] ?? null);
+    }
     if (!page) {
       page = await app.db.select().from(knowledgePages)
         .where(eq(knowledgePages.versionId, context.version.id))
@@ -331,18 +416,91 @@ export async function resolveSourceDetail(
     section: section ? section.title : null,
     sectionPath,
     citationAnchor: citationAnchor ?? section?.sourceAnchor ?? null,
-    pageNumber: page?.pageNumber ?? section?.startPage ?? null
+    pageNumber: page?.pageNumber ?? (hasUnmappedSearchPage ? null : section?.startPage ?? null),
+    physicalPageNumber: page?.physicalPageNumber ?? null,
+    pageLabel: page?.pageLabel ?? null,
+    pageTitle: page?.pageTitle ?? null
   };
 
   const blocks = page ? await getBlocksOfPage(app, page.id) : [];
   const highlights = page ? await buildHighlight(app, page, blockId, input.matchedText ?? null) : [];
 
+  // 原文导航：TOC 路径 + ORIGINAL 资产 + 页面预览 URL
+  const tocPath = await resolveTocPath(app, context.version.id, section?.id ?? null, page?.physicalPageNumber ?? null);
+  const [originalAsset] = await app.db.select({ fileId: knowledgeDocumentAssets.fileId })
+    .from(knowledgeDocumentAssets)
+    .where(and(eq(knowledgeDocumentAssets.versionId, context.version.id), eq(knowledgeDocumentAssets.role, "ORIGINAL")))
+    .limit(1);
+  let previewUrl: string | null = null;
+  if (originalAsset) {
+    try {
+      const [fileRow] = await app.db.select({ objectKey: files.objectKey, originalName: files.originalName })
+        .from(files).where(eq(files.id, originalAsset.fileId)).limit(1);
+      if (fileRow) {
+        previewUrl = await app.storage.createDownloadUrl(fileRow.objectKey, fileRow.originalName ?? "original.pdf", 1800);
+      }
+    } catch {
+      previewUrl = null;
+    }
+  }
+  const pageDto = page ? await toPageDto(app, page, blocks) : null;
+
   return {
     document: toDocumentSummary(context),
+    toc: { path: tocPath },
     location,
-    page: page ? toPageDto(page, blocks) : null,
+    original: {
+      fileId: originalAsset?.fileId ?? null,
+      pageImageUrl: pageDto?.pageImageUrl ?? null,
+      previewUrl
+    },
+    extracted: {
+      text: pageDto?.extractedText ?? null,
+      blocks
+    },
+    page: pageDto,
     highlights
   };
+}
+
+/**
+ * TOC 路径解析：优先取关联 sectionId 的目录条目并沿 parentId 上溯；
+ * 无 section 关联时按物理页匹配目录条目；两者皆无返回 null（调用方回退语义章节路径）。
+ */
+async function resolveTocPath(
+  app: FastifyInstance,
+  versionId: string,
+  sectionId: string | null,
+  physicalPageNumber: number | null
+): Promise<string[] | null> {
+  const items = await app.db.select({
+    id: knowledgeTocItems.id,
+    parentId: knowledgeTocItems.parentId,
+    title: knowledgeTocItems.title,
+    level: knowledgeTocItems.level,
+    sortOrder: knowledgeTocItems.sortOrder,
+    sectionId: knowledgeTocItems.sectionId,
+    physicalPageNumber: knowledgeTocItems.physicalPageNumber
+  })
+    .from(knowledgeTocItems)
+    .where(eq(knowledgeTocItems.versionId, versionId))
+    .orderBy(asc(knowledgeTocItems.sortOrder));
+  if (items.length === 0) return null;
+  let hit = (sectionId ? items.find((item) => item.sectionId === sectionId) : undefined)
+    ?? (physicalPageNumber != null
+      ? items.filter((item) => item.physicalPageNumber === physicalPageNumber).slice(-1)[0]
+      : undefined);
+  if (!hit) return null;
+  const byId = new Map(items.map((item) => [item.id, item]));
+  const path: string[] = [hit.title];
+  const seen = new Set<string>([hit.id]);
+  let cursor = hit.parentId ? byId.get(hit.parentId) : undefined;
+  while (cursor && !seen.has(cursor.id)) {
+    path.unshift(cursor.title);
+    seen.add(cursor.id);
+    cursor = cursor.parentId ? byId.get(cursor.parentId) : undefined;
+  }
+  return path;
 }
 
 // ---------------------------------------------------------------- 公开文库（C 端只读）
@@ -391,7 +549,11 @@ export async function listPublicDocuments(
       ilike(knowledgeDocuments.docNumber, `%${query.keyword}%`)
     )!);
   }
-  const where = and(eq(knowledgeDocumentVersions.status, "PUBLISHED"), ...conditions);
+  const where = and(
+    eq(knowledgeDocumentVersions.status, "PUBLISHED"),
+    or(isNull(knowledgeDocumentVersions.expiryDate), gte(knowledgeDocumentVersions.expiryDate, startOfToday().toISOString().slice(0, 10)))!,
+    ...conditions
+  );
 
   const items = await app.db.select({
     id: knowledgeDocuments.id,
@@ -487,6 +649,9 @@ export async function listPublicDocumentPages(
     app.db.select({
       id: knowledgePages.id,
       pageNumber: knowledgePages.pageNumber,
+      physicalPageNumber: knowledgePages.physicalPageNumber,
+      pageLabel: knowledgePages.pageLabel,
+      pageTitle: knowledgePages.pageTitle,
       hasTables: knowledgePages.hasTables,
       hasImages: knowledgePages.hasImages,
       sectionPath: knowledgePages.sectionPath
@@ -501,7 +666,7 @@ export async function listPublicDocumentPages(
   return { items, total: totalRow?.value ?? 0 };
 }
 
-/** 公开文库单页完整内容（fullText + blocks） */
+/** 公开文库单页完整内容（按物理页序号定位；兼容旧 pageNumber 语义） */
 export async function getPublicDocumentPage(
   app: FastifyInstance,
   documentId: string,
@@ -509,9 +674,66 @@ export async function getPublicDocumentPage(
 ): Promise<WikiPageDto> {
   const context = await resolveReadableVersion(app, documentId);
   assertPublicDocument(context.document);
+  let [page] = await app.db.select().from(knowledgePages)
+    .where(and(eq(knowledgePages.versionId, context.version.id), eq(knowledgePages.physicalPageNumber, pageNumber)))
+    .limit(1);
+  if (!page) {
+    [page] = await app.db.select().from(knowledgePages)
+      .where(and(eq(knowledgePages.versionId, context.version.id), eq(knowledgePages.pageNumber, pageNumber)))
+      .limit(1);
+  }
+  if (!page) throw new NotFoundError("页面不存在");
+  return toPageDto(app, page, await getBlocksOfPage(app, page.id));
+}
+
+/** 公开文库单页完整内容（按印刷页码标签定位：4 / 21 / A1 / A5 / D16 / G10；字符串精确匹配，禁止 Number()） */
+export async function getPublicDocumentPageByLabel(
+  app: FastifyInstance,
+  documentId: string,
+  pageLabel: string
+): Promise<WikiPageDto> {
+  const context = await resolveReadableVersion(app, documentId);
+  assertPublicDocument(context.document);
   const [page] = await app.db.select().from(knowledgePages)
-    .where(and(eq(knowledgePages.versionId, context.version.id), eq(knowledgePages.pageNumber, pageNumber)))
+    .where(and(eq(knowledgePages.versionId, context.version.id), eq(knowledgePages.pageLabel, pageLabel)))
+    .orderBy(asc(knowledgePages.physicalPageNumber))
     .limit(1);
   if (!page) throw new NotFoundError("页面不存在");
-  return toPageDto(page, await getBlocksOfPage(app, page.id));
+  return toPageDto(app, page, await getBlocksOfPage(app, page.id));
+}
+
+/** 公开文库原文目录（TOC；只读已发布版本，自动识别初稿同样可见但带 status 标注） */
+export async function getPublicDocumentToc(
+  app: FastifyInstance,
+  documentId: string
+): Promise<{ items: Array<{
+  id: string;
+  parentId: string | null;
+  level: number;
+  sortOrder: number;
+  title: string;
+  pageLabel: string | null;
+  physicalPageNumber: number | null;
+  source: string;
+  status: string;
+  sectionId: string | null;
+}> }> {
+  const context = await resolveReadableVersion(app, documentId);
+  assertPublicDocument(context.document);
+  const { listVersionToc } = await import("./knowledge-original.service.js");
+  const result = await listVersionToc(app, context.version.id);
+  return {
+    items: result.items.map((item) => ({
+      id: item.id,
+      parentId: item.parentId,
+      level: item.level,
+      sortOrder: item.sortOrder,
+      title: item.title,
+      pageLabel: item.pageLabel,
+      physicalPageNumber: item.physicalPageNumber,
+      source: item.source,
+      status: item.status,
+      sectionId: item.sectionId
+    }))
+  };
 }

@@ -10,8 +10,20 @@ const PDF_EXTRACTION_TIMEOUT_MS = 20 * 60 * 1000;
 
 type PdfTextMessage =
   | { type: "page"; pageNumber: number; totalPages: number; text: string }
-  | { type: "done"; totalPages: number }
+  | { type: "done"; totalPages: number; outline?: PdfOutlineItem[] }
   | { type: "error"; message: string };
+
+/** PDF 书签大纲条目（P0-3 TOC 第一优先级来源；pageNumber 为解析出的物理页序号，无法解析时为 null） */
+export interface PdfOutlineItem {
+  title: string;
+  level: number;
+  pageNumber: number | null;
+}
+
+export interface PdfExtractionResult {
+  pages: string[];
+  outline: PdfOutlineItem[];
+}
 
 type PdfWorkerEvent = "message" | "error" | "exit";
 type PdfWorkerListener = (...args: any[]) => void;
@@ -43,7 +55,14 @@ function isPdfTextMessage(value: unknown): value is PdfTextMessage {
       && typeof message.totalPages === "number"
       && typeof message.text === "string";
   }
-  if (message.type === "done") return typeof message.totalPages === "number";
+  if (message.type === "done") {
+    return typeof message.totalPages === "number"
+      && (message.outline === undefined
+        || (Array.isArray(message.outline) && message.outline.every((item) =>
+          item != null && typeof item === "object"
+          && typeof (item as Record<string, unknown>).title === "string"
+          && typeof (item as Record<string, unknown>).level === "number")));
+  }
   return message.type === "error" && typeof message.message === "string";
 }
 
@@ -82,10 +101,10 @@ function createPdfTextWorker(): PdfTextWorker {
 }
 
 /**
- * 在独立线程中逐页提取 PDF 文本。线程每完成一页就回传该页文本并释放页面资源，
+ * 在独立线程中逐页提取 PDF 文本与书签大纲。线程每完成一页就回传该页文本并释放页面资源，
  * 主线程只按页累积字符串，不持有 PDF 解析中间态。
  */
-export function extractPdfText(
+export function extractPdfDocument(
   data: Buffer,
   {
     createWorker,
@@ -93,19 +112,20 @@ export function extractPdfText(
     totalTimeoutMs = PDF_EXTRACTION_TIMEOUT_MS,
     onPage
   }: PdfTextExtractionOptions
-): Promise<string[]> {
+): Promise<PdfExtractionResult> {
   return new Promise((resolve, reject) => {
     const worker = createWorker();
     const pages: string[] = [];
+    let outline: PdfOutlineItem[] = [];
     let settled = false;
 
-    const finish = (result: { pages: string[] } | { error: Error }) => {
+    const finish = (result: { result: PdfExtractionResult } | { error: Error }) => {
       if (settled) return;
       settled = true;
       clearTimeout(idleTimer);
       clearTimeout(totalTimer);
       void worker.terminate().catch(() => undefined);
-      if ("pages" in result) resolve(result.pages);
+      if ("result" in result) resolve(result.result);
       else reject(result.error);
     };
 
@@ -141,7 +161,8 @@ export function extractPdfText(
         for (let index = 0; index < message.totalPages; index++) {
           pages[index] ??= "";
         }
-        finish({ pages });
+        outline = message.outline ?? [];
+        finish({ result: { pages, outline } });
         return;
       }
       finish({ error: new Error(message.message) });
@@ -164,5 +185,16 @@ export function extractPdfText(
  * 接管 `data` 的所有权：字节会被转移到解析线程，调用方在此之后不得再读取该 Buffer。
  */
 export function extractPdfTextInWorker(data: Buffer, onPage?: (progress: PdfPageProgress) => void): Promise<string[]> {
-  return extractPdfText(data, { createWorker: createPdfTextWorker, onPage });
+  return extractPdfDocumentInWorker(data, onPage).then((result) => result.pages);
+}
+
+/** 兼容旧名：可注入 worker 的文本提取（旧测试与调用方使用） */
+export const extractPdfText = extractPdfDocument;
+
+/** 同 extractPdfTextInWorker，但额外返回 PDF 书签大纲（TOC 初稿来源） */
+export function extractPdfDocumentInWorker(
+  data: Buffer,
+  onPage?: (progress: PdfPageProgress) => void
+): Promise<PdfExtractionResult> {
+  return extractPdfDocument(data, { createWorker: createPdfTextWorker, onPage });
 }

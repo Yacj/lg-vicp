@@ -135,3 +135,28 @@ document → document_versions(fileId) → files(bucket+objectKey) → OSS/MinIO
 | GET/PATCH | `/ranking-rules`、`/ranking-rules/:key` | 检索排序规则 |
 | POST/GET | `/evaluations`、`POST /evaluations/:id/judge` | 检索评测（提交/查询/判定） |
 | POST | `/api/v1/internal/knowledge/ingest` | 内部受控 API（x-internal-key 鉴权，服务端直写） |
+
+## 原文档导航模型（2026-08 二次优化）
+
+系统定位从「自动生成 Wiki」修正为「**原文档导航 + 原始页面 + AI 检索索引**」：
+
+```
+正式原文件 ORIGINAL ──► 原始目录 TOC ──► 原始页面 Page（物理页 + 印刷页码标签 + 页面预览图）
+        │                                        │
+（无文本层时）配套检索文件 SEARCH_SOURCE          页面语义内容 Section / Block
+        └──► knowledge_page_mappings ──────────►  辅助检索索引 Chunk ──► AI
+```
+
+- **双源资产**（`knowledge_document_assets`）：ORIGINAL 正式展示原文件；SEARCH_SOURCE 检索文本源（可后绑定到任意未停用版本，upload-intent/complete 传 `assetRole`）；历史 fileId 已回填为 ORIGINAL+SEARCH_SOURCE 同文件。
+- **TOC**（`knowledge_toc_items`）：来源 PDF_BOOKMARK/COMPANION_FILE/MANUAL/TOC_PAGE(P1)；自动识别一律 PENDING_REVIEW 初稿，B 端「目录维护」人工校正后 CONFIRMED；TOC ≠ Section（`sectionId` 仅导航关联）。
+- **Page 拆分**：`physical_page_number`（程序定位）+ `page_label`（用户展示，A1/A5/D16 等非整数，禁止 Number()）+ `page_title`；`pageNumber` 保留过渡。
+- **转曲件**：`NO_TEXT_LAYER`（非解析失败）→ 绑定 SEARCH_SOURCE 后双源解析并建立 `knowledge_page_mappings`（TOC 标题对齐 0.9 → 插值 0.25 → 页数相等恒等兜底 0.3；禁止物理页硬对齐）；无检索源 `SEARCH_SOURCE_REQUIRED` 只能 BROWSE_ONLY 发布。
+- **发布门禁**：AI_ENABLED 必须存在可搜索文本源（硬拦截）；TOC 未确认/映射未核验为软提示（发布响应 `warnings`）。
+- **页面预览**：ORIGINAL PDF 逐页渲染 PNG→OSS（`pdf-page-renderer.ts`，请求-应答协议 concurrency=1，`PDF_PREVIEW_DPI` 默认 130，幂等跳过已渲染页）。
+- **Block 级 Section 归属**：`parsePageToBlocks` 逐行扫描遇标题切换 activeSection，同页多小节各归各；`buildSectionDrafts` 由块聚合章节（替代 detectHeading 整页猜测）。
+- **升级解析**：`POST /versions/:versionId/upgrade-parse`（UPGRADE_PARSE）重读 ORIGINAL+检索源重建全部派生层，已发布版本保留状态；`pnpm backfill:knowledge-wiki` 批量投递，不要求一次重跑。
+- B 端新接口：assets 增删改查、toc CRUD/reorder/remap、page-mappings 核验、pages PATCH（pageLabel/pageTitle）、usage-mode、upgrade-parse；C 端新接口：公开文库 TOC 与 by-label 页面。
+- **重建保护**：CHUNK_REBUILD 仅删除 Section、Block、Chunk 等派生索引；保留既有 Page ID、页面预览、人工 pageLabel/pageTitle、CONFIRMED TOC 与 MANUAL/verified 映射。双源版本从 SEARCH_SOURCE 重读文本，未映射 Search 页不生成索引或原文首页引用。
+- **检索与公开读取**：Section、Block、Chunk 三条召回链均要求当前受控版本、PUBLISHED、AI_ENABLED、未过期和 ACTIVE 文档；公开列表、详情、TOC、页面与 AI 来源详情均只读当前受控且生效的已发布版本。BROWSE_ONLY 永不参加 AI 检索。
+- **来源详情**：`original` 仅表示 ORIGINAL 文件、预览图和短期预览链接；`extracted` 是机器提取文本和 Blocks。双源 Chunk 必须经 `knowledge_page_mappings` 定位 ORIGINAL 页面；没有映射时明确返回不可定位，不伪造页码。
+- **接口边界**：后台 `/api/v1/platform/knowledge/*` 必须同时通过 B_ADMIN 客户端校验和 `system:knowledge:*` 精确权限；C_APP/PC_AI 公开文库仅使用 `/api/v1/client/knowledge/*`。

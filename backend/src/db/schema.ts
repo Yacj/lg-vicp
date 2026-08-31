@@ -110,7 +110,10 @@ export const knowledgeParseStatusEnum = pgEnum("knowledge_parse_status", [
   "PARSED",
   "PARTIAL",
   "OCR_REQUIRED",
-  "FAILED"
+  "FAILED",
+  // 原文档导航模型（2026-08）：文本层缺失不是解析失败，允许绑定检索文本源或作为浏览版发布
+  "NO_TEXT_LAYER",
+  "SEARCH_SOURCE_REQUIRED"
 ]);
 export const knowledgeChunkContentTypeEnum = pgEnum("knowledge_chunk_content_type", [
   "PARAGRAPH",
@@ -123,7 +126,38 @@ export const knowledgeChunkContentTypeEnum = pgEnum("knowledge_chunk_content_typ
   "IMAGE_CAPTION"
 ]);
 export const knowledgeTermTypeEnum = pgEnum("knowledge_term_type", ["KEYWORD", "SYNONYM", "ENTITY", "CLAUSE_NO"]);
-export const parsingJobTypeEnum = pgEnum("parsing_job_type", ["PARSE", "REPARSE", "CHUNK_REBUILD", "OCR"]);
+export const parsingJobTypeEnum = pgEnum("parsing_job_type", ["PARSE", "REPARSE", "CHUNK_REBUILD", "OCR", "UPGRADE_PARSE"]);
+
+// ---------------------------------------------------------------- 原文档导航模型（2026-08）：双源文件 / 原文目录 / 页码拆分 / 页面映射
+
+/** 知识资料文件角色：ORIGINAL 正式展示原文件；SEARCH_SOURCE 检索文本源；OCR_SOURCE OCR 生成文本源（预留）；PREVIEW 派生预览资源（预留） */
+export const knowledgeAssetRoleEnum = pgEnum("knowledge_asset_role", [
+  "ORIGINAL",
+  "SEARCH_SOURCE",
+  "OCR_SOURCE",
+  "PREVIEW"
+]);
+
+/** TOC 条目来源：PDF 书签 / 目录页解析（P1）/ 人工 / 配套检索文件 */
+export const knowledgeTocSourceEnum = pgEnum("knowledge_toc_source", [
+  "PDF_BOOKMARK",
+  "TOC_PAGE",
+  "MANUAL",
+  "COMPANION_FILE"
+]);
+
+/** TOC 状态：自动识别只作为初稿，B 端人工校正后 CONFIRMED */
+export const knowledgeTocStatusEnum = pgEnum("knowledge_toc_status", ["DRAFT", "PENDING_REVIEW", "CONFIRMED"]);
+
+/** 检索页 → 原文页映射方式：pageLabel 精确 / TOC 标题 / 人工指定 */
+export const knowledgePageMappingMethodEnum = pgEnum("knowledge_page_mapping_method", [
+  "PAGE_LABEL",
+  "TOC_TITLE",
+  "MANUAL"
+]);
+
+/** 版本用途：AI_ENABLED 进入 AI 检索（发布门禁校验文本源）；BROWSE_ONLY 仅浏览原文，不进 AI 检索 */
+export const knowledgeUsageModeEnum = pgEnum("knowledge_usage_mode", ["AI_ENABLED", "BROWSE_ONLY"]);
 export const parsingJobStatusEnum = pgEnum("parsing_job_status", [
   "QUEUED",
   "ACTIVE",
@@ -640,6 +674,8 @@ export const knowledgeDocumentVersions = pgTable(
     changeNote: text("change_note"),
     effectiveDate: date("effective_date"),
     expiryDate: date("expiry_date"),
+    /** 版本用途（发布门禁）：AI_ENABLED 必须存在可搜索文本源；BROWSE_ONLY 允许仅 ORIGINAL，不进 AI 检索 */
+    usageMode: knowledgeUsageModeEnum("usage_mode").notNull().default("AI_ENABLED"),
     createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
     approvedById: uuid("approved_by_id").references(() => users.id, { onDelete: "set null" }),
     approvedAt: timestamp("approved_at", { withTimezone: true }),
@@ -694,7 +730,14 @@ export const knowledgePages = pgTable(
     documentId: uuid("document_id").notNull().references(() => knowledgeDocuments.id, { onDelete: "cascade" }),
     versionId: uuid("version_id").notNull().references(() => knowledgeDocumentVersions.id, { onDelete: "cascade" }),
     sectionId: uuid("section_id").references(() => knowledgeSections.id, { onDelete: "set null" }),
+    /** 兼容过渡：一期页码（=物理页序号）；新业务统一使用 physicalPageNumber/pageLabel */
     pageNumber: integer("page_number").notNull(),
+    /** PDF 真实物理页序号（1-based；历史回填 = pageNumber） */
+    physicalPageNumber: integer("physical_page_number").notNull(),
+    /** 用户看到的页码标签：4 / 21 / A1 / A5 / D16 / G10；无印刷页码时 = String(physicalPageNumber)；不是整数，禁止 Number() */
+    pageLabel: varchar("page_label", { length: 32 }),
+    /** 可选页面标题（TOC/人工维护） */
+    pageTitle: varchar("page_title", { length: 255 }),
     parsedText: text("parsed_text"),
     pageImageObjectKey: varchar("page_image_object_key", { length: 512 }),
     sectionPath: varchar("section_path", { length: 255 }),
@@ -705,6 +748,8 @@ export const knowledgePages = pgTable(
   },
   (table) => [
     uniqueIndex("knowledge_pages_version_page_unique").on(table.versionId, table.pageNumber),
+    uniqueIndex("knowledge_pages_version_physical_unique").on(table.versionId, table.physicalPageNumber),
+    index("knowledge_pages_version_label_idx").on(table.versionId, table.pageLabel),
     index("knowledge_pages_document_version_idx").on(table.documentId, table.versionId),
     index("knowledge_pages_version_section_idx").on(table.versionId, table.sectionPath),
     index("knowledge_pages_version_section_id_idx").on(table.versionId, table.sectionId)
@@ -812,6 +857,83 @@ export const knowledgeChunkEdits = pgTable(
   (table) => [
     index("knowledge_chunk_edits_chunk_idx").on(table.chunkId),
     index("knowledge_chunk_edits_created_idx").on(table.createdAt)
+  ]
+);
+
+/** 知识资料双源文件：ORIGINAL 正式展示原文件 / SEARCH_SOURCE 检索文本源（可与 Original 不同）；
+ * 历史 versions.fileId 视为 ORIGINAL + SEARCH_SOURCE 同一文件（迁移已回填）。 */
+export const knowledgeDocumentAssets = pgTable(
+  "knowledge_document_assets",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    documentId: uuid("document_id").notNull().references(() => knowledgeDocuments.id, { onDelete: "cascade" }),
+    versionId: uuid("version_id").notNull().references(() => knowledgeDocumentVersions.id, { onDelete: "cascade" }),
+    fileId: uuid("file_id").notNull().references(() => files.id, { onDelete: "restrict" }),
+    role: knowledgeAssetRoleEnum("role").notNull(),
+    isPrimary: boolean("is_primary").notNull().default(true),
+    createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    ...timestamps
+  },
+  (table) => [
+    uniqueIndex("knowledge_document_assets_version_role_unique").on(table.versionId, table.role),
+    index("knowledge_document_assets_document_idx").on(table.documentId),
+    index("knowledge_document_assets_file_idx").on(table.fileId)
+  ]
+);
+
+/** 原文目录（TOC）：用户看到的原文件目录，不由正文标题推断替代；
+ * 自动识别（书签/配套文件）只作为 PENDING_REVIEW 初稿，B 端人工校正后 CONFIRMED；TOC ≠ Section。 */
+export const knowledgeTocItems = pgTable(
+  "knowledge_toc_items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    documentId: uuid("document_id").notNull().references(() => knowledgeDocuments.id, { onDelete: "cascade" }),
+    versionId: uuid("version_id").notNull().references(() => knowledgeDocumentVersions.id, { onDelete: "cascade" }),
+    parentId: uuid("parent_id"),
+    level: integer("level").notNull().default(1),
+    sortOrder: integer("sort_order").notNull().default(0),
+    title: varchar("title", { length: 255 }).notNull(),
+    /** 印刷页码标签（A1/A5/D16…），展示用 */
+    pageLabel: varchar("page_label", { length: 32 }),
+    /** 物理页序号（程序定位用） */
+    physicalPageNumber: integer("physical_page_number"),
+    source: knowledgeTocSourceEnum("source").notNull().default("MANUAL"),
+    confidence: real("confidence"),
+    /** 可选关联语义 Section（TOC ≠ Section，仅导航关联） */
+    sectionId: uuid("section_id").references(() => knowledgeSections.id, { onDelete: "set null" }),
+    status: knowledgeTocStatusEnum("status").notNull().default("PENDING_REVIEW"),
+    createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    updatedById: uuid("updated_by_id").references(() => users.id, { onDelete: "set null" }),
+    ...timestamps
+  },
+  (table) => [
+    index("knowledge_toc_items_version_sort_idx").on(table.versionId, table.sortOrder),
+    index("knowledge_toc_items_version_parent_idx").on(table.versionId, table.parentId),
+    index("knowledge_toc_items_document_idx").on(table.documentId)
+  ]
+);
+
+/** 检索页 → 原文页映射：Search Source 文本页与 Original 物理页不假设一一对应；
+ * 只有人工确认（verified）或高置信映射才支撑 AI 引用回溯。 */
+export const knowledgePageMappings = pgTable(
+  "knowledge_page_mappings",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    documentId: uuid("document_id").notNull().references(() => knowledgeDocuments.id, { onDelete: "cascade" }),
+    versionId: uuid("version_id").notNull().references(() => knowledgeDocumentVersions.id, { onDelete: "cascade" }),
+    originalPageId: uuid("original_page_id").notNull().references(() => knowledgePages.id, { onDelete: "cascade" }),
+    /** 检索源物理页序号（1-based） */
+    searchPhysicalPageNumber: integer("search_physical_page_number").notNull(),
+    pageLabel: varchar("page_label", { length: 32 }),
+    mappingMethod: knowledgePageMappingMethodEnum("mapping_method").notNull().default("PAGE_LABEL"),
+    confidence: real("confidence"),
+    verified: boolean("verified").notNull().default(false),
+    createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    ...timestamps
+  },
+  (table) => [
+    uniqueIndex("knowledge_page_mappings_version_search_page_unique").on(table.versionId, table.searchPhysicalPageNumber),
+    index("knowledge_page_mappings_version_original_idx").on(table.versionId, table.originalPageId)
   ]
 );
 

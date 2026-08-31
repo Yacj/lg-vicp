@@ -58,6 +58,11 @@
   "chapter": "5 设计与构造", "section": "5.2 VICP薄抹灰外保温系统",
   "sectionPath": ["5 设计与构造", "5.2 VICP薄抹灰外保温系统"],
   "citationAnchor": "5.2.3",
+  "tocPath": null,
+  "physicalPageNumber": 103,
+  "pageLabel": "A5",
+  "pageTitle": "VICP薄抹灰外保温系统基本构造",
+  "originalFileId": "uuid",
   "pageNumber": 21, "pageStart": 21, "pageEnd": 23, "page": 21,
   "matchedText": "本次实际命中的章节/页面/块/切片内容",
   "snippet": "命中词 ±40 字截取",
@@ -66,7 +71,7 @@
 }
 ```
 
-无知识检索证据时 `sources` 为空数组，不伪造来源；`page` 为兼容字段（等价 `pageNumber`），客户端点击来源后调用 `GET /api/v1/ai/knowledge/source-detail` 获取完整页与高亮定位。
+无知识检索证据时 `sources` 为空数组，不伪造来源；`page` 为兼容字段（等价 `pageNumber`）。展示口径：`《title》/ tocPath / pageLabel 页`（如「A5 页」），`physicalPageNumber` 只用于程序打开正确页面；点击来源后调用 `GET /api/v1/ai/knowledge/source-detail` 获取 TOC 路径、ORIGINAL 页面预览图与高亮定位。
 
 ### `stopped`
 

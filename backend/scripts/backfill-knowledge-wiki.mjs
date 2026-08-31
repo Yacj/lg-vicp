@@ -1,18 +1,7 @@
 #!/usr/bin/env node
-// ============================================================
-// 知识库 Wiki 层级回填脚本：
-//
-// - 背景：Wiki 化改造前解析的历史版本只有 knowledge_pages（可能含旧 chunks），
-//   缺少 knowledge_sections / knowledge_page_blocks 层级结构；
-// - 策略：对「有页面但无章节」的版本逐个投递 CHUNK_REBUILD 解析任务，
-//   Worker 复用 writeParsedContent 从页面原文重建 章节 → 内容块 → 兼容 Chunk；
-// - 安全性：不读 OSS、不改页面原文；已发布版本重建只重写派生内容，不降级管线状态；
-// - 幂等性：重复执行会自动跳过已有章节的版本；不强制一次重跑全部历史资料。
-//
-// 用法：
-//   pnpm backfill:knowledge-wiki -- --dry-run        # 只打印待回填版本清单
-//   pnpm backfill:knowledge-wiki -- --limit 50       # 每批最多回填 50 个版本（默认 100）
-// ============================================================
+// 知识原文导航历史升级：只投递存在明确缺口、且没有运行中升级任务的版本。
+// 不读取 OSS、不执行全量 OCR；Worker 仍按单版本逐份升级。
+// 用法：pnpm backfill:knowledge-wiki -- --dry-run [--limit 50]
 import "dotenv/config";
 import { Queue } from "bullmq";
 import { Redis } from "ioredis";
@@ -21,73 +10,113 @@ import postgres from "postgres";
 const args = process.argv.slice(2);
 const dryRun = args.includes("--dry-run");
 const limitIndex = args.indexOf("--limit");
-const limit = limitIndex >= 0 ? Number(args[limitIndex + 1] ?? 100) : 100;
-
+const requestedLimit = Number(args[limitIndex + 1] ?? 100);
+const limit = Number.isFinite(requestedLimit) && requestedLimit > 0 ? requestedLimit : 100;
 const sql = postgres(process.env.DATABASE_URL, { max: 1 });
-const info = (msg) => console.log(`[Wiki回填] ${msg}`);
+const info = (message) => console.log(`[知识升级] ${message}`);
+
+function missingItems(row) {
+  const items = [];
+  if (Number(row.section_count) === 0) items.push("Section");
+  if (Number(row.block_count) === 0) items.push("Block");
+  if (Number(row.chunk_count) === 0) items.push("Chunk");
+  if (Number(row.page_count) > 0 && Number(row.preview_count) < Number(row.page_count) && row.original_mime_type === "application/pdf") items.push("页面预览");
+  if (row.parse_status === "NO_TEXT_LAYER" && Number(row.mapping_count) === 0) items.push("页面映射");
+  return items;
+}
 
 async function main() {
   const candidates = await sql`
-    select v.id as version_id, v.document_id, v.status, v.version,
-           count(p.id)::int as page_count
+    select v.id as version_id, v.document_id, v.version, v.status, v.parse_status, v.file_id,
+           count(distinct p.id)::int as page_count,
+           count(distinct s.id)::int as section_count,
+           count(distinct b.id)::int as block_count,
+           count(distinct c.id)::int as chunk_count,
+           count(distinct m.id)::int as mapping_count,
+           count(distinct p.id) filter (where p.page_image_object_key is not null)::int as preview_count,
+           f.mime_type as original_mime_type,
+           exists (
+             select 1 from knowledge_document_assets a
+             where a.version_id = v.id and a.role = 'SEARCH_SOURCE'
+           ) as has_search_source
     from knowledge_document_versions v
     join knowledge_pages p on p.version_id = v.id
     left join knowledge_sections s on s.version_id = v.id
-    where s.id is null
-    group by v.id, v.document_id, v.status, v.version
+    left join knowledge_page_blocks b on b.version_id = v.id
+    left join knowledge_chunks c on c.version_id = v.id
+    left join knowledge_page_mappings m on m.version_id = v.id
+    left join files f on f.id = v.file_id
+    where v.status <> 'DISABLED'
+      and not exists (
+        select 1 from parsing_jobs j
+        where j.version_id = v.id
+          and j.job_type = 'UPGRADE_PARSE'
+          and j.status in ('QUEUED', 'ACTIVE')
+      )
+    group by v.id, v.document_id, v.version, v.status, v.parse_status, v.file_id, f.mime_type
+    having count(distinct s.id) = 0
+       or count(distinct b.id) = 0
+       or count(distinct c.id) = 0
+       or (v.parse_status = 'NO_TEXT_LAYER' and count(distinct m.id) = 0)
+       or (f.mime_type = 'application/pdf' and count(distinct p.id) filter (where p.page_image_object_key is not null) < count(distinct p.id))
     order by v.document_id, v.version
-    limit ${Number.isFinite(limit) && limit > 0 ? limit : 100}
+    limit ${limit}
   `;
 
-  info(`待回填版本数：${candidates.length}${dryRun ? "（dry-run，不投递任务）" : ""}`);
+  info(`候选版本：${candidates.length}${dryRun ? "（dry-run，不投递）" : ""}`);
   for (const row of candidates) {
-    info(`  版本 ${row.version_id}（文档 ${row.document_id} v${row.version}，状态 ${row.status}，页数 ${row.page_count}）`);
+    const missing = missingItems(row).join("、");
+    const mode = row.parse_status === "NO_TEXT_LAYER"
+      ? row.has_search_source ? "双源" : "浏览版待补检索源"
+      : "单源";
+    info(`版本 ${row.version_id}（v${row.version}，${mode}，缺少：${missing || "未知派生项"}）`);
   }
   if (dryRun || candidates.length === 0) {
     await sql.end();
     return;
   }
 
-  // 与 src/plugins/redis.ts 相同的连接参数，保证与 Worker 同一 Redis 约定
   const connection = new Redis(process.env.REDIS_URL ?? "redis://localhost:6379", {
     maxRetriesPerRequest: null,
     enableReadyCheck: true,
     connectTimeout: 3000
   });
-  const queue = new Queue("document-processing", {
-    connection,
-    defaultJobOptions: {
-      attempts: 3,
-      backoff: { type: "exponential", delay: 2000 },
-      removeOnComplete: { age: 24 * 60 * 60, count: 1000 },
-      removeOnFail: { age: 7 * 24 * 60 * 60, count: 5000 }
+  const queue = new Queue("document-processing", { connection });
+  try {
+    for (const row of candidates) {
+      // 条件插入避免脚本并发执行时重复投递；保留真实 ORIGINAL file_id 供 Worker 读取。
+      const jobs = await sql`
+        insert into parsing_jobs (document_id, version_id, job_type, status, file_id, progress, attempts, created_at, updated_at)
+        select ${row.document_id}, ${row.version_id}, 'UPGRADE_PARSE', 'QUEUED', ${row.file_id}, 0, 0, now(), now()
+        where not exists (
+          select 1 from parsing_jobs
+          where version_id = ${row.version_id}
+            and job_type = 'UPGRADE_PARSE'
+            and status in ('QUEUED', 'ACTIVE')
+        )
+        returning id
+      `;
+      const job = jobs[0];
+      if (!job) {
+        info(`跳过版本 ${row.version_id}：已有运行中的升级任务`);
+        continue;
+      }
+      await queue.add("parse_document", {
+        parsingJobId: job.id,
+        fileId: row.file_id ?? "",
+        versionId: row.version_id,
+        jobType: "UPGRADE_PARSE"
+      }, { jobId: job.id });
+      info(`已投递：版本 ${row.version_id} → parsing_job ${job.id}`);
     }
-  });
-
-  for (const row of candidates) {
-    const [job] = await sql`
-      insert into parsing_jobs
-        (document_id, version_id, job_type, status, file_id, progress, attempts, created_at, updated_at)
-      values
-        (${row.document_id}, ${row.version_id}, 'CHUNK_REBUILD', 'QUEUED', null, 0, 0, now(), now())
-      returning id
-    `;
-    await queue.add("parse_document", {
-      parsingJobId: job.id,
-      fileId: "",
-      versionId: row.version_id,
-      jobType: "CHUNK_REBUILD"
-    }, { jobId: job.id });
-    info(`已投递回填任务：版本 ${row.version_id} → parsing_job ${job.id}`);
+  } finally {
+    await queue.close();
+    await connection.quit();
+    await sql.end();
   }
-
-  await queue.close();
-  await connection.quit();
-  await sql.end();
-  info("回填任务投递完成，由 document-processing Worker 执行");
 }
 
 main().catch((error) => {
-  console.error("[Wiki回填] 执行失败：", error);
+  console.error("[知识升级] 执行失败：", error);
   process.exitCode = 1;
 });

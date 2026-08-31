@@ -16,6 +16,12 @@ const envSchema = z.object({
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().min(1).max(365).default(30),
   REDIS_URL: z.string().url().default("redis://localhost:6379"),
   AI_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(1).default(20),
+  // 知识库原文页面预览（P0-4）：逐页渲染 ORIGINAL PDF → OSS；低 DPI 满足移动端阅读，禁止全量页常驻内存
+  PDF_PREVIEW_ENABLED: z.stringbool().default(true),
+  PDF_PREVIEW_DPI: z.coerce.number().int().min(72).max(300).default(130),
+  PDF_PREVIEW_FORMAT: z.enum(["png", "webp"]).default("png"),
+  // PDF 文本层判定阈值：全文提取字符数低于该值视为 NO_TEXT_LAYER（转曲/扫描件），不是解析失败
+  PDF_TEXT_LAYER_MIN_CHARS: z.coerce.number().int().min(0).default(20),
   AI_MAX_CONCURRENT_GENERATIONS: z.coerce.number().int().min(1).default(2),
   AI_DAILY_REQUEST_LIMIT: z.coerce.number().int().min(1).default(200),
   AI_CONTEXT_MAX_MESSAGES: z.coerce.number().int().min(2).max(100).default(20),

@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { and, count, desc, eq, ilike, inArray } from "drizzle-orm";
-import { knowledgeAliases, knowledgeDocumentVersions, knowledgeDocuments, knowledgePageBlocks, knowledgePages, knowledgeSearchLogs, knowledgeSections, users } from "../../db/schema.js";
+import { knowledgeAliases, knowledgeDocumentAssets, knowledgeDocumentVersions, knowledgeDocuments, knowledgePageBlocks, knowledgePages, knowledgeSearchLogs, knowledgeSections, users } from "../../db/schema.js";
 import type { AuthUser } from "../../shared/auth-user.js";
 import { normalizeSearchText } from "./knowledge.normalize.js";
 import { loadRankingWeights } from "./knowledge-ingest.service.js";
@@ -35,6 +35,13 @@ export interface WikiHit {
   pageContext?: string | null;
   sourcePage: number | null;
   pageEnd?: number | null;
+  /** PDF 物理页序号（程序定位用） */
+  physicalPageNumber?: number | null;
+  /** 印刷页码标签（AI 引用/展示用：4 / 21 / A1 / A5 / D16 / G10；非整数，禁止 Number()） */
+  pageLabel?: string | null;
+  pageTitle?: string | null;
+  /** ORIGINAL 展示原文件 id（用户看到的"原文"载体） */
+  originalFileId?: string | null;
   sourceSection: string | null;
   headingPath?: string[] | null;
   sourceTitle: string;
@@ -292,6 +299,9 @@ export async function runSearch(app: FastifyInstance, query: string, options: Ru
     inner join knowledge_documents kd on kd.id = kc.document_id
     where ${matchCondition}
       and kdv.status = 'PUBLISHED'
+      and kdv.usage_mode = 'AI_ENABLED'
+      and (kdv.expiry_date is null or kdv.expiry_date >= current_date)
+      and kd.current_version_id = kc.version_id
       and kd.status = 'ACTIVE'
       and kd.deleted_at is null${filterFragment}
     order by score desc
@@ -340,6 +350,9 @@ export async function runSearch(app: FastifyInstance, query: string, options: Ru
       retrievalUnit: "CHUNK" as const,
       content: row.content,
       sourcePage: row.sourcePage,
+      physicalPageNumber: row.sourcePage,
+      pageLabel: null,
+      pageTitle: null,
       sourceSection: row.sourceSection,
       sourceTitle: row.sourceTitle,
       version: row.version,
@@ -489,6 +502,9 @@ interface BlockHitRow {
   sectionId: string | null;
   pageId: string;
   pageNumber: number;
+  physicalPageNumber: number | null;
+  pageLabel: string | null;
+  pageTitle: string | null;
   content: string;
   contentType: string;
   docTitle: string;
@@ -572,7 +588,11 @@ export async function searchWikiHierarchy(
         docFilterClauses[0]!
       )
     : sql``;
-  const publishedGuard = sql`kdv.status = 'PUBLISHED' and kd.status = 'ACTIVE' and kd.deleted_at is null`;
+  const publishedGuard = sql`kdv.status = 'PUBLISHED'
+    and kdv.usage_mode = 'AI_ENABLED'
+    and (kdv.expiry_date is null or kdv.expiry_date >= current_date)
+    and kd.current_version_id = kdv.id
+    and kd.status = 'ACTIVE' and kd.deleted_at is null`;
 
   // 1) 章节层：标题路径 search_text / 标题 / 条款号命中
   const sectionRows = await app.sqlClient<SectionHitRow[]>`
@@ -626,6 +646,9 @@ export async function searchWikiHierarchy(
       kpb.section_id as "sectionId",
       kpb.page_id as "pageId",
       kp.page_number as "pageNumber",
+      kp.physical_page_number as "physicalPageNumber",
+      kp.page_label as "pageLabel",
+      kp.page_title as "pageTitle",
       kpb.content,
       kpb.content_type as "contentType",
       kd.title as "docTitle",
@@ -711,6 +734,9 @@ export async function searchWikiHierarchy(
       pageContext: null,
       sourcePage: row.startPage,
       pageEnd: row.endPage,
+      physicalPageNumber: row.startPage,
+      pageLabel: null,
+      pageTitle: null,
       sourceSection: row.title,
       headingPath: row.headingPath ?? [],
       sourceTitle: row.docTitle,
@@ -744,7 +770,10 @@ export async function searchWikiHierarchy(
     versionId: row.versionId,
     content: row.content,
     pageContext: pageTextById.get(row.pageId) ?? null,
-    sourcePage: row.pageNumber,
+    sourcePage: row.physicalPageNumber ?? row.pageNumber,
+    physicalPageNumber: row.physicalPageNumber ?? row.pageNumber,
+    pageLabel: row.pageLabel,
+    pageTitle: row.pageTitle,
     sourceSection: null,
     headingPath: null,
     sourceTitle: row.docTitle,
@@ -756,7 +785,51 @@ export async function searchWikiHierarchy(
     snippet: buildSnippet(row.content, matchedTerms)
   }));
 
-  return mergeWikiHits({ sectionHits, blockHits, chunkHits, limit });
+  const hits = mergeWikiHits({ sectionHits, blockHits, chunkHits, limit });
+
+  // 原文导航回填：物理页/印刷页码标签（Section/Chunk 命中批量回查页面行）+ ORIGINAL 资产
+  const pageKeys = new Set<string>();
+  for (const hit of hits) {
+    if (hit.pageLabel == null && hit.sourcePage != null) pageKeys.add(`${hit.versionId}:${hit.sourcePage}`);
+  }
+  if (pageKeys.size > 0) {
+    const versionIds = [...new Set(hits.map((hit) => hit.versionId))];
+    const pageRows = await app.db
+      .select({
+        versionId: knowledgePages.versionId,
+        physicalPageNumber: knowledgePages.physicalPageNumber,
+        pageNumber: knowledgePages.pageNumber,
+        pageLabel: knowledgePages.pageLabel,
+        pageTitle: knowledgePages.pageTitle
+      })
+      .from(knowledgePages)
+      .where(inArray(knowledgePages.versionId, versionIds));
+    const pageByKey = new Map(pageRows.map((row) => [`${row.versionId}:${row.physicalPageNumber ?? row.pageNumber}`, row]));
+    for (const hit of hits) {
+      if (hit.pageLabel != null) continue;
+      const row = pageByKey.get(`${hit.versionId}:${hit.sourcePage}`);
+      if (row) {
+        hit.physicalPageNumber = hit.physicalPageNumber ?? row.physicalPageNumber ?? row.pageNumber;
+        hit.pageLabel = row.pageLabel ?? (row.physicalPageNumber != null ? String(row.physicalPageNumber) : null);
+        hit.pageTitle = row.pageTitle;
+      }
+    }
+  }
+  const versionIdList = [...new Set(hits.map((hit) => hit.versionId))];
+  if (versionIdList.length > 0) {
+    const assetRows = await app.db
+      .select({ versionId: knowledgeDocumentAssets.versionId, fileId: knowledgeDocumentAssets.fileId })
+      .from(knowledgeDocumentAssets)
+      .where(and(
+        inArray(knowledgeDocumentAssets.versionId, versionIdList),
+        eq(knowledgeDocumentAssets.role, "ORIGINAL")
+      ));
+    const originalByVersion = new Map(assetRows.map((row) => [row.versionId, row.fileId]));
+    for (const hit of hits) {
+      hit.originalFileId = originalByVersion.get(hit.versionId) ?? null;
+    }
+  }
+  return hits;
 }
 
 export function formatKnowledgeContext(hits: WikiHit[]): string {
@@ -766,7 +839,9 @@ export function formatKnowledgeContext(hits: WikiHit[]): string {
       : hit.retrievalUnit === "BLOCK" ? "内容块"
         : hit.retrievalUnit === "PAGE" ? "页面" : "片段";
     const sectionText = hit.sourceSection ?? (hit.headingPath && hit.headingPath.length > 0 ? hit.headingPath.join(" / ") : null);
-    const location = [hit.sourcePage != null ? `第 ${hit.sourcePage} 页` : null, sectionText]
+    // 展示口径：印刷页码标签优先（A5 页），物理页序号只用于程序定位
+    const pageText = hit.pageLabel ?? (hit.sourcePage != null ? String(hit.sourcePage) : null);
+    const location = [pageText ? `${pageText} 页` : null, sectionText]
       .filter(Boolean).join("，") || "位置未知";
     const meta = [hit.evidenceLevel ? `证据等级 ${hit.evidenceLevel}` : null, hit.region ? `地区 ${hit.region}` : null]
       .filter(Boolean).join("，");

@@ -21,6 +21,7 @@ import {
   parsingJobs
 } from "../../db/schema.js";
 import { writeAuditLog } from "../audit-logs/audit-log.service.js";
+import { assertVersionPublishable, bindVersionAsset, type KnowledgeAssetRole } from "./knowledge-original.service.js";
 import { assertNoDuplicateSha256 } from "./knowledge-ingest.service.js";
 import { extractAnchors, extractKeywords } from "./knowledge-chunking.js";
 import { normalizeSearchText } from "./knowledge.normalize.js";
@@ -357,10 +358,16 @@ export async function createVersionUploadIntent(
   request: FastifyRequest,
   actor: AuthUser,
   versionId: string,
-  input: { fileName: string; mimeType: string; sizeBytes: number; sha256?: string }
+  input: { fileName: string; mimeType: string; sizeBytes: number; sha256?: string },
+  assetRole?: KnowledgeAssetRole
 ) {
   const version = await requireVersion(app, versionId);
-  if (version.status !== "DRAFT") throw new ConflictError("仅草稿版本允许上传文件");
+  // ORIGINAL（缺省）仍限草稿换文件；SEARCH_SOURCE/OCR_SOURCE 允许绑定到任意未停用版本（转曲件升级路径）
+  if (assetRole === undefined || assetRole === "ORIGINAL") {
+    if (version.status !== "DRAFT") throw new ConflictError("仅草稿版本允许上传文件");
+  } else if (version.status === "DISABLED") {
+    throw new ConflictError("已停用版本不允许绑定文件资产");
+  }
   if (input.sizeBytes > env.MAX_UPLOAD_BYTES) {
     throw new ForbiddenError(`文件不能超过 ${Math.floor(env.MAX_UPLOAD_BYTES / 1024 / 1024)} MB`);
   }
@@ -387,16 +394,23 @@ export async function createVersionUploadIntent(
   return { fileId: file.id, uploadUrl: upload.url, headers: upload.headers, expiresAt: upload.expiresAt };
 }
 
-/** 确认版本文件上传完成：校验对象大小/哈希/MIME，版本绑定文件并重置解析状态 */
+/** 确认版本文件上传完成：校验对象大小/哈希/MIME；
+ * 缺省（ORIGINAL）：版本绑定主文件并重置解析状态，同时维护 ORIGINAL 资产行；
+ * assetRole=SEARCH_SOURCE/OCR_SOURCE：仅登记文件资产，不动版本主文件（转曲件升级路径）。 */
 export async function completeVersionUpload(
   app: FastifyInstance,
   request: FastifyRequest,
   actor: AuthUser,
   versionId: string,
-  fileId: string
+  fileId: string,
+  assetRole?: KnowledgeAssetRole
 ) {
   const version = await requireVersion(app, versionId);
-  if (version.status !== "DRAFT") throw new ConflictError("仅草稿版本允许更换文件");
+  if (assetRole === undefined || assetRole === "ORIGINAL") {
+    if (version.status !== "DRAFT") throw new ConflictError("仅草稿版本允许更换文件");
+  } else if (version.status === "DISABLED") {
+    throw new ConflictError("已停用版本不允许绑定文件资产");
+  }
   const file = await requireActiveFile(app, fileId);
   if (file.ownerUserId !== actor.id && actor.role !== "SUPER_ADMIN") {
     throw new ForbiddenError("只能操作本人上传的文件");
@@ -417,6 +431,13 @@ export async function completeVersionUpload(
   if (detected && detected.mime !== file.mimeType) {
     throw new ForbiddenError("上传文件实际类型与申请信息不一致");
   }
+  if (assetRole === "SEARCH_SOURCE" || assetRole === "OCR_SOURCE" || assetRole === "PREVIEW") {
+    // 附属资产：只登记资产行，不改版本主文件与解析状态
+    await app.db.update(files).set({ status: "READY", errorMessage: null, updatedAt: new Date() })
+      .where(eq(files.id, fileId));
+    await bindVersionAsset(app, request, actor, versionId, { role: assetRole, fileId });
+    return { message: `${assetRole} 资产绑定完成；如为检索文本源，请触发“升级解析”重建内容与页面映射` };
+  }
   await app.db.transaction(async (tx) => {
     await tx.update(files).set({ status: "QUEUED", errorMessage: null, updatedAt: new Date() })
       .where(eq(files.id, fileId));
@@ -432,6 +453,8 @@ export async function completeVersionUpload(
       afterJson: { fileId, fileName: file.originalName }
     });
   });
+  // 维护 ORIGINAL 资产行（原文导航模型：版本主文件 = ORIGINAL）
+  await bindVersionAsset(app, request, actor, versionId, { role: "ORIGINAL", fileId });
   return { message: "文件上传确认完成，可发起解析" };
 }
 
@@ -538,7 +561,11 @@ export async function approveVersion(
   const version = await requireVersion(app, versionId);
   if (version.status === "PUBLISHED") throw new ConflictError("已发布版本无需重复审核");
   if (version.status === "DISABLED") throw new ConflictError("已停用版本不能审核，请基于历史版本回滚");
-  if (version.parseStatus !== "PARSED" && version.parseStatus !== "PARTIAL") {
+  const parseable = version.parseStatus === "PARSED"
+    || version.parseStatus === "PARTIAL"
+    || version.parseStatus === "NO_TEXT_LAYER"
+    || (version.usageMode === "BROWSE_ONLY" && version.parseStatus === "SEARCH_SOURCE_REQUIRED");
+  if (!parseable) {
     throw new ConflictError("版本尚未完成解析，不能审核");
   }
   const approved = await app.db.transaction(async (tx) => {
@@ -565,6 +592,8 @@ export async function approveVersion(
 export async function publishVersion(app: FastifyInstance, request: FastifyRequest, actor: AuthUser, versionId: string) {
   const version = await requireVersion(app, versionId);
   if (version.status !== "APPROVED") throw new ConflictError("仅审核通过的版本可以发布");
+  // 发布门禁（P1）：AI_ENABLED 必须存在可搜索文本源（硬拦截）；TOC/页面映射未核验为软提示
+  const readiness = await assertVersionPublishable(app, version);
   await app.db.transaction(async (tx) => {
     await tx.update(knowledgeDocumentVersions)
       .set({ status: "DISABLED", updatedAt: new Date() })
@@ -590,10 +619,15 @@ export async function publishVersion(app: FastifyInstance, request: FastifyReque
       db: tx, request, actor,
       action: AUDIT_ACTIONS.KNOWLEDGE_VERSION_PUBLISHED, targetType: "knowledge_document_version", targetId: versionId,
       beforeJson: { status: version.status },
-      afterJson: { status: "PUBLISHED", version: version.version }
+      afterJson: { status: "PUBLISHED", version: version.version, warnings: readiness.warnings }
     });
   });
-  return { message: "版本已发布为当前受控版本" };
+  return {
+    message: readiness.warnings.length > 0
+      ? `版本已发布为当前受控版本（提示：${readiness.warnings.join("；")}）`
+      : "版本已发布为当前受控版本",
+    warnings: readiness.warnings
+  };
 }
 
 /** 停用：PUBLISHED -> DISABLED，文档受控版本置空 */

@@ -23,6 +23,7 @@
 - `/api/v1/client/*` 为 C 端/PC AI 端只读内容接口（已发布企业介绍、公开文库），要求 JWT 且客户端为 `C_APP`/`PC_AI`，不依赖后台 RBAC。
 - 客户端访问令牌按客户端类型分别配置：`B_ADMIN` 默认 `24h`，`C_APP` 默认 `30d`，`PC_AI` 默认 `30d`；refresh token 统一默认有效 `30` 天。
 - B 端后台接口必须先通过 JWT 和客户端校验，再通过具体按钮权限码校验；超级管理员直通。
+- 知识库采用“原文档导航 + 原始页面 + AI 检索索引”：平台管理路径 `/api/v1/platform/knowledge/*` 要求 `B_ADMIN` 与精确 `system:knowledge:*` 权限；C_APP/PC_AI 公开读取仅使用 `/api/v1/client/knowledge/*`。AI 只检索当前、已发布、未过期且 `AI_ENABLED` 的版本；`BROWSE_ONLY` 仅可浏览原文件。
 - 不允许使用任意 `system:*` 作为模块级通行证；查看、新增、修改、删除、导出、分配和测试使用独立权限码。
 - C 端和 PC AI 端不能访问后台管理接口，但可以访问明确开放的 AI、公开项目、本人项目、受控文件、报告和分享业务接口。
 - 项目权限独立于后台 RBAC，必须继续执行 `canViewProject`、`canManageProject`、会话归属和文件归属校验。

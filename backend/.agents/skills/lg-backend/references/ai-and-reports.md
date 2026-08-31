@@ -1,3 +1,7 @@
+<!-- 2026-08 原文导航收口：CHUNK_REBUILD 仅重建派生 Section/Block/Chunk，保留 Page ID、预览、人工页签、CONFIRMED TOC 与人工映射；双源只从 SEARCH_SOURCE 读取并且未映射页不索引。检索统一限制当前 PUBLISHED、未过期、AI_ENABLED 版本；BROWSE_ONLY 仅浏览；来源详情通过映射返回 ORIGINAL，未映射时不伪造页码。 -->
+
+<!-- 2026-08 二次优化增量：原文档导航模型（knowledge_document_assets 双源 / knowledge_toc_items 人工确认 TOC / knowledge_page_mappings 检索页→原文页映射 / pages 拆 physical_page_number+page_label）；转曲件 NO_TEXT_LAYER/SEARCH_SOURCE_REQUIRED + usageMode(AI_ENABLED/BROWSE_ONLY) 发布门禁；页面预览 pdf-page-renderer（concurrency=1）；块级 Section 归属 parsePageToBlocks；UPGRADE_PARSE 升级解析；B 端 assets/toc/page-mappings/usage-mode/upgrade-parse 路由；C 端公开文库 toc + pages/by-label。 -->
+
 <!-- 2026-08 Wiki 层级知识体系改造增量：AI 来源契约统一 ai-source.mapper.ts；知识检索为 searchWikiHierarchy 层级检索（Section/Page/Block 优先，Chunk 辅助）；专业会话必须选保温体系（AI_INSULATION_SYSTEM_REQUIRED）；公开文库 /api/v1/client/knowledge/*、企业介绍 /api/v1/client/content/enterprise-profile；B 端通知 /api/v1/platform/notifications（system:notification:*）。 -->
 
 # AI 与报告

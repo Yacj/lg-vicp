@@ -7,7 +7,7 @@ export interface DocumentJobData {
   fileId: string;
   parsingJobId?: string;
   versionId?: string;
-  jobType?: "PARSE" | "REPARSE" | "CHUNK_REBUILD" | "OCR";
+  jobType?: "PARSE" | "REPARSE" | "CHUNK_REBUILD" | "OCR" | "UPGRADE_PARSE";
 }
 
 export interface DocumentJobFailure {

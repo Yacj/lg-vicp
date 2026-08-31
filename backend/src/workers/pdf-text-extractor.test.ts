@@ -71,7 +71,7 @@ describe("PDF 文本提取线程", () => {
     worker.emit("message", { type: "page", pageNumber: 1, totalPages: 2, text: "第一页" });
     worker.emit("message", { type: "done", totalPages: 2 });
 
-    await expect(result).resolves.toEqual(["第一页", "第二页"]);
+    await expect(result).resolves.toMatchObject({ pages: ["第一页", "第二页"], outline: [] });
     expect(worker.postMessage).toHaveBeenCalledOnce();
     expect(worker.terminate).toHaveBeenCalledOnce();
   });
@@ -83,7 +83,7 @@ describe("PDF 文本提取线程", () => {
     worker.emit("message", { type: "page", pageNumber: 3, totalPages: 3, text: "第三页" });
     worker.emit("message", { type: "done", totalPages: 3 });
 
-    await expect(result).resolves.toEqual(["", "", "第三页"]);
+    await expect(result).resolves.toMatchObject({ pages: ["", "", "第三页"], outline: [] });
   });
 
   it("将线程内的解析错误传递给任务处理器", async () => {
@@ -153,7 +153,7 @@ describe("PDF 文本提取线程", () => {
       await vi.advanceTimersByTimeAsync(80);
       worker.emit("message", { type: "done", totalPages: 1 });
 
-      await expect(result).resolves.toEqual(["仍在推进"]);
+      await expect(result).resolves.toMatchObject({ pages: ["仍在推进"], outline: [] });
     } finally {
       vi.useRealTimers();
     }

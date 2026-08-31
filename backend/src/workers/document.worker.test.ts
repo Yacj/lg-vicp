@@ -1,4 +1,15 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// document.worker 现在引用 env（页面预览/文本层阈值），导入前注入测试环境变量
+vi.hoisted(() => {
+  process.env.NODE_ENV = "test";
+  process.env.DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/test";
+  process.env.JWT_SECRET = "test-jwt-secret-at-least-32-characters";
+  process.env.AI_CONFIG_ENCRYPTION_KEY = "0123456789abcdef0123456789abcdef";
+  process.env.STORAGE_ACCESS_KEY = "test";
+  process.env.STORAGE_SECRET_KEY = "test-secret";
+  process.env.BOOTSTRAP_ADMIN_PASSWORD = "test-admin-password";
+});
 import { splitText, worksheetToSheetData } from "./document.worker.js";
 
 describe("知识文本切片", () => {

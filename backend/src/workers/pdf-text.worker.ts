@@ -4,20 +4,84 @@ interface PdfTextRequest {
   data: Uint8Array;
 }
 
+/** 书签大纲条目（与 pdf-text-extractor.ts 的 PdfOutlineItem 保持同构） */
+interface OutlineItem {
+  title: string;
+  level: number;
+  pageNumber: number | null;
+}
+
 type PdfTextMessage =
   | { type: "page"; pageNumber: number; totalPages: number; text: string }
-  | { type: "done"; totalPages: number }
+  | { type: "done"; totalPages: number; outline?: OutlineItem[] }
   | { type: "error"; message: string };
 
 const port = parentPort;
 if (!port) throw new Error("PDF 文本提取线程缺少父线程端口");
+
+/** pdfjs 大纲条目的最小结构（unpdf 内置 pdfjs fork，无官方类型） */
+interface RawOutlineItem {
+  title?: unknown;
+  dest?: unknown;
+  items?: unknown;
+}
+
+/**
+ * 读取 PDF 书签大纲（TOC 第一优先级来源）：
+ * 逐项解析 dest（命名目标或显式目标数组）→ getPageIndex 得到物理页序号（1-based）；
+ * 单项解析失败仅置 null，不影响整体；任何异常都返回空数组，书签是增强信息不是必需品。
+ */
+async function readOutline(pdf: {
+  getOutline: () => Promise<unknown>;
+  getDestination: (name: string) => Promise<unknown>;
+  getPageIndex: (ref: unknown) => Promise<number>;
+}): Promise<OutlineItem[]> {
+  let raw: unknown;
+  try {
+    raw = await pdf.getOutline();
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(raw) || raw.length === 0) return [];
+
+  const output: OutlineItem[] = [];
+  const resolvePageNumber = async (dest: unknown): Promise<number | null> => {
+    try {
+      const resolved = typeof dest === "string" ? await pdf.getDestination(dest) : dest;
+      if (Array.isArray(resolved) && resolved.length > 0) {
+        const index = await pdf.getPageIndex(resolved[0]);
+        if (Number.isFinite(index)) return index + 1;
+      }
+    } catch {
+      // 目标不可解析（转曲/外部链接/损坏 dest）→ 仅缺页码
+    }
+    return null;
+  };
+  const walk = async (items: RawOutlineItem[], level: number): Promise<void> => {
+    for (const item of items) {
+      if (!item || typeof item !== "object") continue;
+      const title = typeof item.title === "string" && item.title.trim() ? item.title.trim().slice(0, 255) : null;
+      if (title) {
+        output.push({ title, level, pageNumber: await resolvePageNumber(item.dest) });
+      }
+      if (Array.isArray(item.items) && item.items.length > 0 && level < 6) {
+        await walk(item.items as RawOutlineItem[], level + 1);
+      }
+    }
+  };
+  await walk(raw as RawOutlineItem[], 1);
+  return output;
+}
 
 /**
  * 逐页提取并立即释放页面资源。
  * 不使用 unpdf 的 extractText：该实现用 Promise.all 并发解析全部页且从不调用 page.cleanup()，
  * 会让整份文档的字体与文本中间态同时驻留，数百页文档足以耗尽容器内存。
  */
-async function extractPagesSequentially(data: Uint8Array, emit: (message: PdfTextMessage) => void): Promise<number> {
+async function extractPagesSequentially(
+  data: Uint8Array,
+  emit: (message: PdfTextMessage) => void
+): Promise<{ totalPages: number; outline: OutlineItem[] }> {
   const runtimeCompatSpecifier = `../shared/runtime-compat.${import.meta.url.endsWith(".ts") ? "ts" : "js"}`;
   const { installPdfRuntimeCompat } = await import(runtimeCompatSpecifier);
   installPdfRuntimeCompat();
@@ -39,7 +103,8 @@ async function extractPagesSequentially(data: Uint8Array, emit: (message: PdfTex
         page.cleanup();
       }
     }
-    return totalPages;
+    const outline = await readOutline(pdf as never);
+    return { totalPages, outline };
   } finally {
     await pdf.loadingTask.destroy();
   }
@@ -48,8 +113,8 @@ async function extractPagesSequentially(data: Uint8Array, emit: (message: PdfTex
 port.once("message", async (request: PdfTextRequest) => {
   try {
     if (!(request.data instanceof Uint8Array)) throw new Error("PDF 文本提取参数无效");
-    const totalPages = await extractPagesSequentially(request.data, (message) => port.postMessage(message));
-    port.postMessage({ type: "done", totalPages } satisfies PdfTextMessage);
+    const { totalPages, outline } = await extractPagesSequentially(request.data, (message) => port.postMessage(message));
+    port.postMessage({ type: "done", totalPages, outline } satisfies PdfTextMessage);
   } catch (error) {
     port.postMessage({
       type: "error",
