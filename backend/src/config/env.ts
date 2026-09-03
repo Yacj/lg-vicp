@@ -16,7 +16,10 @@ const envSchema = z.object({
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().min(1).max(365).default(30),
   REDIS_URL: z.string().url().default("redis://localhost:6379"),
   AI_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(1).default(20),
-  // 知识库原文页面预览（P0-4）：逐页渲染 ORIGINAL PDF → OSS；低 DPI 满足移动端阅读，禁止全量页常驻内存
+  // 知识库发布校验：默认只警告，严格模式阻止 AI_ENABLED 版本发布
+  STRICT_KNOWLEDGE_PUBLISH_CHECK: z.stringbool().default(false),
+  KNOWLEDGE_MAPPING_MIN_AI_CONFIDENCE: z.coerce.number().min(0).max(1).default(0.85),
+  // PDF 页面预览（P0-4）：逐页渲染 ORIGINAL PDF → OSS；低 DPI 满足移动端阅读，禁止全量页常驻内存
   PDF_PREVIEW_ENABLED: z.stringbool().default(true),
   PDF_PREVIEW_DPI: z.coerce.number().int().min(72).max(300).default(130),
   PDF_PREVIEW_FORMAT: z.enum(["png", "webp"]).default("png"),

@@ -1,4 +1,5 @@
-import { and, asc, count, desc, eq, gte, ilike, isNull, or } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, isNull, lte, or, sql } from "drizzle-orm";
+import { env } from "../../config/env.js";
 import type { FastifyInstance } from "fastify";
 import {
   files,
@@ -55,6 +56,27 @@ export interface WikiPageBlockDto {
   metadata: Record<string, unknown> | null;
 }
 
+export interface WikiPageListItem {
+  id: string;
+  pageNumber: number;
+  physicalPageNumber: number;
+  pageLabel: string | null;
+  pageLabelSource: string;
+  pageLabelConfidence: number | null;
+  pageLabelVerified: boolean;
+  pageTitle: string | null;
+  hasTables: boolean;
+  hasImages: boolean;
+  sectionPath: string | null;
+}
+
+export interface WikiPageWindow {
+  current: number;
+  total: number;
+  page: WikiPageDto;
+  items: WikiPageListItem[];
+}
+
 export interface WikiPageDto {
   id: string;
   /** 兼容过渡字段：等价 physicalPageNumber（一期页码） */
@@ -63,10 +85,13 @@ export interface WikiPageDto {
   physicalPageNumber: number;
   /** 用户看到的印刷页码标签（4 / 21 / A1 / A5 / D16 / G10；非整数，禁止 Number()） */
   pageLabel: string | null;
+  pageLabelSource: string;
+  pageLabelConfidence: number | null;
+  pageLabelVerified: boolean;
   pageTitle: string | null;
   /** 机器提取文本（不代表原 PDF 排版；原文以 ORIGINAL PDF 页面/预览图为准） */
+  /** @deprecated 请使用 extractedText；该字段仅为现有客户端兼容保留 */
   fullText: string;
-  /** extractedText = fullText 的明确命名别名（新接口统一使用） */
   extractedText: string;
   blocks: WikiPageBlockDto[];
   /** 原文页面预览图（ORIGINAL PDF 逐页渲染；未渲染为 null） */
@@ -252,7 +277,10 @@ async function toPageDto(app: FastifyInstance, page: typeof knowledgePages.$infe
     id: page.id,
     pageNumber: page.pageNumber,
     physicalPageNumber: page.physicalPageNumber ?? page.pageNumber,
-    pageLabel: page.pageLabel ?? (page.physicalPageNumber != null ? String(page.physicalPageNumber) : null),
+    pageLabel: page.pageLabel,
+    pageLabelSource: page.pageLabelSource,
+    pageLabelConfidence: page.pageLabelConfidence,
+    pageLabelVerified: page.pageLabelVerified,
     pageTitle: page.pageTitle,
     fullText: text,
     extractedText: text,
@@ -261,19 +289,20 @@ async function toPageDto(app: FastifyInstance, page: typeof knowledgePages.$infe
   };
 }
 
-/** 页面行 → DTO 的同步形态（列表场景，不生成预签 URL） */
-function toPageListItem(page: typeof knowledgePages.$inferSelect): WikiPageDto {
-  const text = page.parsedText ?? "";
+/** 页面行 → DTO 的同步形态（列表场景，不返回正文与 Blocks） */
+function toPageListItem(page: typeof knowledgePages.$inferSelect): WikiPageListItem {
   return {
     id: page.id,
     pageNumber: page.pageNumber,
     physicalPageNumber: page.physicalPageNumber ?? page.pageNumber,
-    pageLabel: page.pageLabel ?? (page.physicalPageNumber != null ? String(page.physicalPageNumber) : null),
+    pageLabel: page.pageLabel,
+    pageLabelSource: page.pageLabelSource,
+    pageLabelConfidence: page.pageLabelConfidence,
+    pageLabelVerified: page.pageLabelVerified,
     pageTitle: page.pageTitle,
-    fullText: text,
-    extractedText: text,
-    blocks: [],
-    pageImageUrl: null
+    hasTables: page.hasTables,
+    hasImages: page.hasImages,
+    sectionPath: page.sectionPath
   };
 }
 
@@ -347,7 +376,8 @@ export async function resolveSourceDetail(
           .innerJoin(knowledgePages, eq(knowledgePages.id, knowledgePageMappings.originalPageId))
           .where(and(
             eq(knowledgePageMappings.versionId, chunk.versionId),
-            eq(knowledgePageMappings.searchPhysicalPageNumber, searchPageNumber)
+            eq(knowledgePageMappings.searchPhysicalPageNumber, searchPageNumber),
+            sql`(${knowledgePageMappings.verified} = true or ${knowledgePageMappings.confidence} >= ${env.KNOWLEDGE_MAPPING_MIN_AI_CONFIDENCE})`
           )).limit(1).then((rows) => rows[0]?.page ?? null);
         hasUnmappedSearchPage = page == null;
       } else {
@@ -640,7 +670,7 @@ export async function listPublicDocumentPages(
   documentId: string,
   page: number,
   pageSize: number
-): Promise<{ items: Array<{ id: string; pageNumber: number; hasTables: boolean; hasImages: boolean; sectionPath: string | null }>; total: number }> {
+): Promise<{ items: WikiPageListItem[]; total: number }> {
   const context = await resolveReadableVersion(app, documentId);
   assertPublicDocument(context.document);
   const normalizedPage = Math.max(1, page);
@@ -651,6 +681,9 @@ export async function listPublicDocumentPages(
       pageNumber: knowledgePages.pageNumber,
       physicalPageNumber: knowledgePages.physicalPageNumber,
       pageLabel: knowledgePages.pageLabel,
+      pageLabelSource: knowledgePages.pageLabelSource,
+      pageLabelConfidence: knowledgePages.pageLabelConfidence,
+      pageLabelVerified: knowledgePages.pageLabelVerified,
       pageTitle: knowledgePages.pageTitle,
       hasTables: knowledgePages.hasTables,
       hasImages: knowledgePages.hasImages,
@@ -663,7 +696,86 @@ export async function listPublicDocumentPages(
       .offset((normalizedPage - 1) * normalizedSize),
     app.db.select({ value: count() }).from(knowledgePages).where(eq(knowledgePages.versionId, context.version.id))
   ]);
-  return { items, total: totalRow?.value ?? 0 };
+  return { items: items.map((item) => toPageListItem(item as typeof knowledgePages.$inferSelect)), total: totalRow?.value ?? 0 };
+}
+
+/** 按版本读取单页完整内容；调用方负责版本可见性与权限校验。 */
+export async function getVersionPage(
+  app: FastifyInstance,
+  versionId: string,
+  physicalPageNumber: number
+): Promise<WikiPageDto> {
+  const [version] = await app.db.select({ id: knowledgeDocumentVersions.id })
+    .from(knowledgeDocumentVersions).where(eq(knowledgeDocumentVersions.id, versionId)).limit(1);
+  if (!version) throw new NotFoundError("文档版本不存在");
+  let [page] = await app.db.select().from(knowledgePages)
+    .where(and(eq(knowledgePages.versionId, versionId), eq(knowledgePages.physicalPageNumber, physicalPageNumber)))
+    .limit(1);
+  if (!page) {
+    [page] = await app.db.select().from(knowledgePages)
+      .where(and(eq(knowledgePages.versionId, versionId), eq(knowledgePages.pageNumber, physicalPageNumber)))
+      .limit(1);
+  }
+  if (!page) throw new NotFoundError("页面不存在");
+  return toPageDto(app, page, await getBlocksOfPage(app, page.id));
+}
+
+/**
+ * 按版本读取当前页及相邻轻量页面。当前页才返回机器提取文本与 Blocks，
+ * `items` 仅承载页面导航信息，避免阅读器预取整份 PDF 的正文。
+ */
+export async function getVersionPageWindow(
+  app: FastifyInstance,
+  versionId: string,
+  center: number,
+  before: number,
+  after: number
+): Promise<WikiPageWindow> {
+  const normalizedBefore = Math.min(10, Math.max(0, before));
+  const normalizedAfter = Math.min(10, Math.max(0, after));
+  const page = await getVersionPage(app, versionId, center);
+  const actualCenter = page.physicalPageNumber;
+  const [rows, [totalRow]] = await Promise.all([
+    app.db.select({
+      id: knowledgePages.id,
+      pageNumber: knowledgePages.pageNumber,
+      physicalPageNumber: knowledgePages.physicalPageNumber,
+      pageLabel: knowledgePages.pageLabel,
+      pageLabelSource: knowledgePages.pageLabelSource,
+      pageLabelConfidence: knowledgePages.pageLabelConfidence,
+      pageLabelVerified: knowledgePages.pageLabelVerified,
+      pageTitle: knowledgePages.pageTitle,
+      hasTables: knowledgePages.hasTables,
+      hasImages: knowledgePages.hasImages,
+      sectionPath: knowledgePages.sectionPath
+    }).from(knowledgePages)
+      .where(and(
+        eq(knowledgePages.versionId, versionId),
+        gte(knowledgePages.physicalPageNumber, actualCenter - normalizedBefore),
+        lte(knowledgePages.physicalPageNumber, actualCenter + normalizedAfter)
+      ))
+      .orderBy(asc(knowledgePages.physicalPageNumber)),
+    app.db.select({ value: count() }).from(knowledgePages).where(eq(knowledgePages.versionId, versionId))
+  ]);
+  return {
+    current: actualCenter,
+    total: totalRow?.value ?? 0,
+    page,
+    items: rows.map((row) => toPageListItem(row as typeof knowledgePages.$inferSelect))
+  };
+}
+
+/** 公开文库窗口读取（只允许当前已发布且公开的版本）。 */
+export async function getPublicDocumentPageWindow(
+  app: FastifyInstance,
+  documentId: string,
+  center: number,
+  before: number,
+  after: number
+): Promise<WikiPageWindow> {
+  const context = await resolveReadableVersion(app, documentId);
+  assertPublicDocument(context.document);
+  return getVersionPageWindow(app, context.version.id, center, before, after);
 }
 
 /** 公开文库单页完整内容（按物理页序号定位；兼容旧 pageNumber 语义） */
@@ -674,16 +786,7 @@ export async function getPublicDocumentPage(
 ): Promise<WikiPageDto> {
   const context = await resolveReadableVersion(app, documentId);
   assertPublicDocument(context.document);
-  let [page] = await app.db.select().from(knowledgePages)
-    .where(and(eq(knowledgePages.versionId, context.version.id), eq(knowledgePages.physicalPageNumber, pageNumber)))
-    .limit(1);
-  if (!page) {
-    [page] = await app.db.select().from(knowledgePages)
-      .where(and(eq(knowledgePages.versionId, context.version.id), eq(knowledgePages.pageNumber, pageNumber)))
-      .limit(1);
-  }
-  if (!page) throw new NotFoundError("页面不存在");
-  return toPageDto(app, page, await getBlocksOfPage(app, page.id));
+  return getVersionPage(app, context.version.id, pageNumber);
 }
 
 /** 公开文库单页完整内容（按印刷页码标签定位：4 / 21 / A1 / A5 / D16 / G10；字符串精确匹配，禁止 Number()） */

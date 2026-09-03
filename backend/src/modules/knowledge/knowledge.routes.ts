@@ -40,7 +40,7 @@ import {
   mergeChunks,
   updateDocument
 } from "./knowledge-admin.service.js";
-import { searchKnowledge, listSearchLogs } from "./knowledge.service.js";
+import { searchKnowledge, sanitizeSearchHit, listSearchLogs } from "./knowledge.service.js";
 import {
   deleteTocItem,
   deleteVersionAsset,
@@ -58,7 +58,7 @@ import {
   verifyVersionPageMappings
 } from "./knowledge-original.service.js";
 import { createEvaluation, judgeEvaluation, listEvaluations } from "./knowledge-evaluation.service.js";
-import { getPublicDocumentDetail, getPublicDocumentPage, getPublicDocumentToc, listDocumentSections, listPublicDocuments } from "./knowledge-wiki-read.service.js";
+import { getPublicDocumentDetail, getPublicDocumentPage, getPublicDocumentToc, getVersionPageWindow, listDocumentSections, listPublicDocuments } from "./knowledge-wiki-read.service.js";
 import {
   createBatchImportIntents,
   createCrawlerSource,
@@ -174,7 +174,8 @@ export async function knowledgeRoutes(app: FastifyInstance) {
         status: z.enum(["ACTIVE", "DISABLED"]).optional(),
         docType: docTypeSchema.optional(),
         categoryId: z.uuid("分类 ID 格式不正确").optional(),
-        keyword: z.string().trim().max(120).optional()
+        keyword: z.string().trim().max(120).optional(),
+        healthStatus: z.enum(["NEEDS_ACTION", "READY", "BROWSE_ONLY", "PUBLISHED", "PENDING_REVIEW"]).optional()
       })
     }
   }, async (request) => {
@@ -421,6 +422,29 @@ export async function knowledgeRoutes(app: FastifyInstance) {
     return ok(request, await listVersionPages(app, request.params.versionId, request.query.page, request.query.pageSize));
   });
 
+  route.get("/versions/:versionId/pages/window", {
+    preHandler: [app.authenticate, requireClient(AUTH_CLIENTS.B_ADMIN)],
+    schema: {
+      tags: ["B端 / 平台 / 知识库"],
+      summary: "查看版本当前页与相邻页面窗口（当前页完整、邻页轻量）",
+      params: versionParams,
+      querystring: z.object({
+        center: z.coerce.number().int().min(1, "中心物理页码必须大于 0"),
+        before: z.coerce.number().int().min(0).max(10).default(2),
+        after: z.coerce.number().int().min(0).max(10).default(2)
+      })
+    }
+  }, async (request) => {
+    requirePermission(request, KNOWLEDGE_PERMISSIONS.DOC_LIST);
+    return ok(request, await getVersionPageWindow(
+      app,
+      request.params.versionId,
+      request.query.center,
+      request.query.before,
+      request.query.after
+    ));
+  });
+
   // 版本 Wiki 章节树（扁平有序，前端按 parentId/level 组树）：按版本读取，
   // DRAFT 审核与 PUBLISHED 阅读共用；与 C 端公开文库/AI 来源详情共用同一读取服务。
   route.get("/versions/:versionId/sections", {
@@ -448,7 +472,7 @@ export async function knowledgeRoutes(app: FastifyInstance) {
       })
     }
   }, async (request) => {
-    requirePermission(request, KNOWLEDGE_PERMISSIONS.DOC_LIST);
+    requirePermission(request, KNOWLEDGE_PERMISSIONS.DEBUG);
     const { page, pageSize, ...filters } = request.query;
     return ok(request, await listVersionChunks(app, request.params.versionId, page, pageSize, filters.contentType));
   });
@@ -461,7 +485,7 @@ export async function knowledgeRoutes(app: FastifyInstance) {
       params: chunkParams
     }
   }, async (request) => {
-    requirePermission(request, KNOWLEDGE_PERMISSIONS.DOC_LIST);
+    requirePermission(request, KNOWLEDGE_PERMISSIONS.DEBUG);
     return ok(request, { items: await listChunkTerms(app, request.params.chunkId) });
   });
 
@@ -484,6 +508,7 @@ export async function knowledgeRoutes(app: FastifyInstance) {
       })
     }
   }, async (request) => {
+    requirePermission(request, KNOWLEDGE_PERMISSIONS.DEBUG);
     const actor = requirePermission(request, KNOWLEDGE_PERMISSIONS.CHUNK_EDIT);
     return ok(request, { chunk: await updateChunkMetadata(app, request, actor, request.params.chunkId, request.body) });
   });
@@ -500,6 +525,7 @@ export async function knowledgeRoutes(app: FastifyInstance) {
       })
     }
   }, async (request) => {
+    requirePermission(request, KNOWLEDGE_PERMISSIONS.DEBUG);
     const actor = requirePermission(request, KNOWLEDGE_PERMISSIONS.CHUNK_SPLIT);
     return ok(request, await splitChunk(app, request, actor, request.params.chunkId, request.body.at, request.body.heading));
   });
@@ -515,6 +541,7 @@ export async function knowledgeRoutes(app: FastifyInstance) {
       })
     }
   }, async (request) => {
+    requirePermission(request, KNOWLEDGE_PERMISSIONS.DEBUG);
     const actor = requirePermission(request, KNOWLEDGE_PERMISSIONS.CHUNK_MERGE);
     return ok(request, { chunk: await mergeChunks(app, request, actor, request.params.chunkId, request.body.intoChunkId) });
   });
@@ -606,7 +633,9 @@ export async function knowledgeRoutes(app: FastifyInstance) {
     }
   }, async (request) => {
     const actor = requirePermission(request, KNOWLEDGE_PERMISSIONS.DOC_LIST);
-    return ok(request, await searchKnowledge(app, request, actor, request.query));
+    const result = await searchKnowledge(app, request, actor, request.query);
+    const debugEnabled = actor.role === "SUPER_ADMIN" || (actor.permissionCodes ?? []).includes(KNOWLEDGE_PERMISSIONS.DEBUG);
+    return ok(request, { ...result, items: result.items.map((item) => sanitizeSearchHit(item, debugEnabled)) });
   });
 
   route.get("/search-logs", {

@@ -1,11 +1,12 @@
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { paginationQuerySchema } from "../../shared/pagination.js";
-import { projects, reports } from "../../db/schema.js";
+import { aiConversations, files, projects, reportArtifacts, reportSources, reports, shareLinks } from "../../db/schema.js";
+import { assertPermission } from "../../shared/permission-guard.js";
 import { getCurrentUser } from "../../shared/current-user.js";
-import { ForbiddenError, NotFoundError } from "../../shared/errors.js";
+import { NotFoundError } from "../../shared/errors.js";
 import { canManageProject, canViewProject } from "../../shared/permissions.js";
 import { REPORT_PERMISSIONS } from "../../shared/report-permissions.js";
 import { ok } from "../../shared/response.js";
@@ -23,12 +24,8 @@ import {
 const REPORT_CENTER_TAG = "B端 / 平台 / 报告中心";
 
 /** 报告中心权限校验：SUPER_ADMIN 直通，否则校验具体权限码 */
-function requirePermission(request: Parameters<typeof getCurrentUser>[0], permissionCode: string) {
-  const user = getCurrentUser(request);
-  if (user.role !== "SUPER_ADMIN" && !(user.permissionCodes ?? []).includes(permissionCode)) {
-    throw new ForbiddenError("当前账号没有报告中心权限");
-  }
-  return user;
+async function requirePermission(request: Parameters<typeof getCurrentUser>[0], permissionCode: string) {
+  return assertPermission(request, permissionCode);
 }
 
 const P = REPORT_PERMISSIONS;
@@ -51,6 +48,7 @@ const templateReportListQuerySchema = paginationQuerySchema.extend({
   projectId: z.uuid("项目 ID 格式不正确"),
   status: z.enum(["DRAFT", "QUEUED", "GENERATING", "READY", "FAILED", "PENDING_REVIEW", "APPROVED", "REJECTED"]).optional()
 });
+const reportCenterQuerySchema = z.object({ projectId: z.uuid("项目 ID 格式不正确") });
 
 const submitReviewBodySchema = z.object({
   note: z.string().trim().max(2000).optional()
@@ -115,6 +113,55 @@ async function getReportWithProject(app: FastifyInstance, id: string) {
 export async function reportPlatformRoutes(app: FastifyInstance) {
   const route = app.withTypeProvider<ZodTypeProvider>();
 
+  // 平台报告聚合：管理员查看全部项目时，不能复用仅返回当前用户会话的客户端接口。
+  route.get("/center", {
+    preHandler: [app.authenticate],
+    schema: {
+      tags: [REPORT_CENTER_TAG], summary: "查询平台报告成果",
+      querystring: reportCenterQuerySchema
+    }
+  }, async (request) => {
+    await assertPermission(request, "system:project:list");
+    const [project] = await app.db.select().from(projects)
+      .where(and(eq(projects.id, request.query.projectId), isNull(projects.deletedAt))).limit(1);
+    if (!project) throw new NotFoundError("项目不存在");
+    const rows = await app.db.select({
+      report: reports,
+      conversation: { id: aiConversations.id, title: aiConversations.title, userId: aiConversations.userId }
+    }).from(reports)
+      .leftJoin(aiConversations, eq(aiConversations.id, reports.conversationId))
+      .where(and(eq(reports.projectId, project.id), isNull(reports.deletedAt)))
+      .orderBy(reports.createdAt);
+    const reportIds = rows.map(({ report }) => report.id);
+    const artifactRows = reportIds.length === 0 ? [] : await app.db.select({ artifact: reportArtifacts, file: files })
+      .from(reportArtifacts).innerJoin(files, eq(files.id, reportArtifacts.fileId))
+      .where(inArray(reportArtifacts.reportId, reportIds));
+    const sources = reportIds.length === 0 ? [] : await app.db.select().from(reportSources)
+      .where(inArray(reportSources.reportId, reportIds));
+    const artifactIds = artifactRows.map(({ artifact }) => artifact.id);
+    const shareTargetIds = [...reportIds, ...artifactIds];
+    const shares = shareTargetIds.length === 0 ? [] : await app.db.select().from(shareLinks)
+      .where(and(
+        inArray(shareLinks.targetId, shareTargetIds),
+        inArray(shareLinks.targetType, ["REPORT", "REPORT_ARTIFACT"])
+      ));
+    return ok(request, {
+      conversationCount: new Set(rows.map(({ conversation }) => conversation?.id).filter(Boolean)).size,
+      items: rows.map(({ report, conversation }) => ({
+        ...report,
+        artifacts: artifactRows.filter(({ artifact }) => artifact.reportId === report.id).map(({ artifact, file }) => ({
+          ...artifact,
+          file: { id: file.id, originalName: file.originalName, mimeType: file.mimeType, sizeBytes: file.sizeBytes, status: file.status }
+        })),
+        sources: sources.filter((source) => source.reportId === report.id),
+        conversationTitle: conversation?.title ?? null,
+        conversationUserId: conversation?.userId ?? null,
+        projectName: project.name,
+        shareLinks: shares.filter((share) => share.targetId === report.id || artifactIds.includes(share.targetId ?? "") && artifactRows.some(({ artifact }) => artifact.reportId === report.id && artifact.id === share.targetId))
+      }))
+    });
+  });
+
   // ================================================================ 模板报告列表
   route.get("/", {
     preHandler: [app.authenticate],
@@ -129,7 +176,7 @@ export async function reportPlatformRoutes(app: FastifyInstance) {
       })) }
     }
   }, async (request) => {
-    requirePermission(request, P.GENERATE);
+    await requirePermission(request, P.GENERATE);
     const [project] = await app.db.select().from(projects)
       .where(and(eq(projects.id, request.query.projectId), isNull(projects.deletedAt))).limit(1);
     if (!project) throw new NotFoundError("项目不存在");
@@ -151,7 +198,7 @@ export async function reportPlatformRoutes(app: FastifyInstance) {
       })) }
     }
   }, async (request) => {
-    const actor = requirePermission(request, P.GENERATE);
+    const actor = await requirePermission(request, P.GENERATE);
     const [project] = await app.db.select().from(projects)
       .where(and(eq(projects.id, request.body.projectId), isNull(projects.deletedAt))).limit(1);
     if (!project || !canManageProject(actor, project)) throw new NotFoundError("项目不存在或无权生成报告");
@@ -176,7 +223,7 @@ export async function reportPlatformRoutes(app: FastifyInstance) {
       params: reportParamsSchema, response: { 200: snapshotResponseSchema }
     }
   }, async (request) => {
-    requirePermission(request, P.GENERATE);
+    await requirePermission(request, P.GENERATE);
     const row = await getReportWithProject(app, request.params.id);
     if (!row || !canViewProject(getCurrentUser(request), row.project)) throw new NotFoundError("报告不存在或无权查看");
     return ok(request, await getReportSnapshot(app, request.params.id));
@@ -191,7 +238,7 @@ export async function reportPlatformRoutes(app: FastifyInstance) {
       response: { 200: singleData(reportItemSchema) }
     }
   }, async (request) => {
-    const actor = requirePermission(request, P.GENERATE);
+    const actor = await requirePermission(request, P.GENERATE);
     const row = await getReportWithProject(app, request.params.id);
     if (!row || !canManageProject(actor, row.project)) throw new NotFoundError("报告不存在或无权操作");
     return ok(request, await submitTemplateReportForReview(app, request, actor, request.params.id));
@@ -205,7 +252,7 @@ export async function reportPlatformRoutes(app: FastifyInstance) {
       response: { 200: singleData(reportItemSchema) }
     }
   }, async (request) => {
-    const actor = requirePermission(request, P.REVIEW);
+    const actor = await requirePermission(request, P.REVIEW);
     const row = await getReportWithProject(app, request.params.id);
     if (!row || !canManageProject(actor, row.project)) throw new NotFoundError("报告不存在或无权操作");
     return ok(request, await approveTemplateReport(app, request, actor, request.params.id, request.body.approvalNote));
@@ -219,7 +266,7 @@ export async function reportPlatformRoutes(app: FastifyInstance) {
       response: { 200: singleData(reportItemSchema) }
     }
   }, async (request) => {
-    const actor = requirePermission(request, P.REVIEW);
+    const actor = await requirePermission(request, P.REVIEW);
     const row = await getReportWithProject(app, request.params.id);
     if (!row || !canManageProject(actor, row.project)) throw new NotFoundError("报告不存在或无权操作");
     return ok(request, await rejectTemplateReport(app, request, actor, request.params.id, request.body.rejectReason));

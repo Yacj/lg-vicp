@@ -9,6 +9,7 @@ import {
   getPublicDocumentDetail,
   getPublicDocumentPage,
   getPublicDocumentPageByLabel,
+  getPublicDocumentPageWindow,
   getPublicDocumentToc,
   listPublicDocuments,
   listPublicDocumentPages
@@ -40,6 +41,11 @@ export async function knowledgeClientRoutes(app: FastifyInstance) {
   const pageListQuerySchema = z.object({
     page: z.coerce.number().int().min(1).default(1),
     pageSize: z.coerce.number().int().min(1).max(100).default(20)
+  });
+  const pageWindowQuerySchema = z.object({
+    center: z.coerce.number().int().min(1, "中心物理页码必须大于 0"),
+    before: z.coerce.number().int().min(0).max(10).default(2),
+    after: z.coerce.number().int().min(0).max(10).default(2)
   });
 
   route.get("/knowledge/documents", {
@@ -110,6 +116,26 @@ export async function knowledgeClientRoutes(app: FastifyInstance) {
     getCurrentUser(request);
     const toc = await getPublicDocumentToc(app, request.params.documentId);
     return ok(request, toc);
+  });
+
+  route.get("/knowledge/documents/:documentId/pages/window", {
+    preHandler: [...clientGuard],
+    schema: {
+      tags: ["C端 / 公开文库"],
+      summary: "公开文库当前页与相邻页面窗口（当前页完整、邻页轻量）",
+      params: documentParamsSchema,
+      querystring: pageWindowQuerySchema
+    }
+  }, async (request) => {
+    getCurrentUser(request);
+    const window = await getPublicDocumentPageWindow(
+      app,
+      request.params.documentId,
+      request.query.center,
+      request.query.before,
+      request.query.after
+    );
+    return ok(request, window);
   });
 
   route.get("/knowledge/documents/:documentId/pages/by-label/:pageLabel", {

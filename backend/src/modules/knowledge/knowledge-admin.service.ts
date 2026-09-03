@@ -15,6 +15,7 @@ import {
   knowledgeChunkEdits,
   knowledgeChunkTerms,
   knowledgeChunks,
+  knowledgeDocumentAssets,
   knowledgeDocumentVersions,
   knowledgeDocuments,
   knowledgePages,
@@ -42,6 +43,9 @@ export type KnowledgeChunkContentType =
   | "PARAGRAPH" | "TITLE" | "SECTION" | "CLAUSE" | "TABLE" | "NOTE" | "FORMULA" | "IMAGE_CAPTION";
 export type ParsingJobStatus = "QUEUED" | "ACTIVE" | "COMPLETED" | "FAILED" | "OCR_REQUIRED";
 
+export type KnowledgeDocumentHealthStatus = "NEEDS_ACTION" | "READY" | "BROWSE_ONLY" | "PUBLISHED" | "PENDING_REVIEW";
+export type KnowledgeAiAvailabilityStatus = "AVAILABLE" | "BROWSE_ONLY" | "UNAVAILABLE";
+
 export interface ListDocumentsQuery {
   page: number;
   pageSize: number;
@@ -49,6 +53,71 @@ export interface ListDocumentsQuery {
   docType?: string;
   categoryId?: string;
   keyword?: string;
+  healthStatus?: KnowledgeDocumentHealthStatus;
+}
+
+interface DocumentHealthInput {
+  version: {
+    status: string;
+    parseStatus: string;
+    pipelineStatus: string;
+    usageMode: string;
+    fileId: string | null;
+  } | null;
+  assetRoles: string[];
+  pageCount: number;
+  chunkCount: number;
+}
+
+function deriveDocumentHealth(input: DocumentHealthInput) {
+  const blockers: string[] = [];
+  const warnings: string[] = [];
+  const version = input.version;
+  const hasOriginal = input.assetRoles.includes("ORIGINAL") || Boolean(version?.fileId);
+  const hasSearchSource = input.assetRoles.includes("SEARCH_SOURCE") || (input.assetRoles.includes("ORIGINAL") && version?.parseStatus !== "NO_TEXT_LAYER");
+
+  if (!version) {
+    blockers.push("尚未创建版本");
+  } else {
+    if (!hasOriginal) blockers.push("尚未上传正式文件");
+    if (["PENDING", "PARSING"].includes(version.parseStatus) || ["UPLOAD_PENDING", "UPLOADED", "PARSING", "CHUNKING"].includes(version.pipelineStatus)) {
+      blockers.push("文件识别尚未完成");
+    }
+    if (version.parseStatus === "FAILED") blockers.push("文件识别失败");
+    if (version.parseStatus === "NO_TEXT_LAYER" && !hasSearchSource) blockers.push("正式 PDF 没有文字层，需补充 AI 识别文件");
+    if (version.parseStatus === "SEARCH_SOURCE_REQUIRED" && version.usageMode === "AI_ENABLED" && !hasSearchSource) blockers.push("AI 检索缺少识别文件");
+    if (version.parseStatus === "NO_TEXT_LAYER") warnings.push("正式 PDF 没有文字层，AI 检索应使用独立识别文件");
+    if (version.usageMode === "AI_ENABLED" && hasSearchSource && input.chunkCount === 0) warnings.push("尚未生成可检索内容");
+    if (version.usageMode === "AI_ENABLED" && input.pageCount === 0) warnings.push("尚未生成页面内容");
+    if (version.status === "DRAFT" && version.parseStatus === "PARSED") warnings.push("内容已识别，等待审核");
+    if (version.status === "APPROVED") warnings.push("版本已审核，等待发布");
+  }
+
+  const aiAvailable = Boolean(
+    version
+    && version.usageMode === "AI_ENABLED"
+    && hasSearchSource
+    && ["PARSED", "PARTIAL"].includes(version.parseStatus)
+    && input.pageCount > 0
+    && input.chunkCount > 0,
+  );
+  const aiAvailabilityStatus: KnowledgeAiAvailabilityStatus = version?.usageMode === "BROWSE_ONLY"
+    ? "BROWSE_ONLY"
+    : aiAvailable ? "AVAILABLE" : "UNAVAILABLE";
+
+  let healthStatus: KnowledgeDocumentHealthStatus;
+  if (blockers.length > 0) healthStatus = "NEEDS_ACTION";
+  else if (version?.status === "PUBLISHED") healthStatus = "PUBLISHED";
+  else if (version?.usageMode === "BROWSE_ONLY") healthStatus = "BROWSE_ONLY";
+  else if (version?.status === "DRAFT" && version.parseStatus === "PARSED" || version?.status === "APPROVED") healthStatus = "PENDING_REVIEW";
+  else healthStatus = "READY";
+
+  return {
+    healthStatus,
+    aiAvailabilityStatus,
+    healthBlockers: blockers,
+    healthWarnings: warnings,
+  };
 }
 
 function safeExtension(fileName: string): string {
@@ -163,51 +232,90 @@ export async function deleteCategory(app: FastifyInstance, request: FastifyReque
 // ---------------------------------------------------------------- 文档
 
 export async function listDocuments(app: FastifyInstance, query: ListDocumentsQuery) {
-  const { skip, take } = (() => {
-    const page = Math.max(1, query.page);
-    const pageSize = Math.min(100, Math.max(1, query.pageSize));
-    return { skip: (page - 1) * pageSize, take: pageSize };
-  })();
+  const page = Math.max(1, query.page);
+  const pageSize = Math.min(100, Math.max(1, query.pageSize));
   const where = and(
     isNull(knowledgeDocuments.deletedAt),
     query.status ? eq(knowledgeDocuments.status, query.status as "ACTIVE" | "DISABLED") : undefined,
     query.docType ? eq(knowledgeDocuments.docType, query.docType as KnowledgeDocType) : undefined,
     query.categoryId ? eq(knowledgeDocuments.categoryId, query.categoryId) : undefined,
-    query.keyword ? sql`(${knowledgeDocuments.title} ilike ${`%${query.keyword}%`} or ${knowledgeDocuments.docNumber} ilike ${`%${query.keyword}%`})` : undefined
+    query.keyword ? sql`(${knowledgeDocuments.title} ilike ${`%${query.keyword}%`} or ${knowledgeDocuments.docNumber} ilike ${`%${query.keyword}%`} or ${knowledgeDocuments.sourceOrg} ilike ${`%${query.keyword}%`})` : undefined
   );
-  const [items, [totalRow]] = await Promise.all([
-    app.db.select({
-      id: knowledgeDocuments.id,
-      title: knowledgeDocuments.title,
-      docNumber: knowledgeDocuments.docNumber,
-      docType: knowledgeDocuments.docType,
-      sourceOrg: knowledgeDocuments.sourceOrg,
-      issueDate: knowledgeDocuments.issueDate,
-      effectiveDate: knowledgeDocuments.effectiveDate,
-      evidenceLevel: knowledgeDocuments.evidenceLevel,
-      allowedPurposes: knowledgeDocuments.allowedPurposes,
-      categoryId: knowledgeDocuments.categoryId,
-      status: knowledgeDocuments.status,
-      currentVersionId: knowledgeDocuments.currentVersionId,
-      currentVersion: {
-        version: knowledgeDocumentVersions.version,
-        status: knowledgeDocumentVersions.status,
-        parseStatus: knowledgeDocumentVersions.parseStatus,
-        pageCount: knowledgeDocumentVersions.pageCount,
-        parser: knowledgeDocumentVersions.parser
-      },
-      createdAt: knowledgeDocuments.createdAt,
-      updatedAt: knowledgeDocuments.updatedAt
-    })
-      .from(knowledgeDocuments)
-      .leftJoin(knowledgeDocumentVersions, eq(knowledgeDocumentVersions.id, knowledgeDocuments.currentVersionId))
-      .where(where)
-      .orderBy(desc(knowledgeDocuments.updatedAt))
-      .offset(skip)
-      .limit(take),
-    app.db.select({ value: count() }).from(knowledgeDocuments).where(where)
+  // 健康状态依赖版本资产、页面和检索索引，先取基础候选集再派生并分页，确保筛选后的 total 正确。
+  const baseItems = await app.db.select({
+    id: knowledgeDocuments.id,
+    title: knowledgeDocuments.title,
+    docNumber: knowledgeDocuments.docNumber,
+    docType: knowledgeDocuments.docType,
+    sourceOrg: knowledgeDocuments.sourceOrg,
+    issueDate: knowledgeDocuments.issueDate,
+    effectiveDate: knowledgeDocuments.effectiveDate,
+    evidenceLevel: knowledgeDocuments.evidenceLevel,
+    allowedPurposes: knowledgeDocuments.allowedPurposes,
+    categoryId: knowledgeDocuments.categoryId,
+    status: knowledgeDocuments.status,
+    currentVersionId: knowledgeDocuments.currentVersionId,
+    currentVersion: {
+      version: knowledgeDocumentVersions.version,
+      status: knowledgeDocumentVersions.status,
+      parseStatus: knowledgeDocumentVersions.parseStatus,
+      pipelineStatus: knowledgeDocumentVersions.pipelineStatus,
+      usageMode: knowledgeDocumentVersions.usageMode,
+      fileId: knowledgeDocumentVersions.fileId,
+      pageCount: knowledgeDocumentVersions.pageCount,
+      parser: knowledgeDocumentVersions.parser
+    },
+    createdAt: knowledgeDocuments.createdAt,
+    updatedAt: knowledgeDocuments.updatedAt
+  })
+    .from(knowledgeDocuments)
+    .leftJoin(knowledgeDocumentVersions, eq(knowledgeDocumentVersions.id, knowledgeDocuments.currentVersionId))
+    .where(where)
+    .orderBy(desc(knowledgeDocuments.updatedAt));
+
+  const versionIds = baseItems.map(item => item.currentVersionId).filter((id): id is string => id !== null);
+  const [assetRows, pageRows, chunkRows] = await Promise.all([
+    versionIds.length > 0
+      ? app.db.select({ versionId: knowledgeDocumentAssets.versionId, role: knowledgeDocumentAssets.role })
+        .from(knowledgeDocumentAssets).where(inArray(knowledgeDocumentAssets.versionId, versionIds))
+      : Promise.resolve([] as Array<{ versionId: string; role: string }>),
+    versionIds.length > 0
+      ? app.db.select({ versionId: knowledgePages.versionId })
+        .from(knowledgePages).where(inArray(knowledgePages.versionId, versionIds))
+      : Promise.resolve([] as Array<{ versionId: string }>),
+    versionIds.length > 0
+      ? app.db.select({ versionId: knowledgeChunks.versionId })
+        .from(knowledgeChunks).where(inArray(knowledgeChunks.versionId, versionIds))
+      : Promise.resolve([] as Array<{ versionId: string }>)
   ]);
-  return { items, total: totalRow?.value ?? 0, page: query.page, pageSize: query.pageSize };
+  const assetMap = new Map<string, string[]>();
+  for (const row of assetRows) assetMap.set(row.versionId, [...(assetMap.get(row.versionId) ?? []), row.role]);
+  const pageCountMap = new Map<string, number>();
+  for (const row of pageRows) pageCountMap.set(row.versionId, (pageCountMap.get(row.versionId) ?? 0) + 1);
+  const chunkCountMap = new Map<string, number>();
+  for (const row of chunkRows) chunkCountMap.set(row.versionId, (chunkCountMap.get(row.versionId) ?? 0) + 1);
+
+  const projected = baseItems.map((item) => {
+    const version = item.currentVersion;
+    const health = deriveDocumentHealth({
+      version: version ? {
+        status: version.status,
+        parseStatus: version.parseStatus,
+        pipelineStatus: version.pipelineStatus,
+        usageMode: version.usageMode,
+        fileId: version.fileId
+      } : null,
+      assetRoles: version ? assetMap.get(item.currentVersionId!) ?? [] : [],
+      pageCount: version ? pageCountMap.get(item.currentVersionId!) ?? version.pageCount ?? 0 : 0,
+      chunkCount: version ? chunkCountMap.get(item.currentVersionId!) ?? 0 : 0
+    });
+    return { ...item, ...health };
+  });
+  const filtered = query.healthStatus
+    ? projected.filter(item => item.healthStatus === query.healthStatus)
+    : projected;
+  const skip = (page - 1) * pageSize;
+  return { items: filtered.slice(skip, skip + pageSize), total: filtered.length, page, pageSize };
 }
 
 export async function createDocument(
@@ -823,7 +931,20 @@ export async function listVersionPages(app: FastifyInstance, versionId: string, 
   const skip = (Math.max(1, page) - 1) * Math.min(100, Math.max(1, pageSize));
   const take = Math.min(100, Math.max(1, pageSize));
   const [items, [totalRow]] = await Promise.all([
-    app.db.select().from(knowledgePages).where(eq(knowledgePages.versionId, versionId))
+    app.db.select({
+      id: knowledgePages.id,
+      pageNumber: knowledgePages.pageNumber,
+      physicalPageNumber: knowledgePages.physicalPageNumber,
+      pageLabel: knowledgePages.pageLabel,
+      pageLabelSource: knowledgePages.pageLabelSource,
+      pageLabelConfidence: knowledgePages.pageLabelConfidence,
+      pageLabelVerified: knowledgePages.pageLabelVerified,
+      pageTitle: knowledgePages.pageTitle,
+      hasTables: knowledgePages.hasTables,
+      hasImages: knowledgePages.hasImages,
+      sectionPath: knowledgePages.sectionPath,
+      parseStatus: knowledgePages.parseStatus
+    }).from(knowledgePages).where(eq(knowledgePages.versionId, versionId))
       .orderBy(knowledgePages.pageNumber).offset(skip).limit(take),
     app.db.select({ value: count() }).from(knowledgePages).where(eq(knowledgePages.versionId, versionId))
   ]);

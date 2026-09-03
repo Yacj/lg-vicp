@@ -29,6 +29,7 @@ import type { DocumentJobData } from "./document-job-state.js";
 import { reconcileDocumentJobFailure } from "./document-job-state.js";
 import {
   extractPdfDocumentInWorker,
+  type PdfExtractedPage,
   type PdfOutlineItem,
   type PdfPageProgress
 } from "./pdf-text-extractor.js";
@@ -47,6 +48,7 @@ import {
   type SheetData
 } from "../modules/knowledge/knowledge-chunking.js";
 import { buildPageMappings, type PageMappingDraft } from "../modules/knowledge/knowledge-page-mapping.js";
+import { findVisualPageMatches } from "../modules/knowledge/pdf-visual-matcher.js";
 
 // 兼容既有测试与调用方：splitText 由分块纯函数模块提供
 export { splitText };
@@ -54,6 +56,10 @@ export { splitText };
 interface ParsedPage {
   page: number | null;
   text: string;
+  items?: PdfExtractedPage["items"];
+  label?: string | null;
+  labelSource?: "PDF_PAGE_LABEL" | "FOOTER_TEXT" | null;
+  labelConfidence?: number | null;
 }
 
 interface ParsedDocument {
@@ -123,10 +129,17 @@ async function parseDocument(
   onPage?: (progress: PdfPageProgress) => void
 ): Promise<ParsedDocument> {
   if (mimeType === "application/pdf") {
-    const pages = await extractPdfDocumentInWorker(data, onPage).then((result) => result.pages);
+    const extraction = await extractPdfDocumentInWorker(data, onPage);
     return {
       parser: "unpdf",
-      pages: pages.map((text, index) => ({ page: index + 1, text }))
+      pages: extraction.pageDetails.map((page) => ({
+        page: page.pageNumber,
+        text: page.text,
+        items: page.items,
+        label: page.pageLabel,
+        labelSource: page.pageLabelSource,
+        labelConfidence: page.pageLabelConfidence
+      }))
     };
   }
   if (mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
@@ -185,6 +198,8 @@ const PAGE_WRITE_BATCH_SIZE = 200;
 interface OriginalPageInput {
   physical: number;
   label: string | null;
+  labelSource?: "PDF_PAGE_LABEL" | "FOOTER_TEXT" | "TOC_MAPPING" | "COMPANION_FILE" | "VISUAL_MATCH" | "MANUAL" | "FALLBACK";
+  labelConfidence?: number | null;
   text: string | null;
 }
 
@@ -382,6 +397,15 @@ async function writeKnowledgeContent(tx: DbExecutor, input: WriteContentInput): 
 
   // 2) 章节草稿（根章节恒在首位）。只删除派生索引：页面、预览、人工页签和映射必须稳定保留。
   const sectionDrafts = buildSectionDrafts(versionTitle, blocks);
+  const confirmedTocSectionLinks = await tx.select({
+    tocId: knowledgeTocItems.id,
+    sectionKey: knowledgeSections.sectionKey
+  }).from(knowledgeTocItems)
+    .innerJoin(knowledgeSections, eq(knowledgeSections.id, knowledgeTocItems.sectionId))
+    .where(and(
+      eq(knowledgeTocItems.versionId, versionId),
+      eq(knowledgeTocItems.status, "CONFIRMED")
+    ));
   await tx.delete(knowledgeChunks).where(eq(knowledgeChunks.versionId, versionId));
   await tx.delete(knowledgePageBlocks).where(eq(knowledgePageBlocks.versionId, versionId));
   await tx.delete(knowledgeSections).where(eq(knowledgeSections.versionId, versionId));
@@ -414,6 +438,13 @@ async function writeKnowledgeContent(tx: DbExecutor, input: WriteContentInput): 
     await tx.insert(knowledgeSections).values(values);
   }
 
+  for (const link of confirmedTocSectionLinks) {
+    const sectionId = sectionIdByKey.get(link.sectionKey);
+    if (sectionId) {
+      await tx.update(knowledgeTocItems).set({ sectionId }).where(eq(knowledgeTocItems.id, link.tocId));
+    }
+  }
+
   // 3) 原文页面行（物理页码 + 印刷页码标签；sectionId = 页面首个内容块所属章节）。
   // onConflict 仅更新解析派生字段，保留人工 pageLabel/pageTitle 与 pageImageObjectKey。
   const existingPages = await tx.select({ id: knowledgePages.id, physicalPageNumber: knowledgePages.physicalPageNumber })
@@ -437,6 +468,9 @@ async function writeKnowledgeContent(tx: DbExecutor, input: WriteContentInput): 
       pageNumber: page.physical,
       physicalPageNumber: page.physical,
       pageLabel: page.label ?? String(page.physical),
+      pageLabelSource: page.labelSource ?? "FALLBACK",
+      pageLabelConfidence: page.labelConfidence ?? null,
+      pageLabelVerified: page.labelSource === "MANUAL",
       pageTitle: null,
       parsedText: page.text,
       sectionPath: firstBlock
@@ -456,6 +490,10 @@ async function writeKnowledgeContent(tx: DbExecutor, input: WriteContentInput): 
         documentId,
         sectionId: sql`excluded.section_id`,
         pageNumber: sql`excluded.page_number`,
+        pageLabel: sql`case when ${knowledgePages.pageLabelSource} = 'MANUAL' then ${knowledgePages.pageLabel} else excluded.page_label end`,
+        pageLabelSource: sql`case when ${knowledgePages.pageLabelSource} = 'MANUAL' then ${knowledgePages.pageLabelSource} else excluded.page_label_source end`,
+        pageLabelConfidence: sql`case when ${knowledgePages.pageLabelSource} = 'MANUAL' then ${knowledgePages.pageLabelConfidence} else excluded.page_label_confidence end`,
+        pageLabelVerified: sql`case when ${knowledgePages.pageLabelSource} = 'MANUAL' then ${knowledgePages.pageLabelVerified} else excluded.page_label_verified end`,
         parsedText: sql`excluded.parsed_text`,
         sectionPath: sql`excluded.section_path`,
         hasTables: sql`excluded.has_tables`,
@@ -689,7 +727,9 @@ async function parseSingleSource(
       evidenceLevel: version.evidenceLevel,
       originalPages: parsed.pages.map((page) => ({
         physical: page.page ?? 0,
-        label: page.page != null ? String(page.page) : null,
+        label: page.label ?? null,
+        labelSource: page.labelSource ?? "FALLBACK",
+        labelConfidence: page.labelConfidence ?? null,
         text: page.text
       })),
       contentPages: parsed.pages
@@ -740,7 +780,7 @@ async function parseSingleSource(
 /** 双源解析（Original 无文本层 + Search Source 有文本）：页映射 + 检索源内容 + 原页预览 */
 async function parseDualSource(
   context: ParseContext,
-  originalTotalPages: number,
+  originalPageDetails: PdfExtractedPage[],
   originalOutline: PdfOutlineItem[],
   version: typeof knowledgeDocumentVersions.$inferSelect,
   documentRow: { projectId: string | null },
@@ -752,23 +792,44 @@ async function parseDualSource(
   const searchMimeType = searchFile.mimeType;
   if (searchMimeType !== "application/pdf") {
     // 检索源暂仅支持 PDF 文本源；无可用文本源 → SEARCH_SOURCE_REQUIRED（可浏览不可 AI）
-    return finishNoSearchSource(context, originalTotalPages, version, "检索文本源不是 PDF 文件");
+    return finishNoSearchSource(context, originalPageDetails, version, "检索文本源不是 PDF 文件");
   }
   const searchData = await storage.getObject(searchFile.objectKey);
   const searchExtraction = await extractPdfDocumentInWorker(searchData, logPdfProgress(searchFile.id));
   const searchTextLength = searchExtraction.pages.reduce((sum, text) => sum + text.trim().length, 0);
+  const originalTotalPages = originalPageDetails.length;
   if (isNoTextLayer(searchTextLength)) {
     // 检索源同样没有文本层（两份都是转曲件）：不产空内容，直接进入待补检索源状态
-    return finishNoSearchSource(context, originalTotalPages, version, "检索文本源也没有文本层：请提供可复制文本的检索版 PDF，或开启 OCR 后重试");
+    return finishNoSearchSource(context, originalPageDetails, version, "检索文本源也没有文本层：请提供可复制文本的检索版 PDF，或开启 OCR 后重试");
   }
   const aliases = await loadActiveAliases(db);
 
-  // 原文页行 + 印刷页码标签占位（B 端可通过 TOC/页面维护覆盖）
-  const originalPages: OriginalPageInput[] = Array.from({ length: originalTotalPages }, (_, index) => ({
-    physical: index + 1,
-    label: String(index + 1),
+  // Original 只保存页面与预览；其印刷页码优先来自自身 PDF 标签或页脚识别结果。
+  const originalPages: OriginalPageInput[] = originalPageDetails.map((page) => ({
+    physical: page.pageNumber,
+    label: page.pageLabel,
+    labelSource: page.pageLabelSource ?? undefined,
+    labelConfidence: page.pageLabelConfidence ?? null,
     text: null
   }));
+  // 视觉匹配只生成候选，低于置信度门槛的页面保持未映射。
+  let visualMatches: Awaited<ReturnType<typeof findVisualPageMatches>> = [];
+  try {
+    const [originalFile] = await db.select({ objectKey: files.objectKey })
+      .from(files).where(eq(files.id, context.fileId)).limit(1);
+    if (originalFile) {
+      visualMatches = await findVisualPageMatches(
+        await storage.getObject(originalFile.objectKey),
+        searchData
+      );
+    }
+  } catch (error) {
+    console.warn("双源页面视觉匹配失败，保留其他映射候选", {
+      versionId: context.versionId,
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
+
   // 原文 TOC（书签草稿/人工/配套来源）参与 TOC_TITLE 映射策略
   const tocRows = await db.select({
     title: knowledgeTocItems.title,
@@ -777,6 +838,10 @@ async function parseDualSource(
   }).from(knowledgeTocItems).where(eq(knowledgeTocItems.versionId, context.versionId));
   const mappings = buildPageMappings({
     originalPages: originalPages.map((page) => ({ physical: page.physical, label: page.label })),
+    searchPages: searchExtraction.pageDetails.map((page) => ({
+      physical: page.pageNumber,
+      label: page.pageLabel
+    })),
     searchTotalPages: searchExtraction.pages.length,
     tocItems: [
       ...tocRows.map((row) => ({
@@ -793,9 +858,32 @@ async function parseDualSource(
     searchOutline: searchExtraction.outline.map((item) => ({
       title: item.title,
       pageNumber: item.pageNumber
-    }))
+    })),
+    visualMatches
   });
-  const mappingBySearchPage = new Map(mappings.map((mapping) => [mapping.searchPhysicalPageNumber, mapping.originalPhysicalPageNumber]));
+  const preservedMappings = await db.select({
+    searchPhysicalPageNumber: knowledgePageMappings.searchPhysicalPageNumber,
+    originalPhysicalPageNumber: knowledgePages.physicalPageNumber,
+    verified: knowledgePageMappings.verified,
+    confidence: knowledgePageMappings.confidence,
+    mappingMethod: knowledgePageMappings.mappingMethod
+  }).from(knowledgePageMappings)
+    .innerJoin(knowledgePages, eq(knowledgePages.id, knowledgePageMappings.originalPageId))
+    .where(and(
+      eq(knowledgePageMappings.versionId, context.versionId),
+      sql`(${knowledgePageMappings.mappingMethod} = 'MANUAL' or ${knowledgePageMappings.verified} = true)`
+    ));
+  const mappingBySearchPage = new Map<number, number>();
+  for (const mapping of [...mappings.map((item) => ({
+    searchPhysicalPageNumber: item.searchPhysicalPageNumber,
+    originalPhysicalPageNumber: item.originalPhysicalPageNumber,
+    verified: false,
+    confidence: item.confidence
+  })), ...preservedMappings]) {
+    if (mapping.verified || (mapping.confidence != null && mapping.confidence >= env.KNOWLEDGE_MAPPING_MIN_AI_CONFIDENCE)) {
+      mappingBySearchPage.set(mapping.searchPhysicalPageNumber, mapping.originalPhysicalPageNumber);
+    }
+  }
 
   await db.update(knowledgeDocumentVersions).set({ pipelineStatus: "CHUNKING", updatedAt: new Date() })
     .where(eq(knowledgeDocumentVersions.id, context.versionId));
@@ -883,15 +971,17 @@ async function parseDualSource(
 /** 无文本层且无可用检索源：NOT 解析失败 —— 页面行 + 预览照常产出，版本进入待补检索源状态 */
 async function finishNoSearchSource(
   context: ParseContext,
-  originalTotalPages: number,
+  originalPageDetails: PdfExtractedPage[],
   version: typeof knowledgeDocumentVersions.$inferSelect,
   reason: string
 ): Promise<Record<string, unknown>> {
   const { db, job } = context;
   const aliases = await loadActiveAliases(db);
-  const originalPages: OriginalPageInput[] = Array.from({ length: originalTotalPages }, (_, index) => ({
-    physical: index + 1,
-    label: String(index + 1),
+  const originalPages: OriginalPageInput[] = originalPageDetails.map((page) => ({
+    physical: page.pageNumber,
+    label: page.pageLabel,
+    labelSource: page.pageLabelSource ?? undefined,
+    labelConfidence: page.pageLabelConfidence ?? null,
     text: null
   }));
   const written = await db.transaction(async (tx) => {
@@ -974,7 +1064,13 @@ async function handleParseJob(
       const totalTextLength = extraction.pages.reduce((sum, text) => sum + text.trim().length, 0);
       const parsed: ParsedDocument = {
         parser: "unpdf",
-        pages: extraction.pages.map((text, index) => ({ page: index + 1, text }))
+        pages: extraction.pageDetails.map((page) => ({
+          page: page.pageNumber,
+          text: page.text,
+          label: page.pageLabel,
+          labelSource: page.pageLabelSource ?? undefined,
+          labelConfidence: page.pageLabelConfidence
+        }))
       };
       if (isNoTextLayer(totalTextLength)) {
         const [searchAsset] = await db.select({ id: knowledgeDocumentAssets.id, fileId: knowledgeDocumentAssets.fileId })
@@ -984,9 +1080,9 @@ async function handleParseJob(
             eq(knowledgeDocumentAssets.role, "SEARCH_SOURCE")
           )).limit(1);
         if (searchAsset) {
-          return await parseDualSource(context, extraction.pages.length, extraction.outline, version, { projectId: documentRow?.projectId ?? null }, searchAsset);
+          return await parseDualSource(context, extraction.pageDetails, extraction.outline, version, { projectId: documentRow?.projectId ?? null }, searchAsset);
         }
-        return await finishNoSearchSource(context, extraction.pages.length, version, "原文件没有文本层，请绑定检索文本源后重新解析，或以浏览版（BROWSE_ONLY）发布");
+        return await finishNoSearchSource(context, extraction.pageDetails, version, "原文件没有文本层，请绑定检索文本源后重新解析，或以浏览版（BROWSE_ONLY）发布");
       }
       return await parseSingleSource(context, parsed, extraction.outline, version, { projectId: documentRow?.projectId ?? null });
     }
@@ -1044,9 +1140,17 @@ async function handleChunkRebuild(
     const aliases = await loadActiveAliases(db);
     const originalPages: OriginalPageInput[] = pageRows.map((page) => ({
       physical: page.physicalPageNumber ?? page.pageNumber,
-      label: page.pageLabel ?? String(page.pageNumber),
+      label: page.pageLabel ?? null,
+      labelSource: page.pageLabelSource,
+      labelConfidence: page.pageLabelConfidence,
       text: page.parsedText
     }));
+    const [searchAsset] = await db.select({ fileId: knowledgeDocumentAssets.fileId })
+      .from(knowledgeDocumentAssets)
+      .where(and(
+        eq(knowledgeDocumentAssets.versionId, versionId),
+        eq(knowledgeDocumentAssets.role, "SEARCH_SOURCE")
+      )).limit(1);
     let contentPages: ContentPageInput[] = pageRows
       .filter((page) => (page.parsedText ?? "").trim().length > 0)
       .map((page) => ({
@@ -1057,24 +1161,22 @@ async function handleChunkRebuild(
     let contentFromSearchSource = false;
     // 双源版本的 ORIGINAL 页面通常没有 parsedText；重建时必须重新读取 SEARCH_SOURCE，
     // 并仅使用已有映射回溯到 ORIGINAL 页面。
-    if (contentPages.length === 0 && version.parseStatus === "NO_TEXT_LAYER") {
-      const [searchAsset] = await db.select({ fileId: knowledgeDocumentAssets.fileId })
-        .from(knowledgeDocumentAssets)
-        .where(and(
-          eq(knowledgeDocumentAssets.versionId, versionId),
-          eq(knowledgeDocumentAssets.role, "SEARCH_SOURCE")
-        )).limit(1);
-      if (searchAsset) {
+    if (searchAsset) {
         const [searchFile] = await db.select({ objectKey: files.objectKey, mimeType: files.mimeType })
           .from(files).where(eq(files.id, searchAsset.fileId)).limit(1);
         if (searchFile?.mimeType === "application/pdf") {
           const extraction = await extractPdfDocumentInWorker(await storage.getObject(searchFile.objectKey));
           const mappings = await db.select({
             searchPhysicalPageNumber: knowledgePageMappings.searchPhysicalPageNumber,
-            originalPhysicalPageNumber: knowledgePages.physicalPageNumber
+            originalPhysicalPageNumber: knowledgePages.physicalPageNumber,
+            verified: knowledgePageMappings.verified,
+            confidence: knowledgePageMappings.confidence
           }).from(knowledgePageMappings)
             .innerJoin(knowledgePages, eq(knowledgePages.id, knowledgePageMappings.originalPageId))
-            .where(eq(knowledgePageMappings.versionId, versionId));
+            .where(and(
+              eq(knowledgePageMappings.versionId, versionId),
+              sql`(${knowledgePageMappings.verified} = true or ${knowledgePageMappings.confidence} >= ${env.KNOWLEDGE_MAPPING_MIN_AI_CONFIDENCE})`
+            ));
           const originalBySearchPage = new Map(mappings.map((row) => [row.searchPhysicalPageNumber, row.originalPhysicalPageNumber]));
           contentPages = extraction.pages.map((text, index) => ({
             physical: index + 1,
@@ -1083,7 +1185,6 @@ async function handleChunkRebuild(
           }));
           contentFromSearchSource = true;
         }
-      }
     }
     const result = await db.transaction(async (tx) => {
       const written = await writeKnowledgeContent(tx, {
@@ -1202,7 +1303,9 @@ async function handleLegacyJob(
         evidenceLevel: null,
         originalPages: parsed.pages.map((page) => ({
           physical: page.page ?? 0,
-          label: page.page != null ? String(page.page) : null,
+          label: page.label ?? null,
+          labelSource: page.labelSource ?? "FALLBACK",
+          labelConfidence: page.labelConfidence ?? null,
           text: page.text
         })),
         contentPages: parsed.pages

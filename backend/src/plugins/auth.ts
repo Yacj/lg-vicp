@@ -2,9 +2,10 @@ import fp from "fastify-plugin";
 import jwt from "@fastify/jwt";
 import { and, eq, isNull } from "drizzle-orm";
 import { env } from "../config/env.js";
-import { permissions, rolePermissions, roles, userRoles, users } from "../db/schema.js";
+import { users } from "../db/schema.js";
 import { AUTH_CLIENTS } from "../shared/constants.js";
 import { ForbiddenError, UnauthorizedError } from "../shared/errors.js";
+import { getPermissionCodes } from "../modules/menus/menu.service.js";
 import type { AuthClient } from "../shared/auth-user.js";
 
 interface JwtPayload {
@@ -44,17 +45,18 @@ export const authPlugin = fp(async (app) => {
         throw new UnauthorizedError("账号不存在或已被禁用");
       }
 
-      const permissionRows = user.role === "SUPER_ADMIN" ? [] : await app.db.select({ code: permissions.code }).from(userRoles)
-        .innerJoin(roles, eq(roles.id, userRoles.roleId))
-        .innerJoin(rolePermissions, eq(rolePermissions.roleId, roles.id))
-        .innerJoin(permissions, eq(permissions.id, rolePermissions.permissionId))
-        .where(and(eq(userRoles.userId, user.id), eq(roles.enabled, true)));
+      const permissionCodes = await getPermissionCodes(app, {
+        id: user.id,
+        role: user.role,
+        channelType: user.channelType,
+        clientType,
+      });
       request.currentUser = {
         id: user.id,
         role: user.role,
         channelType: user.channelType,
         clientType,
-        permissionCodes: permissionRows.map((row) => row.code)
+        permissionCodes: [...permissionCodes]
       };
       const routePath = (request.url ?? "").split("?")[0] ?? "";
       if ((routePath.startsWith("/api/v1/platform") || routePath.startsWith("/api/v1/workspace")) && clientType !== AUTH_CLIENTS.B_ADMIN) {

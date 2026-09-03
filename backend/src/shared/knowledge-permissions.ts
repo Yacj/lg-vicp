@@ -34,7 +34,8 @@ export const KNOWLEDGE_PERMISSIONS = {
   CHUNK_EDIT: "system:knowledge:chunk:edit",
   CHUNK_SPLIT: "system:knowledge:chunk:split",
   CHUNK_MERGE: "system:knowledge:chunk:merge",
-  SEARCH_ANSWER: "system:knowledge:search:answer"
+  SEARCH_ANSWER: "system:knowledge:search:answer",
+  DEBUG: "system:knowledge:debug"
 } as const;
 
 export type KnowledgePermission = (typeof KNOWLEDGE_PERMISSIONS)[keyof typeof KNOWLEDGE_PERMISSIONS];
@@ -76,5 +77,6 @@ export const KNOWLEDGE_PERMISSION_SEEDS: ReadonlyArray<{
   { code: KNOWLEDGE_PERMISSIONS.CHUNK_EDIT, name: "调整知识分块元数据", resource: "knowledge_chunk", action: "edit" },
   { code: KNOWLEDGE_PERMISSIONS.CHUNK_SPLIT, name: "拆分知识分块", resource: "knowledge_chunk", action: "split" },
   { code: KNOWLEDGE_PERMISSIONS.CHUNK_MERGE, name: "合并知识分块", resource: "knowledge_chunk", action: "merge" },
-  { code: KNOWLEDGE_PERMISSIONS.SEARCH_ANSWER, name: "知识检索问答", resource: "knowledge_search", action: "answer" }
+  { code: KNOWLEDGE_PERMISSIONS.SEARCH_ANSWER, name: "知识检索问答", resource: "knowledge_search", action: "answer" },
+  { code: KNOWLEDGE_PERMISSIONS.DEBUG, name: "知识高级调试", resource: "knowledge_debug", action: "debug" }
 ];

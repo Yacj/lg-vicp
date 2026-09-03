@@ -23,13 +23,17 @@ export async function getPermissionCodes(app: FastifyInstance, user: AuthUser) {
     const rows = await app.db.select({ permissionCode: permissions.code }).from(permissions);
     return new Set(rows.map((row) => row.permissionCode));
   }
+  const assignedRoles = await app.db.select({ roleId: userRoles.roleId })
+    .from(userRoles)
+    .where(eq(userRoles.userId, user.id));
   const rows = await app.db.select({ permissionCode: permissions.code })
     .from(userRoles)
     .innerJoin(roles, eq(roles.id, userRoles.roleId))
     .innerJoin(rolePermissions, eq(rolePermissions.roleId, roles.id))
     .innerJoin(permissions, eq(permissions.id, rolePermissions.permissionId))
     .where(and(eq(userRoles.userId, user.id), eq(roles.enabled, true)));
-  if (rows.length > 0) return new Set(rows.map((row) => row.permissionCode));
+  // 只有从未分配动态角色时才使用账号类型默认权限；已分配但全部停用时必须立即失权。
+  if (rows.length > 0 || assignedRoles.length > 0) return new Set(rows.map((row) => row.permissionCode));
   const fallbackRoleCode = user.role === "CHANNEL_USER" ? "channel_operator" : "normal_user";
   const [fallbackRole] = await app.db.select({ id: roles.id }).from(roles).where(and(eq(roles.code, fallbackRoleCode), eq(roles.enabled, true))).limit(1);
   if (!fallbackRole) return new Set<string>();

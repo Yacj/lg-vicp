@@ -295,49 +295,47 @@ try {
       { routePath: "/content/publish", name: "企业内容发布", permissionCode: "system:md:enterprise:publish" }
     ]);
 
-    // 2. 知识中心（文档资料 / 分类 / 别名 / 抓取源 / 检索日志）
+    // 2. 知识中心（资料 / 公开文库 / 分类 / 数据源 / 质量检查）
     const knowledgeMenuId = await ensureMenu({
       menuType: "DIRECTORY", name: "知识中心", routePath: "/knowledge", icon: "tdesign:book", sortOrder: 20
     });
-    const knowledgeDocsMenuId = await ensureMenu({ parentId: knowledgeMenuId, menuType: "MENU", name: "文档资料", routePath: "/knowledge/documents", component: "knowledge/documents/index", sortOrder: 10, permissionCode: "system:knowledge:doc:list" });
+    const knowledgeDocsMenuId = await ensureMenu({ parentId: knowledgeMenuId, menuType: "MENU", name: "知识资料", routePath: "/knowledge/documents", component: "knowledge/documents/index", sortOrder: 10, permissionCode: "system:knowledge:doc:list" });
     await ensureButtons(knowledgeDocsMenuId, [
-      { routePath: "/knowledge/documents/add", name: "知识文档新增", permissionCode: "system:knowledge:doc:add" },
-      { routePath: "/knowledge/documents/edit", name: "知识文档编辑", permissionCode: "system:knowledge:doc:edit" },
-      { routePath: "/knowledge/documents/upload", name: "知识文档上传", permissionCode: "system:knowledge:doc:upload" },
-      { routePath: "/knowledge/documents/parse", name: "知识文档解析", permissionCode: "system:knowledge:doc:parse" },
-      { routePath: "/knowledge/documents/approve", name: "知识文档审核", permissionCode: "system:knowledge:doc:approve" },
-      { routePath: "/knowledge/documents/publish", name: "知识文档发布", permissionCode: "system:knowledge:doc:publish" },
-      { routePath: "/knowledge/documents/remove", name: "知识文档删除", permissionCode: "system:knowledge:doc:remove" }
+      { routePath: "/knowledge/documents/add", name: "知识资料新增", permissionCode: "system:knowledge:doc:add" },
+      { routePath: "/knowledge/documents/edit", name: "知识资料编辑", permissionCode: "system:knowledge:doc:edit" },
+      { routePath: "/knowledge/documents/upload", name: "知识资料上传", permissionCode: "system:knowledge:doc:upload" },
+      { routePath: "/knowledge/documents/parse", name: "知识资料解析", permissionCode: "system:knowledge:doc:parse" },
+      { routePath: "/knowledge/documents/approve", name: "知识资料审核", permissionCode: "system:knowledge:doc:approve" },
+      { routePath: "/knowledge/documents/publish", name: "知识资料发布", permissionCode: "system:knowledge:doc:publish" },
+      { routePath: "/knowledge/documents/remove", name: "知识资料删除", permissionCode: "system:knowledge:doc:remove" }
     ]);
-    const knowledgeCategoryMenuId = await ensureMenu({ parentId: knowledgeMenuId, menuType: "MENU", name: "分类管理", routePath: "/knowledge/categories", component: "knowledge/categories/index", sortOrder: 20, permissionCode: "system:knowledge:category:list" });
+    await ensureMenu({ parentId: knowledgeMenuId, menuType: "MENU", name: "公开文库", routePath: "/knowledge/public-library", component: "knowledge/public-library/index", sortOrder: 20, permissionCode: "system:knowledge:doc:list" });
+    const knowledgeCategoryMenuId = await ensureMenu({ parentId: knowledgeMenuId, menuType: "MENU", name: "资料分类", routePath: "/knowledge/categories", component: "knowledge/categories/index", sortOrder: 30, permissionCode: "system:knowledge:category:list" });
     await ensureButtons(knowledgeCategoryMenuId, [
-      { routePath: "/knowledge/categories/add", name: "知识分类新增", permissionCode: "system:knowledge:category:add" },
-      { routePath: "/knowledge/categories/edit", name: "知识分类编辑", permissionCode: "system:knowledge:category:edit" },
-      { routePath: "/knowledge/categories/remove", name: "知识分类删除", permissionCode: "system:knowledge:category:remove" }
+      { routePath: "/knowledge/categories/add", name: "资料分类新增", permissionCode: "system:knowledge:category:add" },
+      { routePath: "/knowledge/categories/edit", name: "资料分类编辑", permissionCode: "system:knowledge:category:edit" },
+      { routePath: "/knowledge/categories/remove", name: "资料分类删除", permissionCode: "system:knowledge:category:remove" }
     ]);
-    const knowledgeAliasMenuId = await ensureMenu({ parentId: knowledgeMenuId, menuType: "MENU", name: "别名词典", routePath: "/knowledge/aliases", component: "knowledge/aliases/index", sortOrder: 30, permissionCode: "system:knowledge:alias:list" });
-    await ensureButtons(knowledgeAliasMenuId, [
-      { routePath: "/knowledge/aliases/add", name: "别名新增", permissionCode: "system:knowledge:alias:add" },
-      { routePath: "/knowledge/aliases/edit", name: "别名编辑", permissionCode: "system:knowledge:alias:edit" },
-      { routePath: "/knowledge/aliases/remove", name: "别名删除", permissionCode: "system:knowledge:alias:remove" }
-    ]);
-    const knowledgeCrawlerMenuId = await ensureMenu({ parentId: knowledgeMenuId, menuType: "MENU", name: "抓取源", routePath: "/knowledge/crawlers", component: "knowledge/crawlers/index", sortOrder: 40, permissionCode: "system:knowledge:crawler:list" });
+    const knowledgeCrawlerMenuId = await ensureMenu({ parentId: knowledgeMenuId, menuType: "MENU", name: "数据源管理", routePath: "/knowledge/crawlers", component: "knowledge/crawlers/index", sortOrder: 40, permissionCode: "system:knowledge:crawler:list" });
     await ensureButtons(knowledgeCrawlerMenuId, [
-      { routePath: "/knowledge/crawlers/add", name: "抓取源新增", permissionCode: "system:knowledge:crawler:add" },
-      { routePath: "/knowledge/crawlers/edit", name: "抓取源编辑", permissionCode: "system:knowledge:crawler:edit" },
-      { routePath: "/knowledge/crawlers/run", name: "手动触发抓取", permissionCode: "system:knowledge:crawler:run" },
-      { routePath: "/knowledge/crawlers/remove", name: "抓取源删除", permissionCode: "system:knowledge:crawler:remove" }
+      { routePath: "/knowledge/crawlers/add", name: "数据源新增", permissionCode: "system:knowledge:crawler:add" },
+      { routePath: "/knowledge/crawlers/edit", name: "数据源编辑", permissionCode: "system:knowledge:crawler:edit" },
+      { routePath: "/knowledge/crawlers/run", name: "手动同步数据源", permissionCode: "system:knowledge:crawler:run" },
+      { routePath: "/knowledge/crawlers/remove", name: "数据源删除", permissionCode: "system:knowledge:crawler:remove" }
     ]);
-    await ensureMenu({ parentId: knowledgeMenuId, menuType: "MENU", name: "检索日志", routePath: "/knowledge/search-logs", component: "knowledge/search-logs/index", sortOrder: 50, permissionCode: "system:knowledge:search-log:list" });
-    const knowledgeSearchTestMenuId = await ensureMenu({ parentId: knowledgeMenuId, menuType: "MENU", name: "检索测试", routePath: "/knowledge/search-test", component: "knowledge/search-test/index", sortOrder: 60, permissionCode: "system:knowledge:search:answer" });
+    const knowledgeQualityMenuId = await ensureMenu({ parentId: knowledgeMenuId, menuType: "DIRECTORY", name: "质量检查", routePath: "/knowledge/quality", sortOrder: 50, permissionCode: "system:knowledge:search:answer" });
+    const knowledgeSearchTestMenuId = await ensureMenu({ parentId: knowledgeQualityMenuId, menuType: "MENU", name: "AI 问答测试", routePath: "/knowledge/search-test", component: "knowledge/search-test/index", sortOrder: 10, permissionCode: "system:knowledge:search:answer" });
+    await ensureMenu({ parentId: knowledgeQualityMenuId, menuType: "MENU", name: "解析异常", routePath: "/knowledge/parsing-jobs", component: "knowledge/parsing-jobs/index", sortOrder: 20, permissionCode: "system:knowledge:doc:parse" });
+    await ensureMenu({ parentId: knowledgeQualityMenuId, menuType: "MENU", name: "检索效果", routePath: "/knowledge/search-test/evaluations", component: "knowledge/search-test/evaluations", sortOrder: 30, permissionCode: "system:knowledge:eval:list" });
+    await ensureMenu({ parentId: knowledgeQualityMenuId, menuType: "MENU", name: "高级调试", routePath: "/knowledge/debug", component: "knowledge/debug/index", sortOrder: 40, permissionCode: "system:knowledge:debug" });
     await ensureButtons(knowledgeSearchTestMenuId, [
       { routePath: "/knowledge/search-test/answer", name: "知识检索问答", permissionCode: "system:knowledge:search:answer" },
       { routePath: "/knowledge/search-test/eval-add", name: "提交检索评测", permissionCode: "system:knowledge:eval:add" },
       { routePath: "/knowledge/search-test/eval-list", name: "查看检索评测", permissionCode: "system:knowledge:eval:list" },
       { routePath: "/knowledge/search-test/eval-judge", name: "判定检索评测", permissionCode: "system:knowledge:eval:judge" },
-      { routePath: "/knowledge/search-test/chunk-edit", name: "调整知识分块元数据", permissionCode: "system:knowledge:chunk:edit" },
-      { routePath: "/knowledge/search-test/chunk-split", name: "拆分知识分块", permissionCode: "system:knowledge:chunk:split" },
-      { routePath: "/knowledge/search-test/chunk-merge", name: "合并知识分块", permissionCode: "system:knowledge:chunk:merge" }
+      { routePath: "/knowledge/search-test/chunk-edit", name: "调整知识分块元数据", permissionCode: "system:knowledge:debug" },
+      { routePath: "/knowledge/search-test/chunk-split", name: "拆分知识分块", permissionCode: "system:knowledge:debug" },
+      { routePath: "/knowledge/search-test/chunk-merge", name: "合并知识分块", permissionCode: "system:knowledge:debug" }
     ]);
 
     // 3. 产品中心（产品系列 / 产品规格 / 产品参数 / 产品附件）

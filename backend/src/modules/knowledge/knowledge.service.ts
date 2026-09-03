@@ -372,6 +372,39 @@ export async function runSearch(app: FastifyInstance, query: string, options: Ru
   });
 }
 
+export interface SafeSearchHit extends Omit<SearchHit, "sourceId" | "chunkId" | "contentType" | "score" | "rankScore" | "retrievalUnit" | "hitReason" | "matchedTerms" | "matchReasons" | "content"> {
+  /** 非调试响应只保留用于原文阅读的短摘录，不返回完整检索内容。 */
+  content?: string;
+  snippet: string;
+}
+
+export function sanitizeSearchHit(hit: SearchHit, debugEnabled: boolean): SearchHit | SafeSearchHit {
+  if (debugEnabled) return hit;
+  return {
+    documentId: hit.documentId,
+    versionId: hit.versionId,
+    sectionId: hit.sectionId ?? null,
+    pageId: hit.pageId ?? null,
+    pageBlockId: hit.pageBlockId ?? null,
+    sourcePage: hit.sourcePage,
+    pageEnd: hit.pageEnd ?? null,
+    physicalPageNumber: hit.physicalPageNumber ?? null,
+    pageLabel: hit.pageLabel ?? null,
+    pageTitle: hit.pageTitle ?? null,
+    originalFileId: hit.originalFileId ?? null,
+    sourceSection: hit.sourceSection,
+    headingPath: hit.headingPath ?? null,
+    sourceTitle: hit.sourceTitle,
+    version: hit.version,
+    docNumber: hit.docNumber,
+    citationAnchor: hit.citationAnchor,
+    snippet: hit.snippet,
+    evidenceLevel: hit.evidenceLevel ?? null,
+    usageScope: hit.usageScope ?? null,
+    region: hit.region ?? null
+  };
+}
+
 /**
  * 平台侧检索（B 端）：返回可解释排序结果并写入检索日志。
  * 权限在路由层校验；本函数只负责查询与日志。

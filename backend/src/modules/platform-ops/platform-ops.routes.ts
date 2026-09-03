@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { and, asc, count, desc, eq, ilike, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
-import { cronExecutions, cronJobs, departments, dictionaryItems, dictionaries, loginLogs, posts, refreshTokens, roleDepartments, roles, userDepartments, userRoles, users } from "../../db/schema.js";
+import { cronExecutions, cronJobs, departments, dictionaryItems, dictionaries, loginLogs, permissions, posts, refreshTokens, roleDepartments, rolePermissions, roles, userDepartments, userRoles, users } from "../../db/schema.js";
 import { assertPermission } from "../../shared/permission-guard.js";
 import { getPagination, paginationQuerySchema } from "../../shared/pagination.js";
 import { NotFoundError, ForbiddenError } from "../../shared/errors.js";
@@ -15,7 +15,7 @@ const idsBody = z.object({ ids: z.array(z.uuid()).max(1000) });
 const statusBody = z.object({ enabled: z.boolean() });
 const postBody = z.object({ name: z.string().trim().min(1, "请输入岗位名称").max(120), code: z.string().trim().regex(/^[a-z][a-z0-9_.-]{1,79}$/, "岗位编码格式不正确"), sortOrder: z.number().int().default(0), enabled: z.boolean().default(true), remark: z.string().max(1000).nullable().optional() });
 const deptBody = z.object({ parentId: z.uuid("上级部门 ID 格式不正确").nullable().optional(), code: z.string().trim().min(2).max(80), name: z.string().trim().min(1, "请输入部门名称").max(120), leader: z.string().max(120).nullable().optional(), phone: z.string().max(32).nullable().optional(), email: z.string().email("邮箱格式不正确").max(255).nullable().optional(), sortOrder: z.number().int().default(0), enabled: z.boolean().default(true) });
-const rolePatch = z.object({ name: z.string().trim().min(1).max(120).optional(), description: z.string().max(1000).nullable().optional(), dataScope: z.enum(["ALL", "DEPT", "DEPT_AND_CHILDREN", "SELF", "CUSTOM", "PROJECT_OWNER"]).optional(), enabled: z.boolean().optional() }).refine((v) => Object.keys(v).length > 0, "至少需要修改一个字段");
+const rolePatch = z.object({ name: z.string().trim().min(1).max(120).optional(), description: z.string().max(1000).nullable().optional(), dataScope: z.enum(["ALL", "DEPT", "DEPT_AND_CHILDREN", "SELF", "CUSTOM", "PROJECT_OWNER"]).optional(), enabled: z.boolean().optional(), permissionIds: z.array(z.uuid("权限 ID 格式不正确")).max(500).optional() }).refine((v) => Object.keys(v).length > 0, "至少需要修改一个字段");
 const dictPatch = z.object({ name: z.string().trim().min(1).max(120).optional(), description: z.string().max(1000).nullable().optional(), enabled: z.boolean().optional() }).refine((v) => Object.keys(v).length > 0, "至少需要修改一个字段");
 const itemBody = z.object({ value: z.string().trim().min(1).max(120), label: z.string().trim().min(1).max(120), sortOrder: z.number().int().default(0), enabled: z.boolean().default(true), metadata: z.record(z.string(), z.unknown()).optional() });
 const cronBody = z.object({ name: z.string().trim().min(1).max(120), jobType: z.enum(["maintenance", "document_cleanup", "audit_cleanup", "standard_crawl"]), cronExpression: z.string().trim().min(5).max(120), queueName: z.enum(["maintenance"]), payload: z.record(z.string(), z.unknown()).optional(), status: z.enum(["PAUSED", "RUNNING", "DISABLED"]).default("PAUSED") });
@@ -58,9 +58,29 @@ export async function platformOpsRoutes(app: FastifyInstance) {
     await writeAuditLog({ db: app.db, request, actor, action: AUDIT_ACTIONS.POST_DELETED, targetType: "post", targetId: post.id, beforeJson: post }); return ok(request, { message: "岗位删除成功" });
   });
 
-  route.patch("/roles/:id", { preHandler: [app.authenticate], schema: { tags: ["B端 / 平台 / 角色权限"], summary: "修改角色", params: idParams, body: rolePatch } }, async (request) => {
-    const actor = await assertPermission(request, "system:role:edit"); const [before] = await app.db.select().from(roles).where(eq(roles.id, request.params.id)).limit(1); if (!before) throw new NotFoundError("角色不存在");
-    const [role] = await app.db.update(roles).set({ ...request.body, updatedAt: new Date() }).where(eq(roles.id, before.id)).returning(); await writeAuditLog({ db: app.db, request, actor, action: AUDIT_ACTIONS.RBAC_ROLE_UPDATED, targetType: "role", targetId: before.id, beforeJson: before, afterJson: role }); return ok(request, { message: "角色修改成功", role });
+  route.patch("/roles/:id", { preHandler: [app.authenticate], schema: { tags: ["B端 / 平台 / 角色权限"], summary: "修改角色及权限", params: idParams, body: rolePatch } }, async (request) => {
+    const actor = await assertPermission(request, "system:role:edit");
+    const [before] = await app.db.select().from(roles).where(eq(roles.id, request.params.id)).limit(1);
+    if (!before) throw new NotFoundError("角色不存在");
+    const { permissionIds, ...roleValues } = request.body;
+    const uniquePermissionIds = permissionIds === undefined ? undefined : [...new Set(permissionIds)];
+    if (uniquePermissionIds !== undefined) {
+      await assertPermission(request, "system:role:permission");
+      const existing = uniquePermissionIds.length === 0 ? [] : await app.db.select({ id: permissions.id }).from(permissions).where(inArray(permissions.id, uniquePermissionIds));
+      if (existing.length !== uniquePermissionIds.length) throw new NotFoundError("部分权限不存在");
+    }
+    const role = await app.db.transaction(async (tx) => {
+      const [updated] = await tx.update(roles).set({ ...roleValues, updatedAt: new Date() }).where(eq(roles.id, before.id)).returning();
+      if (!updated) throw new NotFoundError("角色不存在");
+      if (uniquePermissionIds !== undefined) {
+        await tx.delete(rolePermissions).where(eq(rolePermissions.roleId, before.id));
+        if (uniquePermissionIds.length > 0) await tx.insert(rolePermissions).values(uniquePermissionIds.map((permissionId) => ({ roleId: before.id, permissionId })));
+      }
+      await writeAuditLog({ db: tx, request, actor, action: AUDIT_ACTIONS.RBAC_ROLE_UPDATED, targetType: "role", targetId: before.id, beforeJson: before, afterJson: updated });
+      if (uniquePermissionIds !== undefined) await writeAuditLog({ db: tx, request, actor, action: AUDIT_ACTIONS.RBAC_ROLE_PERMISSIONS_CHANGED, targetType: "role", targetId: before.id, afterJson: { permissionIds: uniquePermissionIds } });
+      return updated;
+    });
+    return ok(request, { message: "角色及权限修改成功", role });
   });
   route.patch("/roles/:id/status", { preHandler: [app.authenticate], schema: { tags: ["B端 / 平台 / 角色权限"], summary: "修改角色状态", params: idParams, body: statusBody } }, async (request) => {
     const actor = await assertPermission(request, "system:role:edit"); const [role] = await app.db.update(roles).set({ enabled: request.body.enabled, updatedAt: new Date() }).where(eq(roles.id, request.params.id)).returning(); if (!role) throw new NotFoundError("角色不存在"); await writeAuditLog({ db: app.db, request, actor, action: AUDIT_ACTIONS.RBAC_ROLE_STATUS_CHANGED, targetType: "role", targetId: role.id, afterJson: { enabled: role.enabled } }); return ok(request, { message: "角色状态修改成功", role });

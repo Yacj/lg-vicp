@@ -1,7 +1,12 @@
 import { parentPort } from "node:worker_threads";
+import type { PageLabelSource, PdfTextItemForLabel } from "../modules/knowledge/knowledge-page-label.js";
 
 interface PdfTextRequest {
   data: Uint8Array;
+}
+
+export interface PdfExtractedTextItem extends PdfTextItemForLabel {
+  hasEOL?: boolean;
 }
 
 /** 书签大纲条目（与 pdf-text-extractor.ts 的 PdfOutlineItem 保持同构） */
@@ -11,8 +16,17 @@ interface OutlineItem {
   pageNumber: number | null;
 }
 
+export interface PdfExtractedPage {
+  pageNumber: number;
+  text: string;
+  items: PdfExtractedTextItem[];
+  pageLabel: string | null;
+  pageLabelSource: Extract<PageLabelSource, "PDF_PAGE_LABEL" | "FOOTER_TEXT"> | null;
+  pageLabelConfidence: number | null;
+}
+
 type PdfTextMessage =
-  | { type: "page"; pageNumber: number; totalPages: number; text: string }
+  | { type: "page"; pageNumber: number; totalPages: number; text: string; items: PdfExtractedTextItem[]; pageLabel: string | null; pageLabelSource: Extract<PageLabelSource, "PDF_PAGE_LABEL" | "FOOTER_TEXT"> | null; pageLabelConfidence: number | null }
   | { type: "done"; totalPages: number; outline?: OutlineItem[] }
   | { type: "error"; message: string };
 
@@ -73,6 +87,38 @@ async function readOutline(pdf: {
   return output;
 }
 
+async function readPdfPageLabels(pdf: unknown): Promise<Array<string | null>> {
+  const getPageLabels = (pdf as { getPageLabels?: () => Promise<unknown> }).getPageLabels;
+  if (typeof getPageLabels !== "function") return [];
+  try {
+    const labels = await getPageLabels.call(pdf);
+    return Array.isArray(labels)
+      ? labels.map((label) => typeof label === "string" && label.trim() ? label.trim().slice(0, 32) : null)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function toTextItem(item: unknown): PdfExtractedTextItem | null {
+  if (!item || typeof item !== "object") return null;
+  const value = item as Record<string, unknown>;
+  if (typeof value.str !== "string" || !value.str) return null;
+  const transform = Array.isArray(value.transform) ? value.transform : [];
+  const numberAt = (index: number, fallback = 0): number => {
+    const result = transform[index];
+    return typeof result === "number" && Number.isFinite(result) ? result : fallback;
+  };
+  return {
+    text: value.str,
+    x: numberAt(4),
+    y: numberAt(5),
+    width: typeof value.width === "number" && Number.isFinite(value.width) ? value.width : 0,
+    height: typeof value.height === "number" && Number.isFinite(value.height) ? value.height : 0,
+    hasEOL: value.hasEOL === true
+  };
+}
+
 /**
  * 逐页提取并立即释放页面资源。
  * 不使用 unpdf 的 extractText：该实现用 Promise.all 并发解析全部页且从不调用 page.cleanup()，
@@ -83,22 +129,37 @@ async function extractPagesSequentially(
   emit: (message: PdfTextMessage) => void
 ): Promise<{ totalPages: number; outline: OutlineItem[] }> {
   const runtimeCompatSpecifier = `../shared/runtime-compat.${import.meta.url.endsWith(".ts") ? "ts" : "js"}`;
+  const pageLabelSpecifier = `../modules/knowledge/knowledge-page-label.${import.meta.url.endsWith(".ts") ? "ts" : "js"}`;
   const { installPdfRuntimeCompat } = await import(runtimeCompatSpecifier);
+  const { detectFooterPageLabel } = await import(pageLabelSpecifier);
   installPdfRuntimeCompat();
   const { getDocumentProxy } = await import("unpdf");
 
   const pdf = await getDocumentProxy(data);
   try {
     const totalPages = pdf.numPages;
+    const pageLabels = await readPdfPageLabels(pdf);
     for (let pageNumber = 1; pageNumber <= totalPages; pageNumber++) {
       const page = await pdf.getPage(pageNumber);
       try {
         const content = await page.getTextContent();
-        const text = content.items
-          .filter((item): item is Extract<typeof item, { str: string }> => "str" in item && item.str != null)
-          .map((item) => item.str + (item.hasEOL ? "\n" : ""))
-          .join("");
-        emit({ type: "page", pageNumber, totalPages, text });
+        const items = content.items
+          .map(toTextItem)
+          .filter((item): item is PdfExtractedTextItem => item !== null);
+        const text = items.map((item) => item.text + (item.hasEOL ? "\n" : "")).join("");
+        const pageHeight = page.getViewport({ scale: 1 }).height;
+        const pdfPageLabel = pageLabels[pageNumber - 1] ?? null;
+        const footer = pdfPageLabel ? null : detectFooterPageLabel(items, pageHeight);
+        emit({
+          type: "page",
+          pageNumber,
+          totalPages,
+          text,
+          items,
+          pageLabel: pdfPageLabel ?? footer?.pageLabel ?? null,
+          pageLabelSource: pdfPageLabel ? "PDF_PAGE_LABEL" : footer ? "FOOTER_TEXT" : null,
+          pageLabelConfidence: pdfPageLabel ? 1 : footer?.confidence ?? null
+        });
       } finally {
         page.cleanup();
       }

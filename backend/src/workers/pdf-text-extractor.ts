@@ -1,3 +1,4 @@
+import type { PageLabelSource, PdfTextItemForLabel } from "../modules/knowledge/knowledge-page-label.js";
 import { Worker } from "node:worker_threads";
 
 /**
@@ -8,8 +9,17 @@ import { Worker } from "node:worker_threads";
 const PDF_PAGE_IDLE_TIMEOUT_MS = 5 * 60 * 1000;
 const PDF_EXTRACTION_TIMEOUT_MS = 20 * 60 * 1000;
 
+export interface PdfExtractedPage {
+  pageNumber: number;
+  text: string;
+  items: Array<PdfTextItemForLabel & { hasEOL?: boolean }>;
+  pageLabel: string | null;
+  pageLabelSource: Extract<PageLabelSource, "PDF_PAGE_LABEL" | "FOOTER_TEXT"> | null;
+  pageLabelConfidence: number | null;
+}
+
 type PdfTextMessage =
-  | { type: "page"; pageNumber: number; totalPages: number; text: string }
+  | { type: "page"; pageNumber: number; totalPages: number; text: string; items: PdfExtractedPage["items"]; pageLabel: string | null; pageLabelSource: PdfExtractedPage["pageLabelSource"]; pageLabelConfidence: number | null }
   | { type: "done"; totalPages: number; outline?: PdfOutlineItem[] }
   | { type: "error"; message: string };
 
@@ -22,6 +32,7 @@ export interface PdfOutlineItem {
 
 export interface PdfExtractionResult {
   pages: string[];
+  pageDetails: PdfExtractedPage[];
   outline: PdfOutlineItem[];
 }
 
@@ -53,7 +64,9 @@ function isPdfTextMessage(value: unknown): value is PdfTextMessage {
   if (message.type === "page") {
     return typeof message.pageNumber === "number"
       && typeof message.totalPages === "number"
-      && typeof message.text === "string";
+      && typeof message.text === "string"
+      && (message.items === undefined || Array.isArray(message.items))
+      && (message.pageLabel === undefined || message.pageLabel === null || typeof message.pageLabel === "string");
   }
   if (message.type === "done") {
     return typeof message.totalPages === "number"
@@ -116,6 +129,7 @@ export function extractPdfDocument(
   return new Promise((resolve, reject) => {
     const worker = createWorker();
     const pages: string[] = [];
+    const pageDetails: PdfExtractedPage[] = [];
     let outline: PdfOutlineItem[] = [];
     let settled = false;
 
@@ -154,15 +168,31 @@ export function extractPdfDocument(
         clearTimeout(idleTimer);
         idleTimer = startIdleTimer();
         pages[message.pageNumber - 1] = message.text;
+        pageDetails[message.pageNumber - 1] = {
+          pageNumber: message.pageNumber,
+          text: message.text,
+          items: message.items ?? [],
+          pageLabel: message.pageLabel ?? null,
+          pageLabelSource: message.pageLabelSource ?? null,
+          pageLabelConfidence: message.pageLabelConfidence ?? null
+        };
         onPage?.({ pageNumber: message.pageNumber, totalPages: message.totalPages });
         return;
       }
       if (message.type === "done") {
         for (let index = 0; index < message.totalPages; index++) {
           pages[index] ??= "";
+          pageDetails[index] ??= {
+            pageNumber: index + 1,
+            text: pages[index]!,
+            items: [],
+            pageLabel: null,
+            pageLabelSource: null,
+            pageLabelConfidence: null
+          };
         }
         outline = message.outline ?? [];
-        finish({ result: { pages, outline } });
+        finish({ result: { pages, pageDetails, outline } });
         return;
       }
       finish({ error: new Error(message.message) });

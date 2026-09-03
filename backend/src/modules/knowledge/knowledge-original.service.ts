@@ -1,5 +1,6 @@
 import { and, asc, count, eq, ne } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest } from "fastify";
+import { env } from "../../config/env.js";
 import {
   files,
   parsingJobs,
@@ -168,6 +169,43 @@ export interface TocItemInput {
   sectionId?: string | null;
 }
 
+/**
+ * 已确认 TOC 的标题与页签属于人工校验结果：在其精确指定物理页时回写页面标题；
+ * 仅为 FALLBACK 的页面补充 TOC 页签，永远不覆盖人工页面校正。
+ */
+async function syncConfirmedTocPageMetadata(app: FastifyInstance, versionId: string): Promise<void> {
+  const items = await app.db.select({
+    title: knowledgeTocItems.title,
+    pageLabel: knowledgeTocItems.pageLabel,
+    physicalPageNumber: knowledgeTocItems.physicalPageNumber
+  }).from(knowledgeTocItems).where(and(
+    eq(knowledgeTocItems.versionId, versionId),
+    eq(knowledgeTocItems.status, "CONFIRMED")
+  ));
+  for (const item of items) {
+    if (item.physicalPageNumber == null) continue;
+    const [page] = await app.db.select({
+      id: knowledgePages.id,
+      pageLabelSource: knowledgePages.pageLabelSource
+    }).from(knowledgePages).where(and(
+      eq(knowledgePages.versionId, versionId),
+      eq(knowledgePages.physicalPageNumber, item.physicalPageNumber)
+    )).limit(1);
+    if (!page || page.pageLabelSource === "MANUAL") continue;
+    await app.db.update(knowledgePages).set({
+      pageTitle: item.title,
+      ...(item.pageLabel && page.pageLabelSource === "FALLBACK"
+        ? {
+            pageLabel: item.pageLabel,
+            pageLabelSource: "TOC_MAPPING" as const,
+            pageLabelConfidence: 0.9,
+            pageLabelVerified: false
+          }
+        : {})
+    }).where(eq(knowledgePages.id, page.id));
+  }
+}
+
 /** 整表替换（B 端人工校正提交）：CONFIRMED 需显式 confirm 标记；单事务删旧写新 */
 export async function replaceVersionToc(
   app: FastifyInstance,
@@ -205,6 +243,7 @@ export async function replaceVersionToc(
     }
     return rows;
   });
+  if (options.confirm) await syncConfirmedTocPageMetadata(app, versionId);
   await writeAuditLog({
     db: app.db, request, actor,
     action: "knowledge.version_toc_replaced", targetType: "knowledge_document_version", targetId: versionId,
@@ -231,6 +270,7 @@ export async function updateTocItem(
     updatedById: actor.id,
     updatedAt: new Date()
   }).where(eq(knowledgeTocItems.id, tocId)).returning();
+  if (updated?.status === "CONFIRMED") await syncConfirmedTocPageMetadata(app, updated.versionId);
   await writeAuditLog({
     db: app.db, request, actor,
     action: "knowledge.toc_item_updated", targetType: "knowledge_toc_item", targetId: tocId,
@@ -346,7 +386,14 @@ export async function updateVersionPage(
     .limit(1);
   if (!page) throw new NotFoundError("页面不存在");
   const [updated] = await app.db.update(knowledgePages).set({
-    pageLabel: input.pageLabel !== undefined ? input.pageLabel : page.pageLabel,
+    pageLabel: input.pageLabel !== undefined
+      ? input.pageLabel ?? String(physicalPageNumber)
+      : page.pageLabel,
+    pageLabelSource: input.pageLabel !== undefined
+      ? input.pageLabel ? "MANUAL" : "FALLBACK"
+      : page.pageLabelSource,
+    pageLabelConfidence: input.pageLabel !== undefined && input.pageLabel ? null : page.pageLabelConfidence,
+    pageLabelVerified: input.pageLabel !== undefined ? Boolean(input.pageLabel) : page.pageLabelVerified,
     pageTitle: input.pageTitle !== undefined ? input.pageTitle : page.pageTitle
   }).where(eq(knowledgePages.id, page.id)).returning();
   await writeAuditLog({
@@ -361,8 +408,12 @@ export async function updateVersionPage(
 // ---------------------------------------------------------------- 发布门禁（AI_ENABLED / BROWSE_ONLY）
 
 export interface AiReadinessContext {
+  hasOriginalAsset: boolean;
   hasSearchSourceAsset: boolean;
+  pageCount: number;
+  fallbackPageLabelCount: number;
   mappingCount: number;
+  reliableMappingCount: number;
   verifiedMappingCount: number;
   tocItemCount: number;
   confirmedTocCount: number;
@@ -382,6 +433,9 @@ export function evaluateVersionAiReadiness(
 ): AiReadinessResult {
   const blockers: string[] = [];
   const warnings: string[] = [];
+  if (version.usageMode === "AI_ENABLED" && !context.hasOriginalAsset) {
+    blockers.push("缺少 ORIGINAL 正式原文件，不能发布 AI 可引用版本");
+  }
   if (version.usageMode === "AI_ENABLED" && version.parseStatus === "SEARCH_SOURCE_REQUIRED") {
     blockers.push("原文件没有文本层且未绑定可检索的文本源：请上传 SEARCH_SOURCE 资产后升级解析，或将版本用途改为 BROWSE_ONLY（仅浏览）");
   }
@@ -391,11 +445,19 @@ export function evaluateVersionAiReadiness(
   if (version.usageMode === "AI_ENABLED" && version.parseStatus === "NO_TEXT_LAYER" && context.mappingCount === 0) {
     blockers.push("检索文本未映射到任何 ORIGINAL 页面，不能生成可回溯的 AI 引用");
   }
-  if (context.tocItemCount > 0 && context.confirmedTocCount === 0) {
+  if (context.tocItemCount === 0) {
+    warnings.push("原文目录尚不可用：请从 PDF 书签、目录页、配套检索源或人工维护生成 TOC");
+  } else if (context.confirmedTocCount === 0) {
     warnings.push("原文目录尚未人工确认（CONFIRMED），AI 引用的目录路径以当前草稿为准");
+  }
+  if (context.fallbackPageLabelCount > 0) {
+    warnings.push(`有 ${context.fallbackPageLabelCount} 页仅使用物理页码回退（FALLBACK），未识别到可靠印刷页码`);
   }
   if (context.mappingCount > 0 && context.verifiedMappingCount === 0) {
     warnings.push("检索页到原文页的映射尚未人工核验（verified），引用回溯可能偏页");
+  }
+  if (context.mappingCount > context.reliableMappingCount) {
+    warnings.push(`有 ${context.mappingCount - context.reliableMappingCount} 条低置信映射不能用于正式 AI 引用`);
   }
   return { eligible: blockers.length === 0, blockers, warnings };
 }
@@ -405,17 +467,23 @@ export async function collectAiReadinessContext(
   app: FastifyInstance,
   versionId: string
 ): Promise<AiReadinessContext> {
-  const [assetRows, mappingRows, tocRows] = await Promise.all([
+  const [assetRows, mappingRows, tocRows, pageRows] = await Promise.all([
     app.db.select({ role: knowledgeDocumentAssets.role }).from(knowledgeDocumentAssets)
       .where(eq(knowledgeDocumentAssets.versionId, versionId)),
-    app.db.select({ verified: knowledgePageMappings.verified }).from(knowledgePageMappings)
+    app.db.select({ verified: knowledgePageMappings.verified, confidence: knowledgePageMappings.confidence }).from(knowledgePageMappings)
       .where(eq(knowledgePageMappings.versionId, versionId)),
     app.db.select({ status: knowledgeTocItems.status }).from(knowledgeTocItems)
-      .where(eq(knowledgeTocItems.versionId, versionId))
+      .where(eq(knowledgeTocItems.versionId, versionId)),
+    app.db.select({ pageLabelSource: knowledgePages.pageLabelSource }).from(knowledgePages)
+      .where(eq(knowledgePages.versionId, versionId))
   ]);
   return {
+    hasOriginalAsset: assetRows.some((row) => row.role === "ORIGINAL"),
     hasSearchSourceAsset: assetRows.some((row) => row.role === "SEARCH_SOURCE"),
+    pageCount: pageRows.length,
+    fallbackPageLabelCount: pageRows.filter((row) => row.pageLabelSource === "FALLBACK").length,
     mappingCount: mappingRows.length,
+    reliableMappingCount: mappingRows.filter((row) => row.verified || (row.confidence != null && row.confidence >= env.KNOWLEDGE_MAPPING_MIN_AI_CONFIDENCE)).length,
     verifiedMappingCount: mappingRows.filter((row) => row.verified).length,
     tocItemCount: tocRows.length,
     confirmedTocCount: tocRows.filter((row) => row.status === "CONFIRMED").length
@@ -433,8 +501,8 @@ export async function assertVersionPublishable(app: FastifyInstance, version: ty
   }
   const readiness = await collectAiReadinessContext(app, version.id);
   const result = evaluateVersionAiReadiness(version, readiness);
-  if (!result.eligible) {
-    throw new ConflictError(result.blockers.join("；"));
+  if (!result.eligible || (env.STRICT_KNOWLEDGE_PUBLISH_CHECK && version.usageMode === "AI_ENABLED" && result.warnings.length > 0)) {
+    throw new ConflictError((result.blockers.length > 0 ? result.blockers : result.warnings).join("；"));
   }
   return result;
 }

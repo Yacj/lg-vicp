@@ -106,7 +106,10 @@ describe("发布门禁 evaluateVersionAiReadiness（AI_ENABLED / BROWSE_ONLY）"
   it("AI_ENABLED + 无文本层且无检索源：硬拦截", () => {
     const result = evaluateVersionAiReadiness(
       { usageMode: "AI_ENABLED", parseStatus: "SEARCH_SOURCE_REQUIRED" },
-      { hasSearchSourceAsset: false, mappingCount: 0, verifiedMappingCount: 0, tocItemCount: 0, confirmedTocCount: 0 }
+      {
+        hasOriginalAsset: true, hasSearchSourceAsset: false, pageCount: 3, fallbackPageLabelCount: 0,
+        mappingCount: 0, reliableMappingCount: 0, verifiedMappingCount: 0, tocItemCount: 0, confirmedTocCount: 0
+      }
     );
     expect(result.eligible).toBe(false);
     expect(result.blockers).toHaveLength(1);
@@ -116,7 +119,10 @@ describe("发布门禁 evaluateVersionAiReadiness（AI_ENABLED / BROWSE_ONLY）"
   it("BROWSE_ONLY：只有 ORIGINAL 也可发布（不进 AI 检索）", () => {
     const result = evaluateVersionAiReadiness(
       { usageMode: "BROWSE_ONLY", parseStatus: "SEARCH_SOURCE_REQUIRED" },
-      { hasSearchSourceAsset: false, mappingCount: 0, verifiedMappingCount: 0, tocItemCount: 0, confirmedTocCount: 0 }
+      {
+        hasOriginalAsset: true, hasSearchSourceAsset: false, pageCount: 3, fallbackPageLabelCount: 0,
+        mappingCount: 0, reliableMappingCount: 0, verifiedMappingCount: 0, tocItemCount: 0, confirmedTocCount: 0
+      }
     );
     expect(result.eligible).toBe(true);
   });
@@ -124,7 +130,10 @@ describe("发布门禁 evaluateVersionAiReadiness（AI_ENABLED / BROWSE_ONLY）"
   it("NO_TEXT_LAYER + 已绑定检索源：放行，但映射未核验/TOC 未确认为软提示", () => {
     const result = evaluateVersionAiReadiness(
       { usageMode: "AI_ENABLED", parseStatus: "NO_TEXT_LAYER" },
-      { hasSearchSourceAsset: true, mappingCount: 12, verifiedMappingCount: 0, tocItemCount: 8, confirmedTocCount: 0 }
+      {
+        hasOriginalAsset: true, hasSearchSourceAsset: true, pageCount: 12, fallbackPageLabelCount: 0,
+        mappingCount: 12, reliableMappingCount: 12, verifiedMappingCount: 0, tocItemCount: 8, confirmedTocCount: 0
+      }
     );
     expect(result.eligible).toBe(true);
     expect(result.warnings).toHaveLength(2);
@@ -135,7 +144,10 @@ describe("发布门禁 evaluateVersionAiReadiness（AI_ENABLED / BROWSE_ONLY）"
   it("PARSED 版本：无拦截无提示", () => {
     const result = evaluateVersionAiReadiness(
       { usageMode: "AI_ENABLED", parseStatus: "PARSED" },
-      { hasSearchSourceAsset: false, mappingCount: 0, verifiedMappingCount: 0, tocItemCount: 0, confirmedTocCount: 0 }
+      {
+        hasOriginalAsset: true, hasSearchSourceAsset: false, pageCount: 3, fallbackPageLabelCount: 0,
+        mappingCount: 0, reliableMappingCount: 0, verifiedMappingCount: 0, tocItemCount: 1, confirmedTocCount: 1
+      }
     );
     expect(result.eligible).toBe(true);
     expect(result.warnings).toHaveLength(0);

@@ -1,14 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { buildPageMappings, normalizeMappingTitle } from "./knowledge-page-mapping.js";
 
-/**
- * 检索页 → 原文页映射测试（Case B：转曲印刷件 + 配套检索源）：
- * 禁止按物理页硬对齐；优先级 TOC 标题 → 插值/边缘补齐 → 页数相等恒等兜底。
- */
-
+/** 双源页映射只接受明确证据；无证据的物理页相同、插值和边缘填充都不能进入 AI 索引。 */
 describe("normalizeMappingTitle", () => {
-  it("全角/空白/大小写折叠", () => {
-    expect(normalizeMappingTitle("　A  VICP 薄抹灰外保温系统 ")).toBe(normalizeMappingTitle("a vicp 薄抹灰外保温系统"));
+  it("全角、空白与大小写折叠", () => {
+    expect(normalizeMappingTitle("　A  VICP 薄抹灰外保温系统 "))
+      .toBe(normalizeMappingTitle("a vicp 薄抹灰外保温系统"));
   });
 });
 
@@ -21,7 +18,7 @@ describe("buildPageMappings", () => {
     { physical: 5, label: "A5" }
   ];
 
-  it("TOC 标题对齐：检索源书签命中原文 TOC 条目（pageLabel 反查物理页）", () => {
+  it("以书签标题和原文 TOC 的明确页签定位", () => {
     const mappings = buildPageMappings({
       originalPages,
       searchTotalPages: 5,
@@ -34,45 +31,52 @@ describe("buildPageMappings", () => {
         { title: "基本构造", pageNumber: 5 }
       ]
     });
-    const bySearch = new Map(mappings.map((m) => [m.searchPhysicalPageNumber, m]));
-    expect(bySearch.get(3)).toMatchObject({ originalPhysicalPageNumber: 4, mappingMethod: "TOC_TITLE", confidence: 0.9, pageLabel: "A1" });
-    expect(bySearch.get(5)).toMatchObject({ originalPhysicalPageNumber: 5, mappingMethod: "TOC_TITLE" });
-    // 锚点之间线性插值（4 → 5 之间）
-    expect(bySearch.get(4)).toMatchObject({ originalPhysicalPageNumber: 5, mappingMethod: "PAGE_LABEL" });
+    expect(mappings).toEqual([
+      expect.objectContaining({ searchPhysicalPageNumber: 3, originalPhysicalPageNumber: 4, mappingMethod: "TOC_TITLE", confidence: 0.9, pageLabel: "A1" }),
+      expect.objectContaining({ searchPhysicalPageNumber: 5, originalPhysicalPageNumber: 5, mappingMethod: "TOC_TITLE", confidence: 0.9 })
+    ]);
   });
 
-  it("无锚点且页数相等：恒等映射兜底（低置信，verified=false 待人工）", () => {
+  it("精确页签优先于其他自动候选", () => {
     const mappings = buildPageMappings({
+      originalPages,
+      searchPages: [{ physical: 7, label: "A5" }],
+      searchTotalPages: 7,
+      tocItems: [],
+      searchOutline: []
+    });
+    expect(mappings).toEqual([
+      expect.objectContaining({ searchPhysicalPageNumber: 7, originalPhysicalPageNumber: 5, mappingMethod: "PAGE_LABEL", confidence: 0.98 })
+    ]);
+  });
+
+  it("无锚点时不按相同页数恒等映射，也不进行边缘或线性补齐", () => {
+    expect(buildPageMappings({
       originalPages: [{ physical: 1, label: "1" }, { physical: 2, label: "2" }],
       searchTotalPages: 2,
       tocItems: [],
       searchOutline: []
-    });
-    expect(mappings).toHaveLength(2);
-    expect(mappings.every((m) => m.mappingMethod === "PAGE_LABEL" && m.confidence === 0.3)).toBe(true);
-    expect(mappings.map((m) => m.originalPhysicalPageNumber)).toEqual([1, 2]);
-  });
-
-  it("无锚点且页数不等：不产生任何自动映射（禁止硬对齐，留给人工）", () => {
-    const mappings = buildPageMappings({
-      originalPages: [{ physical: 1, label: "1" }],
-      searchTotalPages: 12,
-      tocItems: [],
-      searchOutline: []
-    });
-    expect(mappings).toEqual([]);
-  });
-
-  it("首锚点之前的页映射到首锚点原文页（边缘补齐，保证内容有归属）", () => {
-    const mappings = buildPageMappings({
+    })).toEqual([]);
+    expect(buildPageMappings({
       originalPages,
       searchTotalPages: 6,
       tocItems: [{ title: "基本构造", pageLabel: "A5", physicalPageNumber: 5 }],
       searchOutline: [{ title: "基本构造", pageNumber: 4 }]
+    })).toEqual([
+      expect.objectContaining({ searchPhysicalPageNumber: 4, originalPhysicalPageNumber: 5, mappingMethod: "TOC_TITLE" })
+    ]);
+  });
+
+  it("接受唯一且达到最低分数的视觉候选", () => {
+    const mappings = buildPageMappings({
+      originalPages,
+      searchTotalPages: 3,
+      tocItems: [],
+      searchOutline: [],
+      visualMatches: [{ searchPhysicalPageNumber: 2, originalPhysicalPageNumber: 4, confidence: 0.91 }]
     });
-    const bySearch = new Map(mappings.map((m) => [m.searchPhysicalPageNumber, m]));
-    expect(bySearch.get(1)).toMatchObject({ originalPhysicalPageNumber: 5, confidence: 0.15 });
-    expect(bySearch.get(4)).toMatchObject({ originalPhysicalPageNumber: 5, mappingMethod: "TOC_TITLE" });
-    expect(bySearch.get(6)).toMatchObject({ originalPhysicalPageNumber: 5 });
+    expect(mappings).toEqual([
+      expect.objectContaining({ searchPhysicalPageNumber: 2, originalPhysicalPageNumber: 4, mappingMethod: "VISUAL_MATCH", confidence: 0.91 })
+    ]);
   });
 });

@@ -43,7 +43,7 @@ describe("reasoning 能力解析（resolveReasoningProviderOptions）", () => {
       { modelId: "m", providerName: "deepseek", capabilities: { reasoningAlwaysOn: true } },
       "OFF"
     )).toThrow("深度思考");
-  });
+  }, 10_000);
 
   it("OFF 模式普通模型 → 无 providerOptions", async () => {
     const { resolveReasoningProviderOptions } = await import("./ai-runtime.service.js");

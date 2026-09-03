@@ -149,10 +149,23 @@ export const knowledgeTocSourceEnum = pgEnum("knowledge_toc_source", [
 /** TOC 状态：自动识别只作为初稿，B 端人工校正后 CONFIRMED */
 export const knowledgeTocStatusEnum = pgEnum("knowledge_toc_status", ["DRAFT", "PENDING_REVIEW", "CONFIRMED"]);
 
-/** 检索页 → 原文页映射方式：pageLabel 精确 / TOC 标题 / 人工指定 */
+/** 页面印刷页码标签来源：机器识别、映射推断、人工校正或物理页码回退 */
+export const knowledgePageLabelSourceEnum = pgEnum("knowledge_page_label_source", [
+  "PDF_PAGE_LABEL",
+  "FOOTER_TEXT",
+  "TOC_MAPPING",
+  "COMPANION_FILE",
+  "VISUAL_MATCH",
+  "MANUAL",
+  "FALLBACK"
+]);
+
+/** 检索页 → 原文页映射方式：页签精确 / TOC 标题 / 配套文件 / 视觉匹配 / 人工指定 */
 export const knowledgePageMappingMethodEnum = pgEnum("knowledge_page_mapping_method", [
   "PAGE_LABEL",
   "TOC_TITLE",
+  "COMPANION_FILE",
+  "VISUAL_MATCH",
   "MANUAL"
 ]);
 
@@ -734,8 +747,14 @@ export const knowledgePages = pgTable(
     pageNumber: integer("page_number").notNull(),
     /** PDF 真实物理页序号（1-based；历史回填 = pageNumber） */
     physicalPageNumber: integer("physical_page_number").notNull(),
-    /** 用户看到的页码标签：4 / 21 / A1 / A5 / D16 / G10；无印刷页码时 = String(physicalPageNumber)；不是整数，禁止 Number() */
+    /** 用户看到的页码标签：4 / 21 / A1 / A5 / D16 / G10；最终回退值也必须标记为 FALLBACK */
     pageLabel: varchar("page_label", { length: 32 }),
+    /** 页码标签的确定来源，禁止将 FALLBACK 当作已识别页码 */
+    pageLabelSource: knowledgePageLabelSourceEnum("page_label_source").notNull().default("FALLBACK"),
+    /** 页码标签识别或推断置信度；人工校正可为空 */
+    pageLabelConfidence: real("page_label_confidence"),
+    /** 页码标签是否已人工确认 */
+    pageLabelVerified: boolean("page_label_verified").notNull().default(false),
     /** 可选页面标题（TOC/人工维护） */
     pageTitle: varchar("page_title", { length: 255 }),
     parsedText: text("parsed_text"),

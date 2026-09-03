@@ -35,15 +35,21 @@ const userFields = z.object({
   role: roleEnum,
   channelType: channelEnum.nullable().optional()
 });
+const assignmentFields = {
+  departmentIds: z.array(z.uuid("部门 ID 格式不正确")).max(100).optional(),
+  postIds: z.array(z.uuid("岗位 ID 格式不正确")).max(100).optional(),
+  roleIds: z.array(z.uuid("角色 ID 格式不正确")).max(100).optional(),
+};
 const createUserBodySchema = userFields.extend({
   identifier: z.string().trim().min(1, "请输入登录账号").max(255),
   password: z.string().min(5, "密码至少需要 5 个字符").max(128),
-  phone: z.string().trim().regex(/^\+?[0-9]{6,20}$/, "手机号格式不正确").nullable().optional()
-}).superRefine((value, context) => {
+  phone: z.string().trim().regex(/^\+?[0-9]{6,20}$/, "手机号格式不正确").nullable().optional(),
+  status: z.enum(["ACTIVE", "DISABLED"]).default("ACTIVE")
+}).extend(assignmentFields).superRefine((value, context) => {
   if (value.role === USER_ROLES.CHANNEL_USER && !value.channelType) context.addIssue({ code: "custom", path: ["channelType"], message: "渠道用户必须选择经销商或业务员" });
   if (value.role !== USER_ROLES.CHANNEL_USER && value.channelType) context.addIssue({ code: "custom", path: ["channelType"], message: "只有渠道用户可以设置渠道类型" });
 });
-const updateUserBodySchema = userFields.partial().extend({ phone: z.string().trim().regex(/^\+?[0-9]{6,20}$/, "手机号格式不正确").nullable().optional() }).refine((v) => Object.keys(v).length > 0, "至少需要修改一个字段");
+const updateUserBodySchema = userFields.partial().extend({ phone: z.string().trim().regex(/^\+?[0-9]{6,20}$/, "手机号格式不正确").nullable().optional(), status: z.enum(["ACTIVE", "DISABLED"]).optional() }).extend(assignmentFields).refine((v) => Object.keys(v).length > 0, "至少需要修改一个字段");
 const updateStatusBodySchema = z.object({ status: z.enum(["ACTIVE", "DISABLED"]) });
 const listQuerySchema = paginationQuerySchema.extend({
   keyword: z.string().trim().max(120).optional(),
@@ -89,6 +95,32 @@ async function collectDepartmentIds(db: FastifyInstance["db"], rootId: string, i
     }
   }
   return [...seen];
+}
+
+async function validateAssignments(
+  app: FastifyInstance,
+  request: Parameters<typeof getCurrentUser>[0],
+  assignments: { departmentIds?: string[]; postIds?: string[]; roleIds?: string[] },
+) {
+  const departmentIds = assignments.departmentIds === undefined ? undefined : [...new Set(assignments.departmentIds)];
+  const postIds = assignments.postIds === undefined ? undefined : [...new Set(assignments.postIds)];
+  const roleIds = assignments.roleIds === undefined ? undefined : [...new Set(assignments.roleIds)];
+  if (departmentIds !== undefined) {
+    await assertPermission(request, "system:user:dept");
+    const rows = departmentIds.length === 0 ? [] : await app.db.select({ id: departments.id }).from(departments).where(and(inArray(departments.id, departmentIds), isNull(departments.deletedAt)));
+    if (rows.length !== departmentIds.length) throw new NotFoundError("部分部门不存在或已删除");
+  }
+  if (postIds !== undefined) {
+    await assertPermission(request, "system:user:post");
+    const rows = postIds.length === 0 ? [] : await app.db.select({ id: posts.id }).from(posts).where(inArray(posts.id, postIds));
+    if (rows.length !== postIds.length) throw new NotFoundError("部分岗位不存在");
+  }
+  if (roleIds !== undefined) {
+    await assertPermission(request, "system:user:role");
+    const rows = roleIds.length === 0 ? [] : await app.db.select({ id: roles.id }).from(roles).where(inArray(roles.id, roleIds));
+    if (rows.length !== roleIds.length) throw new NotFoundError("部分角色不存在");
+  }
+  return { departmentIds, postIds, roleIds };
 }
 
 export async function userRoutes(app: FastifyInstance) {
@@ -140,6 +172,8 @@ export async function userRoutes(app: FastifyInstance) {
 
   route.post("/users", { preHandler: [app.authenticate], schema: { tags: ["B端 / 平台 / 用户管理"], summary: "创建用户", body: createUserBodySchema } }, async (request) => {
     const actor = await requireUserPermission(request, "system:user:add");
+    const { departmentIds, postIds, roleIds, ...userValues } = request.body;
+    const assignments = await validateAssignments(app, request, { departmentIds, postIds, roleIds });
     const passwordHash = await argon2.hash(request.body.password, { type: argon2.argon2id });
     const isPhone = /^\+?[0-9]{6,20}$/.test(request.body.identifier);
     const phone = request.body.phone ?? (isPhone ? request.body.identifier : undefined);
@@ -153,9 +187,12 @@ export async function userRoutes(app: FastifyInstance) {
         const [phoneTaken] = await tx.select({ id: users.id }).from(users).where(and(eq(users.phone, phone), isNull(users.deletedAt))).limit(1);
         if (phoneTaken) throw new ConflictError("手机号已存在");
       }
-      const [user] = await tx.insert(users).values({ displayName: request.body.displayName, gender: request.body.gender, email: request.body.email, remark: request.body.remark, phone, role: request.body.role, channelType: request.body.role === USER_ROLES.CHANNEL_USER ? request.body.channelType : null }).returning();
+      const [user] = await tx.insert(users).values({ displayName: userValues.displayName, gender: userValues.gender, email: userValues.email, remark: userValues.remark, phone, role: userValues.role, channelType: userValues.role === USER_ROLES.CHANNEL_USER ? userValues.channelType : null, status: userValues.status }).returning();
       await tx.insert(userIdentities).values({ userId: user!.id, type: isPhone ? "PHONE" : "USERNAME", identifier: request.body.identifier, passwordHash, verifiedAt: new Date() });
-      await writeAuditLog({ db: tx, request, actor, action: AUDIT_ACTIONS.USER_CREATED, targetType: "user", targetId: user!.id, afterJson: { ...user, identifier: request.body.identifier } });
+      if (assignments.departmentIds !== undefined && assignments.departmentIds.length > 0) await tx.insert(userDepartments).values(assignments.departmentIds.map((departmentId, index) => ({ userId: user!.id, departmentId, isPrimary: index === 0 })));
+      if (assignments.postIds !== undefined && assignments.postIds.length > 0) await tx.insert(userPosts).values(assignments.postIds.map((postId) => ({ userId: user!.id, postId })));
+      if (assignments.roleIds !== undefined && assignments.roleIds.length > 0) await tx.insert(userRoles).values(assignments.roleIds.map((roleId) => ({ userId: user!.id, roleId })));
+      await writeAuditLog({ db: tx, request, actor, action: AUDIT_ACTIONS.USER_CREATED, targetType: "user", targetId: user!.id, afterJson: { ...user, identifier: request.body.identifier, departmentIds: assignments.departmentIds ?? [], postIds: assignments.postIds ?? [], roleIds: assignments.roleIds ?? [] } });
       return user!;
     });
     return ok(request, { message: "用户创建成功", user: created });
@@ -173,18 +210,33 @@ export async function userRoutes(app: FastifyInstance) {
     return ok(request, { user, departments: departmentRows, posts: postRows, roles: roleRows });
   });
 
-  route.patch("/users/:id", { preHandler: [app.authenticate], schema: { tags: ["B端 / 平台 / 用户管理"], summary: "修改用户资料", params: userParamsSchema, body: updateUserBodySchema } }, async (request) => {
+  route.patch("/users/:id", { preHandler: [app.authenticate], schema: { tags: ["B端 / 平台 / 用户管理"], summary: "修改用户资料及关联配置", params: userParamsSchema, body: updateUserBodySchema } }, async (request) => {
     const actor = await requireUserPermission(request, "system:user:edit");
+    const { departmentIds, postIds, roleIds, status, ...profileValues } = request.body;
+    const assignments = await validateAssignments(app, request, { departmentIds, postIds, roleIds });
+    if (status === "DISABLED" && actor.id === request.params.id) throw new ForbiddenError("不能禁用当前登录账号");
     const [before] = await app.db.select().from(users).where(and(eq(users.id, request.params.id), isNull(users.deletedAt))).limit(1);
     if (!before) throw new NotFoundError("用户不存在");
-    const nextRole = request.body.role ?? before.role;
-    const nextChannelType = nextRole === USER_ROLES.CHANNEL_USER ? request.body.channelType ?? before.channelType : null;
+    const nextRole = profileValues.role ?? before.role;
+    const nextChannelType = nextRole === USER_ROLES.CHANNEL_USER ? profileValues.channelType ?? before.channelType : null;
     if (nextRole === USER_ROLES.CHANNEL_USER && !nextChannelType) throw new ForbiddenError("渠道用户必须选择渠道类型");
-    const nextPhone = "phone" in request.body ? request.body.phone : before.phone;
+    const nextPhone = "phone" in profileValues ? profileValues.phone : before.phone;
     if (nextRole === USER_ROLES.NORMAL_USER && !nextPhone) throw new ForbiddenError("普通用户必须填写手机号码");
     const [updated] = await app.db.transaction(async (tx) => {
-      const [row] = await tx.update(users).set({ ...request.body, role: nextRole, channelType: nextChannelType, updatedAt: new Date() }).where(eq(users.id, before.id)).returning();
-      await writeAuditLog({ db: tx, request, actor, action: AUDIT_ACTIONS.USER_UPDATED, targetType: "user", targetId: before.id, beforeJson: before, afterJson: row });
+      const [row] = await tx.update(users).set({ ...profileValues, role: nextRole, channelType: nextChannelType, ...(status ? { status } : {}), updatedAt: new Date() }).where(eq(users.id, before.id)).returning();
+      if (assignments.departmentIds !== undefined) {
+        await tx.delete(userDepartments).where(eq(userDepartments.userId, before.id));
+        if (assignments.departmentIds.length > 0) await tx.insert(userDepartments).values(assignments.departmentIds.map((departmentId, index) => ({ userId: before.id, departmentId, isPrimary: index === 0 })));
+      }
+      if (assignments.postIds !== undefined) {
+        await tx.delete(userPosts).where(eq(userPosts.userId, before.id));
+        if (assignments.postIds.length > 0) await tx.insert(userPosts).values(assignments.postIds.map((postId) => ({ userId: before.id, postId })));
+      }
+      if (assignments.roleIds !== undefined) {
+        await tx.delete(userRoles).where(eq(userRoles.userId, before.id));
+        if (assignments.roleIds.length > 0) await tx.insert(userRoles).values(assignments.roleIds.map((roleId) => ({ userId: before.id, roleId })));
+      }
+      await writeAuditLog({ db: tx, request, actor, action: AUDIT_ACTIONS.USER_UPDATED, targetType: "user", targetId: before.id, beforeJson: before, afterJson: { ...row, departmentIds: assignments.departmentIds, postIds: assignments.postIds, roleIds: assignments.roleIds } });
       return [row] as const;
     });
     return ok(request, { message: "用户资料修改成功", user: updated });
