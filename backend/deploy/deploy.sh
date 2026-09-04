@@ -106,17 +106,17 @@ fi
 info "构建镜像并启动服务（首次构建需拉取依赖，可能需要数分钟）..."
 docker compose build api worker
 
-# 迁移先行：先启动 postgres 并等待健康（首次部署时此前从未启动过任何服务，
-# 而 --no-deps 不会拉起依赖，postgres 未运行时容器内无法解析主机名 postgres），
-# 再单独执行迁移，失败立即中止，避免 api 容器反复重启后才暴露
+# 迁移先行：先启动 postgres 并等待健康，再执行迁移，失败立即中止，
+# 避免 api 容器反复重启后才暴露问题。迁移容器不使用 --no-deps，
+# 由 Compose 按 depends_on 加入同一服务网络并确保依赖已就绪，避免无法解析 postgres。
 info "启动 postgres 并等待健康检查通过..."
 if ! docker compose up -d --wait --wait-timeout 60 postgres; then
   fail "postgres 未能启动或未通过健康检查，请执行 docker compose logs postgres 查看日志"
 fi
 
 info "执行数据库迁移（node dist/db/migrate.js）..."
-if ! docker compose run --rm --no-deps api node dist/db/migrate.js; then
-  fail "数据库迁移失败，请检查 drizzle/ 迁移文件与数据库状态"
+if ! docker compose run --rm api node dist/db/migrate.js; then
+  fail "数据库迁移失败，请检查 PostgreSQL 连接、drizzle/ 迁移文件与数据库状态"
 fi
 
 # ---------- 6. 启动服务 ----------
