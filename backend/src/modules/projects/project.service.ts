@@ -58,6 +58,67 @@ export async function listCreatedProjects(input: CreatedProjectListInput) {
   };
 }
 
+export type UpdateProjectInput = {
+  name?: string;
+  description?: string;
+  region?: string;
+  buildingType?: string;
+};
+
+export async function updateProjectInTransaction(input: {
+  db: DbExecutor;
+  request: FastifyRequest;
+  actor: AuthUser;
+  project: typeof projects.$inferSelect;
+  patch: UpdateProjectInput;
+}) {
+  const [updated] = await input.db.update(projects)
+    .set({ ...input.patch, updatedAt: new Date() })
+    .where(eq(projects.id, input.project.id))
+    .returning();
+
+  await writeAuditLog({
+    db: input.db,
+    request: input.request,
+    actor: input.actor,
+    projectId: input.project.id,
+    action: AUDIT_ACTIONS.PROJECT_UPDATED,
+    targetType: "project",
+    targetId: input.project.id,
+    beforeJson: input.project,
+    afterJson: updated
+  });
+
+  return updated!;
+}
+
+export async function updateProjectVisibilityInTransaction(input: {
+  db: DbExecutor;
+  request: FastifyRequest;
+  actor: AuthUser;
+  project: typeof projects.$inferSelect;
+  visibility: typeof PROJECT_VISIBILITY[keyof typeof PROJECT_VISIBILITY];
+}) {
+  const [updated] = await input.db.update(projects)
+    .set({ visibility: input.visibility, updatedAt: new Date() })
+    .where(eq(projects.id, input.project.id))
+    .returning();
+
+  await writeAuditLog({
+    db: input.db,
+    request: input.request,
+    actor: input.actor,
+    projectId: input.project.id,
+    action: AUDIT_ACTIONS.PROJECT_VISIBILITY_CHANGED,
+    targetType: "project",
+    targetId: input.project.id,
+    beforeJson: { visibility: input.project.visibility },
+    afterJson: { visibility: updated!.visibility }
+  });
+
+  return updated!;
+}
+
 export async function createProjectInTransaction(input: {
   db: DbExecutor;
   request: FastifyRequest;

@@ -2,10 +2,11 @@ import fp from "fastify-plugin";
 import jwt from "@fastify/jwt";
 import { and, eq, isNull } from "drizzle-orm";
 import { env } from "../config/env.js";
-import { users } from "../db/schema.js";
+import { users, userDepartments } from "../db/schema.js";
 import { AUTH_CLIENTS } from "../shared/constants.js";
 import { ForbiddenError, UnauthorizedError } from "../shared/errors.js";
-import { getPermissionCodes } from "../modules/menus/menu.service.js";
+import { getPermissionCodes, getRoleScopes } from "../modules/menus/menu.service.js";
+import { resolveAccessibleUserIds } from "../shared/project-access.js";
 import type { AuthClient } from "../shared/auth-user.js";
 
 interface JwtPayload {
@@ -34,7 +35,9 @@ export const authPlugin = fp(async (app) => {
       const [user] = await app.db.select({
         id: users.id,
         role: users.role,
-        channelType: users.channelType
+        channelType: users.channelType,
+        channelId: users.channelId,
+        parentChannelId: users.parentChannelId
       }).from(users).where(and(
         eq(users.id, payload.sub),
         eq(users.status, "ACTIVE"),
@@ -45,18 +48,29 @@ export const authPlugin = fp(async (app) => {
         throw new UnauthorizedError("账号不存在或已被禁用");
       }
 
-      const permissionCodes = await getPermissionCodes(app, {
+      const baseUser = {
         id: user.id,
         role: user.role,
         channelType: user.channelType,
         clientType,
-      });
+        channelId: user.channelId,
+        parentChannelId: user.parentChannelId
+      };
+      const [permissionCodes, roleScopes, departments] = await Promise.all([
+        getPermissionCodes(app, baseUser),
+        getRoleScopes(app, baseUser),
+        app.db.select({ departmentId: userDepartments.departmentId }).from(userDepartments).where(eq(userDepartments.userId, user.id)),
+      ]);
+      const accessibleUserIds = await resolveAccessibleUserIds(app, {
+        ...baseUser,
+        departmentIds: departments.map(row => row.departmentId)
+      }, roleScopes);
       request.currentUser = {
-        id: user.id,
-        role: user.role,
-        channelType: user.channelType,
-        clientType,
-        permissionCodes: [...permissionCodes]
+        ...baseUser,
+        permissionCodes: [...permissionCodes],
+        dataScope: roleScopes[0]?.dataScope ?? "SELF",
+        departmentIds: departments.map(row => row.departmentId),
+        accessibleUserIds
       };
       const routePath = (request.url ?? "").split("?")[0] ?? "";
       if ((routePath.startsWith("/api/v1/platform") || routePath.startsWith("/api/v1/workspace")) && clientType !== AUTH_CLIENTS.B_ADMIN) {

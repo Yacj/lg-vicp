@@ -1,10 +1,10 @@
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { projects, professionalReviews } from "../../db/schema.js";
 import { getCurrentUser } from "../../shared/current-user.js";
 import { ForbiddenError, NotFoundError } from "../../shared/errors.js";
-import { canManageProject } from "../../shared/permissions.js";
+import { canManageProject, canViewProject } from "../../shared/permissions.js";
 import { ok } from "../../shared/response.js";
 import { REVIEW_PERMISSIONS } from "../../shared/review-permissions.js";
 import {
@@ -32,14 +32,27 @@ function requirePermission(request: Parameters<typeof getCurrentUser>[0], permis
   return user;
 }
 
-/** 报告审核决议前校验项目级权限（审核中心入口也必须遵守项目业务权限，RBAC 不能替代） */
-async function assertReportProjectManageable(app: FastifyInstance, entityType: string, entityId: string, request: Parameters<typeof getCurrentUser>[0]) {
+/** 报告审核记录必须遵守项目级可见性；审核决议额外要求创建者或超级管理员。 */
+async function assertReportProjectAccess(
+  app: FastifyInstance,
+  entityType: string,
+  entityId: string,
+  request: Parameters<typeof getCurrentUser>[0],
+  requireManage = false
+) {
   if (entityType !== "report") return;
   const [record] = await app.db.select({ projectId: professionalReviews.projectId }).from(professionalReviews)
     .where(eq(professionalReviews.entityId, entityId)).limit(1);
   if (!record?.projectId) throw new NotFoundError("报告审核记录缺少项目上下文");
-  const [project] = await app.db.select().from(projects).where(eq(projects.id, record.projectId)).limit(1);
-  if (!project || !canManageProject(getCurrentUser(request), project)) {
+  const [project] = await app.db.select().from(projects).where(and(
+    eq(projects.id, record.projectId),
+    isNull(projects.deletedAt)
+  )).limit(1);
+  const user = getCurrentUser(request);
+  if (!project || !canViewProject(user, project)) {
+    throw new NotFoundError("项目不存在或无权查看该审核记录");
+  }
+  if (requireManage && !canManageProject(user, project)) {
     throw new NotFoundError("项目不存在或无权审核该项目报告");
   }
 }
@@ -55,8 +68,8 @@ export async function reviewCenterRoutes(app: FastifyInstance) {
       querystring: reviewQueueQuerySchema, response: { 200: REVIEW_RESPONSES.queue }
     }
   }, async (request) => {
-    requirePermission(request, REVIEW_PERMISSIONS.LIST);
-    return ok(request, await listReviewQueue(app, request.query));
+    const actor = requirePermission(request, REVIEW_PERMISSIONS.LIST);
+    return ok(request, await listReviewQueue(app, request.query, actor));
   });
 
   route.get("/queue/:entityType/:entityId", {
@@ -67,6 +80,7 @@ export async function reviewCenterRoutes(app: FastifyInstance) {
     }
   }, async (request) => {
     requirePermission(request, REVIEW_PERMISSIONS.LIST);
+    await assertReportProjectAccess(app, request.params.entityType, request.params.entityId, request);
     return ok(request, await getReviewDetail(app, request.params.entityType, request.params.entityId));
   });
 
@@ -80,7 +94,7 @@ export async function reviewCenterRoutes(app: FastifyInstance) {
     }
   }, async (request) => {
     const actor = requirePermission(request, REVIEW_PERMISSIONS.APPROVE);
-    await assertReportProjectManageable(app, request.params.entityType, request.params.entityId, request);
+    await assertReportProjectAccess(app, request.params.entityType, request.params.entityId, request, true);
     return ok(request, await approveReview(
       app, request, actor, request.params.entityType, request.params.entityId, request.body.approvalNote
     ));
@@ -95,7 +109,7 @@ export async function reviewCenterRoutes(app: FastifyInstance) {
     }
   }, async (request) => {
     const actor = requirePermission(request, REVIEW_PERMISSIONS.APPROVE);
-    await assertReportProjectManageable(app, request.params.entityType, request.params.entityId, request);
+    await assertReportProjectAccess(app, request.params.entityType, request.params.entityId, request, true);
     return ok(request, await rejectReview(
       app, request, actor, request.params.entityType, request.params.entityId, request.body.rejectReason
     ));

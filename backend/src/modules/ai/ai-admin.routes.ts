@@ -21,6 +21,7 @@ import {
 } from "../../db/schema.js";
 import { CLIENT_APPS } from "../../shared/constants.js";
 import { getCurrentUser } from "../../shared/current-user.js";
+import { canViewProject } from "../../shared/permissions.js";
 import { ForbiddenError, NotFoundError } from "../../shared/errors.js";
 import { getPagination, paginationQuerySchema } from "../../shared/pagination.js";
 import { ok } from "../../shared/response.js";
@@ -55,7 +56,7 @@ export async function aiAdminRoutes(app: FastifyInstance) {
       querystring: adminConversationQuerySchema
     }
   }, async (request) => {
-    requireAdmin(request, "system:ai:conversation:list");
+    const user = requireAdmin(request, "system:ai:conversation:list");
     const { skip, take } = getPagination(request.query.page, request.query.pageSize);
     const keyword = request.query.keyword?.replace(/[\\%_]/g, (value) => `\\${value}`);
     const where = and(
@@ -64,6 +65,13 @@ export async function aiAdminRoutes(app: FastifyInstance) {
       request.query.clientApp ? eq(aiConversations.clientApp, request.query.clientApp) : undefined,
       request.query.scene ? eq(aiConversations.scene, request.query.scene) : undefined,
       request.query.status ? eq(aiConversations.status, request.query.status) : undefined,
+      user.role === "SUPER_ADMIN" ? undefined : or(
+        and(isNull(projects.id), eq(aiConversations.userId, user.id)),
+        and(
+          isNull(projects.deletedAt),
+          or(eq(projects.createdById, user.id), eq(projects.visibility, "PUBLIC"))
+        )
+      ),
       keyword ? or(
         ilike(aiConversations.title, `%${keyword}%`),
         ilike(users.displayName, `%${keyword}%`),
@@ -112,7 +120,7 @@ export async function aiAdminRoutes(app: FastifyInstance) {
       params: conversationParamsSchema
     }
   }, async (request) => {
-    requireAdmin(request, "system:ai:conversation:detail");
+    const user = requireAdmin(request, "system:ai:conversation:detail");
     const [row] = await app.db.select({ conversation: aiConversations, user: {
       id: users.id,
       displayName: users.displayName,
@@ -127,6 +135,8 @@ export async function aiAdminRoutes(app: FastifyInstance) {
       .leftJoin(projects, eq(projects.id, aiConversations.projectId))
       .where(eq(aiConversations.id, request.params.id)).limit(1);
     if (!row) throw new NotFoundError("AI 会话不存在");
+    if (row.project && row.project.deletedAt) throw new NotFoundError("AI 会话不存在或无权查看");
+    if (row.project && !canViewProject(user, row.project)) throw new NotFoundError("AI 会话不存在或无权查看");
 
     const messages = await app.db.select().from(aiMessages)
       .where(eq(aiMessages.conversationId, row.conversation.id)).orderBy(asc(aiMessages.createdAt));
@@ -199,7 +209,7 @@ export async function aiAdminRoutes(app: FastifyInstance) {
       params: messageParamsSchema
     }
   }, async (request) => {
-    requireAdmin(request, "system:ai:conversation:detail");
+    const user = requireAdmin(request, "system:ai:conversation:detail");
     const [row] = await app.db.select({
       message: aiMessages,
       conversation: {
@@ -216,6 +226,11 @@ export async function aiAdminRoutes(app: FastifyInstance) {
       .innerJoin(users, eq(users.id, aiConversations.userId))
       .where(eq(aiMessages.id, request.params.id)).limit(1);
     if (!row) throw new NotFoundError("AI 消息不存在");
+    if (row.conversation.projectId) {
+      const [project] = await app.db.select().from(projects)
+        .where(and(eq(projects.id, row.conversation.projectId), isNull(projects.deletedAt))).limit(1);
+      if (!project || !canViewProject(getCurrentUser(request), project)) throw new NotFoundError("AI 消息不存在或无权查看");
+    }
 
     const feedbacks = await app.db.select().from(aiMessageFeedbacks)
       .where(eq(aiMessageFeedbacks.messageId, row.message.id)).orderBy(desc(aiMessageFeedbacks.createdAt));

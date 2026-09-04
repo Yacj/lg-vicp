@@ -373,6 +373,23 @@ export const userIdentities = pgTable(
   ]
 );
 
+export const customerProfiles = pgTable(
+  "customer_profiles",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** 客户与登录账号一一对应；仅 NORMAL_USER 可拥有客户档案。 */
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    companyName: varchar("company_name", { length: 160 }),
+    contactName: varchar("contact_name", { length: 120 }),
+    contactPhone: varchar("contact_phone", { length: 40 }),
+    region: varchar("region", { length: 80 }),
+    address: varchar("address", { length: 255 }),
+    industry: varchar("industry", { length: 80 }),
+    ...timestamps
+  },
+  (table) => [uniqueIndex("customer_profiles_user_unique").on(table.userId)]
+);
+
 export const refreshTokens = pgTable(
   "refresh_tokens",
   {
@@ -534,12 +551,15 @@ export const projects = pgTable(
     visibilityPolicy: visibilityPolicyEnum("visibility_policy").notNull().default("LOGGED_IN_USERS"),
     status: varchar("status", { length: 32 }).notNull().default("active"),
     metadata: jsonb("metadata").$type<Record<string, unknown>>(),
+    /** 客户主数据绑定的普通用户账号；为空时表示渠道自有项目。 */
+    customerId: uuid("customer_id").references(() => users.id, { onDelete: "set null" }),
     createdById: uuid("created_by_id").notNull().references(() => users.id),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
     ...timestamps
   },
   (table) => [
     index("projects_creator_idx").on(table.createdById),
+    index("projects_customer_idx").on(table.customerId),
     index("projects_visibility_status_idx").on(table.visibility, table.status)
   ]
 );
@@ -2710,16 +2730,23 @@ export const dictionaryItems = pgTable(
   (table) => [uniqueIndex("dictionary_items_dictionary_value_unique").on(table.dictionaryId, table.value)]
 );
 
-export const usersRelations = relations(users, ({ many }) => ({
+export const customerProfilesRelations = relations(customerProfiles, ({ one }) => ({
+  user: one(users, { fields: [customerProfiles.userId], references: [users.id] })
+}));
+
+export const usersRelations = relations(users, ({ many, one }) => ({
   identities: many(userIdentities),
-  projects: many(projects),
+  createdProjects: many(projects, { relationName: "projectCreator" }),
+  customerProjects: many(projects, { relationName: "projectCustomer" }),
+  customerProfile: one(customerProfiles),
   conversations: many(aiConversations),
   reports: many(reports),
   aiMessageFeedbacks: many(aiMessageFeedbacks)
 }));
 
 export const projectsRelations = relations(projects, ({ one, many }) => ({
-  creator: one(users, { fields: [projects.createdById], references: [users.id] }),
+  creator: one(users, { relationName: "projectCreator", fields: [projects.createdById], references: [users.id] }),
+  customer: one(users, { relationName: "projectCustomer", fields: [projects.customerId], references: [users.id] }),
   files: many(files),
   conversations: many(aiConversations),
   reports: many(reports),

@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
-import { asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
 import {
   departments,
@@ -25,7 +25,7 @@ const roleBodySchema = z.object({
   code: z.string().trim().regex(/^[a-z][a-z0-9_.-]{2,79}$/, "角色编码格式不正确"),
   name: z.string().trim().min(1, "请输入角色名称").max(120),
   description: z.string().max(1000).optional(),
-  dataScope: z.enum(["ALL", "DEPT", "DEPT_AND_CHILDREN", "SELF", "CUSTOM", "PROJECT_OWNER"]).default("SELF"),
+  dataScope: z.enum(["ALL", "DEPT", "DEPT_AND_CHILDREN", "SELF", "CUSTOM", "PROJECT_OWNER", "CHANNEL", "CHANNEL_AND_CHILDREN"]).default("SELF"),
   enabled: z.boolean().default(true),
   permissionIds: z.array(z.uuid("权限 ID 格式不正确")).max(500).optional()
 });
@@ -245,7 +245,10 @@ export async function systemManagementRoutes(app: FastifyInstance) {
     schema: { tags: ["B端 / 平台 / 角色权限"], summary: "设置用户角色", params: idParamsSchema, body: userRoleBodySchema }
   }, async (request) => {
     const actor = await requireAdmin(request, "system:user:role");
-    const [user] = await app.db.select({ id: users.id }).from(users).where(eq(users.id, request.params.id)).limit(1);
+    if (actor.accessibleUserIds !== null && actor.id !== request.params.id && !actor.accessibleUserIds?.includes(request.params.id)) {
+      throw new ForbiddenError("无权操作该范围外的用户");
+    }
+    const [user] = await app.db.select({ id: users.id }).from(users).where(and(eq(users.id, request.params.id), isNull(users.deletedAt))).limit(1);
     if (!user) throw new NotFoundError("用户不存在");
     const uniqueIds = [...new Set(request.body.roleIds)];
     if (uniqueIds.length > 0) {

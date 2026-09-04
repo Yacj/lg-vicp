@@ -25,15 +25,9 @@ export function canCreateProjectFromClient(user: AuthUser): boolean {
 }
 
 export function canViewProject(user: AuthUser, project: Pick<Project, "createdById" | "visibility">): boolean {
-  if (isSuperAdmin(user)) {
-    return true;
-  }
-
-  if (project.createdById === user.id) {
-    return true;
-  }
-
-  return project.visibility === PROJECT_VISIBILITY.PUBLIC;
+  if (isSuperAdmin(user)) return true;
+  // 私有项目只对创建者开放；公开项目对所有已认证账号可读。
+  return project.createdById === user.id || project.visibility === PROJECT_VISIBILITY.PUBLIC;
 }
 
 export function canManageProject(user: AuthUser, project: Pick<Project, "createdById">): boolean {

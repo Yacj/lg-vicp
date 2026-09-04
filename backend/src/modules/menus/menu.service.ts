@@ -57,7 +57,9 @@ export async function getRoleScopes(app: FastifyInstance, user: AuthUser) {
     .where(and(eq(userRoles.userId, user.id), eq(roles.enabled, true)));
   const scopes = rows.length > 0 ? rows : [{
     roleCode: user.role,
-    dataScope: user.role === "SUPER_ADMIN" ? "ALL" as const : user.role === "CHANNEL_USER" ? "PROJECT_OWNER" as const : "SELF" as const
+    // 渠道账号未配置动态角色时，默认管理自身渠道及其下级渠道，
+    // 使渠道归属的客户、项目和成员候选项保持一致。
+    dataScope: user.role === "SUPER_ADMIN" ? "ALL" as const : user.role === "CHANNEL_USER" ? "CHANNEL_AND_CHILDREN" as const : "SELF" as const
   }];
   const customRoleCodes = scopes.filter((scope) => scope.dataScope === "CUSTOM").map((scope) => scope.roleCode);
   if (customRoleCodes.length === 0) return scopes;

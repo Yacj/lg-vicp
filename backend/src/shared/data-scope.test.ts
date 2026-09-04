@@ -2,8 +2,7 @@ import { describe, expect, it } from "vitest";
 import { resolveDataScope, scopeIncludesChannel } from "./data-scope.js";
 
 /**
- * 渠道数据范围解析测试（P1-2 预留）：
- * 本轮只定义解析口径，不改变任何现有查询语义。
+ * 数据范围解析测试：范围枚举应保持后端配置的真实语义。
  */
 
 describe("resolveDataScope", () => {
@@ -17,9 +16,9 @@ describe("resolveDataScope", () => {
     expect(resolveDataScope({ role: "CHANNEL_USER", dataScope: "CHANNEL_AND_CHILDREN" })).toBe("CHANNEL_AND_CHILDREN");
   });
 
-  it("旧部门值与未配置时收敛为 SELF（默认语义最窄）", () => {
-    expect(resolveDataScope({ role: "CHANNEL_USER", dataScope: "DEPT" })).toBe("SELF");
-    expect(resolveDataScope({ role: "CHANNEL_USER", dataScope: "DEPT_AND_CHILDREN" })).toBe("SELF");
+  it("部门范围值保持真实语义", () => {
+    expect(resolveDataScope({ role: "CHANNEL_USER", dataScope: "DEPT" })).toBe("DEPT");
+    expect(resolveDataScope({ role: "CHANNEL_USER", dataScope: "DEPT_AND_CHILDREN" })).toBe("DEPT_AND_CHILDREN");
     expect(resolveDataScope({ role: "CHANNEL_USER", dataScope: null })).toBe("SELF");
   });
 

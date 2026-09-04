@@ -652,8 +652,8 @@ export async function thermalRoutes(app: FastifyInstance) {
       }
     }
   }, async (request) => {
-    requirePermission(request, P.LIST);
-    return ok(request, await listCalcRecords(app, request.query));
+    const actor = requirePermission(request, P.LIST);
+    return ok(request, await listCalcRecords(app, request.query, actor));
   });
 
   route.get("/calc-records/:id", {
@@ -695,7 +695,7 @@ export async function thermalRoutes(app: FastifyInstance) {
       }
     }
   }, async (request) => {
-    requirePermission(request, P.LIST);
-    return ok(request, await listCandidateSelections(app, request.query));
+    const actor = requirePermission(request, P.LIST);
+    return ok(request, await listCandidateSelections(app, request.query, actor));
   });
 }

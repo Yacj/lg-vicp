@@ -54,14 +54,21 @@ describe("project permissions", () => {
     expect(canViewProject(normalUser, privateProject)).toBe(false);
   });
 
-  it("allows authenticated users to read public projects but not manage them", () => {
-    const publicProject = {
+  it("不再依据历史成员关系授予私有项目权限", () => {
+    const privateProject = {
+      id: "project-1",
       createdById: channelUser.id,
-      visibility: PROJECT_VISIBILITY.PUBLIC
+      visibility: PROJECT_VISIBILITY.PRIVATE
     };
+    const formerMember: AuthUser = { ...channelUser, id: "viewer-1" };
+
+    expect(canViewProject(formerMember, privateProject)).toBe(false);
+    expect(canManageProject(formerMember, privateProject)).toBe(false);
+  });
+
+  it("公开项目对所有已认证账号可读", () => {
+    const publicProject = { id: "project-2", createdById: channelUser.id, visibility: PROJECT_VISIBILITY.PUBLIC };
 
     expect(canViewProject(normalUser, publicProject)).toBe(true);
-    expect(canManageProject(normalUser, publicProject)).toBe(false);
-    expect(canManageProject(channelUser, publicProject)).toBe(true);
   });
 });

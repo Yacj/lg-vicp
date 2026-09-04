@@ -1,5 +1,5 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
-import { and, count, desc, eq, inArray, or, ilike } from "drizzle-orm";
+import { and, count, desc, eq, inArray, or, ilike, isNull } from "drizzle-orm";
 import type { DbExecutor } from "../../db/client.js";
 import {
   productParameters,
@@ -14,7 +14,7 @@ import type { AuthUser } from "../../shared/auth-user.js";
 import { AUDIT_ACTIONS } from "../../shared/constants.js";
 import { ThermalError } from "../../shared/thermal-errors.js";
 import { getPagination } from "../../shared/pagination.js";
-import { canViewProject } from "../../shared/permissions.js";
+import { canViewProject, isSuperAdmin } from "../../shared/permissions.js";
 import { writeAuditLog } from "../audit-logs/audit-log.service.js";
 import {
   assertEditable,
@@ -956,13 +956,28 @@ export function toRecordDto(record: (typeof thermalCalcRecords.$inferSelect) | n
 export async function listCalcRecords(
   app: FastifyInstance,
   query: { page: number; pageSize: number; mode?: string; projectId?: string },
-  scope?: { createdById?: string }
+  actor?: AuthUser
 ) {
   const { skip, take } = getPagination(query.page, query.pageSize);
+  let projectScope;
+  if (actor && !isSuperAdmin(actor)) {
+    const accessibleProjects = await app.db.select({ id: projectsTable.id })
+      .from(projectsTable)
+      .where(and(
+        isNull(projectsTable.deletedAt),
+        or(eq(projectsTable.createdById, actor.id), eq(projectsTable.visibility, "PUBLIC"))
+      ));
+    projectScope = or(
+      eq(thermalCalcRecords.createdById, actor.id),
+      accessibleProjects.length > 0
+        ? inArray(thermalCalcRecords.projectId, accessibleProjects.map(({ id }) => id))
+        : undefined
+    );
+  }
   const where = and(
     query.mode ? eq(thermalCalcRecords.mode, query.mode as never) : undefined,
     query.projectId ? eq(thermalCalcRecords.projectId, query.projectId) : undefined,
-    scope?.createdById ? eq(thermalCalcRecords.createdById, scope.createdById) : undefined
+    projectScope
   );
   const [items, [totalRow]] = await Promise.all([
     app.db.select().from(thermalCalcRecords).where(where).orderBy(desc(thermalCalcRecords.createdAt)).offset(skip).limit(take),
@@ -985,7 +1000,7 @@ export async function getCalcRecord(app: FastifyInstance, actor: AuthUser, id: s
   if (row.projectId === null) throw new ThermalError("THERMAL_ENTITY_NOT_FOUND", "计算记录不存在或无权查看");
   const [project] = await app.db.select({
     id: projectsTable.id, createdById: projectsTable.createdById, visibility: projectsTable.visibility
-  }).from(projectsTable).where(eq(projectsTable.id, row.projectId)).limit(1);
+  }).from(projectsTable).where(and(eq(projectsTable.id, row.projectId), isNull(projectsTable.deletedAt))).limit(1);
   if (!project || !canViewProject(actor, project)) {
     throw new ThermalError("THERMAL_ENTITY_NOT_FOUND", "计算记录不存在或无权查看");
   }

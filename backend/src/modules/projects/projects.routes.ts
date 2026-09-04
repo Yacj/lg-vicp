@@ -1,17 +1,17 @@
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
-import { and, count, desc, eq, isNull } from "drizzle-orm";
+import { and, count, desc, eq, ilike, isNull, or } from "drizzle-orm";
 import { z } from "zod";
 import { projects } from "../../db/schema.js";
 import { AUDIT_ACTIONS, AUTH_CLIENTS, PROJECT_VISIBILITY } from "../../shared/constants.js";
 import { getCurrentUser } from "../../shared/current-user.js";
-import { ForbiddenError, NotFoundError,BusinessError } from "../../shared/errors.js";
+import { ForbiddenError, NotFoundError, BusinessError } from "../../shared/errors.js";
 import { getPagination, paginationQuerySchema } from "../../shared/pagination.js";
 import { canCreateProjectFromClient, canManageProject, canViewProject } from "../../shared/permissions.js";
 import { assertPermission } from "../../shared/permission-guard.js";
 import { ok } from "../../shared/response.js";
 import { writeAuditLog } from "../audit-logs/audit-log.service.js";
-import { createProjectInTransaction, listCreatedProjects } from "./project.service.js";
+import { createProjectInTransaction, listCreatedProjects, updateProjectInTransaction, updateProjectVisibilityInTransaction } from "./project.service.js";
 import {
   clientProjectListQuerySchema,
   createProjectBodySchema,
@@ -26,6 +26,33 @@ async function findActiveProject(app: FastifyInstance, id: string) {
     isNull(projects.deletedAt)
   )).limit(1);
   return project;
+}
+
+function projectResponse(user: ReturnType<typeof getCurrentUser>, project: typeof projects.$inferSelect) {
+  const { customerId: _legacyCustomerId, ...projectData } = project;
+  return {
+    ...projectData,
+    canManage: canManageProject(user, project)
+  };
+}
+
+/** 平台列表按最终业务口径返回公开项目；渠道/后台业务账号可额外查看自己创建的私有项目。 */
+function platformProjectScopeWhere(user: ReturnType<typeof getCurrentUser>) {
+  if (user.role === "SUPER_ADMIN") return undefined;
+  if (user.role === "CHANNEL_USER") return or(eq(projects.visibility, PROJECT_VISIBILITY.PUBLIC), eq(projects.createdById, user.id));
+  return eq(projects.visibility, PROJECT_VISIBILITY.PUBLIC);
+}
+
+function projectKeywordWhere(keyword: string | undefined) {
+  const normalized = keyword?.trim();
+  if (!normalized) return undefined;
+  const escaped = normalized.replace(/[\\%_]/g, "\\$&");
+  const pattern = `%${escaped}%`;
+  return or(
+    ilike(projects.name, pattern),
+    ilike(projects.region, pattern),
+    ilike(projects.buildingType, pattern)
+  );
 }
 
 export async function workspaceProjectRoutes(app: FastifyInstance) {
@@ -48,7 +75,7 @@ export async function workspaceProjectRoutes(app: FastifyInstance) {
       project: request.body
     }));
 
-    return ok(request, { message: "项目创建成功", project });
+    return ok(request, { message: "项目创建成功", project: projectResponse(user, project) });
   });
 
   route.get("/projects/my", {
@@ -62,7 +89,7 @@ export async function workspaceProjectRoutes(app: FastifyInstance) {
       app.db.select().from(projects).where(where).orderBy(desc(projects.createdAt)).offset(skip).limit(take),
       app.db.select({ value: count() }).from(projects).where(where)
     ]);
-    return ok(request, { items, total: totalRow?.value ?? 0, page: request.query.page, pageSize: request.query.pageSize });
+    return ok(request, { items: items.map((project) => projectResponse(user, project)), total: totalRow?.value ?? 0, page: request.query.page, pageSize: request.query.pageSize });
   });
 
   route.patch("/projects/:id", {
@@ -74,17 +101,14 @@ export async function workspaceProjectRoutes(app: FastifyInstance) {
     if (!project) throw new NotFoundError("项目不存在");
     if (!canManageProject(user, project)) throw new ForbiddenError("只有项目创建者或超级管理员可以修改项目");
 
-    const updated = await app.db.transaction(async (tx) => {
-      const [row] = await tx.update(projects).set({ ...request.body, updatedAt: new Date() })
-        .where(eq(projects.id, project.id)).returning();
-      await writeAuditLog({
-        db: tx, request, actor: user, projectId: project.id,
-        action: AUDIT_ACTIONS.PROJECT_UPDATED, targetType: "project", targetId: project.id,
-        beforeJson: project, afterJson: row
-      });
-      return row!;
-    });
-    return ok(request, { message: "项目修改成功", project: updated });
+    const updated = await app.db.transaction((tx) => updateProjectInTransaction({
+      db: tx,
+      request,
+      actor: user,
+      project,
+      patch: request.body
+    }));
+    return ok(request, { message: "项目修改成功", project: projectResponse(user, updated) });
   });
 
   route.patch("/projects/:id/visibility", {
@@ -96,17 +120,14 @@ export async function workspaceProjectRoutes(app: FastifyInstance) {
     if (!project) throw new NotFoundError("项目不存在");
     if (!canManageProject(user, project)) throw new ForbiddenError("只有项目创建者或超级管理员可以修改项目可见性");
 
-    const updated = await app.db.transaction(async (tx) => {
-      const [row] = await tx.update(projects).set({ visibility: request.body.visibility, updatedAt: new Date() })
-        .where(eq(projects.id, project.id)).returning();
-      await writeAuditLog({
-        db: tx, request, actor: user, projectId: project.id,
-        action: AUDIT_ACTIONS.PROJECT_VISIBILITY_CHANGED, targetType: "project", targetId: project.id,
-        beforeJson: { visibility: project.visibility }, afterJson: { visibility: row!.visibility }
-      });
-      return row!;
-    });
-    return ok(request, { message: "项目可见性修改成功", project: updated });
+    const updated = await app.db.transaction((tx) => updateProjectVisibilityInTransaction({
+      db: tx,
+      request,
+      actor: user,
+      project,
+      visibility: request.body.visibility
+    }));
+    return ok(request, { message: "项目可见性修改成功", project: projectResponse(user, updated) });
   });
 
   route.delete("/projects/:id", {
@@ -152,7 +173,7 @@ export async function projectRoutes(app: FastifyInstance) {
       actor: user,
       project: request.body
     }));
-    return ok(request, { message: "项目创建成功", project });
+    return ok(request, { message: "项目创建成功", project: projectResponse(user, project) });
   });
 
   route.get("/client/projects", {
@@ -168,20 +189,63 @@ export async function projectRoutes(app: FastifyInstance) {
       visibility: request.query.visibility,
       keyword: request.query.keyword
     });
-    return ok(request, data);
+    return ok(request, { ...data, items: data.items.map((project) => projectResponse(user, project)) });
+  });
+
+  route.patch("/client/projects/:id", {
+    preHandler: [app.authenticate],
+    schema: { tags: ["共用 / 项目"], summary: "修改项目信息（C 端）", params: projectParamsSchema, body: updateProjectBodySchema }
+  }, async (request) => {
+    const user = getCurrentUser(request);
+    const project = await findActiveProject(app, request.params.id);
+    if (!project) throw new NotFoundError("项目不存在");
+    if (!canManageProject(user, project)) throw new ForbiddenError("只有项目创建者或超级管理员可以修改项目");
+
+    const updated = await app.db.transaction((tx) => updateProjectInTransaction({
+      db: tx,
+      request,
+      actor: user,
+      project,
+      patch: request.body
+    }));
+    return ok(request, { message: "项目修改成功", project: projectResponse(user, updated) });
+  });
+
+  route.patch("/client/projects/:id/visibility", {
+    preHandler: [app.authenticate],
+    schema: { tags: ["共用 / 项目"], summary: "切换项目公开状态（C 端）", params: projectParamsSchema, body: updateVisibilityBodySchema }
+  }, async (request) => {
+    const user = getCurrentUser(request);
+    const project = await findActiveProject(app, request.params.id);
+    if (!project) throw new NotFoundError("项目不存在");
+    if (!canManageProject(user, project)) throw new ForbiddenError("只有项目创建者或超级管理员可以修改项目可见性");
+
+    const updated = await app.db.transaction((tx) => updateProjectVisibilityInTransaction({
+      db: tx,
+      request,
+      actor: user,
+      project,
+      visibility: request.body.visibility
+    }));
+    return ok(request, { message: "项目可见性修改成功", project: projectResponse(user, updated) });
   });
 
   route.get("/projects/public", {
     preHandler: [app.authenticate],
     schema: { tags: ["共用 / 项目"], summary: "获取公开项目", querystring: paginationQuerySchema }
   }, async (request) => {
+    const user = getCurrentUser(request);
     const { skip, take } = getPagination(request.query.page, request.query.pageSize);
-    const where = and(eq(projects.visibility, PROJECT_VISIBILITY.PUBLIC), eq(projects.status, "active"), isNull(projects.deletedAt));
+    const where = and(
+      eq(projects.visibility, PROJECT_VISIBILITY.PUBLIC),
+      eq(projects.status, "active"),
+      isNull(projects.deletedAt)
+    );
     const [items, [totalRow]] = await Promise.all([
       app.db.select().from(projects).where(where).orderBy(desc(projects.createdAt)).offset(skip).limit(take),
       app.db.select({ value: count() }).from(projects).where(where)
     ]);
-    return ok(request, { items, total: totalRow?.value ?? 0, page: request.query.page, pageSize: request.query.pageSize });
+    return ok(request, { items: items.map((project) => projectResponse(user, project)), total: totalRow?.value ?? 0, page: request.query.page, pageSize: request.query.pageSize });
   });
 
   route.get("/projects/:id", {
@@ -198,7 +262,7 @@ export async function projectRoutes(app: FastifyInstance) {
         action: AUDIT_ACTIONS.PUBLIC_PROJECT_VIEWED, targetType: "project", targetId: project.id
       });
     }
-    return ok(request, { project });
+    return ok(request, { project: projectResponse(user, project) });
   });
 }
 
@@ -212,7 +276,11 @@ export async function platformProjectRoutes(app: FastifyInstance) {
     }
   }, async (request) => {
     await assertPermission(request, "system:project:list");
-    const activeWhere = isNull(projects.deletedAt);
+    const user = getCurrentUser(request);
+    const activeWhere = and(
+      isNull(projects.deletedAt),
+      platformProjectScopeWhere(user)
+    );
     const [totalRow, publicRow, privateRow] = await Promise.all([
       app.db.select({ value: count() }).from(projects).where(activeWhere),
       app.db.select({ value: count() }).from(projects).where(and(activeWhere, eq(projects.visibility, PROJECT_VISIBILITY.PUBLIC))),
@@ -231,20 +299,26 @@ export async function platformProjectRoutes(app: FastifyInstance) {
       tags: ["B端 / 平台 / 项目"],
       summary: "平台项目列表",
       querystring: paginationQuerySchema.extend({
-        visibility: z.enum([PROJECT_VISIBILITY.PRIVATE, PROJECT_VISIBILITY.PUBLIC]).optional()
+        visibility: z.enum([PROJECT_VISIBILITY.PRIVATE, PROJECT_VISIBILITY.PUBLIC]).optional(),
+        keyword: z.string().trim().max(120).optional()
       })
     }
   }, async (request) => {
     await assertPermission(request, "system:project:list");
     const { skip, take } = getPagination(request.query.page, request.query.pageSize);
+    const user = getCurrentUser(request);
+    const projectScope = platformProjectScopeWhere(user);
+    const keywordFilter = projectKeywordWhere(request.query.keyword);
     const where = and(
       request.query.visibility ? eq(projects.visibility, request.query.visibility) : undefined,
-      isNull(projects.deletedAt)
+      isNull(projects.deletedAt),
+      projectScope,
+      keywordFilter
     );
     const [items, [totalRow]] = await Promise.all([
       app.db.select().from(projects).where(where).orderBy(desc(projects.createdAt)).offset(skip).limit(take),
       app.db.select({ value: count() }).from(projects).where(where)
     ]);
-    return ok(request, { items, total: totalRow?.value ?? 0, page: request.query.page, pageSize: request.query.pageSize });
+    return ok(request, { items: items.map((project) => projectResponse(user, project)), total: totalRow?.value ?? 0, page: request.query.page, pageSize: request.query.pageSize });
   });
 }

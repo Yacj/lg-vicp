@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
-import { and, count, desc, eq } from "drizzle-orm";
-import { professionalReviews, reports, standardDocuments } from "../../db/schema.js";
+import { and, count, desc, eq, inArray, isNull, or } from "drizzle-orm";
+import { professionalReviews, projects, reports, standardDocuments } from "../../db/schema.js";
 import type { AuthUser } from "../../shared/auth-user.js";
 import { ReviewError } from "../../shared/review-errors.js";
 import { getPagination } from "../../shared/pagination.js";
@@ -108,11 +108,24 @@ export interface ReviewQueueQuery {
   status?: "PENDING_REVIEW" | "APPROVED" | "REJECTED";
 }
 
-export async function listReviewQueue(app: FastifyInstance, query: ReviewQueueQuery) {
+export async function listReviewQueue(app: FastifyInstance, query: ReviewQueueQuery, actor?: AuthUser) {
   const { skip, take } = getPagination(query.page, query.pageSize);
+  const projectIds = actor && actor.role !== "SUPER_ADMIN"
+    ? await app.db.select({ id: projects.id }).from(projects).where(and(
+        isNull(projects.deletedAt),
+        or(eq(projects.createdById, actor.id), eq(projects.visibility, "PUBLIC"))
+      ))
+    : [];
+  const projectScope = actor && actor.role !== "SUPER_ADMIN"
+    ? or(
+        isNull(professionalReviews.projectId),
+        projectIds.length > 0 ? inArray(professionalReviews.projectId, projectIds.map(({ id }) => id)) : undefined
+      )
+    : undefined;
   const where = and(
     query.entityType ? eq(professionalReviews.entityType, query.entityType) : undefined,
-    query.status ? eq(professionalReviews.status, query.status) : undefined
+    query.status ? eq(professionalReviews.status, query.status) : undefined,
+    projectScope
   );
   const [items, [totalRow]] = await Promise.all([
     app.db.select().from(professionalReviews).where(where)

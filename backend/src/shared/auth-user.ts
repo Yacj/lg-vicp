@@ -10,4 +10,11 @@ export interface AuthUser {
   channelType: ChannelType;
   clientType: AuthClient;
   permissionCodes?: string[];
+  /** 生效的数据范围；由动态角色权限计算后写入当前请求。 */
+  dataScope?: string;
+  channelId?: string | null;
+  parentChannelId?: string | null;
+  departmentIds?: string[];
+  /** 预计算的统一登录账号数据范围；null 表示全量。 */
+  accessibleUserIds?: string[] | null;
 }

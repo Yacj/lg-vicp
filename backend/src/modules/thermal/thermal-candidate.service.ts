@@ -1,5 +1,5 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
-import { and, count, desc, eq, inArray } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNull, or } from "drizzle-orm";
 import {
   constructionSchemes,
   insulationSystems,
@@ -12,7 +12,7 @@ import {
 } from "../../db/schema.js";
 import { getPagination } from "../../shared/pagination.js";
 import { NotFoundError } from "../../shared/errors.js";
-import { canViewProject } from "../../shared/permissions.js";
+import { canViewProject, isSuperAdmin } from "../../shared/permissions.js";
 import { ThermalError } from "../../shared/thermal-errors.js";
 import { publishedReferenceConditions } from "../construction/construction-structure.service.js";
 import { writeAuditLog } from "../audit-logs/audit-log.service.js";
@@ -321,7 +321,7 @@ export async function createCandidateSelection(
     const [project] = await app.db
       .select({ id: projects.id, createdById: projects.createdById, visibility: projects.visibility })
       .from(projects)
-      .where(eq(projects.id, input.projectId))
+      .where(and(eq(projects.id, input.projectId), isNull(projects.deletedAt)))
       .limit(1);
     if (!project || !canViewProject(actor, project)) {
       throw new NotFoundError("项目不存在或无权查看");
@@ -370,18 +370,31 @@ export async function createCandidateSelection(
 /** 候选确认记录分页查询（projectId 可选筛选） */
 export async function listCandidateSelections(
   app: FastifyInstance,
-  query: { page: number; pageSize: number; projectId?: string }
+  query: { page: number; pageSize: number; projectId?: string },
+  actor?: AuthUser
 ) {
   const { skip, take } = getPagination(query.page, query.pageSize);
-  const where = query.projectId ? eq(thermalCandidateSelections.projectId, query.projectId) : undefined;
+  let projectScope;
+  if (actor && !isSuperAdmin(actor)) {
+    const accessibleProjects = await app.db.select({ id: projects.id })
+      .from(projects)
+      .where(and(
+        isNull(projects.deletedAt),
+        or(eq(projects.createdById, actor.id), eq(projects.visibility, "PUBLIC"))
+      ));
+    projectScope = or(
+      eq(thermalCandidateSelections.selectedById, actor.id),
+      accessibleProjects.length > 0
+        ? inArray(thermalCandidateSelections.projectId, accessibleProjects.map(({ id }) => id))
+        : undefined
+    );
+  }
+  const where = and(
+    query.projectId ? eq(thermalCandidateSelections.projectId, query.projectId) : undefined,
+    projectScope
+  );
   const [items, [totalRow]] = await Promise.all([
-    app.db
-      .select()
-      .from(thermalCandidateSelections)
-      .where(where)
-      .orderBy(desc(thermalCandidateSelections.createdAt))
-      .offset(skip)
-      .limit(take),
+    app.db.select().from(thermalCandidateSelections).where(where).orderBy(desc(thermalCandidateSelections.createdAt)).offset(skip).limit(take),
     app.db.select({ value: count() }).from(thermalCandidateSelections).where(where)
   ]);
   return {

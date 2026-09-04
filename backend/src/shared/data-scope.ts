@@ -1,15 +1,15 @@
 /**
- * 渠道数据范围解析（P1 预留扩展点）：
- * - 第一期不改变任何现有查询语义；roles.data_scope 与 users.channel_id/parent_channel_id 字段已就位，
- *   未来"项目/报告/会话按渠道隔离"直接复用本解析器，不会再动用户模型；
- * - SUPER_ADMIN 永远 ALL（与项目可见性、RBAC 直通规则一致）；
- * - 旧部门值（DEPT/DEPT_AND_CHILDREN）在渠道体系未启用前按 SELF 收敛，保证默认语义最窄。
+ * 数据范围枚举及渠道判断纯函数。
+ * SUPER_ADMIN 始终拥有 ALL；DEPT、DEPT_AND_CHILDREN、CHANNEL 及
+ * CHANNEL_AND_CHILDREN 的实际对象集合由 project-access 解析后应用到查询。
  */
 
 export type ResolvedDataScope =
   | "ALL"
   | "CHANNEL"
   | "CHANNEL_AND_CHILDREN"
+  | "DEPT"
+  | "DEPT_AND_CHILDREN"
   | "PROJECT_OWNER"
   | "SELF"
   | "CUSTOM";
@@ -31,9 +31,8 @@ export function resolveDataScope(actor: DataScopeActor): ResolvedDataScope {
     case "CHANNEL_AND_CHILDREN": return "CHANNEL_AND_CHILDREN";
     case "PROJECT_OWNER": return "PROJECT_OWNER";
     case "CUSTOM": return "CUSTOM";
-    case "CHANNEL":
-    case "DEPT":
-    case "DEPT_AND_CHILDREN":
+    case "DEPT": return "DEPT";
+    case "DEPT_AND_CHILDREN": return "DEPT_AND_CHILDREN";
     case "SELF":
     default: return "SELF";
   }

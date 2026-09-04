@@ -122,9 +122,10 @@ export async function reportPlatformRoutes(app: FastifyInstance) {
     }
   }, async (request) => {
     await assertPermission(request, "system:project:list");
+    const user = getCurrentUser(request);
     const [project] = await app.db.select().from(projects)
       .where(and(eq(projects.id, request.query.projectId), isNull(projects.deletedAt))).limit(1);
-    if (!project) throw new NotFoundError("项目不存在");
+    if (!project || !canViewProject(user, project)) throw new NotFoundError("项目不存在或无权查看");
     const rows = await app.db.select({
       report: reports,
       conversation: { id: aiConversations.id, title: aiConversations.title, userId: aiConversations.userId }

@@ -11,11 +11,11 @@ import { AUDIT_ACTIONS } from "../../shared/constants.js";
 import { env } from "../../config/env.js";
 import { getCurrentUser } from "../../shared/current-user.js";
 import { ForbiddenError, NotFoundError } from "../../shared/errors.js";
-import { canManageProject } from "../../shared/permissions.js";
+import { canManageProject, canViewProject } from "../../shared/permissions.js";
 import { getPagination, paginationQuerySchema } from "../../shared/pagination.js";
 import { ok } from "../../shared/response.js";
 import { writeAuditLog } from "../audit-logs/audit-log.service.js";
-import { canAccessSourceFile } from "./file-access.js";
+import { canAccessSourceFile, canDeleteProjectFile, canReadProjectFile } from "./file-access.js";
 import { createUploadIntentBodySchema, fileParamsSchema, supportedMimeTypes } from "./file.schemas.js";
 
 function safeExtension(fileName: string): string {
@@ -26,6 +26,17 @@ function safeExtension(fileName: string): string {
 async function findFile(app: FastifyInstance, id: string) {
   const [file] = await app.db.select().from(files).where(and(eq(files.id, id), isNull(files.deletedAt))).limit(1);
   return file;
+}
+
+async function findProject(app: FastifyInstance, id: string) {
+  const [project] = await app.db.select().from(projects).where(and(eq(projects.id, id), isNull(projects.deletedAt))).limit(1);
+  return project;
+}
+
+async function canReadFile(app: FastifyInstance, user: ReturnType<typeof getCurrentUser>, file: { ownerUserId: string; projectId: string | null }) {
+  if (!file.projectId) return canAccessSourceFile(user, file);
+  const project = await findProject(app, file.projectId);
+  return Boolean(project && canReadProjectFile(user, file, project));
 }
 
 export async function fileRoutes(app: FastifyInstance) {
@@ -41,9 +52,14 @@ export async function fileRoutes(app: FastifyInstance) {
   }, async (request) => {
     const user = getCurrentUser(request);
     const { skip, take } = getPagination(request.query.page, request.query.pageSize);
+    if (request.query.projectId) {
+      const project = await findProject(app, request.query.projectId);
+      if (!project || !canViewProject(user, project)) {
+        throw new NotFoundError("项目不存在或无权查看资料");
+      }
+    }
     const where = and(
-      user.role === "SUPER_ADMIN" ? undefined : eq(files.ownerUserId, user.id),
-      request.query.projectId ? eq(files.projectId, request.query.projectId) : undefined,
+      request.query.projectId ? eq(files.projectId, request.query.projectId) : (user.role === "SUPER_ADMIN" ? undefined : eq(files.ownerUserId, user.id)),
       isNull(files.deletedAt)
     );
     const [items, [totalRow]] = await Promise.all([
@@ -107,8 +123,14 @@ export async function fileRoutes(app: FastifyInstance) {
     schema: { tags: ["共用 / 文件"], summary: "确认文件上传完成", params: fileParamsSchema }
   }, async (request) => {
     const user = getCurrentUser(request);
-    const file = await findFile(app, request.params.id);
-    if (!file || !canAccessSourceFile(user, file)) throw new NotFoundError("文件不存在或无权操作");
+    const file = await findFile(app, request.params.id)
+    if (!file) throw new NotFoundError("文件不存在或无权操作");
+    if (file.projectId) {
+      const project = await findProject(app, file.projectId);
+      if (!project || !canManageProject(user, project)) throw new NotFoundError("文件不存在或无权操作");
+    } else if (!canAccessSourceFile(user, file)) {
+      throw new NotFoundError("文件不存在或无权操作");
+    }
     if (file.status !== "UPLOADING") throw new ForbiddenError("文件当前状态不能确认上传");
 
     const object = await app.storage.statObject(file.objectKey);
@@ -165,7 +187,7 @@ export async function fileRoutes(app: FastifyInstance) {
   }, async (request) => {
     const user = getCurrentUser(request);
     const file = await findFile(app, request.params.id);
-    if (!file || !canAccessSourceFile(user, file)) throw new NotFoundError("文件不存在或无权查看");
+    if (!file || !(await canReadFile(app, user, file))) throw new NotFoundError("文件不存在或无权查看");
     const [task] = await app.db.select().from(asyncTasks).where(and(
       eq(asyncTasks.businessType, "file"), eq(asyncTasks.businessId, file.id)
     )).orderBy(desc(asyncTasks.createdAt)).limit(1);
@@ -178,7 +200,7 @@ export async function fileRoutes(app: FastifyInstance) {
   }, async (request) => {
     const user = getCurrentUser(request);
     const file = await findFile(app, request.params.id);
-    if (!file || !canAccessSourceFile(user, file)) throw new NotFoundError("文件不存在或无权下载");
+    if (!file || !(await canReadFile(app, user, file))) throw new NotFoundError("文件不存在或无权下载");
     const url = await app.storage.createDownloadUrl(file.objectKey, file.originalName, env.STORAGE_PRESIGN_EXPIRES_SECONDS);
     await writeAuditLog({
       db: app.db, request, actor: user, projectId: file.projectId ?? undefined,
@@ -193,7 +215,9 @@ export async function fileRoutes(app: FastifyInstance) {
   }, async (request) => {
     const user = getCurrentUser(request);
     const file = await findFile(app, request.params.id);
-    if (!file || !canAccessSourceFile(user, file)) throw new NotFoundError("文件不存在或无权删除");
+    if (!file) throw new NotFoundError("文件不存在或无权删除");
+    const project = file.projectId ? await findProject(app, file.projectId) : undefined;
+    if (!canDeleteProjectFile(user, file, project)) throw new NotFoundError("文件不存在或无权删除");
     await app.db.transaction(async (tx) => {
       await tx.update(files).set({ status: "DELETED", deletedAt: new Date(), updatedAt: new Date() }).where(eq(files.id, file.id));
       await writeAuditLog({

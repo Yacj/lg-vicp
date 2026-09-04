@@ -1,9 +1,10 @@
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
-import { and, asc, count, desc, eq, ilike, inArray, isNull } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, inArray, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { cronExecutions, cronJobs, departments, dictionaryItems, dictionaries, loginLogs, permissions, posts, refreshTokens, roleDepartments, rolePermissions, roles, userDepartments, userRoles, users } from "../../db/schema.js";
 import { assertPermission } from "../../shared/permission-guard.js";
+import { getCurrentUser } from "../../shared/current-user.js";
 import { getPagination, paginationQuerySchema } from "../../shared/pagination.js";
 import { NotFoundError, ForbiddenError } from "../../shared/errors.js";
 import { ok } from "../../shared/response.js";
@@ -15,7 +16,7 @@ const idsBody = z.object({ ids: z.array(z.uuid()).max(1000) });
 const statusBody = z.object({ enabled: z.boolean() });
 const postBody = z.object({ name: z.string().trim().min(1, "请输入岗位名称").max(120), code: z.string().trim().regex(/^[a-z][a-z0-9_.-]{1,79}$/, "岗位编码格式不正确"), sortOrder: z.number().int().default(0), enabled: z.boolean().default(true), remark: z.string().max(1000).nullable().optional() });
 const deptBody = z.object({ parentId: z.uuid("上级部门 ID 格式不正确").nullable().optional(), code: z.string().trim().min(2).max(80), name: z.string().trim().min(1, "请输入部门名称").max(120), leader: z.string().max(120).nullable().optional(), phone: z.string().max(32).nullable().optional(), email: z.string().email("邮箱格式不正确").max(255).nullable().optional(), sortOrder: z.number().int().default(0), enabled: z.boolean().default(true) });
-const rolePatch = z.object({ name: z.string().trim().min(1).max(120).optional(), description: z.string().max(1000).nullable().optional(), dataScope: z.enum(["ALL", "DEPT", "DEPT_AND_CHILDREN", "SELF", "CUSTOM", "PROJECT_OWNER"]).optional(), enabled: z.boolean().optional(), permissionIds: z.array(z.uuid("权限 ID 格式不正确")).max(500).optional() }).refine((v) => Object.keys(v).length > 0, "至少需要修改一个字段");
+const rolePatch = z.object({ name: z.string().trim().min(1).max(120).optional(), description: z.string().max(1000).nullable().optional(), dataScope: z.enum(["ALL", "DEPT", "DEPT_AND_CHILDREN", "SELF", "CUSTOM", "PROJECT_OWNER", "CHANNEL", "CHANNEL_AND_CHILDREN"]).optional(), enabled: z.boolean().optional(), permissionIds: z.array(z.uuid("权限 ID 格式不正确")).max(500).optional() }).refine((v) => Object.keys(v).length > 0, "至少需要修改一个字段");
 const dictPatch = z.object({ name: z.string().trim().min(1).max(120).optional(), description: z.string().max(1000).nullable().optional(), enabled: z.boolean().optional() }).refine((v) => Object.keys(v).length > 0, "至少需要修改一个字段");
 const itemBody = z.object({ value: z.string().trim().min(1).max(120), label: z.string().trim().min(1).max(120), sortOrder: z.number().int().default(0), enabled: z.boolean().default(true), metadata: z.record(z.string(), z.unknown()).optional() });
 const cronBody = z.object({ name: z.string().trim().min(1).max(120), jobType: z.enum(["maintenance", "document_cleanup", "audit_cleanup", "standard_crawl"]), cronExpression: z.string().trim().min(5).max(120), queueName: z.enum(["maintenance"]), payload: z.record(z.string(), z.unknown()).optional(), status: z.enum(["PAUSED", "RUNNING", "DISABLED"]).default("PAUSED") });
@@ -100,7 +101,14 @@ export async function platformOpsRoutes(app: FastifyInstance) {
     const rows = await app.db.select({ departmentId: roleDepartments.departmentId }).from(roleDepartments).where(eq(roleDepartments.roleId, role.id)); return ok(request, { departmentIds: rows.map((item) => item.departmentId) });
   });
   route.get("/roles/:id/users", { preHandler: [app.authenticate], schema: { tags: ["B端 / 平台 / 角色权限"], summary: "获取角色用户", params: idParams, querystring: paginationQuerySchema } }, async (request) => {
-    await assertPermission(request, "system:role:list"); const { skip, take } = getPagination(request.query.page, request.query.pageSize); const rows = await app.db.select({ id: users.id, displayName: users.displayName, phone: users.phone, status: users.status }).from(users).innerJoin(userRoles, eq(userRoles.userId, users.id)).where(and(eq(userRoles.roleId, request.params.id), isNull(users.deletedAt))).offset(skip).limit(take); return ok(request, { items: rows, page: request.query.page, pageSize: request.query.pageSize });
+    await assertPermission(request, "system:role:list");
+    const actor = getCurrentUser(request);
+    const { skip, take } = getPagination(request.query.page, request.query.pageSize);
+    const scope = actor.accessibleUserIds === null
+      ? undefined
+      : (actor.accessibleUserIds?.length ? inArray(users.id, actor.accessibleUserIds) : sql`false`);
+    const rows = await app.db.select({ id: users.id, displayName: users.displayName, phone: users.phone, status: users.status }).from(users).innerJoin(userRoles, eq(userRoles.userId, users.id)).where(and(eq(userRoles.roleId, request.params.id), isNull(users.deletedAt), scope)).offset(skip).limit(take);
+    return ok(request, { items: rows, page: request.query.page, pageSize: request.query.pageSize });
   });
 
   route.get("/departments/tree", { preHandler: [app.authenticate], schema: { tags: ["B端 / 平台 / 部门管理"], summary: "获取部门树" } }, async (request) => {
