@@ -2,7 +2,9 @@ export class AppError extends Error {
   constructor(
     public readonly code: string,
     message: string,
-    public readonly statusCode = 400
+    public readonly statusCode = 400,
+    /** 附加业务明细（如 FILE_IN_USE 的引用摘要），随失败响应 error.details 返回 */
+    public readonly details?: unknown
   ) {
     super(message);
   }

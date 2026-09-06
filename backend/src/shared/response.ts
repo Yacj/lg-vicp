@@ -8,12 +8,13 @@ export function ok<T>(request: FastifyRequest, data: T) {
   };
 }
 
-export function fail(requestId: string, code: number, message: string) {
+export function fail(requestId: string, code: number, message: string, details?: unknown) {
   return {
     success: false,
     error: {
       code,
-      message
+      message,
+      ...(details === undefined ? {} : { details })
     },
     requestId
   };

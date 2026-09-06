@@ -430,12 +430,44 @@ export async function getDocumentDetail(app: FastifyInstance, id: string) {
 
 // ---------------------------------------------------------------- 版本
 
+/** 把文件中心 READY 文件绑定到版本的指定资产角色：
+ * ORIGINAL 绑定版本主文件并重置解析状态；SEARCH_SOURCE/OCR_SOURCE/PREVIEW 仅登记资产行。 */
+async function bindCenterFileToVersion(
+  app: FastifyInstance,
+  request: FastifyRequest,
+  actor: AuthUser,
+  versionId: string,
+  fileId: string,
+  role: KnowledgeAssetRole
+) {
+  const file = await requireActiveFile(app, fileId);
+  if (file.status !== "READY") throw new ConflictError("所选文件尚未就绪，请先完成上传确认");
+  if (role === "SEARCH_SOURCE" || role === "OCR_SOURCE" || role === "PREVIEW") {
+    await bindVersionAsset(app, request, actor, versionId, { role, fileId });
+    return;
+  }
+  await app.db.transaction(async (tx) => {
+    await tx.update(knowledgeDocumentVersions).set({
+      fileId,
+      parseStatus: "PENDING",
+      updatedById: actor.id,
+      updatedAt: new Date()
+    }).where(eq(knowledgeDocumentVersions.id, versionId));
+    await writeAuditLog({
+      db: tx, request, actor,
+      action: AUDIT_ACTIONS.KNOWLEDGE_ASSET_REPLACED, targetType: "knowledge_document_version", targetId: versionId,
+      afterJson: { fileId, role }
+    });
+  });
+  await bindVersionAsset(app, request, actor, versionId, { role: "ORIGINAL", fileId });
+}
+
 export async function createDocumentVersion(
   app: FastifyInstance,
   request: FastifyRequest,
   actor: AuthUser,
   documentId: string,
-  input: { title?: string; changeNote?: string; evidenceLevel?: KnowledgeEvidenceLevel }
+  input: { title?: string; changeNote?: string; evidenceLevel?: KnowledgeEvidenceLevel; originalFileId?: string; searchSourceFileId?: string }
 ) {
   const document = await requireDocument(app, documentId);
   const version = await app.db.transaction(async (tx) => {
@@ -457,16 +489,24 @@ export async function createDocumentVersion(
     });
     return created!;
   });
+  // FilePicker 直接指定文件：同一 fileId 可同时承担 ORIGINAL 与 SEARCH_SOURCE
+  if (input.originalFileId) {
+    await bindCenterFileToVersion(app, request, actor, version.id, input.originalFileId, "ORIGINAL");
+  }
+  if (input.searchSourceFileId) {
+    await bindCenterFileToVersion(app, request, actor, version.id, input.searchSourceFileId, "SEARCH_SOURCE");
+  }
   return version;
 }
 
-/** 创建版本文件直传凭证：复用 files 表与对象存储预签名能力，不触发旧链路自动解析 */
+/** 创建版本文件直传凭证：复用 files 表与对象存储预签名能力，不触发旧链路自动解析；
+ * 提供 existingFileId 时（FilePicker 选择已有文件）跳过上传，直接返回复用结果。 */
 export async function createVersionUploadIntent(
   app: FastifyInstance,
   request: FastifyRequest,
   actor: AuthUser,
   versionId: string,
-  input: { fileName: string; mimeType: string; sizeBytes: number; sha256?: string },
+  input: { fileName?: string; mimeType?: string; sizeBytes?: number; sha256?: string; existingFileId?: string },
   assetRole?: KnowledgeAssetRole
 ) {
   const version = await requireVersion(app, versionId);
@@ -476,13 +516,31 @@ export async function createVersionUploadIntent(
   } else if (version.status === "DISABLED") {
     throw new ConflictError("已停用版本不允许绑定文件资产");
   }
-  if (input.sizeBytes > env.MAX_UPLOAD_BYTES) {
+
+  // FilePicker：从文件中心选择已有文件（不产生新的 OSS 上传）
+  if (input.existingFileId) {
+    const existing = await requireActiveFile(app, input.existingFileId);
+    if (existing.status === "RECYCLED") throw new ConflictError("所选文件已在回收站，不能绑定");
+    if (existing.status !== "READY") throw new ConflictError("所选文件尚未就绪，请先完成上传确认");
+    await writeAuditLog({
+      db: app.db, request, actor,
+      action: AUDIT_ACTIONS.FILE_REUSED, targetType: "knowledge_document_version", targetId: versionId,
+      afterJson: { fileId: existing.id, assetRole: assetRole ?? "ORIGINAL" }
+    });
+    return { mode: "REUSE" as const, fileId: existing.id, uploadUrl: null, headers: {}, expiresAt: null };
+  }
+
+  if (!input.fileName || !input.mimeType || !input.sizeBytes) {
+    throw new ConflictError("请提供文件信息或选择已有文件（existingFileId）");
+  }
+  const { fileName, mimeType, sizeBytes, sha256 } = input;
+  if (sizeBytes > env.MAX_UPLOAD_BYTES) {
     throw new ForbiddenError(`文件不能超过 ${Math.floor(env.MAX_UPLOAD_BYTES / 1024 / 1024)} MB`);
   }
   // SHA-256 去重：与批量导入/爬虫/内部 API 同一规则（按客户端申报哈希，最终以完成校验时实际哈希为准）
-  await assertNoDuplicateSha256(app.db, input.sha256 ?? null);
+  await assertNoDuplicateSha256(app.db, sha256 ?? null);
   const fileId = randomUUID();
-  const objectKey = `knowledge/${new Date().toISOString().slice(0, 10)}/${fileId}${safeExtension(input.fileName)}`;
+  const objectKey = `knowledge/${new Date().toISOString().slice(0, 10)}/${fileId}${safeExtension(fileName)}`;
   const file = await app.db.transaction(async (tx) => {
     const [created] = await tx.insert(files).values({
       id: fileId,
@@ -490,16 +548,16 @@ export async function createVersionUploadIntent(
       storageProvider: app.storage.provider,
       bucket: app.storage.bucket,
       objectKey,
-      originalName: input.fileName,
-      mimeType: input.mimeType,
-      sizeBytes: input.sizeBytes,
-      sha256: input.sha256,
+      originalName: fileName,
+      mimeType,
+      sizeBytes,
+      sha256,
       status: "UPLOADING"
     }).returning();
     return created!;
   });
   const upload = await app.storage.createUploadUrl(objectKey, file.mimeType, env.STORAGE_PRESIGN_EXPIRES_SECONDS);
-  return { fileId: file.id, uploadUrl: upload.url, headers: upload.headers, expiresAt: upload.expiresAt };
+  return { mode: "UPLOAD" as const, fileId: file.id, uploadUrl: upload.url, headers: upload.headers, expiresAt: upload.expiresAt };
 }
 
 /** 确认版本文件上传完成：校验对象大小/哈希/MIME；
@@ -520,24 +578,29 @@ export async function completeVersionUpload(
     throw new ConflictError("已停用版本不允许绑定文件资产");
   }
   const file = await requireActiveFile(app, fileId);
-  if (file.ownerUserId !== actor.id && actor.role !== "SUPER_ADMIN") {
-    throw new ForbiddenError("只能操作本人上传的文件");
-  }
-  const object = await app.storage.statObject(file.objectKey);
-  if (!object) throw new NotFoundError("对象存储中未找到上传文件");
-  if (object.size !== file.sizeBytes) throw new ForbiddenError("上传文件大小与申请信息不一致");
-  const data = await app.storage.getObject(file.objectKey);
-  if (file.sha256) {
-    const actualSha256 = createHash("sha256").update(data).digest("hex");
-    if (actualSha256.toLowerCase() !== file.sha256.toLowerCase()) {
-      throw new ForbiddenError("上传文件哈希与申请信息不一致，文件可能被篡改");
+  if (file.status === "RECYCLED") throw new ConflictError("所选文件已在回收站，不能绑定");
+  // 文件中心选择（READY）：B 端全平台可选，跳过重复校验；未就绪文件仍限本人并完整校验
+  const isReadySelection = file.status === "READY";
+  if (!isReadySelection) {
+    if (file.ownerUserId !== actor.id && actor.role !== "SUPER_ADMIN") {
+      throw new ForbiddenError("只能操作本人上传的文件");
     }
-    // 严格去重：按实际文件内容哈希校验，排除本次文件自身
-    await assertNoDuplicateSha256(app.db, actualSha256, fileId);
-  }
-  const detected = await fileTypeFromBuffer(data);
-  if (detected && detected.mime !== file.mimeType) {
-    throw new ForbiddenError("上传文件实际类型与申请信息不一致");
+    const object = await app.storage.statObject(file.objectKey);
+    if (!object) throw new NotFoundError("对象存储中未找到上传文件");
+    if (object.size !== file.sizeBytes) throw new ForbiddenError("上传文件大小与申请信息不一致");
+    const data = await app.storage.getObject(file.objectKey);
+    if (file.sha256) {
+      const actualSha256 = createHash("sha256").update(data).digest("hex");
+      if (actualSha256.toLowerCase() !== file.sha256.toLowerCase()) {
+        throw new ForbiddenError("上传文件哈希与申请信息不一致，文件可能被篡改");
+      }
+      // 严格去重：按实际文件内容哈希校验，排除本次文件自身
+      await assertNoDuplicateSha256(app.db, actualSha256, fileId);
+    }
+    const detected = await fileTypeFromBuffer(data);
+    if (detected && detected.mime !== file.mimeType) {
+      throw new ForbiddenError("上传文件实际类型与申请信息不一致");
+    }
   }
   if (assetRole === "SEARCH_SOURCE" || assetRole === "OCR_SOURCE" || assetRole === "PREVIEW") {
     // 附属资产：只登记资产行，不改版本主文件与解析状态

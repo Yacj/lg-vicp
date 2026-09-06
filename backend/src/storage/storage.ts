@@ -16,6 +16,8 @@ export interface ObjectStorage {
   ensureBucket(): Promise<void>;
   createUploadUrl(objectKey: string, contentType: string, expiresSeconds: number): Promise<UploadUrlResult>;
   createDownloadUrl(objectKey: string, fileName: string, expiresSeconds: number): Promise<string>;
+  /** 浏览器内联预览签名 URL（不强制 attachment 下载） */
+  createPreviewUrl(objectKey: string, expiresSeconds: number): Promise<string>;
   statObject(objectKey: string): Promise<StoredObjectInfo | null>;
   getObject(objectKey: string): Promise<Buffer>;
   putObject(objectKey: string, data: Buffer, contentType: string): Promise<void>;

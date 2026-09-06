@@ -4,14 +4,14 @@ import { ZodError } from "zod";
 import { AppError } from "../shared/errors.js";
 import { fail } from "../shared/response.js";
 
-function sendBusinessError(reply: FastifyReply, requestId: string, statusCode: number, message: string) {
-  return reply.status(200).send(fail(requestId, statusCode, message));
+function sendBusinessError(reply: FastifyReply, requestId: string, statusCode: number, message: string, details?: unknown) {
+  return reply.status(200).send(fail(requestId, statusCode, message, details));
 }
 
 export const errorHandlerPlugin = fp(async (app) => {
   app.setErrorHandler((error, request, reply) => {
     if (error instanceof AppError) {
-      return sendBusinessError(reply, request.id, error.statusCode, error.message);
+      return sendBusinessError(reply, request.id, error.statusCode, error.message, error.details);
     }
 
     if (error instanceof ZodError) {

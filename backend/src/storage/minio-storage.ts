@@ -55,6 +55,12 @@ export class MinioStorage implements ObjectStorage {
     });
   }
 
+  async createPreviewUrl(objectKey: string, expiresSeconds: number): Promise<string> {
+    return this.signingClient.presignedGetObject(this.bucket, objectKey, expiresSeconds, {
+      "response-content-disposition": "inline"
+    });
+  }
+
   async statObject(objectKey: string): Promise<StoredObjectInfo | null> {
     try {
       const stat = await this.client.statObject(this.bucket, objectKey);

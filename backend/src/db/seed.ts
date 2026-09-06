@@ -13,6 +13,7 @@ import { NODE_PERMISSION_SEEDS } from "../shared/node-permissions.js";
 import { REPORT_PERMISSIONS, REPORT_PERMISSION_SEEDS } from "../shared/report-permissions.js";
 import { REVIEW_PERMISSION_SEEDS } from "../shared/review-permissions.js";
 import { NOTIFICATION_PERMISSION_SEEDS } from "../shared/notification-permissions.js";
+import { FILE_CENTER_PERMISSION_SEEDS } from "../shared/file-permissions.js";
 import { buildRankingRuleSeeds } from "../modules/knowledge/knowledge-ingest.service.js";
 import { DEFAULT_REPORT_SECTIONS } from "../modules/reports/report-template.service.js";
 import {
@@ -125,7 +126,8 @@ const permissionSeeds = [
   ...NODE_PERMISSION_SEEDS,
   ...REPORT_PERMISSION_SEEDS,
   ...REVIEW_PERMISSION_SEEDS,
-  ...NOTIFICATION_PERMISSION_SEEDS
+  ...NOTIFICATION_PERMISSION_SEEDS,
+  ...FILE_CENTER_PERMISSION_SEEDS
 ] as const;
 
 try {

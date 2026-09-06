@@ -259,12 +259,15 @@ export async function knowledgeRoutes(app: FastifyInstance) {
     preHandler: [app.authenticate, requireClient(AUTH_CLIENTS.B_ADMIN)],
     schema: {
       tags: ["B端 / 平台 / 知识库"],
-      summary: "为文档创建新草稿版本",
+      summary: "为文档创建新草稿版本（可直接从文件中心指定正式文件/AI 识别文件）",
       params: uuidParams,
       body: z.object({
         title: z.string().trim().min(1).max(200).optional(),
         changeNote: z.string().trim().max(500).optional(),
-        evidenceLevel: evidenceLevelSchema.optional()
+        evidenceLevel: evidenceLevelSchema.optional(),
+        // FilePicker：直接复用文件中心已有文件（两者可传同一个 fileId）
+        originalFileId: z.uuid("正式文件 ID 格式不正确").optional(),
+        searchSourceFileId: z.uuid("AI 识别文件 ID 格式不正确").optional()
       })
     }
   }, async (request) => {
@@ -276,13 +279,15 @@ export async function knowledgeRoutes(app: FastifyInstance) {
     preHandler: [app.authenticate, requireClient(AUTH_CLIENTS.B_ADMIN)],
     schema: {
       tags: ["B端 / 平台 / 知识库"],
-      summary: "申请版本文件直传凭证",
+      summary: "申请版本文件直传凭证（提供 existingFileId 时直接复用文件中心已有文件）",
       params: versionParams,
       body: z.object({
-        fileName: z.string().trim().min(1).max(255),
-        mimeType: z.string().trim().min(1).max(120),
-        sizeBytes: z.number().int().positive().max(1_073_741_824),
+        fileName: z.string().trim().min(1).max(255).optional(),
+        mimeType: z.string().trim().min(1).max(120).optional(),
+        sizeBytes: z.number().int().positive().max(1_073_741_824).optional(),
         sha256: z.string().trim().regex(/^[a-f0-9]{64}$/i, "sha256 格式不正确").optional(),
+        // FilePicker：从文件中心选择已有文件（不重新上传 OSS）
+        existingFileId: z.uuid("文件 ID 格式不正确").optional(),
         // 缺省 = ORIGINAL（版本主文件）；SEARCH_SOURCE/OCR_SOURCE 允许绑定到任意未停用版本
         assetRole: z.enum(["ORIGINAL", "SEARCH_SOURCE", "OCR_SOURCE", "PREVIEW"]).optional()
       })
@@ -296,7 +301,7 @@ export async function knowledgeRoutes(app: FastifyInstance) {
     preHandler: [app.authenticate, requireClient(AUTH_CLIENTS.B_ADMIN)],
     schema: {
       tags: ["B端 / 平台 / 知识库"],
-      summary: "确认版本文件上传完成（校验大小/哈希/类型）",
+      summary: "确认版本文件上传完成（校验大小/哈希/类型；文件中心 READY 文件直接绑定）",
       params: versionParams,
       body: z.object({
         fileId: z.uuid("文件 ID 格式不正确"),

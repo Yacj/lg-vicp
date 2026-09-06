@@ -48,7 +48,9 @@ export const fileStatusEnum = pgEnum("file_status", [
   "INDEXING",
   "READY",
   "FAILED",
-  "DELETED"
+  "DELETED",
+  // 文件中心回收站：仅软回收（可恢复），与 DELETED（待维护任务清理）语义区分
+  "RECYCLED"
 ]);
 export const asyncTaskStatusEnum = pgEnum("async_task_status", [
   "QUEUED",
@@ -597,13 +599,18 @@ export const files = pgTable(
     errorMessage: text("error_message"),
     version: integer("version").notNull().default(1),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    /** 文件中心回收时间（status=RECYCLED 时非空） */
+    recycledAt: timestamp("recycled_at", { withTimezone: true }),
+    recycledById: uuid("recycled_by_id").references(() => users.id, { onDelete: "set null" }),
     ...timestamps
   },
   (table) => [
     uniqueIndex("files_bucket_key_unique").on(table.bucket, table.objectKey),
     index("files_project_status_idx").on(table.projectId, table.status),
     index("files_owner_idx").on(table.ownerUserId),
-    index("files_sha256_idx").on(table.sha256)
+    index("files_sha256_idx").on(table.sha256),
+    index("files_mimetype_idx").on(table.mimeType),
+    index("files_status_created_idx").on(table.status, table.createdAt)
   ]
 );
 

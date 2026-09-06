@@ -19,3 +19,24 @@ export const createUploadIntentBodySchema = z.object({
 });
 
 export const fileParamsSchema = z.object({ id: z.uuid("文件 ID 格式不正确") });
+
+/** 文件中心列表 / FilePicker 查询条件 */
+export const fileCenterListQuerySchema = z.object({
+  keyword: z.string().trim().max(120, "关键词不能超过 120 个字符").optional(),
+  mimeType: z.string().trim().max(160).optional(),
+  extension: z.string().trim().max(12).optional(),
+  source: z.enum(["USER_UPLOAD", "BATCH_IMPORT", "CRAWLER", "INTERNAL_API", "THERMAL_IMPORT"], "文件来源不正确").optional(),
+  status: z.enum(["UPLOADING", "UPLOADED", "QUEUED", "PARSING", "OCR_REQUIRED", "INDEXING", "READY", "FAILED", "RECYCLED"], "文件状态不正确").optional(),
+  projectId: z.uuid("项目 ID 格式不正确").optional(),
+  createdFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "日期格式应为 YYYY-MM-DD").optional(),
+  createdTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "日期格式应为 YYYY-MM-DD").optional(),
+  sort: z.enum(["createdAt", "sizeBytes", "originalName"], "排序字段不正确").optional(),
+  includeRecycled: z.string().optional(),
+  page: z.coerce.number().int().positive().default(1),
+  pageSize: z.coerce.number().int().min(1).max(100, "每页最多 100 条").default(20)
+});
+
+/** 最近使用（FilePicker 默认页签） */
+export const fileRecentQuerySchema = z.object({
+  limit: z.coerce.number().int().positive().max(50, "最多返回 50 条").optional()
+});

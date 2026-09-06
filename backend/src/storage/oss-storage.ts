@@ -53,6 +53,15 @@ export class OssStorage implements ObjectStorage {
     });
   }
 
+  async createPreviewUrl(objectKey: string, expiresSeconds: number): Promise<string> {
+    return this.client.signatureUrl(objectKey, {
+      expires: expiresSeconds,
+      response: {
+        "content-disposition": "inline"
+      }
+    });
+  }
+
   async statObject(objectKey: string): Promise<StoredObjectInfo | null> {
     try {
       const result = await this.client.head(objectKey);
