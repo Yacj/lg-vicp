@@ -9,7 +9,7 @@ import type { Database } from "../../db/client.js";
 import { aiScenes, prompts, promptVersions } from "../../db/schema.js";
 import { AiError } from "../../shared/ai-errors.js";
 import type { AuthUser } from "../../shared/auth-user.js";
-import { resolveModelById, type ResolvedModelConfig } from "../ai-config/ai-config.service.js";
+import type { ResolvedModelConfig } from "../ai-config/ai-config.service.js";
 
 export type ReasoningMode = "OFF" | "ON";
 
@@ -88,6 +88,7 @@ export async function resolveSceneRuntime(
   sceneCode: string,
   reasoningMode: ReasoningMode
 ): Promise<SceneRuntime> {
+  const { resolveModelById } = await import("../ai-config/ai-config.service.js");
   const [scene] = await db.select().from(aiScenes)
     .where(and(eq(aiScenes.code, sceneCode), eq(aiScenes.enabled, true)))
     .limit(1);

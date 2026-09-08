@@ -1,7 +1,8 @@
 import fp from "fastify-plugin";
 import type { FastifyReply } from "fastify";
 import { ZodError } from "zod";
-import { AppError } from "../shared/errors.js";
+import { AppError, ConflictError } from "../shared/errors.js";
+import { uniqueViolationMessage } from "../shared/database-errors.js";
 import { fail } from "../shared/response.js";
 
 function sendBusinessError(reply: FastifyReply, requestId: string, statusCode: number, message: string, details?: unknown) {
@@ -26,7 +27,9 @@ export const errorHandlerPlugin = fp(async (app) => {
 
     const databaseError = error as { code?: string };
     if (databaseError.code === "23505") {
-      return sendBusinessError(reply, request.id, 409, "数据已存在，请勿重复提交");
+      const message = uniqueViolationMessage(error);
+      const conflict = new ConflictError(message);
+      return sendBusinessError(reply, request.id, conflict.statusCode, conflict.message);
     }
     if (databaseError.code === "23503") {
       return sendBusinessError(reply, request.id, 400, "关联的数据不存在或已失效");

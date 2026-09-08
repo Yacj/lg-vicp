@@ -29,9 +29,8 @@ async function findActiveProject(app: FastifyInstance, id: string) {
 }
 
 function projectResponse(user: ReturnType<typeof getCurrentUser>, project: typeof projects.$inferSelect) {
-  const { customerId: _legacyCustomerId, ...projectData } = project;
   return {
-    ...projectData,
+    ...project,
     canManage: canManageProject(user, project)
   };
 }

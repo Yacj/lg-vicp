@@ -59,12 +59,12 @@ export async function getRoleScopes(app: FastifyInstance, user: AuthUser) {
     roleCode: user.role,
     // 渠道账号未配置动态角色时，默认管理自身渠道及其下级渠道，
     // 使渠道归属的客户、项目和成员候选项保持一致。
-    dataScope: user.role === "SUPER_ADMIN" ? "ALL" as const : user.role === "CHANNEL_USER" ? "CHANNEL_AND_CHILDREN" as const : "SELF" as const
+    dataScope: user.role === "SUPER_ADMIN" ? "ALL" as const : "PROJECT_OWNER" as const
   }];
   const customRoleCodes = scopes.filter((scope) => scope.dataScope === "CUSTOM").map((scope) => scope.roleCode);
   if (customRoleCodes.length === 0) return scopes;
   const customRoles = await app.db.select({ roleId: roles.id, roleCode: roles.code, departmentId: roleDepartments.departmentId })
-    .from(roles).leftJoin(roleDepartments, eq(roleDepartments.roleId, roles.id)).where(inArray(roles.code, customRoleCodes));
+    .from(roles).leftJoin(roleDepartments, eq(roleDepartments.roleId, roles.id)).where(and(inArray(roles.code, customRoleCodes), eq(roles.enabled, true)));
   return scopes.map((scope) => ({ ...scope, departmentIds: customRoles.filter((row) => row.roleCode === scope.roleCode && row.departmentId).map((row) => row.departmentId) }));
 }
 

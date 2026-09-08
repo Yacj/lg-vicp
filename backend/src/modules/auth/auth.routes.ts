@@ -13,6 +13,7 @@ import { requireClient } from "../../shared/client-guard.js";
 import { getCurrentUser } from "../../shared/current-user.js";
 import { canCreateProjectFromClient } from "../../shared/permissions.js";
 import { BusinessError, ForbiddenError, ConflictError, NotFoundError, ServiceUnavailableError, TooManyRequestsError, UnauthorizedError } from "../../shared/errors.js";
+import { asConflictError } from "../../shared/database-errors.js";
 import { ok } from "../../shared/response.js";
 import { writeAuditLog } from "../audit-logs/audit-log.service.js";
 import { hashRefreshToken, issueTokenPair, rotateRefreshToken, signAccessToken } from "./auth.service.js";
@@ -20,6 +21,7 @@ import { CAPTCHA_TTL_SECONDS, createCaptcha, hashCaptcha, verifyCaptcha } from "
 import { createSmsProvider } from "./sms.service.js";
 import { createWechatAuthProvider } from "./wechat.service.js";
 import { getMenuTree, getPermissionCodes, getRoleCodes, getRoleScopes } from "../menus/menu.service.js";
+import { normalizeLoginIdentifier, normalizePhone } from "../../shared/login-identifier.js";
 
 const loginBodySchema = z.object({
   identifier: z.string().trim().min(1, "请输入用户名或手机号"),
@@ -79,6 +81,28 @@ function publicUser(account: Pick<Account, "userId" | "displayName" | "role" | "
     channelType: account.channelType,
     clientType
   };
+}
+
+async function enforcePasswordLoginRateLimit(
+  app: FastifyInstance,
+  request: Parameters<typeof getCurrentUser>[0],
+  namespace: string,
+  identifier: string,
+  clientType?: AuthClient,
+): Promise<void> {
+  const normalized = normalizeLoginIdentifier(identifier);
+  const clientPart = clientType ? `:${clientType}` : "";
+  const ipKey = `auth:${namespace}:login:ip${clientPart}:${request.ip}`;
+  const accountKey = `auth:${namespace}:login:identifier${clientPart}:${normalized}`;
+  const [ipAttempts, accountAttempts] = await Promise.all([
+    app.redis.incr(ipKey),
+    app.redis.incr(accountKey)
+  ]);
+  if (ipAttempts === 1) await app.redis.expire(ipKey, 300);
+  if (accountAttempts === 1) await app.redis.expire(accountKey, 300);
+  if (ipAttempts > 30 || accountAttempts > 10) {
+    throw new TooManyRequestsError("登录尝试过于频繁，请稍后再试");
+  }
 }
 
 async function findAccount(app: FastifyInstance, identifier: string, type?: "USERNAME" | "PHONE") {
@@ -191,14 +215,8 @@ export async function authRoutes(app: FastifyInstance) {
   route.post("/b/login", {
     schema: { tags: ["B端 / 认证"], summary: "B 端账号密码登录", body: bLoginBodySchema }
   }, async (request) => {
-    const loginIdentifier = request.body.identifier.trim().toLowerCase();
-    const ipRateKey = `auth:b:login:ip:${request.ip}`;
-    const accountRateKey = `auth:b:login:identifier:${loginIdentifier}`;
-    const ipAttempts = await app.redis.incr(ipRateKey);
-    const accountAttempts = await app.redis.incr(accountRateKey);
-    if (ipAttempts === 1) await app.redis.expire(ipRateKey, 300);
-    if (accountAttempts === 1) await app.redis.expire(accountRateKey, 300);
-    if (ipAttempts > 30 || accountAttempts > 10) throw new TooManyRequestsError("登录尝试过于频繁，请稍后再试");
+    const identifier = normalizeLoginIdentifier(request.body.identifier);
+    await enforcePasswordLoginRateLimit(app, request, "b", identifier);
     const captchaKey = `auth:captcha:${request.body.captchaUuid}`;
     const verifyKey = `auth:captcha:attempts:${request.body.captchaUuid}`;
     const validCaptcha = await verifyCaptcha(app.redis, captchaKey, request.body.captchaCode);
@@ -209,7 +227,6 @@ export async function authRoutes(app: FastifyInstance) {
       throw new BusinessError("验证码错误或已过期");
     }
     await app.redis.del(captchaKey, verifyKey);
-    const identifier = request.body.identifier.trim();
     const account = await findAccount(app, identifier);
     if (!account?.passwordHash || !(await argon2.verify(account.passwordHash, request.body.password))) {
       throw new BusinessError("用户名、手机号或密码错误");
@@ -258,7 +275,7 @@ export async function authRoutes(app: FastifyInstance) {
   route.post("/client/register/password", {
     schema: { tags: ["C端 / 认证", "PC AI端 / 认证"], summary: "客户端手机号密码注册", body: clientRegisterBodySchema }
   }, async (request) => {
-    const phone = request.body.phone.trim();
+    const phone = normalizePhone(request.body.phone);
     const ipKey = `auth:register:ip:${request.ip}`;
     const phoneKey = `auth:register:phone:${phone}`;
     const ipAttempts = await app.redis.incr(ipKey);
@@ -270,7 +287,9 @@ export async function authRoutes(app: FastifyInstance) {
     }
 
     const passwordHash = await argon2.hash(request.body.password, { type: argon2.argon2id });
-    const result = await app.db.transaction(async (tx) => {
+    let result;
+    try {
+      result = await app.db.transaction(async (tx) => {
       const [existing] = await tx.select({ id: users.id }).from(users).where(and(eq(users.phone, phone), isNull(users.deletedAt))).limit(1);
       if (existing) throw new ConflictError("手机号已注册，请直接登录");
 
@@ -296,7 +315,12 @@ export async function authRoutes(app: FastifyInstance) {
         verifiedAt: new Date()
       });
       return issueLogin(app, request, user, request.body.clientType, tx, "register");
-    });
+      });
+    } catch (error) {
+      const conflict = asConflictError(error, "手机号已注册，请直接登录");
+      if (conflict) throw conflict;
+      throw error;
+    }
 
     return ok(request, { message: "注册成功", ...result });
   });
@@ -304,6 +328,7 @@ export async function authRoutes(app: FastifyInstance) {
   route.post("/client/login/password", {
     schema: { tags: ["C端 / 认证", "PC AI端 / 认证"], summary: "客户端手机号密码登录", body: clientPasswordLoginBodySchema }
   }, async (request) => {
+    await enforcePasswordLoginRateLimit(app, request, "client", request.body.phone, request.body.clientType);
     const account = await findPhoneAccount(app, request.body.phone);
     if (!account?.passwordHash || !(await argon2.verify(account.passwordHash, request.body.password))) {
       throw new BusinessError("手机号或密码错误");
@@ -327,7 +352,8 @@ export async function authRoutes(app: FastifyInstance) {
       body: loginBodySchema
     }
   }, async (request) => {
-    const identifier = request.body.identifier.trim();
+    const identifier = normalizeLoginIdentifier(request.body.identifier);
+    await enforcePasswordLoginRateLimit(app, request, "common", identifier);
     const account = await findAccount(app, identifier);
 
     if (!account?.passwordHash || !(await argon2.verify(account.passwordHash, request.body.password))) {
@@ -348,22 +374,34 @@ export async function authRoutes(app: FastifyInstance) {
   route.post("/logout", {
     schema: { tags: ["共用 / 认证"], summary: "退出登录", body: refreshBodySchema }
   }, async (request) => {
-    const [stored] = await app.db.select({ userId: refreshTokens.userId, clientType: refreshTokens.clientType }).from(refreshTokens).where(and(
-      eq(refreshTokens.tokenHash, hashRefreshToken(request.body.refreshToken)),
-      isNull(refreshTokens.revokedAt)
-    )).limit(1);
-    await app.db.update(refreshTokens).set({ revokedAt: new Date() }).where(and(
-      eq(refreshTokens.tokenHash, hashRefreshToken(request.body.refreshToken)), isNull(refreshTokens.revokedAt)
-    ));
-    if (stored) {
-      const [user] = await app.db.select({ id: users.id, role: users.role, channelType: users.channelType })
-        .from(users).where(eq(users.id, stored.userId)).limit(1);
+    const tokenHash = hashRefreshToken(request.body.refreshToken);
+    let stored: { userId: string; clientType: AuthClient; accessJti: string | null; expiresAt: Date } | undefined;
+    let revoked = false;
+    await app.db.transaction(async (tx) => {
+      const [row] = await tx.select({
+        userId: refreshTokens.userId,
+        clientType: refreshTokens.clientType,
+        accessJti: refreshTokens.accessJti,
+        expiresAt: refreshTokens.expiresAt
+      }).from(refreshTokens).where(and(eq(refreshTokens.tokenHash, tokenHash), isNull(refreshTokens.revokedAt))).limit(1);
+      if (!row) return;
+      stored = row;
+      const [updated] = await tx.update(refreshTokens).set({ revokedAt: new Date() }).where(and(eq(refreshTokens.tokenHash, tokenHash), isNull(refreshTokens.revokedAt))).returning({ id: refreshTokens.id });
+      revoked = Boolean(updated);
+      if (!revoked) return;
+      const [user] = await tx.select({ id: users.id, role: users.role, channelType: users.channelType })
+        .from(users).where(eq(users.id, row.userId)).limit(1);
       if (user) {
         await writeAuditLog({
-          db: app.db, request, actor: { ...user, clientType: stored.clientType },
-          action: AUDIT_ACTIONS.AUTH_LOGOUT, targetType: "user", targetId: user.id
+          db: tx, request, actor: { ...user, clientType: row.clientType },
+          action: AUDIT_ACTIONS.AUTH_LOGOUT, targetType: "user", targetId: user.id,
+          afterJson: { refreshTokenRevoked: true }
         });
       }
+    });
+    if (stored && revoked && stored.accessJti) {
+      const ttl = Math.max(1, Math.ceil((stored.expiresAt.getTime() - Date.now()) / 1000));
+      await app.redis.set(`auth:access:blacklist:${stored.accessJti}`, "1", "EX", ttl);
     }
     return ok(request, { message: "已安全退出登录" });
   });

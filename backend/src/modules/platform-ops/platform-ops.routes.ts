@@ -9,6 +9,7 @@ import { getPagination, paginationQuerySchema } from "../../shared/pagination.js
 import { NotFoundError, ForbiddenError } from "../../shared/errors.js";
 import { ok } from "../../shared/response.js";
 import { AUDIT_ACTIONS } from "../../shared/constants.js";
+import { assertCanModifyRoleDefinition, assertDataScopeWithinActor, assertDepartmentIdsWithinActor, assertDepartmentParentChange, getDepartmentIdsWithinActor, assertPermissionIdsWithinActor } from "../../shared/rbac-guard.js";
 import { writeAuditLog } from "../audit-logs/audit-log.service.js";
 
 const idParams = z.object({ id: z.uuid("ID 格式不正确") });
@@ -16,7 +17,7 @@ const idsBody = z.object({ ids: z.array(z.uuid()).max(1000) });
 const statusBody = z.object({ enabled: z.boolean() });
 const postBody = z.object({ name: z.string().trim().min(1, "请输入岗位名称").max(120), code: z.string().trim().regex(/^[a-z][a-z0-9_.-]{1,79}$/, "岗位编码格式不正确"), sortOrder: z.number().int().default(0), enabled: z.boolean().default(true), remark: z.string().max(1000).nullable().optional() });
 const deptBody = z.object({ parentId: z.uuid("上级部门 ID 格式不正确").nullable().optional(), code: z.string().trim().min(2).max(80), name: z.string().trim().min(1, "请输入部门名称").max(120), leader: z.string().max(120).nullable().optional(), phone: z.string().max(32).nullable().optional(), email: z.string().email("邮箱格式不正确").max(255).nullable().optional(), sortOrder: z.number().int().default(0), enabled: z.boolean().default(true) });
-const rolePatch = z.object({ name: z.string().trim().min(1).max(120).optional(), description: z.string().max(1000).nullable().optional(), dataScope: z.enum(["ALL", "DEPT", "DEPT_AND_CHILDREN", "SELF", "CUSTOM", "PROJECT_OWNER", "CHANNEL", "CHANNEL_AND_CHILDREN"]).optional(), enabled: z.boolean().optional(), permissionIds: z.array(z.uuid("权限 ID 格式不正确")).max(500).optional() }).refine((v) => Object.keys(v).length > 0, "至少需要修改一个字段");
+const rolePatch = z.object({ name: z.string().trim().min(1).max(120).optional(), description: z.string().max(1000).nullable().optional(), dataScope: z.enum(["ALL", "DEPT", "DEPT_AND_CHILDREN", "SELF", "CUSTOM", "PROJECT_OWNER"]).optional(), enabled: z.boolean().optional(), permissionIds: z.array(z.uuid("权限 ID 格式不正确")).max(500).optional() }).refine((v) => Object.keys(v).length > 0, "至少需要修改一个字段");
 const dictPatch = z.object({ name: z.string().trim().min(1).max(120).optional(), description: z.string().max(1000).nullable().optional(), enabled: z.boolean().optional() }).refine((v) => Object.keys(v).length > 0, "至少需要修改一个字段");
 const itemBody = z.object({ value: z.string().trim().min(1).max(120), label: z.string().trim().min(1).max(120), sortOrder: z.number().int().default(0), enabled: z.boolean().default(true), metadata: z.record(z.string(), z.unknown()).optional() });
 const cronBody = z.object({ name: z.string().trim().min(1).max(120), jobType: z.enum(["maintenance", "document_cleanup", "audit_cleanup", "standard_crawl"]), cronExpression: z.string().trim().min(5).max(120), queueName: z.enum(["maintenance"]), payload: z.record(z.string(), z.unknown()).optional(), status: z.enum(["PAUSED", "RUNNING", "DISABLED"]).default("PAUSED") });
@@ -37,38 +38,62 @@ export async function platformOpsRoutes(app: FastifyInstance) {
   });
   route.post("/posts", { preHandler: [app.authenticate], schema: { tags: ["B端 / 平台 / 岗位管理"], summary: "创建岗位", body: postBody } }, async (request) => {
     const actor = await assertPermission(request, "system:post:add");
-    const [post] = await app.db.insert(posts).values(request.body).returning();
-    await writeAuditLog({ db: app.db, request, actor, action: AUDIT_ACTIONS.POST_CREATED, targetType: "post", targetId: post!.id, afterJson: post });
+    const [post] = await app.db.transaction(async (tx) => {
+      const [created] = await tx.insert(posts).values(request.body).returning();
+      await writeAuditLog({ db: tx, request, actor, action: AUDIT_ACTIONS.POST_CREATED, targetType: "post", targetId: created!.id, afterJson: created });
+      return [created] as const;
+    });
     return ok(request, { message: "岗位创建成功", post });
   });
   route.patch("/posts/:id", { preHandler: [app.authenticate], schema: { tags: ["B端 / 平台 / 岗位管理"], summary: "修改岗位", params: idParams, body: postBody.partial() } }, async (request) => {
     const actor = await assertPermission(request, "system:post:edit");
-    const [before] = await app.db.select().from(posts).where(eq(posts.id, request.params.id)).limit(1); if (!before) throw new NotFoundError("岗位不存在");
-    const [post] = await app.db.update(posts).set({ ...request.body, updatedAt: new Date() }).where(eq(posts.id, before.id)).returning();
-    await writeAuditLog({ db: app.db, request, actor, action: AUDIT_ACTIONS.POST_UPDATED, targetType: "post", targetId: before.id, beforeJson: before, afterJson: post });
+    const [before] = await app.db.select().from(posts).where(eq(posts.id, request.params.id)).limit(1);
+    if (!before) throw new NotFoundError("岗位不存在");
+    const [post] = await app.db.transaction(async (tx) => {
+      const [updated] = await tx.update(posts).set({ ...request.body, updatedAt: new Date() }).where(eq(posts.id, before.id)).returning();
+      if (!updated) throw new NotFoundError("岗位不存在");
+      await writeAuditLog({ db: tx, request, actor, action: AUDIT_ACTIONS.POST_UPDATED, targetType: "post", targetId: before.id, beforeJson: before, afterJson: updated });
+      return [updated] as const;
+    });
     return ok(request, { message: "岗位修改成功", post });
   });
   route.patch("/posts/:id/status", { preHandler: [app.authenticate], schema: { tags: ["B端 / 平台 / 岗位管理"], summary: "修改岗位状态", params: idParams, body: statusBody } }, async (request) => {
     const actor = await assertPermission(request, "system:post:edit");
-    const [post] = await app.db.update(posts).set({ enabled: request.body.enabled, updatedAt: new Date() }).where(eq(posts.id, request.params.id)).returning(); if (!post) throw new NotFoundError("岗位不存在");
-    await writeAuditLog({ db: app.db, request, actor, action: AUDIT_ACTIONS.POST_STATUS_CHANGED, targetType: "post", targetId: post.id, afterJson: { enabled: post.enabled } }); return ok(request, { message: "岗位状态修改成功", post });
+    const [before] = await app.db.select().from(posts).where(eq(posts.id, request.params.id)).limit(1);
+    if (!before) throw new NotFoundError("岗位不存在");
+    const [post] = await app.db.transaction(async (tx) => {
+      const [updated] = await tx.update(posts).set({ enabled: request.body.enabled, updatedAt: new Date() }).where(eq(posts.id, before.id)).returning();
+      if (!updated) throw new NotFoundError("岗位不存在");
+      await writeAuditLog({ db: tx, request, actor, action: AUDIT_ACTIONS.POST_STATUS_CHANGED, targetType: "post", targetId: updated.id, beforeJson: { enabled: before.enabled }, afterJson: { enabled: updated.enabled } });
+      return [updated] as const;
+    });
+    return ok(request, { message: "岗位状态修改成功", post });
   });
   route.delete("/posts/:id", { preHandler: [app.authenticate], schema: { tags: ["B端 / 平台 / 岗位管理"], summary: "删除岗位", params: idParams } }, async (request) => {
     const actor = await assertPermission(request, "system:post:remove");
-    const [post] = await app.db.delete(posts).where(eq(posts.id, request.params.id)).returning(); if (!post) throw new NotFoundError("岗位不存在");
-    await writeAuditLog({ db: app.db, request, actor, action: AUDIT_ACTIONS.POST_DELETED, targetType: "post", targetId: post.id, beforeJson: post }); return ok(request, { message: "岗位删除成功" });
+    const [before] = await app.db.select().from(posts).where(eq(posts.id, request.params.id)).limit(1);
+    if (!before) throw new NotFoundError("岗位不存在");
+    await app.db.transaction(async (tx) => {
+      const [deleted] = await tx.delete(posts).where(eq(posts.id, before.id)).returning();
+      if (!deleted) throw new NotFoundError("岗位不存在");
+      await writeAuditLog({ db: tx, request, actor, action: AUDIT_ACTIONS.POST_DELETED, targetType: "post", targetId: deleted.id, beforeJson: deleted });
+    });
+    return ok(request, { message: "岗位删除成功" });
   });
 
   route.patch("/roles/:id", { preHandler: [app.authenticate], schema: { tags: ["B端 / 平台 / 角色权限"], summary: "修改角色及权限", params: idParams, body: rolePatch } }, async (request) => {
     const actor = await assertPermission(request, "system:role:edit");
     const [before] = await app.db.select().from(roles).where(eq(roles.id, request.params.id)).limit(1);
     if (!before) throw new NotFoundError("角色不存在");
+    assertCanModifyRoleDefinition(actor, before.code);
+    await assertDataScopeWithinActor(app, actor, request.body.dataScope ?? before.dataScope);
     const { permissionIds, ...roleValues } = request.body;
     const uniquePermissionIds = permissionIds === undefined ? undefined : [...new Set(permissionIds)];
     if (uniquePermissionIds !== undefined) {
       await assertPermission(request, "system:role:permission");
       const existing = uniquePermissionIds.length === 0 ? [] : await app.db.select({ id: permissions.id }).from(permissions).where(inArray(permissions.id, uniquePermissionIds));
       if (existing.length !== uniquePermissionIds.length) throw new NotFoundError("部分权限不存在");
+      await assertPermissionIdsWithinActor(app, actor, uniquePermissionIds);
     }
     const role = await app.db.transaction(async (tx) => {
       const [updated] = await tx.update(roles).set({ ...roleValues, updatedAt: new Date() }).where(eq(roles.id, before.id)).returning();
@@ -84,17 +109,48 @@ export async function platformOpsRoutes(app: FastifyInstance) {
     return ok(request, { message: "角色及权限修改成功", role });
   });
   route.patch("/roles/:id/status", { preHandler: [app.authenticate], schema: { tags: ["B端 / 平台 / 角色权限"], summary: "修改角色状态", params: idParams, body: statusBody } }, async (request) => {
-    const actor = await assertPermission(request, "system:role:edit"); const [role] = await app.db.update(roles).set({ enabled: request.body.enabled, updatedAt: new Date() }).where(eq(roles.id, request.params.id)).returning(); if (!role) throw new NotFoundError("角色不存在"); await writeAuditLog({ db: app.db, request, actor, action: AUDIT_ACTIONS.RBAC_ROLE_STATUS_CHANGED, targetType: "role", targetId: role.id, afterJson: { enabled: role.enabled } }); return ok(request, { message: "角色状态修改成功", role });
+    const actor = await assertPermission(request, "system:role:edit");
+    const [role] = await app.db.select().from(roles).where(eq(roles.id, request.params.id)).limit(1);
+    if (!role) throw new NotFoundError("角色不存在");
+    assertCanModifyRoleDefinition(actor, role.code);
+    const [updated] = await app.db.transaction(async (tx) => {
+      const [row] = await tx.update(roles).set({ enabled: request.body.enabled, updatedAt: new Date() }).where(eq(roles.id, role.id)).returning();
+      if (!row) throw new NotFoundError("角色不存在");
+      await writeAuditLog({ db: tx, request, actor, action: AUDIT_ACTIONS.RBAC_ROLE_STATUS_CHANGED, targetType: "role", targetId: row.id, beforeJson: { enabled: role.enabled }, afterJson: { enabled: row.enabled } });
+      return [row] as const;
+    });
+    return ok(request, { message: "角色状态修改成功", role: updated });
   });
   route.delete("/roles/:id", { preHandler: [app.authenticate], schema: { tags: ["B端 / 平台 / 角色权限"], summary: "删除角色", params: idParams } }, async (request) => {
-    const actor = await assertPermission(request, "system:role:remove"); const [role] = await app.db.delete(roles).where(eq(roles.id, request.params.id)).returning(); if (!role) throw new NotFoundError("角色不存在"); await writeAuditLog({ db: app.db, request, actor, action: AUDIT_ACTIONS.RBAC_ROLE_DELETED, targetType: "role", targetId: role.id, beforeJson: role }); return ok(request, { message: "角色删除成功" });
+    const actor = await assertPermission(request, "system:role:remove");
+    const [role] = await app.db.select().from(roles).where(eq(roles.id, request.params.id)).limit(1);
+    if (!role) throw new NotFoundError("角色不存在");
+    assertCanModifyRoleDefinition(actor, role.code);
+    await app.db.transaction(async (tx) => {
+      const [deleted] = await tx.delete(roles).where(eq(roles.id, role.id)).returning();
+      if (!deleted) throw new NotFoundError("角色不存在");
+      await writeAuditLog({ db: tx, request, actor, action: AUDIT_ACTIONS.RBAC_ROLE_DELETED, targetType: "role", targetId: deleted.id, beforeJson: deleted });
+    });
+    return ok(request, { message: "角色删除成功" });
   });
   route.get("/roles/export", { preHandler: [app.authenticate], schema: { tags: ["B端 / 平台 / 角色权限"], summary: "导出角色 CSV" } }, async (request, reply) => {
     await assertPermission(request, "system:role:export"); const rows = await app.db.select().from(roles).orderBy(asc(roles.code)); const csv = ["角色名称,权限字符,数据权限,状态,描述", ...rows.map((row) => [row.name, row.code, row.dataScope, row.enabled ? "启用" : "停用", row.description ?? ""].map((value) => { const text = String(value); return /[",\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text; }).join(","))].join("\n"); return reply.type("text/csv; charset=utf-8").send(`\uFEFF${csv}`);
   });
   route.put("/roles/:id/departments", { preHandler: [app.authenticate], schema: { tags: ["B端 / 平台 / 角色权限"], summary: "设置角色数据部门范围", params: idParams, body: idsBody } }, async (request) => {
-    const actor = await assertPermission(request, "system:role:data-scope"); const [role] = await app.db.select().from(roles).where(eq(roles.id, request.params.id)).limit(1); if (!role) throw new NotFoundError("角色不存在");
-    await app.db.transaction(async (tx) => { await tx.delete(roleDepartments).where(eq(roleDepartments.roleId, role.id)); if (request.body.ids.length) await tx.insert(roleDepartments).values(request.body.ids.map((departmentId) => ({ roleId: role.id, departmentId }))); await writeAuditLog({ db: tx, request, actor, action: AUDIT_ACTIONS.RBAC_ROLE_DATA_SCOPE_CHANGED, targetType: "role", targetId: role.id, afterJson: { departmentIds: request.body.ids } }); }); return ok(request, { message: "角色数据权限设置成功" });
+    const actor = await assertPermission(request, "system:role:data-scope");
+    const [role] = await app.db.select().from(roles).where(eq(roles.id, request.params.id)).limit(1);
+    if (!role) throw new NotFoundError("角色不存在");
+    assertCanModifyRoleDefinition(actor, role.code);
+    if (role.dataScope !== "CUSTOM") throw new ForbiddenError("只有 CUSTOM 数据范围的角色可以设置部门集合");
+    const departmentIds = [...new Set(request.body.ids)];
+    await assertDepartmentIdsWithinActor(app, actor, departmentIds);
+    await app.db.transaction(async (tx) => {
+      const before = await tx.select({ departmentId: roleDepartments.departmentId }).from(roleDepartments).where(eq(roleDepartments.roleId, role.id));
+      await tx.delete(roleDepartments).where(eq(roleDepartments.roleId, role.id));
+      if (departmentIds.length) await tx.insert(roleDepartments).values(departmentIds.map((departmentId) => ({ roleId: role.id, departmentId })));
+      await writeAuditLog({ db: tx, request, actor, action: AUDIT_ACTIONS.RBAC_ROLE_DATA_SCOPE_CHANGED, targetType: "role", targetId: role.id, beforeJson: { departmentIds: before.map((item) => item.departmentId) }, afterJson: { departmentIds } });
+    });
+    return ok(request, { message: "角色数据权限设置成功" });
   });
   route.get("/roles/:id/departments", { preHandler: [app.authenticate], schema: { tags: ["B端 / 平台 / 角色权限"], summary: "获取角色数据部门范围", params: idParams } }, async (request) => {
     await assertPermission(request, "system:role:list"); const [role] = await app.db.select({ id: roles.id }).from(roles).where(eq(roles.id, request.params.id)).limit(1); if (!role) throw new NotFoundError("角色不存在");
@@ -112,13 +168,49 @@ export async function platformOpsRoutes(app: FastifyInstance) {
   });
 
   route.get("/departments/tree", { preHandler: [app.authenticate], schema: { tags: ["B端 / 平台 / 部门管理"], summary: "获取部门树" } }, async (request) => {
-    await assertPermission(request, "system:dept:list"); const rows = await app.db.select().from(departments).where(isNull(departments.deletedAt)).orderBy(asc(departments.sortOrder), asc(departments.name)); const map = new Map<string | null, any[]>(); for (const row of rows) { const list = map.get(row.parentId) ?? []; list.push({ ...row, children: [] }); map.set(row.parentId, list); } const attach = (items: any[]): any[] => items.map((item) => ({ ...item, children: attach(map.get(item.id) ?? []) })); return ok(request, { items: attach(map.get(null) ?? []) });
+    const actor = await assertPermission(request, "system:dept:list"); const rows = await app.db.select().from(departments).where(isNull(departments.deletedAt)).orderBy(asc(departments.sortOrder), asc(departments.name)); const allowed = await getDepartmentIdsWithinActor(app, actor); const visibleRows = allowed === null ? rows : rows.filter((row) => allowed.has(row.id)); const map = new Map<string | null, any[]>(); for (const row of visibleRows) { const list = map.get(row.parentId) ?? []; list.push({ ...row, children: [] }); map.set(row.parentId, list); } const attach = (items: any[]): any[] => items.map((item) => ({ ...item, children: attach(map.get(item.id) ?? []) })); return ok(request, { items: attach(map.get(null) ?? []) });
   });
   route.patch("/departments/:id", { preHandler: [app.authenticate], schema: { tags: ["B端 / 平台 / 部门管理"], summary: "修改部门", params: idParams, body: deptBody.partial() } }, async (request) => {
-    const actor = await assertPermission(request, "system:dept:edit"); const [before] = await app.db.select().from(departments).where(eq(departments.id, request.params.id)).limit(1); if (!before) throw new NotFoundError("部门不存在"); if (request.body.parentId === before.id) throw new ForbiddenError("部门上级不能是自身"); const [department] = await app.db.update(departments).set({ ...request.body, updatedAt: new Date() }).where(eq(departments.id, before.id)).returning(); await writeAuditLog({ db: app.db, request, actor, action: AUDIT_ACTIONS.DEPARTMENT_UPDATED, targetType: "department", targetId: before.id, beforeJson: before, afterJson: department }); return ok(request, { message: "部门修改成功", department });
+    const actor = await assertPermission(request, "system:dept:edit");
+    const [before] = await app.db.select().from(departments).where(eq(departments.id, request.params.id)).limit(1);
+    if (!before || before.deletedAt) throw new NotFoundError("部门不存在");
+    await assertDepartmentParentChange(app, actor, before.id, request.body.parentId === undefined ? before.parentId : request.body.parentId);
+    const [department] = await app.db.transaction(async (tx) => {
+      const [updated] = await tx.update(departments).set({ ...request.body, updatedAt: new Date() }).where(eq(departments.id, before.id)).returning();
+      if (!updated) throw new NotFoundError("部门不存在");
+      await writeAuditLog({ db: tx, request, actor, action: AUDIT_ACTIONS.DEPARTMENT_UPDATED, targetType: "department", targetId: before.id, beforeJson: before, afterJson: updated });
+      return [updated] as const;
+    });
+    return ok(request, { message: "部门修改成功", department });
   });
-  route.patch("/departments/:id/status", { preHandler: [app.authenticate], schema: { tags: ["B端 / 平台 / 部门管理"], summary: "修改部门状态", params: idParams, body: statusBody } }, async (request) => { const actor = await assertPermission(request, "system:dept:edit"); const [department] = await app.db.update(departments).set({ enabled: request.body.enabled, updatedAt: new Date() }).where(eq(departments.id, request.params.id)).returning(); if (!department) throw new NotFoundError("部门不存在"); await writeAuditLog({ db: app.db, request, actor, action: AUDIT_ACTIONS.DEPARTMENT_STATUS_CHANGED, targetType: "department", targetId: department.id, afterJson: { enabled: department.enabled } }); return ok(request, { message: "部门状态修改成功", department }); });
-  route.delete("/departments/:id", { preHandler: [app.authenticate], schema: { tags: ["B端 / 平台 / 部门管理"], summary: "删除部门", params: idParams } }, async (request) => { const actor = await assertPermission(request, "system:dept:remove"); const [child] = await app.db.select({ id: departments.id }).from(departments).where(and(eq(departments.parentId, request.params.id), isNull(departments.deletedAt))).limit(1); const [member] = await app.db.select({ userId: userDepartments.userId }).from(userDepartments).where(eq(userDepartments.departmentId, request.params.id)).limit(1); if (child || member) throw new ForbiddenError("部门存在下级部门或用户，请先迁移后再删除"); const [department] = await app.db.update(departments).set({ deletedAt: new Date(), enabled: false, updatedAt: new Date() }).where(eq(departments.id, request.params.id)).returning(); if (!department) throw new NotFoundError("部门不存在"); await writeAuditLog({ db: app.db, request, actor, action: AUDIT_ACTIONS.DEPARTMENT_DELETED, targetType: "department", targetId: department.id, beforeJson: department }); return ok(request, { message: "部门删除成功" }); });
+  route.patch("/departments/:id/status", { preHandler: [app.authenticate], schema: { tags: ["B端 / 平台 / 部门管理"], summary: "修改部门状态", params: idParams, body: statusBody } }, async (request) => {
+    const actor = await assertPermission(request, "system:dept:edit");
+    const [before] = await app.db.select().from(departments).where(and(eq(departments.id, request.params.id), isNull(departments.deletedAt))).limit(1);
+    if (!before) throw new NotFoundError("部门不存在");
+    await assertDepartmentParentChange(app, actor, before.id, before.parentId);
+    const [department] = await app.db.transaction(async (tx) => {
+      const [updated] = await tx.update(departments).set({ enabled: request.body.enabled, updatedAt: new Date() }).where(eq(departments.id, before.id)).returning();
+      if (!updated) throw new NotFoundError("部门不存在");
+      await writeAuditLog({ db: tx, request, actor, action: AUDIT_ACTIONS.DEPARTMENT_STATUS_CHANGED, targetType: "department", targetId: updated.id, beforeJson: { enabled: before.enabled }, afterJson: { enabled: updated.enabled } });
+      return [updated] as const;
+    });
+    return ok(request, { message: "部门状态修改成功", department });
+  });
+  route.delete("/departments/:id", { preHandler: [app.authenticate], schema: { tags: ["B端 / 平台 / 部门管理"], summary: "删除部门", params: idParams } }, async (request) => {
+    const actor = await assertPermission(request, "system:dept:remove");
+    const [department] = await app.db.select().from(departments).where(and(eq(departments.id, request.params.id), isNull(departments.deletedAt))).limit(1);
+    if (!department) throw new NotFoundError("部门不存在");
+    await assertDepartmentParentChange(app, actor, department.id, department.parentId);
+    const [child] = await app.db.select({ id: departments.id }).from(departments).where(and(eq(departments.parentId, department.id), isNull(departments.deletedAt))).limit(1);
+    const [member] = await app.db.select({ userId: userDepartments.userId }).from(userDepartments).where(eq(userDepartments.departmentId, department.id)).limit(1);
+    if (child || member) throw new ForbiddenError("部门存在下级部门或用户，请先迁移后再删除");
+    await app.db.transaction(async (tx) => {
+      const [deleted] = await tx.update(departments).set({ deletedAt: new Date(), enabled: false, updatedAt: new Date() }).where(eq(departments.id, department.id)).returning();
+      if (!deleted) throw new NotFoundError("部门不存在");
+      await writeAuditLog({ db: tx, request, actor, action: AUDIT_ACTIONS.DEPARTMENT_DELETED, targetType: "department", targetId: deleted.id, beforeJson: department, afterJson: { deletedAt: deleted.deletedAt, enabled: deleted.enabled } });
+    });
+    return ok(request, { message: "部门删除成功" });
+  });
 
   route.patch("/dictionaries/:id", { preHandler: [app.authenticate], schema: { tags: ["字典管理"], summary: "修改字典", params: idParams, body: dictPatch } }, async (request) => { const actor = await assertPermission(request, "system:dict:edit"); const [before] = await app.db.select().from(dictionaries).where(eq(dictionaries.id, request.params.id)).limit(1); if (!before) throw new NotFoundError("字典不存在"); const [dictionary] = await app.db.update(dictionaries).set({ ...request.body, updatedAt: new Date() }).where(eq(dictionaries.id, before.id)).returning(); await app.redis.del(`dict:${before.code}`); await writeAuditLog({ db: app.db, request, actor, action: AUDIT_ACTIONS.DICTIONARY_UPDATED, targetType: "dictionary", targetId: before.id, beforeJson: before, afterJson: dictionary }); return ok(request, { message: "字典修改成功", dictionary }); });
   route.delete("/dictionaries/:id", { preHandler: [app.authenticate], schema: { tags: ["字典管理"], summary: "删除字典", params: idParams } }, async (request) => { const actor = await assertPermission(request, "system:dict:remove"); const [dictionary] = await app.db.delete(dictionaries).where(eq(dictionaries.id, request.params.id)).returning(); if (!dictionary) throw new NotFoundError("字典不存在"); await app.redis.del(`dict:${dictionary.code}`); await writeAuditLog({ db: app.db, request, actor, action: AUDIT_ACTIONS.DICTIONARY_DELETED, targetType: "dictionary", targetId: dictionary.id, beforeJson: dictionary }); return ok(request, { message: "字典删除成功" }); });

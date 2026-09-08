@@ -18,6 +18,7 @@ import { assertPermission } from "../../shared/permission-guard.js";
 import { getCurrentUser } from "../../shared/current-user.js";
 import { ForbiddenError, NotFoundError } from "../../shared/errors.js";
 import { ok } from "../../shared/response.js";
+import { assertCanModifyRoleDefinition, assertDataScopeWithinActor, assertDepartmentInActorScope, getDepartmentIdsWithinActor, assertPermissionCodesWithinActor, assertPermissionIdsWithinActor, assertRoleIdsAssignable } from "../../shared/rbac-guard.js";
 import { writeAuditLog } from "../audit-logs/audit-log.service.js";
 
 const idParamsSchema = z.object({ id: z.uuid("ID 格式不正确") });
@@ -25,7 +26,7 @@ const roleBodySchema = z.object({
   code: z.string().trim().regex(/^[a-z][a-z0-9_.-]{2,79}$/, "角色编码格式不正确"),
   name: z.string().trim().min(1, "请输入角色名称").max(120),
   description: z.string().max(1000).optional(),
-  dataScope: z.enum(["ALL", "DEPT", "DEPT_AND_CHILDREN", "SELF", "CUSTOM", "PROJECT_OWNER", "CHANNEL", "CHANNEL_AND_CHILDREN"]).default("SELF"),
+  dataScope: z.enum(["ALL", "DEPT", "DEPT_AND_CHILDREN", "SELF", "CUSTOM", "PROJECT_OWNER"]).default("SELF"),
   enabled: z.boolean().default(true),
   permissionIds: z.array(z.uuid("权限 ID 格式不正确")).max(500).optional()
 });
@@ -174,7 +175,10 @@ export async function systemManagementRoutes(app: FastifyInstance) {
   }, async (request) => {
     const actor = await requireAdmin(request, "system:role:add");
     const { permissionIds, ...roleValues } = request.body;
+    assertCanModifyRoleDefinition(actor, roleValues.code);
+    await assertDataScopeWithinActor(app, actor, roleValues.dataScope);
     const uniquePermissionIds = permissionIds ? await ensurePermissionsExist(app, permissionIds) : [];
+    await assertPermissionIdsWithinActor(app, actor, uniquePermissionIds);
     const [role] = await app.db.transaction(async (tx) => {
       const [created] = await tx.insert(roles).values(roleValues).returning();
       if (uniquePermissionIds.length > 0) {
@@ -225,7 +229,10 @@ export async function systemManagementRoutes(app: FastifyInstance) {
     const actor = await requireAdmin(request, "system:role:permission");
     const [role] = await app.db.select().from(roles).where(eq(roles.id, request.params.id)).limit(1);
     if (!role) throw new NotFoundError("角色不存在");
+    assertCanModifyRoleDefinition(actor, role.code);
+    await assertDataScopeWithinActor(app, actor, role.dataScope);
     const uniqueIds = await ensurePermissionsExist(app, request.body.permissionIds);
+    await assertPermissionIdsWithinActor(app, actor, uniqueIds);
     await app.db.transaction(async (tx) => {
       const before = await tx.select({ permissionId: rolePermissions.permissionId }).from(rolePermissions)
         .where(eq(rolePermissions.roleId, role.id));
@@ -248,9 +255,10 @@ export async function systemManagementRoutes(app: FastifyInstance) {
     if (actor.accessibleUserIds !== null && actor.id !== request.params.id && !actor.accessibleUserIds?.includes(request.params.id)) {
       throw new ForbiddenError("无权操作该范围外的用户");
     }
-    const [user] = await app.db.select({ id: users.id }).from(users).where(and(eq(users.id, request.params.id), isNull(users.deletedAt))).limit(1);
+    const [user] = await app.db.select({ id: users.id, role: users.role }).from(users).where(and(eq(users.id, request.params.id), isNull(users.deletedAt))).limit(1);
     if (!user) throw new NotFoundError("用户不存在");
     const uniqueIds = [...new Set(request.body.roleIds)];
+    await assertRoleIdsAssignable(app, actor, uniqueIds, user.role);
     if (uniqueIds.length > 0) {
       const existing = await app.db.select({ id: roles.id }).from(roles).where(inArray(roles.id, uniqueIds));
       if (existing.length !== uniqueIds.length) throw new NotFoundError("部分角色不存在");
@@ -271,8 +279,10 @@ export async function systemManagementRoutes(app: FastifyInstance) {
   route.get("/departments", {
     preHandler: [app.authenticate], schema: { tags: ["B端 / 平台 / 部门管理"], summary: "获取部门列表" }
   }, async (request) => {
-    await requireAdmin(request, "system:dept:list");
-    return ok(request, { items: await app.db.select().from(departments).orderBy(asc(departments.sortOrder), asc(departments.name)) });
+    const actor = await requireAdmin(request, "system:dept:list");
+    const rows = await app.db.select().from(departments).where(isNull(departments.deletedAt)).orderBy(asc(departments.sortOrder), asc(departments.name));
+    const allowed = await getDepartmentIdsWithinActor(app, actor);
+    return ok(request, { items: allowed === null ? rows : rows.filter((row) => allowed.has(row.id)) });
   });
 
   route.post("/departments", {
@@ -280,11 +290,15 @@ export async function systemManagementRoutes(app: FastifyInstance) {
   }, async (request) => {
     const actor = await requireAdmin(request, "system:dept:add");
     if (request.body.parentId) {
-      const [parent] = await app.db.select({ id: departments.id }).from(departments).where(eq(departments.id, request.body.parentId)).limit(1);
-      if (!parent) throw new NotFoundError("上级部门不存在");
+      const [parent] = await app.db.select({ id: departments.id }).from(departments).where(and(eq(departments.id, request.body.parentId), isNull(departments.deletedAt))).limit(1);
+      if (!parent) throw new NotFoundError("上级部门不存在或已删除");
+      await assertDepartmentInActorScope(app, actor, parent.id);
     }
-    const [department] = await app.db.insert(departments).values(request.body).returning();
-    await writeAuditLog({ db: app.db, request, actor, action: AUDIT_ACTIONS.DEPARTMENT_CREATED, targetType: "department", targetId: department!.id, afterJson: department });
+    const [department] = await app.db.transaction(async (tx) => {
+      const [created] = await tx.insert(departments).values(request.body).returning();
+      await writeAuditLog({ db: tx, request, actor, action: AUDIT_ACTIONS.DEPARTMENT_CREATED, targetType: "department", targetId: created!.id, afterJson: created });
+      return [created] as const;
+    });
     return ok(request, { message: "部门创建成功", department });
   });
 

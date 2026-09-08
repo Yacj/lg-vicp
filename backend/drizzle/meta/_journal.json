@@ -225,6 +225,13 @@
       "when": 1788703212451,
       "tag": "0031_dark_sister_grimm",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1788833880697,
+      "tag": "0033_remove_customer_channel_bindings",
+      "breakpoints": true
     }
   ]
 }

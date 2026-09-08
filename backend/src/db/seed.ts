@@ -14,6 +14,7 @@ import { REPORT_PERMISSIONS, REPORT_PERMISSION_SEEDS } from "../shared/report-pe
 import { REVIEW_PERMISSION_SEEDS } from "../shared/review-permissions.js";
 import { NOTIFICATION_PERMISSION_SEEDS } from "../shared/notification-permissions.js";
 import { FILE_CENTER_PERMISSION_SEEDS } from "../shared/file-permissions.js";
+import { normalizeLoginIdentifier } from "../shared/login-identifier.js";
 import { buildRankingRuleSeeds } from "../modules/knowledge/knowledge-ingest.service.js";
 import { DEFAULT_REPORT_SECTIONS } from "../modules/reports/report-template.service.js";
 import {
@@ -136,7 +137,7 @@ try {
   await db.transaction(async (tx) => {
     const [existing] = await tx.select({ id: users.id }).from(userIdentities)
       .innerJoin(users, eq(users.id, userIdentities.userId))
-      .where(eq(userIdentities.identifier, env.BOOTSTRAP_ADMIN_USERNAME)).limit(1);
+      .where(eq(userIdentities.identifier, normalizeLoginIdentifier(env.BOOTSTRAP_ADMIN_USERNAME))).limit(1);
 
     let adminUserId = existing?.id;
     if (!existing) {
@@ -148,7 +149,7 @@ try {
       await tx.insert(userIdentities).values({
         userId: admin!.id,
         type: "USERNAME",
-        identifier: env.BOOTSTRAP_ADMIN_USERNAME,
+        identifier: normalizeLoginIdentifier(env.BOOTSTRAP_ADMIN_USERNAME),
         passwordHash,
         verifiedAt: new Date()
       });

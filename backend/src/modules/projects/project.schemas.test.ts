@@ -28,11 +28,8 @@ describe("C 端项目列表查询", () => {
 });
 
 describe("项目创建参数", () => {
-  it("仅保留项目自身字段，不接受客户绑定字段", () => {
-    const base = { name: "办公楼项目", visibility: "PRIVATE" as const };
-    const parsed = createProjectBodySchema.parse({ ...base, customerId: "4b026520-2eef-4ce9-9ad7-fd538d2ce32f" });
-
-    expect(parsed).toEqual(base);
-    expect("customerId" in parsed).toBe(false);
+  it("仅接受项目自身字段", () => {
+    const parsed = createProjectBodySchema.parse({ name: "办公楼项目", visibility: "PRIVATE" as const });
+    expect(parsed).toEqual({ name: "办公楼项目", visibility: "PRIVATE" });
   });
 });

@@ -104,10 +104,18 @@ export async function rotateRefreshToken(app: FastifyInstance, request: FastifyR
       userAgent: request.headers["user-agent"]
     }).returning({ id: refreshTokens.id });
 
-    await tx.update(refreshTokens).set({
+    // 条件更新是刷新令牌的单次消费闸门：并发请求中只有一个事务能成功撤销原令牌。
+    const [revoked] = await tx.update(refreshTokens).set({
       revokedAt: new Date(),
       replacedByTokenId: next!.id
-    }).where(eq(refreshTokens.id, stored.id));
+    }).where(and(
+      eq(refreshTokens.id, stored.id),
+      isNull(refreshTokens.revokedAt),
+      gt(refreshTokens.expiresAt, new Date())
+    )).returning({ id: refreshTokens.id });
+    if (!revoked) {
+      throw new UnauthorizedError("刷新令牌已被使用，请重新登录");
+    }
 
     return {
       accessToken: signAccessToken(app, user.id, clientType, accessJti),
