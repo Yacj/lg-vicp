@@ -21,6 +21,9 @@ export type ReportArtifactType = 'HTML' | 'IMAGE' | 'WORD' | 'PDF'
 /** 分享目标类型，与后端 SHARE_TARGET_TYPES 对齐。 */
 export type ShareTargetType = 'AI_MESSAGES' | 'REPORT' | 'REPORT_ARTIFACT' | 'PROJECT'
 
+/** 报告成果中心允许展示的分享目标类型。 */
+export type ReportShareTargetType = Extract<ShareTargetType, 'REPORT' | 'REPORT_ARTIFACT'>
+
 /** 来源资料（report_sources 表投影）。 */
 export interface ReportSource {
   id: string
@@ -83,6 +86,16 @@ export interface ShareLink {
   updatedAt: string
 }
 
+/** 仅指向报告或报告文件的公开分享。 */
+export interface ReportShareLink extends Omit<ShareLink, 'targetType'> {
+  targetType: ReportShareTargetType
+}
+
+/** 判断分享链接是否可作为报告成果展示。 */
+export function isReportShareLink(share: ShareLink): share is ReportShareLink {
+  return share.targetType === 'REPORT' || share.targetType === 'REPORT_ARTIFACT'
+}
+
 /** 报告聚合行：报告 + 来源资料 + 文件版本（会话详情 reports 项）。 */
 export interface ReportWithAssets extends ReportItem {
   artifacts: ReportArtifactItem[]
@@ -94,7 +107,7 @@ export interface ReportCenterRow extends ReportWithAssets {
   conversationTitle: string | null
   conversationUserId: string | null
   projectName: string
-  shareLinks: ShareLink[]
+  shareLinks: ReportShareLink[]
 }
 
 /** POST /reports 请求体（createReportBodySchema）。 */

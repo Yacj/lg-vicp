@@ -1,25 +1,61 @@
 <script setup lang="ts">
-import type { KnowledgeQaSource, KnowledgeQaSseEvent } from '@/types/knowledge'
+import type { AiSourceRef } from '@/types/ai-source'
+import type { KnowledgeQaSseEvent, KnowledgeSearchHit } from '@/types/knowledge'
 import { ChatIcon, StopCircleIcon } from 'tdesign-icons-vue-next'
 import { MessagePlugin } from 'tdesign-vue-next'
 import { computed, ref } from 'vue'
-import { postKnowledgeQa } from '@/api/modules/knowledge'
+import { postKnowledgeQa, searchKnowledge } from '@/api/modules/knowledge'
+import { KnowledgeHitCard } from '@/components/business'
 import AppPage from '@/components/ui/AppPage.vue'
 import { normalizeFeedbackError } from '@/composables/useAppFeedback'
 import { usePermissionAccess } from '@/composables/usePermissionAccess'
+import { normalizeAiSource, aiSourceRefFromSearchHit } from '@/types/ai-source'
 import { renderMarkdown } from '@/utils/ai'
 
 const { canAccess } = usePermissionAccess()
 const canAnswer = computed(() => canAccess({ permissions: ['system:knowledge:search:answer'] }))
+const canDebug = computed(() => canAccess({ permissions: ['system:knowledge:debug'] }))
 
 const query = ref('')
 
-// ===== AI 回答（SSE） =====
+// ===== 普通检索结果 =====
+const searchQuery = ref('')
+const searchLoading = ref(false)
+const searchError = ref<string | null>(null)
+const searchSearched = ref(false)
+const searchHits = ref<KnowledgeSearchHit[]>([])
+const searchTook = ref(0)
+
+async function runSearch(): Promise<void> {
+  const text = searchQuery.value.trim()
+  if (!text || searchLoading.value) {
+    if (!text) MessagePlugin.warning('请输入检索关键词')
+    return
+  }
+  searchLoading.value = true
+  searchError.value = null
+  try {
+    const result = await searchKnowledge({ query: text, limit: 20 })
+    searchHits.value = result.items
+    searchTook.value = result.took
+    searchSearched.value = true
+  }
+  catch (cause) {
+    searchError.value = normalizeFeedbackError(cause).message
+  }
+  finally {
+    searchLoading.value = false
+  }
+}
+
+const searchSources = computed(() => searchHits.value.map(hit => aiSourceRefFromSearchHit(hit)))
+
+
 const answerVisible = ref(false)
 const answerStage = ref('')
 const answerStageMessage = ref('')
 const answerText = ref('')
-const answerSources = ref<KnowledgeQaSource[]>([])
+const answerSources = ref<AiSourceRef[]>([])
 const answering = ref(false)
 const answerError = ref<string | null>(null)
 let abortController: AbortController | null = null
@@ -27,24 +63,19 @@ let abortController: AbortController | null = null
 // ===== 引用定位 =====
 const activeSourceIndex = ref<number | null>(null)
 
-const evidenceLevelLabels: Record<string, string> = {
-  A: '权威依据',
-  B: '推荐依据',
-  C: '参考依据',
-}
-
-const referenceItems = computed(() =>
-  answerSources.value.map(source => ({
-    key: source.chunkId,
-    title: source.title,
-    section: source.section,
-    page: source.page,
-    evidenceLevel: source.evidenceLevel,
-  })),
-)
-
-function evidenceTheme(level: string | null): 'primary' | 'default' {
-  return level === 'A' ? 'primary' : 'default'
+/** done.sources 已是统一 AiSourceRef；防御式兼容历史扁平来源结构 */
+function absorbSources(values: unknown): AiSourceRef[] {
+  if (!Array.isArray(values)) {
+    return []
+  }
+  return values
+    .map((value) => {
+      if (typeof value === 'object' && value !== null && 'sourceType' in value && 'title' in value) {
+        return value as AiSourceRef
+      }
+      return normalizeAiSource(value)
+    })
+    .filter((value): value is AiSourceRef => value !== null)
 }
 
 function resetAnswer(): void {
@@ -84,7 +115,7 @@ async function runAnswer(): Promise<void> {
               answerText.value += event.data.text
               break
             case 'done':
-              answerSources.value = event.data.sources
+              answerSources.value = absorbSources(event.data.sources)
               break
             case 'stopped':
               answerStage.value = 'stopped'
@@ -133,7 +164,7 @@ const answerHtml = computed(() => {
 function focusSource(event: MouseEvent): void {
   const target = event.target as HTMLElement
   const idx = Number(target.dataset.idx)
-  if (Number.isNaN(idx) || idx < 0 || idx >= referenceItems.value.length) {
+  if (Number.isNaN(idx) || idx < 0 || idx >= answerSources.value.length) {
     return
   }
   activeSourceIndex.value = idx
@@ -158,6 +189,9 @@ function focusSource(event: MouseEvent): void {
           </template>
           {{ answering ? '回答中...' : '获取答案' }}
         </t-button>
+        <t-button v-if="canAnswer" variant="outline" :loading="searchLoading" @click="runSearch">
+          执行检索
+        </t-button>
         <t-button v-if="answering" variant="outline" theme="danger" @click="stopAnswer">
           <template #icon>
             <StopCircleIcon />
@@ -168,6 +202,20 @@ function focusSource(event: MouseEvent): void {
     </div>
 
     <div class="vicp-workspace">
+      <div class="vicp-search-results">
+      <div class="vicp-panel-header">
+        <span class="vicp-panel-title">检索结果</span>
+        <span v-if="searchSearched" class="vicp-panel-meta">耗时 {{ searchTook }}ms · {{ searchHits.length }} 条</span>
+      </div>
+      <t-input v-model="searchQuery" clearable placeholder="单独测试检索结果（不生成 AI 回答）" @enter="runSearch" />
+      <t-alert v-if="searchError" theme="error" :message="searchError" />
+      <div v-if="searchSources.length > 0" class="vicp-ref-list">
+        <KnowledgeHitCard v-for="(source, index) in searchSources" :key="`${index}-${source.documentId ?? source.title}`" :debug-enabled="canDebug" :index="index + 1" :source="source" />
+      </div>
+      <div v-else-if="searchSearched" class="vicp-empty">没有命中已发布资料。</div>
+      <div v-else class="vicp-empty">可单独执行真实检索，结果按文档、章节、页面、内容块路径展示。</div>
+      </div>
+
       <!-- AI 回答 -->
       <section class="vicp-panel">
         <header class="vicp-panel-header">
@@ -199,35 +247,25 @@ function focusSource(event: MouseEvent): void {
         </template>
       </section>
 
-      <!-- 参考依据 -->
+      <!-- 参考依据（层级检索路径） -->
       <section class="vicp-panel">
         <header class="vicp-panel-header">
           <span class="vicp-panel-title">参考依据</span>
-          <span v-if="referenceItems.length > 0" class="vicp-panel-meta">共 {{ referenceItems.length }} 条</span>
+          <span v-if="answerSources.length > 0" class="vicp-panel-meta">共 {{ answerSources.length }} 条</span>
         </header>
 
-        <div v-if="referenceItems.length === 0" class="vicp-empty">
-          回答时会在右侧列出引用的资料依据。
+        <div v-if="answerSources.length === 0" class="vicp-empty">
+          回答时会在右侧列出引用的资料依据，可逐条查看完整原文。
         </div>
         <div v-else class="vicp-ref-list">
           <div
-            v-for="(item, index) in referenceItems"
+            v-for="(source, index) in answerSources"
             :id="`vicp-ref-${index}`"
-            :key="item.key"
-            class="vicp-ref-card"
-            :class="{ 'vicp-ref-active': activeSourceIndex === index }"
+            :key="`${index}-${source.documentId ?? ''}-${source.chunkId ?? source.pageId ?? source.title}`"
+            class="vicp-ref-active-wrap"
+            :class="{ 'is-active': activeSourceIndex === index }"
           >
-            <div class="vicp-ref-head">
-              <span class="vicp-ref-index">[资料{{ index + 1 }}]</span>
-              <span class="vicp-ref-title">{{ item.title }}</span>
-            </div>
-            <div class="vicp-ref-meta">
-              <span v-if="item.section">章节：{{ item.section }}</span>
-              <span v-if="item.page != null">第 {{ item.page }} 页</span>
-              <t-tag v-if="item.evidenceLevel" size="small" variant="light" :theme="evidenceTheme(item.evidenceLevel)">
-                {{ evidenceLevelLabels[item.evidenceLevel] ?? item.evidenceLevel }}
-              </t-tag>
-            </div>
+            <KnowledgeHitCard :debug-enabled="canDebug" :index="index + 1" :source="source" />
           </div>
         </div>
       </section>
@@ -326,37 +364,16 @@ function focusSource(event: MouseEvent): void {
   flex-direction: column;
   gap: 12px;
 }
-.vicp-ref-card {
-  border: 1px solid var(--td-component-border);
-  border-radius: var(--td-radius-small);
-  padding: 12px;
-  transition: border-color 0.2s, box-shadow 0.2s;
+.vicp-ref-active-wrap {
+  border-radius: var(--td-radius-medium);
+  transition: box-shadow 0.2s;
 }
-.vicp-ref-active {
+.vicp-ref-active-wrap.is-active :deep(.ks-hit-card) {
   border-color: var(--td-brand-color);
   box-shadow: 0 0 0 1px var(--td-brand-color);
 }
-.vicp-ref-head {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-}
-.vicp-ref-index {
-  color: var(--td-brand-color);
-  font-weight: var(--td-font-weight-medium);
-  white-space: nowrap;
-}
-.vicp-ref-title {
-  font-weight: var(--td-font-weight-medium);
-}
-.vicp-ref-meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
-  color: var(--td-text-color-secondary);
-  font-size: var(--td-font-size-body-small);
-  margin-top: 4px;
+.vicp-ref-active-wrap.is-active {
+  box-shadow: 0 0 0 1px var(--td-brand-color);
 }
 </style>
 

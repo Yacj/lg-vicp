@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { PrimaryTableCol, TableRowData } from 'tdesign-vue-next'
-import { AddIcon, ArrowLeftIcon } from 'tdesign-icons-vue-next'
+import { ArrowLeftIcon } from 'tdesign-icons-vue-next'
 import { computed, h, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import AppTableActions from '@/components/business/AppTableActions.vue'
@@ -305,29 +305,8 @@ const reportColumns: PrimaryTableCol<TableRowData>[] = [
 
 <template>
   <AppPage>
-    <template #header>
-      <AppPageHeader
-        description="按项目聚合 AI 生成的节能报告，支持生成、发布、下载与分享"
-        title="报告成果中心"
-      >
-        <template #actions>
-          <t-button
-            v-if="selectedProject"
-            theme="primary"
-            @click="createDialogVisible = true"
-          >
-            <template #icon>
-              <AddIcon />
-            </template>
-            创建报告
-          </t-button>
-        </template>
-      </AppPageHeader>
-    </template>
-
-    <!-- 项目选择区 -->
-    <div v-if="!selectedProject" class="report-center-select">
-      <t-tabs :value="activeView" @change="handleViewChange">
+    <div v-if="!selectedProject" class="">
+      <t-tabs :value="activeView" @change="handleViewChange" class="!bg-transparent">
         <t-tab-panel
           v-for="view in viewOptions"
           :key="view.value"
@@ -339,6 +318,7 @@ const reportColumns: PrimaryTableCol<TableRowData>[] = [
               :loading="allList.isLoading.value"
               @reset="handleResetFilters"
               @search="allList.search"
+              class="mt-3"
             >
               <t-form-item label="可见性">
                 <t-select
@@ -356,7 +336,7 @@ const reportColumns: PrimaryTableCol<TableRowData>[] = [
             </AppSearchPanel>
           </template>
 
-          <div v-if="!isMobile" class="report-center-project-table">
+          <div v-if="!isMobile" class="report-center-project-table mt-3">
             <AppDataTable
               :columns="projectColumns"
               :current="activeList.current.value"

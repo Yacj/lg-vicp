@@ -10,14 +10,13 @@ type _LocationUrl =
   "/pages/appearance-settings/index" |
   "/pages/assistant/index" |
   "/pages/conversation-history/index" |
-  "/pages/node-favorites/index" |
   "/pages/profile/index" |
   "/pages/profile-info/index" |
   "/pages/project-create/index" |
   "/pages/project-detail/index" |
+  "/pages/project-edit/index" |
   "/pages/project-files/index" |
   "/pages/projects/index" |
-  "/pages/reports/index" |
   "/pages/share/index";
 
 interface NavigateToOptions {

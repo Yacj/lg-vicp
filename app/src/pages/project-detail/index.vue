@@ -15,7 +15,6 @@ import { useAuthGate } from '@/composables/useAuthGate'
 import { useBackNavigation } from '@/composables/useBackNavigation'
 import { ENTRY_SCENE } from '@/constants/aiScene'
 import { useAssistantStore } from '@/store/assistant'
-import { useAuthStore } from '@/store/auth'
 
 definePage({
   name: 'project-detail',
@@ -31,13 +30,11 @@ const { goBack } = useBackNavigation()
 const { requireLogin } = useAuthGate()
 const { openAssistant } = useAssistantNavigation()
 const globalDialog = useGlobalDialog()
-const authStore = useAuthStore()
 const assistantStore = useAssistantStore()
 
 const projectId = computed(() => String(route.query.id || ''))
 
 const projectResource = useAsyncResource<ProjectRecord | null>(async () => {
-  console.log(projectId.value)
   if (!projectId.value) {
     throw new Error('缺少项目 ID')
   }
@@ -66,13 +63,8 @@ const conversationSection = useAsyncSection<ConversationListItem>(async () => {
   return response.data?.items || []
 })
 
-const canManage = computed(() => {
-  const user = authStore.user
-  if (!user || !project.value) {
-    return false
-  }
-  return user.role === 'SUPER_ADMIN' || project.value.createdById === user.id
-})
+// 直接消费后端 projectResponse 附带的 canManage，避免与后端权限规则双轨漂移。
+const canManage = computed(() => project.value?.canManage ?? false)
 
 const files = fileSection.items
 const fileStatus = fileSection.status
@@ -97,7 +89,9 @@ const attentionFileCount = computed(() => files.value.filter(file =>
 
 const fileSummary = computed(() => {
   if (!files.value.length) {
-    return '还没有项目资料，上传后可用于 AI 项目检索'
+    return canManage.value
+      ? '还没有项目资料，上传后可用于 AI 项目检索'
+      : '项目创建者还未上传项目资料'
   }
   const parts = [`${files.value.length} 份资料`, `${readyFileCount.value} 份已就绪`]
   if (activeFileCount.value) {
@@ -129,9 +123,10 @@ async function loadPage() {
   if (!project.value) {
     return
   }
+  // 后端允许公开项目可读者读取资料，这里对非管理者同样加载（只读展示）。
   await Promise.all([
     conversationSection.load(),
-    canManage.value ? fileSection.load() : Promise.resolve(),
+    fileSection.load(),
   ])
 }
 
@@ -142,8 +137,15 @@ async function refreshProjectAssets() {
   }
   await Promise.all([
     conversationSection.refresh(),
-    canManage.value ? fileSection.refresh() : Promise.resolve(),
+    fileSection.refresh(),
   ])
+}
+
+function goEdit() {
+  if (!requireLogin() || !project.value || !canManage.value) {
+    return
+  }
+  router.push({ name: 'project-edit', query: { id: project.value.id } })
 }
 
 function goFiles() {
@@ -311,10 +313,10 @@ function formatRelativeTime(value?: string | null) {
             <view class="grid grid-cols-2 mt-6 gap-3">
               <view class="project-metric rounded-3 px-3.5 py-3">
                 <view class="app-tertiary text-2.5">
-                  {{ canManage ? '项目资料' : '最近更新' }}
+                  项目资料
                 </view>
                 <view class="mt-1 text-4.5 font-bold">
-                  {{ canManage ? `${files.length} 份` : formatDate(project.updatedAt) }}
+                  {{ files.length }} 份
                 </view>
               </view>
               <view class="project-metric rounded-3 px-3.5 py-3">
@@ -338,7 +340,14 @@ function formatRelativeTime(value?: string | null) {
               AI 识别项目语境的基础信息
             </view>
           </view>
-          <view class="app-tertiary text-2.5">
+          <text
+            v-if="canManage"
+            class="app-primary-text app-pressable text-2.5 font-medium"
+            @click="goEdit"
+          >
+            编辑
+          </text>
+          <view v-else class="app-tertiary text-2.5">
             创建于 {{ formatDate(project.createdAt) }}
           </view>
         </view>
@@ -378,57 +387,59 @@ function formatRelativeTime(value?: string | null) {
           </view>
         </view>
 
-        <template v-if="canManage">
-          <view class="mt-6 flex items-end justify-between px-1">
-            <view>
-              <view class="text-4 font-bold">
-                项目资料
-              </view>
-              <view class="app-tertiary mt-0.5 text-2.5">
-                解析完成后可供项目 AI 检索引用
-              </view>
+        <view class="mt-6 flex items-end justify-between px-1">
+          <view>
+            <view class="text-4 font-bold">
+              项目资料
             </view>
-            <text class="app-primary-text text-2.5 font-medium" @click="goFiles">
-              管理资料
+            <view class="app-tertiary mt-0.5 text-2.5">
+              {{ canManage ? '解析完成后可供项目 AI 检索引用' : '项目资料的解析与处理概况' }}
+            </view>
+          </view>
+          <text
+            v-if="canManage"
+            class="app-primary-text app-pressable text-2.5 font-medium"
+            @click="goFiles"
+          >
+            管理资料
+          </text>
+        </view>
+
+        <view class="app-panel app-pressable mt-3 p-4" @click="goFiles">
+          <view v-if="fileStatus === 'loading'" class="flex items-center gap-2 py-2">
+            <wd-loading size="28rpx" color="var(--app-action-primary)" />
+            <text class="app-muted text-3">
+              正在统计项目资料
             </text>
           </view>
-
-          <view class="app-panel app-pressable mt-3 p-4" @click="goFiles">
-            <view v-if="fileStatus === 'loading'" class="flex items-center gap-2 py-2">
-              <wd-loading size="28rpx" color="var(--app-action-primary)" />
-              <text class="app-muted text-3">
-                正在统计项目资料
-              </text>
-            </view>
-            <view v-else-if="fileStatus === 'error'" class="flex items-center justify-between gap-3">
-              <view class="min-w-0 flex-1">
-                <view class="text-3.5 font-semibold">
-                  资料加载失败
-                </view>
-                <view class="app-muted mt-1 text-2.5">
-                  不影响项目对话，可稍后重试
-                </view>
+          <view v-else-if="fileStatus === 'error'" class="flex items-center justify-between gap-3">
+            <view class="min-w-0 flex-1">
+              <view class="text-3.5 font-semibold">
+                资料加载失败
               </view>
-              <text class="app-primary-text shrink-0 text-2.5 font-medium" @click.stop="fileSection.load">
-                重试
-              </text>
-            </view>
-            <view v-else class="flex items-center gap-3">
-              <view class="app-primary-text h-11 w-11 flex shrink-0 items-center justify-center rounded-3 bg-[var(--app-action-primary-soft)]">
-                <text class="i-my-icons-project text-5" />
+              <view class="app-muted mt-1 text-2.5">
+                不影响项目对话，可稍后重试
               </view>
-              <view class="min-w-0 flex-1">
-                <view class="text-3.5 font-semibold">
-                  {{ files.length ? '资料处理概况' : '上传第一份项目资料' }}
-                </view>
-                <view class="app-muted mt-1 text-2.5 leading-4.5">
-                  {{ fileSummary }}
-                </view>
-              </view>
-              <wd-icon name="arrow-right" size="30rpx" color="var(--app-text-tertiary)" />
             </view>
+            <text class="app-primary-text shrink-0 text-2.5 font-medium" @click.stop="fileSection.load">
+              重试
+            </text>
           </view>
-        </template>
+          <view v-else class="flex items-center gap-3">
+            <view class="app-primary-text h-11 w-11 flex shrink-0 items-center justify-center rounded-3 bg-[var(--app-action-primary-soft)]">
+              <text class="i-my-icons-project text-5" />
+            </view>
+            <view class="min-w-0 flex-1">
+              <view class="text-3.5 font-semibold">
+                {{ files.length ? '资料处理概况' : (canManage ? '上传第一份项目资料' : '暂无项目资料') }}
+              </view>
+              <view class="app-muted mt-1 text-2.5 leading-4.5">
+                {{ fileSummary }}
+              </view>
+            </view>
+            <wd-icon v-if="canManage" name="arrow-right" size="30rpx" color="var(--app-text-tertiary)" />
+          </view>
+        </view>
 
         <view class="mt-6 flex items-end justify-between px-1">
           <view>

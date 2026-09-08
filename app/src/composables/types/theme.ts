@@ -33,7 +33,8 @@ export interface ThemeState {
 
 export interface SystemThemeState {
   theme: ThemeMode
-  themeVars: ConfigProviderThemeVars
+  // ConfigProviderThemeVars 之外还允许注入自定义 CSS 变量（如 darkBackground 系列）。
+  themeVars: ConfigProviderThemeVars & Record<string, string>
 }
 
 export const themeColorOptions: ThemeColorOption[] = [

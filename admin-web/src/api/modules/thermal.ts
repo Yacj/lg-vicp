@@ -1,6 +1,5 @@
-import { api } from '@/api/http/client'
-import { postWorkflow } from '@/api/modules/workflow'
 import type { PageResult } from '@/types/api'
+import type { WorkflowActionInput } from '@/types/professional'
 import type {
   MutationMessageResponse,
   ThermalCalcRecord,
@@ -8,6 +7,8 @@ import type {
   ThermalCalcRule,
   ThermalCalcRuleInput,
   ThermalCalcRuleQuery,
+  ThermalCandidateQuery,
+  ThermalCandidateQueryResult,
   ThermalImportJob,
   ThermalImportJobQuery,
   ThermalRow,
@@ -20,7 +21,8 @@ import type {
   ThermalStandardLimitQuery,
   ValidationResult,
 } from '@/types/thermal'
-import type { WorkflowActionInput } from '@/types/professional'
+import { api } from '@/api/http/client'
+import { postWorkflow } from '@/api/modules/workflow'
 
 const THERMAL_PREFIX = '/api/v1/platform/thermal'
 
@@ -73,7 +75,7 @@ export function fetchThermalSetRows(
 }
 
 export function fetchPublishedThermalSets(
-  query: { schemeId?: string; productSpecId?: string; keyword?: string },
+  query: { schemeId?: string, productSpecId?: string, keyword?: string },
   signal?: AbortSignal,
 ): Promise<PageResult<ThermalSet>> {
   return api.get<PageResult<ThermalSet>>(`${THERMAL_PREFIX}/published/sets`, { params: query, signal })
@@ -167,4 +169,13 @@ export function fetchThermalImportJobs(
 
 export function fetchThermalImportJob(id: string): Promise<ThermalImportJob> {
   return api.get<ThermalImportJob>(resourcePath('import-jobs', id))
+}
+
+// ===== 候选方案试算（K ≤ 目标且最接近目标优先，返回多候选供选择） =====
+
+export function queryThermalCandidates(
+  query: ThermalCandidateQuery,
+  signal?: AbortSignal,
+): Promise<ThermalCandidateQueryResult> {
+  return api.post<ThermalCandidateQueryResult>(`${THERMAL_PREFIX}/candidates/query`, query, { signal })
 }

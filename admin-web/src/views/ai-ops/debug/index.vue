@@ -133,13 +133,13 @@ function handleClear(): void {
           :model-value="selectedScene"
           :options="AI_SCENE_OPTIONS"
           :disabled="running"
-          @change="(value) => void handleSelectScene(value as never)"
+          @change="(value: unknown) => void handleSelectScene(value as never)"
         />
         <t-select
           :model-value="selectedProviderId"
           placeholder="选择服务商"
           :disabled="running"
-          @change="(value) => handleSelectProvider(String(value))"
+          @change="(value: unknown) => handleSelectProvider(String(value))"
         >
           <t-option v-for="provider in providers" :key="provider.id" :label="provider.name" :value="provider.id" />
         </t-select>
@@ -147,14 +147,14 @@ function handleClear(): void {
           :model-value="selectedModelId"
           placeholder="选择模型"
           :disabled="running"
-          @change="(value) => handleSelectModel(String(value))"
+          @change="(value: unknown) => handleSelectModel(String(value))"
         >
           <t-option v-for="option in modelOptions" :key="option.value" :label="option.label" :value="option.value" />
         </t-select>
         <t-select
           :model-value="selectedPromptVersionId"
           :disabled="running"
-          @change="(value) => selectedPromptVersionId = String(value)"
+          @change="(value: unknown) => selectedPromptVersionId = String(value)"
         >
           <t-option label="使用当前发布版本" value="" />
           <t-option v-for="option in promptVersionOptions" :key="option.value" :label="option.label" :value="option.value" />
@@ -163,7 +163,7 @@ function handleClear(): void {
           :model-value="reasoningMode"
           :disabled="running"
           variant="default-filled"
-          @change="(value) => reasoningMode = value as never"
+          @change="(value: unknown) => reasoningMode = value as never"
         >
           <t-radio value="OFF">
             快速回答
@@ -189,7 +189,7 @@ function handleClear(): void {
               :model-value="selectedScene"
               :options="AI_SCENE_OPTIONS"
               :disabled="running"
-              @change="(value) => void handleSelectScene(value as never)"
+              @change="(value: unknown) => void handleSelectScene(value as never)"
             />
           </t-form-item>
           <t-form-item
@@ -200,7 +200,7 @@ function handleClear(): void {
               :model-value="selectedProviderId"
               :disabled="running"
               placeholder="选择服务商"
-              @change="(value) => handleSelectProvider(String(value))"
+              @change="(value: unknown) => handleSelectProvider(String(value))"
             >
               <t-option v-for="provider in providers" :key="provider.id" :label="provider.name" :value="provider.id" />
             </t-select>
@@ -210,7 +210,7 @@ function handleClear(): void {
               :model-value="selectedModelId"
               :disabled="running"
               placeholder="选择模型"
-              @change="(value) => handleSelectModel(String(value))"
+              @change="(value: unknown) => handleSelectModel(String(value))"
             >
               <t-option v-for="option in modelOptions" :key="option.value" :label="option.label" :value="option.value" />
             </t-select>
@@ -222,7 +222,7 @@ function handleClear(): void {
             <t-select
               :model-value="selectedPromptVersionId"
               :disabled="running"
-              @change="(value) => selectedPromptVersionId = String(value)"
+              @change="(value: unknown) => selectedPromptVersionId = String(value)"
             >
               <t-option label="使用当前发布版本" value="" />
               <t-option v-for="option in promptVersionOptions" :key="option.value" :label="option.label" :value="option.value" />
@@ -233,7 +233,7 @@ function handleClear(): void {
               :model-value="reasoningMode"
               :disabled="running"
               variant="default-filled"
-              @change="(value) => reasoningMode = value as never"
+              @change="(value: unknown) => reasoningMode = value as never"
             >
               <t-radio value="OFF">
                 快速回答
@@ -258,7 +258,7 @@ function handleClear(): void {
                 :model-value="message.role"
                 :disabled="running"
                 size="small"
-                @change="(value) => message.role = value as never"
+                @change="(value: unknown) => message.role = value as never"
               >
                 <t-option label="用户" value="user" />
                 <t-option label="助手" value="assistant" />
@@ -279,7 +279,7 @@ function handleClear(): void {
               :autosize="{ minRows: 2, maxRows: 6 }"
               :disabled="running"
               placeholder="输入该条消息内容"
-              @change="(value) => message.content = String(value)"
+              @change="(value: unknown) => message.content = String(value)"
             />
           </div>
         </div>

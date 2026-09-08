@@ -19,19 +19,20 @@ import {
   UserIcon,
 } from 'tdesign-icons-vue-next'
 import { computed, nextTick, ref } from 'vue'
-import defaultAvatar from '@/assets/avatar.png'
 import { useRoute, useRouter } from 'vue-router'
+import defaultAvatar from '@/assets/avatar.png'
 import { confirmAndRun } from '@/composables/useAppConfirm'
 import { useResponsiveShell } from '@/composables/useResponsiveShell'
-import { flattenNavigableMenus, findMenuById, navigateMenuTarget, withHomeMenu } from '@/router/dynamic-routes'
+import { findMenuById, flattenNavigableMenus, navigateMenuTarget, withHomeMenu } from '@/router/dynamic-routes'
 import { useAuthStore } from '@/stores/auth'
 import { useRouteStore } from '@/stores/route'
 import { useSettingsStore } from '@/stores/settings'
 import { useTabsStore } from '@/stores/tabs'
 import { useUserStore } from '@/stores/user'
-import AppIcon from './AppIcon.vue'
 import AppearanceDrawer from './AppearanceDrawer.vue'
+import AppIcon from './AppIcon.vue'
 import AppNavigationToggle from './AppNavigationToggle.vue'
+import AppNotificationCenter from './AppNotificationCenter.vue'
 import AppUserSummary from './AppUserSummary.vue'
 
 defineOptions({ name: 'AppHeader' })
@@ -63,7 +64,11 @@ const appearanceVisible = ref(false)
 const searchVisible = ref(false)
 const userPanelVisible = ref(false)
 const searchKeyword = ref('')
+const compactNotificationsVisible = ref(false)
 const { isFullscreen, isSupported: fullscreenSupported, toggle: toggleFullscreen } = useFullscreen()
+
+/** 通知中心按 RBAC 开放；无通知权限时保持禁用铃铛占位 */
+const canNotify = computed(() => userStore.hasPermission('system:notification:list'))
 
 const userLabel = computed(() => userStore.profile?.displayName.trim() || '管理员')
 // 用户模型暂无头像字段，统一回退本地默认头像
@@ -72,7 +77,7 @@ const isCompactHeader = computed(() => props.compact || shell.usesDrawer.value)
 const navigableMenus = computed(() => flattenNavigableMenus(withHomeMenu(routeStore.sidebarMenus)))
 const searchResults = computed(() => {
   const keyword = searchKeyword.value.trim().toLowerCase()
-  return navigableMenus.value.filter(item => {
+  return navigableMenus.value.filter((item) => {
     const targetText = item.target?.kind === 'external' ? item.target.href : item.path ?? ''
     return !keyword
       || item.title.toLowerCase().includes(keyword)
@@ -91,7 +96,6 @@ const compactActionOptions = computed<DropdownOption[]>(() => [
   { content: '刷新当前页', value: 'refresh' },
   { content: isFullscreen.value ? '退出全屏' : '全屏', value: 'fullscreen', disabled: !fullscreenSupported.value },
   { content: themeLabel.value, value: 'theme' },
-  { content: '通知', value: 'notifications', disabled: true },
   { content: '筑小格 AI', value: 'assistant', disabled: !assistantTarget.value },
   { content: '外观设置', value: 'appearance' },
 ])
@@ -231,7 +235,8 @@ async function handleLogout(): Promise<void> {
           <component :is="themeIcon" />
         </t-button>
       </t-tooltip>
-      <t-tooltip content="通知" placement="bottom">
+      <AppNotificationCenter v-if="canNotify" v-model:visible="compactNotificationsVisible" />
+      <t-tooltip v-else content="通知" placement="bottom">
         <t-button aria-label="通知" disabled shape="square" theme="default" variant="text">
           <NotificationIcon />
         </t-button>
@@ -256,6 +261,7 @@ async function handleLogout(): Promise<void> {
     </div>
 
     <div class="app-header__end">
+      <AppNotificationCenter v-if="isCompactHeader && canNotify" v-model:visible="compactNotificationsVisible" />
       <t-dropdown
         v-if="isCompactHeader"
         :options="compactActionOptions"
@@ -278,18 +284,18 @@ async function handleLogout(): Promise<void> {
             <AppUserSummary />
             <t-divider />
             <div class="app-header__user-actions">
-              <t-button block variant="text" class="app-header__user-action" disabled>
+              <div class="app-header__user-action is-unavailable">
                 <UserIcon />
-                <span>个人信息</span>
-              </t-button>
-              <t-button block variant="text" class="app-header__user-action" disabled>
+                <span>个人信息（暂未开放）</span>
+              </div>
+              <div class="app-header__user-action is-unavailable">
                 <SettingIcon />
-                <span>账号设置</span>
-              </t-button>
-              <t-button block variant="text" class="app-header__user-action" disabled>
+                <span>账号设置（暂未开放）</span>
+              </div>
+              <div class="app-header__user-action is-unavailable">
                 <LockOnIcon />
-                <span>修改密码</span>
-              </t-button>
+                <span>修改密码（暂未开放）</span>
+              </div>
             </div>
             <t-divider />
             <t-button block variant="text" class="app-header__user-action is-danger" @click="handleLogout">
@@ -447,6 +453,18 @@ async function handleLogout(): Promise<void> {
 
 .app-header__user-action:not(:disabled):hover {
   background: var(--td-bg-color-container-hover);
+}
+
+.app-header__user-action.is-unavailable {
+  color: var(--td-text-color-placeholder);
+  cursor: default;
+  opacity: 0.8;
+}
+
+.app-header__user-action.is-unavailable svg {
+  margin-right: var(--td-size-3);
+  font-size: var(--td-font-size-body-large);
+  vertical-align: middle;
 }
 
 .app-header__user-action.is-danger {

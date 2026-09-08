@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CreateShareResult } from '@/api/types'
+import type { ApiEnvelope, CreateShareResult } from '@/api/types'
 import { shareApi } from '@/api/modules/shares'
 
 const props = defineProps<{

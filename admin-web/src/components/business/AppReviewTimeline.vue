@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue'
 import type { ReviewMeta } from '@/types/professional'
+import { computed } from 'vue'
 import { formatDate } from '@/utils/day'
 
 /**
@@ -73,14 +73,17 @@ const items = computed<TimelineItem[]>(() => {
 
 <template>
   <div v-if="items.length" class="app-review-timeline">
-    <t-timeline v-for="item in items" :key="`${item.label}-${item.time}`" :theme="item.theme">
+    <!-- TDesign Timeline 外层 theme 仅支持 default/dot；状态色通过 t-timeline-item 的 dot-color 表达 -->
+    <t-timeline v-for="item in items" :key="`${item.label}-${item.time}`" theme="default">
       <t-timeline-item :label="item.label" :dot-color="item.theme">
         <div class="app-review-timeline__content">
           <div class="app-review-timeline__meta">
             <span class="app-review-timeline__actor">{{ item.actor }}</span>
             <span class="app-review-timeline__time">{{ item.time }}</span>
           </div>
-          <div v-if="item.note" class="app-review-timeline__note">{{ item.note }}</div>
+          <div v-if="item.note" class="app-review-timeline__note">
+            {{ item.note }}
+          </div>
         </div>
       </t-timeline-item>
     </t-timeline>

@@ -176,7 +176,7 @@
 .admin-layout__content {
   min-height: 0;
   overflow: auto;
-  padding: 26px;
+  padding: 15px;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
 }

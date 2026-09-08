@@ -49,6 +49,7 @@ export const useRouteStore = defineStore('route', () => {
   const removeRouteHandlers: Array<() => void> = []
   let initializationPromise: Promise<void> | null = null
   let refreshPromise: Promise<RouteStoreRefreshResult> | null = null
+  let sessionGeneration = 0
 
   function removeRegisteredRoutes(): void {
     while (removeRouteHandlers.length > 0) {
@@ -88,7 +89,11 @@ export const useRouteStore = defineStore('route', () => {
     }
 
     initializationPromise = (async () => {
+      const generation = sessionGeneration
       const result = await fetchDynamicRouters()
+      if (generation !== sessionGeneration) {
+        return
+      }
       registerProjection(router, result)
     })().finally(() => {
       initializationPromise = null
@@ -103,6 +108,7 @@ export const useRouteStore = defineStore('route', () => {
     }
 
     refreshPromise = (async () => {
+      const generation = sessionGeneration
       const currentRoute = router.currentRoute.value
       const previousGroup = findMenuGroup(sidebarMenus.value, currentRoute.path)
       const previousDynamicRoutes = new Map(
@@ -112,6 +118,13 @@ export const useRouteStore = defineStore('route', () => {
           .map(entry => [entry.name, entry.route] as const),
       )
       const result = await fetchDynamicRouters()
+      if (generation !== sessionGeneration) {
+        return {
+          currentRouteRemoved: false,
+          fallbackPath: null,
+          issues: projectionIssues.value,
+        }
+      }
       registerProjection(router, result)
 
       const currentRouteName = typeof currentRoute.name === 'string' ? currentRoute.name : null
@@ -161,6 +174,7 @@ export const useRouteStore = defineStore('route', () => {
   }
 
   function reset(router?: Router): void {
+    sessionGeneration += 1
     if (router) {
       removeRegisteredRoutes()
     }

@@ -1,7 +1,7 @@
+import type { Router, RouteRecordRaw } from 'vue-router'
 import type { RouterMenuResult } from '@/types/menu'
-import type { RouteRecordRaw, Router } from 'vue-router'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fetchDynamicRouters } from '@/api/modules/menus'
 import { projectDynamicMenus } from '@/router/dynamic-routes'
 import { useRouteStore } from './route'
@@ -138,6 +138,22 @@ describe('route store refresh', () => {
     expect(router.hasRoute('Dynamic_same')).toBe(true)
   })
 
+  it('does not register a menu response from a previous session after reset', async () => {
+    const router = createTestRouter()
+    let resolveRequest: ((value: RouterMenuResult) => void) | undefined
+    mockedFetchDynamicRouters.mockReturnValueOnce(new Promise<RouterMenuResult>((resolve) => {
+      resolveRequest = resolve
+    }))
+
+    const routeStore = useRouteStore()
+    const pending = routeStore.initialize(router)
+    routeStore.reset(router)
+    resolveRequest?.(result([menu({ id: 'stale', routePath: '/stale' })]))
+    await pending
+
+    expect(routeStore.dynamicRoutesReady).toBe(false)
+    expect(router.hasRoute('Dynamic_stale')).toBe(false)
+  })
   it('keeps external menus out of the route registry while retaining projection metadata', () => {
     const projection = projectDynamicMenus([
       menu({

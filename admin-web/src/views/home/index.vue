@@ -1,21 +1,23 @@
 <script setup lang="ts">
-import type { MenuNavigationTarget } from '@/types/menu'
 import type {
   AttentionPriority,
   DashboardOverview,
   KnowledgePipelineStage,
   TrendRange,
 } from '@/types/dashboard'
-import { navigateMenuTarget } from '@/router/dynamic-routes'
+import type { PublicLibraryDocumentItem } from '@/types/knowledge'
+import type { MenuNavigationTarget } from '@/types/menu'
 import {
+  BookOpenIcon,
   Building1Icon,
   DataCheckedIcon,
   FileIcon,
   FolderIcon,
   TimeIcon,
 } from 'tdesign-icons-vue-next'
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { fetchPublicLibraryDocuments } from '@/api/modules/knowledge'
 import { createBarOption } from '@/charts/options/bar'
 import {
   createTaskDistributionOption,
@@ -25,6 +27,7 @@ import {
 import { AppChart, AppChartPanel } from '@/components/chart'
 import { AppEmptyState, AppMetricCard, AppPage } from '@/components/ui'
 import { useChartTheme } from '@/composables/useChartTheme'
+import { navigateMenuTarget } from '@/router/dynamic-routes'
 import { useRouteStore } from '@/stores/route'
 import { useUserStore } from '@/stores/user'
 import {
@@ -231,11 +234,45 @@ function openProject(route: string | undefined): void {
   }
 }
 
+function openLibrary(): void {
+  void router.push('/knowledge/public-library')
+}
+
 function openPipelineRoute(route: string | null): void {
   if (route) {
     void router.push(route)
   }
 }
+
+// ===== 公开文库业务卡片（复用公开文库只读接口；失败时只隐藏统计，不阻塞工作台） =====
+
+const libraryTotal = ref<number | null>(null)
+const libraryRecent = ref<PublicLibraryDocumentItem[]>([])
+const libraryReady = ref(false)
+
+async function loadLibrarySummary(): Promise<void> {
+  try {
+    const result = await fetchPublicLibraryDocuments({ page: 1, pageSize: 3, sort: 'latest' })
+    libraryTotal.value = result.total
+    libraryRecent.value = result.items
+  }
+  catch {
+    libraryTotal.value = null
+    libraryRecent.value = []
+  }
+  finally {
+    libraryReady.value = true
+  }
+}
+
+const libraryAccessible = computed(() => userStore.hasPermission('system:knowledge:doc:list'))
+const libraryTotalText = computed(() => (libraryTotal.value !== null ? `已公开资料 ${libraryTotal.value} 份` : '技术规程 / 构造图集 / 地方标准 / 企业资料'))
+
+onMounted(() => {
+  if (libraryAccessible.value) {
+    void loadLibrarySummary()
+  }
+})
 </script>
 
 <template>
@@ -280,6 +317,45 @@ function openPipelineRoute(route: string | null): void {
         :status="metric.status"
         :value="metric.value"
       />
+    </section>
+
+    <section
+      v-if="libraryAccessible"
+      class="dashboard-panel dashboard-panel--library"
+      aria-labelledby="library-title"
+    >
+      <div class="dashboard-library">
+        <div class="dashboard-library__intro">
+          <span class="dashboard-library__icon" aria-hidden="true">
+            <BookOpenIcon />
+          </span>
+          <div class="dashboard-library__text">
+            <strong id="library-title">公开文库</strong>
+            <span>{{ libraryTotalText }}</span>
+            <small>技术规程 / 构造图集 / 地方标准 / 企业资料 · 与知识中心同源</small>
+          </div>
+        </div>
+
+        <div v-if="libraryRecent.length > 0" class="dashboard-library__recent" aria-label="最近发布资料">
+          <span
+            v-for="item in libraryRecent.slice(0, 3)"
+            :key="item.id"
+            class="dashboard-library__doc"
+            role="button"
+            tabindex="0"
+            :title="item.title"
+            @click="openLibrary()"
+            @keydown.enter="openLibrary()"
+          >
+            <FileIcon />
+            {{ item.title }}
+          </span>
+        </div>
+
+        <t-button theme="primary" variant="outline" @click="openLibrary()">
+          进入公开文库
+        </t-button>
+      </div>
     </section>
 
     <div class="dashboard-grid dashboard-grid--primary">
@@ -473,7 +549,7 @@ function openPipelineRoute(route: string | null): void {
           </t-radio-group>
         </template>
         <AppChart
-          empty-description="接入统计接口后自动展示"
+          empty-description="暂未接入趋势统计数据"
           empty-text="暂无趋势数据"
           height="var(--dashboard-chart-height, 300px)"
           :option="trendOption"
@@ -665,6 +741,95 @@ function openPipelineRoute(route: string | null): void {
 
 .dashboard-panel :deep(.app-empty-state) {
   min-height: calc(var(--vicp-state-min-height) - var(--td-size-10));
+}
+
+/* 公开文库业务卡片 */
+.dashboard-library {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--td-size-6);
+}
+
+.dashboard-library__intro {
+  display: flex;
+  min-width: 0;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--td-size-3);
+}
+
+.dashboard-library__icon {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  place-content: center;
+  border-radius: var(--td-radius-medium);
+  background: var(--td-brand-color-1);
+  color: var(--td-brand-color);
+}
+
+.dashboard-library__text {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--td-size-1);
+}
+
+.dashboard-library__text strong {
+  color: var(--td-text-color-primary);
+  font-size: var(--td-font-size-title-small);
+}
+
+.dashboard-library__text span {
+  color: var(--td-text-color-secondary);
+  font-size: var(--td-font-size-body-small);
+}
+
+.dashboard-library__text small {
+  color: var(--td-text-color-placeholder);
+  font-size: var(--td-font-size-body-small);
+}
+
+.dashboard-library__recent {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--td-size-1);
+}
+
+.dashboard-library__doc {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--td-size-2);
+  color: var(--td-text-color-primary);
+  cursor: pointer;
+  font-size: var(--td-font-size-body-small);
+}
+
+.dashboard-library__doc svg {
+  flex: 0 0 auto;
+  color: var(--td-text-color-placeholder);
+}
+
+.dashboard-library__doc:hover {
+  color: var(--td-brand-color);
+}
+
+.dashboard-library__doc {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 960px) {
+  .dashboard-library {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 
 /* 待处理事项 */

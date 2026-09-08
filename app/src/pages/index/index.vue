@@ -9,6 +9,7 @@ import HomeSectionShell from '@/components/home/HomeSectionShell.vue'
 import HomeWelcome from '@/components/home/HomeWelcome.vue'
 import { useAsyncSection } from '@/composables/useAsyncSection'
 import { getPlatformInfo } from '@/services/platform'
+import { useAuthStore } from '@/store/auth'
 
 definePage({
   name: 'home',
@@ -21,6 +22,11 @@ definePage({
 const router = useRouter()
 const { requireLogin, isAuthenticated, user } = useAuthGate()
 const { openAssistant } = useAssistantNavigation()
+const authStore = useAuthStore()
+const { warning: showWarning } = useGlobalToast()
+
+// 登录后由 getInfo 下发的能力集：明确无创建权限时隐藏新建入口（capabilities 未加载时保持展示）。
+const canCreateProject = computed(() => !isAuthenticated.value || authStore.capabilities?.canCreateProject !== false)
 
 // custom navigationStyle 下由首页避开系统状态栏；微信端继续避开右上角胶囊
 const platformInfo = getPlatformInfo()
@@ -54,18 +60,20 @@ const {
   items: recommendProjects,
   status: projectStatus,
   load: loadProjects,
+  reset: resetProjects,
 } = useAsyncSection<ProjectRecord>(async () => {
   const response = await projectApi.getPublic({ page: 1, pageSize: 3 }).send() as ApiEnvelope<ApiPage<ProjectRecord>>
   return response.data?.items || []
 })
 
 onShow(() => {
-  void loadProjects()
-
+  // 公开项目接口要求登录，未登录不发起必然失败的请求。
   if (isAuthenticated.value) {
+    void loadProjects()
     void loadConversations()
   }
   else {
+    resetProjects()
     resetConversations()
   }
 })
@@ -114,9 +122,14 @@ function handleEntry(key: HomeEntryKey) {
   }
 
   if (key === 'create') {
-    if (requireLogin()) {
-      router.push({ name: 'project-create' })
+    if (!requireLogin()) {
+      return
     }
+    if (authStore.capabilities?.canCreateProject === false) {
+      showWarning('当前账号暂无创建项目权限')
+      return
+    }
+    router.push({ name: 'project-create' })
     return
   }
 
@@ -168,16 +181,15 @@ function handleAskAssistant() {
       />
 
       <HomeHero class="mt-3" @ask="handleAskAssistant" />
-      <HomeEntryGrid class="mt-3" @select="handleEntry" />
+      <HomeEntryGrid class="mt-3" :hide-create="!canCreateProject" @select="handleEntry" />
 
       <HomeSectionShell
-        v-if="isAuthenticated"
         class="mt-4"
         title="最近会话"
         :status="conversationStatus"
         :empty="!conversations.length"
-        empty-icon="no-message"
-        empty-tip="暂无会话，去和筑小格聊聊吧"
+        empty-icon="no-content"
+        empty-tip="暂无会话"
         @more="goConversationHistory"
         @retry="loadConversations"
       >
@@ -213,34 +225,6 @@ function handleAskAssistant() {
           </view>
         </view>
       </HomeSectionShell>
-
-      <HomeSectionShell
-        v-else
-        class="mt-4"
-        title="最近会话"
-        status="success"
-        more-label=""
-      >
-        <view class="home-rows">
-          <view class="home-row app-pressable flex items-center gap-3" @click="handleLoginPrompt">
-            <view class="home-row__icon is-ai flex shrink-0 items-center justify-center">
-              <wd-icon name="message" size="30rpx" />
-            </view>
-            <view class="min-w-0 flex-1">
-              <view class="text-3 font-medium">
-                登录后继续最近会话
-              </view>
-              <view class="app-tertiary mt-1 text-2.5">
-                同步历史对话与项目上下文
-              </view>
-            </view>
-            <view class="home-row__tag is-primary shrink-0">
-              去登录
-            </view>
-          </view>
-        </view>
-      </HomeSectionShell>
-
       <HomeSectionShell
         class="mt-4"
         title="推荐项目"
@@ -251,7 +235,7 @@ function handleAskAssistant() {
         @more="goPublicProjects"
         @retry="loadProjects"
       >
-        <view class="home-rows">
+        <view class="home-rows" v-if="isAuthenticated">
           <view
             v-for="item in recommendProjects"
             :key="item.id"

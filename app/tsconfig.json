@@ -11,8 +11,7 @@
       "@mini-types/alipay",
       "miniprogram-api-typings",
       "@uni-helper/uni-types",
-      "@wot-ui/ui/global",
-      "uni-echarts/global"
+      "@wot-ui/ui/global"
     ],
     "sourceMap": true
   },
@@ -25,5 +24,14 @@
     "src/**/*.d.ts",
     "src/**/*.tsx",
     "src/**/*.vue"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    // 第三方 uni_modules 组件（如 mp-html）不参与业务类型检查，
+    // 其 SFC 写法会让 vue-tsc 全量报语法错误，阻塞业务代码的类型验证。
+    "src/uni_modules",
+    // 脚手架遗留的 Mock 演示脚本，依赖手写 Apis 命名空间，与业务类型体系无关。
+    "src/api/mock/demo.ts"
   ]
 }

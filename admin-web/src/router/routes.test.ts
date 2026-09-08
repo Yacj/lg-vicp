@@ -21,6 +21,8 @@ describe('static route boundaries', () => {
       'SystemDictItems',
       'ProjectDetail',
       'KnowledgeDocumentDetail',
+      'KnowledgePublicLibrary',
+      'ThermalCandidates',
       'AiConfigProviders',
       'AiConfigModels',
       'AiConfigScenes',
@@ -53,6 +55,11 @@ describe('static route boundaries', () => {
     expect(routes.find(route => route.name === 'AiOpsConversationDetail')?.meta?.permissions).toEqual(['system:ai:conversation:detail'])
     expect(routes.find(route => route.name === 'AiOpsFeedbacks')?.meta?.permissions).toEqual(['system:ai:feedback:list'])
     expect(routes.find(route => route.name === 'AiOpsDebug')?.meta?.permissions).toEqual(['system:ai:debug:use'])
+  })
+
+  it('guards new knowledge and thermal pages with existing list permissions', () => {
+    expect(routes.find(route => route.name === 'KnowledgePublicLibrary')?.meta?.permissions).toEqual(['system:knowledge:doc:list'])
+    expect(routes.find(route => route.name === 'ThermalCandidates')?.meta?.permissions).toEqual(['system:thermal:list'])
   })
 
   it('keeps home as the only cached fixed page', () => {

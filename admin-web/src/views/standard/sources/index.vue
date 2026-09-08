@@ -1,17 +1,9 @@
 <script setup lang="ts">
 import type { PrimaryTableCol, TableRowData } from 'tdesign-vue-next'
+import type { AppTableAction } from '@/types/crud'
+import type { StandardSource, StandardSourceInput } from '@/types/standard'
 import { AddIcon } from 'tdesign-icons-vue-next'
 import { computed, h } from 'vue'
-import AppCrudFormDialog from '@/components/business/AppCrudFormDialog.vue'
-import AppTableActions from '@/components/business/AppTableActions.vue'
-import AppDataTable from '@/components/ui/AppDataTable.vue'
-import AppPage from '@/components/ui/AppPage.vue'
-import AppSearchPanel from '@/components/ui/AppSearchPanel.vue'
-import { normalizeFeedbackError } from '@/composables/useAppFeedback'
-import { useConfirmedCrudAction } from '@/composables/useCrudActions'
-import { useCrudDrawer } from '@/composables/useCrudDrawer'
-import { useCrudList } from '@/composables/useCrudList'
-import { usePermissionAccess } from '@/composables/usePermissionAccess'
 import {
   createStandardSource,
   deleteStandardSource,
@@ -19,8 +11,17 @@ import {
   runStandardSourceCrawl,
   updateStandardSource,
 } from '@/api/modules/standard'
-import type { AppTableAction } from '@/types/crud'
-import type { StandardSource, StandardSourceInput } from '@/types/standard'
+import AppCrudFormDialog from '@/components/business/AppCrudFormDialog.vue'
+import AppTableActions from '@/components/business/AppTableActions.vue'
+import AppDataTable from '@/components/ui/AppDataTable.vue'
+import AppPage from '@/components/ui/AppPage.vue'
+import AppSearchPanel from '@/components/ui/AppSearchPanel.vue'
+import AppStatusTag from '@/components/ui/AppStatusTag.vue'
+import { normalizeFeedbackError } from '@/composables/useAppFeedback'
+import { useConfirmedCrudAction } from '@/composables/useCrudActions'
+import { useCrudDrawer } from '@/composables/useCrudDrawer'
+import { useCrudList } from '@/composables/useCrudList'
+import { usePermissionAccess } from '@/composables/usePermissionAccess'
 import { formatDate } from '@/utils/day'
 
 const { canAccess } = usePermissionAccess()
@@ -29,7 +30,7 @@ const canEdit = computed(() => canAccess({ permissions: ['system:standard:edit']
 const canRemove = computed(() => canAccess({ permissions: ['system:standard:remove'] }))
 const canRun = computed(() => canAccess({ permissions: ['system:standard:run'] }))
 
-const list = useCrudList<StandardSource, { enabled?: boolean | '' | 'all'; keyword: string }>({
+const list = useCrudList<StandardSource, { enabled?: boolean | '' | 'all', keyword: string }>({
   createQuery: () => ({ enabled: undefined, keyword: '' }),
   fetcher: async ({ query, signal }) => {
     const items = await fetchStandardSources(
@@ -38,7 +39,7 @@ const list = useCrudList<StandardSource, { enabled?: boolean | '' | 'all'; keywo
     )
     const keyword = query.keyword.trim()
     const filtered = keyword
-      ? items.filter((item) => item.provinceName.includes(keyword) || item.officialDomain.includes(keyword))
+      ? items.filter(item => item.provinceName.includes(keyword) || item.officialDomain.includes(keyword))
       : items
     return { items: filtered, total: filtered.length, page: 1, pageSize: filtered.length }
   },
@@ -54,8 +55,9 @@ const drawer = useCrudDrawer<StandardSourceInput, StandardSource>({
     crawlScope: 'today',
     enabled: true,
     keywords: { titleKeywords: [], excludeKeywords: [] },
+    operatorRemark: '',
   }),
-  editForm: (entity) => ({
+  editForm: entity => ({
     provinceCode: entity.provinceCode,
     provinceName: entity.provinceName,
     officialDomain: entity.officialDomain,
@@ -65,6 +67,7 @@ const drawer = useCrudDrawer<StandardSourceInput, StandardSource>({
       titleKeywords: [...entity.keywords.titleKeywords],
       excludeKeywords: [...entity.keywords.excludeKeywords],
     },
+    operatorRemark: entity.operatorRemark ?? '',
   }),
   submit: async ({ mode, data, entity }) => {
     return mode === 'create'
@@ -75,15 +78,15 @@ const drawer = useCrudDrawer<StandardSourceInput, StandardSource>({
 })
 
 const deleteAction = useConfirmedCrudAction<StandardSource, unknown>({
-  action: (row) => deleteStandardSource(row.id),
-  confirm: (row) => ({ title: '删除来源', content: `确定删除「${row.provinceName}」采集来源？`, danger: true }),
+  action: row => deleteStandardSource(row.id),
+  confirm: row => ({ title: '删除来源', content: `确定删除「${row.provinceName}」采集来源？`, danger: true }),
   successMessage: '已删除',
   onSuccess: () => list.refresh(),
 })
 
 const crawlAction = useConfirmedCrudAction<StandardSource, unknown>({
-  action: (row) => runStandardSourceCrawl(row.id, 'today'),
-  confirm: (row) => ({ title: '触发抓取', content: `确定立即抓取「${row.provinceName}」今日更新？` }),
+  action: row => runStandardSourceCrawl(row.id, 'today'),
+  confirm: row => ({ title: '触发抓取', content: `确定立即抓取「${row.provinceName}」今日更新？` }),
   successMessage: '已触发抓取',
   onSuccess: () => list.refresh(),
 })
@@ -98,17 +101,63 @@ const enabledOptions = [
   { label: '停用', value: false },
 ]
 
-const scopeLabels: Record<string, string> = { today: '仅今日', all: '全部' }
-
 const columns: PrimaryTableCol<TableRowData>[] = [
   { cell: (_, { row }) => h('div', [
     h('div', { class: 'vicp-src-province' }, row.provinceName),
     h('div', { class: 'vicp-src-code' }, row.provinceCode),
-  ]), colKey: 'provinceName', minWidth: 160, title: '省份' },
+  ]), colKey: 'provinceName', minWidth: 160, title: '地区' },
   { cell: (_, { row }) => h('a', { class: 'vicp-src-domain', href: row.officialDomain, target: '_blank', rel: 'noreferrer' }, row.officialDomain), colKey: 'officialDomain', minWidth: 260, title: '官网域名' },
-  { cell: (_, { row }) => scopeLabels[row.crawlScope] ?? row.crawlScope, colKey: 'crawlScope', minWidth: 90, title: '抓取范围' },
-  { cell: (_, { row }) => (row.enabled ? '启用' : '停用'), colKey: 'enabled', minWidth: 70, title: '状态' },
-  { cell: (_, { row }) => row.lastCrawledAt ? formatDate(new Date(row.lastCrawledAt)) : '—', colKey: 'lastCrawledAt', minWidth: 160, title: '上次抓取' },
+  { cell: (_, { row }) => (row.enabled ? '启用' : '停用'), colKey: 'enabled', minWidth: 70, title: '是否启用' },
+  {
+    cell: (_, { row }) => {
+      const entity = row as StandardSource
+      return h('div', { class: 'vicp-src-last' }, [
+        h('span', {}, entity.lastCrawledAt ? formatDate(new Date(entity.lastCrawledAt)) : '未抓取'),
+        entity.lastCrawlStatus
+          ? h(AppStatusTag, {
+              label: entity.lastCrawlStatus === 'SUCCESS' ? '成功' : '失败',
+              status: entity.lastCrawlStatus === 'SUCCESS' ? 'success' : 'error',
+            })
+          : null,
+      ])
+    },
+    colKey: 'lastCrawledAt',
+    minWidth: 170,
+    title: '最近抓取',
+  },
+  {
+    cell: (_, { row }) => {
+      const entity = row as StandardSource
+      const summary = entity.lastCrawlSummary
+      if (entity.lastCrawlStatus === 'FAILED' && entity.lastErrorMessage) {
+        return h('span', { class: 'vicp-src-error' }, entity.lastErrorMessage)
+      }
+      if (summary && (summary.new != null || summary.changed != null)) {
+        const parts: string[] = []
+        if (summary.new != null) {
+          parts.push(`新增 ${summary.new}`)
+        }
+        if (summary.changed != null) {
+          parts.push(`更新 ${summary.changed}`)
+        }
+        if (summary.failed != null && summary.failed > 0) {
+          parts.push(`失败 ${summary.failed}`)
+        }
+        return parts.join(' / ') || '—'
+      }
+      return '—'
+    },
+    colKey: 'lastCrawlSummary',
+    minWidth: 170,
+    title: '最近抓到文档',
+  },
+  {
+    cell: (_, { row }) => (row as StandardSource).operatorRemark || '—',
+    colKey: 'operatorRemark',
+    ellipsis: true,
+    minWidth: 160,
+    title: '人工备注',
+  },
 ]
 
 function getActions(row: TableRowData): AppTableAction[] {
@@ -119,13 +168,18 @@ function getActions(row: TableRowData): AppTableAction[] {
   }
   if (canRun.value) {
     actions.push({
-      key: 'crawl', label: '触发抓取', loading: crawlAction.running.value,
+      key: 'crawl',
+      label: '触发抓取',
+      loading: crawlAction.running.value,
       handler: () => crawlAction.run(entity),
     })
   }
   if (canRemove.value) {
     actions.push({
-      key: 'remove', label: '删除', loading: deleteAction.running.value, theme: 'danger',
+      key: 'remove',
+      label: '删除',
+      loading: deleteAction.running.value,
+      theme: 'danger',
       handler: () => deleteAction.run(entity),
     })
   }
@@ -165,7 +219,9 @@ function getActions(row: TableRowData): AppTableAction[] {
     >
       <template #toolbar>
         <t-button v-if="canAdd" theme="primary" @click="drawer.openCreate">
-          <template #icon><AddIcon /></template>
+          <template #icon>
+            <AddIcon />
+          </template>
           新增采集来源
         </t-button>
       </template>
@@ -181,7 +237,7 @@ function getActions(row: TableRowData): AppTableAction[] {
       :submitting="drawer.isSubmitting.value"
       :title="drawer.mode.value === 'create' ? '新增采集来源' : '编辑采集来源'"
       :visible="drawer.visible.value"
-      :width="'min(720px, 92vw)'"
+      width="min(720px, 92vw)"
       @cancel="drawer.close"
       @submit="drawer.submit"
       @update:visible="drawer.setVisible"
@@ -206,6 +262,14 @@ function getActions(row: TableRowData): AppTableAction[] {
       </t-form-item>
       <t-form-item label="启用" name="enabled">
         <t-switch v-model="drawer.formData.enabled" />
+      </t-form-item>
+      <t-form-item class="vicp-form-wide" label="人工备注" name="operatorRemark">
+        <t-textarea
+          v-model="drawer.formData.operatorRemark"
+          :autosize="{ minRows: 2, maxRows: 4 }"
+          :maxlength="1000"
+          placeholder="记录来源说明、联系渠道等运营信息（选填）"
+        />
       </t-form-item>
       <t-form-item class="vicp-form-wide" label="标题命中关键词" name="keywords.titleKeywords">
         <t-select
@@ -246,6 +310,16 @@ function getActions(row: TableRowData): AppTableAction[] {
 .vicp-src-domain {
   color: var(--td-brand-color);
   text-decoration: none;
+}
+.vicp-src-last {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-start;
+}
+.vicp-src-error {
+  color: var(--td-error-color);
+  font-size: var(--td-font-size-body-small);
 }
 .vicp-form-hint {
   margin: 0;

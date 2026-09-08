@@ -9,7 +9,7 @@ import type {
 
 export interface ValidationResult {
   valid: boolean
-  violations: Array<{ field: string; message: string }>
+  violations: Array<{ field: string, message: string }>
 }
 
 export interface MutationMessageResponse {
@@ -79,7 +79,7 @@ export interface ThermalCalcRule extends VersionMeta, ReviewMeta, EvidenceMeta {
   compareOperator: 'LTE' | 'GTE'
   includeNonProductLayers: boolean
   includeSurfaceResistances: boolean
-  parameterCodes: { equivalentConductivity: string; correctionFactor: string }
+  parameterCodes: { equivalentConductivity: string, correctionFactor: string }
   paramSourcePriority: string[]
   usage: string | null
   applicableScope: string | null
@@ -101,7 +101,7 @@ export interface ThermalCalcRuleInput {
   compareOperator?: 'LTE' | 'GTE'
   includeNonProductLayers?: boolean
   includeSurfaceResistances?: boolean
-  parameterCodes: { equivalentConductivity: string; correctionFactor: string }
+  parameterCodes: { equivalentConductivity: string, correctionFactor: string }
   paramSourcePriority?: string[]
   usage?: string
   applicableScope?: string
@@ -214,6 +214,64 @@ export interface ThermalRowQuery {
   page: number
   pageSize: number
   schemeId?: string
+}
+
+// ===== 候选方案查询（B 端试算与 AI 端共用同一契约） =====
+
+export interface ThermalCandidateQuery {
+  regionCode?: string
+  standardLimitId?: string
+  buildingType?: string
+  systemId?: string
+  substrateMaterial?: string
+  substrateThickness?: number
+  specClass?: 'I' | 'II' | 'III'
+  /** 精确厚度档与厚度区间互斥 */
+  thicknessMm?: number
+  thicknessMin?: number
+  thicknessMax?: number
+  targetK?: number
+  targetResistance?: number
+  neighborTolerance?: number
+  asOfDate?: string
+}
+
+/** 候选方案（图集参考行匹配结果）；ranking.isClosestToTarget 由后端标记最接近目标值 */
+export interface ThermalCandidate {
+  candidateId: string
+  matchType: 'EXACT' | 'NEIGHBOR'
+  neighborGap: number | null
+  matchedConditions: string[]
+  unmatchedConditions: string[]
+  missingConditions: string[]
+  compliant: boolean | null
+  ranking: { kGap: number, isClosestToTarget: boolean } | null
+  scheme: { id: string, code: string, version: number, substrateMaterial: string, substrateThickness: number | null, atlasPage: string | null }
+  system: { id: string, code: string | null, name: string | null }
+  productSpec: { id: string, specCode: string, specVersion: number, specClass: 'I' | 'II' | 'III' }
+  set: { id: string, code: string, version: number, priority: number, buildingTypes: string[] }
+  result: { thicknessMm: number, productThermalResistance: number, totalThermalResistance: number, kValue: number }
+  evidence: { source: string, ref: string }
+}
+
+export interface ThermalLimitSnapshot {
+  id: string
+  regionCode: string
+  regionName: string
+  basisCode: string
+  basisName: string
+  clauseRef: string
+  limitKValue: number
+  version: number
+}
+
+export interface ThermalCandidateQueryResult {
+  calculationSource: 'REFERENCE_TABLE'
+  candidates: ThermalCandidate[]
+  missingConditions: string[]
+  notes: string[]
+  limit: ThermalLimitSnapshot | null
+  limitCandidates: ThermalLimitSnapshot[] | null
 }
 
 export type { EvidenceLevel, PageResult }

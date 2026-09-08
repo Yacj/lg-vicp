@@ -2,6 +2,7 @@
 import type { PrimaryTableCol, TableRowData } from 'tdesign-vue-next'
 import type { AiFeedbackItem } from '@/types/ai'
 import { computed, h, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import AppDataTable from '@/components/ui/AppDataTable.vue'
 import AppPage from '@/components/ui/AppPage.vue'
 import AppSearchPanel from '@/components/ui/AppSearchPanel.vue'
@@ -14,6 +15,14 @@ import { formatDate } from '@/utils/day'
 
 const { feedbackList, markHandled } = useAiFeedbackOps()
 const { canAccess } = usePermissionAccess()
+const router = useRouter()
+
+const canViewConversation = computed(() => canAccess({ permissions: ['system:ai:conversation:detail'] }))
+
+function openConversation(row: TableRowData): void {
+  const item = row as AiFeedbackItem
+  void router.push(`/ai-ops/conversations/${item.conversation.id}?title=${encodeURIComponent(item.conversation.scene)}`)
+}
 
 const rows = feedbackList.data
 const current = feedbackList.current
@@ -103,8 +112,8 @@ const columns: PrimaryTableCol<TableRowData>[] = [
     cell: (_h, { row }) => {
       const handledAt = (row as AiFeedbackItem).feedback.handledAt
       return h(AppStatusTag, {
-        label: handledAt ? '已处理' : '未处理',
-        status: handledAt ? 'success' : 'default',
+        label: handledAt ? '已处理' : '待处理',
+        status: handledAt ? 'success' : 'warning',
       })
     },
     colKey: 'feedback.handledAt',
@@ -249,6 +258,13 @@ function formatDuration(durationMs: number | null): string {
             @click="openInfoDialog(row)"
           >
             处理信息
+          </t-button>
+          <t-button
+            v-if="canViewConversation"
+            variant="text"
+            @click="openConversation(row)"
+          >
+            会话详情
           </t-button>
         </div>
       </template>

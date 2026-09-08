@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import type { PrimaryTableCol, TableRowData } from 'tdesign-vue-next'
+import type { AppTableAction } from '@/types/crud'
+import type { StandardIndicator } from '@/types/standard'
 import { computed, h, reactive } from 'vue'
+import { fetchStandardIndicators, runStandardIndicatorWorkflow } from '@/api/modules/standard'
 import AppTableActions from '@/components/business/AppTableActions.vue'
 import AppDataTable from '@/components/ui/AppDataTable.vue'
 import AppPage from '@/components/ui/AppPage.vue'
@@ -9,11 +12,9 @@ import AppStatusTag from '@/components/ui/AppStatusTag.vue'
 import { normalizeFeedbackError } from '@/composables/useAppFeedback'
 import { usePermissionAccess } from '@/composables/usePermissionAccess'
 import { useWorkflowActions, workflowActionsForStatus } from '@/composables/useWorkflowActions'
-import { fetchStandardIndicators, runStandardIndicatorWorkflow } from '@/api/modules/standard'
-import type { AppTableAction } from '@/types/crud'
-import type { StandardIndicator } from '@/types/standard'
 import { formatDate } from '@/utils/day'
 import { mdReviewStatusMetaFor } from '@/utils/professional-status'
+import { standardVisibilityMeta } from '@/utils/standard-visibility'
 
 const { canAccess } = usePermissionAccess()
 const canApprove = computed(() => canAccess({ permissions: ['system:standard:approve'] }))
@@ -45,7 +46,9 @@ const list = reactive({
     await list.load()
   },
   async reset(): Promise<void> {
-    Object.keys(list.query).forEach((key) => { list.query[key as keyof typeof list.query] = '' })
+    Object.keys(list.query).forEach((key) => {
+      list.query[key as keyof typeof list.query] = ''
+    })
     await list.load()
   },
   retry: () => list.load(),
@@ -100,28 +103,48 @@ const columns: PrimaryTableCol<TableRowData>[] = [
   { cell: (_, { row }) => `${row.value}${row.unit ? ` ${row.unit}` : ''}`, colKey: 'value', minWidth: 140, title: '数值' },
   { cell: (_, { row }) => row.evidenceRef ?? '—', colKey: 'evidenceRef', minWidth: 140, title: '条款引用' },
   { cell: (_, { row }) => h(AppStatusTag, mdReviewStatusMetaFor(row.status)), colKey: 'status', minWidth: 100, title: '审核状态' },
+  {
+    cell: (_, { row }) => {
+      const meta = standardVisibilityMeta(row.status as string)
+      return h('div', { class: 'vicp-ind-visibility' }, [
+        h(AppStatusTag, { label: meta.visibility, status: meta.status }),
+        h('div', { class: 'vicp-ind-visibility__usage' }, meta.aiUsage),
+      ])
+    },
+    colKey: 'visibility',
+    minWidth: 170,
+    title: '用户可见性',
+  },
+  { cell: (_, { row }) => row.reviewedAt ? formatDate(new Date(row.reviewedAt), 'YYYY-MM-DD') : '—', colKey: 'reviewedAt', minWidth: 110, title: '审核时间' },
   { cell: (_, { row }) => formatDate(new Date(row.createdAt), 'YYYY-MM-DD'), colKey: 'createdAt', minWidth: 110, title: '创建日期' },
 ]
 
 function getActions(row: TableRowData): AppTableAction[] {
   const entity = row as StandardIndicator
   const actions: AppTableAction[] = []
-  const available = workflowActionsForStatus(entity.status).filter((action) => ALLOWED.includes(action))
+  const available = workflowActionsForStatus(entity.status).filter(action => ALLOWED.includes(action))
   const label = `${entity.indicatorName}（${entity.documentId.slice(0, 8)}）`
 
   if (canApprove.value && available.includes('approve')) {
     actions.push({
-      key: 'approve', label: '通过', loading: workflow.approveRunning.value,
+      key: 'approve',
+      label: '通过',
+      loading: workflow.approveRunning.value,
       handler: () => workflow.openApprove({ id: entity.id, label }),
     })
     actions.push({
-      key: 'reject', label: '驳回', loading: workflow.rejectRunning.value, theme: 'danger',
+      key: 'reject',
+      label: '驳回',
+      loading: workflow.rejectRunning.value,
+      theme: 'danger',
       handler: () => workflow.openReject({ id: entity.id, label }),
     })
   }
   if (canPublish.value && available.includes('publish')) {
     actions.push({
-      key: 'publish', label: '发布', loading: workflow.publish.running.value,
+      key: 'publish',
+      label: '发布',
+      loading: workflow.publish.running.value,
       handler: () => workflow.publish.run({ id: entity.id, label }),
     })
   }
@@ -200,6 +223,15 @@ function getActions(row: TableRowData): AppTableAction[] {
   font-weight: var(--td-font-weight-medium);
 }
 .vicp-ind-meta {
+  color: var(--td-text-color-secondary);
+  font-size: var(--td-font-size-body-small);
+}
+.vicp-ind-visibility {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.vicp-ind-visibility__usage {
   color: var(--td-text-color-secondary);
   font-size: var(--td-font-size-body-small);
 }

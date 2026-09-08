@@ -1,13 +1,13 @@
 import type { TableRowData } from 'tdesign-vue-next'
-import { computed, getCurrentScope, onScopeDispose, readonly, ref, shallowRef } from 'vue'
 import type { ProjectItem } from '@/types/project'
-import type { ReportCenterRow } from '@/types/report'
-import { fetchConversationAssets } from '@/api/modules/reports'
+import { isReportShareLink, type ReportCenterRow } from '@/types/report'
+import { computed, getCurrentScope, onScopeDispose, readonly, ref, shallowRef } from 'vue'
 import { fetchProjectConversations } from '@/api/modules/ai'
+import { fetchConversationAssets, fetchPlatformReportCenter } from '@/api/modules/reports'
+import { isReportInProgress } from '@/utils/report'
 import { normalizeFeedbackError, useAppFeedback } from './useAppFeedback'
 import { useProjectCenter } from './useProjectCenter'
 import { useReportActions } from './useReportActions'
-import { isReportInProgress } from '@/utils/report'
 
 export type ReportCenterTableRow = ReportCenterRow & TableRowData
 export type ReportCenterStatus = 'idle' | 'loading' | 'ready' | 'error'
@@ -24,7 +24,7 @@ async function mapWithConcurrency<T, R>(
   limit: number,
   mapper: (item: T) => Promise<R>,
 ): Promise<R[]> {
-  const results = new Array<R>(items.length)
+  const results = Array.from({ length: items.length }, () => undefined as unknown as R)
   let nextIndex = 0
   async function worker(): Promise<void> {
     while (nextIndex < items.length) {
@@ -38,8 +38,7 @@ async function mapWithConcurrency<T, R>(
 }
 
 /**
- * 报告成果中心列表：项目 → 会话 → 报告聚合。
- * 后端没有 GET /reports 列表接口，报告数据来自会话详情（GET /ai/conversations/:id）的嵌套返回。
+ * 报告成果中心列表：项目 → 报告聚合。我的/公开项目通过会话详情获取；全部项目使用平台聚合接口，避免被当前用户会话过滤。
  */
 export function useReportCenter() {
   const feedback = useAppFeedback()
@@ -81,6 +80,10 @@ export function useReportCenter() {
     signal: AbortSignal,
   ): Promise<{ rows: ReportCenterRow[], conversationCount: number, truncated: boolean }> {
     const projectId = project.id
+    if (projectCenter.activeView.value === 'all') {
+      const result = await fetchPlatformReportCenter(projectId, signal)
+      return { conversationCount: result.conversationCount, rows: result.items, truncated: false }
+    }
     const conversations = []
     let truncated = false
     for (let page = 1; page <= MAX_CONVERSATION_PAGES; page++) {
@@ -100,16 +103,18 @@ export function useReportCenter() {
     })
 
     const rows = assetRows.flatMap(({ conversation, assets }) =>
-      assets.reports.map((report) => ({
+      assets.reports.map(report => ({
         ...report,
         conversationId: report.conversationId ?? conversation.id,
         conversationTitle: conversation.title,
         conversationUserId: conversation.userId,
         projectName: project.name,
-        shareLinks: assets.shareLinks.filter(share =>
-          (share.targetType === 'REPORT' && share.targetId === report.id)
-          || (share.targetType === 'REPORT_ARTIFACT' && report.artifacts.some(artifact => artifact.id === share.targetId)),
-        ),
+        shareLinks: assets.shareLinks
+          .filter(isReportShareLink)
+          .filter(share =>
+            (share.targetType === 'REPORT' && share.targetId === report.id)
+            || (share.targetType === 'REPORT_ARTIFACT' && report.artifacts.some(artifact => artifact.id === share.targetId)),
+          ),
       })),
     )
     rows.sort((left, right) => right.createdAt.localeCompare(left.createdAt))

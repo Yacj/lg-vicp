@@ -8,6 +8,7 @@ import type {
   PublishReportResult,
   RegenerateReportResult,
   ReportArtifactType,
+  ReportCenterRow,
   ReportDetailResult,
   ReportDownloadUrlResult,
 } from '@/types/report'
@@ -15,6 +16,22 @@ import { api } from '@/api/http/client'
 
 const REPORTS_PREFIX = '/api/v1/reports'
 const SHARES_PREFIX = '/api/v1/shares'
+
+export interface PlatformReportCenterResult {
+  conversationCount: number
+  items: ReportCenterRow[]
+}
+
+/** 平台报告成果聚合（按项目返回所有用户会话产生的报告）。 */
+export function fetchPlatformReportCenter(
+  projectId: string,
+  signal?: AbortSignal,
+): Promise<PlatformReportCenterResult> {
+  return api.get<PlatformReportCenterResult>('/api/v1/platform/reports/center', {
+    params: { projectId },
+    signal,
+  })
+}
 
 function reportPath(id: string): string {
   return `${REPORTS_PREFIX}/${encodeURIComponent(id)}`

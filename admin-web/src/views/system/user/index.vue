@@ -151,6 +151,7 @@ function onDepartmentClick(context: Parameters<NonNullable<TreeProps['onClick']>
 
 const dialogWidth = computed<string>(() => (isMobile.value ? '92vw' : 'min(720px, 92vw)'))
 const detailDrawerSize = computed<string>(() => (isMobile.value ? '100%' : '520px'))
+const importUploadRef = ref<InstanceType<typeof AppImportUpload> | null>(null)
 
 watch(isMobile, (mobile) => {
   if (mobile) {
@@ -163,8 +164,6 @@ watch(importState, (state) => {
     importUploadRef.value?.clear()
   }
 })
-
-const importUploadRef = ref<InstanceType<typeof AppImportUpload> | null>(null)
 
 // ---------- 列表列 ----------
 
@@ -400,10 +399,18 @@ onMounted(() => {
           <t-input
             v-model="userList.query.keyword"
             clearable
-            placeholder="用户姓名"
+            placeholder="姓名、登录账号或联系方式"
           />
         </t-form-item>
-        <t-form-item label="角色">
+        <t-form-item label="账号类型">
+          <t-select
+            v-model="userList.query.role"
+            clearable
+            :options="accountRoleOptions"
+            placeholder="全部账号类型"
+          />
+        </t-form-item>
+        <t-form-item label="动态角色">
           <t-select
             v-model="userList.query.roleId"
             clearable

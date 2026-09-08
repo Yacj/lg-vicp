@@ -6,12 +6,13 @@ import {
   permissionMatches,
 } from './rbac'
 
-describe('rBAC permission DSL', () => {
-  const granted = ['system:user:list', 'system:ai:provider:*']
+describe('rBAC 精确权限匹配', () => {
+  const granted = ['system:user:list', 'system:ai:provider:edit']
 
-  it('supports exact and explicit suffix wildcard permissions', () => {
+  it('只支持与后端一致的精确权限码', () => {
     expect(permissionMatches('system:user:list', 'system:user:list')).toBe(true)
-    expect(permissionMatches('system:ai:provider:*', 'system:ai:provider:edit')).toBe(true)
+    expect(permissionMatches('system:ai:provider:*', 'system:ai:provider:edit')).toBe(false)
+    expect(permissionMatches('system:ai:provider:edit', 'system:ai:provider:edit')).toBe(true)
     expect(permissionMatches('system:user:list', 'system:user:edit')).toBe(false)
   })
 

@@ -1,17 +1,19 @@
 <script setup lang="ts">
 import type { PrimaryTableCol, TableRowData } from 'tdesign-vue-next'
+import type { AppTableAction } from '@/types/crud'
+import type { ThermalCalcMode, ThermalCalcRecord, ThermalCalcRecordQuery } from '@/types/thermal'
 import { computed, ref } from 'vue'
+import { fetchThermalCalcRecord, fetchThermalCalcRecords } from '@/api/modules/thermal'
 import AppTableActions from '@/components/business/AppTableActions.vue'
 import AppDataTable from '@/components/ui/AppDataTable.vue'
 import AppPage from '@/components/ui/AppPage.vue'
 import AppSearchPanel from '@/components/ui/AppSearchPanel.vue'
+import AppStatusTag from '@/components/ui/AppStatusTag.vue'
 import { normalizeFeedbackError } from '@/composables/useAppFeedback'
 import { useCrudList } from '@/composables/useCrudList'
 import { usePermissionAccess } from '@/composables/usePermissionAccess'
-import { fetchThermalCalcRecord, fetchThermalCalcRecords } from '@/api/modules/thermal'
-import type { AppTableAction } from '@/types/crud'
-import type { ThermalCalcMode, ThermalCalcRecord, ThermalCalcRecordQuery } from '@/types/thermal'
 import { formatDate } from '@/utils/day'
+import { buildThermalCalcPresentation } from '@/utils/thermal-presentation'
 
 const { canAccess } = usePermissionAccess()
 const canList = computed(() => canAccess({ permissions: ['system:thermal:list'] }))
@@ -39,6 +41,9 @@ const list = useCrudList<ThermalCalcRecord, ThermalCalcRecordQuery>({
 const detailVisible = ref(false)
 const detailLoading = ref(false)
 const detail = ref<ThermalCalcRecord | null>(null)
+
+const detailPresentation = computed(() =>
+  detail.value ? buildThermalCalcPresentation(detail.value) : null)
 
 async function openDetail(row: ThermalCalcRecord): Promise<void> {
   detailVisible.value = true
@@ -136,12 +141,68 @@ function formatJson(value: unknown): string {
       :footer="false"
       :header="`计算详情 · ${detail?.id ?? ''}`"
       placement="right"
-      :size="'min(560px, 100vw)'"
+      size="min(560px, 100vw)"
       :visible="detailVisible"
       @close="detailVisible = false"
     >
       <t-loading :loading="detailLoading">
         <div v-if="detail" class="vicp-record">
+          <!-- 用户展示视图：结果 → 计算过程 → 构造分层 -->
+          <section class="vicp-record__section">
+            <h4>计算结果</h4>
+            <div v-if="detailPresentation && (detailPresentation.resultK !== null || detailPresentation.totalResistance !== null)" class="vicp-record__result">
+              <div v-if="detailPresentation.targetK !== null" class="vicp-record__result-item">
+                <span>目标 K</span>
+                <strong>≤ {{ detailPresentation.targetK }} W/(㎡·K)</strong>
+              </div>
+              <div v-if="detailPresentation.resultK !== null" class="vicp-record__result-item">
+                <span>结果 K</span>
+                <strong>{{ detailPresentation.resultK }} W/(㎡·K)</strong>
+              </div>
+              <div v-else-if="detailPresentation.totalResistance !== null" class="vicp-record__result-item">
+                <span>总热阻</span>
+                <strong>{{ detailPresentation.totalResistance }} (㎡·K)/W</strong>
+              </div>
+              <div v-if="detailPresentation.compliant !== null" class="vicp-record__result-item">
+                <span>状态</span>
+                <AppStatusTag
+                  :label="detailPresentation.compliant ? '满足要求' : '不满足要求'"
+                  :status="detailPresentation.compliant ? 'success' : 'error'"
+                />
+              </div>
+            </div>
+            <p v-if="detailPresentation?.standardLabel" class="vicp-record__basis">
+              依据：{{ detailPresentation.standardLabel }}
+            </p>
+          </section>
+
+          <t-collapse v-if="detailPresentation && detailPresentation.steps.length > 0" :default-value="['process']" class="vicp-record__collapse">
+            <t-collapse-panel value="process" header="计算过程">
+              <ol class="vicp-record__steps">
+                <li v-for="step in detailPresentation.steps" :key="step.key" class="vicp-record__step">
+                  <span class="vicp-record__step-label">{{ step.label }}</span>
+                  <span v-if="step.formula" class="vicp-record__step-formula">{{ step.formula }}</span>
+                  <span v-if="step.value !== null" class="vicp-record__step-value">
+                    = {{ step.value }}<template v-if="step.unit"> {{ step.unit }}</template>
+                  </span>
+                </li>
+              </ol>
+            </t-collapse-panel>
+          </t-collapse>
+
+          <t-collapse v-if="detailPresentation && detailPresentation.layers.length > 0" class="vicp-record__collapse">
+            <t-collapse-panel value="layers" header="构造分层">
+              <ol class="vicp-record__layer-list">
+                <li v-for="layer in detailPresentation.layers" :key="layer.order" class="vicp-record__layer">
+                  <span class="vicp-record__layer-name">{{ layer.name }}</span>
+                  <span v-if="layer.thicknessMm !== null">{{ layer.thicknessMm }}mm</span>
+                  <span v-if="layer.lambda !== null">λ={{ layer.lambda }}</span>
+                  <span v-if="layer.correctionFactor !== null">修正 a={{ layer.correctionFactor }}</span>
+                </li>
+              </ol>
+            </t-collapse-panel>
+          </t-collapse>
+
           <section class="vicp-record__section">
             <h4>基本信息</h4>
             <dl>
@@ -152,22 +213,28 @@ function formatJson(value: unknown): string {
               <div><dt>计算时间</dt><dd>{{ formatDate(new Date(detail.createdAt)) }}</dd></div>
             </dl>
           </section>
-          <section class="vicp-record__section">
-            <h4>结果</h4>
-            <pre class="vicp-record__json">{{ formatJson(detail.result) }}</pre>
-          </section>
-          <section v-if="detail.input" class="vicp-record__section">
-            <h4>输入</h4>
-            <pre class="vicp-record__json">{{ formatJson(detail.input) }}</pre>
-          </section>
-          <section v-if="detail.steps && detail.steps.length > 0" class="vicp-record__section">
-            <h4>计算步骤</h4>
-            <pre class="vicp-record__json">{{ formatJson(detail.steps) }}</pre>
-          </section>
-          <section v-if="detail.formulas" class="vicp-record__section">
-            <h4>公式</h4>
-            <pre class="vicp-record__json">{{ formatJson(detail.formulas) }}</pre>
-          </section>
+
+          <!-- 技术调试信息：原始快照 JSON，默认折叠，不面向业务人员 -->
+          <t-collapse class="vicp-record__collapse">
+            <t-collapse-panel value="debug" header="技术调试信息（原始快照）">
+              <section v-if="detail.input" class="vicp-record__debug-block">
+                <h5>输入</h5>
+                <pre class="vicp-record__json">{{ formatJson(detail.input) }}</pre>
+              </section>
+              <section v-if="detail.steps && detail.steps.length > 0" class="vicp-record__debug-block">
+                <h5>计算步骤快照</h5>
+                <pre class="vicp-record__json">{{ formatJson(detail.steps) }}</pre>
+              </section>
+              <section v-if="detail.formulas" class="vicp-record__debug-block">
+                <h5>公式</h5>
+                <pre class="vicp-record__json">{{ formatJson(detail.formulas) }}</pre>
+              </section>
+              <section class="vicp-record__debug-block">
+                <h5>结果</h5>
+                <pre class="vicp-record__json">{{ formatJson(detail.result) }}</pre>
+              </section>
+            </t-collapse-panel>
+          </t-collapse>
         </div>
       </t-loading>
     </t-drawer>
@@ -180,6 +247,99 @@ function formatJson(value: unknown): string {
   min-width: 0;
   flex-direction: column;
   gap: var(--td-size-5);
+}
+
+.vicp-record__result {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--td-size-6);
+}
+
+.vicp-record__result-item {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  flex-direction: column;
+  gap: var(--td-size-1);
+}
+
+.vicp-record__result-item span {
+  color: var(--td-text-color-secondary);
+  font-size: var(--td-font-size-body-small);
+}
+
+.vicp-record__result-item strong {
+  color: var(--td-text-color-primary);
+  font-size: var(--td-font-size-title-medium);
+  font-weight: var(--td-font-weight-medium);
+}
+
+.vicp-record__basis {
+  margin: var(--td-size-3) 0 0;
+  color: var(--td-text-color-secondary);
+  font-size: var(--td-font-size-body-small);
+}
+
+.vicp-record__collapse {
+  border: 1px solid var(--td-component-border);
+  border-radius: var(--td-radius-medium);
+}
+
+.vicp-record__steps,
+.vicp-record__layer-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--td-size-2);
+  margin: 0;
+  padding-left: var(--td-size-5);
+}
+
+.vicp-record__step {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--td-size-3);
+  font-size: var(--td-font-size-body-small);
+}
+
+.vicp-record__step-label {
+  color: var(--td-text-color-primary);
+}
+
+.vicp-record__step-formula {
+  color: var(--td-text-color-secondary);
+  font-family: var(--td-font-family-mono);
+}
+
+.vicp-record__step-value {
+  color: var(--td-text-color-primary);
+  font-weight: var(--td-font-weight-medium);
+  font-family: var(--td-font-family-mono);
+  white-space: nowrap;
+}
+
+.vicp-record__layer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--td-size-3);
+  font-size: var(--td-font-size-body-small);
+}
+
+.vicp-record__layer-name {
+  color: var(--td-text-color-primary);
+  font-weight: var(--td-font-weight-medium);
+}
+
+.vicp-record__debug-block + .vicp-record__debug-block {
+  margin-top: var(--td-size-4);
+}
+
+.vicp-record__debug-block h5 {
+  margin: 0 0 var(--td-size-2);
+  color: var(--td-text-color-secondary);
+  font-size: var(--td-font-size-body-small);
+  font-weight: var(--td-font-weight-medium);
 }
 
 .vicp-record__section h4 {

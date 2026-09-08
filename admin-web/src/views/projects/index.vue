@@ -38,9 +38,12 @@ const {
   applyVisibilityFilter,
   deleteAction,
   projectDrawer,
+  projectStatistics,
+  projectStatisticsError,
+  projectStatisticsLoading,
   setActiveView,
   visibilityAction,
-} = useProjectCenter()
+} = useProjectCenter({ loadStatistics: true })
 
 const canCreateProject = computed(() => canAccess({ permissions: ['project.create'] }))
 const canViewAllProjects = computed(() => canAccess({ permissions: ['system:project:list'] }))
@@ -62,6 +65,8 @@ const formRules: FormRules<ProjectForm> = {
     { max: 120, message: '项目名称不能超过 120 个字符' },
   ],
   description: [{ max: 2000, message: '项目描述不能超过 2000 个字符' }],
+  region: [{ max: 80, message: '地区不能超过 80 个字符' }],
+  buildingType: [{ max: 80, message: '建筑类型不能超过 80 个字符' }],
 }
 
 function isManagerOf(project: ProjectItem): boolean {
@@ -74,6 +79,18 @@ const columns: PrimaryTableCol<TableRowData>[] = [
     colKey: 'name',
     minWidth: 220,
     title: '项目名称',
+  },
+  {
+    cell: (_h, { row }) => (row as ProjectItem).region || '—',
+    colKey: 'region',
+    minWidth: 140,
+    title: '项目地区',
+  },
+  {
+    cell: (_h, { row }) => (row as ProjectItem).buildingType || '—',
+    colKey: 'buildingType',
+    minWidth: 130,
+    title: '建筑类型',
   },
   {
     cell: (_h, { row }) => {
@@ -174,9 +191,23 @@ function handleResetFilters(): void {
 
 <template>
   <AppPage
-    description="管理建筑节能项目：创建者与超级管理员可管理项目，公开项目对其他登录用户只读"
+    description="管理建筑节能项目：普通账号仅可查看公开项目，创建者和超级管理员可维护项目及资料"
     title="项目中心"
   >
+    <section aria-label="项目统计" class="vicp-project-statistics">
+      <t-card size="small">
+        <span>项目总数</span>
+        <strong>{{ projectStatisticsLoading ? '—' : projectStatisticsError ? '加载失败' : projectStatistics.total }}</strong>
+      </t-card>
+      <t-card size="small">
+        <span>公开项目</span>
+        <strong>{{ projectStatisticsLoading ? '—' : projectStatisticsError ? '加载失败' : projectStatistics.public }}</strong>
+      </t-card>
+      <t-card size="small">
+        <span>私有项目</span>
+        <strong>{{ projectStatisticsLoading ? '—' : projectStatisticsError ? '加载失败' : projectStatistics.private }}</strong>
+      </t-card>
+    </section>
     <template #actions>
       <t-button v-if="canCreateProject" theme="primary" @click="projectDrawer.openCreate">
         <template #icon>
@@ -186,7 +217,7 @@ function handleResetFilters(): void {
       </t-button>
     </template>
 
-    <t-tabs :value="activeView" @change="handleViewChange">
+    <t-tabs :value="activeView" @change="handleViewChange" class="!bg-none">
       <t-tab-panel
         v-for="view in viewOptions"
         :key="view.value"
@@ -198,6 +229,7 @@ function handleResetFilters(): void {
             :loading="allList.isLoading.value"
             @reset="handleResetFilters"
             @search="allList.search"
+            class="mt-3"
           >
             <t-form-item label="可见性">
               <t-select
@@ -230,6 +262,7 @@ function handleResetFilters(): void {
             @page-change="activeList.changePage"
             @refresh="activeList.refresh"
             @retry="activeList.retry"
+            class="mt-3"
           >
             <template #operations="{ row }">
               <AppTableActions :actions="getActions(row)" />
@@ -297,6 +330,12 @@ function handleResetFilters(): void {
       <t-form-item label="项目名称" name="name">
         <t-input v-model="projectDrawer.formData.name" maxlength="120" placeholder="请输入项目名称" />
       </t-form-item>
+      <t-form-item label="项目地区" name="region">
+        <t-input v-model="projectDrawer.formData.region" maxlength="80" placeholder="选填，如：上海市浦东新区" />
+      </t-form-item>
+      <t-form-item label="建筑类型" name="buildingType">
+        <t-input v-model="projectDrawer.formData.buildingType" maxlength="80" placeholder="选填，如：办公建筑" />
+      </t-form-item>
       <t-form-item label="项目描述" name="description">
         <t-textarea
           v-model="projectDrawer.formData.description"
@@ -320,6 +359,29 @@ function handleResetFilters(): void {
 </template>
 
 <style scoped>
+.vicp-project-statistics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--td-size-3);
+  margin-bottom: var(--td-size-4);
+}
+
+.vicp-project-statistics :deep(.t-card__body) {
+  display: grid;
+  gap: var(--td-size-1);
+}
+
+.vicp-project-statistics span {
+  color: var(--td-text-color-secondary);
+  font-size: var(--td-font-size-body-small);
+}
+
+.vicp-project-statistics strong {
+  color: var(--td-text-color-primary);
+  font-size: var(--td-font-size-title-large);
+  font-weight: var(--td-font-weight-medium);
+}
+
 .project-center-cards {
   display: grid;
   min-width: 0;

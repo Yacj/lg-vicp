@@ -257,7 +257,7 @@ function getActions(row: TableRowData): AppTableAction[] {
             v-if="permissionLoadStatus === 'unavailable'"
             class="role-page__permission-notice"
             theme="warning"
-            title="当前账号没有配置角色权限的权限（system:role:permission），保存角色时将不修改其权限。"
+            title="当前账号没有“配置角色权限”权限，保存角色基本信息时不会修改权限。"
           />
           <t-alert
             v-else-if="permissionLoadStatus === 'error'"

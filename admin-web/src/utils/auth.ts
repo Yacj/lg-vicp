@@ -25,7 +25,12 @@ export function readAuthSession(): StoredAuthSession | null {
     }
 
     const session: unknown = JSON.parse(raw)
-    if (!isStoredAuthSession(session) || Date.parse(session.refreshTokenExpiresAt) <= Date.now()) {
+    if (!isStoredAuthSession(session)) {
+      clearAuthSession()
+      return null
+    }
+    const expiresAt = Date.parse(session.refreshTokenExpiresAt)
+    if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
       clearAuthSession()
       return null
     }

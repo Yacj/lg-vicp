@@ -12,9 +12,12 @@ import type { PreviewKind } from '@/utils/file-preview'
  */
 const props = withDefaults(defineProps<{
   visible: boolean
-  file?: FileRecord | null
+  file?: Pick<FileRecord, 'id' | 'originalName' | 'mimeType'> | null
+  /** PDF 物理页定位；浏览器 PDF 查看器支持时打开对应页。 */
+  pageNumber?: number | null
 }>(), {
   file: null,
+  pageNumber: null,
 })
 
 const emit = defineEmits<{
@@ -30,12 +33,18 @@ const textContent = ref('')
 const loading = ref(false)
 const error = ref<unknown>(null)
 const downloadUrl = ref('')
+const previewObjectUrl = computed(() => {
+  if (!objectUrl.value || kind.value !== 'pdf' || props.pageNumber == null) {
+    return objectUrl.value
+  }
+  return `${objectUrl.value}#page=${props.pageNumber}`
+})
 let activeController: AbortController | null = null
 
 const errorMessage = computed(() => (error.value ? normalizeFeedbackError(error.value).message : ''))
 
 watch(
-  () => [props.visible, props.file?.id] as const,
+  () => [props.visible, props.file?.id, props.pageNumber] as const,
   async ([visible, fileId]) => {
     reset()
     if (!visible || !fileId) {
@@ -115,7 +124,7 @@ function onDownload(): void {
           </template>
           <iframe
             v-else-if="kind === 'pdf' && objectUrl"
-            :src="objectUrl"
+            :src="previewObjectUrl"
             class="app-file-preview__pdf"
             title="PDF 预览"
           />

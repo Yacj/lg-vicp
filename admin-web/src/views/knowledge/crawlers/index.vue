@@ -1,15 +1,9 @@
 <script setup lang="ts">
 import type { PrimaryTableCol, TableRowData } from 'tdesign-vue-next'
+import type { AppTableAction } from '@/types/crud'
+import type { KnowledgeCrawlerSource, KnowledgeCrawlerSourceInput, KnowledgeDocType } from '@/types/knowledge'
 import { AddIcon } from 'tdesign-icons-vue-next'
 import { computed, h, onMounted, ref } from 'vue'
-import AppCrudFormDialog from '@/components/business/AppCrudFormDialog.vue'
-import AppTableActions from '@/components/business/AppTableActions.vue'
-import AppDataTable from '@/components/ui/AppDataTable.vue'
-import AppPage from '@/components/ui/AppPage.vue'
-import { normalizeFeedbackError, useAppFeedback } from '@/composables/useAppFeedback'
-import { useConfirmedCrudAction } from '@/composables/useCrudActions'
-import { useCrudDrawer } from '@/composables/useCrudDrawer'
-import { usePermissionAccess } from '@/composables/usePermissionAccess'
 import {
   createKnowledgeCrawlerSource,
   deleteKnowledgeCrawlerSource,
@@ -17,12 +11,18 @@ import {
   runKnowledgeCrawlerSource,
   updateKnowledgeCrawlerSource,
 } from '@/api/modules/knowledge'
-import type { AppTableAction } from '@/types/crud'
+import AppCrudFormDialog from '@/components/business/AppCrudFormDialog.vue'
+import AppTableActions from '@/components/business/AppTableActions.vue'
+import AppDataTable from '@/components/ui/AppDataTable.vue'
+import AppPage from '@/components/ui/AppPage.vue'
+import AppStatusTag from '@/components/ui/AppStatusTag.vue'
+import { normalizeFeedbackError, useAppFeedback } from '@/composables/useAppFeedback'
+import { useConfirmedCrudAction } from '@/composables/useCrudActions'
+import { useCrudDrawer } from '@/composables/useCrudDrawer'
+import { usePermissionAccess } from '@/composables/usePermissionAccess'
 import {
+
   knowledgeDocTypes,
-  type KnowledgeCrawlerSource,
-  type KnowledgeCrawlerSourceInput,
-  type KnowledgeDocType,
 } from '@/types/knowledge'
 import { formatDate } from '@/utils/day'
 
@@ -54,13 +54,14 @@ async function load(): Promise<void> {
 }
 
 const drawer = useCrudDrawer<KnowledgeCrawlerSourceInput, KnowledgeCrawlerSource>({
-  createForm: () => ({ name: '', baseUrl: '', downloadUrlPattern: '', docType: 'OTHER', enabled: true }),
-  editForm: (entity) => ({
+  createForm: () => ({ name: '', baseUrl: '', downloadUrlPattern: '', docType: 'OTHER', enabled: true, operatorRemark: '' }),
+  editForm: entity => ({
     name: entity.name,
     baseUrl: entity.baseUrl,
     downloadUrlPattern: entity.downloadUrlPattern,
     docType: entity.docType,
     enabled: entity.enabled,
+    operatorRemark: entity.operatorRemark ?? '',
   }),
   submit: async ({ mode, data, entity }) => {
     if (mode === 'create') {
@@ -75,7 +76,7 @@ const deleteAction = useConfirmedCrudAction<KnowledgeCrawlerSource, unknown>({
   action: async (row) => {
     await deleteKnowledgeCrawlerSource(row.id)
   },
-  confirm: (row) => ({ title: '删除抓取源', content: `确定删除「${row.name}」？`, danger: true }),
+  confirm: row => ({ title: '删除抓取源', content: `确定删除「${row.name}」？`, danger: true }),
   successMessage: '已删除',
   onSuccess: () => load(),
 })
@@ -85,7 +86,7 @@ const runAction = useConfirmedCrudAction<KnowledgeCrawlerSource, string>({
     const result = await runKnowledgeCrawlerSource(row.id)
     return result.message
   },
-  confirm: (row) => ({ title: '手动触发抓取', content: `立即对「${row.name}」执行一次抓取任务？` }),
+  confirm: row => ({ title: '手动触发抓取', content: `立即对「${row.name}」执行一次抓取任务？` }),
   successMessage: (_payload, result) => result,
 })
 
@@ -120,9 +121,38 @@ const columns: PrimaryTableCol<TableRowData>[] = [
     h('div', { class: 'vicp-src-name' }, row.name),
     h('div', { class: 'vicp-src-url' }, row.baseUrl),
   ]), colKey: 'name', minWidth: 260, title: '抓取源' },
-  { cell: (_, { row }) => row.downloadUrlPattern, colKey: 'downloadUrlPattern', minWidth: 200, title: '下载地址模式' },
-  { cell: (_, { row }) => docTypeLabel[row.docType as KnowledgeDocType] ?? row.docType, colKey: 'docType', minWidth: 100, title: '文档类型' },
+  { cell: (_, { row }) => docTypeLabel[row.docType as KnowledgeDocType] ?? row.docType, colKey: 'docType', minWidth: 100, title: '数据类型' },
   { cell: (_, { row }) => (row.enabled ? '启用' : '停用'), colKey: 'enabled', minWidth: 70, title: '状态' },
+  {
+    cell: (_, { row }) => {
+      const entity = row as KnowledgeCrawlerSource
+      return h('div', { class: 'vicp-src-crawl' }, [
+        h('span', {}, entity.lastCrawledAt ? formatDate(new Date(entity.lastCrawledAt), 'MM-DD HH:mm') : '未抓取'),
+        entity.lastCrawlStatus
+          ? h(AppStatusTag, {
+              label: entity.lastCrawlStatus === 'SUCCESS' ? '成功' : '失败',
+              status: entity.lastCrawlStatus === 'SUCCESS' ? 'success' : 'error',
+            })
+          : null,
+      ])
+    },
+    colKey: 'lastCrawledAt',
+    minWidth: 140,
+    title: '最近抓取',
+  },
+  {
+    cell: (_, { row }) => {
+      const entity = row as KnowledgeCrawlerSource
+      if (entity.lastCrawlStatus === 'FAILED' && entity.lastErrorMessage) {
+        return h('span', { class: 'vicp-src-error', title: entity.lastErrorMessage }, entity.lastErrorMessage)
+      }
+      return entity.operatorRemark || '—'
+    },
+    colKey: 'lastErrorMessage',
+    ellipsis: true,
+    minWidth: 180,
+    title: '失败原因 / 备注',
+  },
   { cell: (_, { row }) => formatDate(new Date(row.createdAt), 'YYYY-MM-DD'), colKey: 'createdAt', minWidth: 110, title: '创建时间' },
 ]
 
@@ -132,19 +162,25 @@ function getActions(row: TableRowData): AppTableAction[] {
   if (canEdit.value) {
     actions.push({ key: 'edit', label: '编辑', handler: () => drawer.openEdit(entity) })
     actions.push({
-      key: 'toggle', label: entity.enabled ? '停用' : '启用',
+      key: 'toggle',
+      label: entity.enabled ? '停用' : '启用',
       handler: () => void toggleEnabled(entity),
     })
   }
   if (canRun.value) {
     actions.push({
-      key: 'run', label: '抓取', loading: runAction.running.value,
+      key: 'run',
+      label: '抓取',
+      loading: runAction.running.value,
       handler: () => runAction.run(entity),
     })
   }
   if (canRemove.value) {
     actions.push({
-      key: 'remove', label: '删除', loading: deleteAction.running.value, theme: 'danger',
+      key: 'remove',
+      label: '删除',
+      loading: deleteAction.running.value,
+      theme: 'danger',
       handler: () => deleteAction.run(entity),
     })
   }
@@ -172,7 +208,9 @@ onMounted(load)
     >
       <template #toolbar>
         <t-button v-if="canAdd" theme="primary" @click="drawer.openCreate">
-          <template #icon><AddIcon /></template>
+          <template #icon>
+            <AddIcon />
+          </template>
           新增抓取源
         </t-button>
       </template>
@@ -188,7 +226,7 @@ onMounted(load)
       :submitting="drawer.isSubmitting.value"
       :title="drawer.mode.value === 'create' ? '新增抓取源' : '编辑抓取源'"
       :visible="drawer.visible.value"
-      :width="'min(560px, 92vw)'"
+      width="min(560px, 92vw)"
       @cancel="drawer.close"
       @submit="drawer.submit"
       @update:visible="drawer.setVisible"
@@ -208,6 +246,14 @@ onMounted(load)
           :options="knowledgeDocTypes.map((value) => ({ label: docTypeLabel[value], value }))"
         />
       </t-form-item>
+      <t-form-item label="人工备注" name="operatorRemark">
+        <t-textarea
+          v-model="drawer.formData.operatorRemark"
+          :autosize="{ minRows: 2, maxRows: 4 }"
+          :maxlength="1000"
+          placeholder="记录来源可信度、抓取频率约定等运营信息（选填）"
+        />
+      </t-form-item>
     </AppCrudFormDialog>
   </AppPage>
 </template>
@@ -224,5 +270,15 @@ onMounted(load)
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 320px;
+}
+.vicp-src-crawl {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-start;
+}
+.vicp-src-error {
+  color: var(--td-error-color);
+  font-size: var(--td-font-size-body-small);
 }
 </style>

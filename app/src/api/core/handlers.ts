@@ -29,7 +29,9 @@ interface ApiResponse {
   data?: unknown
   requestId?: string
   error?: {
-    code: string
+    // 后端错误码既有数字 HTTP 语义码（fail(requestId, statusCode, message)），
+    // 也有字符串业务码（如 AI_CONFIG_INVALID），原始值经 getApiErrorCode 读取。
+    code: number | string
     message: string
   }
 }
@@ -38,14 +40,14 @@ interface ApiResponse {
  * 取后端业务错误码（如 AI_CONFIG_INVALID）。
  * ApiError.code 是 Number() 转换后的 HTTP 语义码，字符串业务码只保留在 data.error.code 里。
  */
-export function getApiErrorCode(error: unknown): string | undefined {
+export function getApiErrorCode(error: unknown): number | string | undefined {
   if (!(error instanceof ApiError)) {
     return undefined
   }
   return (error.data as ApiResponse | undefined)?.error?.code
 }
 
-function redirectAfterSessionExpiry() {
+export function redirectAfterSessionExpiry() {
   const authStore = useAuthStore()
   if (!authStore.accessToken) {
     return false
@@ -77,7 +79,7 @@ export async function handleAlovaResponse(
   // Handle HTTP error status codes
   if (code >= 400) {
     console.log('[Alova Response]', data)
-    const message = data?.error?.message || '请求失败'
+    const message = (data as ApiResponse).error?.message || '请求失败'
     globalToast.error(message)
     throw new ApiError(message, code, data)
   }

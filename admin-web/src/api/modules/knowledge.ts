@@ -1,7 +1,3 @@
-import { api } from '@/api/http/client'
-import { getHttpAccessToken, httpBaseURL } from '@/api/http/client'
-import { B_ADMIN_CLIENT } from '@/types/auth'
-import { HttpRequestError } from '@/types/error'
 import type { PageResult } from '@/types/api'
 import type {
   KnowledgeAlias,
@@ -18,13 +14,23 @@ import type {
   KnowledgeDocumentDetail,
   KnowledgeDocumentInput,
   KnowledgeDocumentQuery,
+  KnowledgeDocumentAsset,
+  KnowledgeParsingJob,
+  KnowledgeParsingJobQuery,
   KnowledgeDocumentVersion,
+  KnowledgePage,
+  KnowledgePageMappingsResult,
+  KnowledgePageWindow,
+  KnowledgeTocItem,
+  KnowledgeVersionAssetsResult,
+  KnowledgeVersionTocResult,
+  KnowledgeAssetRole,
+  KnowledgeUsageMode,
+  KnowledgeTocSource,
+  KnowledgeTocStatus,
   KnowledgeEvaluation,
   KnowledgeEvaluationInput,
   KnowledgeEvaluationQuery,
-  KnowledgePage,
-  KnowledgeParsingJob,
-  KnowledgeParsingJobQuery,
   KnowledgeQaRequest,
   KnowledgeQaSseEvent,
   KnowledgeRankingRule,
@@ -35,8 +41,18 @@ import type {
   KnowledgeUploadIntent,
   KnowledgeUploadIntentInput,
   KnowledgeVersionInput,
+  KnowledgeVersionSection,
   MutationMessageResponse,
+  PublicLibraryDocumentDetail,
+  PublicLibraryDocumentItem,
+  PublicLibraryDocumentQuery,
+  PublicLibraryPageDetail,
+  PublicLibraryPageListItem,
+  PublicLibraryTocResult,
 } from '@/types/knowledge'
+import { api, getHttpAccessToken, httpBaseURL } from '@/api/http/client'
+import { B_ADMIN_CLIENT } from '@/types/auth'
+import { HttpRequestError } from '@/types/error'
 
 const KNOWLEDGE_PREFIX = '/api/v1/platform/knowledge'
 const AI_PREFIX = '/api/v1/ai'
@@ -110,9 +126,129 @@ export function createKnowledgeUploadIntent(
   return api.post<KnowledgeUploadIntent>(`${KNOWLEDGE_PREFIX}/versions/${encodeURIComponent(versionId)}/upload-intent`, input)
 }
 
-export function completeKnowledgeUpload(versionId: string, fileId: string): Promise<MutationMessageResponse> {
-  return api.post<MutationMessageResponse>(`${KNOWLEDGE_PREFIX}/versions/${encodeURIComponent(versionId)}/upload-complete`, { fileId })
+export function completeKnowledgeUpload(
+  versionId: string,
+  fileId: string,
+  assetRole?: KnowledgeAssetRole,
+): Promise<MutationMessageResponse> {
+  return api.post<MutationMessageResponse>(
+    `${KNOWLEDGE_PREFIX}/versions/${encodeURIComponent(versionId)}/upload-complete`,
+    { fileId, ...(assetRole ? { assetRole } : {}) },
+  )
 }
+
+export function fetchVersionAssets(versionId: string, signal?: AbortSignal): Promise<KnowledgeVersionAssetsResult> {
+  return api.get<KnowledgeVersionAssetsResult>(`${KNOWLEDGE_PREFIX}/versions/${encodeURIComponent(versionId)}/assets`, { signal })
+}
+
+export function updateVersionAsset(
+  versionId: string,
+  assetId: string,
+  input: { isPrimary?: boolean },
+): Promise<{ asset: KnowledgeDocumentAsset }> {
+  return api.patch<{ asset: KnowledgeDocumentAsset }>(
+    `${KNOWLEDGE_PREFIX}/versions/${encodeURIComponent(versionId)}/assets/${encodeURIComponent(assetId)}`,
+    input,
+  )
+}
+
+export function deleteVersionAsset(versionId: string, assetId: string): Promise<MutationMessageResponse> {
+  return api.delete<MutationMessageResponse>(
+    `${KNOWLEDGE_PREFIX}/versions/${encodeURIComponent(versionId)}/assets/${encodeURIComponent(assetId)}`,
+  )
+}
+
+export function fetchVersionToc(versionId: string, signal?: AbortSignal): Promise<KnowledgeVersionTocResult> {
+  return api.get<KnowledgeVersionTocResult>(`${KNOWLEDGE_PREFIX}/versions/${encodeURIComponent(versionId)}/toc`, { signal })
+}
+
+export interface KnowledgeTocItemInput {
+  title: string
+  pageLabel?: string | null
+  physicalPageNumber?: number | null
+  parentId?: string | null
+  level?: number
+  source?: KnowledgeTocSource
+  sectionId?: string | null
+}
+
+export function replaceVersionToc(
+  versionId: string,
+  items: KnowledgeTocItemInput[],
+  confirm = false,
+): Promise<{ message: string, itemCount: number }> {
+  return api.post<{ message: string, itemCount: number }>(
+    `${KNOWLEDGE_PREFIX}/versions/${encodeURIComponent(versionId)}/toc`,
+    { confirm, items },
+  )
+}
+
+export function updateKnowledgeTocItem(
+  tocId: string,
+  input: Partial<KnowledgeTocItemInput> & { status?: KnowledgeTocStatus },
+): Promise<{ item: KnowledgeTocItem }> {
+  return api.patch<{ item: KnowledgeTocItem }>(`${KNOWLEDGE_PREFIX}/toc/${encodeURIComponent(tocId)}`, input)
+}
+
+export function deleteKnowledgeTocItem(tocId: string): Promise<MutationMessageResponse> {
+  return api.delete<MutationMessageResponse>(`${KNOWLEDGE_PREFIX}/toc/${encodeURIComponent(tocId)}`)
+}
+
+export function reorderVersionToc(
+  versionId: string,
+  items: Array<{ id: string, sortOrder: number, parentId?: string | null, level?: number }>,
+): Promise<MutationMessageResponse> {
+  return api.post<MutationMessageResponse>(
+    `${KNOWLEDGE_PREFIX}/versions/${encodeURIComponent(versionId)}/toc/reorder`,
+    { items },
+  )
+}
+
+export function remapVersionToc(versionId: string): Promise<MutationMessageResponse> {
+  return api.post<MutationMessageResponse>(`${KNOWLEDGE_PREFIX}/versions/${encodeURIComponent(versionId)}/toc/remap`)
+}
+
+export function fetchVersionPageMappings(versionId: string, signal?: AbortSignal): Promise<KnowledgePageMappingsResult> {
+  return api.get<KnowledgePageMappingsResult>(`${KNOWLEDGE_PREFIX}/versions/${encodeURIComponent(versionId)}/page-mappings`, { signal })
+}
+
+export function verifyVersionPageMappings(
+  versionId: string,
+  mappings: Array<{ searchPhysicalPageNumber: number, originalPhysicalPageNumber: number, pageLabel?: string | null }>,
+): Promise<MutationMessageResponse & { count: number }> {
+  return api.put<MutationMessageResponse & { count: number }>(
+    `${KNOWLEDGE_PREFIX}/versions/${encodeURIComponent(versionId)}/page-mappings/verify`,
+    { mappings },
+  )
+}
+
+export function updateVersionPage(
+  versionId: string,
+  physicalPageNumber: number,
+  input: { pageLabel?: string | null, pageTitle?: string | null },
+): Promise<{ page: KnowledgePage }> {
+  return api.patch<{ page: KnowledgePage }>(
+    `${KNOWLEDGE_PREFIX}/versions/${encodeURIComponent(versionId)}/pages/${physicalPageNumber}`,
+    input,
+  )
+}
+
+export function updateVersionUsageMode(
+  versionId: string,
+  usageMode: KnowledgeUsageMode,
+): Promise<{ version: KnowledgeDocumentVersion }> {
+  return api.patch<{ version: KnowledgeDocumentVersion }>(
+    `${KNOWLEDGE_PREFIX}/versions/${encodeURIComponent(versionId)}/usage-mode`,
+    { usageMode },
+  )
+}
+
+export function upgradeKnowledgeParse(versionId: string): Promise<MutationMessageResponse & { jobId: string }> {
+  return api.post<MutationMessageResponse & { jobId: string }>(
+    `${KNOWLEDGE_PREFIX}/versions/${encodeURIComponent(versionId)}/upgrade-parse`,
+  )
+}
+
 
 export function startKnowledgeParse(versionId: string): Promise<MutationMessageResponse & { jobId: string }> {
   return api.post<MutationMessageResponse & { jobId: string }>(`${KNOWLEDGE_PREFIX}/versions/${encodeURIComponent(versionId)}/parse`)
@@ -149,6 +285,19 @@ export function deleteKnowledgeDocumentVersion(versionId: string): Promise<Mutat
 }
 
 // ===== 页面与分块 =====
+
+export function fetchVersionPageWindow(
+  versionId: string,
+  center: number,
+  before = 2,
+  after = 2,
+  signal?: AbortSignal,
+): Promise<KnowledgePageWindow> {
+  return api.get<KnowledgePageWindow>(`${KNOWLEDGE_PREFIX}/versions/${encodeURIComponent(versionId)}/pages/window`, {
+    params: { center, before, after },
+    signal,
+  })
+}
 
 export function fetchVersionPages(
   versionId: string,
@@ -215,7 +364,7 @@ export function fetchKnowledgeEvaluations(
 
 export function judgeKnowledgeEvaluation(
   id: string,
-  input: { judgement: 'APPROVED' | 'REJECTED' | 'PARTIAL'; note?: string },
+  input: { judgement: 'APPROVED' | 'REJECTED' | 'PARTIAL', note?: string },
 ): Promise<{ evaluation: KnowledgeEvaluation }> {
   return api.post<{ evaluation: KnowledgeEvaluation }>(`${KNOWLEDGE_PREFIX}/evaluations/${encodeURIComponent(id)}/judge`, input)
 }
@@ -247,7 +396,7 @@ export async function postKnowledgeQa(body: KnowledgeQaRequest, options: Knowled
       'Accept': 'text/event-stream',
       'Content-Type': 'application/json',
       'X-Client-Type': B_ADMIN_CLIENT,
-      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: JSON.stringify(body),
     signal: options.signal,
@@ -375,8 +524,8 @@ export function deleteKnowledgeCrawlerSource(id: string): Promise<MutationMessag
   return api.delete<MutationMessageResponse>(`${KNOWLEDGE_PREFIX}/crawler-sources/${encodeURIComponent(id)}`)
 }
 
-export function runKnowledgeCrawlerSource(id: string): Promise<{ sourceName: string; ingested: boolean; fileId: string; message: string }> {
-  return api.post<{ sourceName: string; ingested: boolean; fileId: string; message: string }>(
+export function runKnowledgeCrawlerSource(id: string): Promise<{ sourceName: string, ingested: boolean, fileId: string, message: string }> {
+  return api.post<{ sourceName: string, ingested: boolean, fileId: string, message: string }>(
     `${KNOWLEDGE_PREFIX}/crawler-sources/${encodeURIComponent(id)}/run`,
   )
 }
@@ -407,7 +556,76 @@ export function fetchKnowledgeRankingRules(signal?: AbortSignal): Promise<{ item
 
 export function updateKnowledgeRankingRule(
   key: string,
-  input: { weight?: number; enabled?: boolean; description?: string },
+  input: { weight?: number, enabled?: boolean, description?: string },
 ): Promise<{ rule: KnowledgeRankingRule }> {
   return api.patch<{ rule: KnowledgeRankingRule }>(`${KNOWLEDGE_PREFIX}/ranking-rules/${encodeURIComponent(key)}`, input)
+}
+
+// ===== 公开文库 =====
+// 复用 C 端公开文库 Wiki 读取契约（visibility=PUBLIC + PUBLISHED + 生效中，服务端强制过滤），
+// 与知识文档详情、AI 来源详情共用同一套文档/章节/页面数据。
+// B 端走平台路由 `/platform/knowledge/public/documents`（后端与 C 端 `/client/knowledge/documents` 同一读取口径）。
+
+export function fetchPublicLibraryDocuments(
+  query: PublicLibraryDocumentQuery,
+  signal?: AbortSignal,
+): Promise<{ items: PublicLibraryDocumentItem[], total: number, page: number, pageSize: number }> {
+  return api.get(`${KNOWLEDGE_PREFIX}/public/documents`, { params: query, signal })
+}
+
+export function fetchPublicLibraryDocumentDetail(
+  documentId: string,
+  signal?: AbortSignal,
+): Promise<PublicLibraryDocumentDetail> {
+  return api.get<PublicLibraryDocumentDetail>(`${KNOWLEDGE_PREFIX}/public/documents/${encodeURIComponent(documentId)}`, { signal })
+}
+
+export function fetchPublicLibraryDocumentPages(
+  documentId: string,
+  page: number,
+  pageSize: number,
+  signal?: AbortSignal,
+): Promise<{ items: PublicLibraryPageListItem[], total: number }> {
+  return api.get<{ items: PublicLibraryPageListItem[], total: number }>(`${KNOWLEDGE_PREFIX}/public/documents/${encodeURIComponent(documentId)}/pages`, {
+    params: { page, pageSize },
+    signal,
+  })
+}
+
+export function fetchPublicLibraryDocumentToc(
+  documentId: string,
+  signal?: AbortSignal,
+): Promise<PublicLibraryTocResult> {
+  return api.get<PublicLibraryTocResult>(`${KNOWLEDGE_PREFIX}/public/documents/${encodeURIComponent(documentId)}/toc`, { signal })
+}
+
+export function fetchPublicLibraryDocumentPageByLabel(
+  documentId: string,
+  pageLabel: string,
+  signal?: AbortSignal,
+): Promise<{ page: PublicLibraryPageDetail }> {
+  return api.get<{ page: PublicLibraryPageDetail }>(
+    `${KNOWLEDGE_PREFIX}/public/documents/${encodeURIComponent(documentId)}/pages/by-label/${encodeURIComponent(pageLabel)}`,
+    { signal },
+  )
+}
+
+export function fetchPublicLibraryDocumentPage(
+  documentId: string,
+  physicalPageNumber: number,
+  signal?: AbortSignal,
+): Promise<{ page: PublicLibraryPageDetail }> {
+  return api.get<{ page: PublicLibraryPageDetail }>(
+    `${KNOWLEDGE_PREFIX}/public/documents/${encodeURIComponent(documentId)}/pages/${physicalPageNumber}`,
+    { signal },
+  )
+}
+
+// ===== 检索页到正式原文页映射 =====
+
+export function fetchVersionSections(
+  versionId: string,
+  signal?: AbortSignal,
+): Promise<{ sections: KnowledgeVersionSection[] }> {
+  return api.get(`${KNOWLEDGE_PREFIX}/versions/${encodeURIComponent(versionId)}/sections`, { signal })
 }

@@ -24,7 +24,7 @@
   --vicp-toolbar-height: var(--td-comp-size-l);
   --vicp-state-min-height: 220px;
   --vicp-metric-min-height: 144px;
-  --vicp-page-title-size: 28px;
+  --vicp-page-title-size: var(--td-font-size-title-large);
   --vicp-metric-value-size: 30px;
   --vicp-login-background: var(--td-bg-color-page);
   --vicp-brand-panel-background: color-mix(in srgb, var(--vicp-system-brand-color) 88%, var(--td-brand-color-10));
@@ -84,7 +84,7 @@
   --vicp-toolbar-height: var(--td-comp-size-m);
   --vicp-state-min-height: 180px;
   --vicp-metric-min-height: 124px;
-  --vicp-page-title-size: 24px;
+  --vicp-page-title-size: var(--td-font-size-title-medium);
   --vicp-metric-value-size: 26px;
   --td-comp-paddingTB-s: var(--td-size-2);
   --td-comp-paddingTB-m: var(--td-size-4);

@@ -9,16 +9,25 @@ interface HomeEntry {
   tone: 'primary' | 'energy' | 'ai' | 'warning'
 }
 
+const props = defineProps<{
+  /** 当前账号明确无创建权限时隐藏「新建项目」入口 */
+  hideCreate?: boolean
+}>()
+
 const emit = defineEmits<{
   select: [key: HomeEntryKey]
 }>()
 
-const entries: HomeEntry[] = [
+const baseEntries: HomeEntry[] = [
   { key: 'projects', label: '我的项目', description: '查看与跟进项目', icon: 'folder', tone: 'primary' },
   { key: 'create', label: '新建项目', description: '创建节能项目', icon: 'plus', tone: 'energy' },
   { key: 'public', label: '公开案例', description: '浏览优秀实践', icon: 'public', tone: 'ai' },
   { key: 'history', label: '对话记录', description: '继续最近会话', icon: 'history', tone: 'warning' },
 ]
+
+const entries = computed(() =>
+  props.hideCreate ? baseEntries.filter(entry => entry.key !== 'create') : baseEntries,
+)
 </script>
 
 <template>

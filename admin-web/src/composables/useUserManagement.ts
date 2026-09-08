@@ -1,22 +1,4 @@
 import type { SelectOption, TableRowData } from 'tdesign-vue-next'
-import { ref, reactive } from 'vue'
-import {
-  createUser,
-  deleteUser,
-  exportUsersCsv,
-  fetchUserDetail,
-  fetchUsers,
-  importUsers,
-  resetUserPassword,
-  restoreUser,
-  setUserDepartments,
-  setUserPosts,
-  setUserRoles,
-  updateUser,
-  updateUserStatus,
-} from '@/api/modules/users'
-import { fetchDepartmentTree, fetchPosts } from '@/api/modules/system-management'
-import { fetchRoles } from '@/api/modules/roles'
 import type {
   CreateSystemUserInput,
   MutationMessage,
@@ -32,7 +14,24 @@ import type {
   UserImportResult,
   UserMutationResult,
 } from '@/types/system-management'
-import { toDepartmentTreeOptions, trimToNull, type DepartmentTreeOption } from '@/utils/system-management'
+import type { DepartmentTreeOption } from '@/utils/system-management'
+import { reactive, ref } from 'vue'
+import { fetchRoles } from '@/api/modules/roles'
+import { fetchDepartmentTree, fetchPosts } from '@/api/modules/system-management'
+import {
+  createUser,
+  deleteUser,
+  exportUsersCsv,
+  fetchUserDetail,
+  fetchUsers,
+  importUsers,
+  resetUserPassword,
+  restoreUser,
+  setUserRoles,
+  updateUser,
+  updateUserStatus,
+} from '@/api/modules/users'
+import { toDepartmentTreeOptions, trimToNull } from '@/utils/system-management'
 import { isChannelUserRole } from '@/utils/system-user'
 import { buildUserExportFilename, buildUserImportTemplate, triggerBlobDownload, triggerTextDownload } from '@/utils/user-csv'
 import { useAppFeedback } from './useAppFeedback'
@@ -44,6 +43,7 @@ import { useCrudList } from './useCrudList'
 export type UserTableRow = SystemDepartmentMember & TableRowData
 
 export interface UserSearchQuery extends Record<string, unknown> {
+  role: '' | SystemUserRole
   keyword: string
   departmentId: string
   roleId: string
@@ -135,7 +135,11 @@ function toCreateInput(data: UserForm): CreateSystemUserInput {
     identifier: data.identifier.trim(),
     password: data.password,
     channelType: isChannelUserRole(data.role) ? data.channelType : null,
+    ...(data.departmentIds.length > 0 ? { departmentIds: [...data.departmentIds] } : {}),
     phone: trimToNull(data.phone) ?? undefined,
+    ...(data.postIds.length > 0 ? { postIds: [...data.postIds] } : {}),
+    ...(data.roleIds.length > 0 ? { roleIds: [...data.roleIds] } : {}),
+    status: data.status,
   }
 }
 
@@ -148,11 +152,15 @@ function toUpdateInput(data: UserForm): UpdateSystemUserInput {
     remark: trimToNull(data.remark),
     channelType: isChannelUserRole(data.role) ? data.channelType : null,
     phone: trimToNull(data.phone),
+    ...(data.departmentIds.length > 0 ? { departmentIds: [...data.departmentIds] } : {}),
+    ...(data.postIds.length > 0 ? { postIds: [...data.postIds] } : {}),
+    ...(data.roleIds.length > 0 ? { roleIds: [...data.roleIds] } : {}),
   }
 }
 
 function toUserQuery(query: UserSearchQuery, page: number, pageSize: number): SystemUserQuery {
   return {
+    role: query.role || undefined,
     keyword: query.keyword.trim() || undefined,
     departmentId: query.departmentId || undefined,
     roleId: query.roleId || undefined,
@@ -175,6 +183,7 @@ export function useUserManagement() {
       departmentId: '',
       includeDeleted: false,
       keyword: '',
+      role: '',
       roleId: '',
       status: 'all',
     }),
@@ -222,7 +231,7 @@ export function useUserManagement() {
 
   const userDrawer = useCrudDrawer<UserForm, UserTableRow, UserMutationResult>({
     createForm: createUserForm,
-    editForm: (user) => editUserForm(user, detailCache.get(user.id)),
+    editForm: user => editUserForm(user, detailCache.get(user.id)),
     onError: error => void feedback.messageError(error),
     onSuccess: async (result) => {
       await feedback.message('success', result.message)
@@ -231,52 +240,29 @@ export function useUserManagement() {
     submit: async ({ data, entity, mode }) => {
       const form = data as UserForm
       if (mode === 'create') {
-        const created = await createUser(toCreateInput(form))
-        await assignOrganization(created.user.id, form)
-        // 创建接口不接受状态字段，禁用状态沿用后置分配模式
-        if (form.status === 'DISABLED') {
-          await updateUserStatus(created.user.id, 'DISABLED')
-        }
-        return created
+        return createUser(toCreateInput(form))
       }
 
       const id = entity!.id
       const previous = detailCache.get(id)
-      const profile = await updateUser(id, toUpdateInput(form))
-      const assignments: Promise<MutationMessage>[] = []
-
-      if (previous && previous.user.status !== form.status) {
-        assignments.push(updateUserStatus(id, form.status))
-      }
+      const input: UpdateSystemUserInput = toUpdateInput(form)
       if (!previous || !sameIds(previous.departments.map(item => item.id), form.departmentIds)) {
-        assignments.push(setUserDepartments(id, [...form.departmentIds]))
+        input.departmentIds = [...form.departmentIds]
       }
       if (!previous || !sameIds(previous.posts.map(item => item.id), form.postIds)) {
-        assignments.push(setUserPosts(id, [...form.postIds]))
+        input.postIds = [...form.postIds]
       }
       if (!previous || !sameIds(previous.roles.map(item => item.id), form.roleIds)) {
-        assignments.push(setUserRoles(id, [...form.roleIds]))
+        input.roleIds = [...form.roleIds]
       }
-      await Promise.all(assignments)
+      if (!previous || previous.user.status !== form.status) {
+        input.status = form.status
+      }
+      const profile = await updateUser(id, input)
       detailCache.delete(id)
       return profile
     },
   })
-
-  /** 创建成功后同步分配组织与角色（后端创建接口不接受这些字段）。 */
-  async function assignOrganization(userId: string, form: UserForm): Promise<void> {
-    const assignments: Promise<MutationMessage>[] = []
-    if (form.departmentIds.length > 0) {
-      assignments.push(setUserDepartments(userId, [...form.departmentIds]))
-    }
-    if (form.postIds.length > 0) {
-      assignments.push(setUserPosts(userId, [...form.postIds]))
-    }
-    if (form.roleIds.length > 0) {
-      assignments.push(setUserRoles(userId, [...form.roleIds]))
-    }
-    await Promise.all(assignments)
-  }
 
   async function openUserEdit(user: UserTableRow): Promise<void> {
     editingDetailLoading.value = true
@@ -294,7 +280,7 @@ export function useUserManagement() {
   }
 
   const statusAction = useConfirmedCrudAction<
-    { user: UserTableRow; status: SystemUserStatus },
+    { user: UserTableRow, status: SystemUserStatus },
     UserMutationResult
   >({
     action: ({ user, status }) => updateUserStatus(user.id, status),
@@ -500,7 +486,10 @@ export function useUserManagement() {
     }
     referenceLoading.value = true
     try {
-      const [departmentResult, roleResult] = await Promise.all([fetchDepartmentTree(), fetchRoles()])
+      const [departmentResult, roleResult] = await Promise.all([
+        fetchDepartmentTree(),
+        fetchRoles(),
+      ])
       departmentOptions.value = toDepartmentTreeOptions(departmentResult.items)
       roleOptions.value = roleResult.items.map(role => ({ label: role.name, value: role.id }))
 

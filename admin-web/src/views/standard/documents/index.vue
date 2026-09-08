@@ -1,7 +1,16 @@
 <script setup lang="ts">
 import type { PrimaryTableCol, TableRowData } from 'tdesign-vue-next'
+import type { AppTableAction } from '@/types/crud'
+import type { StandardDocument, StandardDocumentInput, StandardIndicatorInput } from '@/types/standard'
 import { AddIcon, DeleteIcon } from 'tdesign-icons-vue-next'
 import { computed, h, reactive, ref } from 'vue'
+import {
+  createStandardDocument,
+  deleteStandardDocument,
+  fetchStandardDocuments,
+  runStandardDocumentWorkflow,
+  updateStandardDocument,
+} from '@/api/modules/standard'
 import AppCrudFormDialog from '@/components/business/AppCrudFormDialog.vue'
 import AppTableActions from '@/components/business/AppTableActions.vue'
 import AppDataTable from '@/components/ui/AppDataTable.vue'
@@ -12,17 +21,9 @@ import { normalizeFeedbackError, useAppFeedback } from '@/composables/useAppFeed
 import { useConfirmedCrudAction } from '@/composables/useCrudActions'
 import { usePermissionAccess } from '@/composables/usePermissionAccess'
 import { useWorkflowActions, workflowActionsForStatus } from '@/composables/useWorkflowActions'
-import {
-  createStandardDocument,
-  deleteStandardDocument,
-  fetchStandardDocuments,
-  runStandardDocumentWorkflow,
-  updateStandardDocument,
-} from '@/api/modules/standard'
-import type { AppTableAction } from '@/types/crud'
-import type { StandardDocument, StandardDocumentInput, StandardIndicatorInput } from '@/types/standard'
 import { formatDate } from '@/utils/day'
 import { mdReviewStatusMetaFor } from '@/utils/professional-status'
+import { standardVisibilityMeta } from '@/utils/standard-visibility'
 
 const { canAccess } = usePermissionAccess()
 const canAdd = computed(() => canAccess({ permissions: ['system:standard:add'] }))
@@ -61,7 +62,9 @@ const list = reactive({
     await list.load()
   },
   async reset(): Promise<void> {
-    Object.keys(list.query).forEach((key) => { list.query[key as keyof typeof list.query] = '' })
+    Object.keys(list.query).forEach((key) => {
+      list.query[key as keyof typeof list.query] = ''
+    })
     await list.load()
   },
   retry: () => list.load(),
@@ -75,14 +78,16 @@ const dialogMode = ref<'create' | 'edit'>('create')
 const editingId = ref<string | null>(null)
 const isSubmitting = ref(false)
 
-const emptyIndicator = (): StandardIndicatorInput => ({
-  indicatorType: 'K_VALUE',
-  indicatorName: '',
-  value: 0,
-  unit: '',
-  evidenceRef: '',
-  rawText: '',
-})
+function emptyIndicator(): StandardIndicatorInput {
+  return {
+    indicatorType: 'K_VALUE',
+    indicatorName: '',
+    value: 0,
+    unit: '',
+    evidenceRef: '',
+    rawText: '',
+  }
+}
 
 const form = reactive<{
   provinceCode: string
@@ -171,12 +176,12 @@ async function submitForm(): Promise<void> {
     await feedback.message('warning', '请填写文档编号、标题与省份')
     return
   }
-  const validIndicators = form.indicators.filter((item) => item.indicatorName.trim())
+  const validIndicators = form.indicators.filter(item => item.indicatorName.trim())
   if (validIndicators.length === 0) {
     await feedback.message('warning', '至少录入一条指标')
     return
   }
-  if (validIndicators.some((item) => !item.evidenceRef.trim())) {
+  if (validIndicators.some(item => !item.evidenceRef.trim())) {
     await feedback.message('warning', '每条指标必须填写条款引用')
     return
   }
@@ -196,7 +201,7 @@ async function submitForm(): Promise<void> {
       expiresAt: form.expiresAt || undefined,
       originUrl: form.originUrl || undefined,
       evidenceSource: form.evidenceSource || undefined,
-      indicators: validIndicators.map((item) => ({
+      indicators: validIndicators.map(item => ({
         ...item,
         unit: item.unit || undefined,
         rawText: item.rawText || undefined,
@@ -247,8 +252,8 @@ const workflow = useWorkflowActions<StandardDocument>({
 })
 
 const deleteAction = useConfirmedCrudAction<StandardDocument, unknown>({
-  action: (row) => deleteStandardDocument(row.id),
-  confirm: (row) => ({ title: '删除草稿', content: `确定删除「${row.title}」？仅草稿可删除。`, danger: true }),
+  action: row => deleteStandardDocument(row.id),
+  confirm: row => ({ title: '删除草稿', content: `确定删除「${row.title}」？仅草稿可删除。`, danger: true }),
   successMessage: '已删除',
   onSuccess: () => list.refresh(),
 })
@@ -298,43 +303,79 @@ const columns: PrimaryTableCol<TableRowData>[] = [
   { cell: (_, { row }) => standardStatusLabels[row.standardStatus] ?? row.standardStatus, colKey: 'standardStatus', minWidth: 100, title: '效力' },
   { cell: (_, { row }) => ingestTypeLabels[row.ingestType] ?? row.ingestType, colKey: 'ingestType', minWidth: 90, title: '来源' },
   { cell: (_, { row }) => h(AppStatusTag, mdReviewStatusMetaFor(row.status)), colKey: 'status', minWidth: 100, title: '审核状态' },
+  {
+    cell: (_, { row }) => {
+      const meta = standardVisibilityMeta(row.status as string)
+      return h('div', { class: 'vicp-visibility' }, [
+        h(AppStatusTag, { label: meta.visibility, status: meta.status }),
+        h('div', { class: 'vicp-visibility__usage' }, meta.aiUsage),
+      ])
+    },
+    colKey: 'visibility',
+    minWidth: 160,
+    title: '用户可见性',
+  },
   { cell: (_, { row }) => row.effectiveAt ? formatDate(new Date(row.effectiveAt), 'YYYY-MM-DD') : '—', colKey: 'effectiveAt', minWidth: 110, title: '生效日期' },
   { cell: (_, { row }) => formatDate(new Date(row.createdAt), 'YYYY-MM-DD'), colKey: 'createdAt', minWidth: 110, title: '创建日期' },
 ]
 
+// ---- 详情（数据来源 / 审核与发布时间 / 是否参与 AI 判定） ----
+
+const detailVisible = ref(false)
+const detailEntity = ref<StandardDocument | null>(null)
+
+function openDetail(entity: StandardDocument): void {
+  detailEntity.value = entity
+  detailVisible.value = true
+}
+
 function getActions(row: TableRowData): AppTableAction[] {
   const entity = row as StandardDocument
   const actions: AppTableAction[] = []
-  const available = workflowActionsForStatus(entity.status).filter((action) => ALLOWED.includes(action))
+  const available = workflowActionsForStatus(entity.status).filter(action => ALLOWED.includes(action))
+
+  actions.push({ key: 'detail', label: '详情', handler: () => openDetail(entity) })
 
   if (canEdit.value && (entity.status === 'DRAFT' || entity.status === 'REJECTED')) {
     actions.push({ key: 'edit', label: '编辑', handler: () => openEdit(entity) })
   }
   if (canAdd.value && available.includes('submit')) {
     actions.push({
-      key: 'submit', label: '提交审核', loading: workflow.submit.running.value,
+      key: 'submit',
+      label: '提交审核',
+      loading: workflow.submit.running.value,
       handler: () => workflow.submit.run({ id: entity.id, label: entity.title }),
     })
   }
   if (canApprove.value && available.includes('approve')) {
     actions.push({
-      key: 'approve', label: '通过', loading: workflow.approveRunning.value,
+      key: 'approve',
+      label: '通过',
+      loading: workflow.approveRunning.value,
       handler: () => workflow.openApprove({ id: entity.id, label: entity.title }),
     })
     actions.push({
-      key: 'reject', label: '驳回', loading: workflow.rejectRunning.value, theme: 'danger',
+      key: 'reject',
+      label: '驳回',
+      loading: workflow.rejectRunning.value,
+      theme: 'danger',
       handler: () => workflow.openReject({ id: entity.id, label: entity.title }),
     })
   }
   if (canPublish.value && available.includes('publish')) {
     actions.push({
-      key: 'publish', label: '发布', loading: workflow.publish.running.value,
+      key: 'publish',
+      label: '发布',
+      loading: workflow.publish.running.value,
       handler: () => workflow.publish.run({ id: entity.id, label: entity.title }),
     })
   }
   if (canRemove.value && entity.status === 'DRAFT') {
     actions.push({
-      key: 'remove', label: '删除', loading: deleteAction.running.value, theme: 'danger',
+      key: 'remove',
+      label: '删除',
+      loading: deleteAction.running.value,
+      theme: 'danger',
       handler: () => deleteAction.run(entity),
     })
   }
@@ -382,7 +423,9 @@ function getActions(row: TableRowData): AppTableAction[] {
     >
       <template #toolbar>
         <t-button v-if="canAdd" theme="primary" @click="openCreate">
-          <template #icon><AddIcon /></template>
+          <template #icon>
+            <AddIcon />
+          </template>
           人工录入标准
         </t-button>
       </template>
@@ -398,7 +441,7 @@ function getActions(row: TableRowData): AppTableAction[] {
       :submitting="isSubmitting"
       :title="dialogMode === 'create' ? '人工录入标准' : '编辑标准文档'"
       :visible="dialogVisible"
-      :width="'min(860px, 96vw)'"
+      width="min(860px, 96vw)"
       @cancel="dialogVisible = false"
       @submit="submitForm"
       @update:visible="dialogVisible = $event"
@@ -490,11 +533,62 @@ function getActions(row: TableRowData): AppTableAction[] {
             variant="text"
             @click="removeIndicator(index)"
           >
-            <template #icon><DeleteIcon /></template>
+            <template #icon>
+              <DeleteIcon />
+            </template>
           </t-button>
         </div>
       </div>
     </AppCrudFormDialog>
+
+    <t-drawer
+      :cancel-btn="{ content: '关闭' }"
+      :footer="false"
+      :header="detailEntity ? `标准详情 · ${detailEntity.title}` : '标准详情'"
+      placement="right"
+      size="min(560px, 100vw)"
+      :visible="detailVisible"
+      @close="detailVisible = false"
+    >
+      <t-descriptions v-if="detailEntity" bordered :column="1" size="medium">
+        <t-descriptions-item label="标准名称">
+          {{ detailEntity.title }}
+        </t-descriptions-item>
+        <t-descriptions-item label="标准编号">
+          {{ detailEntity.documentNo }}
+        </t-descriptions-item>
+        <t-descriptions-item label="数据来源">
+          {{ ingestTypeLabels[detailEntity.ingestType] ?? detailEntity.ingestType }}
+          <template v-if="detailEntity.ingestType === 'CRAWL'">
+            <span v-if="detailEntity.createdAt" class="vicp-detail-muted">（抓取入库于 {{ formatDate(new Date(detailEntity.createdAt)) }}）</span>
+          </template>
+        </t-descriptions-item>
+        <t-descriptions-item label="提交审核">
+          {{ detailEntity.submittedAt ? formatDate(new Date(detailEntity.submittedAt)) : '—' }}
+        </t-descriptions-item>
+        <t-descriptions-item label="审核时间">
+          {{ detailEntity.approvedAt ? formatDate(new Date(detailEntity.approvedAt)) : '—' }}
+        </t-descriptions-item>
+        <t-descriptions-item label="发布时间">
+          {{ detailEntity.publishedAt ? formatDate(new Date(detailEntity.publishedAt)) : '—' }}
+        </t-descriptions-item>
+        <t-descriptions-item label="用户可见性">
+          <AppStatusTag
+            :label="standardVisibilityMeta(detailEntity.status).visibility"
+            :status="standardVisibilityMeta(detailEntity.status).status"
+          />
+        </t-descriptions-item>
+        <t-descriptions-item label="参与 AI / 热工判定">
+          {{ standardVisibilityMeta(detailEntity.status).aiUsage }}
+        </t-descriptions-item>
+        <t-descriptions-item label="原文链接">
+          <t-link v-if="detailEntity.originUrl" :href="detailEntity.originUrl" target="_blank">
+            查看官方来源
+          </t-link>
+          <span v-else>—</span>
+        </t-descriptions-item>
+      </t-descriptions>
+    </t-drawer>
 
     <t-dialog
       :cancel-btn="{ content: '取消', disabled: workflow.approveDialog.submitting }"
@@ -532,6 +626,19 @@ function getActions(row: TableRowData): AppTableAction[] {
   font-weight: var(--td-font-weight-medium);
 }
 .vicp-doc-no {
+  color: var(--td-text-color-secondary);
+  font-size: var(--td-font-size-body-small);
+}
+.vicp-visibility {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.vicp-visibility__usage {
+  color: var(--td-text-color-secondary);
+  font-size: var(--td-font-size-body-small);
+}
+.vicp-detail-muted {
   color: var(--td-text-color-secondary);
   font-size: var(--td-font-size-body-small);
 }

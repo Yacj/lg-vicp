@@ -137,7 +137,7 @@ async function copyUrl(): Promise<void> {
         <t-form-item label="有效期">
           <t-date-picker
             v-model="expiresAt"
-            :disable-date="(date) => new Date(date).getTime() <= Date.now()"
+            :disable-date="(date: Date | string | number) => new Date(date).getTime() <= Date.now()"
             placeholder="选填，不设置则长期有效"
             value-type="Date"
           />

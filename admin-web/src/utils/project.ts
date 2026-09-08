@@ -21,7 +21,7 @@ export function projectDetailTabs(canViewAuditLogs: boolean): ProjectDetailTab[]
   return PROJECT_DETAIL_TABS.filter((tab) => tab.key !== 'audit' || canViewAuditLogs)
 }
 
-/** 行级管理权限：仅项目创建者或超级管理员（与后端 canManageProject 对齐）。 */
+/** 行级管理权限：项目创建者和超级管理员。 */
 export function isProjectManager(
   project: Pick<ProjectItem, 'createdById'>,
   currentUserId: string | null,

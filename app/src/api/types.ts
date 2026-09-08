@@ -117,6 +117,10 @@ export interface UpdateProjectBody extends Partial<Omit<CreateProjectBody, 'visi
   buildingType?: string
 }
 
+export interface UpdateProjectVisibilityBody {
+  visibility: ProjectVisibility
+}
+
 export interface ProjectRecord {
   id: string
   name: string
@@ -131,6 +135,8 @@ export interface ProjectRecord {
   deletedAt: string | null
   createdAt: string
   updatedAt: string
+  /** 后端 projectResponse 附带：是否为创建者或超管（可管理项目） */
+  canManage: boolean
 }
 
 export type AiScene = 'general_chat' | 'project_design' | 'material_compare' | 'standard_qa' | 'report_generate' | 'information_extract'

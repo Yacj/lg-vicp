@@ -5,6 +5,7 @@ import {
   fetchMyProjects,
   fetchPlatformProjects,
   fetchPublicProjects,
+  fetchProjectStatistics,
   updateProject,
   updateProjectVisibility,
 } from '@/api/modules/projects'
@@ -12,6 +13,7 @@ import type {
   ProjectItem,
   ProjectMutationResult,
   ProjectPageQuery,
+  ProjectStatistics,
   ProjectVisibility,
   ProjectViewKey,
 } from '@/types/project'
@@ -24,26 +26,34 @@ import { useCrudList } from './useCrudList'
 export interface ProjectForm extends Record<string, unknown> {
   name: string
   description: string
+  region: string
+  buildingType: string
   visibility: ProjectVisibility
 }
 
 export interface UseProjectCenterOptions {
-  /** 列表是否立即加载；详情页复用抽屉与动作时可传 false。 */
+  /** 项目列表是否立即加载；详情页复用抽屉与动作时可传 false。 */
   immediate?: boolean
+  /** 是否加载平台项目统计；报告中心等复用场景不需要统计请求。 */
+  loadStatistics?: boolean
 }
 
 function createProjectForm(): ProjectForm {
   return {
+    buildingType: '',
     description: '',
     name: '',
+    region: '',
     visibility: 'PRIVATE',
   }
 }
 
 function editProjectForm(project: ProjectItem): ProjectForm {
   return {
+    buildingType: project.buildingType ?? '',
     description: project.description ?? '',
     name: project.name,
+    region: project.region ?? '',
     visibility: project.visibility,
   }
 }
@@ -56,6 +66,26 @@ export function useProjectCenter(options: UseProjectCenterOptions = {}) {
   const immediate = options.immediate !== false
   const feedback = useAppFeedback()
   const activeView = ref<ProjectViewKey>('my')
+  const projectStatistics = ref<ProjectStatistics>({ private: 0, public: 0, total: 0 })
+  const projectStatisticsError = ref<unknown>(null)
+  const projectStatisticsLoading = ref(false)
+
+  async function refreshProjectStatistics(): Promise<void> {
+    if (!options.loadStatistics) return
+    projectStatisticsLoading.value = true
+    projectStatisticsError.value = null
+    try {
+      projectStatistics.value = await fetchProjectStatistics()
+    }
+    catch (cause) {
+      projectStatisticsError.value = cause
+    }
+    finally {
+      projectStatisticsLoading.value = false
+    }
+  }
+
+  void refreshProjectStatistics()
 
   const myList = useCrudList<ProjectItem & TableRowData, ProjectPageQuery & Record<string, unknown>>({
     createQuery: () => ({}),
@@ -108,14 +138,16 @@ export function useProjectCenter(options: UseProjectCenterOptions = {}) {
     onError: (error) => void feedback.messageError(error),
     onSuccess: async (result) => {
       await feedback.message('success', result.message)
-      await Promise.all([myList.refresh(), allList.refresh()])
+      await Promise.all([myList.refresh(), allList.refresh(), refreshProjectStatistics()])
     },
     submit: ({ data, entity, mode }) => {
       const name = data.name.trim()
       const description = data.description.trim() || undefined
+      const region = data.region.trim() || undefined
+      const buildingType = data.buildingType.trim() || undefined
       return mode === 'create'
-        ? createProject({ name, description, visibility: data.visibility })
-        : updateProject(entity!.id, { name, description })
+        ? createProject({ name, description, region, buildingType, visibility: data.visibility })
+        : updateProject(entity!.id, { name, description, region, buildingType })
     },
   })
 
@@ -131,7 +163,7 @@ export function useProjectCenter(options: UseProjectCenterOptions = {}) {
       title: '切换项目可见性',
     }),
     onSuccess: async () => {
-      await Promise.all([myList.refresh(), publicList.refresh(), allList.refresh()])
+      await Promise.all([myList.refresh(), publicList.refresh(), allList.refresh(), refreshProjectStatistics()])
     },
     successMessage: (_payload, result) => result.message,
   })
@@ -145,7 +177,7 @@ export function useProjectCenter(options: UseProjectCenterOptions = {}) {
       title: '删除项目',
     }),
     onSuccess: async () => {
-      await Promise.all([myList.refresh(), publicList.refresh(), allList.refresh()])
+      await Promise.all([myList.refresh(), publicList.refresh(), allList.refresh(), refreshProjectStatistics()])
     },
     successMessage: (_project, result) => result.message,
   })
@@ -164,7 +196,11 @@ export function useProjectCenter(options: UseProjectCenterOptions = {}) {
     deleteAction,
     myList,
     projectDrawer,
+    projectStatistics,
+    projectStatisticsError,
+    projectStatisticsLoading,
     publicList,
+    refreshProjectStatistics,
     setActiveView,
     visibilityAction,
   }

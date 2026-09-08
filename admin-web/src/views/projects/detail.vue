@@ -1,11 +1,9 @@
 <script setup lang="ts">
 import type { FormRules, PrimaryTableCol, TableRowData } from 'tdesign-vue-next'
 import { ArrowLeftIcon } from 'tdesign-icons-vue-next'
-import { computed, h, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AppCrudFormDialog from '@/components/business/AppCrudFormDialog.vue'
-import AppFileUploader from '@/components/business/AppFileUploader.vue'
-import AppTableActions from '@/components/business/AppTableActions.vue'
 import AppDataTable from '@/components/ui/AppDataTable.vue'
 import AppErrorState from '@/components/ui/AppErrorState.vue'
 import AppPage from '@/components/ui/AppPage.vue'
@@ -18,8 +16,6 @@ import { createProject, updateProject, updateProjectVisibility, deleteProject } 
 import type { ProjectForm } from '@/composables/useProjectCenter'
 import type { ProjectItem, ProjectMutationResult, ProjectVisibility } from '@/types/project'
 import type { ProjectConversation, ProjectAuditLog } from '@/types/project'
-import type { FileRecord } from '@/types/file'
-import type { AppTableAction } from '@/types/crud'
 import {
   isProjectManager,
   projectStatusMeta,
@@ -32,7 +28,6 @@ const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 const feedback = useAppFeedback()
-
 const projectId = computed(() => (typeof route.params.id === 'string' ? route.params.id : null))
 
 const {
@@ -41,16 +36,11 @@ const {
   detail,
   detailError,
   detailStatus,
-  downloadFile,
-  fileDeleteAction,
-  fileDownloadRunning,
-  filesList,
   reloadDetail,
   tabs,
 } = useProjectDetail(projectId)
 
 const activeTab = ref<string>('overview')
-
 const currentProject = computed(() => detail.value)
 const isManager = computed(() => currentProject.value
   ? isProjectManager(currentProject.value, userStore.profile?.id ?? null, userStore.isSuperAdmin)
@@ -62,14 +52,22 @@ const formRules: FormRules<ProjectForm> = {
     { max: 120, message: '项目名称不能超过 120 个字符' },
   ],
   description: [{ max: 2000, message: '项目描述不能超过 2000 个字符' }],
+  region: [{ max: 80, message: '地区不能超过 80 个字符' }],
+  buildingType: [{ max: 80, message: '建筑类型不能超过 80 个字符' }],
 }
 
 function createProjectForm(): ProjectForm {
-  return { description: '', name: '', visibility: 'PRIVATE' }
+  return { buildingType: '', description: '', name: '', region: '', visibility: 'PRIVATE' }
 }
 
 function editProjectForm(project: ProjectItem): ProjectForm {
-  return { description: project.description ?? '', name: project.name, visibility: project.visibility }
+  return {
+    buildingType: project.buildingType ?? '',
+    description: project.description ?? '',
+    name: project.name,
+    region: project.region ?? '',
+    visibility: project.visibility,
+  }
 }
 
 const projectDrawer = useCrudDrawer<ProjectForm, ProjectItem, ProjectMutationResult>({
@@ -83,9 +81,11 @@ const projectDrawer = useCrudDrawer<ProjectForm, ProjectItem, ProjectMutationRes
   submit: ({ data, entity, mode }) => {
     const name = data.name.trim()
     const description = data.description.trim() || undefined
+    const region = data.region.trim() || undefined
+    const buildingType = data.buildingType.trim() || undefined
     return mode === 'create'
-      ? createProject({ name, description, visibility: data.visibility })
-      : updateProject(entity!.id, { name, description })
+      ? createProject({ name, description, region, buildingType, visibility: data.visibility })
+      : updateProject(entity!.id, { name, description, region, buildingType })
   },
 })
 
@@ -136,59 +136,6 @@ const SCENE_LABELS: Record<string, string> = {
 
 function sceneLabel(scene: string): string {
   return SCENE_LABELS[scene] ?? scene
-}
-
-const fileColumns: PrimaryTableCol<TableRowData>[] = [
-  { colKey: 'originalName', minWidth: 220, title: '文件名称' },
-  {
-    cell: (_h, { row }) => {
-      const file = row as FileRecord
-      const statusMap: Record<string, { label: string, status: 'default' | 'info' | 'processing' | 'success' | 'warning' | 'error' | 'disabled' }> = {
-        UPLOADING: { label: '上传中', status: 'processing' },
-        UPLOADED: { label: '已上传', status: 'info' },
-        QUEUED: { label: '等待解析', status: 'processing' },
-        PARSING: { label: '解析中', status: 'processing' },
-        OCR_REQUIRED: { label: '待 OCR', status: 'warning' },
-        INDEXING: { label: '索引中', status: 'processing' },
-        READY: { label: '就绪', status: 'success' },
-        FAILED: { label: '失败', status: 'error' },
-        DELETED: { label: '已删除', status: 'disabled' },
-      }
-      const meta = statusMap[file.status] ?? { label: file.status, status: 'default' as const }
-      return h(AppStatusTag, { label: meta.label, status: meta.status })
-    },
-    colKey: 'status',
-    title: '状态',
-    width: 110,
-  },
-  {
-    cell: (_h, { row }) => formatDate(new Date((row as FileRecord).updatedAt)),
-    colKey: 'updatedAt',
-    title: '更新时间',
-    width: 170,
-  },
-]
-
-function getFileActions(row: TableRowData): AppTableAction[] {
-  const file = row as FileRecord
-  const actions: AppTableAction[] = [
-    {
-      handler: () => downloadFile(file),
-      key: 'download',
-      label: '下载',
-      loading: fileDownloadRunning.value,
-    },
-  ]
-  if (isManager.value) {
-    actions.push({
-      handler: () => fileDeleteAction.run(file),
-      key: 'remove',
-      label: '删除',
-      loading: fileDeleteAction.running.value,
-      theme: 'danger',
-    })
-  }
-  return actions
 }
 
 const conversationColumns: PrimaryTableCol<TableRowData>[] = [
@@ -297,7 +244,7 @@ function goBack(): void {
           :value="tab.key"
         >
           <!-- 项目概况 -->
-          <section v-if="tab.key === 'overview'" class="project-overview">
+          <section v-if="tab.key === 'overview'" class="project-overview mt-3">
             <t-card title="项目概况">
               <t-descriptions bordered :column="2" size="medium">
                 <t-descriptions-item label="项目名称">{{ currentProject.name }}</t-descriptions-item>
@@ -306,6 +253,12 @@ function goBack(): void {
                 </t-descriptions-item>
                 <t-descriptions-item label="状态">
                   {{ projectStatusMeta(currentProject.status).label }}
+                </t-descriptions-item>
+                <t-descriptions-item label="项目地区">
+                  {{ currentProject.region || '未填写' }}
+                </t-descriptions-item>
+                <t-descriptions-item label="建筑类型">
+                  {{ currentProject.buildingType || '未填写' }}
                 </t-descriptions-item>
                 <t-descriptions-item label="创建时间">
                   {{ formatDate(new Date(currentProject.createdAt)) }}
@@ -321,7 +274,7 @@ function goBack(): void {
           </section>
 
           <!-- 资料文件 -->
-          <section v-else-if="tab.key === 'files'" class="project-files">
+          <!-- <section v-else-if="tab.key === 'files'" class="project-files">
             <div v-if="isManager" class="project-files__uploader">
               <AppFileUploader
                 :project-id="currentProject.id"
@@ -350,10 +303,10 @@ function goBack(): void {
                 <AppTableActions :actions="getFileActions(row)" />
               </template>
             </AppDataTable>
-          </section>
+          </section> -->
 
           <!-- AI 会话 -->
-          <section v-else-if="tab.key === 'conversations'" class="project-conversations">
+          <section v-else-if="tab.key === 'conversations'" class="project-conversations mt-3">
             <AppDataTable
               :columns="conversationColumns"
               :current="conversationsList.current.value"
@@ -374,7 +327,7 @@ function goBack(): void {
           </section>
 
           <!-- 操作记录 -->
-          <section v-else-if="tab.key === 'audit'" class="project-audit">
+          <section v-else-if="tab.key === 'audit'" class="project-audit mt-3">
             <AppDataTable
               :columns="auditColumns"
               :current="auditList.current.value"
@@ -418,6 +371,12 @@ function goBack(): void {
       <t-form-item label="项目名称" name="name">
         <t-input v-model="projectDrawer.formData.name" maxlength="120" placeholder="请输入项目名称" />
       </t-form-item>
+      <t-form-item label="项目地区" name="region">
+        <t-input v-model="projectDrawer.formData.region" maxlength="80" placeholder="选填，如：上海市浦东新区" />
+      </t-form-item>
+      <t-form-item label="建筑类型" name="buildingType">
+        <t-input v-model="projectDrawer.formData.buildingType" maxlength="80" placeholder="选填，如：办公建筑" />
+      </t-form-item>
       <t-form-item label="项目描述" name="description">
         <t-textarea
           v-model="projectDrawer.formData.description"
@@ -449,7 +408,7 @@ function goBack(): void {
   gap: var(--vicp-page-gap);
 }
 
-.project-files__uploader {
+  .project-files__uploader {
   min-width: 0;
 }
 

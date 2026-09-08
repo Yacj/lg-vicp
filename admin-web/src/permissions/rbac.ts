@@ -1,8 +1,5 @@
 export function permissionMatches(granted: string, required: string): boolean {
-  if (granted === required || granted === '*') {
-    return true
-  }
-  return granted.endsWith('*') && required.startsWith(granted.slice(0, -1))
+  return granted === required
 }
 
 export function hasPermission(

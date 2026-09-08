@@ -40,11 +40,10 @@ export const useAuthStore = defineStore('auth', {
     setSession(session: AuthSession | LoginResult | RefreshResult) {
       this.accessToken = session.accessToken
       this.refreshToken = 'refreshToken' in session ? session.refreshToken || '' : this.refreshToken
-      this.expiresAt = session.expiresAt ?? (
-        'refreshTokenExpiresAt' in session ? Date.parse(session.refreshTokenExpiresAt) : null
-      )
+      this.expiresAt = ('expiresAt' in session ? session.expiresAt : null)
+        ?? ('refreshTokenExpiresAt' in session ? Date.parse(session.refreshTokenExpiresAt) : null)
       this.user = 'user' in session ? session.user || null : this.user
-      this.clientType = 'clientType' in session ? session.clientType : this.clientType
+      this.clientType = ('clientType' in session && session.clientType) ? session.clientType : this.clientType
       if ('capabilities' in session) {
         this.capabilities = session.capabilities || null
       }

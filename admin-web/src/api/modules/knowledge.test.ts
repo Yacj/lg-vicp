@@ -12,8 +12,19 @@ import {
   fetchKnowledgeDocumentDetail,
   fetchKnowledgeDocuments,
   fetchKnowledgeEvaluations,
-  fetchVersionChunks,
   fetchVersionPages,
+  fetchVersionAssets,
+  fetchVersionToc,
+  fetchVersionPageMappings,
+  fetchPublicLibraryDocumentToc,
+  fetchPublicLibraryDocumentPage,
+  fetchPublicLibraryDocumentPageByLabel,
+  replaceVersionToc,
+  updateKnowledgeTocItem,
+  reorderVersionToc,
+  verifyVersionPageMappings,
+  updateVersionUsageMode,
+  fetchVersionSections,
   judgeKnowledgeEvaluation,
   mergeKnowledgeChunk,
   postKnowledgeQa,
@@ -164,13 +175,33 @@ describe('knowledge pages / chunks contracts', () => {
     })
   })
 
-  it('fetches version chunks with optional contentType filter', async () => {
-    await fetchVersionChunks('version-1', 1, 10, 'TABLE')
+  it('supports version assets, TOC and mapping contracts', async () => {
+    await fetchVersionAssets('version-1')
+    expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/platform/knowledge/versions/version-1/assets', { signal: undefined })
 
-    expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/platform/knowledge/versions/version-1/chunks', {
-      params: { page: 1, pageSize: 10, contentType: 'TABLE' },
-    })
+    await createKnowledgeUploadIntent('version-1', { fileName: 'search.pdf', mimeType: 'application/pdf', sizeBytes: 10, },)
+    expect(mockedApi.post).toHaveBeenLastCalledWith('/api/v1/platform/knowledge/versions/version-1/upload-intent', { fileName: 'search.pdf', mimeType: 'application/pdf', sizeBytes: 10 })
+
+    await fetchVersionToc('version-1')
+    await replaceVersionToc('version-1', [{ title: '总说明', pageLabel: '4', physicalPageNumber: 4 }], true)
+    expect(mockedApi.post).toHaveBeenLastCalledWith('/api/v1/platform/knowledge/versions/version-1/toc', { confirm: true, items: [{ title: '总说明', pageLabel: '4', physicalPageNumber: 4 }] })
+    await updateKnowledgeTocItem('toc-1', { title: '基本构造', status: 'CONFIRMED' })
+    await reorderVersionToc('version-1', [{ id: 'toc-1', sortOrder: 0, parentId: null, level: 1 }])
+    await fetchVersionPageMappings('version-1')
+    await verifyVersionPageMappings('version-1', [{ searchPhysicalPageNumber: 23, originalPhysicalPageNumber: 26, pageLabel: '21' }])
+    await updateVersionUsageMode('version-1', 'BROWSE_ONLY')
+    expect(mockedApi.patch).toHaveBeenLastCalledWith('/api/v1/platform/knowledge/versions/version-1/usage-mode', { usageMode: 'BROWSE_ONLY' })
   })
+
+  it('uses platform routes for public original TOC and pages', async () => {
+    await fetchPublicLibraryDocumentToc('document-1')
+    expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/platform/knowledge/public/documents/document-1/toc', { signal: undefined })
+    await fetchPublicLibraryDocumentPage('document-1', 26)
+    expect(mockedApi.get).toHaveBeenLastCalledWith('/api/v1/platform/knowledge/public/documents/document-1/pages/26', { signal: undefined })
+    await fetchPublicLibraryDocumentPageByLabel('document-1', 'A5')
+    expect(mockedApi.get).toHaveBeenLastCalledWith('/api/v1/platform/knowledge/public/documents/document-1/pages/by-label/A5', { signal: undefined })
+  })
+
 
   it('fetches chunk terms', async () => {
     const signal = new AbortController().signal
@@ -265,9 +296,9 @@ describe('postKnowledgeQa (SSE)', () => {
       'event: progress\ndata: {"stage":"checking","message":"正在核对检索资料和计算结果..."}\n\n',
       'event: delta\ndata: {"text":"依据"}\n\n',
       'event: done\ndata: {"messageId":"message-1","conversationId":"conversation-1","finishReason":"COMPLETED",'
-        + '"model":{"id":"deepseek-r1"},"promptVersion":{"id":"prompt-1","version":3},'
-        + '"sources":[{"chunkId":"chunk-1","documentId":"document-1","title":"GB 50176","page":12,'
-        + '"section":"5.2","score":0.93,"evidenceLevel":"A"}],"latencyMs":1500}\n\n',
+      + '"model":{"id":"deepseek-r1"},"promptVersion":{"id":"prompt-1","version":3},'
+      + '"sources":[{"chunkId":"chunk-1","documentId":"document-1","title":"GB 50176","page":12,'
+      + '"section":"5.2","score":0.93,"evidenceLevel":"A"}],"latencyMs":1500}\n\n',
     ]))
     vi.stubGlobal('fetch', fetchMock)
 
@@ -292,7 +323,7 @@ describe('postKnowledgeQa (SSE)', () => {
         body: JSON.stringify({ query: '保温层厚度要求' }),
       }),
     )
-    expect(events.map((event) => event.type)).toEqual(['message', 'progress', 'delta', 'done'])
+    expect(events.map(event => event.type)).toEqual(['message', 'progress', 'delta', 'done'])
   })
 
   it('stops reading after a terminal error event', async () => {
@@ -309,7 +340,7 @@ describe('postKnowledgeQa (SSE)', () => {
     })
     vi.unstubAllGlobals()
 
-    expect(events.map((event) => event.type)).toEqual(['error'])
+    expect(events.map(event => event.type)).toEqual(['error'])
   })
 
   it('throws HttpRequestError with backend error message on non-200 response', async () => {
@@ -320,10 +351,25 @@ describe('postKnowledgeQa (SSE)', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     await expect(postKnowledgeQa({ query: '问题' }, { onEvent: vi.fn() }))
-      .rejects.toMatchObject({
+      .rejects
+      .toMatchObject({
         message: '请先配置知识问答场景的模型绑定',
         status: 400,
       })
     vi.unstubAllGlobals()
+  })
+})
+
+describe('version wiki sections contract', () => {
+  it('requests the platform section tree by version id', async () => {
+    mockedApi.get.mockResolvedValueOnce({
+      sections: [
+        { id: 'ch1', parentId: null, title: '第1章 总则', level: 1, sectionPath: ['第1章 总则'], startPage: 1, endPage: 4, sortOrder: 0 },
+      ],
+    })
+    const signal = new AbortController().signal
+    const result = await fetchVersionSections('ver-1', signal)
+    expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/platform/knowledge/versions/ver-1/sections', { signal })
+    expect(result.sections[0]).toMatchObject({ id: 'ch1', startPage: 1 })
   })
 })

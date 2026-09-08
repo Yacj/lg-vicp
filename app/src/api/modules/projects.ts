@@ -1,4 +1,4 @@
-import type { CreateProjectBody, PageQuery, ProjectListQuery, UpdateProjectBody } from '../types'
+import type { CreateProjectBody, PageQuery, ProjectListQuery, ProjectVisibility, UpdateProjectBody, UpdateProjectVisibilityBody } from '../types'
 import { request } from '../request'
 
 export const projectApi = {
@@ -19,8 +19,13 @@ export const projectApi = {
     return request('POST', '/projects', { data })
   },
 
-  /** 更新仅在 B 端工作台路由下提供（/api/v1/workspace/projects/:id） */
+  /** 更新项目基础信息（C 端 PATCH /client/projects/:id，可见性走 updateVisibility 专用接口） */
   update(id: string, data: UpdateProjectBody) {
-    return request('PATCH', '/workspace/projects/{id}', { pathParams: { id }, data })
+    return request('PATCH', '/client/projects/{id}', { pathParams: { id }, data })
+  },
+
+  /** 切换项目可见性（C 端 PATCH /client/projects/:id/visibility） */
+  updateVisibility(id: string, data: UpdateProjectVisibilityBody) {
+    return request('PATCH', '/client/projects/{id}/visibility', { pathParams: { id }, data })
   },
 }

@@ -359,19 +359,19 @@ const diffLines = computed(() => {
         <t-select
           :model-value="selectedScene"
           :options="AI_SCENE_OPTIONS"
-          @change="(value) => handleSelectScene(value as AiScene)"
+          @change="(value: unknown) => handleSelectScene(value as AiScene)"
         />
         <t-select
           :model-value="selectedPromptId ?? undefined"
           placeholder="选择模板"
-          @change="(value) => handleSelectPrompt(String(value))"
+          @change="(value: unknown) => handleSelectPrompt(String(value))"
         >
           <t-option v-for="prompt in scenePrompts" :key="prompt.id" :label="prompt.name" :value="prompt.id" />
         </t-select>
         <t-select
           :model-value="selectedVersionId ?? undefined"
           placeholder="选择版本"
-          @change="(value) => handleSelectVersion(String(value))"
+          @change="(value: unknown) => handleSelectVersion(String(value))"
         >
           <t-option
             v-for="version in versions"

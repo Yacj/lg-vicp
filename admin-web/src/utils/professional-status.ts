@@ -2,6 +2,7 @@
 export type AppStatus = 'default' | 'info' | 'processing' | 'success' | 'warning' | 'error' | 'disabled'
 
 import { evidenceLevelMeta, type EvidenceLevel, type MdReviewStatus, type ProfessionalReviewStatus } from '@/types/professional'
+import type { KnowledgeParseStatus, KnowledgeVersionStatus } from '@/types/knowledge'
 
 export interface StatusMeta {
   label: string
@@ -37,7 +38,7 @@ export const evidenceLevelLabels = Object.fromEntries(
 ) as Record<EvidenceLevel, string>
 
 /** 知识文档版本状态映射（DRAFT→APPROVED→PUBLISHED→DISABLED） */
-export const knowledgeVersionStatusMeta: Record<'DRAFT' | 'APPROVED' | 'PUBLISHED' | 'DISABLED', StatusMeta> = {
+export const knowledgeVersionStatusMeta: Record<KnowledgeVersionStatus, StatusMeta> = {
   DRAFT: { label: '草稿', status: 'default' },
   APPROVED: { label: '已通过', status: 'info' },
   PUBLISHED: { label: '已发布', status: 'success' },
@@ -45,16 +46,32 @@ export const knowledgeVersionStatusMeta: Record<'DRAFT' | 'APPROVED' | 'PUBLISHE
 }
 
 /** 知识文档解析状态映射 */
-export const knowledgeParseStatusMeta: Record<'PENDING' | 'PARSING' | 'PARSED' | 'PARTIAL' | 'OCR_REQUIRED' | 'FAILED', StatusMeta> = {
+export const knowledgeParseStatusMeta: Record<KnowledgeParseStatus, StatusMeta> = {
   PENDING: { label: '待识别', status: 'default' },
   PARSING: { label: '识别中', status: 'processing' },
   PARSED: { label: '已识别', status: 'success' },
   PARTIAL: { label: '部分识别', status: 'warning' },
   OCR_REQUIRED: { label: '需人工处理', status: 'warning' },
   FAILED: { label: '识别失败', status: 'error' },
+  NO_TEXT_LAYER: { label: '无文本层', status: 'warning' },
+  SEARCH_SOURCE_REQUIRED: { label: '需配置检索源', status: 'warning' },
 }
 
-/** 未知审核状态的安全回退（不吞掉原始值，展示原文） */
+/** 未知知识版本状态回退为原始值，避免接口新增状态导致页面渲染异常。 */
+export function knowledgeVersionStatusMetaFor(value: string | null | undefined): StatusMeta {
+  if (value && value in knowledgeVersionStatusMeta) {
+    return knowledgeVersionStatusMeta[value as KnowledgeVersionStatus]
+  }
+  return { label: value || '未知', status: 'default' }
+}
+
+/** 未知解析状态回退为原始值，避免接口新增状态导致页面渲染异常。 */
+export function knowledgeParseStatusMetaFor(value: string | null | undefined): StatusMeta {
+  if (value && value in knowledgeParseStatusMeta) {
+    return knowledgeParseStatusMeta[value as KnowledgeParseStatus]
+  }
+  return { label: value || '未知', status: 'default' }
+}
 export function mdReviewStatusMetaFor(value: string | null | undefined): StatusMeta {
   if (value && value in mdReviewStatusMeta) {
     return mdReviewStatusMeta[value as MdReviewStatus]

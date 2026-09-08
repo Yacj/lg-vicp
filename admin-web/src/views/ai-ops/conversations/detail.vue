@@ -8,14 +8,17 @@ import type {
   AiToolCall,
   ConversationOpsDetail,
 } from '@/types/ai'
+import type { AiSourceLocatorQuery } from '@/types/ai-source'
 import { ArrowLeftIcon } from 'tdesign-icons-vue-next'
 import { computed, h, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { fetchPlatformConversationDetail } from '@/api/modules/ai'
+import KnowledgeSourceReader from '@/components/business/KnowledgeSourceReader.vue'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
 import AppPage from '@/components/ui/AppPage.vue'
 import AppStatusTag from '@/components/ui/AppStatusTag.vue'
 import { normalizeFeedbackError } from '@/composables/useAppFeedback'
+import { normalizeAiSource, resolveAiSourceLocator } from '@/types/ai-source'
 import {
   getAiClientAppLabel,
   getAiFeedbackReactionLabel,
@@ -105,6 +108,32 @@ function formatDuration(durationMs: number | null): string {
 /** 检索记录去重键（消息 + 来源标题 + 页码）。 */
 function retrievalKey(item: AiRetrievalLog): string {
   return `${item.messageId ?? ''}:${item.sourceTitle ?? ''}:${item.sourcePage ?? ''}`
+}
+
+/** 检索记录 → 统一来源定位入口（chunkId/文档级），无定位信息时返回 null */
+function retrievalLocator(item: AiRetrievalLog): AiSourceLocatorQuery | null {
+  const source = normalizeAiSource({
+    title: item.sourceTitle ?? '未知来源',
+    documentId: item.documentId ?? undefined,
+    chunkId: item.chunkId ?? undefined,
+    sourcePage: item.sourcePage,
+    score: item.score,
+  })
+  return source ? resolveAiSourceLocator(source) : null
+}
+
+// ===== 原文阅读（Wiki 阅读器） =====
+
+const readerVisible = ref(false)
+const readerLocator = ref<AiSourceLocatorQuery | null>(null)
+
+function openRetrievalReader(item: AiRetrievalLog): void {
+  const locator = retrievalLocator(item)
+  if (!locator) {
+    return
+  }
+  readerLocator.value = locator
+  readerVisible.value = true
 }
 
 /** 从全局检索记录中挑出属于指定消息的条目。 */
@@ -267,6 +296,16 @@ function auditLogsForMessage(messageId: string): AiAuditLog[] {
                     <template v-if="retrieval.score !== null">
                       <span class="ai-ops-detail__muted">相似度 {{ retrieval.score.toFixed(2) }}</span>
                     </template>
+                    <span
+                      v-if="retrievalLocator(retrieval)"
+                      class="ai-ops-detail__reader-link"
+                      role="button"
+                      tabindex="0"
+                      @click="openRetrievalReader(retrieval)"
+                      @keydown.enter="openRetrievalReader(retrieval)"
+                    >
+                      查看原文
+                    </span>
                   </div>
                 </div>
               </div>
@@ -376,6 +415,18 @@ function auditLogsForMessage(messageId: string): AiAuditLog[] {
           </div>
         </div>
       </t-card>
+
+      <t-drawer
+        v-model:visible="readerVisible"
+        attach="body"
+        header="原文阅读"
+        placement="right"
+        :prevent-scroll-through="true"
+        size="min(760px, 96vw)"
+        :footer="false"
+      >
+        <KnowledgeSourceReader v-if="readerLocator && readerVisible" :locator="readerLocator" />
+      </t-drawer>
     </template>
   </AppPage>
 </template>
@@ -535,5 +586,12 @@ function auditLogsForMessage(messageId: string): AiAuditLog[] {
 
 .ai-ops-detail__muted {
   color: var(--td-text-color-secondary);
+}
+
+.ai-ops-detail__reader-link {
+  color: var(--td-brand-color);
+  cursor: pointer;
+  font-size: var(--td-font-size-body-small);
+  white-space: nowrap;
 }
 </style>

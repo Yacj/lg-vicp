@@ -3,6 +3,7 @@ import type { ApiEnvelope, ApiPage, ProjectRecord, ProjectVisibility } from '@/a
 import { projectApi } from '@/api/modules/projects'
 import { useAuthGate } from '@/composables/useAuthGate'
 import { getPlatformInfo } from '@/services/platform'
+import { useAuthStore } from '@/store/auth'
 
 definePage({
   name: 'projects',
@@ -35,6 +36,11 @@ const filters: ProjectFilterOption[] = [
 const router = useRouter()
 const route = useRoute()
 const { requireLogin, isAuthenticated } = useAuthGate()
+const authStore = useAuthStore()
+const { warning: showWarning } = useGlobalToast()
+
+// capabilities 未加载或未登录时保持展示；明确无创建权限时隐藏新建入口。
+const canShowCreate = computed(() => !isAuthenticated.value || authStore.capabilities?.canCreateProject !== false)
 
 const initialScope = route.query.scope
 const activeFilter = ref<ProjectFilter>(
@@ -193,6 +199,10 @@ function createProject() {
   if (!requireLogin()) {
     return
   }
+  if (authStore.capabilities?.canCreateProject === false) {
+    showWarning('当前账号暂无创建项目权限')
+    return
+  }
   router.push({ name: 'project-create' })
 }
 
@@ -200,7 +210,6 @@ function openProject(id: string) {
   if (!requireLogin()) {
     return
   }
-  console.log(id)
   router.push({ name: 'project-detail', params: { id } })
 }
 
@@ -327,6 +336,7 @@ function formatTime(value: string) {
     </z-paging>
 
     <view
+      v-if="canShowCreate"
       class="projects-fab app-pressable flex items-center justify-center"
       role="button"
       aria-label="新建项目"

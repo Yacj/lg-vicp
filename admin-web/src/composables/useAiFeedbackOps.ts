@@ -3,6 +3,7 @@ import type { AiFeedbackHandleInput, AiFeedbackItem, AiFeedbackReaction, AiScene
 import { fetchPlatformFeedbacks, handleAiFeedback } from '@/api/modules/ai'
 import { useAppFeedback } from './useAppFeedback'
 import { useCrudList } from './useCrudList'
+import { useNotifications } from './useNotifications'
 
 export type AiFeedbackTableRow = AiFeedbackItem & TableRowData
 
@@ -34,12 +35,16 @@ export function useAiFeedbackOps() {
     rowKey: item => String(item.feedback.id),
   })
 
-  /** 标记已处理：写入处理备注（≤1000 字符）与处理人/时间；无"处理中"中间态。 */
+  /**
+   * 标记已处理：写入处理备注（≤1000 字符）与处理人/时间；无"处理中"中间态。
+   *  处理完成后同步刷新 Header 通知中心的未读数（AI 反馈通知联动）。
+   */
   async function markHandled(item: AiFeedbackItem, input: AiFeedbackHandleInput): Promise<void> {
     try {
       const result = await handleAiFeedback(item.feedback.id, input)
       await feedback.message('success', result.message)
       await feedbackList.refresh()
+      void useNotifications().refreshUnread()
     }
     catch (error) {
       await feedback.messageError(error)

@@ -10,6 +10,8 @@ import { getAppEnv } from '@/utils/env'
 declare module 'axios' {
   interface AxiosRequestConfig {
     retryAfterRefresh?: boolean
+    retryAfterPermissionSync?: boolean
+    skipPermissionSync?: boolean
     skipAuth?: boolean
     skipAuthRefresh?: boolean
   }
@@ -72,6 +74,7 @@ export interface HttpSessionBridge {
   getAccessToken: () => string
   getRefreshToken: () => string
   onSessionExpired: () => Promise<void> | void
+  onPermissionDenied?: () => Promise<void> | void
   replaceSession: (session: StoredAuthSession) => void
 }
 
@@ -79,9 +82,11 @@ let sessionBridge: HttpSessionBridge = {
   getAccessToken: () => '',
   getRefreshToken: () => '',
   onSessionExpired: () => undefined,
+  onPermissionDenied: () => undefined,
   replaceSession: () => undefined,
 }
 let refreshPromise: Promise<string> | null = null
+let permissionSyncPromise: Promise<void> | null = null
 
 export function configureHttpSession(bridge: HttpSessionBridge): void {
   sessionBridge = bridge
@@ -154,6 +159,23 @@ async function replayAfterRefresh<T>(
   return httpClient.request<T>(config)
 }
 
+async function replayAfterPermissionSync<T>(
+  config: InternalAxiosRequestConfig,
+  rejection: unknown,
+): Promise<AxiosResponse<T>> {
+  if (config.skipAuth || config.skipAuthRefresh || config.skipPermissionSync || config.retryAfterPermissionSync) {
+    return Promise.reject(rejection)
+  }
+  if (!permissionSyncPromise) {
+    permissionSyncPromise = Promise.resolve(sessionBridge.onPermissionDenied?.()).finally(() => {
+      permissionSyncPromise = null
+    })
+  }
+  await permissionSyncPromise
+  config.retryAfterPermissionSync = true
+  return httpClient.request<T>(config)
+}
+
 httpClient.interceptors.request.use((config) => {
   if (!config.skipAuth) {
     // 客户端类型与登录态无关，必须始终携带，否则无 token 时 preflight 不带 x-client-type 会被网关拦截
@@ -171,15 +193,21 @@ httpClient.interceptors.response.use(
     if (
       isApiResponse(response.data)
       && !response.data.success
-      && response.data.error.code === 401
+      && (response.data.error.code === 401 || response.data.error.code === 403)
     ) {
-      return replayAfterRefresh(response.config, new BusinessError(response.data.error, response.data.requestId))
+      const rejection = new BusinessError(response.data.error, response.data.requestId)
+      return response.data.error.code === 401
+        ? replayAfterRefresh(response.config, rejection)
+        : replayAfterPermissionSync(response.config, rejection)
     }
     return response
   },
   (error: unknown) => {
     if (axios.isAxiosError(error) && error.response?.status === 401 && error.config) {
       return replayAfterRefresh(error.config, error)
+    }
+    if (axios.isAxiosError(error) && error.response?.status === 403 && error.config) {
+      return replayAfterPermissionSync(error.config, error)
     }
     return Promise.reject(error)
   },

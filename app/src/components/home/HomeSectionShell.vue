@@ -36,7 +36,7 @@ const emit = defineEmits<{
         <wd-icon name="arrow-right" size="22rpx" />
       </view>
     </view>
-    <view v-if="status === 'loading' || status === 'idle'" class="home-section__state px-4 pb-4 pt-2">
+    <view v-if="status === 'loading'" class="home-section__state px-4 pb-4 pt-2">
       <wd-skeleton :row-col="skeletonRowCol" animation="gradient" />
     </view>
     <wd-empty icon="no-content" tip="暂无内容"       v-else-if="status === 'error'"/>

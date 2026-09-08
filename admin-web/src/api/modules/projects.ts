@@ -4,6 +4,7 @@ import type {
   ProjectMutationResult,
   ProjectPageQuery,
   ProjectPageResult,
+  ProjectStatistics,
   ProjectVisibility,
   UpdateProjectInput,
 } from '@/types/project'
@@ -24,7 +25,11 @@ export function fetchPlatformProjects(query: ProjectPageQuery, signal?: AbortSig
   return api.get<ProjectPageResult>('/api/v1/platform/projects', { params: query, signal })
 }
 
-/** 项目详情（GET /api/v1/projects/:id，私有项目仅创建者与超级管理员可见）。 */
+/** 项目统计：平台接口（GET /api/v1/platform/projects/statistics）。 */
+export function fetchProjectStatistics(signal?: AbortSignal): Promise<ProjectStatistics> {
+  return api.get<ProjectStatistics>('/api/v1/platform/projects/statistics', { signal })
+}
+
 export function fetchProjectDetail(projectId: string, signal?: AbortSignal): Promise<ProjectDetailResult> {
   return api.get<ProjectDetailResult>(`/api/v1/projects/${encodeURIComponent(projectId)}`, { signal })
 }
@@ -34,7 +39,7 @@ export function createProject(input: CreateProjectInput): Promise<ProjectMutatio
   return api.post<ProjectMutationResult>('/api/v1/workspace/projects', input)
 }
 
-/** 修改项目名称/描述（PATCH /api/v1/workspace/projects/:id，仅创建者或超级管理员）。 */
+/** 修改项目信息（PATCH /api/v1/workspace/projects/:id；仅创建者或超级管理员）。 */
 export function updateProject(projectId: string, input: UpdateProjectInput): Promise<ProjectMutationResult> {
   return api.patch<ProjectMutationResult>(
     `/api/v1/workspace/projects/${encodeURIComponent(projectId)}`,
@@ -42,7 +47,7 @@ export function updateProject(projectId: string, input: UpdateProjectInput): Pro
   )
 }
 
-/** 切换项目可见性（PATCH /api/v1/workspace/projects/:id/visibility，仅创建者或超级管理员）。 */
+/** 切换项目可见性（PATCH /api/v1/workspace/projects/:id/visibility；仅创建者或超级管理员）。 */
 export function updateProjectVisibility(
   projectId: string,
   visibility: ProjectVisibility,
@@ -53,7 +58,7 @@ export function updateProjectVisibility(
   )
 }
 
-/** 删除项目（DELETE /api/v1/workspace/projects/:id，仅创建者或超级管理员）。 */
+/** 删除项目（DELETE /api/v1/workspace/projects/:id；仅创建者或超级管理员）。 */
 export function deleteProject(projectId: string): Promise<{ message: string }> {
   return api.delete<{ message: string }>(`/api/v1/workspace/projects/${encodeURIComponent(projectId)}`)
 }

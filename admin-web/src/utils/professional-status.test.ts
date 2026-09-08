@@ -3,6 +3,10 @@ import {
   evidenceLevelLabels,
   mdReviewStatusMeta,
   mdReviewStatusMetaFor,
+  knowledgeParseStatusMeta,
+  knowledgeParseStatusMetaFor,
+  knowledgeVersionStatusMeta,
+  knowledgeVersionStatusMetaFor,
   professionalReviewStatusMeta,
   professionalReviewStatusMetaFor,
 } from './professional-status'
@@ -39,6 +43,23 @@ describe('professional-status 状态映射', () => {
   it('未知决议状态同样回退为原文', () => {
     expect(professionalReviewStatusMetaFor('QUEUED')).toEqual({ label: 'QUEUED', status: 'default' })
     expect(professionalReviewStatusMetaFor('APPROVED')).toEqual(professionalReviewStatusMeta.APPROVED)
+  })
+
+  it('知识中心状态覆盖无文本层，并对未知状态安全回退', () => {
+    expect(Object.keys(knowledgeParseStatusMeta)).toEqual([
+      'PENDING',
+      'PARSING',
+      'PARSED',
+      'PARTIAL',
+      'OCR_REQUIRED',
+      'FAILED',
+      'NO_TEXT_LAYER',
+      'SEARCH_SOURCE_REQUIRED',
+    ])
+    expect(knowledgeParseStatusMeta.NO_TEXT_LAYER).toEqual({ label: '无文本层', status: 'warning' })
+    expect(knowledgeParseStatusMetaFor('UNSUPPORTED')).toEqual({ label: 'UNSUPPORTED', status: 'default' })
+    expect(knowledgeVersionStatusMetaFor('ARCHIVED')).toEqual({ label: 'ARCHIVED', status: 'default' })
+    expect(knowledgeVersionStatusMetaFor('PUBLISHED')).toEqual(knowledgeVersionStatusMeta.PUBLISHED)
   })
 
   it('证据等级标签派生自业务语义，覆盖 A/B/C', () => {

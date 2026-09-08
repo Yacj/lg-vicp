@@ -8,7 +8,7 @@ export interface MutationMessageResponse {
   message: string
 }
 
-/** 标准抓取来源 */
+/** 标准抓取来源（含运营回写：最近抓取结果与人工备注） */
 export interface StandardSource {
   id: string
   provinceCode: string
@@ -24,11 +24,15 @@ export interface StandardSource {
     pageLimit?: number
   }>
   parserType: string
-  extractRules: Array<{ field: string; pattern: string; flags?: string }>
-  keywords: { titleKeywords: string[]; excludeKeywords: string[] }
+  extractRules: Array<{ field: string, pattern: string, flags?: string }>
+  keywords: { titleKeywords: string[], excludeKeywords: string[] }
   crawlScope: 'today' | 'all'
   enabled: boolean
   lastCrawledAt: string | null
+  lastCrawlStatus: 'SUCCESS' | 'FAILED' | string | null
+  lastCrawlSummary: { fetched?: number, discovered?: number, new?: number, changed?: number, failed?: number, skipped?: number, indicators?: number } | null
+  lastErrorMessage: string | null
+  operatorRemark: string | null
   createdAt: string
   updatedAt: string
 }
@@ -46,10 +50,12 @@ export interface StandardSourceInput {
     pageParam?: string
     pageLimit?: number
   }>
-  extractRules?: Array<{ field: string; pattern: string; flags?: string }>
-  keywords: { titleKeywords?: string[]; excludeKeywords?: string[] }
+  extractRules?: Array<{ field: string, pattern: string, flags?: string }>
+  keywords: { titleKeywords?: string[], excludeKeywords?: string[] }
   crawlScope?: 'today' | 'all'
   enabled?: boolean
+  /** 人工备注；清空时提交空字符串，后端按可空文本保存 */
+  operatorRemark?: string
 }
 
 export const standardCrawlJobStatuses = ['QUEUED', 'RUNNING', 'SUCCESS', 'FAILED'] as const

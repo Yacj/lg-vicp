@@ -24,7 +24,7 @@ export function loginBAdmin(credentials: LoginCredentials): Promise<LoginResult>
 }
 
 export function fetchCurrentUserInfo(): Promise<CurrentUserInfo> {
-  return api.get<CurrentUserInfo>(`${AUTH_BASE_URL}/b/getInfo`)
+  return api.get<CurrentUserInfo>(`${AUTH_BASE_URL}/b/getInfo`, { skipPermissionSync: true })
 }
 
 export function refreshAccessToken(refreshToken: string): Promise<RefreshTokenResult> {

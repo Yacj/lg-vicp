@@ -102,7 +102,6 @@ async function submitLogin() {
     if (!loginResponse.data?.accessToken) {
       throw new Error('登录响应缺少访问令牌')
     }
-    console.log(loginResponse.data)
     // 登录接口已经返回完整会话，先保存令牌，保证后续请求能携带 Authorization。
     authStore.setSession(loginResponse.data)
 
@@ -111,7 +110,6 @@ async function submitLogin() {
       if (isClientInfo(infoResponse.data)) {
         authStore.setClientInfo(infoResponse.data)
       }
-      console.log(infoResponse.data)
     }
     catch (error) {
       // 客户端扩展信息不是登录成功的必要条件；401/403 等会话失效错误继续抛出。
@@ -121,9 +119,14 @@ async function submitLogin() {
     }
 
     success('登录成功')
+    // goLogin 传入的 redirect 是来源页 fullPath，登录后优先回跳来源页。
     const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : ''
-    console.log('12')
-    await router.replaceAll({ name: 'home' })
+    if (redirect) {
+      await router.replaceAll({ path: redirect }).catch(() => {})
+    }
+    else {
+      await router.replaceAll({ name: 'home' })
+    }
   }
   catch {
     authStore.clearSession()

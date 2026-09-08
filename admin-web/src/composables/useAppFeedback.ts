@@ -23,7 +23,7 @@ export function normalizeFeedbackError(error: unknown): FeedbackError {
 
 function withRequestId(error: FeedbackError): string {
   return error.requestId
-    ? `${error.message}`
+    ? `${error.message}（请求编号：${error.requestId}）`
     : error.message
 }
 

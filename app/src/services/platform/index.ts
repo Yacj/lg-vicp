@@ -1,3 +1,5 @@
+import { redirectAfterSessionExpiry } from '@/api/core/handlers'
+
 export type ClientPlatform = 'h5' | 'mp-weixin' | 'app' | 'other'
 
 export interface PlatformInfo {
@@ -87,11 +89,11 @@ async function readStreamError(response: { status: number, text: () => Promise<s
   let message = `AI 请求失败（${response.status}）`
   try {
     const body = await response.text()
-    const parsed = JSON.parse(body) as { error?: { message?: string } }
     // 打印完整错误包络（status / error.code / requestId），便于排查受限内容等 4xx
     console.error('[ai-stream] HTTP 错误', { status: response.status, body })
-    if (parsed.error?.message) {
-      message = parsed.error.message
+    const businessError = createStreamBusinessError(body, message)
+    if (businessError) {
+      return businessError.message
     }
   }
   catch {
@@ -209,12 +211,21 @@ function responseText(data: unknown) {
   return JSON.stringify(data ?? '')
 }
 
-/** HTTP 2xx 下返回的 JSON 业务错误包络（success:false / error 字段），提取错误文案；非错误 JSON 返回 null。 */
-function extractBusinessError(body: string) {
+/**
+ * JSON 业务错误包络（success:false / error 字段）→ 业务错误；非错误 JSON 返回 null。
+ * 数字 HTTP 语义码 401/403 与普通请求（api/core/handlers）同口径：清除会话并跳转登录，文案统一为"登录已过期"；
+ * 字符串业务码（如 AI_CONVERSATION_FORBIDDEN）是会话级权限问题，仅展示文案，不退出登录。
+ */
+function createStreamBusinessError(body: string, fallbackMessage = 'AI 请求失败') {
   try {
-    const parsed = JSON.parse(body) as { success?: boolean, error?: { message?: string } }
+    const parsed = JSON.parse(body) as { success?: boolean, error?: { code?: number | string, message?: string } }
     if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && (parsed.success === false || parsed.error)) {
-      return new Error(parsed.error?.message || 'AI 请求失败')
+      let message = parsed.error?.message || fallbackMessage
+      const numericCode = Number(parsed.error?.code)
+      if ((numericCode === 401 || numericCode === 403) && redirectAfterSessionExpiry()) {
+        message = '登录已过期，请重新登录！'
+      }
+      return new Error(message)
     }
   }
   catch {
@@ -255,7 +266,7 @@ function createChunkRouter(consumer: ReturnType<typeof createSseConsumer>) {
       consumer.finish('')
       return null
     }
-    return extractBusinessError(buffer)
+    return createStreamBusinessError(buffer)
   }
 
   return { push, finish, get route() { return route } }
@@ -319,7 +330,7 @@ export function createAiStreamRequest(options: AiStreamOptions) {
         // HTTP 2xx 但返回 JSON 业务错误包络（success:false / error），同样拒绝发送
         if (contentType.includes('application/json')) {
           const body = await response.text()
-          const error = extractBusinessError(body)
+          const error = createStreamBusinessError(body)
           if (error) {
             console.error('[ai-stream] 业务错误包络，拒绝发送', { body })
             rejectAccept(error)

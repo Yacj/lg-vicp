@@ -228,7 +228,6 @@ async function sendMessage() {
       projectId: activeProjectId.value,
       scene: pendingScene.value ?? assistantStore.conversation?.scene,
     })
-    console.log('accepted', accepted)
     if (accepted) {
       input.value = ''
       followLatest.value = true

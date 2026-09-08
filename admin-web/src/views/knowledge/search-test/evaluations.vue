@@ -147,7 +147,12 @@ function resultSummary(row: KnowledgeEvaluation): string {
   }
   return results
     .slice(0, 3)
-    .map((item) => `${item.sourceTitle ?? '未知'}${item.sourcePage ? ` 第${String(item.sourcePage)}页` : ''}（${String(item.hitReason ?? '-')}）`)
+    .map((item) => {
+      const pageLabel = typeof item.pageLabel === 'string' ? item.pageLabel : null
+      const physicalPage = typeof item.physicalPageNumber === 'number' ? item.physicalPageNumber : typeof item.sourcePage === 'number' ? item.sourcePage : null
+      const page = pageLabel ? ` 图集页码 ${pageLabel}` : physicalPage != null ? ` PDF 物理页 ${physicalPage}` : ''
+      return `${String(item.sourceTitle ?? '未知')}${page}（${String(item.hitReason ?? '-')}）`
+    })
     .join('；')
 }
 

@@ -21,16 +21,20 @@ import {
   fetchKnowledgeDocuments,
   updateKnowledgeDocument,
 } from '@/api/modules/knowledge'
+import type { AppStatus } from '@/components/ui/AppStatusTag.vue'
 import type { AppTableAction } from '@/types/crud'
 import {
+  knowledgeDocumentHealthStatuses,
   knowledgeDocTypes,
+  type KnowledgeAiAvailabilityStatus,
   type KnowledgeCategory,
+  type KnowledgeDocumentHealthStatus,
   type KnowledgeDocType,
   type KnowledgeDocument,
   type KnowledgeDocumentInput,
 } from '@/types/knowledge'
 import type { EvidenceLevel } from '@/types/professional'
-import { evidenceLevelLabels, knowledgeVersionStatusMeta } from '@/utils/professional-status'
+import { evidenceLevelLabels, knowledgeVersionStatusMetaFor } from '@/utils/professional-status'
 import { formatDate } from '@/utils/day'
 
 const { canAccess } = usePermissionAccess()
@@ -43,6 +47,14 @@ const canViewDetail = computed(() => canAccess({ permissions: ['system:knowledge
 const keyword = ref('')
 const docType = ref<KnowledgeDocType | undefined>(undefined)
 const status = ref<'ACTIVE' | 'DISABLED' | undefined>(undefined)
+const healthStatus = ref<KnowledgeDocumentHealthStatus | undefined>(undefined)
+const healthStatusLabels: Record<KnowledgeDocumentHealthStatus, string> = {
+  NEEDS_ACTION: '需要处理',
+  READY: '可正常使用',
+  BROWSE_ONLY: '仅供浏览',
+  PUBLISHED: '已发布',
+  PENDING_REVIEW: '待审核',
+}
 const query = reactive({ page: 1, pageSize: 20 })
 const documents = ref<KnowledgeDocument[]>([])
 const categories = ref<KnowledgeCategory[]>([])
@@ -60,6 +72,7 @@ async function load(): Promise<void> {
       ...(keyword.value.trim() ? { keyword: keyword.value.trim() } : {}),
       ...(docType.value ? { docType: docType.value } : {}),
       ...(status.value ? { status: status.value } : {}),
+      ...(healthStatus.value ? { healthStatus: healthStatus.value } : {}),
     })
     documents.value = result.items
     total.value = result.total
@@ -91,6 +104,7 @@ function reset(): void {
   keyword.value = ''
   docType.value = undefined
   status.value = undefined
+  healthStatus.value = undefined
   query.page = 1
   void load()
 }
@@ -160,10 +174,39 @@ function versionStatusCell(row: KnowledgeDocument) {
   if (!row.currentVersion) {
     return h('span', { class: 'vicp-no-version' }, '未上传版本')
   }
-  const meta = knowledgeVersionStatusMeta[row.currentVersion.status]
+  const meta = knowledgeVersionStatusMetaFor(row.currentVersion.status)
   return h('div', [
     h(AppStatusTag, { label: meta.label, status: meta.status }),
     h('div', { class: 'vicp-version-meta' }, `v${row.currentVersion.version} · ${row.currentVersion.pageCount != null ? `${row.currentVersion.pageCount} 页` : '未解析'}`),
+  ])
+}
+
+function healthMeta(row: KnowledgeDocument): { label: string; theme: AppStatus } {
+  const labels: Record<KnowledgeDocumentHealthStatus, { label: string; theme: AppStatus }> = {
+    NEEDS_ACTION: { label: '需要处理', theme: 'error' },
+    READY: { label: '可正常使用', theme: 'success' },
+    BROWSE_ONLY: { label: '仅供浏览', theme: 'warning' },
+    PUBLISHED: { label: '已发布', theme: 'success' },
+    PENDING_REVIEW: { label: '待审核', theme: 'warning' },
+  }
+  return labels[row.healthStatus] ?? labels.NEEDS_ACTION
+}
+
+function aiMeta(row: KnowledgeDocument): { label: string; theme: AppStatus } {
+  const labels: Record<KnowledgeAiAvailabilityStatus, { label: string; theme: AppStatus }> = {
+    AVAILABLE: { label: '可用于 AI', theme: 'success' },
+    BROWSE_ONLY: { label: '仅浏览', theme: 'warning' },
+    UNAVAILABLE: { label: '暂不可用', theme: 'default' },
+  }
+  return labels[row.aiAvailabilityStatus] ?? labels.UNAVAILABLE
+}
+
+function statusCell(row: KnowledgeDocument) {
+  const health = healthMeta(row)
+  const ai = aiMeta(row)
+  return h('div', { class: 'vicp-status-stack' }, [
+    h(AppStatusTag, { label: health.label, status: health.theme }),
+    h('span', { class: 'vicp-version-meta' }, `AI：${ai.label}`),
   ])
 }
 
@@ -179,7 +222,7 @@ const columns: PrimaryTableCol<TableRowData>[] = [
   { cell: (_, { row }) => categoryName((row as KnowledgeDocument).categoryId), colKey: 'categoryId', minWidth: 120, title: '分类' },
   { cell: (_, { row }) => versionStatusCell(row as KnowledgeDocument), colKey: 'currentVersion', minWidth: 160, title: '当前版本' },
   { cell: (_, { row }) => (row.evidenceLevel ? evidenceLevelLabels[row.evidenceLevel as EvidenceLevel] : '—'), colKey: 'evidenceLevel', minWidth: 130, title: () => h(AppEvidenceColumnHeader, { title: '资料可信度' }) },
-  { cell: (_, { row }) => (row.status === 'ACTIVE' ? '启用' : '停用'), colKey: 'status', minWidth: 70, title: '状态' },
+  { cell: (_, { row }) => statusCell(row as KnowledgeDocument), colKey: 'healthStatus', minWidth: 150, title: '资料状态 / AI' },
   { cell: (_, { row }) => formatDate(new Date(row.updatedAt), 'YYYY-MM-DD'), colKey: 'updatedAt', minWidth: 110, title: '更新时间' },
 ]
 
@@ -212,7 +255,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <AppPage title="文档资料" description="知识文档库：规范、图集、标准等资料及版本管理；版本上传、解析、审核与发布在「版本管理」详情页完成。">
+  <AppPage title="知识资料" description="管理资料版本、内容校对、发布状态和 AI 使用能力。">
     <template #search>
       <AppSearchPanel :loading="isLoading" @reset="reset" @search="search">
         <t-form-item label="关键词">
@@ -226,7 +269,15 @@ onMounted(() => {
             placeholder="全部"
           />
         </t-form-item>
-        <t-form-item label="状态">
+        <t-form-item label="资料状态">
+          <t-select
+            v-model="healthStatus"
+            :options="knowledgeDocumentHealthStatuses.map((value) => ({ label: healthStatusLabels[value], value }))"
+            clearable
+            placeholder="全部"
+          />
+        </t-form-item>
+        <t-form-item label="启用状态">
           <t-select
             v-model="status"
             :options="[{ label: '启用', value: 'ACTIVE' }, { label: '停用', value: 'DISABLED' }]"

@@ -171,7 +171,7 @@ export interface SystemRoleInput {
   permissionIds?: string[]
 }
 
-export type UpdateSystemRoleInput = Partial<Pick<SystemRoleInput, 'name' | 'description' | 'dataScope' | 'enabled'>>
+export type UpdateSystemRoleInput = Partial<Pick<SystemRoleInput, 'name' | 'description' | 'dataScope' | 'enabled' | 'permissionIds'>>
 
 export interface RoleMutationResult extends MutationMessage {
   role: SystemRole
@@ -231,6 +231,7 @@ export interface SystemUserQuery extends PageQuery {
   keyword?: string
   departmentId?: string
   roleId?: string
+  role?: SystemUserRole
   status?: SystemUserStatus
   includeDeleted?: boolean
 }
@@ -248,7 +249,7 @@ export interface SystemUserDetail {
   roles: SystemUserRoleBrief[]
 }
 
-/** 创建用户：identifier 为登录账号（必填、不限位数）；phone 为手机号码（选填，6-20 位数字）；role/channelType 组合有服务端校验。 */
+/** 创建用户及其组织/动态角色配置；后端在同一事务中保存。 */
 export interface CreateSystemUserInput {
   identifier: string
   password: string
@@ -259,9 +260,13 @@ export interface CreateSystemUserInput {
   role: SystemUserRole
   channelType?: SystemChannelType | null
   phone?: string
+  status?: SystemUserStatus
+  departmentIds?: string[]
+  postIds?: string[]
+  roleIds?: string[]
 }
 
-/** 编辑用户：后端仅允许更新资料字段；部门/岗位/角色通过独立分配接口维护。 */
+/** 编辑用户资料及可选的组织/动态角色配置；同一次提交在后端事务中保存。 */
 export interface UpdateSystemUserInput {
   displayName?: string
   gender?: SystemUserGender
@@ -270,6 +275,10 @@ export interface UpdateSystemUserInput {
   role?: SystemUserRole
   channelType?: SystemChannelType | null
   phone?: string | null
+  status?: SystemUserStatus
+  departmentIds?: string[]
+  postIds?: string[]
+  roleIds?: string[]
 }
 
 export interface UserMutationResult extends MutationMessage {

@@ -92,7 +92,7 @@ const menuColumns: PrimaryTableCol<TableRowData>[] = [
     title: '路由地址',
   },
   { colKey: 'component', ellipsis: true, minWidth: 180, title: '组件白名单键' },
-  { colKey: 'permissionCode', ellipsis: true, minWidth: 180, title: '权限码' },
+  { colKey: 'permissionCode', ellipsis: true, minWidth: 180, title: '访问权限（内部编码）' },
   {
     cell: (_h, { row }) => h(AppStatusTag, {
       label: row.visible ? '显示' : '隐藏',
@@ -188,7 +188,7 @@ watch(() => menuDrawer.formData.menuType, type => resetTypeFields(type))
           <t-input
             v-model="menuList.query.keyword"
             clearable
-            placeholder="名称、路径、组件或权限码"
+            placeholder="名称、路径、组件或访问权限编码"
           />
         </t-form-item>
       </AppSearchPanel>
@@ -314,7 +314,7 @@ watch(() => menuDrawer.formData.menuType, type => resetTypeFields(type))
 
       <t-form-item
         class="vicp-form-grid-item--wide"
-        label="权限码"
+        label="访问权限编码"
         name="permissionCode"
         tips="可选；按钮必须填写。通常使用小写模块:资源:动作格式，不要带空格，例如 system:dept:list、system:dept:add；项目与 AI 现有权限也包含 project.create、ai.chat。"
       >
@@ -322,7 +322,7 @@ watch(() => menuDrawer.formData.menuType, type => resetTypeFields(type))
           v-model="menuDrawer.formData.permissionCode"
           clearable
           maxlength="120"
-          placeholder="请输入权限码，例如 system:dept:list"
+          placeholder="请输入访问权限编码，例如 system:dept:list"
         />
       </t-form-item>
 

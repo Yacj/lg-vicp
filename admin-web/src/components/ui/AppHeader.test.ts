@@ -7,6 +7,13 @@ import { useUserStore } from '@/stores/user'
 import { B_ADMIN_CLIENT } from '@/types/auth'
 import AppHeader from './AppHeader.vue'
 
+vi.mock('@/api/modules/notifications', () => ({
+  fetchNotifications: vi.fn().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 }),
+  fetchUnreadNotificationCount: vi.fn().mockResolvedValue(0),
+  markNotificationRead: vi.fn().mockResolvedValue({ message: 'ok', marked: true }),
+  markAllNotificationsRead: vi.fn().mockResolvedValue({ message: 'ok', marked: 0 }),
+}))
+
 let app: ReturnType<typeof createApp> | null = null
 
 async function mountHeader(props: Record<string, unknown> = {}) {

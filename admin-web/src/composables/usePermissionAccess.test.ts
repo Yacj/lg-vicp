@@ -8,7 +8,7 @@ beforeEach(() => {
   useUserStore().applyUserInfo({
     dataScopes: [],
     departments: [],
-    permissions: ['system:user:list', 'system:ai:provider:*'],
+    permissions: ['system:user:list', 'system:ai:provider:list', 'system:ai:provider:edit'],
     roles: ['operator'],
     user: {
       channelType: 'DEALER',

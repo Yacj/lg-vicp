@@ -60,6 +60,24 @@ export const staticRoutes: RouteRecordRaw[] = [
         },
       },
       {
+        path: 'knowledge/public-library',
+        name: 'KnowledgePublicLibrary',
+        component: () => import('@/views/knowledge/public-library/index.vue'),
+        meta: {
+          permissions: ['system:knowledge:doc:list'],
+          title: '公开文库',
+        },
+      },
+      {
+        path: 'thermal/candidates',
+        name: 'ThermalCandidates',
+        component: () => import('@/views/thermal/candidates/index.vue'),
+        meta: {
+          permissions: ['system:thermal:list'],
+          title: '候选方案试算',
+        },
+      },
+      {
         path: 'ai-config/providers',
         name: 'AiConfigProviders',
         component: () => import('@/views/ai-config/providers/index.vue'),

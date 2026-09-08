@@ -83,9 +83,9 @@
     "@wot-ui/router": "^1.1.2",
     "@wot-ui/ui": "^2.3.2",
     "@wot-ui/unocss-preset": "1.0.0",
-    "alova": "^3.5.4",
-    "dayjs": "^1.11.21",
-    "markdown-it": "^15.0.0",
+    "alova": "^3.5.5",
+    "dayjs": "^1.11.23",
+    "markdown-it": "^15.0.1",
     "pinia": "^2.3.1",
     "vue": "~3.4.38",
     "vue-i18n": "^9.14.0",
@@ -103,8 +103,8 @@
     "@dcloudio/vite-plugin-uni": "3.0.0-5020420260813001",
     "@iconify-json/carbon": "^1.1.37",
     "@mini-types/alipay": "^3.0.14",
-    "@types/markdown-it": "^14.1.2",
-    "@types/node": "^26.1.2",
+    "@types/markdown-it": "^14.2.0",
+    "@types/node": "^26.4.1",
     "@uni-helper/eslint-config": "^0.5.0",
     "@uni-helper/plugin-uni": "^0.1.0",
     "@uni-helper/uni-env": "^0.2.0",
@@ -138,6 +138,9 @@
   "pnpm": {
     "overrides": {
       "unconfig": "7.3.2"
+    },
+    "patchedDependencies": {
+      "@wot-ui/ui": "patches/@wot-ui__ui.patch"
     }
   },
   "lint-staged": {

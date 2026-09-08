@@ -21,8 +21,7 @@ import { projectDetailTabs } from '@/utils/project'
 export type ProjectDetailStatus = 'idle' | 'loading' | 'ready' | 'error'
 
 /**
- * 项目详情：基础信息 + 三个真实数据 Tab（资料文件 / AI 会话 / 操作记录）。
- * 文件列表按归属返回（仅 owner 或超级管理员可见），上传/删除按项目管理权限控制。
+ * 项目资料列表按项目访问权限读取，创建者和超级管理员负责维护。
  */
 export function useProjectDetail(projectId: Ref<string | null>) {
   const { canAccess } = usePermissionAccess()

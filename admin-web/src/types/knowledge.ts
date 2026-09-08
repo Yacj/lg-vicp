@@ -1,3 +1,4 @@
+import type { AiSourceRef } from '@/types/ai-source'
 import type { PageResult } from '@/types/api'
 import type { EvidenceLevel } from '@/types/professional'
 
@@ -22,11 +23,25 @@ export type KnowledgeDocType = (typeof knowledgeDocTypes)[number]
 export const knowledgeVersionStatuses = ['DRAFT', 'APPROVED', 'PUBLISHED', 'DISABLED'] as const
 export type KnowledgeVersionStatus = (typeof knowledgeVersionStatuses)[number]
 
-export const knowledgeParseStatuses = ['PENDING', 'PARSING', 'PARSED', 'PARTIAL', 'OCR_REQUIRED', 'FAILED'] as const
+export const knowledgeParseStatuses = ['PENDING', 'PARSING', 'PARSED', 'PARTIAL', 'OCR_REQUIRED', 'FAILED', 'NO_TEXT_LAYER', 'SEARCH_SOURCE_REQUIRED'] as const
 export type KnowledgeParseStatus = (typeof knowledgeParseStatuses)[number]
+
+export const knowledgeUsageModes = ['AI_ENABLED', 'BROWSE_ONLY'] as const
+export type KnowledgeUsageMode = (typeof knowledgeUsageModes)[number]
+
+export type KnowledgeAssetRole = 'ORIGINAL' | 'SEARCH_SOURCE' | 'OCR_SOURCE' | 'PREVIEW'
+export type KnowledgeTocStatus = 'DRAFT' | 'PENDING_REVIEW' | 'CONFIRMED'
+export type KnowledgeTocSource = 'PDF_BOOKMARK' | 'TOC_PAGE' | 'MANUAL' | 'COMPANION_FILE'
+export type KnowledgePageMappingMethod = 'PAGE_LABEL' | 'TOC_TITLE' | 'MANUAL'
 
 export const knowledgePipelineStatuses = ['UPLOAD_PENDING', 'UPLOADED', 'PARSING', 'CHUNKING', 'REVIEW_PENDING', 'PUBLISHED', 'FAILED'] as const
 export type KnowledgePipelineStatus = (typeof knowledgePipelineStatuses)[number]
+
+export const knowledgeDocumentHealthStatuses = ['NEEDS_ACTION', 'READY', 'BROWSE_ONLY', 'PUBLISHED', 'PENDING_REVIEW'] as const
+export type KnowledgeDocumentHealthStatus = (typeof knowledgeDocumentHealthStatuses)[number]
+
+export const knowledgeAiAvailabilityStatuses = ['AVAILABLE', 'BROWSE_ONLY', 'UNAVAILABLE'] as const
+export type KnowledgeAiAvailabilityStatus = (typeof knowledgeAiAvailabilityStatuses)[number]
 
 /** 知识分类 */
 export interface KnowledgeCategory {
@@ -64,10 +79,17 @@ export interface KnowledgeDocument {
   categoryId: string | null
   status: 'ACTIVE' | 'DISABLED'
   currentVersionId: string | null
+  healthStatus: KnowledgeDocumentHealthStatus
+  aiAvailabilityStatus: KnowledgeAiAvailabilityStatus
+  healthBlockers: string[]
+  healthWarnings: string[]
   currentVersion: {
     version: number
     status: KnowledgeVersionStatus
     parseStatus: KnowledgeParseStatus
+    pipelineStatus: KnowledgePipelineStatus
+    usageMode: KnowledgeUsageMode
+    fileId: string | null
     pageCount: number | null
     parser: string | null
   } | null
@@ -97,6 +119,7 @@ export interface KnowledgeDocumentVersion {
   status: KnowledgeVersionStatus
   pipelineStatus: KnowledgePipelineStatus
   parseStatus: KnowledgeParseStatus
+  usageMode: KnowledgeUsageMode
   pageCount: number | null
   parser: string | null
   evidenceLevel: EvidenceLevel | null
@@ -138,7 +161,7 @@ export interface KnowledgeAliasInput {
   enabled?: boolean
 }
 
-/** 知识抓取源 */
+/** 知识抓取源（含运营回写字段：最近抓取结果与人工备注） */
 export interface KnowledgeCrawlerSource {
   id: string
   name: string
@@ -146,6 +169,10 @@ export interface KnowledgeCrawlerSource {
   downloadUrlPattern: string
   docType: KnowledgeDocType
   enabled: boolean
+  lastCrawledAt: string | null
+  lastCrawlStatus: 'SUCCESS' | 'FAILED' | null
+  lastErrorMessage: string | null
+  operatorRemark: string | null
   createdById: string | null
   createdAt: string
   updatedAt: string
@@ -157,6 +184,8 @@ export interface KnowledgeCrawlerSourceInput {
   downloadUrlPattern: string
   docType?: KnowledgeDocType
   enabled?: boolean
+  /** 人工备注；清空时提交空字符串，后端按可空文本保存 */
+  operatorRemark?: string
 }
 
 /** 检索日志（可解释排序，非向量检索） */
@@ -171,7 +200,7 @@ export interface KnowledgeSearchLog {
   durationMs: number | null
   projectId: string | null
   searchedAt: string
-  user: { id: string; displayName: string } | null
+  user: { id: string, displayName: string } | null
 }
 
 export const knowledgeParsingJobStatuses = ['QUEUED', 'ACTIVE', 'COMPLETED', 'FAILED', 'OCR_REQUIRED'] as const
@@ -212,6 +241,7 @@ export interface KnowledgeDocumentQuery {
   docType?: KnowledgeDocType
   categoryId?: string
   keyword?: string
+  healthStatus?: KnowledgeDocumentHealthStatus
 }
 
 export interface KnowledgeAliasQuery {
@@ -261,24 +291,141 @@ export interface KnowledgeUploadIntentInput {
   mimeType: string
   sizeBytes: number
   sha256?: string
+  assetRole?: KnowledgeAssetRole
 }
 
-// ===== 页面与分块 =====
+export interface KnowledgeDocumentAsset {
+  id: string
+  role: KnowledgeAssetRole
+  isPrimary: boolean
+  fileId: string
+  fileName: string
+  mimeType: string
+  sizeBytes: number
+  fileStatus: string
+  createdAt: string
+}
+
+export interface KnowledgeTocItem {
+  id: string
+  parentId: string | null
+  title: string
+  level: number
+  sortOrder: number
+  pageLabel: string | null
+  physicalPageNumber: number | null
+  source: KnowledgeTocSource
+  confidence: number | null
+  status?: KnowledgeTocStatus
+  sectionId?: string | null
+  children?: KnowledgeTocItem[]
+}
+
+export interface KnowledgePageBlock {
+  id: string
+  blockIndex: number
+  content: string
+  contentType: string
+  sectionId?: string | null
+  sectionTitle?: string | null
+  sourceAnchor?: string | null
+  metadata?: Record<string, unknown> | null
+}
 
 export interface KnowledgePage {
   id: string
   documentId: string
   versionId: string
   pageNumber: number
+  physicalPageNumber: number
+  pageLabel: string | null
+  pageTitle: string | null
   parsedText: string | null
+  extractedText?: string | null
   pageImageObjectKey: string | null
+  pageImageUrl?: string | null
   sectionPath: string | null
+  sectionId?: string | null
+  blocks?: KnowledgePageBlock[]
   hasTables: boolean
   hasImages: boolean
   parseStatus: string
   createdAt: string
 }
 
+export interface KnowledgePageMapping {
+  id: string
+  searchPhysicalPageNumber: number
+  originalPhysicalPageNumber: number | null
+  originalPageId: string | null
+  pageLabel: string | null
+  mappingMethod: KnowledgePageMappingMethod
+  confidence: number | null
+  verified: boolean
+}
+
+export interface KnowledgeAiReadiness {
+  eligible: boolean
+  blockers: string[]
+  warnings: string[]
+  hasSearchSourceAsset?: boolean
+  mappingCount?: number
+  verifiedMappingCount?: number
+  tocItemCount?: number
+  confirmedTocCount?: number
+}
+
+/** 版本文件资产 */
+export interface KnowledgeVersionAssetsResult {
+  items: KnowledgeDocumentAsset[]
+}
+
+/** 原文目录 */
+export interface KnowledgeVersionTocResult {
+  items: KnowledgeTocItem[]
+}
+
+/** 页面映射 */
+export interface KnowledgePageMappingsResult {
+  items: KnowledgePageMapping[]
+  total: number
+}
+
+export interface KnowledgePageWindowItem {
+  id: string
+  pageNumber: number
+  physicalPageNumber: number
+  pageLabel: string | null
+  pageLabelSource: string
+  pageLabelConfidence: number | null
+  pageLabelVerified: boolean
+  pageTitle: string | null
+  hasTables: boolean
+  hasImages: boolean
+  sectionPath: string | null
+}
+
+export interface KnowledgePageWindow {
+  current: number
+  total: number
+  page: {
+    id: string
+    pageNumber: number
+    physicalPageNumber: number
+    pageLabel: string | null
+    pageLabelSource: string
+    pageLabelConfidence: number | null
+    pageLabelVerified: boolean
+    pageTitle: string | null
+    fullText: string
+    extractedText: string
+    blocks: KnowledgePageBlock[]
+    pageImageUrl: string | null
+  }
+  items: KnowledgePageWindowItem[]
+}
+
+/** 页面与分块 */
 export const knowledgeChunkContentTypes = [
   'PARAGRAPH',
   'TITLE',
@@ -332,24 +479,40 @@ export interface KnowledgeChunkEditInput {
 
 // ===== 检索 =====
 
+/**
+ * 检索命中（Wiki 级层级检索：体系 → 文档 → 章节 → 页面 → 内容块，Chunk 辅助）。
+ * 与后端 knowledge.service.ts SearchHit（继承 WikiHit）对齐。
+ */
 export interface KnowledgeSearchHit {
-  chunkId: string
+  sourceId?: string
+  chunkId?: string
   documentId: string
-  content: string
+  versionId?: string
+  sectionId?: string | null
+  pageId?: string | null
+  pageBlockId?: string | null
+  retrievalUnit?: 'DOCUMENT' | 'SECTION' | 'PAGE' | 'BLOCK' | 'CHUNK'
+  content?: string
   sourcePage: number | null
+  pageEnd: number | null
+  physicalPageNumber?: number | null
+  pageLabel?: string | null
+  pageTitle?: string | null
+  originalFileId?: string | null
   sourceSection: string | null
+  headingPath?: string[] | null
   sourceTitle: string
-  version: number
+  version?: number
   docNumber: string | null
   citationAnchor: string | null
-  contentType: string
-  score: number
-  hitReason: string
-  rankScore: number
+  contentType?: string
+  score?: number | null
+  hitReason?: string
+  rankScore?: number | null
   snippet: string
-  matchedTerms: string[]
-  matchReasons: string[]
-  evidenceLevel: string | null
+  matchedTerms?: string[]
+  matchReasons?: string[]
+  evidenceLevel?: string | null
   usageScope: string[] | null
   region: string | null
 }
@@ -403,6 +566,84 @@ export interface KnowledgeEvaluationQuery {
   judgement?: KnowledgeEvaluationJudgement | 'ALL'
 }
 
+// ===== 公开文库（visibility=PUBLIC + 版本 PUBLISHED + 生效中，复用同一 Wiki 读取口径） =====
+
+/** Wiki 章节树节点（GET /platform/knowledge/versions/:versionId/sections，扁平有序，按 parentId/level 组树） */
+export interface KnowledgeVersionSection {
+  id: string
+  parentId: string | null
+  title: string
+  level: number
+  sectionPath: string[]
+  startPage: number | null
+  endPage: number | null
+  sortOrder: number
+}
+
+export interface PublicLibraryDocumentItem {
+  id: string
+  title: string
+  docNumber: string | null
+  docType: KnowledgeDocType
+  versionId: string
+  version: number
+  pageCount: number | null
+  region: string | null
+  publishedAt: string | null
+}
+
+export interface PublicLibraryDocumentQuery {
+  page: number
+  pageSize: number
+  categoryId?: string
+  docType?: KnowledgeDocType
+  keyword?: string
+  sort?: 'latest' | 'title'
+}
+
+export type PublicLibrarySectionNode = KnowledgeVersionSection
+
+export interface PublicLibraryDocumentDetail {
+  document: {
+    id: string
+    title: string
+    versionId: string
+    version: number
+    docNumber: string | null
+    docType: string
+    visibility: string
+    projectId: string | null
+  }
+  sections: PublicLibrarySectionNode[]
+}
+
+export interface PublicLibraryPageListItem {
+  id: string
+  pageNumber: number
+  physicalPageNumber?: number
+  pageLabel?: string | null
+  pageTitle?: string | null
+  hasTables: boolean
+  hasImages: boolean
+  sectionPath: string | null
+}
+
+export interface PublicLibraryTocResult {
+  items: KnowledgeTocItem[]
+}
+
+export interface PublicLibraryPageDetail {
+  id: string
+  pageNumber: number
+  physicalPageNumber: number
+  pageLabel: string | null
+  pageTitle: string | null
+  fullText: string
+  extractedText: string
+  blocks: KnowledgePageBlock[]
+  pageImageUrl: string | null
+}
+
 // ===== 知识问答（检索 + AI 回答，SSE） =====
 
 export interface KnowledgeQaRequest {
@@ -415,34 +656,29 @@ export interface KnowledgeQaRequest {
   reasoningMode?: 'OFF' | 'ON'
 }
 
-export interface KnowledgeQaSource {
-  chunkId: string
-  documentId: string
-  title: string
-  page: number | null
-  section: string | null
-  score: number
-  evidenceLevel: string | null
-}
+/**
+ * AI 引用来源：统一复用 AiSourceRef 契约（后端 ai-generation 通过 ai-source.mapper 输出）。
+ */
+export type KnowledgeQaSource = AiSourceRef
 
-export type KnowledgeQaSseEvent =
-  | { type: 'message'; data: { messageId: string; conversationId: string; requestId: string } }
-  | { type: 'progress'; data: { stage: string; message: string } }
-  | { type: 'delta'; data: { text: string } }
-  | {
+export type KnowledgeQaSseEvent
+  = | { type: 'message', data: { messageId: string, conversationId: string, requestId: string } }
+    | { type: 'progress', data: { stage: string, message: string } }
+    | { type: 'delta', data: { text: string } }
+    | {
       type: 'done'
       data: {
         messageId: string
         conversationId: string
         finishReason: string
         model: { id: string }
-        promptVersion: { id: string; version: number }
+        promptVersion: { id: string, version: number }
         sources: KnowledgeQaSource[]
         latencyMs: number
-        usage?: { inputTokens?: number | null; outputTokens?: number | null; reasoningTokens?: number | null }
+        usage?: { inputTokens?: number | null, outputTokens?: number | null, reasoningTokens?: number | null }
       }
     }
-  | { type: 'stopped'; data: { messageId: string; partialContent: string; content: string } }
-  | { type: 'error'; data: { code: string; message: string; requestId: string; retryable: boolean } }
+    | { type: 'stopped', data: { messageId: string, partialContent: string, content: string } }
+    | { type: 'error', data: { code: string, message: string, requestId: string, retryable: boolean } }
 
 export type { EvidenceLevel, PageResult }

@@ -5,7 +5,8 @@ import alovaInstance from './core/instance'
 type PathParams = Record<string, string | number>
 interface RequestConfig<TData = unknown> {
   data?: TData
-  params?: Record<string, unknown>
+  // 放宽为 object：Query 接口无 index signature 也可传入，构造 Method 时统一收窄。
+  params?: object
   pathParams?: PathParams
   headers?: Record<string, string>
 }
@@ -31,13 +32,13 @@ export function request<TData = unknown>(
   url: string,
   config: RequestConfig<TData> = {},
 ) {
-  const { pathParams, data, ...methodConfig } = config
+  const { pathParams, data, params, ...methodConfig } = config
   const body = data ?? (BODY_METHODS.has(method) ? {} : undefined)
   return new Method(
     method,
     alovaInstance,
     normalizeApiPath(replacePathParams(url, pathParams)),
-    methodConfig,
+    { ...methodConfig, params: params as Record<string, unknown> },
     body as RequestBody,
   )
 }

@@ -50,6 +50,10 @@ describe('project manager rule', () => {
     expect(isProjectManager(makeProject({ createdById: 'user-1' }), 'user-2', false)).toBe(false)
   })
 
+  it('does not grant management from a stale server flag', () => {
+    expect(isProjectManager(makeProject({ canManage: true, createdById: 'owner-1' }), 'member-1', false)).toBe(false)
+  })
+
   it('denies management when no current user is known', () => {
     expect(isProjectManager(makeProject({ createdById: 'user-1' }), null, false)).toBe(false)
   })

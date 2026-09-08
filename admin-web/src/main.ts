@@ -29,6 +29,15 @@ configureHttpSession({
   getAccessToken: () => authStore.accessToken,
   getRefreshToken: () => authStore.refreshToken,
   replaceSession: session => authStore.replaceSession(session),
+  onPermissionDenied: async () => {
+    await userStore.loadUserInfo()
+    await routeStore.refresh(router)
+    const currentRoute = router.currentRoute.value
+    const requiredPermissions = currentRoute.meta.permissions ?? []
+    if (!userStore.hasAnyPermission(requiredPermissions)) {
+      await router.replace({ name: 'Forbidden', query: { from: currentRoute.fullPath } })
+    }
+  },
   onSessionExpired: async () => {
     authStore.clearSession()
     userStore.reset()

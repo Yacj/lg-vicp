@@ -7,7 +7,7 @@ export type ProjectVisibility = 'PRIVATE' | 'PUBLIC'
 /** 项目状态，与后端 projects.status 对齐。 */
 export type ProjectStatus = 'active' | 'deleted'
 
-/** 项目记录（后端 projects 表投影，创建/更新 schema 只开放 name/description/visibility）。 */
+/** 项目记录。 */
 export interface ProjectItem {
   id: string
   name: string
@@ -18,6 +18,8 @@ export interface ProjectItem {
   visibilityPolicy: string
   status: ProjectStatus
   metadata: Record<string, unknown> | null
+  /** 后端按当前操作者投影的项目管理权限。 */
+  canManage?: boolean
   createdById: string
   deletedAt: string | null
   createdAt: string
@@ -39,10 +41,21 @@ export interface ProjectPageQuery {
 /** 项目分页列表响应。 */
 export type ProjectPageResult = PageResult<ProjectItem>
 
+/** 项目统计响应。 */
+export interface ProjectStatistics {
+  total: number
+  public: number
+  private: number
+}
+
+/** 客户资料由用户管理维护，项目不再绑定客户。 */
+
 /** 创建项目请求体（createProjectBodySchema）。 */
 export interface CreateProjectInput {
   name: string
   description?: string
+  region?: string
+  buildingType?: string
   visibility: ProjectVisibility
 }
 
@@ -50,6 +63,8 @@ export interface CreateProjectInput {
 export interface UpdateProjectInput {
   name?: string
   description?: string
+  region?: string
+  buildingType?: string
 }
 
 /** 项目变更接口响应。 */

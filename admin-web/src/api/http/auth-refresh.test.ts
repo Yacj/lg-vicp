@@ -18,6 +18,15 @@ function response<T>(
   }
 }
 
+function forbidden(config: InternalAxiosRequestConfig): Promise<never> {
+  const failedResponse = response(config, {
+    error: { code: 403, message: '无权访问该资源' },
+    requestId: 'request-403',
+    success: false,
+  }, 403)
+  return Promise.reject(new AxiosError('403', AxiosError.ERR_BAD_REQUEST, config, undefined, failedResponse))
+}
+
 function unauthorized(config: InternalAxiosRequestConfig): Promise<never> {
   const failedResponse = response(config, {
     error: { code: 401, message: '登录状态无效或已过期' },
@@ -137,6 +146,32 @@ describe('hTTP auth refresh lock', () => {
 
     await expect(request<string>({ url: '/business-401' })).resolves.toBe('ok')
     expect(refreshCalls).toBe(1)
+  })
+
+  it('deduplicates 403 permission synchronization and replays requests once', async () => {
+    const onPermissionDenied = vi.fn(async () => {
+      await new Promise(resolve => setTimeout(resolve, 5))
+    })
+    configureHttpSession({
+      getAccessToken: () => 'current-access',
+      getRefreshToken: () => 'current-refresh',
+      onPermissionDenied,
+      onSessionExpired: vi.fn(),
+      replaceSession: vi.fn(),
+    })
+
+    httpClient.defaults.adapter = async (config) => {
+      if (config.retryAfterPermissionSync) {
+        return response(config, { data: 'ok', requestId: 'request-ok', success: true })
+      }
+      return forbidden(config)
+    }
+
+    await expect(Promise.all([
+      request<string>({ url: '/permission-a' }),
+      request<string>({ url: '/permission-b' }),
+    ])).resolves.toEqual(['ok', 'ok'])
+    expect(onPermissionDenied).toHaveBeenCalledOnce()
   })
 
   it('clears the session once when refresh fails', async () => {

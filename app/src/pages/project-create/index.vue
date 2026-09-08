@@ -151,7 +151,7 @@ async function submit() {
             />
           </wd-form-item>
 
-          <!-- <wd-form-item prop="region" title="项目地区">
+          <wd-form-item prop="region" title="项目地区">
             <wd-input
               v-model="form.region"
               :compact="false"
@@ -162,7 +162,7 @@ async function submit() {
             />
           </wd-form-item>
 
-          <wd-form-item prop="buildingType" title="建筑类型" >
+          <wd-form-item prop="buildingType" title="建筑类型">
             <wd-input
               v-model="form.buildingType"
               :compact="false"
@@ -171,7 +171,7 @@ async function submit() {
               :maxlength="80"
               placeholder="例如：居住建筑、公共建筑"
             />
-          </wd-form-item> -->
+          </wd-form-item>
 
           <wd-form-item prop="description" title="项目说明">
             <wd-textarea

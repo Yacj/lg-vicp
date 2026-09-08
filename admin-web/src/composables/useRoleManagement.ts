@@ -14,7 +14,6 @@ import {
   fetchRolePermissions,
   fetchRoles,
   fetchUsers,
-  setRolePermissions,
   updateRole,
   updateRoleStatus,
 } from '@/api/modules/roles'
@@ -96,6 +95,18 @@ export function useRoleManagement() {
     rowKey: 'id',
   })
 
+  const canEditRolePermission = computed(() => canAccess({ permissions: ['system:role:permission'] }))
+
+  const permissionTree = shallowRef<CrudPermissionOption[]>([])
+  const permissionValues = ref<CrudKey[]>([])
+  const permissionResources = shallowRef<SystemPermissionResource[]>([])
+  const permissionLoadStatus = ref<RolePermissionLoadStatus>('idle')
+  const permissionLoadError = shallowRef<unknown>(null)
+
+  const selectedPermissionCount = computed(() =>
+    countSelectedPermissions(permissionValues.value, permissionTree.value))
+  const permissionCount = computed(() => collectPermissionCodes(permissionTree.value).length)
+
   const roleDrawer = useCrudDrawer<RoleForm, SystemRole, RoleMutationResult>({
     createForm: createRoleForm,
     editForm: editRoleForm,
@@ -122,31 +133,15 @@ export function useRoleManagement() {
         return createRole(input)
       }
       const roleId = entity!.id
-      const result = await updateRole(roleId, common)
-      // 覆盖语义：本次勾选 = 角色最终权限；权限写入失败不阻断角色保存。
-      if (permissionLoadStatus.value === 'ready') {
-        try {
-          await setRolePermissions(roleId, mapPermissionCodesToIds(permissionResources.value, permissionValues.value))
-        }
-        catch (error) {
-          await feedback.notifyError(error, '角色已保存，权限写入失败')
-        }
-      }
+      const result = await updateRole(roleId, {
+        ...common,
+        ...(permissionLoadStatus.value === 'ready'
+          ? { permissionIds: mapPermissionCodesToIds(permissionResources.value, permissionValues.value) }
+          : {}),
+      })
       return result
     },
   })
-
-  const canEditRolePermission = computed(() => canAccess({ permissions: ['system:role:permission'] }))
-
-  const permissionTree = shallowRef<CrudPermissionOption[]>([])
-  const permissionValues = ref<CrudKey[]>([])
-  const permissionResources = shallowRef<SystemPermissionResource[]>([])
-  const permissionLoadStatus = ref<RolePermissionLoadStatus>('idle')
-  const permissionLoadError = shallowRef<unknown>(null)
-
-  const selectedPermissionCount = computed(() =>
-    countSelectedPermissions(permissionValues.value, permissionTree.value))
-  const permissionCount = computed(() => collectPermissionCodes(permissionTree.value).length)
 
   let permissionLoadSequence = 0
 
