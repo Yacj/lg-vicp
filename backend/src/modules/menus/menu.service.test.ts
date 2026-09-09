@@ -124,7 +124,7 @@ describe("buildMenuTreeForPermissions（瘦身菜单 × 三类角色）", () => 
     expect(tree.map((item) => item.name)).toEqual(["项目管理", "产品中心", "知识中心", "报告管理", "系统管理"]);
     const products = tree.find((item) => item.routePath === "/products");
     expect(products?.children.map((child) => child.name)).toEqual([
-      "产品管理", "材料与参数", "构造体系", "热工数据", "节点图", "对比配置"
+      "产品管理", "材料与参数", "构造体系", "热工数据", "节点图", "材料对比"
     ]);
     // 隐藏路由不出现在任何角色菜单树中
     const allIds = collectMenuTreeIds(tree);

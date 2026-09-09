@@ -14,7 +14,7 @@ import { REPORT_PERMISSIONS, REPORT_PERMISSION_SEEDS } from "../shared/report-pe
 import { REVIEW_PERMISSION_SEEDS } from "../shared/review-permissions.js";
 import { NOTIFICATION_PERMISSION_SEEDS } from "../shared/notification-permissions.js";
 import { FILE_CENTER_PERMISSION_SEEDS } from "../shared/file-permissions.js";
-import { buildMenuSeedTree, DEPRECATED_MENU_ROUTE_PATHS, type MenuSeedNode } from "./menu-seed-tree.js";
+import { buildMenuSeedTree, DEPRECATED_MENU_ROUTE_PATHS, LEGACY_MENU_ROUTE_PATHS, type MenuSeedNode } from "./menu-seed-tree.js";
 import { normalizeLoginIdentifier } from "../shared/login-identifier.js";
 import { buildRankingRuleSeeds } from "../modules/knowledge/knowledge-ingest.service.js";
 import { DEFAULT_REPORT_SECTIONS } from "../modules/reports/report-template.service.js";
@@ -241,7 +241,7 @@ try {
     await ensureMenu({ parentId: aiConfigMenuId, menuType: "BUTTON", name: "测试服务商连接", routePath: "/system/ai/test-connection", sortOrder: 10, permissionCode: "system:ai:provider:test" });
     await ensureMenu({ parentId: aiConfigMenuId, menuType: "BUTTON", name: "提示词发布", routePath: "/system/ai/prompt-publish", sortOrder: 20, permissionCode: "system:ai:prompt:publish" });
     await ensureMenu({ parentId: aiConfigMenuId, menuType: "BUTTON", name: "AI 调试", routePath: "/system/ai/debug", sortOrder: 30, permissionCode: "system:ai:debug:use" });
-    await ensureMenu({ parentId: aiConfigMenuId, menuType: "BUTTON", name: "对话围栏", routePath: "/system/ai/filter", sortOrder: 40, permissionCode: "system:ai:filter:list" });
+    await ensureMenu({ parentId: aiConfigMenuId, menuType: "BUTTON", name: "敏感词拦截", routePath: "/system/ai/filter", sortOrder: 40, permissionCode: "system:ai:filter:list" });
     const monitorMenuId = await ensureMenu({
       menuType: "DIRECTORY", name: "系统监控", routePath: "/monitor", icon: "monitor", sortOrder: 210, permissionCode: "monitor:audit:list"
     });
@@ -252,7 +252,7 @@ try {
     const aiOpsMenuId = await ensureMenu({ parentId: monitorMenuId, menuType: "MENU", name: "AI 运营", routePath: "/monitor/ai", component: "monitor/ai/index", sortOrder: 50, permissionCode: "system:ai:conversation:list" });
     await ensureMenu({ parentId: aiOpsMenuId, menuType: "BUTTON", name: "反馈处理", routePath: "/monitor/ai/feedback-handle", sortOrder: 10, permissionCode: "system:ai:feedback:handle" });
     await ensureMenu({
-      menuType: "MENU", name: "项目管理", routePath: "/project", component: "project/index", sortOrder: 220, permissionCode: "project.create"
+      menuType: "MENU", name: "项目管理", routePath: "/project", component: "projects/index", sortOrder: 220, permissionCode: "project.create"
     });
     await ensureMenu({ menuType: "MENU", name: "AI 对话", routePath: "/ai", component: "ai/index", sortOrder: 230, permissionCode: "ai.chat" });
 
@@ -270,6 +270,10 @@ try {
       "/report-center/review", "/review-center/approve",
       "/report-template", "/report-center"
     ]));
+    // 早期 seed 残留的 4 组顶级幽灵菜单（/ai-config、/ai-ops、/report/index、/projects）：
+    // 与现有菜单重名并存、permissionCode 为空（对所有角色可见），导致 getRouters 返回重复菜单。
+    // 这里只删顶级节点，其子菜单因 parentId 失去落点悬空，由 ensureMenuTree 之后的兜底清理统一移除。
+    await tx.delete(menus).where(inArray(menus.routePath, [...LEGACY_MENU_ROUTE_PATHS]));
 
     const ensureMenuTree = async (nodes: readonly MenuSeedNode[], parentId: string | null = null): Promise<void> => {
       for (const node of nodes) {
@@ -291,6 +295,23 @@ try {
       }
     };
     await ensureMenuTree(buildMenuSeedTree());
+
+    // 悬空节点兜底清理：parentId 指向不存在菜单的节点循环删除（含删除遗留顶级目录后级联悬空的子节点）。
+    // menus.parentId 无外键约束，历史操作可能留下孤儿子节点，这里循环清理直到没有悬空（最深层的最后删）。
+    let danglingMenuCount = 0;
+    for (;;) {
+      const allMenuRows = await tx.select({ id: menus.id, parentId: menus.parentId }).from(menus);
+      const menuIdSet = new Set(allMenuRows.map((row) => row.id));
+      const danglingIds = allMenuRows
+        .filter((row) => row.parentId !== null && !menuIdSet.has(row.parentId))
+        .map((row) => row.id);
+      if (danglingIds.length === 0) break;
+      await tx.delete(menus).where(inArray(menus.id, danglingIds));
+      danglingMenuCount += danglingIds.length;
+    }
+    if (danglingMenuCount > 0) {
+      console.info(`已清理悬空菜单节点 ${danglingMenuCount} 个（parentId 指向不存在的菜单）`);
+    }
 
     // 材料对比五维（固定，服务层禁止删除/禁用）与可扩展子指标目录
     await tx.insert(comparisonDimensions).values([

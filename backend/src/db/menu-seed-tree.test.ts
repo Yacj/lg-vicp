@@ -3,6 +3,7 @@ import {
   buildMenuSeedTree,
   DEPRECATED_MENU_ROUTE_PATHS,
   HIDDEN_MENU_ROUTE_PATHS,
+  LEGACY_MENU_ROUTE_PATHS,
   type MenuSeedNode
 } from "./menu-seed-tree.js";
 
@@ -35,6 +36,13 @@ describe("buildMenuSeedTree（B 端菜单信息架构 2026-09 瘦身）", () => 
     const paths = new Set(flat().map((item) => item.node.routePath));
     for (const deprecated of DEPRECATED_MENU_ROUTE_PATHS) {
       expect(paths.has(deprecated)).toBe(false);
+    }
+  });
+
+  it("早期幽灵菜单（/ai-config、/ai-ops、/report/index、/projects）不再出现在菜单树中，由 seed 删除", () => {
+    const paths = new Set(flat().map((item) => item.node.routePath));
+    for (const legacy of LEGACY_MENU_ROUTE_PATHS) {
+      expect(paths.has(legacy)).toBe(false);
     }
   });
 
@@ -91,13 +99,16 @@ describe("buildMenuSeedTree（B 端菜单信息架构 2026-09 瘦身）", () => 
     const renames: ReadonlyArray<readonly [string, string]> = [
       ["/masterdata/materials", "保温材料库"],
       ["/masterdata/parameter-versions", "材料性能参数"],
-      ["/thermal/sets", "图集热工表"],
+      ["/thermal/sets", "图集热工参考表"],
       ["/nodes/drawings", "节点大样图"],
       ["/comparison/versions", "对比规则"],
+      ["/products/comparison", "材料对比"],
       ["/standard/documents", "标准文件"],
       ["/standard/indicators", "节能指标"],
       ["/standard/replacements", "新旧标准替代"],
-      ["/standard/sources", "数据来源"],
+      ["/standard/sources", "标准采集源"],
+      ["/knowledge/crawlers", "资料采集源"],
+      ["/knowledge/quality", "质量与调试"],
       ["/content/certificates", "企业资质证书"],
       ["/reports/center", "报告列表"],
       ["/monitor/audit", "操作日志"],
@@ -159,12 +170,12 @@ describe("buildMenuSeedTree（B 端菜单信息架构 2026-09 瘦身）", () => 
       ...["add", "edit", "remove", "approve", "publish"].map((action) =>
         [`/nodes/drawings/${action}`, `system:node:${action}`] as const
       ),
-      // 对比配置（system:comparison:*）
+      // 材料对比（system:comparison:*）
       ["/comparison/versions", "system:comparison:list"],
       ...["add", "edit", "remove", "approve", "publish"].map((action) =>
         [`/comparison/versions/${action}`, `system:comparison:${action}`] as const
       ),
-      // 知识资料 / 分类 / 数据源 / 质量检查（system:knowledge:*）
+      // 知识资料 / 分类 / 采集源 / 质量与调试（system:knowledge:*）
       ["/knowledge/documents", "system:knowledge:doc:list"],
       ...["add", "edit", "upload", "parse", "approve", "publish", "remove"].map((action) =>
         [`/knowledge/documents/${action}`, `system:knowledge:doc:${action}`] as const
@@ -257,7 +268,7 @@ describe("buildMenuSeedTree（B 端菜单信息架构 2026-09 瘦身）", () => 
     }
   });
 
-  it("目录权限码不变：系统管理 platform.manage、质量检查知识检索权限，其余新目录不设权限码", () => {
+  it("目录权限码不变：系统管理 platform.manage、质量与调试知识检索权限，其余新目录不设权限码", () => {
     const directories = flat().filter((item) => item.node.menuType === "DIRECTORY");
     const withPermission = directories
       .filter((item) => item.node.permissionCode)
@@ -269,14 +280,15 @@ describe("buildMenuSeedTree（B 端菜单信息架构 2026-09 瘦身）", () => 
   });
 
   it("MENU 叶子 component 遵循 routePath 约定（除显式特例）", () => {
-    const exceptions = new Set(["/knowledge/search-test/evaluations", "/system/ai"]);
+    const exceptions = new Set(["/project", "/knowledge/search-test/evaluations", "/system/ai"]);
     const mismatches = flat()
       .filter((item) => item.node.menuType === "MENU" && !exceptions.has(item.node.routePath))
       .filter((item) => item.node.component !== `${item.node.routePath.slice(1)}/index`)
       .map((item) => `${item.node.routePath} -> ${item.node.component}`);
     expect(mismatches).toEqual([]);
-    // 显式特例：检索效果复用 search-test 目录组件；AI 配置复用 ai-config 页面
+    // 显式特例：检索效果复用 search-test 目录组件；AI 配置复用 ai-config 页面；项目管理挂前端真实页面 projects/index
     expect(flat().find((item) => item.node.routePath === "/system/ai")?.node.component).toBe("ai-config/providers/index");
     expect(flat().find((item) => item.node.routePath === "/knowledge/search-test/evaluations")?.node.component).toBe("knowledge/search-test/evaluations");
+    expect(flat().find((item) => item.node.routePath === "/project")?.node.component).toBe("projects/index");
   });
 });

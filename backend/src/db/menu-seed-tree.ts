@@ -37,6 +37,18 @@ export const DEPRECATED_MENU_ROUTE_PATHS = [
   "/review-center"
 ] as const;
 
+/**
+ * 早期 seed 残留的顶级幽灵菜单 routePath（与新菜单重名并存，且 permissionCode 为空、对所有角色可见）。
+ * seed 只删这 4 个顶级节点，其子菜单（如 /ai-config/filters）parentId 失去落点后，
+ * 由 seed 末尾的悬空节点兜底清理统一移除，不需要逐个枚举。
+ */
+export const LEGACY_MENU_ROUTE_PATHS = [
+  "/ai-config",
+  "/ai-ops",
+  "/report/index",
+  "/projects"
+] as const;
+
 /** 隐藏路由（visible=false、enabled=true，routePath 保留；由工作台待办 / 项目详情等业务入口进入，或待前端补页面后开启） */
 export const HIDDEN_MENU_ROUTE_PATHS = [
   "/ai",
@@ -111,7 +123,8 @@ const MENU_SEED_TREE: MenuSeedNode[] = [
     menuType: "MENU",
     name: "项目管理",
     routePath: "/project",
-    component: "project/index",
+    // 前端真实页面为 views/projects/index，component 与页面对齐（routePath 不变，menuId 不变）
+    component: "projects/index",
     sortOrder: 20,
     permissionCode: "project.create",
     children: [
@@ -145,14 +158,14 @@ const MENU_SEED_TREE: MenuSeedNode[] = [
       }),
       directory("热工数据", "/products/thermal", 40, {
         children: [
-          leaf("图集热工表", "/thermal/sets", 10, "system:thermal:list", {
+          leaf("图集热工参考表", "/thermal/sets", 10, "system:thermal:list", {
             children: actionButtons("/thermal/sets", [
-              { suffix: "add", name: "图集热工表新增", permissionCode: "system:thermal:add" },
-              { suffix: "edit", name: "图集热工表编辑", permissionCode: "system:thermal:edit" },
-              { suffix: "import", name: "图集热工表导入", permissionCode: "system:thermal:import" },
-              { suffix: "remove", name: "图集热工表删除", permissionCode: "system:thermal:remove" },
-              { suffix: "approve", name: "图集热工表审核", permissionCode: "system:thermal:approve" },
-              { suffix: "publish", name: "图集热工表发布", permissionCode: "system:thermal:publish" }
+              { suffix: "add", name: "图集热工参考表新增", permissionCode: "system:thermal:add" },
+              { suffix: "edit", name: "图集热工参考表编辑", permissionCode: "system:thermal:edit" },
+              { suffix: "import", name: "图集热工参考表导入", permissionCode: "system:thermal:import" },
+              { suffix: "remove", name: "图集热工参考表删除", permissionCode: "system:thermal:remove" },
+              { suffix: "approve", name: "图集热工参考表审核", permissionCode: "system:thermal:approve" },
+              { suffix: "publish", name: "图集热工参考表发布", permissionCode: "system:thermal:publish" }
             ])
           }),
           leaf("计算规则", "/thermal/calc-rules", 20, "system:thermal:list", { children: crudButtons("/thermal/calc-rules", "system:thermal", "计算规则") })
@@ -163,7 +176,7 @@ const MENU_SEED_TREE: MenuSeedNode[] = [
           leaf("节点大样图", "/nodes/drawings", 10, "system:node:list", { children: crudButtons("/nodes/drawings", "system:node", "节点图") })
         ]
       }),
-      directory("对比配置", "/products/comparison", 60, {
+      directory("材料对比", "/products/comparison", 60, {
         children: [
           leaf("对比规则", "/comparison/versions", 10, "system:comparison:list", { children: crudButtons("/comparison/versions", "system:comparison", "对比规则") })
         ]
@@ -202,12 +215,12 @@ const MENU_SEED_TREE: MenuSeedNode[] = [
               { suffix: "remove", name: "替代关系删除", permissionCode: "system:standard:remove" }
             ])
           }),
-          leaf("数据来源", "/standard/sources", 40, "system:standard:list", {
+          leaf("标准采集源", "/standard/sources", 40, "system:standard:list", {
             children: actionButtons("/standard/sources", [
-              { suffix: "add", name: "数据来源新增", permissionCode: "system:standard:add" },
-              { suffix: "edit", name: "数据来源编辑", permissionCode: "system:standard:edit" },
+              { suffix: "add", name: "标准采集源新增", permissionCode: "system:standard:add" },
+              { suffix: "edit", name: "标准采集源编辑", permissionCode: "system:standard:edit" },
               { suffix: "run", name: "触发站点抓取", permissionCode: "system:standard:run" },
-              { suffix: "remove", name: "数据来源删除", permissionCode: "system:standard:remove" }
+              { suffix: "remove", name: "标准采集源删除", permissionCode: "system:standard:remove" }
             ])
           }),
           leaf("标准限值", "/thermal/standard-limits", 50, "system:thermal:list", { children: crudButtons("/thermal/standard-limits", "system:thermal", "标准限值") })
@@ -221,15 +234,15 @@ const MENU_SEED_TREE: MenuSeedNode[] = [
           { suffix: "remove", name: "资料分类删除", permissionCode: "system:knowledge:category:remove" }
         ])
       }),
-      leaf("数据源管理", "/knowledge/crawlers", 50, "system:knowledge:crawler:list", {
+      leaf("资料采集源", "/knowledge/crawlers", 50, "system:knowledge:crawler:list", {
         children: actionButtons("/knowledge/crawlers", [
-          { suffix: "add", name: "数据源新增", permissionCode: "system:knowledge:crawler:add" },
-          { suffix: "edit", name: "数据源编辑", permissionCode: "system:knowledge:crawler:edit" },
-          { suffix: "run", name: "手动同步数据源", permissionCode: "system:knowledge:crawler:run" },
-          { suffix: "remove", name: "数据源删除", permissionCode: "system:knowledge:crawler:remove" }
+          { suffix: "add", name: "采集源新增", permissionCode: "system:knowledge:crawler:add" },
+          { suffix: "edit", name: "采集源编辑", permissionCode: "system:knowledge:crawler:edit" },
+          { suffix: "run", name: "手动同步采集源", permissionCode: "system:knowledge:crawler:run" },
+          { suffix: "remove", name: "采集源删除", permissionCode: "system:knowledge:crawler:remove" }
         ])
       }),
-      directory("质量检查", "/knowledge/quality", 60, {
+      directory("质量与调试", "/knowledge/quality", 60, {
         permissionCode: "system:knowledge:search:answer",
         children: [
           leaf("AI 问答测试", "/knowledge/search-test", 10, "system:knowledge:search:answer", {
@@ -294,7 +307,7 @@ const MENU_SEED_TREE: MenuSeedNode[] = [
           { suffix: "test-connection", name: "测试服务商连接", permissionCode: "system:ai:provider:test" },
           { suffix: "prompt-publish", name: "提示词发布", permissionCode: "system:ai:prompt:publish" },
           { suffix: "debug", name: "AI 调试", permissionCode: "system:ai:debug:use" },
-          { suffix: "filter", name: "对话围栏", permissionCode: "system:ai:filter:list" }
+          { suffix: "filter", name: "敏感词拦截", permissionCode: "system:ai:filter:list" }
         ])
       }),
       leaf("操作日志", "/monitor/audit", 90, "monitor:audit:list", { visible: false }),

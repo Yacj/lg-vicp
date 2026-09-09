@@ -70,7 +70,7 @@ flowchart LR
 | --- | --- |
 | 图集热工参考表 | `system:thermal:{list,add,edit,remove,approve,publish,import}` |
 
-种子单一事实源：`src/shared/thermal-permissions.ts`（`THERMAL_PERMISSIONS` + `THERMAL_PERMISSION_SEEDS`），合并进 `src/db/seed.ts` 幂等写入；B 端菜单挂载见 `docs/menus/README.md`（"图集热工表"叶子 routePath `/thermal/sets` 挂产品中心 / 热工数据，"标准限值" `/thermal/standard-limits` 挂知识中心 / 标准规范，"计算记录" `/thermal/calc-records` 为隐藏路由，permissionCode 均为 `system:thermal:*`）。SUPER_ADMIN 直通。
+种子单一事实源：`src/shared/thermal-permissions.ts`（`THERMAL_PERMISSIONS` + `THERMAL_PERMISSION_SEEDS`），合并进 `src/db/seed.ts` 幂等写入；B 端菜单挂载见 `docs/menus/README.md`（"图集热工参考表"叶子 routePath `/thermal/sets` 挂产品中心 / 热工数据，"标准限值" `/thermal/standard-limits` 挂知识中心 / 标准规范，"计算记录" `/thermal/calc-records` 为隐藏路由，permissionCode 均为 `system:thermal:*`）。SUPER_ADMIN 直通。
 
 ## API（前缀 `/api/v1/platform/thermal`，标签 `图集热工参考表`）
 
