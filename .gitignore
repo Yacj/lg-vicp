@@ -7,3 +7,6 @@
 *.zip
 *.log
 test-output.txt
+
+# AI 工具会话产物
+**/.zcode/

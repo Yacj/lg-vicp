@@ -5,6 +5,7 @@ import {
   normalizeVisibilityFilter,
   projectDetailTabs,
   projectStatusMeta,
+  projectTaskEntries,
   projectVisibilityMeta,
 } from './project'
 
@@ -32,8 +33,55 @@ describe('project detail tab projection', () => {
     const withoutAudit = projectDetailTabs(false)
     const withAudit = projectDetailTabs(true)
 
-    expect(withoutAudit.map((tab) => tab.key)).toEqual(['overview', 'files', 'conversations'])
-    expect(withAudit.map((tab) => tab.key)).toEqual(['overview', 'files', 'conversations', 'audit'])
+    expect(withoutAudit.map((tab) => tab.key)).toEqual(['overview', 'conversations'])
+    expect(withAudit.map((tab) => tab.key)).toEqual(['overview', 'conversations', 'audit'])
+  })
+})
+
+describe('project task entry projection', () => {
+  it('projects the seven task entries in workspace order', () => {
+    const entries = projectTaskEntries(makeProject({ region: '上海市' }))
+
+    expect(entries.map((entry) => entry.label)).toEqual([
+      '基本信息',
+      '项目条件',
+      '智能计算',
+      '方案选择',
+      '材料对比',
+      '节点方案',
+      '报告',
+    ])
+  })
+
+  it('prefills candidate conditions with the project region', () => {
+    const entries = projectTaskEntries(makeProject({ id: 'p1', region: '上海市浦东新区' }))
+    const conditions = entries.find((entry) => entry.key === 'conditions')
+
+    expect(conditions?.route).toBe('/thermal/candidates?regionCode=%E4%B8%8A%E6%B5%B7%E5%B8%82%E6%B5%A6%E4%B8%9C%E6%96%B0%E5%8C%BA')
+    expect(conditions?.permissions).toEqual(['system:thermal:list'])
+  })
+
+  it('keeps the conditions entry navigable without a region', () => {
+    const entries = projectTaskEntries(makeProject({ region: null }))
+    const conditions = entries.find((entry) => entry.key === 'conditions')
+
+    expect(conditions?.route).toBe('/thermal/candidates')
+  })
+
+  it('scopes scheme history and reports to the project id', () => {
+    const entries = projectTaskEntries(makeProject({ id: 'p/1' }))
+
+    expect(entries.find((entry) => entry.key === 'schemes')?.route).toBe('/thermal/calc-records?projectId=p%2F1')
+    expect(entries.find((entry) => entry.key === 'reports')?.route).toBe('/reports?projectId=p%2F1')
+  })
+
+  it('keeps the overview entry as an in-page tab without a route', () => {
+    const entries = projectTaskEntries(makeProject())
+    const overview = entries.find((entry) => entry.key === 'overview')
+
+    expect(overview?.route).toBeNull()
+    expect(overview?.tabKey).toBe('overview')
+    expect(overview?.permissions).toEqual([])
   })
 })
 

@@ -235,28 +235,12 @@ try {
     await ensureMenu({ parentId: systemMenuId, menuType: "MENU", name: "部门管理", routePath: "/system/dept", component: "system/dept/index", sortOrder: 40, permissionCode: "system:dept:list" });
     await ensureMenu({ parentId: systemMenuId, menuType: "MENU", name: "岗位管理", routePath: "/system/post", component: "system/post/index", sortOrder: 50, permissionCode: "system:post:list" });
     await ensureMenu({ parentId: systemMenuId, menuType: "MENU", name: "字典管理", routePath: "/system/dict", component: "system/dict/index", sortOrder: 60, permissionCode: "system:dict:list" });
-    const aiConfigMenuId = await ensureMenu({
-      menuType: "MENU", name: "AI 配置", routePath: "/system/ai", component: "system/ai/index", sortOrder: 70, permissionCode: "system:ai:provider:list"
-    });
-    await ensureMenu({ parentId: aiConfigMenuId, menuType: "BUTTON", name: "测试服务商连接", routePath: "/system/ai/test-connection", sortOrder: 10, permissionCode: "system:ai:provider:test" });
-    await ensureMenu({ parentId: aiConfigMenuId, menuType: "BUTTON", name: "提示词发布", routePath: "/system/ai/prompt-publish", sortOrder: 20, permissionCode: "system:ai:prompt:publish" });
-    await ensureMenu({ parentId: aiConfigMenuId, menuType: "BUTTON", name: "AI 调试", routePath: "/system/ai/debug", sortOrder: 30, permissionCode: "system:ai:debug:use" });
-    await ensureMenu({ parentId: aiConfigMenuId, menuType: "BUTTON", name: "敏感词拦截", routePath: "/system/ai/filter", sortOrder: 40, permissionCode: "system:ai:filter:list" });
-    const monitorMenuId = await ensureMenu({
-      menuType: "DIRECTORY", name: "系统监控", routePath: "/monitor", icon: "monitor", sortOrder: 210, permissionCode: "monitor:audit:list"
-    });
-    await ensureMenu({ parentId: monitorMenuId, menuType: "MENU", name: "审计日志", routePath: "/monitor/audit", component: "monitor/audit/index", sortOrder: 10, permissionCode: "monitor:audit:list" });
-    await ensureMenu({ parentId: monitorMenuId, menuType: "MENU", name: "在线用户", routePath: "/monitor/online", component: "monitor/online/index", sortOrder: 20, permissionCode: "monitor:online:list" });
-    await ensureMenu({ parentId: monitorMenuId, menuType: "MENU", name: "定时任务", routePath: "/monitor/job", component: "monitor/job/index", sortOrder: 30, permissionCode: "monitor:job:list" });
-    await ensureMenu({ parentId: monitorMenuId, menuType: "MENU", name: "缓存监控", routePath: "/monitor/cache", component: "monitor/cache/index", sortOrder: 40, permissionCode: "monitor:cache:list" });
-    const aiOpsMenuId = await ensureMenu({ parentId: monitorMenuId, menuType: "MENU", name: "AI 运营", routePath: "/monitor/ai", component: "monitor/ai/index", sortOrder: 50, permissionCode: "system:ai:conversation:list" });
-    await ensureMenu({ parentId: aiOpsMenuId, menuType: "BUTTON", name: "反馈处理", routePath: "/monitor/ai/feedback-handle", sortOrder: 10, permissionCode: "system:ai:feedback:handle" });
     await ensureMenu({
       menuType: "MENU", name: "项目管理", routePath: "/project", component: "projects/index", sortOrder: 220, permissionCode: "project.create"
     });
     await ensureMenu({ menuType: "MENU", name: "AI 对话", routePath: "/ai", component: "ai/index", sortOrder: 230, permissionCode: "ai.chat" });
 
-    // ===== B 端菜单（信息架构 2026-09 瘦身：6 个一级 = 工作台[Admin-Web 静态首页] + 项目/产品/知识/报告/系统）=====
+    // ===== B 端菜单（信息架构 2026-09：8 个一级 = 工作台[Admin-Web 静态首页] + 项目/产品/知识/报告/AI 配置/AI 运营/系统）=====
     // 叶子 routePath 全部保留（menuId 不变），只调整挂父级/名称/排序/可见性；权限码不变，角色权限经 permissionCode 关联零损失。
     // 先删除废弃的旧一级目录（子项随后重新挂到新父目录；menus.parentId 无外键约束，同事务内悬空安全）。
     await tx.delete(menus).where(inArray(menus.routePath, [...DEPRECATED_MENU_ROUTE_PATHS]));
@@ -270,8 +254,8 @@ try {
       "/report-center/review", "/review-center/approve",
       "/report-template", "/report-center"
     ]));
-    // 早期 seed 残留的 4 组顶级幽灵菜单（/ai-config、/ai-ops、/report/index、/projects）：
-    // 与现有菜单重名并存、permissionCode 为空（对所有角色可见），导致 getRouters 返回重复菜单。
+    // 已被替代 / 早期残留的菜单（清单见 LEGACY_MENU_ROUTE_PATHS 注释）：/report/index、/projects 为早期幽灵菜单，
+    // /system/ai、/monitor/ai 为旧 AI 合并入口（AI 配置 /ai-config、AI 运营 /ai-ops 恢复为独立一级菜单）。
     // 这里只删顶级节点，其子菜单因 parentId 失去落点悬空，由 ensureMenuTree 之后的兜底清理统一移除。
     await tx.delete(menus).where(inArray(menus.routePath, [...LEGACY_MENU_ROUTE_PATHS]));
 

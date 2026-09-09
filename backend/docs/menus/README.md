@@ -1,6 +1,6 @@
 # B 端菜单信息架构（2026-09 瘦身版）
 
-本次调整把 B 端左侧导航从 15 个一级收敛为 6 个一级（工作台由 Admin-Web 静态首页 `/` 承担，不入库）。
+本次调整把 B 端左侧导航从 15 个一级收敛为 8 个一级（工作台由 Admin-Web 静态首页 `/` 承担，不入库；AI 配置与 AI 运营为独立一级菜单）。
 后端业务模块（masterdata / construction / thermal / comparison / standard / nodes / review-center / reports / knowledge / files）保持独立，**不合并、不删除**；本次仅调整菜单信息架构。
 
 - 种子数据：`src/db/menu-seed-tree.ts`（纯数据，含结构断言测试 `src/db/menu-seed-tree.test.ts`）
@@ -48,6 +48,16 @@
 ├─ 报告列表 /reports/center
 ├─ 报告模板 /reports/templates
 └─ 审核队列 /review-center/queue（隐藏，工作台待办进入）
+AI 配置 /ai-config
+├─ 服务商管理 /ai-config/providers（含「测试服务商连接」按钮）
+├─ 模型管理 /ai-config/models
+├─ 场景配置 /ai-config/scenes
+├─ 提示词管理 /ai-config/prompts（含「提示词发布」按钮）
+└─ 关键词过滤 /ai-config/filters
+AI 运营 /ai-ops
+├─ 会话运营 /ai-ops/conversations
+├─ 反馈分析 /ai-ops/feedbacks（含「反馈处理」按钮）
+└─ 运营调试 /ai-ops/debug
 系统管理 /system
 ├─ 用户管理 /system/user
 ├─ 角色管理 /system/role
@@ -58,13 +68,11 @@
 ├─ 企业信息 /system/enterprise
 │  ├─ 企业简介 /content/profile
 │  └─ 企业资质证书 /content/certificates
-├─ AI 配置 /system/ai（component=ai-config/providers/index）
 ├─ 操作日志 /monitor/audit（隐藏，待前端补页面）
 └─ 高级设置 /system/advanced
    ├─ 在线用户 /monitor/online（隐藏）
    ├─ 定时任务 /monitor/job（隐藏）
-   ├─ 缓存监控 /monitor/cache（隐藏）
-   └─ AI 运行情况 /monitor/ai（隐藏）
+   └─ 缓存监控 /monitor/cache（隐藏）
 AI 对话 /ai（隐藏路由，B 端不再提供一级入口）
 ```
 
@@ -83,23 +91,24 @@ AI 对话 /ai（隐藏路由，B 端不再提供一级入口）
 | 节点图库 /nodes | 产品中心 / 节点图 |
 | 报告中心 /reports | 报告管理（一级改名） |
 | 审核中心 /review-center | 工作台待办入口（/review-center/queue 保留为隐藏路由） |
-| 系统监控 /monitor | 审计日志 → 系统管理 / 操作日志；其余 → 系统管理 / 高级设置 |
+| 系统监控 /monitor | 审计日志 → 系统管理 / 操作日志；其余 → 系统管理 / 高级设置；AI 运营 → 独立一级菜单 /ai-ops |
 | AI 对话 /ai | 隐藏路由（B 端不再提供一级入口） |
-| AI 配置（原在系统管理下） | 系统管理 / AI 配置（不变，component 指向 ai-config/providers/index） |
+| AI 配置（原在系统管理下） | 独立一级菜单 /ai-config（服务商/模型/场景/提示词/关键词过滤；旧合并页 /system/ai 由 seed 清理） |
 
 ## 三、保留 / 隐藏 / 废弃清单
 
-- **保留 routePath（menuId 不变）**：全部业务叶子与按钮，包括 /masterdata/*、/construction/*、/thermal/*、/comparison/*、/standard/*、/nodes/*、/content/*、/knowledge/*、/reports/*、/review-center/queue、/monitor/*、/system/*。
-- **隐藏路由（visible=false、enabled=true，8 条）**：/ai、/thermal/calc-records、/review-center/queue、/monitor/audit、/monitor/online、/monitor/job、/monitor/cache、/monitor/ai。前端静态注册后即可访问，页面补齐后由菜单管理开启 visible。
+- **保留 routePath（menuId 不变）**：全部业务叶子与按钮，包括 /masterdata/*、/construction/*、/thermal/*、/comparison/*、/standard/*、/nodes/*、/content/*、/knowledge/*、/reports/*、/review-center/queue、/monitor/*、/system/*、/ai-config/*、/ai-ops/*。
+- **隐藏路由（visible=false、enabled=true，7 条）**：/ai、/thermal/calc-records、/review-center/queue、/monitor/audit、/monitor/online、/monitor/job、/monitor/cache。前端静态注册后即可访问，页面补齐后由菜单管理开启 visible。
 - **废弃菜单记录（seed 删除，9 条旧一级目录）**：/content、/masterdata、/construction、/thermal、/comparison、/standard、/nodes、/monitor、/review-center。删除前子项已在同事务内重挂到新父目录；另有旧按钮残留（/construction/add 等 19 条 2026-08 清理清单）继续由 seed 清除。
-- **早期幽灵菜单清理（seed 删除，4 组顶级）**：/ai-config、/ai-ops、/report/index、/projects。早期 seed 残留，与新菜单重名并存、permissionCode 为空（对所有角色可见），导致 `/api/v1/auth/b/getRouters` 返回重复菜单；seed 只删这 4 个顶级节点（`LEGACY_MENU_ROUTE_PATHS`），其子菜单 parentId 失去落点后由悬空节点兜底清理移除。
+- **已被替代 / 残留菜单清理（seed 删除，`LEGACY_MENU_ROUTE_PATHS`）**：/report/index、/projects 为早期 seed 残留幽灵菜单（与新菜单重名、permissionCode 为空，曾导致 `/api/v1/auth/b/getRouters` 返回重复菜单）；/system/ai 为旧「AI 配置」合并页、/monitor/ai 为旧「AI 运行情况」隐藏页（AI 配置 /ai-config、AI 运营 /ai-ops 恢复为独立一级菜单，叶子挂 `system:ai:*` 权限码，修复早期对所有角色可见的问题）；/ai-config/prompt 为旧提示词路径（统一为 /ai-config/prompts，对齐前端静态路由）。seed 只删顶级节点，子菜单由悬空节点兜底清理移除。
 - **悬空节点兜底清理**：seed 末尾循环删除 parentId 指向不存在菜单的节点（menus.parentId 无外键约束），同时兜住历史遗留孤儿节点与上述级联悬空，清理数量打印到 seed 日志。
 
 ## 四、menuId 与角色权限影响
 
 - 本仓库无 role_menus 表：菜单可见性由 `menus.permissionCode` 经 `rolePermissions` 关联决定（`menu.service.getPermissionCodes`）。
 - 叶子 routePath 不变 → seed upsert 后 menuId 不变 → 角色权限关联零损失。
-- 权限码全部沿用（system:md:*、system:construction:*、system:thermal:*、system:comparison:*、system:standard:*、system:node:*、system:review:* 等），未做 product:* 重命名。
+- 权限码全部沿用（system:md:*、system:construction:*、system:thermal:*、system:comparison:*、system:standard:*、system:node:*、system:review:*、system:ai:* 等），未做 product:* 重命名。
+- AI 配置 / AI 运营一级目录不设权限码，叶子按 `system:ai:*` 精确授权（仅平台管理员/超级管理员可见）；叶子 routePath 与 Admin-Web 静态路由（STATIC_OWNED_PATHS）一一对应，动态菜单直接复用静态页面。
 - `pruneMenuTree` 已升级为子树递归判断：目录子树（含嵌套目录）中存在 MENU 即保留，杜绝三级结构下的空壳/误裁。
 
 ## 五、Migration / Seed 兼容
@@ -110,13 +119,13 @@ AI 对话 /ai（隐藏路由，B 端不再提供一级入口）
 
 ## 六、Admin-Web 同步清单
 
-1. 静态注册隐藏路由（随页面实现逐个开启）：`/review-center/queue`、`/ai`、`/thermal/calc-records`、`/monitor/audit|online|job|cache|ai`。
+1. 静态注册隐藏路由（随页面实现逐个开启）：`/review-center/queue`、`/ai`、`/thermal/calc-records`、`/monitor/audit|online|job|cache`。
 2. 系统监控页面（views/monitor/**）当前缺失，实现后由菜单管理开启 visible。
 3. 文件中心页面实现后，在知识中心下新增 `/files` 菜单（permissionCode `file:center:view`；本次未 seed，避免不可用页面）。
 4. 确认侧边栏支持三级目录渲染（产品中心下 6 个二级目录各带叶子）。
 5. 页面内写死的标题/面包屑与新菜单名对齐：模板报告→报告列表、图集参考表→图集热工参考表、材料库→保温材料库、材料参数版本→材料性能参数、节点图纸→节点大样图、对比版本→对比规则、标准文档→标准文件、指标管理→节能指标、替代关系→新旧标准替代、采集来源→标准采集源、企业证书→企业资质证书、审计日志→操作日志、AI 运营→AI 运行情况、报告中心→报告管理。
 6. 工作台"我的待办 / 待审核"需要 Dashboard 聚合 API（本次未实现，建议 `GET /api/v1/platform/dashboard/summary`：待审数、最近项目、最近报告、资料异常、AI 用量概览）。
-7. 可选：AI 配置聚合页（/system/ai 当前直接复用服务商列表页）；报告管理内嵌"报告审核"入口。
+7. AI 配置 / AI 运营页面已由静态路由承载（/ai-config/*、/ai-ops/*），后端菜单同名路径直接复用静态页面；工作台首页不再提供「AI 与系统」聚合面板，AI 入口经侧栏一级菜单进入；报告管理内嵌"报告审核"入口。
 
 ## 七、AI 辅助录入边界（本次信息架构调整配套约定）
 

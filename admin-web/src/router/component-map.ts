@@ -17,6 +17,20 @@ if (!homeLoader) {
   throw new Error('组件白名单缺少 home/index 页面')
 }
 
+/**
+ * 历史后端菜单 component 值 → 当前视图 key。
+ * 白名单始终以真实视图文件为准；旧 key 仅在投影时改写，
+ * 保证旧菜单种子（如 project/index、ai/index）不产生 UNKNOWN_COMPONENT。
+ */
+export const LEGACY_COMPONENT_ALIASES: Readonly<Record<string, string>> = Object.freeze({
+  'ai/index': 'ai-ops/debug/index',
+  'project/index': 'projects/index',
+})
+
+function resolveLegacyAlias(key: string): string {
+  return LEGACY_COMPONENT_ALIASES[key] ?? key
+}
+
 export const componentMap: Readonly<Record<string, DynamicComponentLoader>> = Object.freeze({
   ...generatedComponentMap,
   Home: homeLoader,
@@ -60,7 +74,8 @@ export function normalizeDynamicComponentKey(value: string | null | undefined): 
   const key = candidate.endsWith(VIEW_FILE_SUFFIX)
     ? candidate.slice(0, -VIEW_FILE_SUFFIX.length)
     : candidate
-  return hasComponentKey(key) ? key : null
+  const aliasedKey = resolveLegacyAlias(key)
+  return hasComponentKey(aliasedKey) ? aliasedKey : null
 }
 
 export function getDynamicComponentPath(value: string | null | undefined): string | null {
@@ -83,5 +98,6 @@ export const dynamicComponentOptions: readonly DynamicComponentOption[] = Object
 )
 
 export function resolveDynamicComponent(key: string): DynamicComponentLoader | null {
-  return hasComponentKey(key) ? componentMap[key] : null
+  const normalized = normalizeDynamicComponentKey(key)
+  return normalized ? componentMap[normalized] : null
 }

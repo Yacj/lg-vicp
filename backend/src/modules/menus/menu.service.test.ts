@@ -121,7 +121,7 @@ describe("buildMenuTreeForPermissions（瘦身菜单 × 三类角色）", () => 
 
   it("SUPER_ADMIN（全量权限）：可见一级恰好 5 个，产品中心二级齐全且无空壳目录", () => {
     const tree = buildMenuTreeForPermissions(rows, allPermissionCodes);
-    expect(tree.map((item) => item.name)).toEqual(["项目管理", "产品中心", "知识中心", "报告管理", "系统管理"]);
+    expect(tree.map((item) => item.name)).toEqual(["项目管理", "产品中心", "知识中心", "报告管理", "AI 配置", "AI 运营", "系统管理"]);
     const products = tree.find((item) => item.routePath === "/products");
     expect(products?.children.map((child) => child.name)).toEqual([
       "产品管理", "材料与参数", "构造体系", "热工数据", "节点图", "材料对比"

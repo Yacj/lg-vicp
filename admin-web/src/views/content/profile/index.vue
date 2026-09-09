@@ -2,6 +2,7 @@
 import type { PrimaryTableCol, TableRowData } from 'tdesign-vue-next'
 import { AddIcon } from 'tdesign-icons-vue-next'
 import { computed, h } from 'vue'
+import EnterpriseWorkspaceNavigation from '@/components/business/EnterpriseWorkspaceNavigation.vue'
 import AppCrudFormDialog from '@/components/business/AppCrudFormDialog.vue'
 import { createEvidenceColumn } from '@/components/business/evidence-column'
 import AppTableActions from '@/components/business/AppTableActions.vue'
@@ -179,7 +180,8 @@ function getActions(row: TableRowData): AppTableAction[] {
 </script>
 
 <template>
-  <AppPage title="企业简介" description="维护企业对外公开的基础信息；版本化审核发布，同键仅一个已发布版本。">
+  <AppPage title="企业信息" description="维护企业对外公开的简介与资质证书；正式数据均经过审核发布。">
+    <EnterpriseWorkspaceNavigation />
     <template #search>
       <AppSearchPanel :loading="list.isLoading.value" @reset="list.reset" @search="list.search">
         <t-form-item label="关键词">

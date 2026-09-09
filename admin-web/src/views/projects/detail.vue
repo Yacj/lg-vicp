@@ -9,6 +9,7 @@ import AppErrorState from '@/components/ui/AppErrorState.vue'
 import AppPage from '@/components/ui/AppPage.vue'
 import AppStatusTag from '@/components/ui/AppStatusTag.vue'
 import { useProjectDetail } from '@/composables/useProjectDetail'
+import { usePermissionAccess } from '@/composables/usePermissionAccess'
 import { useCrudDrawer } from '@/composables/useCrudDrawer'
 import { useConfirmedCrudAction, useCrudDelete } from '@/composables/useCrudActions'
 import { useAppFeedback, normalizeFeedbackError } from '@/composables/useAppFeedback'
@@ -19,8 +20,10 @@ import type { ProjectConversation, ProjectAuditLog } from '@/types/project'
 import {
   isProjectManager,
   projectStatusMeta,
+  projectTaskEntries,
   projectVisibilityMeta,
 } from '@/utils/project'
+import type { ProjectTaskEntry } from '@/utils/project'
 import { useUserStore } from '@/stores/user'
 import { formatDate } from '@/utils/day'
 
@@ -45,6 +48,38 @@ const currentProject = computed(() => detail.value)
 const isManager = computed(() => currentProject.value
   ? isProjectManager(currentProject.value, userStore.profile?.id ?? null, userStore.isSuperAdmin)
   : false)
+
+// ---- 任务入口（基本信息 / 项目条件 / 智能计算 / 方案选择 / 材料对比 / 节点方案 / 报告）----
+
+const { canAccess } = usePermissionAccess()
+
+function canNavigate(path: string): boolean {
+  const resolved = router.resolve(path)
+  return resolved.matched.length > 0 && resolved.name !== 'NotFound'
+}
+
+/** 任务入口按领域权限码与路由可达性裁剪；权限不足或路由未注册时不展示，不渲染死入口 */
+const taskEntries = computed<ProjectTaskEntry[]>(() => {
+  if (!currentProject.value) {
+    return []
+  }
+  return projectTaskEntries(currentProject.value).filter((entry) => {
+    if (!canAccess({ permissions: entry.permissions })) {
+      return false
+    }
+    return entry.route === null || canNavigate(entry.route)
+  })
+})
+
+function openTaskEntry(entry: ProjectTaskEntry): void {
+  if (entry.route) {
+    void router.push(entry.route)
+    return
+  }
+  if (entry.tabKey) {
+    activeTab.value = entry.tabKey
+  }
+}
 
 const formRules: FormRules<ProjectForm> = {
   name: [
@@ -236,6 +271,23 @@ function goBack(): void {
     />
 
     <template v-else-if="detailStatus === 'ready' && currentProject">
+      <nav aria-label="项目任务入口" class="project-task-grid">
+        <t-button
+          v-for="entry in taskEntries"
+          :key="entry.key"
+          block
+          class="project-task-card"
+          theme="default"
+          variant="outline"
+          @click="openTaskEntry(entry)"
+        >
+          <span class="project-task-card__inner">
+            <strong class="project-task-card__label">{{ entry.label }}</strong>
+            <span class="project-task-card__description">{{ entry.description }}</span>
+          </span>
+        </t-button>
+      </nav>
+
       <t-tabs v-model="activeTab" class="project-detail-tabs">
         <t-tab-panel
           v-for="tab in tabs"
@@ -272,38 +324,6 @@ function goBack(): void {
               </t-descriptions>
             </t-card>
           </section>
-
-          <!-- 资料文件 -->
-          <!-- <section v-else-if="tab.key === 'files'" class="project-files">
-            <div v-if="isManager" class="project-files__uploader">
-              <AppFileUploader
-                :project-id="currentProject.id"
-                tips="支持 PDF、DOCX、PNG、JPG，单文件不超过 50 MB"
-                @success="filesList.refresh"
-              />
-            </div>
-            <AppDataTable
-              :columns="fileColumns"
-              :current="filesList.current.value"
-              :data="filesList.data.value"
-              empty-description="尚未上传项目资料文件"
-              empty-title="暂无资料文件"
-              :error-description="filesList.error.value
-                ? normalizeFeedbackError(filesList.error.value).message
-                : '请检查网络连接后重试'"
-              :page-size="filesList.pageSize.value"
-              row-key="id"
-              :status="filesList.tableStatus.value"
-              :total="filesList.total.value"
-              @page-change="filesList.changePage"
-              @refresh="filesList.refresh"
-              @retry="filesList.retry"
-            >
-              <template #operations="{ row }">
-                <AppTableActions :actions="getFileActions(row)" />
-              </template>
-            </AppDataTable>
-          </section> -->
 
           <!-- AI 会话 -->
           <section v-else-if="tab.key === 'conversations'" class="project-conversations mt-3">
@@ -392,6 +412,45 @@ function goBack(): void {
 <style scoped>
 .project-detail-tabs {
   min-width: 0;
+}
+
+/* 任务入口：高密度白色卡片，悬停品牌色描边 */
+.project-task-grid {
+  display: grid;
+  gap: var(--td-size-3);
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+}
+
+.project-task-card {
+  height: auto;
+  min-width: 0;
+  padding: var(--vicp-panel-padding);
+  border-radius: var(--vicp-radius);
+  text-align: left;
+  white-space: normal;
+}
+
+.project-task-card__inner {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: var(--td-size-1);
+  text-align: left;
+}
+
+.project-task-card__label {
+  color: var(--td-text-color-primary);
+  font-size: var(--td-font-size-body-medium);
+  font-weight: 600;
+}
+
+.project-task-card:hover .project-task-card__label {
+  color: var(--td-brand-color);
+}
+
+.project-task-card__description {
+  color: var(--td-text-color-secondary);
+  font-size: var(--td-font-size-body-small);
 }
 
 /* 移动端 Tabs 横向滚动 */

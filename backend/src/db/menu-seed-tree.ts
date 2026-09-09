@@ -1,7 +1,7 @@
 /**
  * B 端菜单种子纯数据（信息架构 2026-09 瘦身版）。
  *
- * 目标一级菜单：工作台（Admin-Web 静态首页 `/`，不入库）+ 项目管理 / 产品中心 / 知识中心 / 报告管理 / 系统管理。
+ * 目标一级菜单：工作台（Admin-Web 静态首页 `/`，不入库）+ 项目管理 / 产品中心 / 知识中心 / 报告管理 / AI 配置 / AI 运营 / 系统管理。
  * 旧「企业内容 / 基础数据 / 系统构造 / 热工中心 / 材料对比 / 标准政策 / 节点图库 / 系统监控 / 审核中心」一级目录全部废弃。
  *
  * 迁移安全约定：
@@ -38,13 +38,16 @@ export const DEPRECATED_MENU_ROUTE_PATHS = [
 ] as const;
 
 /**
- * 早期 seed 残留的顶级幽灵菜单 routePath（与新菜单重名并存，且 permissionCode 为空、对所有角色可见）。
- * seed 只删这 4 个顶级节点，其子菜单（如 /ai-config/filters）parentId 失去落点后，
- * 由 seed 末尾的悬空节点兜底清理统一移除，不需要逐个枚举。
+ * 已被替代 / 早期残留的菜单 routePath（seed 删除顶级节点后，子菜单由悬空节点兜底清理统一移除）：
+ * - /report/index、/projects：早期 seed 残留幽灵菜单，与新菜单重名且 permissionCode 为空（对所有角色可见）；
+ * - /system/ai：旧「AI 配置」合并页，AI 配置已恢复为独立一级菜单 /ai-config；
+ * - /monitor/ai：旧「AI 运行情况」隐藏页，AI 运营已恢复为独立一级菜单 /ai-ops；
+ * - /ai-config/prompt：旧提示词页路径，统一为 /ai-config/prompts（对齐前端静态路由）。
  */
 export const LEGACY_MENU_ROUTE_PATHS = [
-  "/ai-config",
-  "/ai-ops",
+  "/system/ai",
+  "/monitor/ai",
+  "/ai-config/prompt",
   "/report/index",
   "/projects"
 ] as const;
@@ -57,8 +60,7 @@ export const HIDDEN_MENU_ROUTE_PATHS = [
   "/monitor/audit",
   "/monitor/online",
   "/monitor/job",
-  "/monitor/cache",
-  "/monitor/ai"
+  "/monitor/cache"
 ] as const;
 
 const actionButtons = (
@@ -283,6 +285,38 @@ const MENU_SEED_TREE: MenuSeedNode[] = [
     ]
   }),
 
+  // ===== AI 配置（服务商 / 模型 / 场景 / 提示词 / 关键词过滤，独立一级入口；叶子路径对齐前端静态路由）=====
+  directory("AI 配置", "/ai-config", 60, {
+    children: [
+      leaf("服务商管理", "/ai-config/providers", 10, "system:ai:provider:list", {
+        children: actionButtons("/ai-config/providers", [
+          { suffix: "test-connection", name: "测试服务商连接", permissionCode: "system:ai:provider:test" }
+        ])
+      }),
+      leaf("模型管理", "/ai-config/models", 20, "system:ai:model:list"),
+      leaf("场景配置", "/ai-config/scenes", 30, "system:ai:scene:list"),
+      leaf("提示词管理", "/ai-config/prompts", 40, "system:ai:prompt:list", {
+        children: actionButtons("/ai-config/prompts", [
+          { suffix: "publish", name: "提示词发布", permissionCode: "system:ai:prompt:publish" }
+        ])
+      }),
+      leaf("关键词过滤", "/ai-config/filters", 50, "system:ai:filter:list")
+    ]
+  }),
+
+  // ===== AI 运营（会话 / 反馈 / 调试，独立一级入口）=====
+  directory("AI 运营", "/ai-ops", 70, {
+    children: [
+      leaf("会话运营", "/ai-ops/conversations", 10, "system:ai:conversation:list"),
+      leaf("反馈分析", "/ai-ops/feedbacks", 20, "system:ai:feedback:list", {
+        children: actionButtons("/ai-ops/feedbacks", [
+          { suffix: "handle", name: "反馈处理", permissionCode: "system:ai:feedback:handle" }
+        ])
+      }),
+      leaf("运营调试", "/ai-ops/debug", 30, "system:ai:debug:use")
+    ]
+  }),
+
   // ===== 系统管理（企业内容并入企业信息；系统监控并入操作日志 + 高级设置）=====
   directory("系统管理", "/system", 200, {
     icon: "settings",
@@ -301,27 +335,12 @@ const MENU_SEED_TREE: MenuSeedNode[] = [
           ...crudButtons("/content", "system:md:enterprise", "企业信息")
         ]
       }),
-      leaf("AI 配置", "/system/ai", 80, "system:ai:provider:list", {
-        component: "ai-config/providers/index",
-        children: actionButtons("/system/ai", [
-          { suffix: "test-connection", name: "测试服务商连接", permissionCode: "system:ai:provider:test" },
-          { suffix: "prompt-publish", name: "提示词发布", permissionCode: "system:ai:prompt:publish" },
-          { suffix: "debug", name: "AI 调试", permissionCode: "system:ai:debug:use" },
-          { suffix: "filter", name: "敏感词拦截", permissionCode: "system:ai:filter:list" }
-        ])
-      }),
       leaf("操作日志", "/monitor/audit", 90, "monitor:audit:list", { visible: false }),
       directory("高级设置", "/system/advanced", 100, {
         children: [
           leaf("在线用户", "/monitor/online", 10, "monitor:online:list", { visible: false }),
           leaf("定时任务", "/monitor/job", 20, "monitor:job:list", { visible: false }),
-          leaf("缓存监控", "/monitor/cache", 30, "monitor:cache:list", { visible: false }),
-          leaf("AI 运行情况", "/monitor/ai", 40, "system:ai:conversation:list", {
-            visible: false,
-            children: actionButtons("/monitor/ai", [
-              { suffix: "feedback-handle", name: "反馈处理", permissionCode: "system:ai:feedback:handle" }
-            ])
-          })
+          leaf("缓存监控", "/monitor/cache", 30, "monitor:cache:list", { visible: false })
         ]
       })
     ]

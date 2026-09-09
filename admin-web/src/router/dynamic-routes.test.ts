@@ -206,6 +206,106 @@ describe('dynamic menu projection', () => {
     expect(projection.routes).toEqual([])
     expect(projection.issues[0]?.reason).toBe(reason)
   })
+
+  it('registers hidden menus as accessible routes without sidebar entries', () => {
+    const projection = projectDynamicMenus([
+      menu({
+        children: [
+          menu({
+            component: 'thermal/calc-records/index',
+            id: 'hidden-records',
+            name: '计算记录',
+            parentId: 'projects',
+            permissionCode: 'system:thermal:list',
+            routePath: '/thermal/calc-records',
+            visible: false,
+          }),
+        ],
+        id: 'projects',
+        menuType: 'MENU',
+        name: '项目管理',
+        routePath: '/project',
+      }),
+    ])
+
+    expect(projection.sidebarMenus).toHaveLength(1)
+    expect(projection.sidebarMenus[0]?.children).toEqual([])
+    expect(projection.sidebarMenus[0]).toMatchObject({
+      path: '/projects',
+      target: { kind: 'internal', path: '/projects' },
+    })
+    // 子节点先注册：隐藏子菜单注册可直达路由；旧路径 /project 注册 redirect
+    expect(projection.routes).toHaveLength(2)
+    expect(projection.routes[0]).toMatchObject({
+      meta: { hidden: true, permissions: ['system:thermal:list'] },
+      path: '/thermal/calc-records',
+    })
+    expect(projection.routes[1]).toMatchObject({
+      path: '/project',
+      redirect: '/projects',
+    })
+    expect(projection.issues).toEqual([])
+  })
+
+  it('silently skips hidden menus whose component is not implemented yet', () => {
+    const projection = projectDynamicMenus([
+      menu({
+        component: 'monitor/audit/index',
+        id: 'hidden-monitor',
+        name: '操作日志',
+        routePath: '/monitor/audit',
+        visible: false,
+      }),
+    ])
+
+    expect(projection.routes).toEqual([])
+    expect(projection.sidebarMenus).toEqual([])
+    expect(projection.issues).toEqual([])
+  })
+
+  it('rewrites legacy menu paths to new entries and registers redirect routes', () => {
+    const projection = projectDynamicMenus([
+      menu({
+        component: 'reports/center/index',
+        id: 'report-list',
+        name: '报告列表',
+        permissionCode: 'system:report:generate',
+        routePath: '/reports/center',
+      }),
+    ])
+
+    expect(projection.routes).toHaveLength(1)
+    expect(projection.routes[0]).toMatchObject({
+      meta: { dynamic: true, title: '报告列表' },
+      name: expect.any(String),
+      path: '/reports/center',
+      redirect: '/reports',
+    })
+    expect(projection.sidebarMenus[0]).toMatchObject({
+      path: '/reports',
+      target: { kind: 'internal', path: '/reports' },
+    })
+    expect(projection.issues).toEqual([])
+  })
+
+  it('reuses static-owned paths instead of double registering routes', () => {
+    const projection = projectDynamicMenus([
+      menu({
+        component: 'knowledge/public-library/index',
+        id: 'public-library',
+        name: '公开文库',
+        permissionCode: 'system:knowledge:doc:list',
+        routePath: '/knowledge/public-library',
+      }),
+    ])
+
+    expect(projection.routes).toEqual([])
+    expect(projection.sidebarMenus[0]).toMatchObject({
+      path: '/knowledge/public-library',
+      target: { kind: 'internal', path: '/knowledge/public-library' },
+    })
+    expect(projection.issues).toEqual([])
+  })
 })
 
 describe('findMenuPath breadcrumb chain', () => {

@@ -18,10 +18,10 @@ const flattenSeedTree = (nodes: readonly MenuSeedNode[], parentRoutePath: string
 const flat = (nodes?: readonly MenuSeedNode[]) => flattenSeedTree(nodes ?? buildMenuSeedTree());
 
 describe("buildMenuSeedTree（B 端菜单信息架构 2026-09 瘦身）", () => {
-  it("顶层可见一级只保留 5 个（工作台由 Admin-Web 静态首页承担，不入库）", () => {
+  it("顶层可见一级只保留 7 个（工作台由 Admin-Web 静态首页承担，不入库）", () => {
     const tree = buildMenuSeedTree();
     const topVisible = tree.filter((node) => node.visible !== false);
-    expect(topVisible.map((node) => node.name)).toEqual(["项目管理", "产品中心", "知识中心", "报告管理", "系统管理"]);
+    expect(topVisible.map((node) => node.name)).toEqual(["项目管理", "产品中心", "知识中心", "报告管理", "AI 配置", "AI 运营", "系统管理"]);
     // AI 对话保留为隐藏路由，不再是可见一级入口
     const aiEntry = tree.find((node) => node.routePath === "/ai");
     expect(aiEntry?.visible).toBe(false);
@@ -39,7 +39,7 @@ describe("buildMenuSeedTree（B 端菜单信息架构 2026-09 瘦身）", () => 
     }
   });
 
-  it("早期幽灵菜单（/ai-config、/ai-ops、/report/index、/projects）不再出现在菜单树中，由 seed 删除", () => {
+  it("已被替代 / 残留的菜单路径（/system/ai、/monitor/ai、/ai-config/prompt、/report/index、/projects）不再出现在菜单树中", () => {
     const paths = new Set(flat().map((item) => item.node.routePath));
     for (const legacy of LEGACY_MENU_ROUTE_PATHS) {
       expect(paths.has(legacy)).toBe(false);
@@ -88,7 +88,17 @@ describe("buildMenuSeedTree（B 端菜单信息架构 2026-09 瘦身）", () => 
     expect(parentByRoutePath.get("/monitor/online")).toBe("/system/advanced");
     expect(parentByRoutePath.get("/monitor/job")).toBe("/system/advanced");
     expect(parentByRoutePath.get("/monitor/cache")).toBe("/system/advanced");
-    expect(parentByRoutePath.get("/monitor/ai")).toBe("/system/advanced");
+    // AI 配置 / AI 运营恢复为独立一级菜单，叶子挂各自目录
+    expect(parentByRoutePath.get("/ai-config")).toBe(null);
+    expect(parentByRoutePath.get("/ai-config/providers")).toBe("/ai-config");
+    expect(parentByRoutePath.get("/ai-config/models")).toBe("/ai-config");
+    expect(parentByRoutePath.get("/ai-config/scenes")).toBe("/ai-config");
+    expect(parentByRoutePath.get("/ai-config/prompts")).toBe("/ai-config");
+    expect(parentByRoutePath.get("/ai-config/filters")).toBe("/ai-config");
+    expect(parentByRoutePath.get("/ai-ops")).toBe(null);
+    expect(parentByRoutePath.get("/ai-ops/conversations")).toBe("/ai-ops");
+    expect(parentByRoutePath.get("/ai-ops/feedbacks")).toBe("/ai-ops");
+    expect(parentByRoutePath.get("/ai-ops/debug")).toBe("/ai-ops");
     // 计算记录从项目详情进入；审核队列从报告管理/工作台待办进入
     expect(parentByRoutePath.get("/thermal/calc-records")).toBe("/project");
     expect(parentByRoutePath.get("/review-center/queue")).toBe("/reports");
@@ -112,7 +122,12 @@ describe("buildMenuSeedTree（B 端菜单信息架构 2026-09 瘦身）", () => 
       ["/content/certificates", "企业资质证书"],
       ["/reports/center", "报告列表"],
       ["/monitor/audit", "操作日志"],
-      ["/monitor/ai", "AI 运行情况"],
+      ["/ai-config", "AI 配置"],
+      ["/ai-config/providers", "服务商管理"],
+      ["/ai-config/prompts", "提示词管理"],
+      ["/ai-ops", "AI 运营"],
+      ["/ai-ops/conversations", "会话运营"],
+      ["/ai-ops/debug", "运营调试"],
       ["/reports", "报告管理"]
     ];
     for (const [routePath, expectedName] of renames) {
@@ -232,6 +247,19 @@ describe("buildMenuSeedTree（B 端菜单信息架构 2026-09 瘦身）", () => 
       // 审核队列（system:review:*）
       ["/review-center/queue", "system:review:list"],
       ["/review-center/queue/approve", "system:review:approve"],
+      // AI 配置（独立一级，system:ai:*）
+      ["/ai-config/providers", "system:ai:provider:list"],
+      ["/ai-config/providers/test-connection", "system:ai:provider:test"],
+      ["/ai-config/models", "system:ai:model:list"],
+      ["/ai-config/scenes", "system:ai:scene:list"],
+      ["/ai-config/prompts", "system:ai:prompt:list"],
+      ["/ai-config/prompts/publish", "system:ai:prompt:publish"],
+      ["/ai-config/filters", "system:ai:filter:list"],
+      // AI 运营（独立一级）
+      ["/ai-ops/conversations", "system:ai:conversation:list"],
+      ["/ai-ops/feedbacks", "system:ai:feedback:list"],
+      ["/ai-ops/feedbacks/handle", "system:ai:feedback:handle"],
+      ["/ai-ops/debug", "system:ai:debug:use"],
       // 系统管理
       ["/system/user", "system:user:list"],
       ["/system/role", "system:role:list"],
@@ -239,24 +267,17 @@ describe("buildMenuSeedTree（B 端菜单信息架构 2026-09 瘦身）", () => 
       ["/system/dept", "system:dept:list"],
       ["/system/post", "system:post:list"],
       ["/system/dict", "system:dict:list"],
-      ["/system/ai", "system:ai:provider:list"],
-      ["/system/ai/test-connection", "system:ai:provider:test"],
-      ["/system/ai/prompt-publish", "system:ai:prompt:publish"],
-      ["/system/ai/debug", "system:ai:debug:use"],
-      ["/system/ai/filter", "system:ai:filter:list"],
       // 企业信息（system:md:enterprise:*，按钮 routePath 保持 /content/*）
       ["/content/profile", "system:md:enterprise:list"],
       ["/content/certificates", "system:md:enterprise:list"],
       ...["add", "edit", "remove", "approve", "publish"].map((action) =>
         [`/content/${action}`, `system:md:enterprise:${action}`] as const
       ),
-      // 高级设置（monitor:* / system:ai:conversation:*）
+      // 高级设置（monitor:*）
       ["/monitor/audit", "monitor:audit:list"],
       ["/monitor/online", "monitor:online:list"],
       ["/monitor/job", "monitor:job:list"],
       ["/monitor/cache", "monitor:cache:list"],
-      ["/monitor/ai", "system:ai:conversation:list"],
-      ["/monitor/ai/feedback-handle", "system:ai:feedback:handle"],
       // AI 对话
       ["/ai", "ai.chat"]
     ]);
@@ -280,14 +301,14 @@ describe("buildMenuSeedTree（B 端菜单信息架构 2026-09 瘦身）", () => 
   });
 
   it("MENU 叶子 component 遵循 routePath 约定（除显式特例）", () => {
-    const exceptions = new Set(["/project", "/knowledge/search-test/evaluations", "/system/ai"]);
+    const exceptions = new Set(["/project", "/knowledge/search-test/evaluations"]);
     const mismatches = flat()
       .filter((item) => item.node.menuType === "MENU" && !exceptions.has(item.node.routePath))
       .filter((item) => item.node.component !== `${item.node.routePath.slice(1)}/index`)
       .map((item) => `${item.node.routePath} -> ${item.node.component}`);
     expect(mismatches).toEqual([]);
-    // 显式特例：检索效果复用 search-test 目录组件；AI 配置复用 ai-config 页面；项目管理挂前端真实页面 projects/index
-    expect(flat().find((item) => item.node.routePath === "/system/ai")?.node.component).toBe("ai-config/providers/index");
+    // 显式特例：检索效果复用 search-test 目录组件；项目管理挂前端真实页面 projects/index
+    // AI 配置 / AI 运营叶子 routePath 与前端静态路由一一对应（前端 STATIC_OWNED_PATHS 复用静态页面），component 遵循约定
     expect(flat().find((item) => item.node.routePath === "/knowledge/search-test/evaluations")?.node.component).toBe("knowledge/search-test/evaluations");
     expect(flat().find((item) => item.node.routePath === "/project")?.node.component).toBe("projects/index");
   });

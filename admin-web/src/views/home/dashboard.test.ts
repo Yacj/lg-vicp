@@ -5,7 +5,9 @@ import {
   formatToday,
   getGreeting,
   limitShortcuts,
+  pickRecentReports,
   projectAvailableShortcuts,
+  projectTodoCards,
   resolveFirstNavigable,
 } from './dashboard'
 
@@ -111,5 +113,53 @@ describe('dashboard welcome text', () => {
   it('formats today with weekday', () => {
     const date = new Date(2026, 2, 14)
     expect(formatToday(date)).toContain('2026年3月14日')
+  })
+})
+
+describe('dashboard todo projection', () => {
+  const categories = [
+    { id: 'knowledge', label: '知识资料', description: '需要处理的资料', paths: ['/knowledge/documents'], count: 4 },
+    { id: 'product', label: '产品数据', description: '产品与材料数据', paths: ['/products/series', '/masterdata/materials'], count: null },
+    { id: 'review', label: '统一审核', description: '审核决议', paths: ['/review-center/queue'], count: 0 },
+    { id: 'denied', label: '无权入口', description: '未投影路由', paths: ['/denied'] },
+  ]
+
+  it('keeps only categories with a navigable route and normalizes counts', () => {
+    const cards = projectTodoCards(categories, path => path !== '/denied')
+
+    expect(cards.map(card => card.id)).toEqual(['knowledge', 'product', 'review'])
+    expect(cards.find(card => card.id === 'knowledge')).toMatchObject({
+      count: 4,
+      path: '/knowledge/documents',
+      target: { kind: 'internal', path: '/knowledge/documents' },
+    })
+    // null 计数归一为 null，0 计数保留（表达"暂无待处理"）
+    expect(cards.find(card => card.id === 'product')?.count).toBeNull()
+    expect(cards.find(card => card.id === 'review')?.count).toBe(0)
+  })
+
+  it('picks the first navigable candidate path per category', () => {
+    const cards = projectTodoCards(categories, path => path === '/masterdata/materials')
+
+    expect(cards.map(card => card.id)).toEqual(['product'])
+    expect(cards[0]?.path).toBe('/masterdata/materials')
+  })
+})
+
+describe('recent report aggregation', () => {
+  const rows = [
+    { id: 'a', reportType: 'TEMPLATE', status: 'READY', publishedAt: null, updatedAt: '2026-09-01T10:00:00Z', conversationTitle: '会话 A', projectName: '项目一' },
+    { id: 'b', reportType: 'SUMMARY', status: 'DRAFT', publishedAt: null, updatedAt: '2026-09-03T10:00:00Z', conversationTitle: null, projectName: '项目二' },
+    { id: 'c', reportType: 'TEMPLATE', status: 'READY', publishedAt: null, updatedAt: '2026-09-02T10:00:00Z', conversationTitle: '会话 C', projectName: '项目一' },
+  ]
+
+  it('sorts by updatedAt descending and honors the limit', () => {
+    expect(pickRecentReports(rows, 2).map(row => row.id)).toEqual(['b', 'c'])
+  })
+
+  it('returns a new array without mutating the source order', () => {
+    const source = [...rows]
+    pickRecentReports(rows)
+    expect(rows).toEqual(source)
   })
 })

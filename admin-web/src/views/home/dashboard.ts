@@ -90,3 +90,65 @@ const WEEKDAY_NAMES = ['日', '一', '二', '三', '四', '五', '六'] as const
 export function formatToday(date: Date = new Date()): string {
   return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日 星期${WEEKDAY_NAMES[date.getDay()]}`
 }
+
+// ===== 工作台待办与最近报告（复用既有列表接口，不新增聚合 API） =====
+
+/** 待办分类输入：paths 为候选路由，按可达性取第一个；count 为可选真实计数。 */
+export interface TodoCategoryInput {
+  id: string
+  label: string
+  description: string
+  paths: readonly string[]
+  count?: number | null
+}
+
+export interface DashboardTodoCard {
+  id: string
+  label: string
+  description: string
+  count: number | null
+  path: string
+  target: MenuNavigationTarget
+}
+
+/** 待办分类投影：路由不可达（未授权或未注册）的分类不出现在工作台。 */
+export function projectTodoCards(
+  categories: readonly TodoCategoryInput[],
+  canNavigate: (path: string) => boolean,
+): DashboardTodoCard[] {
+  return categories.flatMap((category) => {
+    const path = resolveFirstNavigable(category.paths, canNavigate)
+    if (!path) {
+      return []
+    }
+    return [{
+      count: category.count ?? null,
+      description: category.description,
+      id: category.id,
+      label: category.label,
+      path,
+      target: { kind: 'internal', path },
+    }]
+  })
+}
+
+/** 最近报告输入：平台报告成果聚合行的最小展示字段。 */
+export interface RecentReportInput {
+  id: string
+  reportType: string
+  status: string
+  publishedAt: string | null
+  updatedAt: string
+  conversationTitle: string | null
+  projectName: string
+}
+
+/** 多项目报告聚合：按更新时间倒序取最近 limit 条。 */
+export function pickRecentReports<T extends RecentReportInput>(
+  rows: readonly T[],
+  limit = 6,
+): T[] {
+  return [...rows]
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+    .slice(0, limit)
+}

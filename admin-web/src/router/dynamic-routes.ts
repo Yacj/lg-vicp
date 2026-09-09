@@ -7,6 +7,7 @@ import type {
 } from '@/types/menu'
 import { deriveMenuRouteName, isHttpUrl, isInternalRoutePath } from '@/utils/system-menu'
 import { resolveDynamicComponent } from './component-map'
+import { STATIC_OWNED_PATHS } from './routes'
 
 export interface DynamicMenuProjection {
   buttonPermissions: string[]
@@ -14,6 +15,16 @@ export interface DynamicMenuProjection {
   routes: RouteRecordRaw[]
   sidebarMenus: SidebarMenuItem[]
 }
+
+/**
+ * 后端历史 routePath → 前端新任务入口。
+ * 菜单导航改指新入口；旧路径注册为 redirect，收藏链接、通知链接等仍可直达。
+ * 命中该映射的菜单不再要求 component 可解析（redirect 优先于组件解析）。
+ */
+export const LEGACY_PATH_REDIRECTS: Readonly<Record<string, string>> = Object.freeze({
+  '/project': '/projects',
+  '/reports/center': '/reports',
+})
 
 function routeName(menuId: string): string {
   return deriveMenuRouteName(menuId)
@@ -56,6 +67,20 @@ function createIssue(
     menuId: node.id,
     menuName: node.name,
     reason,
+  }
+}
+
+/**
+ * 隐藏菜单保持兼容策略：页面未实现或配置异常时静默跳过（不产生投影噪音），
+ * 等前端补齐组件后随菜单数据自动生效。
+ */
+function reportIssue(
+  node: BackendMenuNode,
+  issues: MenuProjectionIssue[],
+  reason: MenuProjectionIssue['reason'],
+): void {
+  if (node.visible) {
+    issues.push(createIssue(node, reason))
   }
 }
 
@@ -162,9 +187,6 @@ function projectMenuNode(
   routePaths: Map<string, string>,
   routeNames: Map<string, string>,
 ): SidebarMenuItem | null {
-  if (!node.visible) {
-    return null
-  }
   if (node.menuType === 'BUTTON') {
     if (node.permissionCode) {
       buttonPermissions.add(node.permissionCode)
@@ -172,13 +194,18 @@ function projectMenuNode(
     return null
   }
 
+  // 子节点先递归：隐藏子菜单仍注册路由（待办 / 详情 / 旧链接直达），只是不进入侧栏
   const children = node.children
     .map(child => projectMenuNode(child, issues, routes, buttonPermissions, routePaths, routeNames))
     .filter((child): child is SidebarMenuItem => child !== null)
 
   if (node.menuType === 'DIRECTORY') {
+    // 隐藏目录不进侧栏；其可见子菜单经路由匹配仍可达
+    if (!node.visible) {
+      return null
+    }
     if (node.isExternal || (node.routePath && !isInternalRoutePath(node.routePath))) {
-      issues.push(createIssue(node, 'INVALID_PATH'))
+      reportIssue(node, issues, 'INVALID_PATH')
       return children.length > 0
         ? {
             children,
@@ -204,7 +231,7 @@ function projectMenuNode(
 
   if (node.isExternal) {
     if (!isHttpUrl(node.routePath)) {
-      issues.push(createIssue(node, 'INVALID_EXTERNAL_URL'))
+      reportIssue(node, issues, 'INVALID_EXTERNAL_URL')
       return null
     }
     return {
@@ -218,23 +245,72 @@ function projectMenuNode(
     }
   }
   if (!isInternalRoutePath(node.routePath)) {
-    issues.push(createIssue(node, node.routePath ? 'INVALID_PATH' : 'MISSING_PATH'))
+    reportIssue(node, issues, node.routePath ? 'INVALID_PATH' : 'MISSING_PATH')
     return null
   }
+
+  // 历史路径兼容：注册 redirect 路由，菜单导航改指新入口
+  const redirectTarget = LEGACY_PATH_REDIRECTS[node.routePath]
+  if (redirectTarget) {
+    const existingRedirectOwner = routePaths.get(node.routePath)
+    if (existingRedirectOwner) {
+      reportIssue(node, issues, 'DUPLICATE_PATH')
+      return null
+    }
+    routePaths.set(node.routePath, node.id)
+    routes.push({
+      path: node.routePath,
+      name: routeName(node.id),
+      redirect: redirectTarget,
+      meta: {
+        dynamic: true,
+        title: node.name,
+      },
+    })
+    if (!node.visible) {
+      return null
+    }
+    return {
+      children,
+      icon: node.icon,
+      id: node.id,
+      path: redirectTarget,
+      target: targetForInternalPath(redirectTarget),
+      title: node.name,
+      type: node.menuType,
+    }
+  }
+
   if (!node.component) {
-    issues.push(createIssue(node, 'MISSING_COMPONENT'))
+    reportIssue(node, issues, 'MISSING_COMPONENT')
     return null
   }
 
   const component = resolveDynamicComponent(node.component)
   if (!component) {
-    issues.push(createIssue(node, 'UNKNOWN_COMPONENT'))
+    reportIssue(node, issues, 'UNKNOWN_COMPONENT')
     return null
+  }
+
+  // 静态路由已承载同路径页面（同视图、同权限码）：复用静态路由，不重复注册
+  if (STATIC_OWNED_PATHS.has(node.routePath)) {
+    if (!node.visible) {
+      return null
+    }
+    return {
+      children,
+      icon: node.icon,
+      id: node.id,
+      path: node.routePath,
+      target: targetForInternalPath(node.routePath),
+      title: node.name,
+      type: node.menuType,
+    }
   }
 
   const existingPathOwner = routePaths.get(node.routePath)
   if (existingPathOwner) {
-    issues.push(createIssue(node, 'DUPLICATE_PATH'))
+    reportIssue(node, issues, 'DUPLICATE_PATH')
     return null
   }
   routePaths.set(node.routePath, node.id)
@@ -242,7 +318,7 @@ function projectMenuNode(
   const generatedName = routeName(node.id)
   const existingNameOwner = routeNames.get(generatedName)
   if (existingNameOwner) {
-    issues.push(createIssue(node, 'DUPLICATE_ROUTE_NAME'))
+    reportIssue(node, issues, 'DUPLICATE_ROUTE_NAME')
     return null
   }
   routeNames.set(generatedName, node.id)
@@ -256,8 +332,14 @@ function projectMenuNode(
       keepAlive: true,
       permissions: node.permissionCode ? [node.permissionCode] : [],
       title: node.name,
+      ...(node.visible ? {} : { hidden: true }),
     },
   })
+
+  // 隐藏菜单：路由可达，但不进入侧栏
+  if (!node.visible) {
+    return null
+  }
 
   return {
     children,

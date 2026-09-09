@@ -1,7 +1,6 @@
 import type { RouteRecordRaw } from 'vue-router'
 
-export const staticRoutes: RouteRecordRaw[] = [
-  {
+export const staticRoutes: RouteRecordRaw[] = [  {
     path: '/',
     name: 'AdminRoot',
     component: () => import('@/layouts/AdminLayout.vue'),
@@ -14,6 +13,24 @@ export const staticRoutes: RouteRecordRaw[] = [
           affix: true,
           keepAlive: true,
           title: '工作台',
+        },
+      },
+      {
+        path: 'projects',
+        name: 'ProjectList',
+        component: () => import('@/views/projects/index.vue'),
+        meta: {
+          title: '项目管理',
+        },
+      },
+      {
+        path: 'products/detail',
+        name: 'ProductDetail',
+        component: () => import('@/views/products/detail.vue'),
+        meta: {
+          hidden: true,
+          noTab: true,
+          title: '产品详情',
         },
       },
       {
@@ -165,7 +182,7 @@ export const staticRoutes: RouteRecordRaw[] = [
         name: 'ReportCenter',
         component: () => import('@/views/reports/index.vue'),
         meta: {
-          title: '报告成果中心',
+          title: '报告管理',
         },
       },
       {
@@ -220,3 +237,15 @@ export const staticRoutes: RouteRecordRaw[] = [
     ],
   },
 ]
+
+/**
+ * AdminShell 下静态承载的绝对路径（不含参数路由）。
+ * 动态菜单投影遇到同路径叶子时不再重复注册路由，直接复用静态页面
+ * （如公开文库：后端菜单与静态路由指向同一视图、同一权限码）。
+ */
+export const STATIC_OWNED_PATHS: ReadonlySet<string> = new Set(
+  (staticRoutes[0]?.children ?? [])
+    .map(child => (typeof child.path === 'string' ? child.path : ''))
+    .filter(path => path.length > 0 && !path.includes(':'))
+    .map(path => `/${path}`.replace(/\/{2,}/g, '/')),
+)

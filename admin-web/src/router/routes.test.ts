@@ -17,6 +17,8 @@ describe('static route boundaries', () => {
     expect(names).toEqual([
       'AdminRoot',
       'Home',
+      'ProjectList',
+      'ProductDetail',
       'SystemDeptMembers',
       'SystemDictItems',
       'ProjectDetail',
@@ -65,5 +67,11 @@ describe('static route boundaries', () => {
   it('keeps home as the only cached fixed page', () => {
     const home = routes.find(route => route.name === 'Home')
     expect(home?.meta).toMatchObject({ affix: true, keepAlive: true })
+  })
+
+  it('carries the project list and product detail as static task pages', () => {
+    expect(routes.find(route => route.name === 'ProjectList')?.meta).toMatchObject({ title: '项目管理' })
+    const productDetail = routes.find(route => route.name === 'ProductDetail')
+    expect(productDetail?.meta).toMatchObject({ hidden: true, noTab: true, title: '产品详情' })
   })
 })

@@ -1,62 +1,41 @@
 <script setup lang="ts">
-import type {
-  AttentionPriority,
-  DashboardOverview,
-  KnowledgePipelineStage,
-  TrendRange,
-} from '@/types/dashboard'
-import type { PublicLibraryDocumentItem } from '@/types/knowledge'
+import type { KnowledgeParsingJob } from '@/types/knowledge'
 import type { MenuNavigationTarget } from '@/types/menu'
-import {
-  BookOpenIcon,
-  Building1Icon,
-  DataCheckedIcon,
-  FileIcon,
-  FolderIcon,
-  TimeIcon,
-} from 'tdesign-icons-vue-next'
+import type { ProjectItem } from '@/types/project'
+import type { ReportCenterRow } from '@/types/report'
+import { TimeIcon } from 'tdesign-icons-vue-next'
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { fetchPublicLibraryDocuments } from '@/api/modules/knowledge'
-import { createBarOption } from '@/charts/options/bar'
-import {
-  createTaskDistributionOption,
-  createTrendOption,
-  TASK_STATUS_LABELS,
-} from '@/charts/options/dashboard'
-import { AppChart, AppChartPanel } from '@/components/chart'
-import { AppEmptyState, AppMetricCard, AppPage } from '@/components/ui'
-import { useChartTheme } from '@/composables/useChartTheme'
+import { fetchKnowledgeDocuments, fetchKnowledgeParsingJobs } from '@/api/modules/knowledge'
+import { fetchMyProjects } from '@/api/modules/projects'
+import { fetchPlatformReportCenter } from '@/api/modules/reports'
+import { fetchReviewQueue } from '@/api/modules/review-center'
+import { AppEmptyState, AppPage, AppStatusTag } from '@/components/ui'
 import { navigateMenuTarget } from '@/router/dynamic-routes'
+import { usePermissionAccess } from '@/composables/usePermissionAccess'
 import { useRouteStore } from '@/stores/route'
 import { useUserStore } from '@/stores/user'
-import {
-  createEmptyDashboardOverview,
-} from '@/types/dashboard'
 import {
   formatToday,
   getGreeting,
   limitShortcuts,
+  pickRecentReports,
   projectAvailableShortcuts,
-  resolveFirstNavigable,
+  projectTodoCards,
 } from './dashboard'
+import type { TodoCategoryInput } from './dashboard'
+import { formatDate } from '@/utils/day'
+import { getReportTypeLabel, reportStateMeta } from '@/utils/report'
 
 defineOptions({ name: 'Home' })
 
 const router = useRouter()
 const routeStore = useRouteStore()
 const userStore = useUserStore()
-const { tokens } = useChartTheme()
-
-// 后端 Dashboard 聚合接口尚未提供（见 docs/admin-web/api-gaps.md GAP-001），
-// 使用诚实空投影，不请求多个列表接口拼装统计、不使用随机 Mock。
-const overview = ref<DashboardOverview>(createEmptyDashboardOverview())
-const loading = ref(false)
-const trendRange = ref<TrendRange>('7d')
+const { canAccess } = usePermissionAccess()
 
 const greeting = computed(() => getGreeting(new Date().getHours()))
 const todayText = computed(() => formatToday())
-
 const userName = computed(() => userStore.profile?.displayName ?? '管理员')
 const primaryDepartment = computed(() =>
   userStore.departments.find(department => department.isPrimary)?.name
@@ -73,205 +52,163 @@ const shortcuts = computed(() =>
   limitShortcuts(projectAvailableShortcuts(routeStore.sidebarMenus, canNavigate)),
 )
 
-const projectListRoute = computed(() =>
-  resolveFirstNavigable(['/projects/my', '/projects'], canNavigate),
-)
+// ===== 我的待办：知识资料 / 产品数据 / 标准指标 / 报告 / 统一审核（隐藏队列） =====
 
-const metrics = computed(() => [
+const knowledgeNeedsActionTotal = ref<number | null>(null)
+const reviewPendingTotal = ref<number | null>(null)
+
+const todoCategories = computed<TodoCategoryInput[]>(() => [
   {
-    id: 'project-total',
-    label: '项目总数',
-    value: overview.value.summary?.projectTotal ?? null,
-    status: 'info' as const,
-    icon: Building1Icon,
-    route: projectListRoute.value,
-    enabled: projectListRoute.value !== null,
+    count: knowledgeNeedsActionTotal.value,
+    description: '需要处理的资料内容与解析任务',
+    id: 'knowledge',
+    label: '知识资料',
+    paths: ['/knowledge/documents'],
   },
   {
-    id: 'pending-documents',
-    label: '待处理资料',
-    value: overview.value.summary?.pendingDocuments ?? null,
-    status: 'warning' as const,
-    icon: FolderIcon,
-    route: null,
-    enabled: false,
+    description: '产品系列、规格、参数与材料数据',
+    id: 'product',
+    label: '产品数据',
+    paths: ['/products/series', '/masterdata/materials'],
   },
   {
-    id: 'pending-review',
-    label: '待复核数据',
-    value: overview.value.summary?.pendingReviewData ?? null,
-    status: 'default' as const,
-    icon: DataCheckedIcon,
-    route: null,
-    enabled: false,
+    description: '标准文件与结构化节能指标',
+    id: 'standard',
+    label: '标准指标',
+    paths: ['/standard/documents', '/standard/indicators'],
   },
   {
-    id: 'report-tasks',
-    label: '报告任务',
-    value: overview.value.summary?.reportTasks ?? null,
-    status: 'default' as const,
-    icon: FileIcon,
-    route: null,
-    enabled: false,
+    description: '项目报告成果与模板报告记录',
+    id: 'reports',
+    label: '报告',
+    paths: ['/reports'],
+  },
+  {
+    count: reviewPendingTotal.value,
+    description: '产品数据、标准指标与报告的审核决议',
+    id: 'review',
+    label: '统一审核',
+    paths: ['/review-center/queue'],
   },
 ])
 
-const priorityOrder: Record<AttentionPriority, number> = {
-  high: 0,
-  medium: 1,
-  low: 2,
-}
-const sortedAttentionItems = computed(() =>
-  [...overview.value.attentionItems].sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]),
-)
-const highPriorityCount = computed(() =>
-  overview.value.attentionItems.filter(item => item.priority === 'high').length,
-)
-const attentionTotal = computed(() => overview.value.attentionItems.length)
-const welcomeReminder = computed(() => {
-  if (attentionTotal.value > 0 && highPriorityCount.value > 0) {
-    return `今天有 ${attentionTotal.value} 项业务需要关注，其中 ${highPriorityCount.value} 项需要优先处理。`
+const todoCards = computed(() => projectTodoCards(todoCategories.value, canNavigate))
+
+function todoCountText(count: number | null): string {
+  if (count === null) {
+    return ''
   }
-  if (attentionTotal.value > 0) {
-    return `今天有 ${attentionTotal.value} 项业务需要关注。`
-  }
-  return '这里是你最近的项目和业务进展。'
-})
-
-const PIPELINE_META: ReadonlyArray<{
-  stage: KnowledgePipelineStage
-  label: string
-  status: 'default' | 'processing' | 'warning' | 'success' | 'error'
-}> = [
-  { stage: 'PENDING_PARSE', label: '待解析', status: 'default' },
-  { stage: 'PARSING', label: '解析中', status: 'processing' },
-  { stage: 'PENDING_REVIEW', label: '待复核', status: 'warning' },
-  { stage: 'STORED', label: '已入库', status: 'success' },
-  { stage: 'FAILED', label: '处理失败', status: 'error' },
-]
-
-const pipelineByStage = computed(() =>
-  new Map(overview.value.knowledgePipeline.map(item => [item.stage, item])),
-)
-const pipelineTotal = computed(() =>
-  overview.value.knowledgePipeline.reduce((sum, item) => sum + item.count, 0),
-)
-
-const recentProjects = computed(() => overview.value.recentProjects)
-const recentActivities = computed(() => overview.value.recentActivities)
-
-const trendOption = computed(() => {
-  const points = overview.value.trend
-  if (!points || points.length === 0) {
-    return null
-  }
-  return createTrendOption({ points, tokens: tokens.value })
-})
-
-const taskDistributionOption = computed(() => {
-  const items = overview.value.taskDistribution
-  if (!items || items.length === 0) {
-    return null
-  }
-  return createTaskDistributionOption({ items, tokens: tokens.value })
-})
-
-const taskDistributionFallback = computed(() => {
-  const items = overview.value.taskDistribution
-  if (!items || items.length === 0 || taskDistributionOption.value) {
-    return null
-  }
-  return items.map(item => ({
-    status: item.status,
-    label: TASK_STATUS_LABELS[item.status],
-    count: item.count,
-  }))
-})
-const taskDistributionTotal = computed(() =>
-  overview.value.taskDistribution?.reduce((sum, item) => sum + item.count, 0) ?? 0,
-)
-
-const fallbackBarOption = computed(() => {
-  const items = taskDistributionFallback.value
-  if (!items || items.length === 0) {
-    return null
-  }
-  return createBarOption({
-    categories: items.map(item => item.label),
-    series: [{ name: '任务数', data: items.map(item => item.count) }],
-    tokens: tokens.value,
-    horizontal: true,
-  })
-})
-
-function switchTrendRange(): void {
-  // 后端聚合接口接入后在此按 trendRange 拉取趋势数据；当前保持空投影
+  return count > 0 ? `${count} 项待处理` : '暂无待处理'
 }
 
-function openShortcut(target: MenuNavigationTarget | null): void {
-  if (target) {
-    navigateMenuTarget(target, router)
+async function loadTodoCounts(): Promise<void> {
+  if (canAccess({ permissions: ['system:knowledge:doc:list'] })) {
+    try {
+      const result = await fetchKnowledgeDocuments({ page: 1, pageSize: 1, healthStatus: 'NEEDS_ACTION' })
+      knowledgeNeedsActionTotal.value = result.total
+    }
+    catch {
+      knowledgeNeedsActionTotal.value = null
+    }
+  }
+  if (canAccess({ permissions: ['system:review:list'] })) {
+    try {
+      const result = await fetchReviewQueue({ page: 1, pageSize: 1, status: 'PENDING_REVIEW' })
+      reviewPendingTotal.value = result.total
+    }
+    catch {
+      reviewPendingTotal.value = null
+    }
   }
 }
 
-function openItemRoute(route: string | undefined, permission: string | undefined): void {
-  if (permission && !userStore.hasPermission(permission)) {
-    return
-  }
-  if (route) {
-    void router.push(route)
+function openTodoCard(card: { target: MenuNavigationTarget | null }): void {
+  if (card.target) {
+    navigateMenuTarget(card.target, router)
   }
 }
 
-/** 事项带权限码时按 RBAC 裁剪，无权限码视为可见 */
-function itemAccessible(permission: string | undefined): boolean {
-  return !permission || userStore.hasPermission(permission)
-}
+// ===== 最近项目（我的项目列表）与最近报告（平台报告成果聚合） =====
 
-function openProject(route: string | undefined): void {
-  if (route) {
-    void router.push(route)
-  }
-}
+const recentProjects = ref<ProjectItem[] | null>(null)
 
-function openLibrary(): void {
-  void router.push('/knowledge/public-library')
-}
-
-function openPipelineRoute(route: string | null): void {
-  if (route) {
-    void router.push(route)
-  }
-}
-
-// ===== 公开文库业务卡片（复用公开文库只读接口；失败时只隐藏统计，不阻塞工作台） =====
-
-const libraryTotal = ref<number | null>(null)
-const libraryRecent = ref<PublicLibraryDocumentItem[]>([])
-const libraryReady = ref(false)
-
-async function loadLibrarySummary(): Promise<void> {
+async function loadRecentProjects(): Promise<void> {
   try {
-    const result = await fetchPublicLibraryDocuments({ page: 1, pageSize: 3, sort: 'latest' })
-    libraryTotal.value = result.total
-    libraryRecent.value = result.items
+    const result = await fetchMyProjects({ page: 1, pageSize: 5 })
+    recentProjects.value = [...result.items].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
   }
   catch {
-    libraryTotal.value = null
-    libraryRecent.value = []
-  }
-  finally {
-    libraryReady.value = true
+    recentProjects.value = []
   }
 }
 
-const libraryAccessible = computed(() => userStore.hasPermission('system:knowledge:doc:list'))
-const libraryTotalText = computed(() => (libraryTotal.value !== null ? `已公开资料 ${libraryTotal.value} 份` : '技术规程 / 构造图集 / 地方标准 / 企业资料'))
+function openProject(project: ProjectItem): void {
+  void router.push(`/projects/${encodeURIComponent(project.id)}`)
+}
+
+const recentReports = ref<ReportCenterRow[] | null>(null)
+const canAggregateReports = computed(() => canAccess({ permissions: ['system:project:list'] }))
+
+async function loadRecentReports(): Promise<void> {
+  if (!canAggregateReports.value) {
+    recentReports.value = []
+    return
+  }
+  const projects = (recentProjects.value ?? []).slice(0, 3)
+  if (projects.length === 0) {
+    recentReports.value = []
+    return
+  }
+  const results = await Promise.all(projects.map(project =>
+    fetchPlatformReportCenter(project.id)
+      .then(result => result.items)
+      .catch(() => [] as ReportCenterRow[])))
+  recentReports.value = pickRecentReports(results.flat())
+}
+
+function openReport(report: ReportCenterRow): void {
+  void router.push(`/reports/${encodeURIComponent(report.id)}`)
+}
+
+// ===== 资料异常（知识解析失败任务，隐藏入口按权限可达） =====
+
+const parsingFailures = ref<KnowledgeParsingJob[] | null>(null)
+const parsingFailureTotal = ref(0)
+const parsingJobsPath = '/knowledge/parsing-jobs'
+const parsingJobsReachable = computed(() => canNavigate(parsingJobsPath))
+
+async function loadParsingFailures(): Promise<void> {
+  if (!parsingJobsReachable.value) {
+    parsingFailures.value = []
+    return
+  }
+  try {
+    const result = await fetchKnowledgeParsingJobs({ page: 1, pageSize: 5, status: 'FAILED' })
+    parsingFailures.value = result.items
+    parsingFailureTotal.value = result.total
+  }
+  catch {
+    parsingFailures.value = []
+  }
+}
+
+const JOB_TYPE_LABELS: Record<KnowledgeParsingJob['jobType'], string> = {
+  CHUNK_REBUILD: '分块重建',
+  OCR: 'OCR 识别',
+  PARSE: '文档解析',
+  REPARSE: '重新解析',
+}
+
+function openPath(path: string): void {
+  void router.push(path)
+}
 
 onMounted(() => {
-  if (libraryAccessible.value) {
-    void loadLibrarySummary()
-  }
+  void loadTodoCounts()
+  void loadParsingFailures()
+  void loadRecentProjects().then(() => {
+    void loadRecentReports()
+  })
 })
 </script>
 
@@ -281,7 +218,7 @@ onMounted(() => {
       <div class="dashboard-welcome__intro">
         <h2>{{ greeting }}，{{ userName }}</h2>
         <p class="dashboard-welcome__reminder">
-          {{ welcomeReminder }}
+          待办、项目与报告的最新进展都汇总在这里。
         </p>
         <p class="dashboard-welcome__meta">
           {{ todayText }} · {{ primaryDepartment }}
@@ -295,7 +232,7 @@ onMounted(() => {
           class="dashboard-shortcut"
           theme="default"
           variant="outline"
-          @click="openShortcut(shortcut.target)"
+          @click="openTodoCard(shortcut)"
         >
           <span class="dashboard-shortcut__content">
             <strong>{{ shortcut.title }}</strong>
@@ -305,280 +242,197 @@ onMounted(() => {
       </div>
     </section>
 
-    <section class="dashboard-metrics" aria-label="核心指标">
-      <AppMetricCard
-        v-for="metric in metrics"
-        :key="metric.id"
-        :clickable="metric.enabled"
-        :icon="metric.icon"
-        :label="metric.label"
-        :loading="loading"
-        :route="metric.route ?? undefined"
-        :status="metric.status"
-        :value="metric.value"
-      />
-    </section>
-
-    <section
-      v-if="libraryAccessible"
-      class="dashboard-panel dashboard-panel--library"
-      aria-labelledby="library-title"
-    >
-      <div class="dashboard-library">
-        <div class="dashboard-library__intro">
-          <span class="dashboard-library__icon" aria-hidden="true">
-            <BookOpenIcon />
-          </span>
-          <div class="dashboard-library__text">
-            <strong id="library-title">公开文库</strong>
-            <span>{{ libraryTotalText }}</span>
-            <small>技术规程 / 构造图集 / 地方标准 / 企业资料 · 与知识中心同源</small>
-          </div>
+    <section class="dashboard-panel" aria-labelledby="todo-title">
+      <header class="dashboard-panel__header">
+        <div class="dashboard-panel__heading">
+          <strong id="todo-title">我的待办</strong>
+          <span>按知识资料、产品数据、标准指标与报告分类，入口随菜单权限显示</span>
         </div>
+      </header>
 
-        <div v-if="libraryRecent.length > 0" class="dashboard-library__recent" aria-label="最近发布资料">
-          <span
-            v-for="item in libraryRecent.slice(0, 3)"
-            :key="item.id"
-            class="dashboard-library__doc"
-            role="button"
-            tabindex="0"
-            :title="item.title"
-            @click="openLibrary()"
-            @keydown.enter="openLibrary()"
-          >
-            <FileIcon />
-            {{ item.title }}
+      <div v-if="todoCards.length > 0" class="dashboard-todo-grid">
+        <t-button
+          v-for="card in todoCards"
+          :key="card.id"
+          block
+          class="dashboard-todo-card"
+          theme="default"
+          variant="outline"
+          @click="openTodoCard(card)"
+        >
+          <span class="dashboard-todo-card__inner">
+            <span class="dashboard-todo-card__head">
+              <strong class="dashboard-todo-card__label">{{ card.label }}</strong>
+              <span v-if="todoCountText(card.count)" class="dashboard-todo-card__count">
+                {{ todoCountText(card.count) }}
+              </span>
+            </span>
+            <span class="dashboard-todo-card__description">{{ card.description }}</span>
           </span>
-        </div>
-
-        <t-button theme="primary" variant="outline" @click="openLibrary()">
-          进入公开文库
         </t-button>
       </div>
+      <AppEmptyState
+        v-else
+        description="待办分类入口按菜单权限显示，授权后自动出现"
+        size="small"
+        title="暂无可进入的待办分类"
+      />
     </section>
-
-    <div class="dashboard-grid dashboard-grid--primary">
-      <section class="dashboard-panel dashboard-panel--attention" aria-labelledby="attention-title">
-        <header class="dashboard-panel__header">
-          <div class="dashboard-panel__heading">
-            <strong id="attention-title">待处理事项</strong>
-            <span v-if="attentionTotal > 0">{{ attentionTotal }} 项待关注</span>
-          </div>
-        </header>
-
-        <template v-if="sortedAttentionItems.length > 0">
-          <ul class="attention-list">
-            <li v-for="item in sortedAttentionItems" :key="item.id" class="attention-item">
-              <span class="attention-item__priority" :class="`is-${item.priority}`" aria-hidden="true" />
-              <span
-                class="attention-item__main"
-                role="button"
-                :tabindex="itemAccessible(item.permission) ? 0 : undefined"
-                :aria-disabled="!itemAccessible(item.permission)"
-                @click="openItemRoute(item.route, item.permission)"
-                @keydown.enter="openItemRoute(item.route, item.permission)"
-              >
-                <span class="attention-item__title">{{ item.title }}</span>
-                <span v-if="item.description" class="attention-item__description">{{ item.description }}</span>
-              </span>
-              <span v-if="item.count !== undefined" class="attention-item__count">{{ item.count }}</span>
-              <span v-if="item.time" class="attention-item__time">
-                <TimeIcon />
-                {{ item.time }}
-              </span>
-            </li>
-          </ul>
-        </template>
-        <AppEmptyState
-          v-else
-          description="来自项目的待处理事项会显示在这里"
-          size="small"
-          title="当前没有需要处理的事项"
-        />
-      </section>
-
-      <section class="dashboard-panel dashboard-panel--pipeline" aria-labelledby="pipeline-title">
-        <header class="dashboard-panel__header">
-          <div class="dashboard-panel__heading">
-            <strong id="pipeline-title">资料处理状态</strong>
-            <span v-if="pipelineTotal > 0">共 {{ pipelineTotal }} 份资料</span>
-          </div>
-        </header>
-
-        <template v-if="pipelineTotal > 0">
-          <ul class="pipeline-list">
-            <li v-for="meta in PIPELINE_META" :key="meta.stage" class="pipeline-item">
-              <span
-                class="pipeline-item__main"
-                role="button"
-                :tabindex="pipelineByStage.get(meta.stage)?.route ? 0 : undefined"
-                :aria-disabled="!pipelineByStage.get(meta.stage)?.route"
-                @click="openPipelineRoute(pipelineByStage.get(meta.stage)?.route ?? null)"
-                @keydown.enter="openPipelineRoute(pipelineByStage.get(meta.stage)?.route ?? null)"
-              >
-                <span class="pipeline-item__label">
-                  <span class="pipeline-item__dot" :class="`is-${meta.status}`" aria-hidden="true" />
-                  {{ meta.label }}
-                </span>
-                <strong>{{ pipelineByStage.get(meta.stage)?.count ?? 0 }}</strong>
-              </span>
-              <div class="pipeline-item__track" aria-hidden="true">
-                <span
-                  class="pipeline-item__fill"
-                  :class="`is-${meta.status}`"
-                  :style="{
-                    width: pipelineTotal > 0
-                      ? `${((pipelineByStage.get(meta.stage)?.count ?? 0) / pipelineTotal) * 100}%`
-                      : '0%',
-                  }"
-                />
-              </div>
-            </li>
-          </ul>
-        </template>
-        <AppEmptyState
-          v-else
-          description="知识资料的解析与入库状态会显示在这里"
-          size="small"
-          title="暂无资料处理数据"
-        />
-      </section>
-    </div>
 
     <div class="dashboard-grid dashboard-grid--primary">
       <section class="dashboard-panel dashboard-panel--projects" aria-labelledby="recent-projects-title">
         <header class="dashboard-panel__header">
           <div class="dashboard-panel__heading">
             <strong id="recent-projects-title">最近项目</strong>
-            <span v-if="recentProjects.length > 0">{{ recentProjects.length }} 个项目</span>
           </div>
-          <t-button v-if="recentProjects.length > 0" size="small" theme="default" variant="text" @click="openShortcut(projectListRoute ? { kind: 'internal', path: projectListRoute } : null)">
-            查看全部
+          <t-button
+            v-if="canNavigate('/projects')"
+            size="small"
+            theme="default"
+            variant="text"
+            @click="openPath('/projects')"
+          >
+            全部项目
           </t-button>
         </header>
 
-        <template v-if="recentProjects.length > 0">
-          <ul class="project-list">
-            <li v-for="project in recentProjects" :key="project.id" class="project-item">
-              <span
-                class="project-item__main"
-                role="button"
-                :tabindex="project.route ? 0 : undefined"
-                :aria-disabled="!project.route"
-                @click="openProject(project.route)"
-                @keydown.enter="openProject(project.route)"
-              >
-                <strong class="project-item__name">{{ project.name }}</strong>
-                <span v-if="project.region" class="project-item__region">{{ project.region }}</span>
-                <span class="project-item__meta">
-                  <span v-if="project.stage">{{ project.stage }}</span>
-                  <span v-if="project.ownerName">负责人：{{ project.ownerName }}</span>
-                </span>
-              </span>
-              <div class="project-item__side">
-                <span class="project-item__visibility" :class="`is-${project.visibility.toLowerCase()}`">
-                  {{ project.visibility === 'PUBLIC' ? '公开' : '私有' }}
-                </span>
-                <span class="project-item__time">
+        <t-loading :loading="recentProjects === null" size="small" text="正在加载最近项目">
+          <template v-if="recentProjects && recentProjects.length > 0">
+            <ul class="dashboard-line-list">
+              <li v-for="project in recentProjects" :key="project.id" class="dashboard-line-item">
+                <t-button
+                  class="dashboard-line-item__main"
+                  theme="default"
+                  variant="text"
+                  @click="openProject(project)"
+                >
+                  <strong>{{ project.name }}</strong>
+                  <span class="dashboard-line-item__meta">
+                    {{ project.region || '未填写地区' }} ·
+                    {{ project.visibility === 'PUBLIC' ? '公开' : '私有' }}
+                  </span>
+                </t-button>
+                <span class="dashboard-line-item__time">
                   <TimeIcon />
-                  {{ project.updatedAt }}
+                  {{ formatDate(new Date(project.updatedAt)) }}
                 </span>
-              </div>
-            </li>
-          </ul>
-        </template>
-        <AppEmptyState
-          v-else
-          description="你最近参与的项目会显示在这里"
-          size="small"
-          title="暂无最近项目"
-        />
+              </li>
+            </ul>
+          </template>
+          <AppEmptyState
+            v-else-if="recentProjects"
+            description="你参与的项目会显示在这里，可先创建或加入项目"
+            size="small"
+            title="暂无最近项目"
+          />
+        </t-loading>
       </section>
 
-      <section class="dashboard-panel dashboard-panel--activities" aria-labelledby="activities-title">
+      <section class="dashboard-panel dashboard-panel--reports" aria-labelledby="recent-reports-title">
         <header class="dashboard-panel__header">
           <div class="dashboard-panel__heading">
-            <strong id="activities-title">最近动态</strong>
+            <strong id="recent-reports-title">最近报告</strong>
           </div>
+          <t-button
+            v-if="canNavigate('/reports')"
+            size="small"
+            theme="default"
+            variant="text"
+            @click="openPath('/reports')"
+          >
+            报告管理
+          </t-button>
         </header>
 
-        <template v-if="recentActivities.length > 0">
-          <ul class="activity-list">
-            <li v-for="activity in recentActivities" :key="activity.id" class="activity-item">
-              <span
-                class="activity-item__main"
-                role="button"
-                :tabindex="activity.route ? 0 : undefined"
-                :aria-disabled="!activity.route"
-                @click="openItemRoute(activity.route, undefined)"
-                @keydown.enter="openItemRoute(activity.route, undefined)"
-              >
-                <span class="activity-item__actor">{{ activity.actor }}</span>
-                <span class="activity-item__text">
-                  {{ activity.action }}「{{ activity.objectName }}」
+        <t-loading :loading="recentReports === null" size="small" text="正在加载最近报告">
+          <template v-if="recentReports && recentReports.length > 0">
+            <ul class="dashboard-line-list">
+              <li v-for="report in recentReports" :key="report.id" class="dashboard-line-item">
+                <t-button
+                  class="dashboard-line-item__main"
+                  theme="default"
+                  variant="text"
+                  @click="openReport(report)"
+                >
+                  <strong>{{ getReportTypeLabel(report.reportType) }}</strong>
+                  <span class="dashboard-line-item__meta">
+                    {{ report.projectName }} · {{ report.conversationTitle || '未关联会话' }}
+                  </span>
+                </t-button>
+                <span class="dashboard-line-item__side">
+                  <AppStatusTag
+                    :label="reportStateMeta(report).label"
+                    :status="reportStateMeta(report).status"
+                  />
+                  <span class="dashboard-line-item__time">
+                    <TimeIcon />
+                    {{ formatDate(new Date(report.updatedAt)) }}
+                  </span>
                 </span>
-              </span>
-              <span class="activity-item__time">{{ activity.time }}</span>
-            </li>
-          </ul>
-        </template>
-        <AppEmptyState
-          v-else
-          description="解析完成、报告生成等操作动态会显示在这里"
-          size="small"
-          title="暂无动态"
-        />
+              </li>
+            </ul>
+          </template>
+          <AppEmptyState
+            v-else-if="recentReports && !canAggregateReports"
+            description="报告按项目聚合展示，可进入报告管理按项目查看"
+            size="small"
+            title="暂无报告概览"
+          />
+          <AppEmptyState
+            v-else-if="recentReports"
+            description="在 AI 会话中生成报告后，最近成果会显示在这里"
+            size="small"
+            title="暂无最近报告"
+          />
+        </t-loading>
       </section>
     </div>
 
     <div class="dashboard-grid dashboard-grid--primary">
-      <AppChartPanel
-        class="dashboard-panel--trend"
-        description="最近 7 天 / 30 天业务处理量"
-        title="业务处理趋势"
-      >
-        <template #actions>
-          <t-radio-group v-model="trendRange" size="small" variant="default-filled" @change="switchTrendRange">
-            <t-radio-button value="7d">
-              7 天
-            </t-radio-button>
-            <t-radio-button value="30d">
-              30 天
-            </t-radio-button>
-          </t-radio-group>
-        </template>
-        <AppChart
-          empty-description="暂未接入趋势统计数据"
-          empty-text="暂无趋势数据"
-          height="var(--dashboard-chart-height, 300px)"
-          :option="trendOption"
-        />
-      </AppChartPanel>
+      <section class="dashboard-panel dashboard-panel--anomalies" aria-labelledby="anomalies-title">
+        <header class="dashboard-panel__header">
+          <div class="dashboard-panel__heading">
+            <strong id="anomalies-title">资料异常</strong>
+            <span v-if="parsingJobsReachable && parsingFailureTotal > 0">
+              共 {{ parsingFailureTotal }} 条解析失败
+            </span>
+          </div>
+          <t-button
+            v-if="parsingJobsReachable"
+            size="small"
+            theme="default"
+            variant="text"
+            @click="openPath(parsingJobsPath)"
+          >
+            解析任务
+          </t-button>
+        </header>
 
-      <AppChartPanel
-        class="dashboard-panel--distribution"
-        description="待处理、处理中、已完成与失败任务"
-        title="任务状态分布"
-      >
-        <AppChart
-          v-if="taskDistributionOption"
-          height="var(--dashboard-chart-height, 300px)"
-          :option="taskDistributionOption"
-        />
-        <AppChart
-          v-else-if="fallbackBarOption"
-          height="var(--dashboard-chart-height, 300px)"
-          :option="fallbackBarOption"
-        />
-        <AppChart
-          v-else
-          :empty-description="taskDistributionTotal === 0 ? '' : '当前任务数较少，不展示分布图'"
-          :empty-text="taskDistributionTotal === 0 ? '暂无任务数据' : '暂无分布数据'"
-          height="var(--dashboard-chart-height, 300px)"
-          :option="null"
-        />
-      </AppChartPanel>
+        <t-loading :loading="parsingFailures === null" size="small" text="正在加载资料异常">
+          <template v-if="parsingFailures && parsingFailures.length > 0">
+            <ul class="dashboard-line-list">
+              <li v-for="job in parsingFailures" :key="job.id" class="dashboard-line-item">
+                <span class="dashboard-line-item__main is-static">
+                  <strong>{{ job.document?.title || '未知文档' }}</strong>
+                  <span class="dashboard-line-item__meta">
+                    {{ JOB_TYPE_LABELS[job.jobType] }} · {{ job.errorMessage || '解析失败' }}
+                  </span>
+                </span>
+                <span class="dashboard-line-item__time">
+                  <TimeIcon />
+                  {{ formatDate(new Date(job.finishedAt ?? job.createdAt)) }}
+                </span>
+              </li>
+            </ul>
+          </template>
+          <AppEmptyState
+            v-else-if="parsingFailures"
+            description="知识资料解析失败任务会显示在这里"
+            size="small"
+            title="暂无资料异常"
+          />
+        </t-loading>
+      </section>
     </div>
   </AppPage>
 </template>
@@ -586,19 +440,22 @@ onMounted(() => {
 <style scoped>
 .dashboard-page {
   --dashboard-grid-gap: var(--vicp-page-gap);
-  --dashboard-chart-height: 300px;
 }
 
-.dashboard-welcome {
-  display: flex;
+.dashboard-welcome,
+.dashboard-panel {
   min-width: 0;
-  align-items: stretch;
-  justify-content: space-between;
-  gap: var(--td-size-6);
   padding: var(--vicp-panel-padding);
   border: 1px solid var(--td-component-stroke);
   border-radius: var(--vicp-radius);
   background: var(--td-bg-color-container);
+}
+
+.dashboard-welcome {
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: var(--td-size-6);
 }
 
 .dashboard-welcome__intro {
@@ -642,7 +499,6 @@ onMounted(() => {
 .dashboard-shortcut {
   width: 168px;
   height: auto;
-  justify-content: space-between;
   padding: var(--td-size-3) var(--td-size-4);
   text-align: left;
 }
@@ -669,52 +525,29 @@ onMounted(() => {
   white-space: nowrap;
 }
 
-.dashboard-metrics {
-  display: grid;
-  gap: var(--dashboard-grid-gap);
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-.dashboard-grid {
-  display: grid;
-  min-width: 0;
-  gap: var(--dashboard-grid-gap);
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-}
-
-.dashboard-grid--primary > * {
-  min-width: 0;
-}
-
-/* 桌面 12 栏：主模块占 8 栏，辅助模块占 4 栏 */
-.dashboard-grid--primary :deep(.dashboard-panel--attention),
-.dashboard-grid--primary :deep(.dashboard-panel--projects),
-.dashboard-grid--primary :deep(.dashboard-panel--trend) {
-  grid-column: span 8;
-}
-
-.dashboard-grid--primary :deep(.dashboard-panel--pipeline),
-.dashboard-grid--primary :deep(.dashboard-panel--activities),
-.dashboard-grid--primary :deep(.dashboard-panel--distribution) {
-  grid-column: span 4;
-}
-
 .dashboard-panel {
   display: flex;
-  min-width: 0;
   flex-direction: column;
   gap: var(--td-size-4);
-  padding: var(--vicp-panel-padding);
-  border: 1px solid var(--td-component-stroke);
-  border-radius: var(--vicp-radius);
-  background: var(--td-bg-color-container);
 }
 
-.dashboard-panel__header {
+.dashboard-panel__header,
+.dashboard-todo-card__head,
+.dashboard-line-item,
+.dashboard-line-item__side,
+.dashboard-line-item__time {
   display: flex;
   min-width: 0;
   align-items: center;
+}
+
+.dashboard-panel__header,
+.dashboard-todo-card__head,
+.dashboard-line-item {
   justify-content: space-between;
+}
+
+.dashboard-panel__header {
   gap: var(--td-size-4);
 }
 
@@ -735,108 +568,84 @@ onMounted(() => {
   font-size: var(--td-font-size-body-small);
 }
 
-.dashboard-panel__icon {
-  color: var(--td-text-color-placeholder);
+.dashboard-todo-grid {
+  display: grid;
+  min-width: 0;
+  gap: var(--td-size-3);
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
-.dashboard-panel :deep(.app-empty-state) {
-  min-height: calc(var(--vicp-state-min-height) - var(--td-size-10));
+.dashboard-todo-card {
+  height: auto;
+  min-width: 0;
+  padding: var(--td-size-4);
+  border-radius: var(--vicp-radius);
+  text-align: left;
+  white-space: normal;
 }
 
-/* 公开文库业务卡片 */
-.dashboard-library {
+.dashboard-todo-card__inner {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: var(--td-size-2);
+  text-align: left;
+}
+
+.dashboard-todo-card__head {
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: var(--td-size-6);
-}
-
-.dashboard-library__intro {
-  display: flex;
-  min-width: 0;
-  flex: 0 0 auto;
-  align-items: center;
+  justify-content: space-between;
   gap: var(--td-size-3);
 }
 
-.dashboard-library__icon {
-  display: grid;
-  width: 40px;
-  height: 40px;
-  flex: 0 0 auto;
-  place-content: center;
-  border-radius: var(--td-radius-medium);
-  background: var(--td-brand-color-1);
+.dashboard-todo-card__label {
+  color: var(--td-text-color-primary);
+  font-size: var(--td-font-size-body-medium);
+}
+
+.dashboard-todo-card:hover .dashboard-todo-card__label {
   color: var(--td-brand-color);
 }
 
-.dashboard-library__text {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: var(--td-size-1);
+.dashboard-todo-card__count {
+  flex: 0 0 auto;
+  color: var(--td-warning-color);
+  font-size: var(--td-font-size-body-small);
 }
 
-.dashboard-library__text strong {
-  color: var(--td-text-color-primary);
-  font-size: var(--td-font-size-title-small);
-}
-
-.dashboard-library__text span {
+.dashboard-todo-card__description,
+.dashboard-line-item__meta,
+.dashboard-line-item__time {
   color: var(--td-text-color-secondary);
   font-size: var(--td-font-size-body-small);
 }
 
-.dashboard-library__text small {
-  color: var(--td-text-color-placeholder);
-  font-size: var(--td-font-size-body-small);
-}
-
-.dashboard-library__recent {
-  display: flex;
+.dashboard-grid {
+  display: grid;
   min-width: 0;
-  flex: 1 1 auto;
-  flex-direction: column;
-  gap: var(--td-size-1);
+  gap: var(--dashboard-grid-gap);
+  grid-template-columns: repeat(12, minmax(0, 1fr));
 }
 
-.dashboard-library__doc {
-  display: flex;
+.dashboard-grid > * {
   min-width: 0;
-  align-items: center;
-  gap: var(--td-size-2);
-  color: var(--td-text-color-primary);
-  cursor: pointer;
-  font-size: var(--td-font-size-body-small);
 }
 
-.dashboard-library__doc svg {
-  flex: 0 0 auto;
-  color: var(--td-text-color-placeholder);
+.dashboard-panel--projects {
+  grid-column: span 7;
 }
 
-.dashboard-library__doc:hover {
-  color: var(--td-brand-color);
+.dashboard-panel--anomalies {
+  grid-column: span 12;
 }
 
-.dashboard-library__doc {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.dashboard-panel--reports {
+  grid-column: span 5;
 }
 
-@media (max-width: 960px) {
-  .dashboard-library {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-}
-
-/* 待处理事项 */
-.attention-list,
-.pipeline-list,
-.project-list,
-.activity-list {
+.dashboard-line-list {
   display: flex;
   min-width: 0;
   margin: 0;
@@ -845,371 +654,91 @@ onMounted(() => {
   list-style: none;
 }
 
-.attention-item {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: var(--td-size-3);
-  padding: var(--td-size-3) 0;
-  border-bottom: 1px solid var(--td-component-stroke);
-}
-
-.attention-item:last-child {
-  border-bottom: 0;
-}
-
-.attention-item__priority {
-  width: var(--td-size-1);
-  height: var(--td-size-4);
-  flex: 0 0 auto;
-  border-radius: var(--td-radius-round);
-  background: var(--td-gray-color-4);
-}
-
-.attention-item__priority.is-high {
-  background: var(--td-error-color);
-}
-
-.attention-item__priority.is-medium {
-  background: var(--td-warning-color);
-}
-
-.attention-item__priority.is-low {
-  background: var(--td-success-color);
-}
-
-.attention-item__main {
-  display: flex;
-  min-width: 0;
-  flex: 1;
-  align-items: flex-start;
-  flex-direction: column;
-  gap: var(--td-size-1);
-  padding: 0;
-  border: 0;
-  background: transparent;
-  cursor: pointer;
-  text-align: left;
-}
-
-.attention-item__main[aria-disabled='true'] {
-  cursor: default;
-}
-
-.attention-item__title {
-  color: var(--td-text-color-primary);
-  font-size: var(--td-font-size-body-medium);
-}
-
-.attention-item__main:not([aria-disabled='true']):hover .attention-item__title {
-  color: var(--td-brand-color);
-}
-
-.attention-item__description {
-  color: var(--td-text-color-secondary);
-  font-size: var(--td-font-size-body-small);
-}
-
-.attention-item__count {
-  flex: 0 0 auto;
-  color: var(--td-text-color-primary);
-  font-size: var(--td-font-size-title-small);
-  font-weight: 600;
-}
-
-.attention-item__time {
-  display: inline-flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: var(--td-size-1);
-  color: var(--td-text-color-placeholder);
-  font-size: var(--td-font-size-body-small);
-}
-
-/* 资料处理状态 */
-.pipeline-item {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: var(--td-size-2);
-  padding: var(--td-size-2) 0;
-}
-
-.pipeline-item__main {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--td-size-3);
-  padding: 0;
-  border: 0;
-  background: transparent;
-  cursor: pointer;
-  text-align: left;
-}
-
-.pipeline-item__main[aria-disabled='true'] {
-  cursor: default;
-}
-
-.pipeline-item__label {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--td-size-2);
-  color: var(--td-text-color-secondary);
-  font-size: var(--td-font-size-body-medium);
-}
-
-.pipeline-item__main:not([aria-disabled='true']):hover .pipeline-item__label {
-  color: var(--td-brand-color);
-}
-
-.pipeline-item__dot {
-  width: var(--td-size-2);
-  height: var(--td-size-2);
-  flex: 0 0 auto;
-  border-radius: var(--td-radius-circle);
-  background: var(--td-gray-color-4);
-}
-
-.pipeline-item__dot.is-processing {
-  background: var(--td-brand-color);
-}
-
-.pipeline-item__dot.is-warning {
-  background: var(--td-warning-color);
-}
-
-.pipeline-item__dot.is-success {
-  background: var(--td-success-color);
-}
-
-.pipeline-item__dot.is-error {
-  background: var(--td-error-color);
-}
-
-.pipeline-item__main strong {
-  color: var(--td-text-color-primary);
-  font-weight: 600;
-}
-
-.pipeline-item__track {
-  overflow: hidden;
-  width: 100%;
-  height: var(--td-size-2);
-  border-radius: var(--td-radius-round);
-  background: var(--td-bg-color-secondarycontainer);
-}
-
-.pipeline-item__fill {
-  display: block;
-  height: 100%;
-  border-radius: var(--td-radius-round);
-  background: var(--td-gray-color-4);
-  transition: width 0.2s ease;
-}
-
-.pipeline-item__fill.is-processing {
-  background: var(--td-brand-color);
-}
-
-.pipeline-item__fill.is-warning {
-  background: var(--td-warning-color);
-}
-
-.pipeline-item__fill.is-success {
-  background: var(--td-success-color);
-}
-
-.pipeline-item__fill.is-error {
-  background: var(--td-error-color);
-}
-
-/* 最近项目 */
-.project-item {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  justify-content: space-between;
+.dashboard-line-item {
   gap: var(--td-size-4);
   padding: var(--td-size-3) 0;
   border-bottom: 1px solid var(--td-component-stroke);
 }
 
-.project-item:last-child {
+.dashboard-line-item:last-child {
   border-bottom: 0;
 }
 
-.project-item__main {
+.dashboard-line-item__main {
   display: flex;
+  height: auto;
   min-width: 0;
-  flex: 1;
-  align-items: flex-start;
+  flex: 1 1 auto;
   flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
   gap: var(--td-size-1);
   padding: 0;
-  border: 0;
-  background: transparent;
-  cursor: pointer;
   text-align: left;
+  white-space: normal;
 }
 
-.project-item__main[aria-disabled='true'] {
+.dashboard-line-item__main.is-static {
   cursor: default;
 }
 
-.project-item__name {
+.dashboard-line-item__main strong {
+  overflow: hidden;
+  max-width: 100%;
   color: var(--td-text-color-primary);
   font-size: var(--td-font-size-body-medium);
-  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.project-item__main:not([aria-disabled='true']):hover .project-item__name {
+.dashboard-line-item__main:not(.is-static):hover strong {
   color: var(--td-brand-color);
 }
 
-.project-item__region {
-  color: var(--td-text-color-placeholder);
-  font-size: var(--td-font-size-body-small);
+.dashboard-line-item__meta {
+  overflow: hidden;
+  max-width: 100%;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.project-item__meta {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--td-size-3);
-  color: var(--td-text-color-secondary);
-  font-size: var(--td-font-size-body-small);
-}
-
-.project-item__side {
-  display: flex;
+.dashboard-line-item__side {
   flex: 0 0 auto;
   align-items: flex-end;
   flex-direction: column;
   gap: var(--td-size-1);
 }
 
-.project-item__visibility {
-  color: var(--td-text-color-secondary);
-  font-size: var(--td-font-size-body-small);
-}
-
-.project-item__visibility.is-public {
-  color: var(--td-success-color);
-}
-
-.project-item__visibility.is-private {
-  color: var(--td-warning-color);
-}
-
-.project-item__time {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--td-size-1);
-  color: var(--td-text-color-placeholder);
-  font-size: var(--td-font-size-body-small);
-}
-
-/* 最近动态 */
-.activity-item {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--td-size-3);
-  padding: var(--td-size-3) 0;
-  border-bottom: 1px solid var(--td-component-stroke);
-}
-
-.activity-item:last-child {
-  border-bottom: 0;
-}
-
-.activity-item__main {
-  display: flex;
-  min-width: 0;
-  flex: 1;
-  align-items: baseline;
-  gap: var(--td-size-2);
-  padding: 0;
-  border: 0;
-  background: transparent;
-  cursor: pointer;
-  text-align: left;
-}
-
-.activity-item__main[aria-disabled='true'] {
-  cursor: default;
-}
-
-.activity-item__actor {
+.dashboard-line-item__time {
   flex: 0 0 auto;
-  color: var(--td-text-color-primary);
-  font-weight: 600;
-}
-
-.activity-item__text {
-  overflow: hidden;
-  min-width: 0;
-  color: var(--td-text-color-secondary);
-  font-size: var(--td-font-size-body-small);
-  text-overflow: ellipsis;
+  gap: var(--td-size-1);
   white-space: nowrap;
 }
 
-.activity-item__main:not([aria-disabled='true']):hover .activity-item__text {
-  color: var(--td-brand-color);
+.dashboard-panel :deep(.app-empty-state) {
+  min-height: calc(var(--vicp-state-min-height) - var(--td-size-10));
 }
 
-.activity-item__time {
-  flex: 0 0 auto;
-  color: var(--td-text-color-placeholder);
-  font-size: var(--td-font-size-body-small);
-}
-
-/* 响应式：桌面 12 栏 → 平板 → 移动端 */
-@media (max-width: 1280px) {
+@media (max-width: 1100px) {
   .dashboard-welcome {
     flex-direction: column;
-    gap: var(--td-size-5);
   }
 
   .dashboard-welcome__shortcuts {
     justify-content: flex-start;
   }
 
-  /* 平板：待办、项目与图表全宽，资料状态与最近动态两列 */
-  .dashboard-grid--primary :deep(.dashboard-panel--attention),
-  .dashboard-grid--primary :deep(.dashboard-panel--projects),
-  .dashboard-grid--primary :deep(.dashboard-panel--trend),
-  .dashboard-grid--primary :deep(.dashboard-panel--distribution) {
+  .dashboard-panel--projects,
+  .dashboard-panel--reports,
+  .dashboard-panel--anomalies {
     grid-column: span 12;
-  }
-
-  .dashboard-grid--primary :deep(.dashboard-panel--pipeline),
-  .dashboard-grid--primary :deep(.dashboard-panel--activities) {
-    grid-column: span 6;
-  }
-}
-
-@media (max-width: 960px) {
-  .dashboard-metrics {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 640px) {
-  .dashboard-page {
-    --dashboard-chart-height: 240px;
-  }
-
-  .dashboard-metrics {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .dashboard-welcome__shortcuts {
     overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
+    justify-content: flex-start;
     padding-bottom: var(--td-size-2);
   }
 
@@ -1218,45 +747,19 @@ onMounted(() => {
     flex: 0 0 auto;
   }
 
-  /* 移动端：全部单列 */
-  .dashboard-grid--primary :deep(.dashboard-panel--attention),
-  .dashboard-grid--primary :deep(.dashboard-panel--pipeline),
-  .dashboard-grid--primary :deep(.dashboard-panel--projects),
-  .dashboard-grid--primary :deep(.dashboard-panel--activities),
-  .dashboard-grid--primary :deep(.dashboard-panel--trend),
-  .dashboard-grid--primary :deep(.dashboard-panel--distribution) {
-    grid-column: span 12;
+  .dashboard-todo-grid {
+    grid-template-columns: 1fr;
   }
 
-  /* 最近项目转为纵向卡片 */
-  .project-item {
+  .dashboard-line-item {
     align-items: flex-start;
     flex-direction: column;
     gap: var(--td-size-2);
-    padding: var(--td-size-3);
-    border: 1px solid var(--td-component-stroke);
-    border-bottom: 1px solid var(--td-component-stroke);
-    border-radius: var(--vicp-radius);
   }
 
-  .project-item + .project-item {
-    margin-top: var(--td-size-3);
-  }
-
-  .project-item:last-child {
-    border-bottom: 1px solid var(--td-component-stroke);
-  }
-
-  .project-item__side {
-    align-items: flex-start;
+  .dashboard-line-item__side {
+    align-items: center;
     flex-direction: row;
-    gap: var(--td-size-4);
-  }
-
-  .activity-item {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: var(--td-size-1);
   }
 }
 </style>

@@ -1,16 +1,18 @@
 <script setup lang="ts">
 import type { PrimaryTableCol, TableRowData } from 'tdesign-vue-next'
 import { ArrowLeftIcon } from 'tdesign-icons-vue-next'
-import { computed, h, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, h, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import AppTableActions from '@/components/business/AppTableActions.vue'
 import ReportCreateDialog from '@/components/business/ReportCreateDialog.vue'
 import ReportPreviewDialog from '@/components/business/ReportPreviewDialog.vue'
 import ReportShareDialog from '@/components/business/ReportShareDialog.vue'
+import TemplateReportPanel from '@/components/business/reports/TemplateReportPanel.vue'
 import AppDataTable from '@/components/ui/AppDataTable.vue'
 import AppPage from '@/components/ui/AppPage.vue'
 import AppSearchPanel from '@/components/ui/AppSearchPanel.vue'
 import AppStatusTag from '@/components/ui/AppStatusTag.vue'
+import AppWorkspaceTabs from '@/components/ui/AppWorkspaceTabs.vue'
 import { useReportCenter } from '@/composables/useReportCenter'
 import { usePermissionAccess } from '@/composables/usePermissionAccess'
 import { useResponsiveShell } from '@/composables/useResponsiveShell'
@@ -19,6 +21,7 @@ import type { AppTableAction } from '@/types/crud'
 import type { ProjectItem, ProjectViewKey } from '@/types/project'
 import type { ReportArtifactType, ReportCenterRow } from '@/types/report'
 import { fetchReportDownloadUrl } from '@/api/modules/reports'
+import { fetchProjectDetail } from '@/api/modules/projects'
 import { isProjectManager } from '@/utils/project'
 import {
   canPublishReport,
@@ -33,6 +36,7 @@ import { formatDate } from '@/utils/day'
 defineOptions({ name: 'ReportCenter' })
 
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
 const { canAccess } = usePermissionAccess()
 const { isMobile } = useResponsiveShell()
@@ -60,6 +64,36 @@ const shareReport = ref<ReportCenterRow | null>(null)
 const previewVisible = ref(false)
 const previewTitle = ref('')
 const previewUrl = ref('')
+
+// ---- 报告管理工作区：[成果报告] [模板报告记录] ----
+
+// 旧入口 /reports/center → /reports?tab=templates 重定向至此，保留模板报告记录直达链路
+const activeTab = ref(route.query.tab === 'templates' ? 'templates' : 'platform')
+const reportTabs = [
+  { key: 'platform', label: '成果报告' },
+  { key: 'templates', label: '模板报告记录' },
+] as const
+
+// 项目详情「报告」任务入口 → /reports?projectId=…：定位到对应项目的报告成果
+async function selectProjectFromQuery(): Promise<void> {
+  const projectId = typeof route.query.projectId === 'string' ? route.query.projectId : ''
+  if (!projectId || selectedProject.value) {
+    return
+  }
+  try {
+    const result = await fetchProjectDetail(projectId)
+    if (result.project) {
+      selectProject(result.project)
+    }
+  }
+  catch {
+    // 项目不可达（无权限或已删除）时保持项目选择列表，不阻塞页面
+  }
+}
+
+onMounted(() => {
+  void selectProjectFromQuery()
+})
 
 const canViewAllProjects = computed(() => canAccess({ permissions: ['system:project:list'] }))
 
@@ -304,121 +338,143 @@ const reportColumns: PrimaryTableCol<TableRowData>[] = [
 </script>
 
 <template>
-  <AppPage>
-    <div v-if="!selectedProject" class="">
-      <t-tabs :value="activeView" @change="handleViewChange" class="!bg-transparent">
-        <t-tab-panel
-          v-for="view in viewOptions"
-          :key="view.value"
-          :label="view.label"
-          :value="view.value"
-        >
-          <template v-if="view.value === 'all'">
-            <AppSearchPanel
-              :loading="allList.isLoading.value"
-              @reset="handleResetFilters"
-              @search="allList.search"
-              class="mt-3"
-            >
-              <t-form-item label="可见性">
-                <t-select
-                  :model-value="allList.query.visibility ?? ''"
-                  :options="[
-                    { label: '全部可见性', value: '' },
-                    { label: '公开', value: 'PUBLIC' },
-                    { label: '私有', value: 'PRIVATE' },
-                  ]"
-                  clearable
-                  placeholder="全部"
-                  @change="handleVisibilityChange"
-                />
-              </t-form-item>
-            </AppSearchPanel>
-          </template>
-
-          <div v-if="!isMobile" class="report-center-project-table mt-3">
-            <AppDataTable
-              :columns="projectColumns"
-              :current="activeList.current.value"
-              :data="activeList.data.value"
-              empty-description="暂无符合条件的项目"
-              empty-title="暂无项目"
-              :error-description="'请检查网络连接后重试'"
-              :page-size="activeList.pageSize.value"
-              row-key="id"
-              :status="activeList.tableStatus.value"
-              :total="activeList.total.value"
-              @page-change="activeList.changePage"
-              @refresh="activeList.refresh"
-              @retry="activeList.retry"
-            >
-              <template #operations="{ row }">
-                <AppTableActions :actions="projectActions(row)" />
-              </template>
-            </AppDataTable>
-          </div>
-
-          <div v-else class="report-center-project-cards">
-            <article
-              v-for="project in activeList.data.value"
-              :key="project.id"
-              class="report-center-project-card"
-            >
-              <div class="report-center-project-card__main">
-                <strong class="report-center-project-card__name">{{ project.name }}</strong>
-                <p class="report-center-project-card__meta">
-                  {{ project.visibility === 'PRIVATE' ? '私有' : '公开' }} ·
-                  {{ formatDate(new Date(project.createdAt)) }}
-                </p>
-              </div>
-              <t-button size="small" theme="primary" variant="text" @click="selectProject(project)">
-                报告成果
-              </t-button>
-            </article>
-          </div>
-        </t-tab-panel>
-      </t-tabs>
-    </div>
-
-    <!-- 报告列表区 -->
-    <template v-else>
-      <div class="report-center-context">
-        <t-button theme="default" variant="text" @click="clearSelection">
-          <template #icon>
-            <ArrowLeftIcon />
-          </template>
-          切换项目
-        </t-button>
-        <div class="report-center-context__info">
-          <strong class="report-center-context__name">{{ selectedProject.name }}</strong>
-          <span class="report-center-muted">
-            {{ conversationCount }} 个会话 · {{ rows.length }} 份报告
-          </span>
-          <t-tag v-if="polling" theme="primary" variant="light">
-            生成中报告自动刷新
-          </t-tag>
-          <t-tag v-if="isManagerOf(selectedProject)" theme="success" variant="light">
-            可管理
-          </t-tag>
-        </div>
-      </div>
-
-      <AppDataTable
-        :columns="reportColumns"
-        :data="rows"
-        empty-description="该项目暂无报告，可先在 AI 会话中生成报告草稿，或点击右上角创建报告"
-        empty-title="暂无报告"
-        :error-description="errorDescription"
-        row-key="id"
-        :status="reportTableStatus"
-        @refresh="selectedProject && selectProject(selectedProject)"
-        @retry="selectedProject && selectProject(selectedProject)"
+  <AppPage
+    description="成果报告按项目组织，可预览、发布与下载；模板报告记录承载提交审核与决议流程。"
+    title="报告管理"
+  >
+    <template #actions>
+      <t-button
+        v-if="activeTab === 'platform'"
+        :disabled="!selectedProject"
+        theme="primary"
+        @click="createDialogVisible = true"
       >
-        <template #operations="{ row }">
-          <AppTableActions :actions="getReportActions(row)" />
-        </template>
-      </AppDataTable>
+        创建报告
+      </t-button>
     </template>
+
+    <AppWorkspaceTabs v-model="activeTab" :tabs="reportTabs">
+      <template #platform>
+        <div v-if="!selectedProject">
+          <t-tabs :value="activeView" class="!bg-transparent" @change="handleViewChange">
+            <t-tab-panel
+              v-for="view in viewOptions"
+              :key="view.value"
+              :label="view.label"
+              :value="view.value"
+            >
+              <template v-if="view.value === 'all'">
+                <AppSearchPanel
+                  :loading="allList.isLoading.value"
+                  @reset="handleResetFilters"
+                  @search="allList.search"
+                  class="mt-3"
+                >
+                  <t-form-item label="可见性">
+                    <t-select
+                      :model-value="allList.query.visibility ?? ''"
+                      :options="[
+                        { label: '全部可见性', value: '' },
+                        { label: '公开', value: 'PUBLIC' },
+                        { label: '私有', value: 'PRIVATE' },
+                      ]"
+                      clearable
+                      placeholder="全部"
+                      @change="handleVisibilityChange"
+                    />
+                  </t-form-item>
+                </AppSearchPanel>
+              </template>
+
+              <div v-if="!isMobile" class="report-center-project-table mt-3">
+                <AppDataTable
+                  :columns="projectColumns"
+                  :current="activeList.current.value"
+                  :data="activeList.data.value"
+                  empty-description="暂无符合条件的项目"
+                  empty-title="暂无项目"
+                  :error-description="'请检查网络连接后重试'"
+                  :page-size="activeList.pageSize.value"
+                  row-key="id"
+                  :status="activeList.tableStatus.value"
+                  :total="activeList.total.value"
+                  @page-change="activeList.changePage"
+                  @refresh="activeList.refresh"
+                  @retry="activeList.retry"
+                >
+                  <template #operations="{ row }">
+                    <AppTableActions :actions="projectActions(row)" />
+                  </template>
+                </AppDataTable>
+              </div>
+
+              <div v-else class="report-center-project-cards">
+                <article
+                  v-for="project in activeList.data.value"
+                  :key="project.id"
+                  class="report-center-project-card"
+                >
+                  <div class="report-center-project-card__main">
+                    <strong class="report-center-project-card__name">{{ project.name }}</strong>
+                    <p class="report-center-project-card__meta">
+                      {{ project.visibility === 'PRIVATE' ? '私有' : '公开' }} ·
+                      {{ formatDate(new Date(project.createdAt)) }}
+                    </p>
+                  </div>
+                  <t-button size="small" theme="primary" variant="text" @click="selectProject(project)">
+                    报告成果
+                  </t-button>
+                </article>
+              </div>
+            </t-tab-panel>
+          </t-tabs>
+        </div>
+
+        <!-- 报告列表区 -->
+        <template v-else>
+          <div class="report-center-context">
+            <t-button theme="default" variant="text" @click="clearSelection">
+              <template #icon>
+                <ArrowLeftIcon />
+              </template>
+              切换项目
+            </t-button>
+            <div class="report-center-context__info">
+              <strong class="report-center-context__name">{{ selectedProject.name }}</strong>
+              <span class="report-center-muted">
+                {{ conversationCount }} 个会话 · {{ rows.length }} 份报告
+              </span>
+              <t-tag v-if="polling" theme="primary" variant="light">
+                生成中报告自动刷新
+              </t-tag>
+              <t-tag v-if="isManagerOf(selectedProject)" theme="success" variant="light">
+                可管理
+              </t-tag>
+            </div>
+          </div>
+
+          <AppDataTable
+            :columns="reportColumns"
+            :data="rows"
+            empty-description="该项目暂无报告，可先在 AI 会话中生成报告草稿，或点击右上角创建报告"
+            empty-title="暂无报告"
+            :error-description="errorDescription"
+            row-key="id"
+            :status="reportTableStatus"
+            @refresh="selectedProject && selectProject(selectedProject)"
+            @retry="selectedProject && selectProject(selectedProject)"
+          >
+            <template #operations="{ row }">
+              <AppTableActions :actions="getReportActions(row)" />
+            </template>
+          </AppDataTable>
+        </template>
+      </template>
+
+      <template #templates>
+        <TemplateReportPanel />
+      </template>
+    </AppWorkspaceTabs>
 
     <ReportCreateDialog
       v-model:visible="createDialogVisible"
