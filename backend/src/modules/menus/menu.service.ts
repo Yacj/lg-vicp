@@ -68,11 +68,14 @@ export async function getRoleScopes(app: FastifyInstance, user: AuthUser) {
   return scopes.map((scope) => ({ ...scope, departmentIds: customRoles.filter((row) => row.roleCode === scope.roleCode && row.departmentId).map((row) => row.departmentId) }));
 }
 
-export async function getMenuTree(app: FastifyInstance, user: AuthUser) {
-  const permissionCodes = await getPermissionCodes(app, user);
-  const rows = await app.db.select().from(menus)
-    .where(and(eq(menus.enabled, true), eq(menus.visible, true)))
-    .orderBy(asc(menus.sortOrder), asc(menus.name));
+export type MenuTreeRow = Pick<typeof menus.$inferSelect,
+  "id" | "parentId" | "menuType" | "name" | "routePath" | "component" | "icon" | "sortOrder" | "isExternal" | "permissionCode">;
+
+/**
+ * 按权限码过滤菜单行并构建树：无权限码或命中权限码的行保留，
+ * 父级被过滤或悬空的子行跳过，最后裁剪空目录（BUTTON 不构成路由）。
+ */
+export function buildMenuTreeForPermissions(rows: ReadonlyArray<MenuTreeRow>, permissionCodes: ReadonlySet<string>): MenuTreeItem[] {
   const allowed = rows.filter((row) => !row.permissionCode || permissionCodes.has(row.permissionCode));
   const allowedIds = new Set(allowed.map((row) => row.id));
   const byParent = new Map<string | null, MenuTreeItem[]>();
@@ -88,7 +91,7 @@ export async function getMenuTree(app: FastifyInstance, user: AuthUser) {
       icon: row.icon,
       sortOrder: row.sortOrder,
       isExternal: row.isExternal,
-      visible: row.visible,
+      visible: true,
       permissionCode: row.permissionCode,
       children: []
     };
@@ -107,14 +110,26 @@ export async function getMenuTree(app: FastifyInstance, user: AuthUser) {
   return pruneMenuTree(attach(roots));
 }
 
+export async function getMenuTree(app: FastifyInstance, user: AuthUser) {
+  const permissionCodes = await getPermissionCodes(app, user);
+  const rows = await app.db.select().from(menus)
+    .where(and(eq(menus.enabled, true), eq(menus.visible, true)))
+    .orderBy(asc(menus.sortOrder), asc(menus.name));
+  return buildMenuTreeForPermissions(rows, permissionCodes);
+}
+
 /**
- * 权限过滤后目录下没有任何可见 MENU 时整体隐藏，避免返回空壳目录（BUTTON 不构成路由）。
+ * 裁剪无可导航 MENU 的目录（BUTTON 不构成路由）。
+ * 目录的子树中（含嵌套目录）只要存在 MENU 即保留，支持任意深度的目录嵌套；
+ * 权限过滤后目录下没有任何可达 MENU 时整体隐藏，避免返回空壳目录。
  * 可见目录下的 BUTTON 保留，供前端做按钮级控制；按钮权限码仍以 /b/getInfo 的 permissions 为准。
  */
 export function pruneMenuTree(items: MenuTreeItem[]): MenuTreeItem[] {
+  const subtreeHasMenu = (item: MenuTreeItem): boolean =>
+    item.menuType === "MENU" || item.children.some(subtreeHasMenu);
   return items.flatMap((item) => {
     item.children = pruneMenuTree(item.children);
-    if (item.menuType === "DIRECTORY" && !item.children.some((child) => child.menuType === "MENU")) return [];
+    if (item.menuType === "DIRECTORY" && !item.children.some(subtreeHasMenu)) return [];
     return [item];
   });
 }

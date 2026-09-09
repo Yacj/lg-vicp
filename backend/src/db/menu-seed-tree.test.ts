@@ -1,0 +1,282 @@
+import { describe, expect, it } from "vitest";
+import {
+  buildMenuSeedTree,
+  DEPRECATED_MENU_ROUTE_PATHS,
+  HIDDEN_MENU_ROUTE_PATHS,
+  type MenuSeedNode
+} from "./menu-seed-tree.js";
+
+type FlatItem = { node: MenuSeedNode; parentRoutePath: string | null };
+
+const flattenSeedTree = (nodes: readonly MenuSeedNode[], parentRoutePath: string | null = null): FlatItem[] =>
+  nodes.flatMap((node) => [
+    { node, parentRoutePath },
+    ...flattenSeedTree(node.children ?? [], node.routePath)
+  ]);
+
+const flat = (nodes?: readonly MenuSeedNode[]) => flattenSeedTree(nodes ?? buildMenuSeedTree());
+
+describe("buildMenuSeedTree（B 端菜单信息架构 2026-09 瘦身）", () => {
+  it("顶层可见一级只保留 5 个（工作台由 Admin-Web 静态首页承担，不入库）", () => {
+    const tree = buildMenuSeedTree();
+    const topVisible = tree.filter((node) => node.visible !== false);
+    expect(topVisible.map((node) => node.name)).toEqual(["项目管理", "产品中心", "知识中心", "报告管理", "系统管理"]);
+    // AI 对话保留为隐藏路由，不再是可见一级入口
+    const aiEntry = tree.find((node) => node.routePath === "/ai");
+    expect(aiEntry?.visible).toBe(false);
+  });
+
+  it("全树 routePath 唯一（seed 以 routePath 作 upsert 冲突键，重复会互相覆盖）", () => {
+    const paths = flat().map((item) => item.node.routePath);
+    expect(new Set(paths).size).toBe(paths.length);
+  });
+
+  it("废弃的旧一级目录不再出现在菜单树中", () => {
+    const paths = new Set(flat().map((item) => item.node.routePath));
+    for (const deprecated of DEPRECATED_MENU_ROUTE_PATHS) {
+      expect(paths.has(deprecated)).toBe(false);
+    }
+  });
+
+  it("隐藏路由清单与树中 visible=false 节点一一对应", () => {
+    const hiddenInTree = flat()
+      .filter((item) => item.node.visible === false)
+      .map((item) => item.node.routePath)
+      .sort();
+    expect(hiddenInTree).toEqual([...HIDDEN_MENU_ROUTE_PATHS].sort());
+  });
+
+  it("旧 → 新入口映射：各领域叶子挂到正确的新父目录", () => {
+    const parentByRoutePath = new Map(flat().map((item) => [item.node.routePath, item.parentRoutePath]));
+    // 产品中心六个二级目录
+    expect(parentByRoutePath.get("/products/catalog")).toBe("/products");
+    expect(parentByRoutePath.get("/products/series")).toBe("/products/catalog");
+    expect(parentByRoutePath.get("/products/specs")).toBe("/products/catalog");
+    expect(parentByRoutePath.get("/products/parameters")).toBe("/products/catalog");
+    expect(parentByRoutePath.get("/products/attachments")).toBe("/products/catalog");
+    expect(parentByRoutePath.get("/masterdata/materials")).toBe("/products/materials");
+    expect(parentByRoutePath.get("/masterdata/parameter-versions")).toBe("/products/materials");
+    expect(parentByRoutePath.get("/construction/systems")).toBe("/products/construction");
+    expect(parentByRoutePath.get("/construction/schemes")).toBe("/products/construction");
+    expect(parentByRoutePath.get("/thermal/sets")).toBe("/products/thermal");
+    expect(parentByRoutePath.get("/thermal/calc-rules")).toBe("/products/thermal");
+    expect(parentByRoutePath.get("/nodes/drawings")).toBe("/products/nodes");
+    expect(parentByRoutePath.get("/comparison/versions")).toBe("/products/comparison");
+    // 标准政策并入知识中心/标准规范，热工标准限值一并归入
+    expect(parentByRoutePath.get("/knowledge/standards")).toBe("/knowledge");
+    expect(parentByRoutePath.get("/standard/documents")).toBe("/knowledge/standards");
+    expect(parentByRoutePath.get("/standard/indicators")).toBe("/knowledge/standards");
+    expect(parentByRoutePath.get("/standard/replacements")).toBe("/knowledge/standards");
+    expect(parentByRoutePath.get("/standard/sources")).toBe("/knowledge/standards");
+    expect(parentByRoutePath.get("/thermal/standard-limits")).toBe("/knowledge/standards");
+    // 企业内容并入系统管理/企业信息
+    expect(parentByRoutePath.get("/system/enterprise")).toBe("/system");
+    expect(parentByRoutePath.get("/content/profile")).toBe("/system/enterprise");
+    expect(parentByRoutePath.get("/content/certificates")).toBe("/system/enterprise");
+    expect(parentByRoutePath.get("/content/add")).toBe("/system/enterprise");
+    // 系统监控拆分：操作日志挂系统管理，其余挂高级设置
+    expect(parentByRoutePath.get("/monitor/audit")).toBe("/system");
+    expect(parentByRoutePath.get("/system/advanced")).toBe("/system");
+    expect(parentByRoutePath.get("/monitor/online")).toBe("/system/advanced");
+    expect(parentByRoutePath.get("/monitor/job")).toBe("/system/advanced");
+    expect(parentByRoutePath.get("/monitor/cache")).toBe("/system/advanced");
+    expect(parentByRoutePath.get("/monitor/ai")).toBe("/system/advanced");
+    // 计算记录从项目详情进入；审核队列从报告管理/工作台待办进入
+    expect(parentByRoutePath.get("/thermal/calc-records")).toBe("/project");
+    expect(parentByRoutePath.get("/review-center/queue")).toBe("/reports");
+  });
+
+  it("通俗化命名快照：叶子改名后 routePath 不变", () => {
+    const nameByRoutePath = new Map(flat().map((item) => [item.node.routePath, item.node.name]));
+    const renames: ReadonlyArray<readonly [string, string]> = [
+      ["/masterdata/materials", "保温材料库"],
+      ["/masterdata/parameter-versions", "材料性能参数"],
+      ["/thermal/sets", "图集热工表"],
+      ["/nodes/drawings", "节点大样图"],
+      ["/comparison/versions", "对比规则"],
+      ["/standard/documents", "标准文件"],
+      ["/standard/indicators", "节能指标"],
+      ["/standard/replacements", "新旧标准替代"],
+      ["/standard/sources", "数据来源"],
+      ["/content/certificates", "企业资质证书"],
+      ["/reports/center", "报告列表"],
+      ["/monitor/audit", "操作日志"],
+      ["/monitor/ai", "AI 运行情况"],
+      ["/reports", "报告管理"]
+    ];
+    for (const [routePath, expectedName] of renames) {
+      expect(nameByRoutePath.get(routePath)).toBe(expectedName);
+    }
+  });
+
+  it("权限码回归快照：MENU/BUTTON 的 routePath → permissionCode 迁移前后不变", () => {
+    const actual = new Map(
+      flat()
+        .filter((item) => item.node.menuType !== "DIRECTORY")
+        .map((item) => [item.node.routePath, item.node.permissionCode ?? null])
+    );
+    const expected = new Map<string, string | null>([
+      // 项目管理
+      ["/project", "project.create"],
+      ["/thermal/calc-records", "system:thermal:list"],
+      // 产品管理（system:md:product:*）
+      ["/products/series", "system:md:product:list"],
+      ["/products/specs", "system:md:product:list"],
+      ["/products/parameters", "system:md:product:list"],
+      ["/products/attachments", "system:md:product:list"],
+      ...["series", "specs", "parameters", "attachments"].flatMap((leaf) =>
+        ["add", "edit", "remove", "approve", "publish"].map((action) =>
+          [`/products/${leaf}/${action}`, `system:md:product:${action}`] as const
+        )
+      ),
+      // 材料与参数（system:md:material:*）
+      ["/masterdata/materials", "system:md:material:list"],
+      ["/masterdata/parameter-versions", "system:md:material:list"],
+      ...["materials", "parameter-versions"].flatMap((leaf) =>
+        ["add", "edit", "remove", "approve", "publish"].map((action) =>
+          [`/masterdata/${leaf}/${action}`, `system:md:material:${action}`] as const
+        )
+      ),
+      // 构造体系（system:construction:*）
+      ["/construction/systems", "system:construction:list"],
+      ["/construction/schemes", "system:construction:list"],
+      ...["systems", "schemes"].flatMap((leaf) =>
+        ["add", "edit", "remove", "approve", "publish"].map((action) =>
+          [`/construction/${leaf}/${action}`, `system:construction:${action}`] as const
+        )
+      ),
+      // 热工数据（system:thermal:*）
+      ["/thermal/sets", "system:thermal:list"],
+      ...["add", "edit", "import", "remove", "approve", "publish"].map((action) =>
+        [`/thermal/sets/${action}`, `system:thermal:${action}`] as const
+      ),
+      ["/thermal/calc-rules", "system:thermal:list"],
+      ...["add", "edit", "remove", "approve", "publish"].map((action) =>
+        [`/thermal/calc-rules/${action}`, `system:thermal:${action}`] as const
+      ),
+      // 节点图（system:node:*）
+      ["/nodes/drawings", "system:node:list"],
+      ...["add", "edit", "remove", "approve", "publish"].map((action) =>
+        [`/nodes/drawings/${action}`, `system:node:${action}`] as const
+      ),
+      // 对比配置（system:comparison:*）
+      ["/comparison/versions", "system:comparison:list"],
+      ...["add", "edit", "remove", "approve", "publish"].map((action) =>
+        [`/comparison/versions/${action}`, `system:comparison:${action}`] as const
+      ),
+      // 知识资料 / 分类 / 数据源 / 质量检查（system:knowledge:*）
+      ["/knowledge/documents", "system:knowledge:doc:list"],
+      ...["add", "edit", "upload", "parse", "approve", "publish", "remove"].map((action) =>
+        [`/knowledge/documents/${action}`, `system:knowledge:doc:${action}`] as const
+      ),
+      ["/knowledge/public-library", "system:knowledge:doc:list"],
+      ["/knowledge/categories", "system:knowledge:category:list"],
+      ...["add", "edit", "remove"].map((action) =>
+        [`/knowledge/categories/${action}`, `system:knowledge:category:${action}`] as const
+      ),
+      ["/knowledge/crawlers", "system:knowledge:crawler:list"],
+      ...["add", "edit", "run", "remove"].map((action) =>
+        [`/knowledge/crawlers/${action}`, `system:knowledge:crawler:${action}`] as const
+      ),
+      ["/knowledge/search-test", "system:knowledge:search:answer"],
+      ["/knowledge/search-test/answer", "system:knowledge:search:answer"],
+      ["/knowledge/search-test/eval-add", "system:knowledge:eval:add"],
+      ["/knowledge/search-test/eval-list", "system:knowledge:eval:list"],
+      ["/knowledge/search-test/eval-judge", "system:knowledge:eval:judge"],
+      ["/knowledge/search-test/chunk-edit", "system:knowledge:debug"],
+      ["/knowledge/search-test/chunk-split", "system:knowledge:debug"],
+      ["/knowledge/search-test/chunk-merge", "system:knowledge:debug"],
+      ["/knowledge/parsing-jobs", "system:knowledge:doc:parse"],
+      ["/knowledge/search-test/evaluations", "system:knowledge:eval:list"],
+      ["/knowledge/debug", "system:knowledge:debug"],
+      // 标准规范（system:standard:*）
+      ["/standard/documents", "system:standard:list"],
+      ...["add", "edit", "approve", "publish", "remove"].map((action) =>
+        [`/standard/documents/${action}`, `system:standard:${action}`] as const
+      ),
+      ["/standard/indicators", "system:standard:list"],
+      ["/standard/indicators/approve", "system:standard:approve"],
+      ["/standard/indicators/publish", "system:standard:publish"],
+      ["/standard/replacements", "system:standard:list"],
+      ["/standard/replacements/add", "system:standard:add"],
+      ["/standard/replacements/approve", "system:standard:approve"],
+      ["/standard/replacements/remove", "system:standard:remove"],
+      ["/standard/sources", "system:standard:list"],
+      ["/standard/sources/add", "system:standard:add"],
+      ["/standard/sources/edit", "system:standard:edit"],
+      ["/standard/sources/run", "system:standard:run"],
+      ["/standard/sources/remove", "system:standard:remove"],
+      // 标准限值（热工权限码不变）
+      ["/thermal/standard-limits", "system:thermal:list"],
+      ...["add", "edit", "remove", "approve", "publish"].map((action) =>
+        [`/thermal/standard-limits/${action}`, `system:thermal:${action}`] as const
+      ),
+      // 报告管理（system:report:*）
+      ["/reports/center", "system:report:generate"],
+      ["/reports/center/review", "system:report:review"],
+      ["/reports/templates", "system:report:template:list"],
+      ...["add", "edit", "remove", "approve", "publish"].map((action) =>
+        [`/reports/templates/${action}`, `system:report:template:${action}`] as const
+      ),
+      // 审核队列（system:review:*）
+      ["/review-center/queue", "system:review:list"],
+      ["/review-center/queue/approve", "system:review:approve"],
+      // 系统管理
+      ["/system/user", "system:user:list"],
+      ["/system/role", "system:role:list"],
+      ["/system/menu", "system:menu:list"],
+      ["/system/dept", "system:dept:list"],
+      ["/system/post", "system:post:list"],
+      ["/system/dict", "system:dict:list"],
+      ["/system/ai", "system:ai:provider:list"],
+      ["/system/ai/test-connection", "system:ai:provider:test"],
+      ["/system/ai/prompt-publish", "system:ai:prompt:publish"],
+      ["/system/ai/debug", "system:ai:debug:use"],
+      ["/system/ai/filter", "system:ai:filter:list"],
+      // 企业信息（system:md:enterprise:*，按钮 routePath 保持 /content/*）
+      ["/content/profile", "system:md:enterprise:list"],
+      ["/content/certificates", "system:md:enterprise:list"],
+      ...["add", "edit", "remove", "approve", "publish"].map((action) =>
+        [`/content/${action}`, `system:md:enterprise:${action}`] as const
+      ),
+      // 高级设置（monitor:* / system:ai:conversation:*）
+      ["/monitor/audit", "monitor:audit:list"],
+      ["/monitor/online", "monitor:online:list"],
+      ["/monitor/job", "monitor:job:list"],
+      ["/monitor/cache", "monitor:cache:list"],
+      ["/monitor/ai", "system:ai:conversation:list"],
+      ["/monitor/ai/feedback-handle", "system:ai:feedback:handle"],
+      // AI 对话
+      ["/ai", "ai.chat"]
+    ]);
+    const missing = [...expected.keys()].filter((routePath) => !actual.has(routePath));
+    const extra = [...actual.keys()].filter((routePath) => !expected.has(routePath));
+    expect({ missing, extra }).toEqual({ missing: [], extra: [] });
+    for (const [routePath, permissionCode] of expected) {
+      expect({ routePath, permissionCode: actual.get(routePath) }).toEqual({ routePath, permissionCode });
+    }
+  });
+
+  it("目录权限码不变：系统管理 platform.manage、质量检查知识检索权限，其余新目录不设权限码", () => {
+    const directories = flat().filter((item) => item.node.menuType === "DIRECTORY");
+    const withPermission = directories
+      .filter((item) => item.node.permissionCode)
+      .map((item) => [item.node.routePath, item.node.permissionCode]);
+    expect(withPermission).toEqual([
+      ["/knowledge/quality", "system:knowledge:search:answer"],
+      ["/system", "platform.manage"]
+    ]);
+  });
+
+  it("MENU 叶子 component 遵循 routePath 约定（除显式特例）", () => {
+    const exceptions = new Set(["/knowledge/search-test/evaluations", "/system/ai"]);
+    const mismatches = flat()
+      .filter((item) => item.node.menuType === "MENU" && !exceptions.has(item.node.routePath))
+      .filter((item) => item.node.component !== `${item.node.routePath.slice(1)}/index`)
+      .map((item) => `${item.node.routePath} -> ${item.node.component}`);
+    expect(mismatches).toEqual([]);
+    // 显式特例：检索效果复用 search-test 目录组件；AI 配置复用 ai-config 页面
+    expect(flat().find((item) => item.node.routePath === "/system/ai")?.node.component).toBe("ai-config/providers/index");
+    expect(flat().find((item) => item.node.routePath === "/knowledge/search-test/evaluations")?.node.component).toBe("knowledge/search-test/evaluations");
+  });
+});

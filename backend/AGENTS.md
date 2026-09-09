@@ -122,6 +122,7 @@
 ## 需求变更定位
 
 - 数据模型或索引：`src/db/schema.ts` 和 `drizzle/`。
+- B 端菜单信息架构/菜单种子：`src/db/menu-seed-tree.ts`（纯数据，一级仅项目/产品/知识/报告/系统 5 个 + Admin-Web 静态工作台；叶子 routePath 不变即 menuId 不变，隐藏路由 visible=false）；菜单树过滤与空壳目录裁剪 `src/modules/menus/menu.service.ts`（`buildMenuTreeForPermissions` + `pruneMenuTree` 子树递归）。详见 `docs/menus/README.md`。
 - 项目可见性：`src/shared/permissions.ts` 与项目模块。
 - 用户、角色、部门、字典：用户、权限和系统管理模块。
 - 文件上传、解析、OCR：文件模块、存储适配器和文档 Worker。文件资产中心（列表/详情/引用/预览/回收站/SHA-256 复用）：`src/modules/files/`（`file-center.service.ts` + `file-reference.service.ts` 引用聚合 + `files.routes.ts`），权限码见 `src/shared/file-permissions.ts`（`file:center:*`），FilePicker 知识接入见 knowledge 模块 `createDocumentVersion`/`createVersionUploadIntent`。详见 `docs/files/README.md`。
