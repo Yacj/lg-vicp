@@ -23,6 +23,7 @@ import { buildMenuTree } from '@/utils/system-menu'
 import {
   buildPermissionTree,
   collectPermissionCodes,
+  collectSubmitPermissionCodes,
   countSelectedPermissions,
   mapPermissionCodesToIds,
   mapPermissionIdsToCodes,
@@ -128,7 +129,7 @@ export function useRoleManagement() {
           dataScope: 'SELF',
         }
         if (permissionLoadStatus.value === 'ready') {
-          input.permissionIds = mapPermissionCodesToIds(permissionResources.value, permissionValues.value)
+          input.permissionIds = toSubmitPermissionIds(permissionValues.value)
         }
         return createRole(input)
       }
@@ -136,12 +137,21 @@ export function useRoleManagement() {
       const result = await updateRole(roleId, {
         ...common,
         ...(permissionLoadStatus.value === 'ready'
-          ? { permissionIds: mapPermissionCodesToIds(permissionResources.value, permissionValues.value) }
+          ? { permissionIds: toSubmitPermissionIds(permissionValues.value) }
           : {}),
       })
       return result
     },
   })
+
+  /**
+   * 提交前把勾选值换算为权限 ID，并补全祖先目录/菜单的页面访问权限码：
+   * 后端按菜单行逐行过滤菜单可见性，只提交子页面权限码会导致父目录整体隐藏。
+   */
+  function toSubmitPermissionIds(values: CrudKey[]): string[] {
+    const codes = collectSubmitPermissionCodes(permissionTree.value, values)
+    return mapPermissionCodesToIds(permissionResources.value, codes)
+  }
 
   let permissionLoadSequence = 0
 

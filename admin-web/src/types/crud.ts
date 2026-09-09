@@ -39,6 +39,12 @@ export interface CrudPermissionOption {
   children?: CrudPermissionOption[]
   description?: string
   disabled?: boolean
+  /**
+   * 仅 menu: 分组节点使用：该目录/菜单自身携带的页面访问权限码。
+   * 提交角色权限时用于祖先补全（子页面被勾选时必须一并授予父目录访问码，
+   * 否则后端按行过滤会把整个父目录隐藏）。
+   */
+  pageAccessCode?: string
 }
 
 export interface CrudUploadContext {

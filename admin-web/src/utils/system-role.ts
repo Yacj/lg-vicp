@@ -92,14 +92,20 @@ export function mapPermissionIdsToCodes(
  * 将菜单树与权限资源组装为权限配置树：
  * - 目录/菜单节点作为分组节点（value 带 menu: 前缀，勾选联动子级）；
  * - 按钮节点投影为权限叶子（value 为权限码）；
- * - 未挂载到菜单的权限资源追加到“其他权限”分组。
+ * - 目录/菜单自身携带的权限码（页面访问/列表权限）渲染为分组下首个可选叶子，
+ *   否则“全选”永远无法授予页面访问码，角色登录后对应菜单会被后端按权限码过滤隐藏；
+ * - 同一权限码全局只渲染一次（多个页面/按钮可共享同一权限码，TDesign 树以 value
+ *   为节点标识，重复 value 会破坏勾选联动）；
+ * - 未挂载到菜单树的权限资源追加到“其他权限”分组。
  */
 export function buildPermissionTree(
   menuTree: readonly SystemMenuTreeNode[],
   resources: readonly SystemPermissionResource[],
 ): CrudPermissionOption[] {
   const mountedCodes = new Set<string>()
-  const tree = menuTree.flatMap((node) => mapMenuNode(node, mountedCodes))
+  const renderedCodes = new Set<string>()
+  const codeLabels = new Map(resources.map(resource => [resource.code, resource.name] as const))
+  const tree = menuTree.flatMap(node => mapMenuNode(node, mountedCodes, renderedCodes, codeLabels))
   const unmounted = resources.filter((resource) => !mountedCodes.has(resource.code))
   if (unmounted.length === 0) {
     return tree
@@ -117,6 +123,8 @@ export function buildPermissionTree(
 function mapMenuNode(
   node: SystemMenuTreeNode,
   mountedCodes: Set<string>,
+  renderedCodes: Set<string>,
+  codeLabels: ReadonlyMap<string, string>,
 ): CrudPermissionOption[] {
   const base = {
     label: node.name,
@@ -125,10 +133,11 @@ function mapMenuNode(
   }
 
   if (node.menuType === 'BUTTON') {
-    if (!node.permissionCode) {
+    if (!node.permissionCode || renderedCodes.has(node.permissionCode)) {
       return []
     }
     mountedCodes.add(node.permissionCode)
+    renderedCodes.add(node.permissionCode)
     return [{
       ...base,
       description: `按钮：${node.name}`,
@@ -136,14 +145,28 @@ function mapMenuNode(
     }]
   }
 
-  // 目录/菜单自身也可能带权限码（如列表权限），同样视为已挂载。
+  // 目录/菜单自身也可能带权限码（页面访问/列表权限），渲染为可选叶子。
+  let pageAccessLeaf: CrudPermissionOption | null = null
   if (node.permissionCode) {
     mountedCodes.add(node.permissionCode)
+    if (!renderedCodes.has(node.permissionCode)) {
+      renderedCodes.add(node.permissionCode)
+      pageAccessLeaf = {
+        label: codeLabels.get(node.permissionCode) ?? '页面访问',
+        value: node.permissionCode,
+        description: '页面访问权限',
+        ...(!node.enabled ? { disabled: true } : {}),
+      }
+    }
   }
 
-  const children = node.children.flatMap((child) => mapMenuNode(child, mountedCodes))
+  const children = [
+    ...(pageAccessLeaf ? [pageAccessLeaf] : []),
+    ...node.children.flatMap((child) => mapMenuNode(child, mountedCodes, renderedCodes, codeLabels)),
+  ]
   return [{
     ...base,
+    ...(node.permissionCode ? { pageAccessCode: node.permissionCode } : {}),
     children,
   }]
 }
@@ -162,6 +185,51 @@ export function collectPermissionCodes(nodes: readonly CrudPermissionOption[]): 
     ...(isPermissionValue(node.value) && !node.disabled ? [node.value] : []),
     ...collectPermissionCodes(node.children ?? []),
   ])
+}
+
+/**
+ * 计算提交角色权限用的权限码集合：以勾选值为基础补全祖先分组的页面访问权限码。
+ *
+ * 后端按菜单行/目录行各自的 permissionCode 逐行过滤菜单：只勾选子页面而不提交
+ * 父目录的页面访问码（如 platform.manage）时，父目录连同其下所有子菜单会被整体
+ * 隐藏。因此只要某分组子树内存在勾选项（或分组自身被勾选，例如叶子被去重合并后
+ * 的空分组），该分组的 pageAccessCode 必须一并提交。
+ *
+ * - menu: 分组值本身不是权限码，不进入结果；
+ * - 停用节点（disabled）不参与收集，也不向上传播选中状态。
+ */
+export function collectSubmitPermissionCodes(
+  nodes: readonly CrudPermissionOption[],
+  selectedValues: readonly (string | number)[],
+): string[] {
+  const selected = new Set(selectedValues)
+  const codes = new Set<string>()
+  const walk = (options: readonly CrudPermissionOption[]): boolean => {
+    let subtreeSelected = false
+    for (const option of options) {
+      if (isMenuGroupValue(option.value)) {
+        const selfSelected = !option.disabled && selected.has(option.value)
+        const childSelected = option.disabled ? false : walk(option.children ?? [])
+        if (selfSelected || childSelected) {
+          subtreeSelected = true
+          if (option.pageAccessCode) {
+            codes.add(option.pageAccessCode)
+          }
+        }
+        continue
+      }
+      if (option.disabled) {
+        continue
+      }
+      if (isPermissionValue(option.value) && selected.has(option.value)) {
+        codes.add(option.value)
+        subtreeSelected = true
+      }
+    }
+    return subtreeSelected
+  }
+  walk(nodes)
+  return [...codes]
 }
 
 export function countPermissionTree(nodes: readonly CrudPermissionOption[]): number {

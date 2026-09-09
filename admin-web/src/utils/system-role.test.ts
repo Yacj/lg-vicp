@@ -10,6 +10,7 @@ import type {
 import {
   buildPermissionTree,
   collectPermissionCodes,
+  collectSubmitPermissionCodes,
   countPermissionTree,
   countSelectedPermissions,
   DATA_SCOPE_META,
@@ -87,7 +88,7 @@ describe('system-role utils', () => {
     expect(getDataScopeLabel('ALL')).toBe('全部数据')
   })
 
-  it('projects menu tree nodes and mounted button permissions into a permission tree', () => {
+  it('projects menu tree nodes, page access codes and button permissions into a permission tree', () => {
     const tree = [
       menuNode({
         children: [
@@ -105,17 +106,248 @@ describe('system-role utils', () => {
       }),
     ]
 
-    const options = buildPermissionTree(tree, [resource])
+    const options = buildPermissionTree(tree, [resource, permission('system:role:add')])
 
     expect(options).toHaveLength(1)
     const root = options[0]
     expect(root.label).toBe('系统管理')
     expect(root.value).toBe(`${MENU_GROUP_VALUE_PREFIX}system-menu`)
-    expect(root.children).toHaveLength(1)
+    // 菜单自身的页面访问权限码必须渲染为可选叶子，否则“全选”无法授予页面访问权限
+    expect(root.children).toHaveLength(2)
     expect(root.children?.[0]).toMatchObject({
+      description: '页面访问权限',
+      label: '查看角色',
+      value: 'system:role:list',
+    })
+    expect(root.children?.[1]).toMatchObject({
       description: '按钮：新增角色',
       label: '新增角色',
       value: 'system:role:add',
+    })
+  })
+
+  it('collects menu-level page access codes for select-all submission and echo', () => {
+    const tree = [
+      menuNode({
+        children: [
+          menuNode({
+            id: 'button-1',
+            menuType: 'BUTTON',
+            name: '新增角色',
+            parentId: 'menu-id',
+            permissionCode: 'system:role:add',
+          }),
+        ],
+        id: 'system-menu',
+        name: '系统管理',
+        permissionCode: 'system:role:list',
+      }),
+    ]
+    const resources = [resource, permission('system:role:add')]
+
+    const options = buildPermissionTree(tree, resources)
+    const codes = collectPermissionCodes(options)
+    expect(codes).toContain('system:role:list')
+    expect(codes).toContain('system:role:add')
+
+    // 模拟“全选”：提交值为全部勾选值（含 menu: 分组值），映射后必须包含页面访问权限 ID
+    const selectAllValues = [...codes, `${MENU_GROUP_VALUE_PREFIX}system-menu`]
+    const ids = mapPermissionCodesToIds(resources, selectAllValues)
+    expect(ids).toEqual(['perm-1', 'perm-system:role:add'])
+
+    // 回显：ID → 码，页面访问码可重新勾选并计入已选数
+    expect(mapPermissionIdsToCodes(resources, ids)).toEqual(['system:role:list', 'system:role:add'])
+    expect(countSelectedPermissions(selectAllValues, options)).toBe(2)
+  })
+
+  it('completes ancestor page access codes when only a child page is selected', () => {
+    const tree = [
+      menuNode({
+        children: [
+          menuNode({
+            children: [
+              menuNode({
+                id: 'button-1',
+                menuType: 'BUTTON',
+                name: '新增用户',
+                parentId: 'user-menu',
+                permissionCode: 'system:user:add',
+              }),
+            ],
+            id: 'user-menu',
+            name: '用户管理',
+            parentId: 'system-menu',
+            permissionCode: 'system:user:list',
+          }),
+        ],
+        id: 'system-menu',
+        menuType: 'DIRECTORY',
+        name: '系统管理',
+        permissionCode: 'platform.manage',
+      }),
+    ]
+    const resources = [
+      permission('platform.manage', '平台管理'),
+      permission('system:user:list', '查看用户'),
+      permission('system:user:add', '新增用户'),
+    ]
+
+    const options = buildPermissionTree(tree, resources)
+    // 模拟只勾选“用户管理”分组（级联勾选其页面访问码与按钮码）：
+    // 后端按菜单行逐行过滤，父目录“系统管理”的 platform.manage 缺失时整个目录被隐藏，
+    // 因此提交集合必须自动补全祖先分组的页面访问权限码。
+    const selected = [
+      `${MENU_GROUP_VALUE_PREFIX}user-menu`,
+      'system:user:list',
+      'system:user:add',
+    ]
+    const codes = collectSubmitPermissionCodes(options, selected)
+    expect(codes.sort()).toEqual([
+      'platform.manage',
+      'system:user:add',
+      'system:user:list',
+    ])
+  })
+
+  it('grants the page access code when a deduped shared page group is checked alone', () => {
+    const tree = [
+      menuNode({
+        children: [
+          menuNode({
+            id: 'series-add',
+            menuType: 'BUTTON',
+            name: '产品数据新增',
+            parentId: 'series-menu',
+            permissionCode: 'system:md:product:add',
+          }),
+        ],
+        id: 'series-menu',
+        name: '产品系列',
+        permissionCode: 'system:md:product:list',
+      }),
+      menuNode({
+        id: 'specs-menu',
+        name: '产品规格',
+        permissionCode: 'system:md:product:list',
+      }),
+    ]
+    const resources = [
+      permission('system:md:product:list', '查看产品数据'),
+      permission('system:md:product:add', '新增产品数据'),
+    ]
+
+    const options = buildPermissionTree(tree, resources)
+    // 产品规格 的叶子已被去重合并到 产品系列 下，直接勾选该分组也要授予其页面访问码
+    const codes = collectSubmitPermissionCodes(options, [`${MENU_GROUP_VALUE_PREFIX}specs-menu`])
+    expect(codes).toEqual(['system:md:product:list'])
+  })
+
+  it('skips disabled nodes when collecting submit codes', () => {
+    const tree = [
+      menuNode({
+        enabled: false,
+        id: 'disabled-menu',
+        name: '停用菜单',
+        permissionCode: 'system:role:list',
+        children: [
+          menuNode({
+            id: 'button-1',
+            menuType: 'BUTTON',
+            name: '删除',
+            parentId: 'disabled-menu',
+            permissionCode: 'system:role:remove',
+          }),
+        ],
+      }),
+    ]
+
+    const options = buildPermissionTree(tree, [resource, permission('system:role:remove')])
+    // 停用分组的页面访问码、按钮码都不参与提交，也不向上传播选中状态
+    const selected = [
+      'system:role:list',
+      'system:role:remove',
+      `${MENU_GROUP_VALUE_PREFIX}disabled-menu`,
+    ]
+    expect(collectSubmitPermissionCodes(options, selected)).toEqual([])
+  })
+
+  it('renders a shared permission code only once across menus and buttons', () => {
+    const tree = [
+      menuNode({
+        children: [
+          menuNode({
+            id: 'series-add',
+            menuType: 'BUTTON',
+            name: '产品数据新增',
+            parentId: 'series-menu',
+            permissionCode: 'system:md:product:add',
+          }),
+        ],
+        id: 'series-menu',
+        name: '产品系列',
+        permissionCode: 'system:md:product:list',
+      }),
+      menuNode({
+        children: [
+          menuNode({
+            id: 'specs-add',
+            menuType: 'BUTTON',
+            name: '产品数据新增',
+            parentId: 'specs-menu',
+            permissionCode: 'system:md:product:add',
+          }),
+        ],
+        id: 'specs-menu',
+        name: '产品规格',
+        permissionCode: 'system:md:product:list',
+      }),
+    ]
+    const resources = [
+      permission('system:md:product:list', '查看产品数据'),
+      permission('system:md:product:add', '新增产品数据'),
+    ]
+
+    const options = buildPermissionTree(tree, resources)
+    const values: string[] = []
+    const walk = (nodes: readonly CrudPermissionOption[]): void => {
+      nodes.forEach((node) => {
+        values.push(String(node.value))
+        walk(node.children ?? [])
+      })
+    }
+    walk(options)
+    // TDesign 树以 value 为节点标识，同一权限码重复渲染会破坏勾选联动
+    expect(new Set(values).size).toBe(values.length)
+
+    const series = options[0]
+    expect(series.children?.map(node => node.value)).toEqual([
+      'system:md:product:list',
+      'system:md:product:add',
+    ])
+    // 共享同一权限码的第二个页面与按钮不再重复渲染叶子，授予权限码即覆盖全部共享页面
+    expect(options[1]?.children).toHaveLength(0)
+    expect(collectPermissionCodes(options)).toEqual([
+      'system:md:product:list',
+      'system:md:product:add',
+    ])
+  })
+
+  it('disables the page access leaf for disabled menus', () => {
+    const tree = [
+      menuNode({
+        enabled: false,
+        id: 'disabled-menu',
+        name: '停用菜单',
+        permissionCode: 'system:role:list',
+      }),
+    ]
+
+    const options = buildPermissionTree(tree, [resource])
+    expect(options[0]?.disabled).toBe(true)
+    expect(options[0]?.children?.[0]).toMatchObject({
+      disabled: true,
+      label: '查看角色',
+      value: 'system:role:list',
     })
   })
 
