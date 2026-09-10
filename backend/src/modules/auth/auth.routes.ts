@@ -436,6 +436,7 @@ export async function authRoutes(app: FastifyInstance) {
       email: users.email,
       role: users.role,
       channelType: users.channelType,
+      adminLoginEnabled: users.adminLoginEnabled,
       status: users.status
     }).from(users).where(eq(users.id, current.id)).limit(1);
     if (!user) throw new UnauthorizedError("用户不存在或已被禁用");
