@@ -10,6 +10,8 @@ export interface CurrentUser {
   email: string | null
   role: FixedUserRole
   channelType: ChannelType | null
+  /** 是否允许登录 B 端管理后台；仅普通用户可能为 false。 */
+  adminLoginEnabled: boolean
   status: UserStatus
   clientType: AuthClient
 }

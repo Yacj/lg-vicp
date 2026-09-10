@@ -26,6 +26,7 @@ async function mountHeader(props: Record<string, unknown> = {}) {
     permissions: [],
     roles: ['平台管理员'],
     user: {
+      adminLoginEnabled: true,
       channelType: null,
       clientType: B_ADMIN_CLIENT,
       displayName: '林管理员',

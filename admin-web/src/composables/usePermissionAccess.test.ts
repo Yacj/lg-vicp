@@ -11,6 +11,7 @@ beforeEach(() => {
     permissions: ['system:user:list', 'system:ai:provider:list', 'system:ai:provider:edit'],
     roles: ['operator'],
     user: {
+      adminLoginEnabled: true,
       channelType: 'DEALER',
       clientType: 'B_ADMIN',
       displayName: '权限夹具',

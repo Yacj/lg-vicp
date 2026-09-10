@@ -65,6 +65,7 @@ describe('user api contracts', () => {
 
   it('creates users with identifier/password and keeps the account type split', async () => {
     await createUser({
+      adminLoginEnabled: true,
       channelType: 'DEALER',
       displayName: '张三',
       gender: 'MALE',
@@ -74,6 +75,7 @@ describe('user api contracts', () => {
     })
 
     expect(mockedApi.post).toHaveBeenCalledWith('/api/v1/platform/users', {
+      adminLoginEnabled: true,
       channelType: 'DEALER',
       displayName: '张三',
       gender: 'MALE',
@@ -84,13 +86,14 @@ describe('user api contracts', () => {
   })
 
   it('updates profile fields and routes assignments to their dedicated endpoints', async () => {
-    await updateUser('user-1', { displayName: '张三', role: 'NORMAL_USER', channelType: null })
+    await updateUser('user-1', { adminLoginEnabled: true, displayName: '张三', role: 'NORMAL_USER', channelType: null })
     await updateUserStatus('user-1', 'DISABLED')
     await setUserRoles('user-1', ['role-1'])
     await setUserDepartments('user-1', ['dept-1'])
     await setUserPosts('user-1', ['post-1'])
 
     expect(mockedApi.patch).toHaveBeenNthCalledWith(1, '/api/v1/platform/users/user-1', {
+      adminLoginEnabled: true,
       displayName: '张三',
       role: 'NORMAL_USER',
       channelType: null,

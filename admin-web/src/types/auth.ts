@@ -9,6 +9,7 @@ export interface AuthPrincipal {
   displayName: string
   role: FixedUserRole
   channelType: ChannelType | null
+  adminLoginEnabled: boolean
   clientType: AuthClient
 }
 

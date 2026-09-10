@@ -31,6 +31,7 @@ describe('permission router guard', () => {
       permissions: ['system:user:list'],
       roles: ['channel_operator'],
       user: {
+        adminLoginEnabled: true,
         channelType: 'DEALER',
         clientType: 'B_ADMIN',
         displayName: '渠道用户',

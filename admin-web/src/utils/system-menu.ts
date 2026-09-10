@@ -38,6 +38,7 @@ export type SystemMenuIssueCode =
   | 'PARENT_CYCLE'
   | 'INVALID_PARENT_TYPE'
   | 'BUTTON_ROOT'
+  | 'BUTTON_WITH_CHILDREN'
   | 'INVALID_TYPE_FIELDS'
   | 'INVALID_SORT_ORDER'
   | 'INVALID_PATH'
@@ -363,6 +364,7 @@ export function validateMenuConfiguration(
   const pathOwners = new Map<string, SystemMenu>()
   const routeNameOwners = new Map<string, SystemMenu>()
   const cycleIds = findCycles(items)
+  const parentIds = new Set(items.flatMap(item => item.parentId ? [item.parentId] : []))
 
   for (const item of items) {
     if (!Number.isInteger(item.sortOrder)) {
@@ -389,6 +391,9 @@ export function validateMenuConfiguration(
     }
     if (item.menuType === 'BUTTON' && !item.parentId) {
       issues.push(issue(item.id, 'BUTTON_ROOT', '按钮必须挂在目录或菜单下'))
+    }
+    if (item.menuType === 'BUTTON' && parentIds.has(item.id)) {
+      issues.push(issue(item.id, 'BUTTON_WITH_CHILDREN', '按钮不能包含下级菜单，请先删除或移动下级'))
     }
 
     issues.push(...permissionIssues(item))

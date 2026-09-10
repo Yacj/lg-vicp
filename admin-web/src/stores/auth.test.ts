@@ -26,6 +26,7 @@ describe('b_ADMIN auth store', () => {
       refreshTokenExpiresAt: futureExpiration,
       refreshTokenId: 'refresh-id',
       user: {
+        adminLoginEnabled: true,
         channelType: null,
         clientType: 'B_ADMIN',
         displayName: '管理员',
@@ -68,13 +69,14 @@ describe('b_ADMIN auth store', () => {
     expect(store.hasSession).toBe(false)
   })
 
-  it('rejects a NORMAL_USER response even if a token pair is returned', async () => {
+  it('rejects a NORMAL_USER without backend login permission even if a token pair is returned', async () => {
     mockedLogin.mockResolvedValue({
       accessToken: 'access-token',
       refreshToken: 'refresh-token',
       refreshTokenExpiresAt: futureExpiration,
       refreshTokenId: 'refresh-id',
       user: {
+        adminLoginEnabled: false,
         channelType: null,
         clientType: 'B_ADMIN',
         displayName: '普通用户',
@@ -93,6 +95,34 @@ describe('b_ADMIN auth store', () => {
     expect(store.hasSession).toBe(false)
   })
 
+  it('accepts a NORMAL_USER with backend login permission and persists the session', async () => {
+    mockedLogin.mockResolvedValue({
+      accessToken: 'access-token',
+      refreshToken: 'refresh-token',
+      refreshTokenExpiresAt: futureExpiration,
+      refreshTokenId: 'refresh-id',
+      user: {
+        adminLoginEnabled: true,
+        channelType: null,
+        clientType: 'B_ADMIN',
+        displayName: '普通用户',
+        id: 'user-id',
+        role: 'NORMAL_USER',
+      },
+    })
+    const store = useAuthStore()
+
+    await store.login({
+      captchaCode: 'ABCD',
+      captchaUuid: 'captcha-id',
+      identifier: 'normal',
+      password: 'password',
+    })
+
+    expect(store.status).toBe('authenticated')
+    expect(store.hasSession).toBe(true)
+  })
+
   it('always clears local tokens when server logout fails', async () => {
     mockedLogin.mockResolvedValue({
       accessToken: 'access-token',
@@ -100,6 +130,7 @@ describe('b_ADMIN auth store', () => {
       refreshTokenExpiresAt: futureExpiration,
       refreshTokenId: 'refresh-id',
       user: {
+        adminLoginEnabled: true,
         channelType: null,
         clientType: 'B_ADMIN',
         displayName: '管理员',

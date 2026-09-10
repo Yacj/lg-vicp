@@ -36,7 +36,7 @@ export const useAuthStore = defineStore('auth', () => {
     status.value = 'authenticating'
     try {
       const result = await loginBAdmin(credentials)
-      if (result.user.clientType !== B_ADMIN_CLIENT || result.user.role === 'NORMAL_USER') {
+      if (result.user.clientType !== B_ADMIN_CLIENT || (result.user.role === 'NORMAL_USER' && !result.user.adminLoginEnabled)) {
         throw new HttpRequestError('当前账号不能进入 B 端管理后台', { status: 403 })
       }
       replaceSession({

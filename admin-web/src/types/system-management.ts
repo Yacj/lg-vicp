@@ -212,6 +212,8 @@ export interface SystemDepartmentMember extends SystemRecord {
   remark: string | null
   role: SystemUserRole
   channelType: SystemChannelType | null
+  /** 是否允许登录 B 端管理后台；仅普通用户可能为 false。 */
+  adminLoginEnabled: boolean
   status: SystemUserStatus
   deletedAt: string | null
 }
@@ -259,6 +261,7 @@ export interface CreateSystemUserInput {
   remark?: string
   role: SystemUserRole
   channelType?: SystemChannelType | null
+  adminLoginEnabled?: boolean
   phone?: string
   status?: SystemUserStatus
   departmentIds?: string[]
@@ -274,6 +277,7 @@ export interface UpdateSystemUserInput {
   remark?: string | null
   role?: SystemUserRole
   channelType?: SystemChannelType | null
+  adminLoginEnabled?: boolean
   phone?: string | null
   status?: SystemUserStatus
   departmentIds?: string[]

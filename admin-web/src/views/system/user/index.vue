@@ -295,9 +295,7 @@ const rules = computed<FormRules<UserForm>>(() => ({
       }
     : {}),
   phone: [
-    ...(isNormalUserRole(formRole.value)
-      ? [{ message: '请输入手机号码', required: true }]
-      : []),
+    { message: '请输入手机号码', required: true },
     { message: '手机号格式不正确', pattern: /^\+?\d{6,20}$/ },
   ],
   channelType: isChannelUserRole(formRole.value)
@@ -658,7 +656,7 @@ onMounted(() => {
         <t-input
           v-model="userDrawer.formData.phone"
           maxlength="32"
-          :placeholder="isNormalUserRole(formRole) ? '请输入手机号码' : '选填'"
+          placeholder="请输入手机号码"
         />
       </t-form-item>
       <t-form-item v-if="isCreate" label="初始密码" name="password">
@@ -698,6 +696,15 @@ onMounted(() => {
           v-model="userDrawer.formData.channelType"
           :options="channelTypeOptions"
           placeholder="请选择渠道类型"
+        />
+      </t-form-item>
+      <t-form-item v-if="isNormalUserRole(formRole)" label="是否可以登录后台" name="adminLoginEnabled">
+        <t-radio-group
+          v-model="userDrawer.formData.adminLoginEnabled"
+          :options="[
+            { label: '是', value: true },
+            { label: '否', value: false },
+          ]"
         />
       </t-form-item>
       <t-form-item label="所属部门" name="departmentIds">
@@ -900,6 +907,10 @@ onMounted(() => {
                 ? channelTypeLabels[detailState.data.user.channelType as keyof typeof channelTypeLabels]
                 : '—' }}
             </dd>
+          </div>
+          <div v-if="detailState.data.user.role === 'NORMAL_USER'">
+            <dt>是否可以登录后台</dt>
+            <dd>{{ detailState.data.user.adminLoginEnabled ? '是' : '否' }}</dd>
           </div>
           <div>
             <dt>状态</dt>

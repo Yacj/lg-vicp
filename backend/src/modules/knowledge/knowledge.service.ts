@@ -153,6 +153,9 @@ interface RunSearchOptions {
   insulationSystemId?: string | null;
   /** 项目过滤口径：project=仅该项目文档（B 端检索测试页）；project-and-global=项目文档+平台级文档（AI 会话） */
   projectScope?: "project" | "project-and-global";
+  /** 版本限定模式（B 端当前版本 AI 测试 test-qa 专用）：只检索该版本，允许 DRAFT/APPROVED/PUBLISHED；
+   * 不传时保持生产口径（仅 PUBLISHED + AI_ENABLED + 当前受控版本 + 生效中）。 */
+  versionId?: string;
   limit: number;
 }
 
@@ -252,6 +255,16 @@ export async function runSearch(app: FastifyInstance, query: string, options: Ru
         filterClauses[0]!
       )
     : sql``;
+  // 版本守卫：生产口径只检索当前已发布受控版本；versionId 模式（test-qa）从检索入口就限定单一版本，
+  // 不允许“全库检索后前端过滤”，且不受版本审核状态影响（DRAFT/APPROVED/PUBLISHED 均可测）。
+  const versionGuard = options.versionId
+    ? sql`kc.version_id = ${options.versionId} and kd.deleted_at is null`
+    : sql`kdv.status = 'PUBLISHED'
+      and kdv.usage_mode = 'AI_ENABLED'
+      and (kdv.expiry_date is null or kdv.expiry_date >= current_date)
+      and kd.current_version_id = kc.version_id
+      and kd.status = 'ACTIVE'
+      and kd.deleted_at is null`;
 
   const rows = await sql<SearchRow[]>`
     select
@@ -298,12 +311,7 @@ export async function runSearch(app: FastifyInstance, query: string, options: Ru
     inner join knowledge_document_versions kdv on kdv.id = kc.version_id
     inner join knowledge_documents kd on kd.id = kc.document_id
     where ${matchCondition}
-      and kdv.status = 'PUBLISHED'
-      and kdv.usage_mode = 'AI_ENABLED'
-      and (kdv.expiry_date is null or kdv.expiry_date >= current_date)
-      and kd.current_version_id = kc.version_id
-      and kd.status = 'ACTIVE'
-      and kd.deleted_at is null${filterFragment}
+      and ${versionGuard}${filterFragment}
     order by score desc
     limit ${options.limit}
   `;
@@ -508,6 +516,9 @@ export interface WikiSearchOptions {
   region?: string;
   purpose?: string;
   insulationSystemId?: string | null;
+  /** 版本限定模式（B 端当前版本 AI 测试 test-qa 专用）：章节/页面块/Chunk 三层都只检索该版本；
+   * 不传时保持生产口径（仅 PUBLISHED + AI_ENABLED + 当前受控版本 + 生效中）。 */
+  versionId?: string;
   limit: number;
 }
 
@@ -621,7 +632,10 @@ export async function searchWikiHierarchy(
         docFilterClauses[0]!
       )
     : sql``;
-  const publishedGuard = sql`kdv.status = 'PUBLISHED'
+  // 版本守卫：与 runSearch 同规则 —— versionId 模式只限定单一版本（test-qa），否则生产口径
+  const publishedGuard = options.versionId
+    ? sql`kdv.id = ${options.versionId} and kd.deleted_at is null`
+    : sql`kdv.status = 'PUBLISHED'
     and kdv.usage_mode = 'AI_ENABLED'
     and (kdv.expiry_date is null or kdv.expiry_date >= current_date)
     and kd.current_version_id = kdv.id
@@ -715,7 +729,7 @@ export async function searchWikiHierarchy(
     limit ${limit * 2}
   `;
 
-  // 3) Chunk 辅助召回：复用既有打分管线（项目口径放宽为 项目+平台级）
+  // 3) Chunk 辅助召回：复用既有打分管线（项目口径放宽为 项目+平台级；test-qa 时限定同一版本）
   const chunkHits = await runSearch(app, query, {
     projectId: options.projectId ?? undefined,
     docType: options.docType,
@@ -724,6 +738,7 @@ export async function searchWikiHierarchy(
     purpose: options.purpose,
     insulationSystemId: options.insulationSystemId,
     projectScope: "project-and-global",
+    ...(options.versionId ? { versionId: options.versionId } : {}),
     limit
   });
 

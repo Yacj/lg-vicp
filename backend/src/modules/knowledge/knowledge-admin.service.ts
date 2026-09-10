@@ -139,7 +139,8 @@ async function requireVersion(app: FastifyInstance, versionId: string) {
   return version;
 }
 
-async function requireActiveFile(app: FastifyInstance, fileId: string) {
+/** 加载未删除的文件中心文件（knowledge-workflow 编排层复用） */
+export async function requireActiveFile(app: FastifyInstance, fileId: string) {
   const [file] = await app.db.select().from(files)
     .where(and(eq(files.id, fileId), isNull(files.deletedAt))).limit(1);
   if (!file) throw new NotFoundError("文件不存在");
@@ -431,8 +432,9 @@ export async function getDocumentDetail(app: FastifyInstance, id: string) {
 // ---------------------------------------------------------------- 版本
 
 /** 把文件中心 READY 文件绑定到版本的指定资产角色：
- * ORIGINAL 绑定版本主文件并重置解析状态；SEARCH_SOURCE/OCR_SOURCE/PREVIEW 仅登记资产行。 */
-async function bindCenterFileToVersion(
+ * ORIGINAL 绑定版本主文件并重置解析状态；SEARCH_SOURCE/OCR_SOURCE/PREVIEW 仅登记资产行。
+ * （knowledge-workflow 编排层复用：绑定检索源后自动升级解析） */
+export async function bindCenterFileToVersion(
   app: FastifyInstance,
   request: FastifyRequest,
   actor: AuthUser,
@@ -606,8 +608,54 @@ export async function completeVersionUpload(
     // 附属资产：只登记资产行，不改版本主文件与解析状态
     await app.db.update(files).set({ status: "READY", errorMessage: null, updatedAt: new Date() })
       .where(eq(files.id, fileId));
-    await bindVersionAsset(app, request, actor, versionId, { role: assetRole, fileId });
-    return { message: `${assetRole} 资产绑定完成；如为检索文本源，请触发“升级解析”重建内容与页面映射` };
+    const asset = await bindVersionAsset(app, request, actor, versionId, { role: assetRole, fileId });
+    // 用户工作流（NO_TEXT_LAYER 补检索源）：版本因缺少文字层等待检索文本源时，
+    // 绑定完成即自动投递升级解析（保留发布状态），不再要求用户手动点“升级解析”。
+    let jobId: string | undefined;
+    if (["SEARCH_SOURCE_REQUIRED", "NO_TEXT_LAYER"].includes(version.parseStatus)
+      && (assetRole === "SEARCH_SOURCE" || assetRole === "OCR_SOURCE")) {
+      const pages = await app.db.select({ id: knowledgePages.id }).from(knowledgePages)
+        .where(eq(knowledgePages.versionId, versionId)).limit(1);
+      if (pages.length > 0) {
+        const job = await app.db.transaction(async (tx) => {
+          const [created] = await tx.insert(parsingJobs).values({
+            documentId: version.documentId,
+            versionId,
+            jobType: "UPGRADE_PARSE",
+            status: "QUEUED",
+            fileId: version.fileId,
+            queuedById: actor.id
+          }).returning();
+          await writeAuditLog({
+            db: tx, request, actor,
+            action: AUDIT_ACTIONS.KNOWLEDGE_VERSION_PARSED, targetType: "knowledge_document_version", targetId: versionId,
+            afterJson: { jobType: "UPGRADE_PARSE", triggeredBy: "SEARCH_SOURCE_BOUND", parsingJobId: created!.id }
+          });
+          return created!;
+        });
+        try {
+          await app.queues.documentProcessing.add("parse_document", {
+            parsingJobId: job.id,
+            fileId: version.fileId ?? "",
+            versionId,
+            jobType: "UPGRADE_PARSE"
+          }, { jobId: job.id });
+          jobId = job.id;
+        } catch {
+          await app.db.update(parsingJobs).set({
+            status: "FAILED", errorMessage: "升级解析任务投递失败，请稍后重试", updatedAt: new Date()
+          }).where(eq(parsingJobs.id, job.id));
+          throw new ServiceUnavailableError("升级解析任务投递失败，请稍后重试");
+        }
+      }
+    }
+    return {
+      message: jobId
+        ? `${assetRole} 资产绑定完成，已自动发起升级解析（重建检索内容与页面映射）`
+        : `${assetRole} 资产绑定完成；如为检索文本源，请触发“升级解析”重建内容与页面映射`,
+      ...(jobId ? { jobId, parsing: { jobId, jobType: "UPGRADE_PARSE", status: "QUEUED" } } : {}),
+      asset
+    };
   }
   await app.db.transaction(async (tx) => {
     await tx.update(files).set({ status: "QUEUED", errorMessage: null, updatedAt: new Date() })

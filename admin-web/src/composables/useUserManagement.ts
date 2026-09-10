@@ -32,7 +32,7 @@ import {
   updateUserStatus,
 } from '@/api/modules/users'
 import { toDepartmentTreeOptions, trimToNull } from '@/utils/system-management'
-import { isChannelUserRole } from '@/utils/system-user'
+import { isChannelUserRole, isNormalUserRole } from '@/utils/system-user'
 import { buildUserExportFilename, buildUserImportTemplate, triggerBlobDownload, triggerTextDownload } from '@/utils/user-csv'
 import { useAppFeedback } from './useAppFeedback'
 import { useConfirmedCrudAction, useCrudDelete } from './useCrudActions'
@@ -54,7 +54,7 @@ export interface UserSearchQuery extends Record<string, unknown> {
 /**
  * 用户分区表单：
  * - 基本信息（identifier/password/displayName/gender/email/remark）
- * - 业务身份（role 账号类型 + channelType 渠道类型）
+ * - 业务身份（role 账号类型 + channelType 渠道类型 + adminLoginEnabled 后台登录开关）
  * - 组织信息（departmentIds/postIds，仅编辑模式后端支持分配接口）
  * - 权限角色（roleIds，动态角色独立于账号类型）
  * - 状态设置（status，创建时后端不接受该字段，默认启用）
@@ -68,6 +68,8 @@ export interface UserForm extends Record<string, unknown> {
   remark: string
   role: SystemUserRole
   channelType: SystemChannelType | undefined
+  /** 是否允许登录 B 端管理后台；仅普通用户可选，其余账号类型恒为 true。 */
+  adminLoginEnabled: boolean
   departmentIds: string[]
   postIds: string[]
   roleIds: string[]
@@ -77,6 +79,7 @@ export interface UserForm extends Record<string, unknown> {
 
 function createUserForm(): UserForm {
   return {
+    adminLoginEnabled: true,
     channelType: undefined,
     departmentIds: [],
     displayName: '',
@@ -87,7 +90,7 @@ function createUserForm(): UserForm {
     phone: '',
     postIds: [],
     remark: '',
-    role: 'NORMAL_USER',
+    role: 'CHANNEL_USER',
     roleIds: [],
     status: 'ACTIVE',
   }
@@ -96,6 +99,7 @@ function createUserForm(): UserForm {
 function editUserForm(user: SystemDepartmentMember, detail: SystemUserDetail | undefined): UserForm {
   const departments = detail?.departments ?? []
   return {
+    adminLoginEnabled: user.adminLoginEnabled,
     channelType: user.channelType ?? undefined,
     departmentIds: [...departments]
       .sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary))
@@ -135,6 +139,7 @@ function toCreateInput(data: UserForm): CreateSystemUserInput {
     identifier: data.identifier.trim(),
     password: data.password,
     channelType: isChannelUserRole(data.role) ? data.channelType : null,
+    adminLoginEnabled: isNormalUserRole(data.role) ? data.adminLoginEnabled : true,
     ...(data.departmentIds.length > 0 ? { departmentIds: [...data.departmentIds] } : {}),
     phone: trimToNull(data.phone) ?? undefined,
     ...(data.postIds.length > 0 ? { postIds: [...data.postIds] } : {}),
@@ -151,6 +156,7 @@ function toUpdateInput(data: UserForm): UpdateSystemUserInput {
     email: trimToNull(data.email),
     remark: trimToNull(data.remark),
     channelType: isChannelUserRole(data.role) ? data.channelType : null,
+    adminLoginEnabled: isNormalUserRole(data.role) ? data.adminLoginEnabled : true,
     phone: trimToNull(data.phone),
     ...(data.departmentIds.length > 0 ? { departmentIds: [...data.departmentIds] } : {}),
     ...(data.postIds.length > 0 ? { postIds: [...data.postIds] } : {}),

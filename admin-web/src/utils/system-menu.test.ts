@@ -176,4 +176,44 @@ describe('system menu utilities', () => {
 
     expect(issues.map(issue => issue.code)).toContain('INVALID_PATH')
   })
+
+  it('rejects converting a parent menu into a button while children remain', () => {
+    const items = [
+      menu({ id: 'root', menuType: 'DIRECTORY', name: '根目录', routePath: null }),
+      menu({ id: 'parent', name: '父级', parentId: 'root', permissionCode: null, routePath: '/parent' }),
+      menu({ id: 'child', component: 'home/index', name: '子级', parentId: 'parent', routePath: '/child' }),
+    ]
+
+    expect(validateMenuConfiguration([
+      menu({ id: 'root', menuType: 'DIRECTORY', name: '根目录', routePath: null }),
+      menu({ id: 'parent', menuType: 'BUTTON', name: '父级', parentId: 'root', permissionCode: 'parent:action', routePath: null }),
+      menu({ id: 'child', component: 'home/index', name: '子级', parentId: 'parent', routePath: '/child' }),
+    ]).map(issue => issue.code)).toContain('BUTTON_WITH_CHILDREN')
+
+    const editIssues = validateMenuForm(
+      form({
+        component: '',
+        icon: null,
+        isExternal: false,
+        menuType: 'BUTTON',
+        parentId: 'root',
+        permissionCode: 'parent:action',
+        routePath: '',
+      }),
+      items,
+      'parent',
+    )
+
+    expect(editIssues.map(issue => issue.code)).toEqual(['BUTTON_WITH_CHILDREN'])
+    expect(editIssues.map(issue => issue.nodeId)).toEqual(['parent'])
+  })
+
+  it('allows leaf buttons without child-related issues', () => {
+    const issues = validateMenuConfiguration([
+      menu({ id: 'parent', menuType: 'DIRECTORY', name: '父级', routePath: null }),
+      menu({ id: 'leaf-button', menuType: 'BUTTON', name: '叶子按钮', parentId: 'parent', permissionCode: 'parent:action', routePath: null }),
+    ])
+
+    expect(issues).toEqual([])
+  })
 })

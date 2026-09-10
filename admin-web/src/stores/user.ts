@@ -17,7 +17,7 @@ export const useUserStore = defineStore('user', () => {
   const permissionSet = computed(() => new Set(permissions.value))
 
   function applyUserInfo(info: CurrentUserInfo): void {
-    if (info.user.clientType !== B_ADMIN_CLIENT || info.user.role === 'NORMAL_USER') {
+    if (info.user.clientType !== B_ADMIN_CLIENT || (info.user.role === 'NORMAL_USER' && !info.user.adminLoginEnabled)) {
       throw new HttpRequestError('当前账号不能进入管理后台', { status: 403 })
     }
     profile.value = info.user
