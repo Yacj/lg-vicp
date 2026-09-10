@@ -50,7 +50,7 @@ export async function resolveSystemActor(db: Database): Promise<AuthUser> {
   const [admin] = await db.select({ id: users.id }).from(users)
     .where(eq(users.role, "SUPER_ADMIN")).orderBy(asc(users.createdAt)).limit(1);
   if (!admin) throw new ServiceUnavailableError("系统未配置超级管理员，无法执行服务端导入");
-  return { id: admin.id, role: "SUPER_ADMIN", channelType: null, clientType: "B_ADMIN", permissionCodes: [] };
+  return { id: admin.id, role: "SUPER_ADMIN", channelType: null, adminLoginEnabled: true, clientType: "B_ADMIN", permissionCodes: [] };
 }
 
 /**

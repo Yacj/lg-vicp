@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "admin_login_enabled" boolean DEFAULT true NOT NULL;

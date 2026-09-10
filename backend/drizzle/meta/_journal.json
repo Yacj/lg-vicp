@@ -232,6 +232,13 @@
       "when": 1788833880697,
       "tag": "0033_remove_customer_channel_bindings",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1789006562610,
+      "tag": "0034_yummy_avengers",
+      "breakpoints": true
     }
   ]
 }

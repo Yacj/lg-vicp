@@ -35,7 +35,8 @@ export const authPlugin = fp(async (app) => {
       const [user] = await app.db.select({
         id: users.id,
         role: users.role,
-        channelType: users.channelType
+        channelType: users.channelType,
+        adminLoginEnabled: users.adminLoginEnabled
       }).from(users).where(and(
         eq(users.id, payload.sub),
         eq(users.status, "ACTIVE"),
@@ -50,6 +51,7 @@ export const authPlugin = fp(async (app) => {
         id: user.id,
         role: user.role,
         channelType: user.channelType,
+        adminLoginEnabled: user.adminLoginEnabled,
         clientType
       };
       const [permissionCodes, roleScopes, departments] = await Promise.all([

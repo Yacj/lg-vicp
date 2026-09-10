@@ -8,6 +8,8 @@ export interface AuthUser {
   id: string;
   role: UserRole;
   channelType: ChannelType;
+  /** 是否允许登录 B 端管理后台；仅普通用户可能为 false。 */
+  adminLoginEnabled: boolean;
   clientType: AuthClient;
   permissionCodes?: string[];
   /** 生效的数据范围；由动态角色权限计算后写入当前请求。 */

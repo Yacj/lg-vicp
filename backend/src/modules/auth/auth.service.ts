@@ -78,7 +78,7 @@ export async function rotateRefreshToken(app: FastifyInstance, request: FastifyR
       throw new UnauthorizedError("刷新令牌无效或已过期");
     }
 
-    const [user] = await tx.select({ id: users.id, role: users.role }).from(users).where(and(
+    const [user] = await tx.select({ id: users.id, role: users.role, adminLoginEnabled: users.adminLoginEnabled }).from(users).where(and(
       eq(users.id, stored.userId),
       eq(users.status, "ACTIVE"),
       isNull(users.deletedAt)
@@ -88,7 +88,7 @@ export async function rotateRefreshToken(app: FastifyInstance, request: FastifyR
       throw new UnauthorizedError("账号不可用，请重新登录");
     }
 
-    const clientType = user.role === "NORMAL_USER" && stored.clientType === AUTH_CLIENTS.B_ADMIN
+    const clientType = user.role === "NORMAL_USER" && !user.adminLoginEnabled && stored.clientType === AUTH_CLIENTS.B_ADMIN
       ? AUTH_CLIENTS.C_APP
       : stored.clientType;
     const nextToken = createOpaqueRefreshToken();

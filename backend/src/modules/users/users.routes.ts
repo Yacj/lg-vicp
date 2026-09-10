@@ -37,7 +37,8 @@ const userFields = z.object({
   email: z.string().email("邮箱格式不正确").max(255).nullable().optional(),
   remark: z.string().max(1000).nullable().optional(),
   role: roleEnum,
-  channelType: channelEnum.nullable().optional()
+  channelType: channelEnum.nullable().optional(),
+  adminLoginEnabled: z.boolean().optional()
 });
 const assignmentFields = {
   departmentIds: z.array(z.uuid("部门 ID 格式不正确")).max(100).optional(),
@@ -185,7 +186,7 @@ export async function userRoutes(app: FastifyInstance) {
       return sql`(${users.displayName} ilike ${pattern} or ${users.phone} ilike ${pattern} or ${users.email} ilike ${pattern})`;
     })() : undefined;
     const filters = [userScopeWhere(request), request.query.includeDeleted ? undefined : isNull(users.deletedAt), request.query.status ? eq(users.status, request.query.status) : undefined, request.query.role ? eq(users.role, request.query.role) : undefined, keywordFilter, departmentUserIds ? inArray(users.id, departmentUserIds) : undefined, roleUserIds ? inArray(users.id, roleUserIds) : undefined];
-    const base = app.db.select({ id: users.id, loginIdentifier: loginIdentifierExpr, phone: users.phone, email: users.email, displayName: users.displayName, gender: users.gender, remark: users.remark, role: users.role, channelType: users.channelType, status: users.status, deletedAt: users.deletedAt, createdAt: users.createdAt, updatedAt: users.updatedAt }).from(users).where(and(...filters));
+    const base = app.db.select({ id: users.id, loginIdentifier: loginIdentifierExpr, phone: users.phone, email: users.email, displayName: users.displayName, gender: users.gender, remark: users.remark, role: users.role, channelType: users.channelType, adminLoginEnabled: users.adminLoginEnabled, status: users.status, deletedAt: users.deletedAt, createdAt: users.createdAt, updatedAt: users.updatedAt }).from(users).where(and(...filters));
     const rows = await base.orderBy(desc(users.createdAt)).offset(skip).limit(take);
     const [totalRow] = await app.db.select({ value: count() }).from(users).where(and(...filters));
     return ok(request, { items: rows, total: totalRow?.value ?? 0, page: request.query.page, pageSize: request.query.pageSize });
@@ -193,8 +194,8 @@ export async function userRoutes(app: FastifyInstance) {
 
   route.get("/users/export", { preHandler: [app.authenticate], schema: { tags: ["B端 / 平台 / 用户管理"], summary: "导出用户 CSV", querystring: listQuerySchema } }, async (request, reply) => {
     await requireUserPermission(request, "system:user:export");
-    const rows = await app.db.select({ displayName: users.displayName, phone: users.phone, email: users.email, role: users.role, channelType: users.channelType, status: users.status, createdAt: users.createdAt }).from(users).where(and(isNull(users.deletedAt), userScopeWhere(request))).orderBy(desc(users.createdAt));
-    const csv = ["用户昵称,手机号,邮箱,角色,渠道类型,状态,创建时间", ...rows.map((r) => [r.displayName, r.phone, r.email, r.role, r.channelType, r.status, r.createdAt.toISOString()].map(csvEscape).join(","))].join("\n");
+    const rows = await app.db.select({ displayName: users.displayName, phone: users.phone, email: users.email, role: users.role, channelType: users.channelType, adminLoginEnabled: users.adminLoginEnabled, status: users.status, createdAt: users.createdAt }).from(users).where(and(isNull(users.deletedAt), userScopeWhere(request))).orderBy(desc(users.createdAt));
+    const csv = ["用户昵称,手机号,邮箱,角色,渠道类型,状态,可登录后台,创建时间", ...rows.map((r) => [r.displayName, r.phone, r.email, r.role, r.channelType, r.status, r.role === USER_ROLES.NORMAL_USER ? (r.adminLoginEnabled ? "是" : "否") : "—", r.createdAt.toISOString()].map(csvEscape).join(","))].join("\n");
     return reply.type("text/csv; charset=utf-8").send(`\uFEFF${csv}`);
   });
 
@@ -261,8 +262,9 @@ export async function userRoutes(app: FastifyInstance) {
     const isPhone = isPhoneLoginIdentifier(identifier);
     const phone = request.body.phone ? normalizePhone(request.body.phone) : (isPhone ? identifier : undefined);
     const email = normalizeOptionalEmail(userValues.email);
-    if (request.body.role === USER_ROLES.NORMAL_USER && !phone) throw new ForbiddenError("普通用户必须填写手机号码");
-    const normalizedUserValues = { ...userValues, email, phone };
+    if (!phone) throw new ForbiddenError("请填写手机号码");
+    const adminLoginEnabled = request.body.role === USER_ROLES.NORMAL_USER ? (userValues.adminLoginEnabled ?? true) : true;
+    const normalizedUserValues = { ...userValues, email, phone, adminLoginEnabled };
     let created;
     try {
       created = await app.db.transaction(async (tx) => {
@@ -274,7 +276,7 @@ export async function userRoutes(app: FastifyInstance) {
         const [phoneTaken] = await tx.select({ id: users.id }).from(users).where(and(eq(users.phone, phone), isNull(users.deletedAt))).limit(1);
         if (phoneTaken) throw new ConflictError("手机号已存在");
       }
-      const [user] = await tx.insert(users).values({ displayName: normalizedUserValues.displayName, gender: normalizedUserValues.gender, email: normalizedUserValues.email, remark: normalizedUserValues.remark, phone: normalizedUserValues.phone, role: normalizedUserValues.role, channelType: normalizedUserValues.role === USER_ROLES.CHANNEL_USER ? normalizedUserValues.channelType : null, status: normalizedUserValues.status }).returning();
+      const [user] = await tx.insert(users).values({ displayName: normalizedUserValues.displayName, gender: normalizedUserValues.gender, email: normalizedUserValues.email, remark: normalizedUserValues.remark, phone: normalizedUserValues.phone, role: normalizedUserValues.role, channelType: normalizedUserValues.role === USER_ROLES.CHANNEL_USER ? normalizedUserValues.channelType : null, adminLoginEnabled: normalizedUserValues.adminLoginEnabled, status: normalizedUserValues.status }).returning();
       await tx.insert(userIdentities).values({ userId: user!.id, type: isPhone ? "PHONE" : "USERNAME", identifier: identifier, passwordHash, verifiedAt: new Date() });
       if (assignments.departmentIds !== undefined && assignments.departmentIds.length > 0) await tx.insert(userDepartments).values(assignments.departmentIds.map((departmentId, index) => ({ userId: user!.id, departmentId, isPrimary: index === 0 })));
       if (assignments.postIds !== undefined && assignments.postIds.length > 0) await tx.insert(userPosts).values(assignments.postIds.map((postId) => ({ userId: user!.id, postId })));
@@ -292,7 +294,7 @@ export async function userRoutes(app: FastifyInstance) {
 
   route.get("/users/:id", { preHandler: [app.authenticate], schema: { tags: ["B端 / 平台 / 用户管理"], summary: "获取用户详情", params: userParamsSchema } }, async (request) => {
     await requireUserPermission(request, "system:user:list");
-    const [user] = await app.db.select({ id: users.id, loginIdentifier: loginIdentifierExpr, phone: users.phone, email: users.email, displayName: users.displayName, gender: users.gender, remark: users.remark, role: users.role, channelType: users.channelType, status: users.status, deletedAt: users.deletedAt, createdAt: users.createdAt, updatedAt: users.updatedAt }).from(users).where(and(eq(users.id, request.params.id), isNull(users.deletedAt), userScopeWhere(request))).limit(1);
+    const [user] = await app.db.select({ id: users.id, loginIdentifier: loginIdentifierExpr, phone: users.phone, email: users.email, displayName: users.displayName, gender: users.gender, remark: users.remark, role: users.role, channelType: users.channelType, adminLoginEnabled: users.adminLoginEnabled, status: users.status, deletedAt: users.deletedAt, createdAt: users.createdAt, updatedAt: users.updatedAt }).from(users).where(and(eq(users.id, request.params.id), isNull(users.deletedAt), userScopeWhere(request))).limit(1);
     if (!user) throw new NotFoundError("用户不存在");
     const [departmentRows, postRows, roleRows] = await Promise.all([
       app.db.select({ id: userDepartments.departmentId, isPrimary: userDepartments.isPrimary }).from(userDepartments).where(eq(userDepartments.userId, user.id)),
@@ -319,9 +321,10 @@ export async function userRoutes(app: FastifyInstance) {
     if (nextRole === USER_ROLES.CHANNEL_USER && !nextChannelType) throw new ForbiddenError("渠道用户必须选择渠道类型");
     const nextPhone = "phone" in profileValues ? (profileValues.phone ? normalizePhone(profileValues.phone) : profileValues.phone) : before.phone;
     const nextEmail = "email" in profileValues ? normalizeOptionalEmail(profileValues.email) : before.email;
-    if (nextRole === USER_ROLES.NORMAL_USER && !nextPhone) throw new ForbiddenError("普通用户必须填写手机号码");
+    if (!nextPhone) throw new ForbiddenError("请填写手机号码");
+    const nextAdminLoginEnabled = nextRole === USER_ROLES.NORMAL_USER ? profileValues.adminLoginEnabled ?? before.adminLoginEnabled : true;
     const [updated] = await app.db.transaction(async (tx) => {
-      const [row] = await tx.update(users).set({ ...profileValues, phone: nextPhone, email: nextEmail, role: nextRole, channelType: nextChannelType, ...(status ? { status } : {}), updatedAt: new Date() }).where(eq(users.id, before.id)).returning();
+      const [row] = await tx.update(users).set({ ...profileValues, phone: nextPhone, email: nextEmail, role: nextRole, channelType: nextChannelType, adminLoginEnabled: nextAdminLoginEnabled, ...(status ? { status } : {}), updatedAt: new Date() }).where(eq(users.id, before.id)).returning();
       if (assignments.departmentIds !== undefined) {
         await tx.delete(userDepartments).where(eq(userDepartments.userId, before.id));
         if (assignments.departmentIds.length > 0) await tx.insert(userDepartments).values(assignments.departmentIds.map((departmentId, index) => ({ userId: before.id, departmentId, isPrimary: index === 0 })));

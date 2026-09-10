@@ -68,17 +68,19 @@ type Account = {
   displayName: string;
   role: "SUPER_ADMIN" | "CHANNEL_USER" | "NORMAL_USER";
   channelType: "DEALER" | "SALESPERSON" | null;
+  adminLoginEnabled: boolean;
   status: "ACTIVE" | "DISABLED";
   passwordHash: string | null;
 };
-type LoginAccount = Pick<Account, "userId" | "displayName" | "role" | "channelType">;
+type LoginAccount = Pick<Account, "userId" | "displayName" | "role" | "channelType" | "adminLoginEnabled">;
 
-function publicUser(account: Pick<Account, "userId" | "displayName" | "role" | "channelType">, clientType: AuthClient) {
+function publicUser(account: Pick<Account, "userId" | "displayName" | "role" | "channelType" | "adminLoginEnabled">, clientType: AuthClient) {
   return {
     id: account.userId,
     displayName: account.displayName,
     role: account.role,
     channelType: account.channelType,
+    adminLoginEnabled: account.adminLoginEnabled,
     clientType
   };
 }
@@ -111,6 +113,7 @@ async function findAccount(app: FastifyInstance, identifier: string, type?: "USE
     displayName: users.displayName,
     role: users.role,
     channelType: users.channelType,
+    adminLoginEnabled: users.adminLoginEnabled,
     status: users.status,
     passwordHash: userIdentities.passwordHash
   }).from(userIdentities).innerJoin(users, eq(users.id, userIdentities.userId)).where(and(
@@ -129,6 +132,7 @@ async function findPhoneUser(app: FastifyInstance, phone: string) {
     displayName: users.displayName,
     role: users.role,
     channelType: users.channelType,
+    adminLoginEnabled: users.adminLoginEnabled,
     status: users.status
   }).from(users).where(and(
     eq(users.phone, phone),
@@ -143,6 +147,7 @@ async function findPhoneAccount(app: FastifyInstance, phone: string) {
     displayName: users.displayName,
     role: users.role,
     channelType: users.channelType,
+    adminLoginEnabled: users.adminLoginEnabled,
     status: users.status,
     passwordHash: userIdentities.passwordHash
   }).from(users).innerJoin(userIdentities, eq(userIdentities.userId, users.id)).where(and(
@@ -167,7 +172,7 @@ async function issueLogin(
   await writeAuditLog({
     db,
     request,
-    actor: { id: account.userId, role: account.role, channelType: account.channelType, clientType },
+    actor: { id: account.userId, role: account.role, channelType: account.channelType, adminLoginEnabled: account.adminLoginEnabled, clientType },
     action: action === "register" ? AUDIT_ACTIONS.AUTH_REGISTER : AUDIT_ACTIONS.AUTH_LOGIN,
     targetType: "user",
     targetId: account.userId,
@@ -232,7 +237,7 @@ export async function authRoutes(app: FastifyInstance) {
       throw new BusinessError("用户名、手机号或密码错误");
     }
     if (account.status !== "ACTIVE") throw new BusinessError("账号已被禁用");
-    if (account.role === "NORMAL_USER") throw new ForbiddenError("普通用户不能登录 B 端管理后台");
+    if (account.role === "NORMAL_USER" && !account.adminLoginEnabled) throw new ForbiddenError("该账号未开通后台登录权限");
     return ok(request, await issueLogin(app, request, account, AUTH_CLIENTS.B_ADMIN));
   });
 
@@ -303,7 +308,8 @@ export async function authRoutes(app: FastifyInstance) {
         userId: users.id,
         displayName: users.displayName,
         role: users.role,
-        channelType: users.channelType
+        channelType: users.channelType,
+        adminLoginEnabled: users.adminLoginEnabled
       });
       if (!user) throw new ConflictError("注册失败，请稍后重试");
 
@@ -363,7 +369,7 @@ export async function authRoutes(app: FastifyInstance) {
       throw new BusinessError("账号已被禁用");
     }
 
-    const clientType = account.role === "NORMAL_USER" ? AUTH_CLIENTS.C_APP : AUTH_CLIENTS.B_ADMIN;
+    const clientType = account.role === "NORMAL_USER" && !account.adminLoginEnabled ? AUTH_CLIENTS.C_APP : AUTH_CLIENTS.B_ADMIN;
     return ok(request, await issueLogin(app, request, account, clientType));
   });
 
@@ -389,7 +395,7 @@ export async function authRoutes(app: FastifyInstance) {
       const [updated] = await tx.update(refreshTokens).set({ revokedAt: new Date() }).where(and(eq(refreshTokens.tokenHash, tokenHash), isNull(refreshTokens.revokedAt))).returning({ id: refreshTokens.id });
       revoked = Boolean(updated);
       if (!revoked) return;
-      const [user] = await tx.select({ id: users.id, role: users.role, channelType: users.channelType })
+      const [user] = await tx.select({ id: users.id, role: users.role, channelType: users.channelType, adminLoginEnabled: users.adminLoginEnabled })
         .from(users).where(eq(users.id, row.userId)).limit(1);
       if (user) {
         await writeAuditLog({

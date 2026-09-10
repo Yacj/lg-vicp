@@ -343,6 +343,8 @@ export const users = pgTable(
     remark: text("remark"),
     role: userRoleEnum("role").notNull().default("NORMAL_USER"),
     channelType: channelTypeEnum("channel_type"),
+    /** 是否允许登录 B 端管理后台：仅普通用户可关闭；渠道用户/超级管理员恒可登录。 */
+    adminLoginEnabled: boolean("admin_login_enabled").notNull().default(true),
     status: userStatusEnum("status").notNull().default("ACTIVE"),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
     ...timestamps
