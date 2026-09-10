@@ -562,6 +562,49 @@ export async function createVersionUploadIntent(
   return { mode: "UPLOAD" as const, fileId: file.id, uploadUrl: upload.url, headers: upload.headers, expiresAt: upload.expiresAt };
 }
 
+/** 建立并投递升级解析任务（UPGRADE_PARSE）：用于补绑检索源后自动重建检索内容与页面映射。
+ * 版本缺少页面数据（尚未解析过）时返回 null（等正式文件解析时自动走双源链路）。 */
+export async function enqueueUpgradeParseJob(
+  app: FastifyInstance,
+  request: FastifyRequest,
+  actor: AuthUser,
+  version: typeof knowledgeDocumentVersions.$inferSelect
+): Promise<string | null> {
+  const [pageRow] = await app.db.select({ id: knowledgePages.id }).from(knowledgePages)
+    .where(eq(knowledgePages.versionId, version.id)).limit(1);
+  if (!pageRow) return null;
+  const job = await app.db.transaction(async (tx) => {
+    const [created] = await tx.insert(parsingJobs).values({
+      documentId: version.documentId,
+      versionId: version.id,
+      jobType: "UPGRADE_PARSE",
+      status: "QUEUED",
+      fileId: version.fileId,
+      queuedById: actor.id
+    }).returning();
+    await writeAuditLog({
+      db: tx, request, actor,
+      action: AUDIT_ACTIONS.KNOWLEDGE_VERSION_PARSED, targetType: "knowledge_document_version", targetId: version.id,
+      afterJson: { jobType: "UPGRADE_PARSE", triggeredBy: "SEARCH_SOURCE_BOUND", parsingJobId: created!.id }
+    });
+    return created!;
+  });
+  try {
+    await app.queues.documentProcessing.add("parse_document", {
+      parsingJobId: job.id,
+      fileId: version.fileId ?? "",
+      versionId: version.id,
+      jobType: "UPGRADE_PARSE"
+    }, { jobId: job.id });
+  } catch {
+    await app.db.update(parsingJobs).set({
+      status: "FAILED", errorMessage: "升级解析任务投递失败，请稍后重试", updatedAt: new Date()
+    }).where(eq(parsingJobs.id, job.id));
+    throw new ServiceUnavailableError("升级解析任务投递失败，请稍后重试");
+  }
+  return job.id;
+}
+
 /** 确认版本文件上传完成：校验对象大小/哈希/MIME；
  * 缺省（ORIGINAL）：版本绑定主文件并重置解析状态，同时维护 ORIGINAL 资产行；
  * assetRole=SEARCH_SOURCE/OCR_SOURCE：仅登记文件资产，不动版本主文件（转曲件升级路径）。 */
@@ -611,43 +654,10 @@ export async function completeVersionUpload(
     const asset = await bindVersionAsset(app, request, actor, versionId, { role: assetRole, fileId });
     // 用户工作流（NO_TEXT_LAYER 补检索源）：版本因缺少文字层等待检索文本源时，
     // 绑定完成即自动投递升级解析（保留发布状态），不再要求用户手动点“升级解析”。
-    let jobId: string | undefined;
+    let jobId: string | null = null;
     if (["SEARCH_SOURCE_REQUIRED", "NO_TEXT_LAYER"].includes(version.parseStatus)
       && (assetRole === "SEARCH_SOURCE" || assetRole === "OCR_SOURCE")) {
-      const pages = await app.db.select({ id: knowledgePages.id }).from(knowledgePages)
-        .where(eq(knowledgePages.versionId, versionId)).limit(1);
-      if (pages.length > 0) {
-        const job = await app.db.transaction(async (tx) => {
-          const [created] = await tx.insert(parsingJobs).values({
-            documentId: version.documentId,
-            versionId,
-            jobType: "UPGRADE_PARSE",
-            status: "QUEUED",
-            fileId: version.fileId,
-            queuedById: actor.id
-          }).returning();
-          await writeAuditLog({
-            db: tx, request, actor,
-            action: AUDIT_ACTIONS.KNOWLEDGE_VERSION_PARSED, targetType: "knowledge_document_version", targetId: versionId,
-            afterJson: { jobType: "UPGRADE_PARSE", triggeredBy: "SEARCH_SOURCE_BOUND", parsingJobId: created!.id }
-          });
-          return created!;
-        });
-        try {
-          await app.queues.documentProcessing.add("parse_document", {
-            parsingJobId: job.id,
-            fileId: version.fileId ?? "",
-            versionId,
-            jobType: "UPGRADE_PARSE"
-          }, { jobId: job.id });
-          jobId = job.id;
-        } catch {
-          await app.db.update(parsingJobs).set({
-            status: "FAILED", errorMessage: "升级解析任务投递失败，请稍后重试", updatedAt: new Date()
-          }).where(eq(parsingJobs.id, job.id));
-          throw new ServiceUnavailableError("升级解析任务投递失败，请稍后重试");
-        }
-      }
+      jobId = await enqueueUpgradeParseJob(app, request, actor, version);
     }
     return {
       message: jobId
