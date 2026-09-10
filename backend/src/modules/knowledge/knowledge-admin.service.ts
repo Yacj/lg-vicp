@@ -69,7 +69,8 @@ interface DocumentHealthInput {
   chunkCount: number;
 }
 
-function deriveDocumentHealth(input: DocumentHealthInput) {
+/** 文档健康状态派生（knowledge-workflow 用户态摘要复用：canAskAi/canPublish 同一规则） */
+export function deriveDocumentHealth(input: DocumentHealthInput) {
   const blockers: string[] = [];
   const warnings: string[] = [];
   const version = input.version;
@@ -125,7 +126,8 @@ function safeExtension(fileName: string): string {
   return extension.slice(0, 12);
 }
 
-async function requireDocument(app: FastifyInstance, id: string) {
+/** 加载未删除的知识文档（knowledge-workflow 编排层复用） */
+export async function requireDocument(app: FastifyInstance, id: string) {
   const [document] = await app.db.select().from(knowledgeDocuments)
     .where(and(eq(knowledgeDocuments.id, id), isNull(knowledgeDocuments.deletedAt))).limit(1);
   if (!document) throw new NotFoundError("知识文档不存在");
