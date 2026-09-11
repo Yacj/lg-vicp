@@ -139,7 +139,7 @@ bash deploy/deploy.sh <git 仓库地址>
 脚本首次运行会生成随机 `JWT_SECRET`、`AI_CONFIG_ENCRYPTION_KEY`、`POSTGRES_PASSWORD` 和 MinIO 凭证，随后退出并提示你编辑 `.env`：
 
 - `BOOTSTRAP_ADMIN_PASSWORD`：管理员登录密码，至少 12 位。
-- `CORS_ORIGIN`：前端实际访问地址，例如 `https://admin.example.com`。
+- `CORS_ORIGIN`：允许跨域的前端来源，多个用逗号分隔，例如 `https://admin.example.com,https://app.example.com,http://localhost:8871`。留空或 `*` 会回显请求 `Origin`（开发方便；生产建议写明白名单）。C 端本地开发默认 `http://localhost:8871`。
 
 修改完成后再次运行同一命令，脚本校验必填配置、构建镜像并启动 `postgres`、`redis`、`minio`、`api`、`worker`、`nginx` 六个服务，最后自动健康检查（最多 120 秒）。访问地址为 `http://<服务器IP>:8080`。
 
