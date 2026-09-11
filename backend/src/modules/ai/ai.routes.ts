@@ -37,6 +37,7 @@ import {
   activeGenerations,
   DEFAULT_CONTEXT_WINDOW,
   enforceAiRateLimit,
+  failPendingGenerationMessage,
   releaseGenerationLock,
   resolveProjectContext,
   streamConversationReply,
@@ -48,9 +49,9 @@ import { requirePermission } from "../../shared/permission-guard.js";
 import { requireClient } from "../../shared/client-guard.js";
 import { formatComparisonRuleContext, loadApprovedComparisonRules, logComparisonRuleUsage } from "../comparison/material-compare.service.js";
 import {
+  createConcurrencyRelease,
   enforceAiQuota,
   getAiQuota,
-  releaseAiConcurrency,
   resolveSceneRuntime,
   type SceneRuntime
 } from "./ai-runtime.service.js";
@@ -875,6 +876,11 @@ export async function aiRoutes(app: FastifyInstance) {
     ensureConversationOwner(user, row.conversation);
     await enforceAiRateLimit(app, user.id);
     await enforceAiQuota(app, user);
+    const releaseQuota = createConcurrencyRelease(app, user.id);
+    let lockKey = "";
+    let lockToken = "";
+    let createdAssistantMessageId = "";
+    try {
 
     if (row.conversation.projectId) {
       const [project] = await app.db.select().from(projects).where(and(
@@ -889,8 +895,8 @@ export async function aiRoutes(app: FastifyInstance) {
         inArray(aiMessages.status, ["PENDING", "STREAMING"])
       )).limit(1);
     if (activeMessage) throw new ConflictError("当前会话已有正在生成的 AI 回答");
-    const lockKey = `ai:conversation:${row.conversation.id}:generation`;
-    const lockToken = randomUUID();
+    lockKey = `ai:conversation:${row.conversation.id}:generation`;
+    lockToken = randomUUID();
     if (await app.redis.set(lockKey, lockToken, "EX", 900, "NX") !== "OK") {
       throw new ConflictError("当前会话已有正在生成的 AI 回答");
     }
@@ -937,6 +943,7 @@ export async function aiRoutes(app: FastifyInstance) {
       }
     }).returning();
     if (!assistantMessage) throw new Error("AI 消息创建失败");
+    createdAssistantMessageId = assistantMessage.id;
 
     const capabilities = resolveAiCapabilities({
       message: lastUserMessage.content,
@@ -1244,8 +1251,16 @@ export async function aiRoutes(app: FastifyInstance) {
     activeGenerations.delete(assistantMessage.id);
     await releaseGenerationLock(app, lockKey, lockToken);
     await app.redis.del(stopKey);
-    await releaseAiConcurrency(app, user.id);
+    await releaseQuota();
     reply.raw.end();
+  }
+  } catch (error) {
+    if (lockKey && lockToken) {
+      await releaseGenerationLock(app, lockKey, lockToken);
+    }
+    await failPendingGenerationMessage(app, createdAssistantMessageId, error);
+    await releaseQuota();
+    throw error;
   }
   });
 

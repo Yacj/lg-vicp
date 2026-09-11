@@ -23,7 +23,7 @@ import { formatKnowledgeContext, searchProjectKnowledge, type WikiHit } from "..
 import { getPublishedInsulationSystem } from "../construction/construction-read.service.js";
 import { toAiSources } from "./ai-source.mapper.js";
 import { formatComparisonRuleContext, loadApprovedComparisonRules, logComparisonRuleUsage } from "../comparison/material-compare.service.js";
-import { enforceAiQuota, releaseAiConcurrency, resolveSceneRuntime, type SceneRuntime } from "./ai-runtime.service.js";
+import { createConcurrencyRelease, enforceAiQuota, resolveSceneRuntime, type SceneRuntime } from "./ai-runtime.service.js";
 import { resolveAiCapabilities } from "./ai-capability-router.js";
 
 /** 模型 contextWindow 缺省时的保守预算 */
@@ -43,6 +43,21 @@ export const activeGenerations = new Map<string, ActiveGeneration & { lockKey: s
 /** 会话级生成锁释放（校验 token，避免误删他人锁） */
 export async function releaseGenerationLock(app: FastifyInstance, lockKey: string, lockToken: string) {
   if (await app.redis.get(lockKey) === lockToken) await app.redis.del(lockKey);
+}
+
+/** 生成准备失败时把仍停留在 PENDING/STREAMING 的助手消息标失败，避免会话永久占坑。 */
+export async function failPendingGenerationMessage(app: FastifyInstance, messageId: string, error: unknown) {
+  if (!messageId) return;
+  const aiError = error instanceof AiError ? error : toAiError(error);
+  await app.db.update(aiMessages).set({
+    status: "FAILED",
+    errorMessage: aiError.message,
+    errorCode: aiError.code,
+    finishedAt: new Date()
+  }).where(and(
+    eq(aiMessages.id, messageId),
+    inArray(aiMessages.status, ["PENDING", "STREAMING"])
+  ));
 }
 
 /** 单用户每分钟生成请求限流 */
@@ -108,6 +123,11 @@ export async function streamConversationReply(options: {
   // 生成请求限流与配额（与历史发送消息端点行为一致）
   await enforceAiRateLimit(app, user.id);
   await enforceAiQuota(app, user);
+  const releaseQuota = createConcurrencyRelease(app, user.id);
+  let lockKey = "";
+  let lockToken = "";
+  let createdAssistantMessageId = "";
+  try {
 
   if (conversation.projectId) {
     const [project] = await app.db.select().from(projects).where(and(
@@ -123,8 +143,9 @@ export async function streamConversationReply(options: {
     )).limit(1);
   if (activeMessage) throw new ConflictError("当前会话已有正在生成的 AI 回答");
 
-  const lockKey = `ai:conversation:${conversation.id}:generation`;
-  const lockToken = randomUUID();
+  const lockKeyName = `ai:conversation:${conversation.id}:generation`;
+  lockKey = lockKeyName;
+  lockToken = randomUUID();
   if (await app.redis.set(lockKey, lockToken, "EX", 900, "NX") !== "OK") {
     throw new ConflictError("当前会话已有正在生成的 AI 回答");
   }
@@ -164,6 +185,7 @@ export async function streamConversationReply(options: {
     }).returning();
     return [userRow!, assistantRow!];
   });
+  createdAssistantMessageId = assistantMessage.id;
 
   // 会话保温体系上下文（专业场景必选；只注入标识信息，技术规则仍须来自检索/工具）
   const insulationSystem = conversation.insulationSystemId
@@ -472,8 +494,16 @@ export async function streamConversationReply(options: {
     activeGenerations.delete(assistantMessage.id);
     await releaseGenerationLock(app, lockKey, lockToken);
     await app.redis.del(stopKey);
-    await releaseAiConcurrency(app, user.id);
+    await releaseQuota();
     reply.raw.end();
+  }
+  } catch (error) {
+    if (lockKey && lockToken) {
+      await releaseGenerationLock(app, lockKey, lockToken);
+    }
+    await failPendingGenerationMessage(app, createdAssistantMessageId, error);
+    await releaseQuota();
+    throw error;
   }
 }
 

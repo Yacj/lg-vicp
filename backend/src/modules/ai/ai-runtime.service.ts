@@ -217,6 +217,16 @@ export async function releaseAiConcurrency(app: FastifyInstance, userId: string)
   if (current && Number(current) > 0) await app.redis.decr(`ai:active:${userId}`);
 }
 
+/** 占位释放只执行一次，避免流结束与提前失败两条路径重复 decr 误伤其他请求。 */
+export function createConcurrencyRelease(app: FastifyInstance, userId: string) {
+  let released = false;
+  return async () => {
+    if (released) return;
+    released = true;
+    await releaseAiConcurrency(app, userId);
+  };
+}
+
 export async function getAiQuota(app: FastifyInstance, user: AuthUser): Promise<AiQuota> {
   if (user.role === "SUPER_ADMIN") {
     return { exempt: true, dailyUsed: 0, dailyLimit: env.AI_DAILY_REQUEST_LIMIT, concurrentUsed: 0, concurrentLimit: env.AI_MAX_CONCURRENT_GENERATIONS };

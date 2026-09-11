@@ -127,3 +127,14 @@ describe("释放并发占位（releaseAiConcurrency）", () => {
     expect(redisZero.decr).not.toHaveBeenCalled();
   });
 });
+
+describe("并发占位只释放一次（createConcurrencyRelease）", () => {
+  it("多次调用只 decr 一次", async () => {
+    const { createConcurrencyRelease } = await import("./ai-runtime.service.js");
+    const redis = redisMock({ get: "1" });
+    const release = createConcurrencyRelease(appMock(redis), "u-1");
+    await release();
+    await release();
+    expect(redis.decr).toHaveBeenCalledTimes(1);
+  });
+});
