@@ -59,7 +59,11 @@ describe("文档任务失败状态收敛", () => {
     expect(updates).toContainEqual(expect.objectContaining({
       status: "FAILED",
       errorMessage: "job stalled more than allowable limit",
-      attempts: 2
+      attempts: 2,
+      result: expect.objectContaining({
+        errorCode: "PARSE_FAILED",
+        userMessage: "文档解析失败，请重试或更换文件。"
+      })
     }));
     expect(updates).toContainEqual(expect.objectContaining({ parseStatus: "FAILED", pipelineStatus: "FAILED" }));
     expect(updates.filter((values) => values.status === "FAILED")).toHaveLength(2);

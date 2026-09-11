@@ -66,8 +66,10 @@ export async function streamConversationReply(options: {
   content: string;
   /** 传入时跳过场景内自动检索，直接使用该检索结果（知识问答场景；空数组表示无检索结果） */
   knowledgeChunks?: WikiHit[];
+  /** 覆盖 done.sources 映射（B 端版本测试可裁剪调试字段） */
+  mapSources?: (hits: readonly WikiHit[]) => unknown;
 }): Promise<void> {
-  const { app, request, reply, user, conversation, content, knowledgeChunks: providedChunks } = options;
+  const { app, request, reply, user, conversation, content, knowledgeChunks: providedChunks, mapSources } = options;
   const startedAt = Date.now();
   const requestId = request.id;
 
@@ -383,7 +385,7 @@ export async function streamConversationReply(options: {
       },
       model: { id: actualModelId },
       promptVersion: { id: runtime.promptVersionId, version: runtime.promptVersionNumber },
-      sources: toAiSources(chunks),
+      sources: (mapSources ?? toAiSources)(chunks),
       latencyMs: Date.now() - startedAt
     });
   } catch (error) {

@@ -1,6 +1,7 @@
 import { and, eq, inArray } from "drizzle-orm";
 import type { Database } from "../db/client.js";
 import { asyncTasks, files, knowledgeDocumentVersions, parsingJobs } from "../db/schema.js";
+import { toParseFailurePresentation } from "../modules/knowledge/knowledge-user-status.js";
 
 export interface DocumentJobData {
   taskId?: string;
@@ -59,10 +60,21 @@ export async function reconcileDocumentJobFailure(
     });
   }
 
+  const presented = toParseFailurePresentation({
+    id: data.parsingJobId,
+    errorMessage,
+    parser: null
+  }, "FAILED");
+
   return db.transaction(async (tx) => {
     const [failedJob] = await tx.update(parsingJobs).set({
       status: "FAILED",
       errorMessage,
+      result: {
+        errorCode: presented.errorCode,
+        userMessage: presented.userMessage,
+        technical: presented.technical
+      },
       ...(attempts === undefined ? {} : { attempts }),
       finishedAt: now,
       updatedAt: now

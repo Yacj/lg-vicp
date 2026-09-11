@@ -70,6 +70,14 @@ import {
   updateRankingRule,
   type IngestDeps
 } from "./knowledge-ingest.service.js";
+import {
+  createKnowledgeWithFile,
+  getDocumentWorkspace,
+  listVersionChapterTree,
+  replaceDocumentFile,
+  streamVersionTestQa
+} from "./knowledge-workflow.service.js";
+import { KNOWLEDGE_USER_STATUSES } from "./knowledge-user-status.js";
 
 /** 路由层将 FastifyInstance 收窄为 ingest 服务所需依赖 */
 function ingestDeps(app: FastifyInstance): IngestDeps {
@@ -175,7 +183,8 @@ export async function knowledgeRoutes(app: FastifyInstance) {
         docType: docTypeSchema.optional(),
         categoryId: z.uuid("分类 ID 格式不正确").optional(),
         keyword: z.string().trim().max(120).optional(),
-        healthStatus: z.enum(["NEEDS_ACTION", "READY", "BROWSE_ONLY", "PUBLISHED", "PENDING_REVIEW"]).optional()
+        healthStatus: z.enum(["NEEDS_ACTION", "READY", "BROWSE_ONLY", "PUBLISHED", "PENDING_REVIEW"]).optional(),
+        userStatus: z.enum(KNOWLEDGE_USER_STATUSES).optional()
       })
     }
   }, async (request) => {
@@ -206,6 +215,30 @@ export async function knowledgeRoutes(app: FastifyInstance) {
     return ok(request, { document: await createDocument(app, request, actor, request.body) });
   });
 
+  route.post("/documents/create-with-file", {
+    preHandler: [app.authenticate, requireClient(AUTH_CLIENTS.B_ADMIN)],
+    schema: {
+      tags: ["B端 / 平台 / 知识库"],
+      summary: "一次创建知识文档、v1 并自动发起解析（只收 fileId）",
+      body: z.object({
+        title: z.string().trim().min(1).max(200),
+        docType: docTypeSchema,
+        originalFileId: z.uuid("正式文件 ID 格式不正确"),
+        searchSourceFileId: z.uuid("检索文件 ID 格式不正确").nullable().optional(),
+        categoryId: z.uuid("分类 ID 格式不正确").nullable().optional(),
+        docNumber: z.string().trim().max(80).nullable().optional(),
+        sourceOrg: z.string().trim().max(120).nullable().optional(),
+        issueDate: z.string().trim().max(20).nullable().optional(),
+        effectiveDate: z.string().trim().max(20).nullable().optional(),
+        evidenceLevel: evidenceLevelSchema.nullable().optional(),
+        allowedPurposes: z.array(z.string().trim().min(1).max(40)).max(20).optional()
+      })
+    }
+  }, async (request) => {
+    const actor = requirePermission(request, KNOWLEDGE_PERMISSIONS.DOC_CREATE);
+    return ok(request, await createKnowledgeWithFile(app, request, actor, request.body));
+  });
+
   route.get("/documents/:id", {
     preHandler: [app.authenticate, requireClient(AUTH_CLIENTS.B_ADMIN)],
     schema: {
@@ -216,6 +249,35 @@ export async function knowledgeRoutes(app: FastifyInstance) {
   }, async (request) => {
     requirePermission(request, KNOWLEDGE_PERMISSIONS.DOC_LIST);
     return ok(request, await getDocumentDetail(app, request.params.id));
+  });
+
+  route.get("/documents/:id/workspace", {
+    preHandler: [app.authenticate, requireClient(AUTH_CLIENTS.B_ADMIN)],
+    schema: {
+      tags: ["B端 / 平台 / 知识库"],
+      summary: "知识文档用户态摘要（工作版本、解析任务、可操作动作）",
+      params: uuidParams
+    }
+  }, async (request) => {
+    const actor = requirePermission(request, KNOWLEDGE_PERMISSIONS.DOC_LIST);
+    return ok(request, await getDocumentWorkspace(app, actor, request.params.id));
+  });
+
+  route.post("/documents/:id/replace-file", {
+    preHandler: [app.authenticate, requireClient(AUTH_CLIENTS.B_ADMIN)],
+    schema: {
+      tags: ["B端 / 平台 / 知识库"],
+      summary: "更换文件：新建下一版本并自动解析（不破坏旧版本）",
+      params: uuidParams,
+      body: z.object({
+        originalFileId: z.uuid("正式文件 ID 格式不正确"),
+        searchSourceFileId: z.uuid("检索文件 ID 格式不正确").nullable().optional(),
+        changeNote: z.string().trim().max(500).optional()
+      })
+    }
+  }, async (request) => {
+    const actor = requirePermission(request, KNOWLEDGE_PERMISSIONS.DOC_UPLOAD);
+    return ok(request, await replaceDocumentFile(app, request, actor, request.params.id, request.body));
   });
 
   route.patch("/documents/:id", {
@@ -335,6 +397,23 @@ export async function knowledgeRoutes(app: FastifyInstance) {
   }, async (request) => {
     const actor = requirePermission(request, KNOWLEDGE_PERMISSIONS.DOC_PARSE);
     return ok(request, await enqueueParsing(app, request, actor, request.params.versionId, "REPARSE"));
+  });
+
+  route.post("/versions/:versionId/test-qa", {
+    preHandler: [app.authenticate, requireClient(AUTH_CLIENTS.B_ADMIN)],
+    schema: {
+      tags: ["B端 / 平台 / 知识库"],
+      summary: "当前版本 AI 检索测试问答（SSE，仅检索该 versionId，允许草稿）",
+      params: versionParams,
+      body: z.object({
+        query: z.string().trim().min(1, "请输入问题").max(500, "问题不能超过 500 个字符"),
+        reasoningMode: z.enum(["OFF", "ON"]).default("OFF"),
+        limit: z.coerce.number().int().min(1).max(10).default(5)
+      })
+    }
+  }, async (request, reply) => {
+    const actor = requirePermission(request, KNOWLEDGE_PERMISSIONS.DOC_TEST);
+    await streamVersionTestQa(app, request, reply, actor, request.params.versionId, request.body);
   });
 
   route.post("/versions/:versionId/chunks/rebuild", {
@@ -462,6 +541,18 @@ export async function knowledgeRoutes(app: FastifyInstance) {
   }, async (request) => {
     requirePermission(request, KNOWLEDGE_PERMISSIONS.DOC_LIST);
     return ok(request, { sections: await listDocumentSections(app, request.params.versionId) });
+  });
+
+  route.get("/versions/:versionId/chapter-tree", {
+    preHandler: [app.authenticate, requireClient(AUTH_CLIENTS.B_ADMIN)],
+    schema: {
+      tags: ["B端 / 平台 / 知识库"],
+      summary: "用户可读章节树（已确认 TOC 优先，否则语义章节）",
+      params: versionParams
+    }
+  }, async (request) => {
+    requirePermission(request, KNOWLEDGE_PERMISSIONS.DOC_LIST);
+    return ok(request, await listVersionChapterTree(app, request.params.versionId));
   });
 
   route.get("/versions/:versionId/chunks", {

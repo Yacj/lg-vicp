@@ -47,6 +47,7 @@ import {
 import { formatKnowledgeContext, runSearch, searchProjectKnowledge } from "../knowledge/knowledge.service.js";
 import { KNOWLEDGE_PERMISSIONS } from "../../shared/knowledge-permissions.js";
 import { requirePermission } from "../../shared/permission-guard.js";
+import { requireClient } from "../../shared/client-guard.js";
 import { formatComparisonRuleContext, loadApprovedComparisonRules, logComparisonRuleUsage } from "../comparison/material-compare.service.js";
 import {
   enforceAiQuota,
@@ -727,7 +728,7 @@ export async function aiRoutes(app: FastifyInstance) {
   });
 
   route.post("/knowledge-qa", {
-    preHandler: [app.authenticate, requirePermission(KNOWLEDGE_PERMISSIONS.SEARCH_ANSWER)],
+    preHandler: [app.authenticate, requireClient(AUTH_CLIENTS.B_ADMIN), requirePermission(KNOWLEDGE_PERMISSIONS.SEARCH_ANSWER)],
     schema: {
       tags: ["B端 / 知识检索问答"],
       summary: "检索知识库并以 SSE 返回 AI 回答（检索测试页，含引用标注）",

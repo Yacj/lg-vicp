@@ -14,7 +14,7 @@ MinIO 内部连接地址与返回浏览器的预签名公开地址必须分开�
 - B_ADMIN FilePicker：`GET /api/v1/files` 全平台 READY 列表（keyword/mimeType/extension/source/sort/分页 + `referenceCount` 轻字段）；`GET /recent` 最近使用；`GET /:id` 详情；`GET /:id/preview` 内联短期签名 URL（`createPreviewUrl`，PDF/图片）或 DOWNLOAD 模式；C 端/PC AI 端同路径保持"我的源文件"口径。
 - 引用聚合：`file-reference.service.ts` 只读 UNION 各业务关系表（knowledge_document_assets、report_artifacts、enterprise、product_attachments、construction_schemes、node_drawings、thermal_import_jobs），业务表是唯一事实源，不建统一引用表；回收/永久删除前引用数 > 0 抛 `FILE_IN_USE`（`error.details.references`）。
 - 回收站：`fileStatusEnum` 增加 `RECYCLED`（recycledAt/recycledById），`/:id/recycle`、`/:id/restore`、`DELETE /:id/permanent` 走 `file:center:manage` 权限码；FilePicker 列表/详情/预览只需 B_ADMIN 登录。
-- 知识中心接入：版本创建可带 `originalFileId`/`searchSourceFileId`（可同一 fileId），`versions/:id/upload-intent` 支持 `existingFileId` 复用，`upload-complete` 对 READY 文件直接绑定；换文件不删旧文件，历史版本引用可追溯。
+- 知识中心接入：版本创建可带 `originalFileId`/`searchSourceFileId`（可同一 fileId），`versions/:id/upload-intent` 支持 `existingFileId` 复用，`upload-complete` 对 READY 文件直接绑定；换文件不删旧文件，历史版本引用可追溯。B 端普通新建走 `POST /platform/knowledge/documents/create-with-file`（只收 READY `fileId`，自动 PARSE）；绑定 SEARCH_SOURCE 后在 `NO_TEXT_LAYER`/`SEARCH_SOURCE_REQUIRED` 且已有页面时自动 UPGRADE_PARSE。
 
 文档 Worker：
 

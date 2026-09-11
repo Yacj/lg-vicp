@@ -101,3 +101,30 @@ export function toAiSources(hits: readonly WikiHit[]): AiSourceRef[] {
     };
   });
 }
+
+/** B 端当前版本 AI 测试普通视图：只保留章节/页码/引用文字，不含 chunk/score/retrievalUnit。 */
+export interface UserTestSource {
+  documentId?: string;
+  versionId?: string;
+  title: string;
+  tocPath?: string[] | null;
+  sectionTitle?: string | null;
+  pageLabel?: string | null;
+  physicalPageNumber?: number | null;
+  matchedText?: string | null;
+}
+
+export function toUserTestSources(hits: readonly WikiHit[]): UserTestSource[] {
+  return hits.map((hit) => ({
+    documentId: hit.documentId,
+    versionId: hit.versionId,
+    title: hit.sourceTitle,
+    tocPath: hit.headingPath && hit.headingPath.length > 0 ? [...hit.headingPath] : null,
+    sectionTitle: hit.sourceSection ?? (hit.headingPath && hit.headingPath.length > 0
+      ? hit.headingPath[hit.headingPath.length - 1]!
+      : null),
+    pageLabel: hit.pageLabel ?? null,
+    physicalPageNumber: hit.physicalPageNumber ?? hit.sourcePage,
+    matchedText: hit.content
+  }));
+}

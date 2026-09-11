@@ -106,7 +106,9 @@ document → document_versions(fileId) → files(bucket+objectKey) → OSS/MinIO
 
 - `src/modules/knowledge/knowledge.routes.ts`：路由（prefix `/api/v1/platform/knowledge`，标签 `B端 / 平台 / 知识库`）。
 - `src/modules/knowledge/knowledge-admin.service.ts`：分类/文档/版本/别名/解析任务管理服务。
-- `src/modules/knowledge/knowledge.service.ts`：检索（`searchKnowledge` 平台侧带日志、`searchProjectKnowledge` AI 侧）+ `listSearchLogs`。
+- `src/modules/knowledge/knowledge-workflow.service.ts`：B 端普通新建/详情/换文件/章节树/草稿 AI 测试编排层（facade，不替代底层接口）。
+- `src/modules/knowledge/knowledge-user-status.ts`：userStatus 与解析失败用户文案纯函数。
+- `src/modules/knowledge/knowledge.service.ts`：检索（`searchKnowledge` 平台侧带日志、`searchProjectKnowledge` AI 侧）+ `listSearchLogs`。`versionId` 仅 test-qa 传入，生产检索保持 PUBLISHED 守卫。
 - `src/modules/knowledge/knowledge-ingest.service.ts`：多来源入库（SHA-256 去重/批量导入/爬虫框架/排序规则种子与权重读取）。
 - `src/modules/knowledge/knowledge-evaluation.service.ts`：检索评测（提交执行检索/列表/人工判定）。
 - `src/modules/knowledge/knowledge-internal.routes.ts`：内部受控 API（prefix `/api/v1/internal/knowledge`，标签 `公共 / 内部接口`）。
@@ -119,10 +121,15 @@ document → document_versions(fileId) → files(bucket+objectKey) → OSS/MinIO
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
 | GET/POST | `/categories`、`PATCH/DELETE /categories/:id` | 知识分类 |
-| GET/POST | `/documents`、`GET/PATCH/DELETE /documents/:id` | 知识文档（分页/过滤/软删除） |
+| GET/POST | `/documents`、`GET/PATCH/DELETE /documents/:id` | 知识文档（分页/过滤/软删除；列表含 workingVersion + `userStatus`，保留 `healthStatus`） |
+| POST | `/documents/create-with-file` | 一次创建文档 + v1 + 绑定 fileId + 自动 PARSE（只收 fileId） |
+| GET | `/documents/:id/workspace` | 用户态摘要（currentVersion/userStatus/primaryFile/lastJob/canAskAi） |
+| POST | `/documents/:id/replace-file` | 更换文件：新建下一版本并自动解析 |
 | POST | `/documents/:id/versions` | 创建 DRAFT 版本 |
 | POST | `/versions/:versionId/upload-intent`、`/upload-complete` | 预签名直传 + 校验（大小/哈希/类型） |
-| POST | `/versions/:versionId/parse`、`/reparse`、`/chunks/rebuild` | 解析/重解析/切片重建 |
+| POST | `/versions/:versionId/parse`、`/reparse`、`/chunks/rebuild` | 解析/重解析/切片重建（高级/重试；普通新建已自动解析） |
+| POST | `/versions/:versionId/test-qa` | 当前版本 AI 测试（SSE，只检索该 versionId，允许草稿；`system:knowledge:doc:test`） |
+| GET | `/versions/:versionId/chapter-tree` | 用户可读章节树（已确认 TOC 优先，否则语义章节） |
 | POST | `/versions/:versionId/approve`、`/publish`、`/disable` | 审核/发布/停用 |
 | POST | `/documents/:id/rollback-to/:versionId` | 版本替代 |
 | GET | `/versions/:versionId/pages`、`/chunks`、`/chunks/:chunkId/terms`、`/versions/:versionId/sections` | 内容查看（页面/切片/术语 + Wiki 章节树，审核/调试） |
@@ -160,3 +167,5 @@ document → document_versions(fileId) → files(bucket+objectKey) → OSS/MinIO
 - **检索与公开读取**：Section、Block、Chunk 三条召回链均要求当前受控版本、PUBLISHED、AI_ENABLED、未过期和 ACTIVE 文档；公开列表、详情、TOC、页面与 AI 来源详情均只读当前受控且生效的已发布版本。BROWSE_ONLY 永不参加 AI 检索。
 - **来源详情**：`original` 仅表示 ORIGINAL 文件、预览图和短期预览链接；`extracted` 是机器提取文本和 Blocks。双源 Chunk 必须经 `knowledge_page_mappings` 定位 ORIGINAL 页面；没有映射时明确返回不可定位，不伪造页码。
 - **接口边界**：后台 `/api/v1/platform/knowledge/*` 必须同时通过 B_ADMIN 客户端校验和 `system:knowledge:*` 精确权限；C_APP/PC_AI 公开文库仅使用 `/api/v1/client/knowledge/*`。
+- **B 端用户工作流编排**：普通新建 `create-with-file` → 轮询 `workspace.userStatus` → `READY_TO_VERIFY` 后看 `chapter-tree` + `pages/window` 并用 `test-qa` 验证 → 再审核/发布。无文本层时 `userStatus=SEARCHABLE_FILE_REQUIRED`，复用现有 assets/`existingFileId` 绑定检索源后自动 UPGRADE_PARSE。解析失败返回 `userMessage`（普通）+ `technical`（仅 `system:knowledge:debug`）。旧 `/documents` `/versions` `/upload-intent` `/parse` 保留。生产 `/api/v1/ai/knowledge-qa` 仍只检索已发布知识，且需 B_ADMIN。
+- **Admin-Web 契约**：新建只调 FilePicker + `create-with-file` + `workspace`；不要在普通页展示 ORIGINAL/SEARCH_SOURCE、chunk/score、TOC source、Worker exception。历史版本从「更多」再读 `GET /documents/:id` 的 `versions[]`。

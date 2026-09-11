@@ -2,7 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import path from "node:path";
 import { fileTypeFromBuffer } from "file-type";
 import type { FastifyInstance, FastifyRequest } from "fastify";
-import { and, count, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import type { DbExecutor } from "../../db/client.js";
 import type { AuthUser } from "../../shared/auth-user.js";
 import { AUDIT_ACTIONS } from "../../shared/constants.js";
@@ -26,6 +26,7 @@ import { assertVersionPublishable, bindVersionAsset, type KnowledgeAssetRole } f
 import { assertNoDuplicateSha256 } from "./knowledge-ingest.service.js";
 import { extractAnchors, extractKeywords } from "./knowledge-chunking.js";
 import { normalizeSearchText } from "./knowledge.normalize.js";
+import { mapKnowledgeUserStatus, type KnowledgeUserStatus } from "./knowledge-user-status.js";
 
 /**
  * 知识库管理服务：分类、文档、版本（上传/解析/审核/发布/停用/版本替代）、
@@ -54,6 +55,7 @@ export interface ListDocumentsQuery {
   categoryId?: string;
   keyword?: string;
   healthStatus?: KnowledgeDocumentHealthStatus;
+  userStatus?: KnowledgeUserStatus;
 }
 
 interface DocumentHealthInput {
@@ -69,8 +71,7 @@ interface DocumentHealthInput {
   chunkCount: number;
 }
 
-/** 文档健康状态派生（knowledge-workflow 用户态摘要复用：canAskAi/canPublish 同一规则） */
-export function deriveDocumentHealth(input: DocumentHealthInput) {
+function deriveDocumentHealth(input: DocumentHealthInput) {
   const blockers: string[] = [];
   const warnings: string[] = [];
   const version = input.version;
@@ -126,8 +127,7 @@ function safeExtension(fileName: string): string {
   return extension.slice(0, 12);
 }
 
-/** 加载未删除的知识文档（knowledge-workflow 编排层复用） */
-export async function requireDocument(app: FastifyInstance, id: string) {
+async function requireDocument(app: FastifyInstance, id: string) {
   const [document] = await app.db.select().from(knowledgeDocuments)
     .where(and(eq(knowledgeDocuments.id, id), isNull(knowledgeDocuments.deletedAt))).limit(1);
   if (!document) throw new NotFoundError("知识文档不存在");
@@ -244,7 +244,7 @@ export async function listDocuments(app: FastifyInstance, query: ListDocumentsQu
     query.categoryId ? eq(knowledgeDocuments.categoryId, query.categoryId) : undefined,
     query.keyword ? sql`(${knowledgeDocuments.title} ilike ${`%${query.keyword}%`} or ${knowledgeDocuments.docNumber} ilike ${`%${query.keyword}%`} or ${knowledgeDocuments.sourceOrg} ilike ${`%${query.keyword}%`})` : undefined
   );
-  // 健康状态依赖版本资产、页面和检索索引，先取基础候选集再派生并分页，确保筛选后的 total 正确。
+  // 健康/用户态看 workingVersion（最新非 DISABLED），publishedVersionId 仍是 documents.currentVersionId。
   const baseItems = await app.db.select({
     id: knowledgeDocuments.id,
     title: knowledgeDocuments.title,
@@ -258,7 +258,18 @@ export async function listDocuments(app: FastifyInstance, query: ListDocumentsQu
     categoryId: knowledgeDocuments.categoryId,
     status: knowledgeDocuments.status,
     currentVersionId: knowledgeDocuments.currentVersionId,
-    currentVersion: {
+    createdAt: knowledgeDocuments.createdAt,
+    updatedAt: knowledgeDocuments.updatedAt
+  })
+    .from(knowledgeDocuments)
+    .where(where)
+    .orderBy(desc(knowledgeDocuments.updatedAt));
+
+  const documentIds = baseItems.map((item) => item.id);
+  const workingRows = documentIds.length > 0
+    ? await app.db.select({
+      id: knowledgeDocumentVersions.id,
+      documentId: knowledgeDocumentVersions.documentId,
       version: knowledgeDocumentVersions.version,
       status: knowledgeDocumentVersions.status,
       parseStatus: knowledgeDocumentVersions.parseStatus,
@@ -267,16 +278,18 @@ export async function listDocuments(app: FastifyInstance, query: ListDocumentsQu
       fileId: knowledgeDocumentVersions.fileId,
       pageCount: knowledgeDocumentVersions.pageCount,
       parser: knowledgeDocumentVersions.parser
-    },
-    createdAt: knowledgeDocuments.createdAt,
-    updatedAt: knowledgeDocuments.updatedAt
-  })
-    .from(knowledgeDocuments)
-    .leftJoin(knowledgeDocumentVersions, eq(knowledgeDocumentVersions.id, knowledgeDocuments.currentVersionId))
-    .where(where)
-    .orderBy(desc(knowledgeDocuments.updatedAt));
-
-  const versionIds = baseItems.map(item => item.currentVersionId).filter((id): id is string => id !== null);
+    }).from(knowledgeDocumentVersions)
+      .where(and(
+        inArray(knowledgeDocumentVersions.documentId, documentIds),
+        ne(knowledgeDocumentVersions.status, "DISABLED")
+      ))
+      .orderBy(desc(knowledgeDocumentVersions.version))
+    : [];
+  const workingByDocument = new Map<string, typeof workingRows[number]>();
+  for (const row of workingRows) {
+    if (!workingByDocument.has(row.documentId)) workingByDocument.set(row.documentId, row);
+  }
+  const versionIds = [...workingByDocument.values()].map((item) => item.id);
   const [assetRows, pageRows, chunkRows] = await Promise.all([
     versionIds.length > 0
       ? app.db.select({ versionId: knowledgeDocumentAssets.versionId, role: knowledgeDocumentAssets.role })
@@ -299,7 +312,10 @@ export async function listDocuments(app: FastifyInstance, query: ListDocumentsQu
   for (const row of chunkRows) chunkCountMap.set(row.versionId, (chunkCountMap.get(row.versionId) ?? 0) + 1);
 
   const projected = baseItems.map((item) => {
-    const version = item.currentVersion;
+    const version = workingByDocument.get(item.id) ?? null;
+    const assetRoles = version ? assetMap.get(version.id) ?? [] : [];
+    const pageCount = version ? pageCountMap.get(version.id) ?? version.pageCount ?? 0 : 0;
+    const chunkCount = version ? chunkCountMap.get(version.id) ?? 0 : 0;
     const health = deriveDocumentHealth({
       version: version ? {
         status: version.status,
@@ -308,15 +324,44 @@ export async function listDocuments(app: FastifyInstance, query: ListDocumentsQu
         usageMode: version.usageMode,
         fileId: version.fileId
       } : null,
-      assetRoles: version ? assetMap.get(item.currentVersionId!) ?? [] : [],
-      pageCount: version ? pageCountMap.get(item.currentVersionId!) ?? version.pageCount ?? 0 : 0,
-      chunkCount: version ? chunkCountMap.get(item.currentVersionId!) ?? 0 : 0
+      assetRoles,
+      pageCount,
+      chunkCount
     });
-    return { ...item, ...health };
+    const userStatus = mapKnowledgeUserStatus({
+      parseStatus: version?.parseStatus,
+      pipelineStatus: version?.pipelineStatus,
+      versionStatus: version?.status,
+      usageMode: version?.usageMode,
+      hasSearchSource: assetRoles.includes("SEARCH_SOURCE")
+        || (assetRoles.includes("ORIGINAL") && version?.parseStatus !== "NO_TEXT_LAYER" && version?.parseStatus !== "SEARCH_SOURCE_REQUIRED"),
+      pageCount,
+      chunkCount
+    });
+    return {
+      ...item,
+      publishedVersionId: item.currentVersionId,
+      workingVersionId: version?.id ?? null,
+      currentVersion: version ? {
+        id: version.id,
+        version: version.version,
+        status: version.status,
+        parseStatus: version.parseStatus,
+        pipelineStatus: version.pipelineStatus,
+        usageMode: version.usageMode,
+        fileId: version.fileId,
+        pageCount: version.pageCount,
+        parser: version.parser
+      } : null,
+      userStatus,
+      ...health
+    };
   });
-  const filtered = query.healthStatus
-    ? projected.filter(item => item.healthStatus === query.healthStatus)
-    : projected;
+  const filtered = projected.filter((item) => {
+    if (query.healthStatus && item.healthStatus !== query.healthStatus) return false;
+    if (query.userStatus && item.userStatus !== query.userStatus) return false;
+    return true;
+  });
   const skip = (page - 1) * pageSize;
   return { items: filtered.slice(skip, skip + pageSize), total: filtered.length, page, pageSize };
 }
@@ -564,49 +609,6 @@ export async function createVersionUploadIntent(
   return { mode: "UPLOAD" as const, fileId: file.id, uploadUrl: upload.url, headers: upload.headers, expiresAt: upload.expiresAt };
 }
 
-/** 建立并投递升级解析任务（UPGRADE_PARSE）：用于补绑检索源后自动重建检索内容与页面映射。
- * 版本缺少页面数据（尚未解析过）时返回 null（等正式文件解析时自动走双源链路）。 */
-export async function enqueueUpgradeParseJob(
-  app: FastifyInstance,
-  request: FastifyRequest,
-  actor: AuthUser,
-  version: typeof knowledgeDocumentVersions.$inferSelect
-): Promise<string | null> {
-  const [pageRow] = await app.db.select({ id: knowledgePages.id }).from(knowledgePages)
-    .where(eq(knowledgePages.versionId, version.id)).limit(1);
-  if (!pageRow) return null;
-  const job = await app.db.transaction(async (tx) => {
-    const [created] = await tx.insert(parsingJobs).values({
-      documentId: version.documentId,
-      versionId: version.id,
-      jobType: "UPGRADE_PARSE",
-      status: "QUEUED",
-      fileId: version.fileId,
-      queuedById: actor.id
-    }).returning();
-    await writeAuditLog({
-      db: tx, request, actor,
-      action: AUDIT_ACTIONS.KNOWLEDGE_VERSION_PARSED, targetType: "knowledge_document_version", targetId: version.id,
-      afterJson: { jobType: "UPGRADE_PARSE", triggeredBy: "SEARCH_SOURCE_BOUND", parsingJobId: created!.id }
-    });
-    return created!;
-  });
-  try {
-    await app.queues.documentProcessing.add("parse_document", {
-      parsingJobId: job.id,
-      fileId: version.fileId ?? "",
-      versionId: version.id,
-      jobType: "UPGRADE_PARSE"
-    }, { jobId: job.id });
-  } catch {
-    await app.db.update(parsingJobs).set({
-      status: "FAILED", errorMessage: "升级解析任务投递失败，请稍后重试", updatedAt: new Date()
-    }).where(eq(parsingJobs.id, job.id));
-    throw new ServiceUnavailableError("升级解析任务投递失败，请稍后重试");
-  }
-  return job.id;
-}
-
 /** 确认版本文件上传完成：校验对象大小/哈希/MIME；
  * 缺省（ORIGINAL）：版本绑定主文件并重置解析状态，同时维护 ORIGINAL 资产行；
  * assetRole=SEARCH_SOURCE/OCR_SOURCE：仅登记文件资产，不动版本主文件（转曲件升级路径）。 */
@@ -654,18 +656,12 @@ export async function completeVersionUpload(
     await app.db.update(files).set({ status: "READY", errorMessage: null, updatedAt: new Date() })
       .where(eq(files.id, fileId));
     const asset = await bindVersionAsset(app, request, actor, versionId, { role: assetRole, fileId });
-    // 用户工作流（NO_TEXT_LAYER 补检索源）：版本因缺少文字层等待检索文本源时，
-    // 绑定完成即自动投递升级解析（保留发布状态），不再要求用户手动点“升级解析”。
-    let jobId: string | null = null;
-    if (["SEARCH_SOURCE_REQUIRED", "NO_TEXT_LAYER"].includes(version.parseStatus)
-      && (assetRole === "SEARCH_SOURCE" || assetRole === "OCR_SOURCE")) {
-      jobId = await enqueueUpgradeParseJob(app, request, actor, version);
-    }
+    const upgrade = await maybeEnqueueUpgradeAfterSearchSourceBound(app, request, actor, version, assetRole);
     return {
-      message: jobId
+      message: upgrade.jobId
         ? `${assetRole} 资产绑定完成，已自动发起升级解析（重建检索内容与页面映射）`
         : `${assetRole} 资产绑定完成；如为检索文本源，请触发“升级解析”重建内容与页面映射`,
-      ...(jobId ? { jobId, parsing: { jobId, jobType: "UPGRADE_PARSE", status: "QUEUED" } } : {}),
+      ...upgrade,
       asset
     };
   }
@@ -689,6 +685,90 @@ export async function completeVersionUpload(
   return { message: "文件上传确认完成，可发起解析" };
 }
 
+/** 事务外投递 document-processing；失败则把 parsing_jobs 标 FAILED。 */
+export async function addParsingJobToQueue(
+  app: FastifyInstance,
+  job: { id: string; fileId: string | null; versionId: string; jobType: "PARSE" | "REPARSE" | "UPGRADE_PARSE" | "CHUNK_REBUILD" | "OCR" }
+) {
+  try {
+    await app.queues.documentProcessing.add("parse_document", {
+      parsingJobId: job.id,
+      fileId: job.fileId ?? "",
+      versionId: job.versionId,
+      jobType: job.jobType
+    }, { jobId: job.id });
+  } catch {
+    await app.db.update(parsingJobs).set({
+      status: "FAILED", errorMessage: "解析任务投递失败，请稍后重试", updatedAt: new Date()
+    }).where(eq(parsingJobs.id, job.id));
+    throw new ServiceUnavailableError("解析任务投递失败，请稍后重试");
+  }
+}
+
+export async function insertParsingJobAndEnqueue(
+  app: FastifyInstance,
+  request: FastifyRequest,
+  actor: AuthUser,
+  input: {
+    documentId: string;
+    versionId: string;
+    fileId: string | null;
+    jobType: "PARSE" | "REPARSE" | "UPGRADE_PARSE";
+    triggeredBy?: string;
+  }
+) {
+  const job = await app.db.transaction(async (tx) => {
+    const [created] = await tx.insert(parsingJobs).values({
+      documentId: input.documentId,
+      versionId: input.versionId,
+      jobType: input.jobType,
+      status: "QUEUED",
+      fileId: input.fileId,
+      queuedById: actor.id
+    }).returning();
+    await writeAuditLog({
+      db: tx, request, actor,
+      action: AUDIT_ACTIONS.KNOWLEDGE_VERSION_PARSED, targetType: "knowledge_document_version", targetId: input.versionId,
+      afterJson: {
+        jobType: input.jobType,
+        parsingJobId: created!.id,
+        ...(input.triggeredBy ? { triggeredBy: input.triggeredBy } : {})
+      }
+    });
+    return created!;
+  });
+  await addParsingJobToQueue(app, {
+    id: job.id,
+    fileId: input.fileId,
+    versionId: input.versionId,
+    jobType: input.jobType
+  });
+  return job;
+}
+
+/** 绑定 SEARCH_SOURCE/OCR_SOURCE 且版本因无文本层等待检索源时，自动投递 UPGRADE_PARSE。 */
+export async function maybeEnqueueUpgradeAfterSearchSourceBound(
+  app: FastifyInstance,
+  request: FastifyRequest,
+  actor: AuthUser,
+  version: { id: string; documentId: string; fileId: string | null; parseStatus: string },
+  assetRole: KnowledgeAssetRole
+): Promise<{ jobId?: string; parsing?: { jobId: string; jobType: "UPGRADE_PARSE"; status: "QUEUED" } }> {
+  if (!["SEARCH_SOURCE_REQUIRED", "NO_TEXT_LAYER"].includes(version.parseStatus)) return {};
+  if (assetRole !== "SEARCH_SOURCE" && assetRole !== "OCR_SOURCE") return {};
+  const pages = await app.db.select({ id: knowledgePages.id }).from(knowledgePages)
+    .where(eq(knowledgePages.versionId, version.id)).limit(1);
+  if (pages.length === 0) return {};
+  const job = await insertParsingJobAndEnqueue(app, request, actor, {
+    documentId: version.documentId,
+    versionId: version.id,
+    fileId: version.fileId,
+    jobType: "UPGRADE_PARSE",
+    triggeredBy: "SEARCH_SOURCE_BOUND"
+  });
+  return { jobId: job.id, parsing: { jobId: job.id, jobType: "UPGRADE_PARSE", status: "QUEUED" } };
+}
+
 /** 发起解析/重新解析：创建解析任务并投递 document-processing 队列 */
 export async function enqueueParsing(
   app: FastifyInstance,
@@ -702,35 +782,12 @@ export async function enqueueParsing(
     throw new ConflictError("已发布或已停用的版本不允许重新解析，请创建新版本");
   }
   if (!version.fileId) throw new ConflictError("该版本尚未绑定源文件，请先上传文件");
-  const job = await app.db.transaction(async (tx) => {
-    const [created] = await tx.insert(parsingJobs).values({
-      documentId: version.documentId,
-      versionId,
-      jobType,
-      status: "QUEUED",
-      fileId: version.fileId,
-      queuedById: actor.id
-    }).returning();
-    await writeAuditLog({
-      db: tx, request, actor,
-      action: AUDIT_ACTIONS.KNOWLEDGE_VERSION_PARSED, targetType: "knowledge_document_version", targetId: versionId,
-      afterJson: { jobType, parsingJobId: created!.id }
-    });
-    return created!;
+  const job = await insertParsingJobAndEnqueue(app, request, actor, {
+    documentId: version.documentId,
+    versionId,
+    fileId: version.fileId,
+    jobType
   });
-  try {
-    await app.queues.documentProcessing.add("parse_document", {
-      parsingJobId: job.id,
-      fileId: version.fileId,
-      versionId,
-      jobType
-    }, { jobId: job.id });
-  } catch (error) {
-    await app.db.update(parsingJobs).set({
-      status: "FAILED", errorMessage: "解析任务投递失败，请稍后重试", updatedAt: new Date()
-    }).where(eq(parsingJobs.id, job.id));
-    throw new ServiceUnavailableError("解析任务投递失败，请稍后重试");
-  }
   return { message: jobType === "REPARSE" ? "重新解析任务已提交" : "解析任务已提交", jobId: job.id };
 }
 
