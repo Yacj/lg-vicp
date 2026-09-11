@@ -72,7 +72,7 @@ export function toAiSources(hits: readonly WikiHit[]): AiSourceRef[] {
       blockId: hit.pageBlockId ?? undefined,
       text: hit.content
     };
-    const headingPath = hit.headingPath && hit.headingPath.length > 0 ? [...hit.headingPath] : null;
+    const headingPath = Array.isArray(hit.headingPath) && hit.headingPath.length > 0 ? [...hit.headingPath] : null;
     const sectionTitle = hit.sourceSection ?? (headingPath ? headingPath[headingPath.length - 1]! : null);
     return {
       sourceType: "KNOWLEDGE" as const,
@@ -126,8 +126,8 @@ export function toUserTestSources(hits: readonly WikiHit[]): UserTestSource[] {
     documentId: hit.documentId,
     versionId: hit.versionId,
     title: hit.sourceTitle,
-    tocPath: hit.headingPath && hit.headingPath.length > 0 ? [...hit.headingPath] : null,
-    sectionTitle: hit.sourceSection ?? (hit.headingPath && hit.headingPath.length > 0
+    tocPath: Array.isArray(hit.headingPath) && hit.headingPath.length > 0 ? [...hit.headingPath] : null,
+    sectionTitle: hit.sourceSection ?? (Array.isArray(hit.headingPath) && hit.headingPath.length > 0
       ? hit.headingPath[hit.headingPath.length - 1]!
       : null),
     pageLabel: hit.pageLabel ?? null,

@@ -43,6 +43,7 @@ import {
   streamConversationReply,
   type ActiveGeneration
 } from "./ai-generation.service.js";
+import { loadKnowledgeForGeneration } from "./ai-knowledge-load.js";
 import { formatKnowledgeContext, runSearch, searchProjectKnowledge } from "../knowledge/knowledge.service.js";
 import { KNOWLEDGE_PERMISSIONS } from "../../shared/knowledge-permissions.js";
 import { requirePermission } from "../../shared/permission-guard.js";
@@ -951,22 +952,16 @@ export async function aiRoutes(app: FastifyInstance) {
       conversationId: row.conversation.id,
       scene: row.conversation.scene
     });
-    const chunks = capabilities.needKnowledgeSearch
-      ? await searchProjectKnowledge(app, row.conversation.projectId, lastUserMessage.content, {
-        insulationSystemId: row.conversation.insulationSystemId ?? null
-      })
-      : [];
-    if (chunks.length > 0) {
-      await app.db.insert(aiRetrievalLogs).values(chunks.map((chunk) => ({
-        conversationId: row.conversation.id,
-        messageId: assistantMessage.id,
-        documentId: chunk.documentId,
-        chunkId: chunk.chunkId ?? null,
-        score: chunk.score,
-        sourcePage: chunk.sourcePage,
-        sourceTitle: chunk.sourceTitle
-      })));
-    }
+    const { chunks, retrievalFailed } = await loadKnowledgeForGeneration({
+      app,
+      log: request.log,
+      conversationId: row.conversation.id,
+      messageId: assistantMessage.id,
+      content: lastUserMessage.content,
+      projectId: row.conversation.projectId,
+      insulationSystemId: row.conversation.insulationSystemId ?? null,
+      needSearch: capabilities.needKnowledgeSearch
+    });
 
     const projectContext = (runtime.requireProject || capabilities.needProjectContext)
       ? await resolveProjectContext(app, row.conversation.projectId)
@@ -979,6 +974,7 @@ export async function aiRoutes(app: FastifyInstance) {
       ? await loadApprovedComparisonRules(app, {})
       : [];
     const shouldInjectKnowledge = chunks.length > 0
+      || retrievalFailed
       || (capabilities.needKnowledgeSearch && capabilities.explicitKnowledgeRequest);
     const systemMessages = buildSystemMessages({
       scenePrompt: runtime.promptContent,
@@ -986,7 +982,7 @@ export async function aiRoutes(app: FastifyInstance) {
       insulationSystemContext: insulationSystem
         ? formatInsulationSystemContext({ name: insulationSystem.name, code: insulationSystem.code, systemType: insulationSystem.systemType })
         : null,
-      knowledgeContext: shouldInjectKnowledge ? formatKnowledgeContext(chunks) : null,
+      knowledgeContext: shouldInjectKnowledge ? formatKnowledgeContext(chunks, { retrievalFailed }) : null,
       ruleContext: comparisonRules.length > 0 ? formatComparisonRuleContext(comparisonRules) : null,
       thermalContext: capabilities.needThermalTool ? formatThermalCapabilityContext() : null
     });

@@ -19,6 +19,12 @@ describe("resolveAiCapabilities", () => {
   it("明确要求根据图集/标准时标记 explicitKnowledgeRequest", () => {
     expect(resolveAiCapabilities({ message: "请根据图集查询窗洞口做法" }).explicitKnowledgeRequest).toBe(true);
     expect(resolveAiCapabilities({ message: "系统资料里节能标准怎么规定的" }).explicitKnowledgeRequest).toBe(true);
+    expect(resolveAiCapabilities({
+      message: "请根据当前已发布的知识资料，帮助我查询与问题相关的图集内容，并给出对应章节、页码和原文来源。"
+    })).toMatchObject({
+      needKnowledgeSearch: true,
+      explicitKnowledgeRequest: true
+    });
   });
 
   it("有 projectId 时注入项目上下文，但仍可同时检索知识", () => {

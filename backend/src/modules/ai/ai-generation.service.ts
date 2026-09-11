@@ -9,7 +9,7 @@ import { streamText, type LanguageModelUsage, type ModelMessage } from "ai";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { and, count, desc, eq, inArray, isNull, notInArray } from "drizzle-orm";
 import { env } from "../../config/env.js";
-import { aiConversations, aiMessages, aiRetrievalLogs, projects } from "../../db/schema.js";
+import { aiConversations, aiMessages, projects } from "../../db/schema.js";
 import { AI_SCENES, AUDIT_ACTIONS } from "../../shared/constants.js";
 import { AiError, toAiError } from "../../shared/ai-errors.js";
 import type { AuthUser } from "../../shared/auth-user.js";
@@ -19,11 +19,12 @@ import { budgetHistory, buildSystemMessages, estimateTokens, formatInsulationSys
 import { isAbortError, startSseStream, writeProgress, writeSse } from "./ai-sse.js";
 import { checkContentFiltered } from "./ai-content-filter.service.js";
 import { writeAuditLog } from "../audit-logs/audit-log.service.js";
-import { formatKnowledgeContext, searchProjectKnowledge, type WikiHit } from "../knowledge/knowledge.service.js";
+import { formatKnowledgeContext, type WikiHit } from "../knowledge/knowledge.service.js";
 import { getPublishedInsulationSystem } from "../construction/construction-read.service.js";
 import { toAiSources } from "./ai-source.mapper.js";
 import { formatComparisonRuleContext, loadApprovedComparisonRules, logComparisonRuleUsage } from "../comparison/material-compare.service.js";
 import { createConcurrencyRelease, enforceAiQuota, resolveSceneRuntime, type SceneRuntime } from "./ai-runtime.service.js";
+import { loadKnowledgeForGeneration } from "./ai-knowledge-load.js";
 import { resolveAiCapabilities } from "./ai-capability-router.js";
 
 /** 模型 contextWindow 缺省时的保守预算 */
@@ -208,25 +209,19 @@ export async function streamConversationReply(options: {
       scene: conversation.scene
     });
 
-  // 检索：外部注入优先（knowledge-qa / test-qa）；否则按能力路由自动检索已发布知识
-  const chunks = providedChunks !== undefined
-    ? providedChunks
-    : capabilities.needKnowledgeSearch
-      ? await searchProjectKnowledge(app, conversation.projectId, content, {
-        insulationSystemId: conversation.insulationSystemId ?? null
-      })
-      : [];
-  if (chunks.length > 0) {
-    await app.db.insert(aiRetrievalLogs).values(chunks.map((chunk) => ({
-      conversationId: conversation.id,
-      messageId: assistantMessage.id,
-      documentId: chunk.documentId,
-      chunkId: chunk.chunkId ?? null,
-      score: chunk.score,
-      sourcePage: chunk.sourcePage,
-      sourceTitle: chunk.sourceTitle
-    })));
-  }
+  // 检索：外部注入优先（knowledge-qa / test-qa）；否则按能力路由自动检索已发布知识。
+  // 检索失败不得 500，降级为无资料继续生成，由模型给出可理解说明。
+  const { chunks, retrievalFailed } = await loadKnowledgeForGeneration({
+    app,
+    log: request.log,
+    conversationId: conversation.id,
+    messageId: assistantMessage.id,
+    content,
+    projectId: conversation.projectId,
+    insulationSystemId: conversation.insulationSystemId ?? null,
+    needSearch: capabilities.needKnowledgeSearch,
+    providedChunks
+  });
 
   const projectContext = (runtime.requireProject || capabilities.needProjectContext)
     ? await resolveProjectContext(app, conversation.projectId)
@@ -236,8 +231,9 @@ export async function streamConversationReply(options: {
     : [];
   const shouldInjectKnowledge = providedChunks !== undefined
     || chunks.length > 0
+    || retrievalFailed
     || (capabilities.needKnowledgeSearch && capabilities.explicitKnowledgeRequest);
-  const knowledgeContext = shouldInjectKnowledge ? formatKnowledgeContext(chunks) : null;
+  const knowledgeContext = shouldInjectKnowledge ? formatKnowledgeContext(chunks, { retrievalFailed }) : null;
   const systemMessages = buildSystemMessages({
     scenePrompt: runtime.promptContent,
     projectContext,

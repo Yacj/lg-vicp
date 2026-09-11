@@ -251,11 +251,12 @@ export async function runSearch(app: FastifyInstance, query: string, options: Ru
   if (options.categoryId) filterClauses.push(sql`kd.category_id = ${options.categoryId}`);
   if (options.region) filterClauses.push(sql`kd.region = ${options.region}`);
   if (options.purpose) filterClauses.push(sql`(kd.allowed_purposes = '[]'::jsonb or kd.allowed_purposes @> ${JSON.stringify([options.purpose])}::jsonb)`);
+  // 必须带前导 and，否则会拼成 `... deleted_at is nullkc.project_id is null` 直接 500
   const filterFragment = filterClauses.length > 0
-    ? filterClauses.slice(1).reduce(
+    ? sql` and ${filterClauses.slice(1).reduce(
         (combined, clause) => sql`${combined} and ${clause}`,
         filterClauses[0]!
-      )
+      )}`
     : sql``;
   // 版本守卫：生产口径只检索当前已发布受控版本；versionId 模式（test-qa）从检索入口就限定单一版本，
   // 不允许“全库检索后前端过滤”，且不受版本审核状态影响（DRAFT/APPROVED/PUBLISHED 均可测）。
@@ -637,6 +638,19 @@ export async function searchWikiHierarchy(
   const systemMatch = options.insulationSystemId
     ? sql`kd.insulation_system_id = ${options.insulationSystemId}`
     : sql`false`;
+  // postgres.js 无法序列化空数组；unnest([]::text[]) 会在快捷提问等无别名命中时 500
+  const sectionKeywordCount = keywordPatterns.length === 0
+    ? sql`0`
+    : sql`(select count(*) from unnest(${keywordPatterns}::text[]) p where ks.search_text ilike p)`;
+  const sectionAliasCount = aliasPatterns.length === 0
+    ? sql`0`
+    : sql`(select count(*) from unnest(${aliasPatterns}::text[]) p where ks.search_text ilike p)`;
+  const blockKeywordCount = keywordPatterns.length === 0
+    ? sql`0`
+    : sql`(select count(*) from unnest(${keywordPatterns}::text[]) p where kpb.search_text ilike p)`;
+  const blockAliasCount = aliasPatterns.length === 0
+    ? sql`0`
+    : sql`(select count(*) from unnest(${aliasPatterns}::text[]) p where kpb.search_text ilike p)`;
 
   // 共享的文档级过滤（层级检索用 kd.project_id：项目文档 + 平台级文档）
   const docFilterClauses: ReturnType<typeof sql>[] = [];
@@ -653,11 +667,12 @@ export async function searchWikiHierarchy(
   if (options.categoryId) docFilterClauses.push(sql`kd.category_id = ${options.categoryId}`);
   if (options.region) docFilterClauses.push(sql`kd.region = ${options.region}`);
   if (options.purpose) docFilterClauses.push(sql`(kd.allowed_purposes = '[]'::jsonb or kd.allowed_purposes @> ${JSON.stringify([options.purpose])}::jsonb)`);
+  // 必须带前导 and，否则会拼成 `... deleted_at is nullkd.project_id is null` 直接 500
   const docFilterFragment = docFilterClauses.length > 0
-    ? docFilterClauses.slice(1).reduce(
+    ? sql` and ${docFilterClauses.slice(1).reduce(
         (combined, clause) => sql`${combined} and ${clause}`,
         docFilterClauses[0]!
-      )
+      )}`
     : sql``;
   // 版本守卫：与 runSearch 同规则 —— versionId 模式只限定单一版本（test-qa），否则生产口径
   const publishedGuard = options.versionId
@@ -686,8 +701,8 @@ export async function searchWikiHierarchy(
       kd.region,
       (
         (case when ks.search_text ilike ${phrasePattern} then 1 else 0 end) * ${wPhrase}
-        + (select count(*) from unnest(${keywordPatterns}::text[]) p where ks.search_text ilike p) * ${wKeyword}
-        + (select count(*) from unnest(${aliasPatterns}::text[]) p where ks.search_text ilike p) * ${wAlias}
+        + ${sectionKeywordCount} * ${wKeyword}
+        + ${sectionAliasCount} * ${wAlias}
         + ts_rank(to_tsvector('simple', ks.search_text), plainto_tsquery('simple', ${normalizedQuery})) * ${wFulltext}
         + word_similarity(${normalizedQuery}, coalesce(ks.search_text, '')) * ${wFuzzy}
         + (case when ks.title ilike ${phrasePattern} then 1 else 0 end) * ${wTitle}
@@ -732,8 +747,8 @@ export async function searchWikiHierarchy(
       kd.region,
       (
         (case when kpb.search_text ilike ${phrasePattern} then 1 else 0 end) * ${wPhrase}
-        + (select count(*) from unnest(${keywordPatterns}::text[]) p where kpb.search_text ilike p) * ${wKeyword}
-        + (select count(*) from unnest(${aliasPatterns}::text[]) p where kpb.search_text ilike p) * ${wAlias}
+        + ${blockKeywordCount} * ${wKeyword}
+        + ${blockAliasCount} * ${wAlias}
         + ts_rank(to_tsvector('simple', coalesce(kpb.search_text, '')), plainto_tsquery('simple', ${normalizedQuery})) * ${wFulltext}
         + word_similarity(${normalizedQuery}, coalesce(kpb.search_text, '')) * ${wFuzzy}
         + (case when ${clausePatterns.length === 0 ? sql`false` : sql`(kpb.search_text ilike any(${clausePatterns}) or kpb.source_anchor ilike any(${clausePatterns}))`} then 1 else 0 end) * ${wClause}
@@ -907,13 +922,25 @@ export async function searchWikiHierarchy(
   return hits;
 }
 
-export function formatKnowledgeContext(hits: WikiHit[]): string {
+function headingPathText(headingPath: unknown): string | null {
+  if (Array.isArray(headingPath) && headingPath.length > 0) {
+    const text = headingPath.filter((item): item is string => typeof item === "string" && Boolean(item.trim())).join(" / ");
+    return text || null;
+  }
+  if (typeof headingPath === "string" && headingPath.trim()) return headingPath.trim();
+  return null;
+}
+
+export function formatKnowledgeContext(hits: WikiHit[], options: { retrievalFailed?: boolean } = {}): string {
+  if (options.retrievalFailed) {
+    return "知识资料检索暂时不可用，未能读取图集、标准和原文来源。必须明确告知用户当前无法引用章节和页码，请对方补充更具体的问题（如图集名称、节点、构造或页码）后重试；不得编造条文、图集编号、章节或页码。";
+  }
   if (hits.length === 0) return "知识库中未检索到可用依据（无可引用资料）。回答时须明确说明缺少依据，不得编造条文或数据。";
   const content = hits.map((hit, index) => {
     const unitLabel = hit.retrievalUnit === "SECTION" ? "章节"
       : hit.retrievalUnit === "BLOCK" ? "内容块"
         : hit.retrievalUnit === "PAGE" ? "页面" : "片段";
-    const sectionText = hit.sourceSection ?? (hit.headingPath && hit.headingPath.length > 0 ? hit.headingPath.join(" / ") : null);
+    const sectionText = hit.sourceSection ?? headingPathText(hit.headingPath);
     // 展示口径：印刷页码标签优先（A5 页），物理页序号只用于程序定位
     const pageText = hit.pageLabel ?? (hit.sourcePage != null ? String(hit.sourcePage) : null);
     const location = [pageText ? `${pageText} 页` : null, sectionText]
