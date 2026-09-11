@@ -101,7 +101,7 @@
 - AI 场景与提示词版本化：模型按场景解析（`ai_scenes` + `prompts` + `prompt_versions`），提示词只有 DRAFT/PUBLISHED/DISABLED 三种状态、同场景全局唯一生效版本；已发布版本不可直接修改（编辑派生新草稿）。
 - AI 对话敏感词围栏：发送消息前对 `ai_content_filters` 启用的词条做确定性校验（CONTAINS/REGEX，可指定生效场景），命中即拦截且不发模型请求；用户消息以 `BLOCKED` 状态落库并记录命中词条、写审计，返回 `AI_CONTENT_BLOCKED` 错误（400 语义码 + 可配置中文提示）。B 端通过 `/api/v1/platform/ai/filters` 管理词条，按 `system:ai:filter:*` 权限码授权。
 - AI 会话自动标题：会话首条用户消息回答完成后投递 `ai-title-generation` BullMQ 队列异步生成标题，模型与提示词走 `conversation_title` 场景解析；仅当会话标题仍为空（未手动重命名）时写入，生成失败保持“未知对话”不阻塞主对话。
-- 仅 `general_chat` 场景对外开放；其他场景未具备知识库/公式/工具能力前不得对外宣称完整业务能力（`enabled` 门控）。
+- 仅 `general_chat` 作为 C 端默认入口；用户不选择场景或系统指令。知识检索由能力路由自动启用，只检索 PUBLISHED + AI_ENABLED + 当前用户有权访问的资料。快捷提问见 `docs/ai/quick-prompt.md`。其他场景 `visibility=INTERNAL`，Prompt 版本化保留给技术管理员。
 - AI 配额：并发生成（Redis 计数）+ 每日请求数双重限制，`SUPER_ADMIN` 豁免；错误使用统一 `AI_*` 错误码（`src/shared/ai-errors.ts`）。
 - AI 配置、运营、反馈处理与调试使用独立 `system:ai:*` 权限码并写审计，详见 `docs/ai/`。
 - AI 会话历史支持分页、搜索、来源筛选、项目筛选、重命名、按用户置顶、移动项目、软删除和恢复；删除会话必须禁用由该会话产生的有效 AI 分享链接。

@@ -51,7 +51,9 @@ AI 回答是可复用资产。点赞、反馈和重新生成不得覆盖原始�
 ## 场景与提示词版本化（第一期）
 
 - 场景建模：`ai_scenes`（能力门控 + 模型绑定 + `enabled`），提示词建模：`prompts` + `prompt_versions`（DRAFT/PUBLISHED/DISABLED，同 prompt 下 PUBLISHED 全局唯一）。旧 `ai_scene_bindings` / `prompt_templates` 已随迁移 0010 废弃。
-- 仅 `general_chat` 对外开放（`enabled=true`）；其余五个场景为占位配置，未具备知识库/公式/工具能力前不得伪装完整业务能力。
+- 仅 `general_chat` 作为 C 端默认入口（`visibility=USER`）；用户不选择场景/系统指令。知识检索、项目上下文、热工/对比能力由 `resolveAiCapabilities` 按问题自动启用。其余场景保留为 `INTERNAL`（Worker / B 端测试），接口与 Prompt 版本化继续兼容。
+- 快捷提问独立表 `ai_quick_prompts`，不复用 Prompt / Scene。C 端只读 `GET /api/v1/ai/quick-prompts`；B 端 `/api/v1/platform/ai/quick-prompts`。
+- 生产知识检索只覆盖 PUBLISHED + AI_ENABLED + 当前受控版本；无项目时只搜平台文档，有项目时平台 + 当前项目。草稿与无权限项目文档不得进入正式聊天。
 - 运行时解析链路：场景（须启用）→ 当前 PUBLISHED 提示词版本 → 按 `reasoningMode` 解析模型 → 校验 provider/model 启用 → 构造语言模型。禁止在业务代码写死模型 ID。
 - reasoningMode=ON：`allowReasoning=false` 抛 `AI_REASONING_NOT_SUPPORTED`；`reasoningModelId` 不可用降级默认模型并写入 `metadata.downgradeNote`；fallback 仅在主模型未产出任何 token 时重试一次。
 - 上下文预算：`estimateTokens`（CJK/1.5 + ASCII/4）裁剪历史窗口，预算 = contextWindow − 系统提示词 − 用户消息 − 输出预留 − 10% 安全余量，超长裁剪最早历史（默认最多 20 条）。

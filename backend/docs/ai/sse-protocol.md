@@ -55,23 +55,25 @@
   "documentId": "uuid", "versionId": "uuid",
   "sectionId": "uuid?", "pageId": "uuid?", "blockId": "uuid?", "chunkId": "uuid?（仅 Chunk 辅助索引场景存在）",
   "title": "文档标题",
-  "chapter": "5 设计与构造", "section": "5.2 VICP薄抹灰外保温系统",
-  "sectionPath": ["5 设计与构造", "5.2 VICP薄抹灰外保温系统"],
+  "tocPath": ["A VICP薄抹灰外保温系统", "窗洞口"],
+  "sectionTitle": "窗洞口",
+  "chapter": "A VICP薄抹灰外保温系统", "section": "窗洞口",
+  "sectionPath": ["A VICP薄抹灰外保温系统", "窗洞口"],
   "citationAnchor": "5.2.3",
-  "tocPath": null,
-  "physicalPageNumber": 103,
-  "pageLabel": "A5",
-  "pageTitle": "VICP薄抹灰外保温系统基本构造",
+  "physicalPageNumber": 105,
+  "pageLabel": "A7",
+  "pageTitle": "窗洞口",
   "originalFileId": "uuid",
   "pageNumber": 21, "pageStart": 21, "pageEnd": 23, "page": 21,
   "matchedText": "本次实际命中的章节/页面/块/切片内容",
+  "quote": "本次实际命中的章节/页面/块/切片内容",
   "snippet": "命中词 ±40 字截取",
   "highlightRanges": [{ "pageId": "uuid", "pageNumber": 21, "blockId": "uuid", "text": "命中原文" }],
   "evidenceLevel": "A", "score": 12.5
 }
 ```
 
-无知识检索证据时 `sources` 为空数组，不伪造来源；`page` 为兼容字段（等价 `pageNumber`）。展示口径：`《title》/ tocPath / pageLabel 页`（如「A5 页」），`physicalPageNumber` 只用于程序打开正确页面；点击来源后调用 `GET /api/v1/ai/knowledge/source-detail` 获取 TOC 路径、ORIGINAL 页面预览图与高亮定位。
+无知识检索证据时 `sources` 为空数组，不伪造来源。C 端主要使用 `title` / `tocPath` / `sectionTitle` / `pageLabel` / `quote`；`physicalPageNumber` + `originalFileId` 只用于打开正式原文页。点击来源后调用 `GET /api/v1/ai/knowledge/source-detail` 获取 TOC 路径、ORIGINAL 页面预览图与高亮定位。
 
 ### `stopped`
 

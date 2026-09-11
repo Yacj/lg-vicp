@@ -13,7 +13,9 @@
 | `promptId` | 关联提示词（FK `prompts`） |
 | `enabled` | 是否对外服务 |
 
-内置场景（seed）：`general_chat`、`conversation_title`（会话自动标题，内部场景）启用；`project_design`、`material_compare`、`standard_qa`、`report_generate`、`information_extract`（`enabled=false` 占位，不对外服务）。
+内置场景（seed）：`general_chat`（`visibility=USER`，C 端默认入口，用户不选择）启用；`conversation_title`、`knowledge_qa`、`material_compare` 等为 `INTERNAL`。场景/提示词管理菜单对普通业务管理员隐藏，接口保留。
+
+`ai_scenes.visibility`：`USER` / `INTERNAL` / `ADMIN`。即使标 USER，C 端也不要求用户手动选择。
 
 > 约束：`reasoningModelId` 必须是 `supportsReasoning` 模型；`general_chat` 可编辑配置，但停用需明确确认（运营保护）。`conversation_title` 由 `ai-title-generation` Worker 内部调用（首条消息完成后异步生成会话标题），不接收用户请求。
 

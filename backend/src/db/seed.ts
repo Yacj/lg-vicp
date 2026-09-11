@@ -14,6 +14,7 @@ import { REPORT_PERMISSIONS, REPORT_PERMISSION_SEEDS } from "../shared/report-pe
 import { REVIEW_PERMISSION_SEEDS } from "../shared/review-permissions.js";
 import { NOTIFICATION_PERMISSION_SEEDS } from "../shared/notification-permissions.js";
 import { FILE_CENTER_PERMISSION_SEEDS } from "../shared/file-permissions.js";
+import { AI_QUICK_PROMPT_PERMISSION_SEEDS } from "../shared/ai-permissions.js";
 import { buildMenuSeedTree, DEPRECATED_MENU_ROUTE_PATHS, LEGACY_MENU_ROUTE_PATHS, type MenuSeedNode } from "./menu-seed-tree.js";
 import { normalizeLoginIdentifier } from "../shared/login-identifier.js";
 import { buildRankingRuleSeeds } from "../modules/knowledge/knowledge-ingest.service.js";
@@ -21,6 +22,7 @@ import { DEFAULT_REPORT_SECTIONS } from "../modules/reports/report-template.serv
 import {
   aiModels,
   aiProviders,
+  aiQuickPrompts,
   aiScenes,
   comparisonDimensions,
   reportTemplates,
@@ -129,7 +131,8 @@ const permissionSeeds = [
   ...REPORT_PERMISSION_SEEDS,
   ...REVIEW_PERMISSION_SEEDS,
   ...NOTIFICATION_PERMISSION_SEEDS,
-  ...FILE_CENTER_PERMISSION_SEEDS
+  ...FILE_CENTER_PERMISSION_SEEDS,
+  ...AI_QUICK_PROMPT_PERMISSION_SEEDS
 ] as const;
 
 try {
@@ -364,14 +367,14 @@ try {
     }
 
     const sceneSeeds = [
-      { code: "general_chat", name: "通用对话", description: "通用对话，不依赖项目、知识库与计算工具", allowReasoning: true, requireProject: false, allowFileUpload: false, allowKnowledgeSearch: false, allowTools: false, enabled: true, sort: 1 },
-      { code: "project_design", name: "项目设计", description: "项目设计咨询（未开放：依赖知识库与确定性计算工具）", allowReasoning: false, requireProject: true, allowFileUpload: false, allowKnowledgeSearch: false, allowTools: false, enabled: false, sort: 2 },
-      { code: "material_compare", name: "材料对比", description: "材料对比分析（消费后台已审核对比规则）", allowReasoning: false, requireProject: true, allowFileUpload: false, allowKnowledgeSearch: false, allowTools: false, enabled: true, sort: 3 },
-      { code: "standard_qa", name: "标准问答", description: "建筑标准条文问答（未开放：依赖知识库）", allowReasoning: false, requireProject: false, allowFileUpload: false, allowKnowledgeSearch: false, allowTools: false, enabled: false, sort: 4 },
-      { code: "report_generate", name: "报告生成", description: "工程报告生成（未开放：依赖知识库与报告模板）", allowReasoning: false, requireProject: true, allowFileUpload: false, allowKnowledgeSearch: false, allowTools: false, enabled: false, sort: 5 },
-      { code: "information_extract", name: "信息抽取", description: "建筑资料信息抽取（未开放：依赖知识库）", allowReasoning: false, requireProject: true, allowFileUpload: false, allowKnowledgeSearch: false, allowTools: false, enabled: false, sort: 6 },
-      { code: "conversation_title", name: "会话标题生成", description: "根据会话首条消息自动生成简短标题（内部场景）", allowReasoning: false, requireProject: false, allowFileUpload: false, allowKnowledgeSearch: false, allowTools: false, enabled: true, sort: 7 },
-      { code: "knowledge_qa", name: "知识问答", description: "知识库检索测试问答：仅依据已发布资料回答，无依据不回答（B 端检索测试页）", allowReasoning: false, requireProject: false, allowFileUpload: false, allowKnowledgeSearch: false, allowTools: false, enabled: true, sort: 8 }
+      { code: "general_chat", name: "通用对话", description: "默认对话入口：用户不选择场景，由后端按问题自动检索知识/项目/热工能力", allowReasoning: true, requireProject: false, allowFileUpload: false, allowKnowledgeSearch: true, allowTools: false, enabled: true, visibility: "USER" as const, sort: 1 },
+      { code: "project_design", name: "项目设计", description: "项目设计咨询（内部能力，由能力路由按需启用）", allowReasoning: false, requireProject: true, allowFileUpload: false, allowKnowledgeSearch: false, allowTools: false, enabled: false, visibility: "INTERNAL" as const, sort: 2 },
+      { code: "material_compare", name: "材料对比", description: "材料对比分析（内部能力，消费后台已审核对比规则）", allowReasoning: false, requireProject: true, allowFileUpload: false, allowKnowledgeSearch: false, allowTools: false, enabled: true, visibility: "INTERNAL" as const, sort: 3 },
+      { code: "standard_qa", name: "标准问答", description: "建筑标准条文问答（内部能力，由知识检索承接）", allowReasoning: false, requireProject: false, allowFileUpload: false, allowKnowledgeSearch: false, allowTools: false, enabled: false, visibility: "INTERNAL" as const, sort: 4 },
+      { code: "report_generate", name: "报告生成", description: "工程报告生成（内部能力）", allowReasoning: false, requireProject: true, allowFileUpload: false, allowKnowledgeSearch: false, allowTools: false, enabled: false, visibility: "INTERNAL" as const, sort: 5 },
+      { code: "information_extract", name: "信息抽取", description: "建筑资料信息抽取（内部能力）", allowReasoning: false, requireProject: true, allowFileUpload: false, allowKnowledgeSearch: false, allowTools: false, enabled: false, visibility: "INTERNAL" as const, sort: 6 },
+      { code: "conversation_title", name: "会话标题生成", description: "根据会话首条消息自动生成简短标题（内部场景）", allowReasoning: false, requireProject: false, allowFileUpload: false, allowKnowledgeSearch: false, allowTools: false, enabled: true, visibility: "INTERNAL" as const, sort: 7 },
+      { code: "knowledge_qa", name: "知识问答", description: "知识库检索测试问答：仅依据已发布资料回答（B 端检索测试页，INTERNAL）", allowReasoning: false, requireProject: false, allowFileUpload: false, allowKnowledgeSearch: false, allowTools: false, enabled: true, visibility: "INTERNAL" as const, sort: 8 }
     ] as const;
 
     const scenePrompts = [
@@ -431,6 +434,62 @@ try {
       await tx.update(aiScenes).set({ defaultModelId: deepSeekModel.id, updatedAt: new Date() })
         .where(and(inArray(aiScenes.code, ["general_chat", "material_compare", "conversation_title"]), isNull(aiScenes.defaultModelId)));
     }
+
+    // 存量场景补齐可见性：C 端默认 general_chat（USER），其余内部场景不要求用户选择
+    await tx.update(aiScenes).set({
+      visibility: "USER",
+      allowKnowledgeSearch: true,
+      description: "默认对话入口：用户不选择场景，由后端按问题自动检索知识/项目/热工能力",
+      updatedAt: new Date()
+    }).where(eq(aiScenes.code, "general_chat"));
+    await tx.update(aiScenes).set({ visibility: "INTERNAL", updatedAt: new Date() })
+      .where(inArray(aiScenes.code, [
+        "project_design", "material_compare", "standard_qa", "report_generate",
+        "information_extract", "conversation_title", "knowledge_qa"
+      ]));
+
+    await tx.insert(aiQuickPrompts).values([
+      {
+        title: "查询图集",
+        description: "查询已上传并发布的图集章节和构造做法",
+        content: "请根据当前已发布的知识资料，帮助我查询与问题相关的图集内容，并给出对应章节、页码和原文来源。",
+        icon: "book",
+        position: "AI_HOME",
+        sortOrder: 10,
+        enabled: true,
+        actionType: "AUTO"
+      },
+      {
+        title: "分析当前项目",
+        description: "结合当前项目真实数据给出建议",
+        content: "请结合当前项目的真实资料，分析与我问题相关的项目情况和注意事项。如果会话尚未关联项目，请明确提示我先选择项目。",
+        icon: "project",
+        position: "AI_HOME",
+        sortOrder: 20,
+        enabled: true,
+        actionType: "AUTO"
+      },
+      {
+        title: "匹配保温方案",
+        description: "按构造和产品资料匹配保温做法",
+        content: "请根据当前已发布的知识资料和构造做法，帮助我匹配合适的保温方案，并给出对应章节、页码和原文来源。",
+        icon: "material",
+        position: "AI_HOME",
+        sortOrder: 30,
+        enabled: true,
+        actionType: "AUTO"
+      },
+      {
+        title: "查询节能标准",
+        description: "查询已发布节能标准条文和技术要求",
+        content: "请根据当前已发布的知识资料，帮助我查询相关节能标准和技术要求，并给出对应章节、页码和原文来源。找不到可靠依据时请明确说明，不要编造标准号或条文。",
+        icon: "standard",
+        position: "AI_HOME",
+        sortOrder: 40,
+        enabled: true,
+        actionType: "AUTO"
+      }
+    ]).onConflictDoNothing();
   });
 
   console.info("基础数据初始化完成");

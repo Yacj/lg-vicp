@@ -15,6 +15,7 @@ import { aiAdminRoutes } from "./modules/ai/ai-admin.routes.js";
 import { aiDebugRoutes } from "./modules/ai/ai-debug.routes.js";
 import { aiConfigRoutes } from "./modules/ai-config/ai-config.routes.js";
 import { aiFilterRoutes } from "./modules/ai-config/ai-filter.routes.js";
+import { aiQuickPromptAdminRoutes } from "./modules/ai/ai-quick-prompt.routes.js";
 import { platformAiFeedbackRoutes } from "./modules/ai-feedback/ai-feedback.routes.js";
 import { auditLogRoutes } from "./modules/audit-logs/audit-log.routes.js";
 import { authRoutes } from "./modules/auth/auth.routes.js";
@@ -158,6 +159,7 @@ export async function buildApp() {
   await app.register(reviewCenterRoutes, { prefix: "/api/v1/platform/review-center" });
   await app.register(aiConfigRoutes, { prefix: "/api/v1/platform" });
   await app.register(aiFilterRoutes, { prefix: "/api/v1/platform" });
+  await app.register(aiQuickPromptAdminRoutes, { prefix: "/api/v1/platform" });
   await app.register(platformAiFeedbackRoutes, { prefix: "/api/v1/platform/ai" });
   await app.register(notificationRoutes, { prefix: "/api/v1/platform" });
   await app.register(aiAdminRoutes, { prefix: "/api/v1/platform/ai" });

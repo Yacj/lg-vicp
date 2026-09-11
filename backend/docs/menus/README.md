@@ -51,8 +51,9 @@
 AI 配置 /ai-config
 ├─ 服务商管理 /ai-config/providers（含「测试服务商连接」按钮）
 ├─ 模型管理 /ai-config/models
-├─ 场景配置 /ai-config/scenes
-├─ 提示词管理 /ai-config/prompts（含「提示词发布」按钮）
+├─ 快捷提问 /ai-config/quick-prompts
+├─ 场景配置 /ai-config/scenes（隐藏，技术管理员接口仍可用）
+├─ 提示词管理 /ai-config/prompts（隐藏，含「提示词发布」按钮）
 └─ 关键词过滤 /ai-config/filters
 AI 运营 /ai-ops
 ├─ 会话运营 /ai-ops/conversations

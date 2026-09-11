@@ -244,6 +244,8 @@ export async function runSearch(app: FastifyInstance, query: string, options: Ru
     filterClauses.push(options.projectScope === "project-and-global"
       ? sql`(kc.project_id = ${options.projectId} or kc.project_id is null)`
       : sql`kc.project_id = ${options.projectId}`);
+  } else if (!options.versionId) {
+    filterClauses.push(sql`kc.project_id is null`);
   }
   if (options.docType) filterClauses.push(sql`kd.doc_type = ${options.docType}`);
   if (options.categoryId) filterClauses.push(sql`kd.category_id = ${options.categoryId}`);
@@ -522,6 +524,23 @@ export interface WikiSearchOptions {
   limit: number;
 }
 
+export type KnowledgeSearchDocScope = "VERSION_ONLY" | "PLATFORM_ONLY" | "PLATFORM_AND_PROJECT";
+
+/**
+ * 生产对话检索范围：
+ * - versionId：B 端草稿测试，不再叠加项目过滤；
+ * - 有 projectId：平台已发布文档 + 当前项目文档；
+ * - 无 projectId：只检索平台级文档，不泄露其他项目资料。
+ */
+export function resolveKnowledgeSearchDocScope(options: {
+  projectId?: string | null;
+  versionId?: string;
+}): KnowledgeSearchDocScope {
+  if (options.versionId) return "VERSION_ONLY";
+  if (options.projectId) return "PLATFORM_AND_PROJECT";
+  return "PLATFORM_ONLY";
+}
+
 interface SectionHitRow {
   sectionId: string;
   documentId: string;
@@ -621,7 +640,15 @@ export async function searchWikiHierarchy(
 
   // 共享的文档级过滤（层级检索用 kd.project_id：项目文档 + 平台级文档）
   const docFilterClauses: ReturnType<typeof sql>[] = [];
-  if (options.projectId) docFilterClauses.push(sql`(kd.project_id = ${options.projectId} or kd.project_id is null)`);
+  const searchScope = resolveKnowledgeSearchDocScope({
+    projectId: options.projectId,
+    versionId: options.versionId
+  });
+  if (searchScope === "PLATFORM_AND_PROJECT" && options.projectId) {
+    docFilterClauses.push(sql`(kd.project_id = ${options.projectId} or kd.project_id is null)`);
+  } else if (searchScope === "PLATFORM_ONLY") {
+    docFilterClauses.push(sql`kd.project_id is null`);
+  }
   if (options.docType) docFilterClauses.push(sql`kd.doc_type = ${options.docType}`);
   if (options.categoryId) docFilterClauses.push(sql`kd.category_id = ${options.categoryId}`);
   if (options.region) docFilterClauses.push(sql`kd.region = ${options.region}`);

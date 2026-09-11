@@ -1,9 +1,8 @@
 /**
  * AI 对话生成共享服务：敏感词围栏 → 限流/配额 → 生成锁 → 场景运行时解析 →
  * 消息落库 → 知识检索注入 → 提示词组装 → SSE 流式生成（主/备用模型降级）→ 审计与引用出参。
- * 发送消息（/conversations/:id/messages）与知识问答（/knowledge-qa）共用，
- * 通过 knowledgeChunks 参数决定检索来源：传入即用外部检索结果（知识库问答），
- * 未传则按会话场景执行项目知识检索（与历史行为一致）。
+ * 发送消息（/conversations/:id/messages）与知识问答（/knowledge-qa）共用。
+ * 未传入 knowledgeChunks 时由能力路由决定是否检索已发布知识库，不再依赖用户选择 scene。
  */
 import { randomUUID } from "node:crypto";
 import { streamText, type LanguageModelUsage, type ModelMessage } from "ai";
@@ -16,16 +15,16 @@ import { AiError, toAiError } from "../../shared/ai-errors.js";
 import type { AuthUser } from "../../shared/auth-user.js";
 import { ConflictError, NotFoundError, TooManyRequestsError } from "../../shared/errors.js";
 import { canViewProject } from "../../shared/permissions.js";
-import { budgetHistory, buildSystemMessages, estimateTokens, type ContextMessage } from "../../shared/prompt-assembly.js";
+import { budgetHistory, buildSystemMessages, estimateTokens, formatInsulationSystemContext, formatThermalCapabilityContext, type ContextMessage } from "../../shared/prompt-assembly.js";
 import { isAbortError, startSseStream, writeProgress, writeSse } from "./ai-sse.js";
 import { checkContentFiltered } from "./ai-content-filter.service.js";
 import { writeAuditLog } from "../audit-logs/audit-log.service.js";
 import { formatKnowledgeContext, searchProjectKnowledge, type WikiHit } from "../knowledge/knowledge.service.js";
 import { getPublishedInsulationSystem } from "../construction/construction-read.service.js";
-import { formatInsulationSystemContext } from "../../shared/prompt-assembly.js";
 import { toAiSources } from "./ai-source.mapper.js";
 import { formatComparisonRuleContext, loadApprovedComparisonRules, logComparisonRuleUsage } from "../comparison/material-compare.service.js";
 import { enforceAiQuota, releaseAiConcurrency, resolveSceneRuntime, type SceneRuntime } from "./ai-runtime.service.js";
+import { resolveAiCapabilities } from "./ai-capability-router.js";
 
 /** 模型 contextWindow 缺省时的保守预算 */
 export const DEFAULT_CONTEXT_WINDOW = 32_000;
@@ -171,10 +170,26 @@ export async function streamConversationReply(options: {
     ? await getPublishedInsulationSystem(app.db, conversation.insulationSystemId)
     : null;
 
-  // 检索来源：外部注入优先（knowledge-qa）；否则场景允许检索且（关联项目或已选体系）时执行层级检索
+  const capabilities = providedChunks !== undefined
+    ? {
+      needKnowledgeSearch: true,
+      explicitKnowledgeRequest: true,
+      needProjectContext: Boolean(conversation.projectId),
+      needThermalTool: false,
+      needComparisonTool: conversation.scene === AI_SCENES.MATERIAL_COMPARE,
+      needReportContext: false
+    }
+    : resolveAiCapabilities({
+      message: content,
+      projectId: conversation.projectId,
+      conversationId: conversation.id,
+      scene: conversation.scene
+    });
+
+  // 检索：外部注入优先（knowledge-qa / test-qa）；否则按能力路由自动检索已发布知识
   const chunks = providedChunks !== undefined
     ? providedChunks
-    : runtime.allowKnowledgeSearch && (conversation.projectId || conversation.insulationSystemId)
+    : capabilities.needKnowledgeSearch
       ? await searchProjectKnowledge(app, conversation.projectId, content, {
         insulationSystemId: conversation.insulationSystemId ?? null
       })
@@ -191,15 +206,16 @@ export async function streamConversationReply(options: {
     })));
   }
 
-  const projectContext = runtime.requireProject ? await resolveProjectContext(app, conversation.projectId) : null;
-  // material_compare 场景：注入已审核对比规则（只读 PUBLISHED+生效区间），回答完成后写入使用日志
-  const comparisonRules = conversation.scene === AI_SCENES.MATERIAL_COMPARE
+  const projectContext = (runtime.requireProject || capabilities.needProjectContext)
+    ? await resolveProjectContext(app, conversation.projectId)
+    : null;
+  const comparisonRules = conversation.scene === AI_SCENES.MATERIAL_COMPARE || capabilities.needComparisonTool
     ? await loadApprovedComparisonRules(app, {})
     : [];
-  // 知识问答场景：即使无检索结果也注入“无依据”提示，防止模型编造
-  const knowledgeContext = providedChunks !== undefined
-    ? formatKnowledgeContext(chunks)
-    : chunks.length > 0 ? formatKnowledgeContext(chunks) : null;
+  const shouldInjectKnowledge = providedChunks !== undefined
+    || chunks.length > 0
+    || (capabilities.needKnowledgeSearch && capabilities.explicitKnowledgeRequest);
+  const knowledgeContext = shouldInjectKnowledge ? formatKnowledgeContext(chunks) : null;
   const systemMessages = buildSystemMessages({
     scenePrompt: runtime.promptContent,
     projectContext,
@@ -207,7 +223,8 @@ export async function streamConversationReply(options: {
       ? formatInsulationSystemContext({ name: insulationSystem.name, code: insulationSystem.code, systemType: insulationSystem.systemType })
       : null,
     knowledgeContext,
-    ruleContext: comparisonRules.length > 0 ? formatComparisonRuleContext(comparisonRules) : null
+    ruleContext: comparisonRules.length > 0 ? formatComparisonRuleContext(comparisonRules) : null,
+    thermalContext: capabilities.needThermalTool ? formatThermalCapabilityContext() : null
   });
   const system = systemMessages.map((message) => message.content).join("\n\n");
 
@@ -259,7 +276,7 @@ export async function streamConversationReply(options: {
   request.raw.once("close", onClientClose);
   await app.db.update(aiMessages).set({ status: "STREAMING", startedAt: new Date() }).where(eq(aiMessages.id, assistantMessage.id));
   // checking 阶段仅在真实执行知识检索时发送，不伪造“检索/计算”进度
-  if (chunks.length > 0) {
+  if (providedChunks !== undefined || capabilities.needKnowledgeSearch) {
     writeProgress(reply, "checking", "正在核对检索资料和计算结果...");
   }
   writeProgress(reply, "composing", "正在整理回答...");
@@ -314,7 +331,10 @@ export async function streamConversationReply(options: {
   const actualModelId = usedFallback ? runtime.fallback!.modelId : runtime.primary.modelId;
   try {
     if (chunks.length > 0 && !/\[资料\d+\]/.test(fullText)) {
-      const citationNotice = `\n\n参考来源：${chunks.map((chunk, index) => `[资料${index + 1}] ${chunk.sourceTitle}${chunk.sourcePage ? `第 ${chunk.sourcePage} 页` : ""}`).join("；")}`;
+      const citationNotice = `\n\n参考来源：${chunks.map((chunk, index) => {
+        const pageText = chunk.pageLabel ?? (chunk.sourcePage != null ? String(chunk.sourcePage) : null);
+        return `[资料${index + 1}] ${chunk.sourceTitle}${pageText ? ` ${pageText} 页` : ""}`;
+      }).join("；")}`;
       fullText += citationNotice;
       writeSse(reply, "delta", { text: citationNotice });
     }
@@ -329,6 +349,7 @@ export async function streamConversationReply(options: {
     const metadata = {
       reasoningMode: conversation.reasoningMode,
       reasoning: runtime.reasoning,
+      capabilities,
       ...(usedFallback ? { fallbackUsed: true, originalFailedModel, actualModel: actualModelId } : {})
     };
     await app.db.transaction(async (tx) => {
@@ -456,9 +477,11 @@ export async function streamConversationReply(options: {
   }
 }
 
-/** 项目上下文（仅 requireProject 场景注入） */
+/** 项目上下文（关联项目时注入真实数据；用户问及项目但未绑定时提示选择项目） */
 export async function resolveProjectContext(app: FastifyInstance, projectId: string | null): Promise<string | null> {
-  if (!projectId) return null;
+  if (!projectId) {
+    return "当前会话未关联项目。涉及项目数据时请先选择项目，不要编造项目名称、地区、建筑类型或工程参数。";
+  }
   const [project] = await app.db.select().from(projects)
     .where(and(eq(projects.id, projectId), isNull(projects.deletedAt))).limit(1);
   if (!project) return null;

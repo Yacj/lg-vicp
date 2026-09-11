@@ -92,6 +92,7 @@ describe("buildMenuSeedTree（B 端菜单信息架构 2026-09 瘦身）", () => 
     expect(parentByRoutePath.get("/ai-config")).toBe(null);
     expect(parentByRoutePath.get("/ai-config/providers")).toBe("/ai-config");
     expect(parentByRoutePath.get("/ai-config/models")).toBe("/ai-config");
+    expect(parentByRoutePath.get("/ai-config/quick-prompts")).toBe("/ai-config");
     expect(parentByRoutePath.get("/ai-config/scenes")).toBe("/ai-config");
     expect(parentByRoutePath.get("/ai-config/prompts")).toBe("/ai-config");
     expect(parentByRoutePath.get("/ai-config/filters")).toBe("/ai-config");
@@ -251,6 +252,10 @@ describe("buildMenuSeedTree（B 端菜单信息架构 2026-09 瘦身）", () => 
       ["/ai-config/providers", "system:ai:provider:list"],
       ["/ai-config/providers/test-connection", "system:ai:provider:test"],
       ["/ai-config/models", "system:ai:model:list"],
+      ["/ai-config/quick-prompts", "system:ai:quick-prompt:list"],
+      ["/ai-config/quick-prompts/add", "system:ai:quick-prompt:create"],
+      ["/ai-config/quick-prompts/edit", "system:ai:quick-prompt:update"],
+      ["/ai-config/quick-prompts/remove", "system:ai:quick-prompt:delete"],
       ["/ai-config/scenes", "system:ai:scene:list"],
       ["/ai-config/prompts", "system:ai:prompt:list"],
       ["/ai-config/prompts/publish", "system:ai:prompt:publish"],

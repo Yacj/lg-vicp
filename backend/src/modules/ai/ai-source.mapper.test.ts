@@ -98,8 +98,8 @@ describe("toAiSources：正常生成与 regenerate 共用的 Source 契约", () 
     const source: AiSourceRef = toAiSources([makeChunkHit()])[0]!;
     for (const key of [
       "sourceType", "retrievalUnit", "documentId", "versionId", "sectionId", "pageId", "blockId",
-      "chunkId", "title", "chapter", "section", "sectionPath", "citationAnchor",
-      "pageNumber", "pageStart", "pageEnd", "page", "matchedText", "snippet", "highlightRanges",
+      "chunkId", "title", "tocPath", "sectionTitle", "chapter", "section", "sectionPath", "citationAnchor",
+      "pageNumber", "pageStart", "pageEnd", "page", "matchedText", "quote", "snippet", "highlightRanges",
       "evidenceLevel", "score"
     ] as const) {
       expect(source).toHaveProperty(key);
@@ -108,7 +108,7 @@ describe("toAiSources：正常生成与 regenerate 共用的 Source 契约", () 
 });
 
 describe("toAiSources：原文导航字段（二次优化增量）", () => {
-  it("命中携带 pageLabel/pageTitle/physicalPageNumber/originalFileId；tocPath 由来源详情返回", () => {
+  it("命中携带 pageLabel/pageTitle/physicalPageNumber/originalFileId；tocPath 与 headingPath 同源", () => {
     const hit: WikiHit = {
       ...makeChunkHit(),
       physicalPageNumber: 103,
@@ -122,14 +122,32 @@ describe("toAiSources：原文导航字段（二次优化增量）", () => {
     expect(source!.physicalPageNumber).toBe(103);
     expect(source!.originalFileId).toBe("file-original-1");
     expect(source!.pageNumber).toBe(21); // 兼容字段保持
-    expect(source!.tocPath).toBeNull();
+    expect(source!.tocPath).toEqual(["5 设计与构造", "5.2 VICP薄抹灰外保温系统"]);
+    expect(source!.sectionTitle).toBe("5.2 VICP薄抹灰外保温系统");
+    expect(source!.quote).toContain("不燃材料封堵");
+    expect(source!.pageNumber).toBe(21); // 兼容字段保持
     expect(source!.highlightRanges?.[0]?.pageLabel).toBe("A5");
   });
 
-  it("无 pageLabel 时回退物理页序号字符串语义仍由展示层处理（mapper 不做 Number 转换）", () => {
-    const hit: WikiHit = { ...makeChunkHit(), pageLabel: null, physicalPageNumber: 103 };
-    const [source] = toAiSources([hit]);
-    expect(source!.pageLabel).toBeNull();
-    expect(source!.physicalPageNumber).toBe(103);
+  it("C 端展示字段包含 title / tocPath / sectionTitle / pageLabel / quote，原文定位用 originalFileId + physicalPageNumber", () => {
+    const [source] = toAiSources([{
+      ...makeChunkHit(),
+      sourceTitle: "VICP建筑构造图集",
+      headingPath: ["A VICP薄抹灰外保温系统", "窗洞口"],
+      sourceSection: "窗洞口",
+      pageLabel: "A7",
+      physicalPageNumber: 105,
+      originalFileId: "file-original-atlas"
+    }]);
+    expect(source).toMatchObject({
+      documentId: "doc-1",
+      title: "VICP建筑构造图集",
+      tocPath: ["A VICP薄抹灰外保温系统", "窗洞口"],
+      sectionTitle: "窗洞口",
+      pageLabel: "A7",
+      physicalPageNumber: 105,
+      quote: "外保温系统应采用不燃材料封堵",
+      originalFileId: "file-original-atlas"
+    });
   });
 });

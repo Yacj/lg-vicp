@@ -24,6 +24,19 @@
 | `DELETE /api/v1/platform/ai/models/:id` | `system:ai:model:remove` |
 | `POST /api/v1/platform/ai/models/:id/test-connection` | `system:ai:model:test` |
 
+### 快捷提问
+
+| 接口 | 权限码 |
+| --- | --- |
+| `GET /api/v1/platform/ai/quick-prompts` | `system:ai:quick-prompt:list` |
+| `POST /api/v1/platform/ai/quick-prompts` | `system:ai:quick-prompt:create` |
+| `PUT /api/v1/platform/ai/quick-prompts/:id` | `system:ai:quick-prompt:update` |
+| `DELETE /api/v1/platform/ai/quick-prompts/:id` | `system:ai:quick-prompt:delete` |
+| `POST /api/v1/platform/ai/quick-prompts/:id/enable` | `system:ai:quick-prompt:update` |
+| `POST /api/v1/platform/ai/quick-prompts/:id/disable` | `system:ai:quick-prompt:update` |
+
+快捷提问与 Prompt / Scene 不是同一概念。详见 `docs/ai/quick-prompt.md`。场景与提示词接口保留，B 端菜单对普通业务管理员隐藏。
+
 ### 场景 / 提示词
 
 | 接口 | 权限码 |

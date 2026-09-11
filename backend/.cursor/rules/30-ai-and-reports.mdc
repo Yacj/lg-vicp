@@ -4,11 +4,13 @@ globs: src/modules/ai*/**/*.ts,src/modules/knowledge/**/*.ts,src/modules/reports
 alwaysApply: false
 ---
 
-- 模型按场景读取数据库配置，禁止写死 DeepSeek、Base URL、模型 ID 或 API Key。
+- 模型按场景读取数据库配置，禁止写死 DeepSeek、Base URL、模型 ID 或 API Key。C 端正式对话默认 `general_chat`，不要求用户选择 scene / prompt / quickPromptId；能力由 `resolveAiCapabilities` 按问题自动启用。
+- 快捷提问使用独立表 `ai_quick_prompts`，不要复用 `prompts` / `prompt_versions`。点击后把 `content` 当作用户消息走现有 SSE。
+- 基础 System Instruction 由 Backend 自动附加（`PLATFORM_BASE_SYSTEM_PROMPT`），用户和管理员日常流程不选择系统指令。场景/提示词菜单对普通业务管理员隐藏，接口保留给技术管理员。
 - 知识库为「原文档导航 + 原始页面 + AI 检索索引」模型：ORIGINAL 展示原文件 / SEARCH_SOURCE 检索文本源（双源资产）；TOC=原文件目录（人工确认制，≠Section）；Page=物理页+印刷页码标签（pageLabel 非整数禁止 Number()）；转曲件 NO_TEXT_LAYER 走检索源映射（禁止物理页硬对齐）；parsedText 一律称「机器提取文本」，原文=ORIGINAL 页面/预览图。
 - 重建只能删除 Section、Block、Chunk 等派生索引，必须保留 Page ID、页面预览、人工页签/标题、CONFIRMED TOC 和 MANUAL/verified 映射；双源重建读取 SEARCH_SOURCE，未映射检索页不得入 AI 索引或伪造 ORIGINAL 定位。生产 AI 仅检索当前、PUBLISHED、未过期、AI_ENABLED 的版本，BROWSE_ONLY 仅供浏览。B 端草稿验证走 `POST /platform/knowledge/versions/:versionId/test-qa`，从检索入口限定 versionId，不得全库检索后再过滤，也不得把该范围并入生产 `/ai/knowledge-qa`。
-- AI 检索走 `searchWikiHierarchy`（章节/页面/内容块优先，Chunk 辅助），禁止默认全库 TopN chunk 拼接。
-- AI 来源契约统一走 `ai-source.mapper.ts`（AiSourceRef），正常生成与 regenerate 同构；无证据返回空数组，不伪造来源；来源详情走 `/api/v1/ai/knowledge/source-detail`。
+- AI 检索走 `searchWikiHierarchy`（章节/页面/内容块优先，Chunk 辅助），禁止默认全库 TopN chunk 拼接。正式聊天无项目时只检索平台已发布文档，有项目时平台 + 当前项目；不得检索草稿或其他项目私有资料。
+- AI 来源契约统一走 `ai-source.mapper.ts`（AiSourceRef），正常生成与 regenerate 同构；C 端主要使用 `title` / `tocPath` / `sectionTitle` / `pageLabel` / `quote`；查看原文用 `originalFileId` + `physicalPageNumber`。无证据返回空数组，不伪造来源；来源详情走 `/api/v1/ai/knowledge/source-detail`。
 - 专业 AI 会话必须选择保温体系（会话级 `insulationSystemId`，非 general_chat 强制），体系影响 Prompt、检索加权与候选查询。
 - API Key 加密保存，任何响应不得返回密钥材料。
 - AI 不执行任意 SQL、Shell、文件操作或绕过项目权限。

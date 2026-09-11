@@ -69,6 +69,15 @@ export const dataScopeEnum = pgEnum("data_scope", ["ALL", "DEPT", "DEPT_AND_CHIL
 export const aiMessageRoleEnum = pgEnum("ai_message_role", ["SYSTEM", "USER", "ASSISTANT", "TOOL"]);
 export const aiMessageStatusEnum = pgEnum("ai_message_status", ["PENDING", "STREAMING", "COMPLETED", "STOPPED", "FAILED", "BLOCKED"]);
 export const aiReasoningModeEnum = pgEnum("ai_reasoning_mode", ["OFF", "ON"]);
+export const aiSceneVisibilityEnum = pgEnum("ai_scene_visibility", ["USER", "INTERNAL", "ADMIN"]);
+export const aiQuickPromptPositionEnum = pgEnum("ai_quick_prompt_position", ["AI_HOME", "PROJECT_AI"]);
+export const aiQuickPromptActionTypeEnum = pgEnum("ai_quick_prompt_action_type", [
+  "AUTO",
+  "KNOWLEDGE",
+  "PROJECT",
+  "THERMAL",
+  "REPORT"
+]);
 export const aiFeedbackReactionEnum = pgEnum("ai_feedback_reaction", ["LIKE", "DISLIKE"]);
 export const reportStatusEnum = pgEnum("report_status", [
   "DRAFT",
@@ -1166,6 +1175,8 @@ export const aiScenes = pgTable(
     maxOutputTokens: integer("max_output_tokens"),
     promptId: uuid("prompt_id").references((): PgColumn => prompts.id, { onDelete: "set null" }),
     enabled: boolean("enabled").notNull().default(true),
+    /** USER=可出现在客户端能力目录（仍不要求用户手动选择）；INTERNAL/ADMIN=仅后台/内部 Worker */
+    visibility: aiSceneVisibilityEnum("visibility").notNull().default("INTERNAL"),
     sort: integer("sort").notNull().default(0),
     ...timestamps
   },
@@ -1286,6 +1297,33 @@ export const aiContentFilters = pgTable(
   (table) => [
     index("ai_content_filters_enabled_idx").on(table.enabled),
     index("ai_content_filters_keyword_idx").on(table.keyword)
+  ]
+);
+
+/**
+ * AI 快捷提问：C 端首页/项目内 AI 的可选入口文案。
+ * 与 prompts / prompt_versions / 场景系统提示词不是同一概念，点击后把 content 当作用户消息走同一套对话编排。
+ */
+export const aiQuickPrompts = pgTable(
+  "ai_quick_prompts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    title: varchar("title", { length: 80 }).notNull(),
+    description: text("description"),
+    content: text("content").notNull(),
+    position: aiQuickPromptPositionEnum("position").notNull().default("AI_HOME"),
+    icon: varchar("icon", { length: 40 }).notNull().default("book"),
+    sortOrder: integer("sort_order").notNull().default(0),
+    enabled: boolean("enabled").notNull().default(true),
+    /** 仅内部提示，不强制路由场景；P0 默认 AUTO */
+    actionType: aiQuickPromptActionTypeEnum("action_type").notNull().default("AUTO"),
+    createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    updatedById: uuid("updated_by_id").references(() => users.id, { onDelete: "set null" }),
+    ...timestamps
+  },
+  (table) => [
+    uniqueIndex("ai_quick_prompts_position_title_unique").on(table.position, table.title),
+    index("ai_quick_prompts_position_enabled_sort_idx").on(table.position, table.enabled, table.sortOrder)
   ]
 );
 
@@ -2747,6 +2785,7 @@ export type AiModel = typeof aiModels.$inferSelect;
 export type AiScene = typeof aiScenes.$inferSelect;
 export type Prompt = typeof prompts.$inferSelect;
 export type PromptVersion = typeof promptVersions.$inferSelect;
+export type AiQuickPrompt = typeof aiQuickPrompts.$inferSelect;
 export type Report = typeof reports.$inferSelect;
 export type ShareLink = typeof shareLinks.$inferSelect;
 export type KnowledgeDocument = typeof knowledgeDocuments.$inferSelect;

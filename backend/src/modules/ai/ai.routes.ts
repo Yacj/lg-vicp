@@ -20,15 +20,13 @@ import {
   shareLinks,
   users
 } from "../../db/schema.js";
-import { AI_FEEDBACK_REACTIONS, AI_SCENES, AUTH_CLIENTS, AUDIT_ACTIONS, CLIENT_APPS, SHARE_TARGET_TYPES } from "../../shared/constants.js";
+import { AI_FEEDBACK_REACTIONS, AI_QUICK_PROMPT_POSITIONS, AI_SCENES, AUTH_CLIENTS, AUDIT_ACTIONS, CLIENT_APPS, SHARE_TARGET_TYPES } from "../../shared/constants.js";
 import { AiError, toAiError } from "../../shared/ai-errors.js";
 import { getCurrentUser } from "../../shared/current-user.js";
 import { ConflictError, ForbiddenError, NotFoundError } from "../../shared/errors.js";
 import { canManageProject, canViewProject } from "../../shared/permissions.js";
 import { getPagination, paginationQuerySchema } from "../../shared/pagination.js";
-import { estimateTokens, buildSystemMessages, type ContextMessage } from "../../shared/prompt-assembly.js";
-import { budgetHistory } from "../../shared/prompt-assembly.js";
-import { formatInsulationSystemContext } from "../../shared/prompt-assembly.js";
+import { estimateTokens, buildSystemMessages, budgetHistory, formatInsulationSystemContext, formatThermalCapabilityContext, type ContextMessage } from "../../shared/prompt-assembly.js";
 import { getPublishedInsulationSystem, listPublishedInsulationSystems } from "../construction/construction-read.service.js";
 import { createNotification } from "../notifications/notification.service.js";
 import { toAiSources } from "./ai-source.mapper.js";
@@ -56,6 +54,8 @@ import {
   resolveSceneRuntime,
   type SceneRuntime
 } from "./ai-runtime.service.js";
+import { listClientQuickPrompts } from "./ai-quick-prompt.service.js";
+import { resolveAiCapabilities } from "./ai-capability-router.js";
 
 const sceneValues = [
   AI_SCENES.GENERAL_CHAT,
@@ -71,7 +71,7 @@ const createConversationBodySchema = z.object({
   // 会话级保温体系：专业场景（非 general_chat）必选；general_chat 可不选
   insulationSystemId: z.uuid("保温体系 ID 格式不正确").nullable().optional(),
   clientApp: z.enum([CLIENT_APPS.PC_AI, CLIENT_APPS.B_ADMIN, CLIENT_APPS.C_APP]),
-  scene: z.enum(sceneValues),
+  scene: z.enum(sceneValues).default(AI_SCENES.GENERAL_CHAT),
   title: z.string().trim().max(120, "会话标题不能超过 120 个字符").optional(),
   reasoningMode: z.enum(["OFF", "ON"]).default("OFF")
 });
@@ -187,6 +187,23 @@ async function findAssistantMessageWithConversation(app: FastifyInstance, id: st
 
 export async function aiRoutes(app: FastifyInstance) {
   const route = app.withTypeProvider<ZodTypeProvider>();
+
+  route.get("/quick-prompts", {
+    preHandler: [app.authenticate],
+    schema: {
+      tags: ["共用 / AI对话"],
+      summary: "获取已启用的 AI 快捷提问（C 端只读，按展示位置）",
+      querystring: z.object({
+        position: z.enum([
+          AI_QUICK_PROMPT_POSITIONS.AI_HOME,
+          AI_QUICK_PROMPT_POSITIONS.PROJECT_AI
+        ]).default(AI_QUICK_PROMPT_POSITIONS.AI_HOME)
+      })
+    }
+  }, async (request) => {
+    const items = await listClientQuickPrompts(app, request.query.position);
+    return ok(request, { items });
+  });
 
   route.post("/conversations", {
     preHandler: [app.authenticate],
@@ -921,7 +938,13 @@ export async function aiRoutes(app: FastifyInstance) {
     }).returning();
     if (!assistantMessage) throw new Error("AI 消息创建失败");
 
-    const chunks = runtime.allowKnowledgeSearch && (row.conversation.projectId || row.conversation.insulationSystemId)
+    const capabilities = resolveAiCapabilities({
+      message: lastUserMessage.content,
+      projectId: row.conversation.projectId,
+      conversationId: row.conversation.id,
+      scene: row.conversation.scene
+    });
+    const chunks = capabilities.needKnowledgeSearch
       ? await searchProjectKnowledge(app, row.conversation.projectId, lastUserMessage.content, {
         insulationSystemId: row.conversation.insulationSystemId ?? null
       })
@@ -938,23 +961,27 @@ export async function aiRoutes(app: FastifyInstance) {
       })));
     }
 
-    const projectContext = runtime.requireProject ? await resolveProjectContext(app, row.conversation.projectId) : null;
+    const projectContext = (runtime.requireProject || capabilities.needProjectContext)
+      ? await resolveProjectContext(app, row.conversation.projectId)
+      : null;
     // 会话保温体系上下文（与正常生成链路共用同一上下文与 mapper）
     const insulationSystem = row.conversation.insulationSystemId
       ? await getPublishedInsulationSystem(app.db, row.conversation.insulationSystemId)
       : null;
-    // material_compare 场景：注入已审核对比规则（只读 PUBLISHED+生效区间），回答完成后写入使用日志
-    const comparisonRules = row.conversation.scene === AI_SCENES.MATERIAL_COMPARE
+    const comparisonRules = row.conversation.scene === AI_SCENES.MATERIAL_COMPARE || capabilities.needComparisonTool
       ? await loadApprovedComparisonRules(app, {})
       : [];
+    const shouldInjectKnowledge = chunks.length > 0
+      || (capabilities.needKnowledgeSearch && capabilities.explicitKnowledgeRequest);
     const systemMessages = buildSystemMessages({
       scenePrompt: runtime.promptContent,
       projectContext,
       insulationSystemContext: insulationSystem
         ? formatInsulationSystemContext({ name: insulationSystem.name, code: insulationSystem.code, systemType: insulationSystem.systemType })
         : null,
-      knowledgeContext: chunks.length > 0 ? formatKnowledgeContext(chunks) : null,
-      ruleContext: comparisonRules.length > 0 ? formatComparisonRuleContext(comparisonRules) : null
+      knowledgeContext: shouldInjectKnowledge ? formatKnowledgeContext(chunks) : null,
+      ruleContext: comparisonRules.length > 0 ? formatComparisonRuleContext(comparisonRules) : null,
+      thermalContext: capabilities.needThermalTool ? formatThermalCapabilityContext() : null
     });
     const system = systemMessages.map((message) => message.content).join("\n\n");
 
@@ -1010,7 +1037,7 @@ export async function aiRoutes(app: FastifyInstance) {
     writeProgress(reply, "analyzing", row.conversation.projectId ? "正在分析项目资料..." : "正在分析问题...");
     request.raw.once("close", onClientClose);
     await app.db.update(aiMessages).set({ status: "STREAMING", startedAt: new Date() }).where(eq(aiMessages.id, assistantMessage.id));
-    if (chunks.length > 0) {
+    if (capabilities.needKnowledgeSearch) {
       writeProgress(reply, "checking", "正在核对检索资料和计算结果...");
     }
     writeProgress(reply, "composing", "正在整理回答...");
@@ -1064,7 +1091,10 @@ export async function aiRoutes(app: FastifyInstance) {
     const actualModelId = usedFallback ? runtime.fallback!.modelId : runtime.primary.modelId;
     try {
       if (chunks.length > 0 && !/\[资料\d+\]/.test(fullText)) {
-        const citationNotice = `\n\n参考来源：${chunks.map((chunk, index) => `[资料${index + 1}] ${chunk.sourceTitle}${chunk.sourcePage ? `第 ${chunk.sourcePage} 页` : ""}`).join("；")}`;
+        const citationNotice = `\n\n参考来源：${chunks.map((chunk, index) => {
+          const pageText = chunk.pageLabel ?? (chunk.sourcePage != null ? String(chunk.sourcePage) : null);
+          return `[资料${index + 1}] ${chunk.sourceTitle}${pageText ? ` ${pageText} 页` : ""}`;
+        }).join("；")}`;
         fullText += citationNotice;
         writeSse(reply, "delta", { text: citationNotice });
       }

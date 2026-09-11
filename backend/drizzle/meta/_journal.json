@@ -239,6 +239,13 @@
       "when": 1789006562610,
       "tag": "0034_yummy_avengers",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1789108453577,
+      "tag": "0035_fair_spitfire",
+      "breakpoints": true
     }
   ]
 }

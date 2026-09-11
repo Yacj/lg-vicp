@@ -33,7 +33,7 @@
 - API：Fastify + TypeScript + Zod + Swagger。
 - 数据库：PostgreSQL + Drizzle ORM + `postgres.js`。
 - 缓存与任务：Redis + BullMQ；API 创建任务，Worker 处理解析、报告和维护任务。
-- AI：AI SDK + OpenAI-compatible provider；服务商、模型、场景和提示词从数据库读取。
+- AI：AI SDK + OpenAI-compatible provider；服务商、模型从数据库读取。C 端默认 `general_chat`，不要求用户选择场景/系统指令；快捷提问独立配置，知识检索由能力路由自动启用。
 - 存储：开发环境 MinIO，生产环境优先阿里云 OSS。
 - 部署：Docker Compose + Nginx。
 
@@ -85,7 +85,7 @@ schema: {
 - 流式对话支持停止，停止后保存已生成内容并标记为 `STOPPED`，会话仍可继续。
 - 用户端详情只展示本人消息、处理阶段、检索摘要、反馈、报告和分享；不展示模型原始思考链。
 - B 端 AI 运营详情是独立后台接口，需要 `system:ai:conversation:*` 权限，可查看工具调用、任务、分享访问和审计摘要。
-- AI 配置（服务商/模型/场景/提示词版本化）、SSE 协议、错误码、配额与安全细则见 `docs/ai/`。
+- AI 配置（服务商/模型/快捷提问/场景/提示词版本化）、SSE 协议、错误码、配额与安全细则见 `docs/ai/`。
 - 主数据/构造方案/图集热工/标准采集/材料对比/节点图库/报告与审核中心细则见 `docs/masterdata|construction|thermal|standard|comparison|nodes|reports/README.md`；B 端菜单信息架构（8 个一级、映射表、隐藏路由、Admin-Web 同步清单）见 `docs/menus/README.md`。
 - API Key 使用 AES-256-GCM 加密，任何接口都不能返回密钥明文或完整密文。
 - 报告来源通过 `report_sources` 保存回答快照和顺序，报告由 Worker 导出 HTML、PDF、图片和 Word。

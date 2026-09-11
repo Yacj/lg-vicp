@@ -60,7 +60,10 @@ export const HIDDEN_MENU_ROUTE_PATHS = [
   "/monitor/audit",
   "/monitor/online",
   "/monitor/job",
-  "/monitor/cache"
+  "/monitor/cache",
+  // 场景/提示词对普通业务管理员隐藏，仅 SUPER_ADMIN / 持有对应权限的技术管理员走接口或隐藏路由
+  "/ai-config/scenes",
+  "/ai-config/prompts"
 ] as const;
 
 const actionButtons = (
@@ -294,8 +297,16 @@ const MENU_SEED_TREE: MenuSeedNode[] = [
         ])
       }),
       leaf("模型管理", "/ai-config/models", 20, "system:ai:model:list"),
-      leaf("场景配置", "/ai-config/scenes", 30, "system:ai:scene:list"),
+      leaf("快捷提问", "/ai-config/quick-prompts", 25, "system:ai:quick-prompt:list", {
+        children: actionButtons("/ai-config/quick-prompts", [
+          { suffix: "add", name: "新增快捷提问", permissionCode: "system:ai:quick-prompt:create" },
+          { suffix: "edit", name: "编辑快捷提问", permissionCode: "system:ai:quick-prompt:update" },
+          { suffix: "remove", name: "删除快捷提问", permissionCode: "system:ai:quick-prompt:delete" }
+        ])
+      }),
+      leaf("场景配置", "/ai-config/scenes", 30, "system:ai:scene:list", { visible: false }),
       leaf("提示词管理", "/ai-config/prompts", 40, "system:ai:prompt:list", {
+        visible: false,
         children: actionButtons("/ai-config/prompts", [
           { suffix: "publish", name: "提示词发布", permissionCode: "system:ai:prompt:publish" }
         ])

@@ -32,6 +32,16 @@ describe("提示词组装", () => {
     const messages = buildSystemMessages({ scenePrompt: "场景提示词" });
     expect(messages).toHaveLength(2);
   });
+
+  it("热工能力约束作为独立系统消息注入", async () => {
+    const { buildSystemMessages, formatThermalCapabilityContext } = await import("./prompt-assembly.js");
+    const messages = buildSystemMessages({
+      scenePrompt: "场景提示词",
+      thermalContext: formatThermalCapabilityContext()
+    });
+    expect(messages).toHaveLength(3);
+    expect(messages[2]!.content).toContain("热工计算约束");
+  });
 });
 
 describe("Token 估算", () => {

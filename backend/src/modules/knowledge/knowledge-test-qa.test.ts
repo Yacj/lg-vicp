@@ -147,7 +147,8 @@ describe("toUserTestSources", () => {
       sectionTitle: "热工性能",
       pageLabel: "A3",
       physicalPageNumber: 3,
-      matchedText: "传热系数不应大于 0.45"
+      matchedText: "传热系数不应大于 0.45",
+      quote: "传热系数不应大于 0.45"
     }]);
     expect(JSON.stringify(sources)).not.toContain("chunk-9");
     expect(JSON.stringify(sources)).not.toContain("88");

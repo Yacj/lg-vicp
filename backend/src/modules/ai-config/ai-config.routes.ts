@@ -77,6 +77,7 @@ const sceneBodySchema = z.object({
   temperature: z.number().min(0).max(2).nullable().optional(),
   maxOutputTokens: z.number().int().positive().nullable().optional(),
   sort: z.number().int().min(0).max(9999).optional(),
+  visibility: z.enum(["USER", "INTERNAL", "ADMIN"]).optional(),
   settings: z.record(z.string(), z.unknown()).optional(),
   enabled: z.boolean().optional()
 });
@@ -145,6 +146,7 @@ function publicScene(row: Awaited<ReturnType<typeof listScenes>>[number]) {
     allowTools: row.scene.allowTools,
     temperature: row.scene.temperature,
     maxOutputTokens: row.scene.maxOutputTokens,
+    visibility: row.scene.visibility,
     enabled: row.scene.enabled,
     sort: row.scene.sort,
     settings: {},
@@ -446,6 +448,7 @@ export async function aiConfigRoutes(app: FastifyInstance) {
         temperature: request.body.temperature !== undefined ? request.body.temperature : scene.temperature,
         maxOutputTokens: request.body.maxOutputTokens !== undefined ? request.body.maxOutputTokens : scene.maxOutputTokens,
         sort: request.body.sort ?? scene.sort,
+        visibility: request.body.visibility ?? scene.visibility,
         enabled: request.body.enabled ?? scene.enabled,
         updatedAt: new Date()
       }).where(eq(aiScenes.id, scene.id)).returning();

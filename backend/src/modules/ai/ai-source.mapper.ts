@@ -32,8 +32,10 @@ export interface AiSourceRef {
   /** 仅 Chunk 辅助索引场景存在，不再是定位必需项 */
   chunkId?: string;
   title: string;
-  /** 原文目录路径（done.sources 恒为 null；完整路径由 GET /api/v1/ai/knowledge/source-detail 返回） */
+  /** 原文目录/章节路径（C 端展示；与 headingPath 同源） */
   tocPath?: string[] | null;
+  /** C 端主要展示用章节标题 */
+  sectionTitle?: string | null;
   chapter?: string | null;
   section?: string | null;
   sectionPath?: string[] | null;
@@ -52,6 +54,8 @@ export interface AiSourceRef {
   page?: number | null;
   /** 本次实际命中的原文区域（章节/页面/块/切片内容），不会是整份文档 */
   matchedText?: string | null;
+  /** C 端引用摘录，与 matchedText 同源 */
+  quote?: string | null;
   snippet?: string | null;
   highlightRanges?: AiSourceHighlight[];
   evidenceLevel?: string | null;
@@ -68,6 +72,8 @@ export function toAiSources(hits: readonly WikiHit[]): AiSourceRef[] {
       blockId: hit.pageBlockId ?? undefined,
       text: hit.content
     };
+    const headingPath = hit.headingPath && hit.headingPath.length > 0 ? [...hit.headingPath] : null;
+    const sectionTitle = hit.sourceSection ?? (headingPath ? headingPath[headingPath.length - 1]! : null);
     return {
       sourceType: "KNOWLEDGE" as const,
       retrievalUnit: hit.retrievalUnit,
@@ -78,12 +84,11 @@ export function toAiSources(hits: readonly WikiHit[]): AiSourceRef[] {
       blockId: hit.pageBlockId ?? undefined,
       ...(hit.chunkId ? { chunkId: hit.chunkId } : {}),
       title: hit.sourceTitle,
-      tocPath: null,
-      chapter: hit.headingPath && hit.headingPath.length > 0 ? hit.headingPath[0]! : null,
-      section: hit.sourceSection ?? (hit.headingPath && hit.headingPath.length > 0
-        ? hit.headingPath[hit.headingPath.length - 1]!
-        : null),
-      sectionPath: hit.headingPath && hit.headingPath.length > 0 ? [...hit.headingPath] : null,
+      tocPath: headingPath,
+      sectionTitle,
+      chapter: headingPath ? headingPath[0]! : null,
+      section: sectionTitle,
+      sectionPath: headingPath,
       citationAnchor: hit.citationAnchor ?? null,
       pageNumber: hit.sourcePage,
       physicalPageNumber: hit.physicalPageNumber ?? hit.sourcePage,
@@ -94,6 +99,7 @@ export function toAiSources(hits: readonly WikiHit[]): AiSourceRef[] {
       pageEnd: hit.pageEnd ?? hit.sourcePage,
       page: hit.sourcePage,
       matchedText: hit.content,
+      quote: hit.content,
       snippet: hit.snippet ?? null,
       highlightRanges: [highlight],
       evidenceLevel: hit.evidenceLevel ?? null,
@@ -112,6 +118,7 @@ export interface UserTestSource {
   pageLabel?: string | null;
   physicalPageNumber?: number | null;
   matchedText?: string | null;
+  quote?: string | null;
 }
 
 export function toUserTestSources(hits: readonly WikiHit[]): UserTestSource[] {
@@ -125,6 +132,7 @@ export function toUserTestSources(hits: readonly WikiHit[]): UserTestSource[] {
       : null),
     pageLabel: hit.pageLabel ?? null,
     physicalPageNumber: hit.physicalPageNumber ?? hit.sourcePage,
-    matchedText: hit.content
+    matchedText: hit.content,
+    quote: hit.content
   }));
 }

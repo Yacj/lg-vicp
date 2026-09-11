@@ -95,6 +95,11 @@ export const AUDIT_ACTIONS = {
   AI_FILTER_CREATED: "ai.filter_created",
   AI_FILTER_UPDATED: "ai.filter_updated",
   AI_FILTER_DELETED: "ai.filter_deleted",
+  AI_QUICK_PROMPT_CREATED: "ai.quick_prompt_created",
+  AI_QUICK_PROMPT_UPDATED: "ai.quick_prompt_updated",
+  AI_QUICK_PROMPT_ENABLED: "ai.quick_prompt_enabled",
+  AI_QUICK_PROMPT_DISABLED: "ai.quick_prompt_disabled",
+  AI_QUICK_PROMPT_DELETED: "ai.quick_prompt_deleted",
   AI_MESSAGE_FEEDBACK_UPSERTED: "ai.message_feedback_upserted",
   AI_MESSAGE_REGENERATED: "ai.message_regenerated",
   AI_FEEDBACK_HANDLED: "ai.feedback_handled",
@@ -219,6 +224,27 @@ export const CLIENT_APPS = {
   B_ADMIN: "b_admin",
   C_APP: "c_app"
 } as const;
+
+export const AI_SCENE_VISIBILITY = {
+  USER: "USER",
+  INTERNAL: "INTERNAL",
+  ADMIN: "ADMIN"
+} as const;
+
+export const AI_QUICK_PROMPT_POSITIONS = {
+  AI_HOME: "AI_HOME",
+  PROJECT_AI: "PROJECT_AI"
+} as const;
+
+export const AI_QUICK_PROMPT_ACTION_TYPES = {
+  AUTO: "AUTO",
+  KNOWLEDGE: "KNOWLEDGE",
+  PROJECT: "PROJECT",
+  THERMAL: "THERMAL",
+  REPORT: "REPORT"
+} as const;
+
+export const AI_QUICK_PROMPT_ICONS = ["book", "project", "material", "standard", "calc", "compare", "chat"] as const;
 
 export const AI_FEEDBACK_REACTIONS = {
   LIKE: "LIKE",

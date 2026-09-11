@@ -29,7 +29,24 @@ export const AI_PERMISSIONS = {
   FILTER_LIST: "system:ai:filter:list",
   FILTER_CREATE: "system:ai:filter:add",
   FILTER_UPDATE: "system:ai:filter:edit",
-  FILTER_DELETE: "system:ai:filter:remove"
+  FILTER_DELETE: "system:ai:filter:remove",
+  QUICK_PROMPT_LIST: "system:ai:quick-prompt:list",
+  QUICK_PROMPT_CREATE: "system:ai:quick-prompt:create",
+  QUICK_PROMPT_UPDATE: "system:ai:quick-prompt:update",
+  QUICK_PROMPT_DELETE: "system:ai:quick-prompt:delete"
 } as const;
 
 export type AiPermission = (typeof AI_PERMISSIONS)[keyof typeof AI_PERMISSIONS];
+
+/** 快捷提问权限码种子（与 src/db/seed.ts permissionSeeds 合并写入） */
+export const AI_QUICK_PROMPT_PERMISSION_SEEDS: ReadonlyArray<{
+  code: AiPermission;
+  name: string;
+  resource: string;
+  action: string;
+}> = [
+  { code: AI_PERMISSIONS.QUICK_PROMPT_LIST, name: "查看 AI 快捷提问", resource: "ai_quick_prompt", action: "list" },
+  { code: AI_PERMISSIONS.QUICK_PROMPT_CREATE, name: "新增 AI 快捷提问", resource: "ai_quick_prompt", action: "create" },
+  { code: AI_PERMISSIONS.QUICK_PROMPT_UPDATE, name: "修改 AI 快捷提问", resource: "ai_quick_prompt", action: "update" },
+  { code: AI_PERMISSIONS.QUICK_PROMPT_DELETE, name: "删除 AI 快捷提问", resource: "ai_quick_prompt", action: "delete" }
+];
