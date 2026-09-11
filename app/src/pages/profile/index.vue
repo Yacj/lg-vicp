@@ -84,12 +84,6 @@ const accountItems: ProfileMenuItem[] = [
     route: 'profile-info',
     requiresAuth: true,
   },
-  {
-    key: 'appearance',
-    label: '外观设置',
-    icon: 'i-my-icons-appearance',
-    route: 'appearance-settings',
-  },
 ]
 
 const serviceItems: ProfileMenuItem[] = [
@@ -226,7 +220,7 @@ function openLegalContent(key: LegalEntry) {
       <view class="mx-auto box-border max-w-750px w-full px-4 pb-2">
         <view
           v-if="isAuthenticated"
-          class="app-pressable pt-4 flex items-center"
+          class="app-pressable flex items-center pt-4"
           role="button"
           aria-label="查看个人信息"
           @click="openProfileInfo"
@@ -246,10 +240,10 @@ function openLegalContent(key: LegalEntry) {
               {{ profileDescription }}
             </view>
           </view>
-          <wd-icon name="arrow-right" size="34rpx" color="var(--app-text-tertiary)" />
+          <wd-icon name="settings" size="34rpx" color="var(--app-text-tertiary)" />
         </view>
 
-        <view v-else class="pt-4 flex items-center">
+        <view v-else class="flex items-center pt-4">
           <wd-avatar
             icon="user"
             size="104rpx"
@@ -277,7 +271,7 @@ function openLegalContent(key: LegalEntry) {
             class="profile-statistics__item min-w-0 flex-1 py-3 text-center"
           >
             <view class="text-36rpx font-semibold leading-48rpx">
-              <wd-count-to :end-val="item.value" color="var(--app-text-primary)" custom-class="text-36rpx font-semibold leading-48rpx"/>
+              <wd-count-to :end-val="item.value" color="var(--app-text-primary)" custom-class="text-36rpx font-semibold leading-48rpx" />
             </view>
             <view class="app-tertiary mt-1 text-22rpx leading-30rpx">
               {{ item.label }}
@@ -321,7 +315,7 @@ function openLegalContent(key: LegalEntry) {
         <view class="profile-section-title px-4 pb-2">
           账户与设置
         </view>
-        <view >
+        <view>
           <wd-cell-group custom-class="profile-cell-group" insert>
             <wd-cell
               v-for="(item, index) in accountItems"
@@ -355,7 +349,7 @@ function openLegalContent(key: LegalEntry) {
               @click="openEntry(item)"
             >
               <template #prefix>
-                <view class="profile-cell-icon relative top-0.5" :class="item.icon"/>
+                <view class="profile-cell-icon relative top-0.5" :class="item.icon" />
               </template>
             </wd-cell>
           </wd-cell-group>
