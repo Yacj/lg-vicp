@@ -3,6 +3,7 @@ import { computed, reactive, ref } from 'vue'
 import { EditIcon, AddIcon, DeleteIcon, CheckIcon } from 'tdesign-icons-vue-next'
 import { MessagePlugin } from 'tdesign-vue-next'
 import type { KnowledgeTocItem, KnowledgeTocStatus } from '@/types/knowledge'
+import { knowledgeTocSourceLabel } from '@/utils/knowledge-user'
 
 const props = withDefaults(defineProps<{
   items: KnowledgeTocItem[]
@@ -38,7 +39,7 @@ function openEdit(item: KnowledgeTocItem): void {
 function submitEdit(): void {
   const item = editing.value
   if (!item || !form.title.trim()) {
-    MessagePlugin.warning('目录标题不能为空')
+    MessagePlugin.warning('章节标题不能为空')
     return
   }
   const next = localItems.value.map(row => row.id === item.id ? {
@@ -71,20 +72,20 @@ function confirmAll(): void {
 <template>
   <div class="knowledge-toc-editor">
     <div class="knowledge-toc-editor__toolbar">
-      <span>真实 PDF 目录 · 已确认 {{ confirmedCount }}/{{ items.length }} 项</span>
+      <span>章节目录 · 已确认 {{ confirmedCount }}/{{ items.length }} 项</span>
       <t-space v-if="editable">
-        <t-button size="small" variant="outline" @click="emit('add')"><template #icon><AddIcon /></template>新增目录项</t-button>
+        <t-button size="small" variant="outline" @click="emit('add')"><template #icon><AddIcon /></template>新增章节</t-button>
         <t-button size="small" theme="primary" :loading="saving" @click="confirmAll"><template #icon><CheckIcon /></template>保存并确认</t-button>
       </t-space>
     </div>
-    <div v-if="localItems.length === 0" class="knowledge-toc-editor__empty">暂无原文目录，请先完成文件解析。</div>
+    <div v-if="localItems.length === 0" class="knowledge-toc-editor__empty">还没有章节目录，请先完成解析。</div>
     <div v-for="(item, index) in localItems" :key="item.id" class="knowledge-toc-editor__row" :class="{ 'is-selected': selectedId === item.id }" :style="{ paddingLeft: `${12 + Math.max(0, item.level - 1) * 18}px` }" @click="emit('select', item)">
       <div class="knowledge-toc-editor__main">
         <span class="knowledge-toc-editor__title">{{ item.title }}</span>
-        <span class="knowledge-toc-editor__page">{{ item.pageLabel || '未标页码' }}<template v-if="item.physicalPageNumber != null"> · 物理页 {{ item.physicalPageNumber }}</template></span>
+        <span class="knowledge-toc-editor__page">{{ item.pageLabel || '未标页码' }}<template v-if="item.physicalPageNumber != null"> · 文件第 {{ item.physicalPageNumber }} 页</template></span>
       </div>
       <t-tag size="small" variant="outline" :theme="item.status === 'CONFIRMED' ? 'success' : 'warning'">{{ item.status === 'CONFIRMED' ? '已确认' : '待校对' }}</t-tag>
-      <t-tag size="small" variant="light">{{ item.source }}</t-tag>
+      <t-tag size="small" variant="light">{{ knowledgeTocSourceLabel(item.source) }}</t-tag>
       <t-space v-if="editable" size="small" @click.stop>
         <t-button size="small" variant="text" :disabled="index === 0" @click="moveItem(index, -1)">上移</t-button>
         <t-button size="small" variant="text" :disabled="index === localItems.length - 1" @click="moveItem(index, 1)">下移</t-button>
@@ -93,13 +94,13 @@ function confirmAll(): void {
       </t-space>
     </div>
 
-    <t-dialog v-model:visible="dialogVisible" header="校正目录项" :confirm-btn="{ content: '保存', theme: 'primary' }" @confirm="submitEdit">
+    <t-dialog v-model:visible="dialogVisible" header="修改章节" :confirm-btn="{ content: '保存', theme: 'primary' }" @confirm="submitEdit">
       <t-form label-align="top">
         <t-form-item label="标题" required-mark><t-input v-model="form.title" /></t-form-item>
-        <t-form-item label="图集页码标签"><t-input v-model="form.pageLabel" placeholder="如 A1、A5、21" /></t-form-item>
-        <t-form-item label="PDF 物理页"><t-input-number v-model="form.physicalPageNumber" :min="1" clearable /></t-form-item>
+        <t-form-item label="印刷页码"><t-input v-model="form.pageLabel" placeholder="如 A1、A5、21" /></t-form-item>
+        <t-form-item label="文件页码"><t-input-number v-model="form.physicalPageNumber" :min="1" clearable /></t-form-item>
         <t-form-item label="层级"><t-input-number v-model="form.level" :min="1" :max="6" /></t-form-item>
-        <t-form-item label="状态"><t-select v-model="form.status" :options="[{ label: '待校对', value: 'PENDING_REVIEW' }, { label: '已确认', value: 'CONFIRMED' }, { label: '草稿', value: 'DRAFT' }]" /></t-form-item>
+        <t-form-item label="状态"><t-select v-model="form.status" :options="[{ label: '待校对', value: 'PENDING_REVIEW' }, { label: '已确认', value: 'CONFIRMED' }, { label: '未确认', value: 'DRAFT' }]" /></t-form-item>
       </t-form>
     </t-dialog>
   </div>

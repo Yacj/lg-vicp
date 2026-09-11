@@ -1,4 +1,5 @@
 import { authApi } from '@/api/modules/auth'
+import { discardUserScopedClientState } from '@/store/user-scoped-state'
 
 export function useAuthLogout() {
   const router = useRouter()
@@ -31,6 +32,7 @@ export function useAuthLogout() {
     }
     finally {
       authStore.clearSession()
+      discardUserScopedClientState()
       globalLoading.close()
       info('已退出登录')
       await router.replaceAll({ name: 'home' })

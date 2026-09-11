@@ -21,6 +21,16 @@ export type FileStatus =
   | 'READY'
   | 'FAILED'
   | 'DELETED'
+  | 'RECYCLED'
+
+export const fileCenterSources = [
+  'USER_UPLOAD',
+  'BATCH_IMPORT',
+  'CRAWLER',
+  'INTERNAL_API',
+  'THERMAL_IMPORT',
+] as const
+export type FileCenterSource = (typeof fileCenterSources)[number]
 
 /** 异步任务状态，与后端 asyncTaskStatusEnum 对齐。 */
 export type AsyncTaskStatus = 'QUEUED' | 'ACTIVE' | 'COMPLETED' | 'FAILED'
@@ -76,13 +86,21 @@ export interface CreateUploadIntentInput {
   sha256?: string
 }
 
-/** POST /files/upload-intents 响应。 */
+/** POST /files/upload-intents 响应。SHA-256 命中已有 READY 文件时为 REUSE，无需再 PUT。 */
 export interface UploadIntent {
   message: string
   fileId: string
-  uploadUrl: string
-  headers: Record<string, string>
-  expiresAt: string
+  mode?: 'UPLOAD' | 'REUSE'
+  uploadUrl?: string | null
+  headers?: Record<string, string>
+  expiresAt?: string | null
+  file?: {
+    id: string
+    originalName: string
+    mimeType: string
+    sizeBytes: number
+    sha256: string | null
+  }
 }
 
 /** POST /files/:id/complete 响应。 */
@@ -104,15 +122,57 @@ export interface DownloadUrlResult {
   expiresIn: number
 }
 
-/** GET /files 查询参数。 */
+/** GET /files 查询参数（B 端文件中心 / FilePicker 口径）。 */
 export interface FilePageQuery {
   page?: number
   pageSize?: number
   projectId?: string
+  keyword?: string
+  mimeType?: string
+  extension?: string
+  source?: FileCenterSource
+  status?: FileStatus
+  sort?: 'createdAt' | 'sizeBytes' | 'originalName'
+  includeRecycled?: '1'
 }
 
-/** GET /files 响应。 */
-export type FilePageResult = PageResult<FileRecord>
+/** 文件中心列表项（不含 objectKey / bucket / 永久 URL）。 */
+export interface FileCenterItem {
+  id: string
+  originalName: string
+  mimeType: string
+  extension: string | null
+  sizeBytes: number
+  status: FileStatus
+  source?: FileCenterSource | string | null
+  projectId: string | null
+  ownerUserId: string
+  uploaderName?: string | null
+  sha256: string | null
+  errorMessage: string | null
+  referenceCount?: number
+  recycledAt?: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+/** GET /files 响应（B 端为文件中心投影）。 */
+export type FilePageResult = PageResult<FileCenterItem>
+
+/** GET /files/recent 响应。 */
+export interface FileRecentResult {
+  items: FileCenterItem[]
+}
+
+/** GET /files/:id/preview 响应。 */
+export interface FilePreviewResult {
+  fileId: string
+  mode: 'INLINE' | 'DOWNLOAD'
+  mimeType?: string
+  url?: string | null
+  expiresIn?: number
+  reason?: string
+}
 
 /** 上传进度回调。 */
 export interface UploadProgress {

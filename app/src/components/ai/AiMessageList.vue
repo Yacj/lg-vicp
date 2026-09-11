@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import type { AiFeedbackReaction, AiMessageFeedback } from '@/api/types'
+import type { AiFeedbackReaction, AiMessageFeedback, AiSourceRef } from '@/api/types'
 import type { LocalMessage } from '@/store/assistant'
+import AiSourceCard from '@/components/ai/AiSourceCard.vue'
 import { markdownStyle, markdownToPlainText, renderMarkdown } from '@/utils/markdown'
 
 const props = defineProps<{
@@ -18,12 +19,10 @@ const emit = defineEmits<{
   feedback: [messageId: string, reaction: 'LIKE' | 'DISLIKE' | null]
   share: []
   toggleSelect: [messageId: string]
+  openSource: [source: AiSourceRef]
 }>()
 
 const { info: toastInfo } = useGlobalToast()
-
-/** 来源引用折叠：仅同时展开一条 */
-const expandedSources = ref<string | null>(null)
 
 /** AI 消息渲染缓存：messageId → html（流式消息除外，完成态只解析一次） */
 const htmlCache = reactive<Record<string, string>>({})
@@ -63,10 +62,6 @@ function getHtml(message: LocalMessage) {
     htmlCache[message.id] = renderMarkdown(message.content)
   }
   return htmlCache[message.id]
-}
-
-function toggleSources(messageId: string) {
-  expandedSources.value = expandedSources.value === messageId ? null : messageId
 }
 
 function currentReaction(messageId: string): AiFeedbackReaction | null {
@@ -179,34 +174,12 @@ function handleToggleSelect(message: LocalMessage) {
             </text>
           </view>
 
-          <!-- 来源引用 -->
-          <view v-if="message.status === 'COMPLETED' && message.sources?.length" class="mt-1.5">
-            <view
-              class="app-primary-text inline-flex items-center gap-1 text-2.5"
-              @click="toggleSources(message.id)"
-            >
-              <wd-icon :name="expandedSources === message.id ? 'arrow-up' : 'arrow-down'" size="24rpx" />
-              <text>
-                参考来源 {{ message.sources.length }} 条
-              </text>
-            </view>
-            <view v-if="expandedSources === message.id" class="app-panel-flat mt-1.5 rounded-xl p-2.5">
-              <view
-                v-for="(source, sourceIndex) in message.sources"
-                :key="`${source.title}-${sourceIndex}`"
-                class="app-muted flex items-start gap-1.5 py-1 text-2.5 leading-4"
-              >
-                <text class="shrink-0">
-                  [{{ sourceIndex + 1 }}]
-                </text>
-                <text class="min-w-0 flex-1 break-all">
-                  {{ source.title }}<text v-if="source.page">
-                    （第 {{ source.page }} 页）
-                  </text>
-                </text>
-              </view>
-            </view>
-          </view>
+          <!-- 来源引用：只展示用户可理解字段，空来源不渲染 -->
+          <AiSourceCard
+            v-if="message.status === 'COMPLETED' && message.sources?.length"
+            :sources="message.sources"
+            @open="emit('openSource', $event)"
+          />
 
           <!-- 操作行：重新生成 / 复制 / 点赞 / 点踩 / 分享 -->
           <view

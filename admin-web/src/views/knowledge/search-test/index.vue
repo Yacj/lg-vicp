@@ -29,7 +29,7 @@ const searchTook = ref(0)
 async function runSearch(): Promise<void> {
   const text = searchQuery.value.trim()
   if (!text || searchLoading.value) {
-    if (!text) MessagePlugin.warning('请输入检索关键词')
+    if (!text) MessagePlugin.warning('请输入要找的内容')
     return
   }
   searchLoading.value = true
@@ -174,7 +174,7 @@ function focusSource(event: MouseEvent): void {
 </script>
 
 <template>
-  <AppPage title="知识问答" description="输入问题，基于已发布的规范、图集与标准资料给出答案，并标注引用依据。">
+  <AppPage title="知识问答" description="输入问题，根据已发布的图集、标准和资料给出答案，并标出引用。">
     <div class="vicp-ask-bar">
       <t-textarea
         v-model="query"
@@ -190,7 +190,7 @@ function focusSource(event: MouseEvent): void {
           {{ answering ? '回答中...' : '获取答案' }}
         </t-button>
         <t-button v-if="canAnswer" variant="outline" :loading="searchLoading" @click="runSearch">
-          执行检索
+          查找资料
         </t-button>
         <t-button v-if="answering" variant="outline" theme="danger" @click="stopAnswer">
           <template #icon>
@@ -204,29 +204,28 @@ function focusSource(event: MouseEvent): void {
     <div class="vicp-workspace">
       <div class="vicp-search-results">
       <div class="vicp-panel-header">
-        <span class="vicp-panel-title">检索结果</span>
-        <span v-if="searchSearched" class="vicp-panel-meta">耗时 {{ searchTook }}ms · {{ searchHits.length }} 条</span>
+        <span class="vicp-panel-title">找到的资料</span>
+        <span v-if="searchSearched" class="vicp-panel-meta">用时 {{ searchTook }} 毫秒 · {{ searchHits.length }} 条</span>
       </div>
-      <t-input v-model="searchQuery" clearable placeholder="单独测试检索结果（不生成 AI 回答）" @enter="runSearch" />
+      <t-input v-model="searchQuery" clearable placeholder="先找一找资料，不生成回答" @enter="runSearch" />
       <t-alert v-if="searchError" theme="error" :message="searchError" />
       <div v-if="searchSources.length > 0" class="vicp-ref-list">
         <KnowledgeHitCard v-for="(source, index) in searchSources" :key="`${index}-${source.documentId ?? source.title}`" :debug-enabled="canDebug" :index="index + 1" :source="source" />
       </div>
-      <div v-else-if="searchSearched" class="vicp-empty">没有命中已发布资料。</div>
-      <div v-else class="vicp-empty">可单独执行真实检索，结果按文档、章节、页面、内容块路径展示。</div>
+      <div v-else-if="searchSearched" class="vicp-empty">没有找到已发布的资料。</div>
+      <div v-else class="vicp-empty">可以先查找资料，结果会按资料、章节、页面展示。</div>
       </div>
 
       <!-- AI 回答 -->
       <section class="vicp-panel">
         <header class="vicp-panel-header">
-          <span class="vicp-panel-title">AI 回答</span>
+          <span class="vicp-panel-title">回答</span>
         </header>
 
         <t-alert v-if="answerError" theme="error" :message="answerError" style="margin-bottom: 12px" />
 
         <div v-if="!answerVisible" class="vicp-empty">
-          输入问题，我将基于已发布资料给出回答并标注引用依据。
-        </div>
+          输入问题，我会根据已发布资料给出回答，并标出引用。</div>
         <template v-else>
           <div v-if="answerStage && answerStage !== 'completed'" class="vicp-stage">
             <t-loading size="small" />
@@ -250,12 +249,12 @@ function focusSource(event: MouseEvent): void {
       <!-- 参考依据（层级检索路径） -->
       <section class="vicp-panel">
         <header class="vicp-panel-header">
-          <span class="vicp-panel-title">参考依据</span>
+          <span class="vicp-panel-title">引用</span>
           <span v-if="answerSources.length > 0" class="vicp-panel-meta">共 {{ answerSources.length }} 条</span>
         </header>
 
         <div v-if="answerSources.length === 0" class="vicp-empty">
-          回答时会在右侧列出引用的资料依据，可逐条查看完整原文。
+          回答时会列出引用的资料，可逐条查看完整原文。
         </div>
         <div v-else class="vicp-ref-list">
           <div

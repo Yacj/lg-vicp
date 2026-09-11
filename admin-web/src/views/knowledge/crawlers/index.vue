@@ -191,7 +191,7 @@ onMounted(load)
 </script>
 
 <template>
-  <AppPage title="知识抓取源" description="定期抓取外部标准/图集来源的配置；「抓取」按钮手动触发一次抓取任务。">
+  <AppPage title="资料抓取" description="定期从外部收集标准和图集。点「抓取」可以立即收集一次。">
     <AppDataTable
       :columns="columns"
       :data="sources"

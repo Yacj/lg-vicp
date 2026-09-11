@@ -1,9 +1,11 @@
 import type {
+  AiSourceLocatorQuery,
   ConversationListQuery,
   ConversationSettingsBody,
   CreateConversationBody,
   MessageFeedbackBody,
   MoveConversationBody,
+  QuickPromptListQuery,
   ReportDraftBody,
   SendMessageBody,
   TranscribeVoiceBody,
@@ -12,6 +14,20 @@ import type {
 import { request } from '../request'
 
 export const aiApi = {
+  listQuickPrompts(params: QuickPromptListQuery = {}) {
+    return request('GET', '/ai/quick-prompts', { params })
+  },
+
+  getSourceDetail(params: AiSourceLocatorQuery) {
+    const query: Record<string, string> = {}
+    for (const [key, value] of Object.entries(params)) {
+      if (value) {
+        query[key] = value
+      }
+    }
+    return request('GET', '/ai/knowledge/source-detail', { params: query })
+  },
+
   createConversation(data: CreateConversationBody) {
     return request('POST', '/ai/conversations', { data })
   },

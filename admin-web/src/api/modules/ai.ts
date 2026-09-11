@@ -19,6 +19,10 @@ import type {
   AiProviderInput,
   AiProviderMutationResult,
   AiProviderTestResult,
+  AiQuickPrompt,
+  AiQuickPromptInput,
+  AiQuickPromptMutationResult,
+  AiQuickPromptQuery,
   AiSceneBinding,
   AiSceneBindingInput,
   AiSceneBindingMutationResult,
@@ -100,6 +104,37 @@ export function deleteAiModel(id: string): Promise<{ message: string }> {
 
 export function testAiModelConnection(id: string): Promise<AiConnectionTestResult> {
   return api.post<AiConnectionTestResult>(`${aiResourcePath('models', id)}/test-connection`)
+}
+
+/** 快捷提问分页列表（GET /quick-prompts）。 */
+export function fetchAiQuickPrompts(
+  query: AiQuickPromptQuery,
+  signal?: AbortSignal,
+): Promise<PageResult<AiQuickPrompt>> {
+  return api.get<PageResult<AiQuickPrompt>>(`${PLATFORM_AI_PREFIX}/quick-prompts`, { params: query, signal })
+}
+
+export function createAiQuickPrompt(input: AiQuickPromptInput): Promise<AiQuickPromptMutationResult> {
+  return api.post<AiQuickPromptMutationResult>(`${PLATFORM_AI_PREFIX}/quick-prompts`, input)
+}
+
+export function updateAiQuickPrompt(
+  id: string,
+  input: Partial<AiQuickPromptInput>,
+): Promise<AiQuickPromptMutationResult> {
+  return api.put<AiQuickPromptMutationResult>(aiResourcePath('quick-prompts', id), input)
+}
+
+export function deleteAiQuickPrompt(id: string): Promise<{ message: string }> {
+  return api.delete<{ message: string }>(aiResourcePath('quick-prompts', id))
+}
+
+export function enableAiQuickPrompt(id: string): Promise<AiQuickPromptMutationResult> {
+  return api.post<AiQuickPromptMutationResult>(`${aiResourcePath('quick-prompts', id)}/enable`)
+}
+
+export function disableAiQuickPrompt(id: string): Promise<AiQuickPromptMutationResult> {
+  return api.post<AiQuickPromptMutationResult>(`${aiResourcePath('quick-prompts', id)}/disable`)
 }
 
 /** 场景绑定列表（无分页，返回 { items }）。 */

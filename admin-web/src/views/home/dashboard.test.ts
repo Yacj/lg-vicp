@@ -118,7 +118,7 @@ describe('dashboard welcome text', () => {
 
 describe('dashboard todo projection', () => {
   const categories = [
-    { id: 'knowledge', label: '知识资料', description: '需要处理的资料', paths: ['/knowledge/documents'], count: 4 },
+    { id: 'knowledge', label: '知识库', description: '需要处理的资料', paths: ['/knowledge/documents'], count: 4 },
     { id: 'product', label: '产品数据', description: '产品与材料数据', paths: ['/products/series', '/masterdata/materials'], count: null },
     { id: 'review', label: '统一审核', description: '审核决议', paths: ['/review-center/queue'], count: 0 },
     { id: 'denied', label: '无权入口', description: '未投影路由', paths: ['/denied'] },

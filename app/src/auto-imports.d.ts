@@ -6,6 +6,8 @@
 export {}
 declare global {
   const $$userConfigMap: typeof import('./api/index')['$$userConfigMap']
+  const ASSISTANT_STORE_ID: typeof import('./store/user-scoped-state')['ASSISTANT_STORE_ID']
+  const AUTH_STORE_ID: typeof import('./store/user-scoped-state')['AUTH_STORE_ID']
   const Apis: typeof import('./api/index')['Apis']
   const CommonUtil: typeof import('@wot-ui/ui')['CommonUtil']
   const EffectScope: typeof import('vue')['EffectScope']
@@ -18,6 +20,9 @@ declare global {
   const asyncComputed: typeof import('@vueuse/core')['asyncComputed']
   const authApi: typeof import('./api/index')['authApi']
   const autoResetRef: typeof import('@vueuse/core')['autoResetRef']
+  const canOpenOriginal: typeof import('./utils/aiSource')['canOpenOriginal']
+  const clearQuickPromptCache: typeof import('./composables/useQuickPrompts')['clearQuickPromptCache']
+  const compactQuery: typeof import('./utils/aiSource')['compactQuery']
   const computed: typeof import('vue')['computed']
   const computedAsync: typeof import('@vueuse/core')['computedAsync']
   const computedEager: typeof import('@vueuse/core')['computedEager']
@@ -43,6 +48,7 @@ declare global {
   const defineAsyncComponent: typeof import('vue')['defineAsyncComponent']
   const defineComponent: typeof import('vue')['defineComponent']
   const defineStore: typeof import('pinia')['defineStore']
+  const discardUserScopedClientState: typeof import('./store/user-scoped-state')['discardUserScopedClientState']
   const eagerComputed: typeof import('@vueuse/core')['eagerComputed']
   const effectScope: typeof import('vue')['effectScope']
   const extendRef: typeof import('@vueuse/core')['extendRef']
@@ -71,6 +77,8 @@ declare global {
   const markdownToPlainText: typeof import('./utils/markdown')['markdownToPlainText']
   const mountApis: typeof import('./api/createApis')['mountApis']
   const nextTick: typeof import('vue')['nextTick']
+  const normalizeAiSource: typeof import('./utils/aiSource')['normalizeAiSource']
+  const normalizeAiSources: typeof import('./utils/aiSource')['normalizeAiSources']
   const onActivated: typeof import('vue')['onActivated']
   const onAddToFavorites: typeof import('@dcloudio/uni-app')['onAddToFavorites']
   const onBackPress: typeof import('@dcloudio/uni-app')['onBackPress']
@@ -123,6 +131,7 @@ declare global {
   const reactiveComputed: typeof import('@vueuse/core')['reactiveComputed']
   const reactiveOmit: typeof import('@vueuse/core')['reactiveOmit']
   const reactivePick: typeof import('@vueuse/core')['reactivePick']
+  const readPersistedAuthUserId: typeof import('./store/user-scoped-state')['readPersistedAuthUserId']
   const readonly: typeof import('vue')['readonly']
   const ref: typeof import('vue')['ref']
   const refAutoReset: typeof import('@vueuse/core')['refAutoReset']
@@ -133,6 +142,7 @@ declare global {
   const renderMarkdown: typeof import('./utils/markdown')['renderMarkdown']
   const reportApi: typeof import('./api/index')['reportApi']
   const request: typeof import('./api/request')['request']
+  const resolveAiSourceLocator: typeof import('./utils/aiSource')['resolveAiSourceLocator']
   const resolveComponent: typeof import('vue')['resolveComponent']
   const resolveRef: typeof import('@vueuse/core')['resolveRef']
   const resolveUnref: typeof import('@vueuse/core')['resolveUnref']
@@ -142,6 +152,11 @@ declare global {
   const shallowReadonly: typeof import('vue')['shallowReadonly']
   const shallowRef: typeof import('vue')['shallowRef']
   const shareApi: typeof import('./api/index')['shareApi']
+  const shouldDiscardAssistantState: typeof import('./store/user-scoped-state')['shouldDiscardAssistantState']
+  const sourceChapterPath: typeof import('./utils/aiSource')['sourceChapterPath']
+  const sourceFromRetrieval: typeof import('./utils/aiSource')['sourceFromRetrieval']
+  const sourcePageLabel: typeof import('./utils/aiSource')['sourcePageLabel']
+  const sourceQuote: typeof import('./utils/aiSource')['sourceQuote']
   const storeToRefs: typeof import('pinia')['storeToRefs']
   const syncRef: typeof import('@vueuse/core')['syncRef']
   const syncRefs: typeof import('@vueuse/core')['syncRefs']
@@ -289,6 +304,7 @@ declare global {
   const usePreferredLanguages: typeof import('@vueuse/core')['usePreferredLanguages']
   const usePreferredReducedMotion: typeof import('@vueuse/core')['usePreferredReducedMotion']
   const usePrevious: typeof import('@vueuse/core')['usePrevious']
+  const useQuickPrompts: typeof import('./composables/useQuickPrompts')['useQuickPrompts']
   const useRafFn: typeof import('@vueuse/core')['useRafFn']
   const useRefHistory: typeof import('@vueuse/core')['useRefHistory']
   const useRequest: typeof import('alova/client')['useRequest']
@@ -379,6 +395,8 @@ declare module 'vue' {
   interface GlobalComponents {}
   interface ComponentCustomProperties {
     readonly $$userConfigMap: UnwrapRef<typeof import('./api/index')['$$userConfigMap']>
+    readonly ASSISTANT_STORE_ID: UnwrapRef<typeof import('./store/user-scoped-state')['ASSISTANT_STORE_ID']>
+    readonly AUTH_STORE_ID: UnwrapRef<typeof import('./store/user-scoped-state')['AUTH_STORE_ID']>
     readonly Apis: UnwrapRef<typeof import('./api/index')['Apis']>
     readonly CommonUtil: UnwrapRef<typeof import('@wot-ui/ui')['CommonUtil']>
     readonly EffectScope: UnwrapRef<typeof import('vue')['EffectScope']>
@@ -391,6 +409,9 @@ declare module 'vue' {
     readonly asyncComputed: UnwrapRef<typeof import('@vueuse/core')['asyncComputed']>
     readonly authApi: UnwrapRef<typeof import('./api/index')['authApi']>
     readonly autoResetRef: UnwrapRef<typeof import('@vueuse/core')['autoResetRef']>
+    readonly canOpenOriginal: UnwrapRef<typeof import('./utils/aiSource')['canOpenOriginal']>
+    readonly clearQuickPromptCache: UnwrapRef<typeof import('./composables/useQuickPrompts')['clearQuickPromptCache']>
+    readonly compactQuery: UnwrapRef<typeof import('./utils/aiSource')['compactQuery']>
     readonly computed: UnwrapRef<typeof import('vue')['computed']>
     readonly computedAsync: UnwrapRef<typeof import('@vueuse/core')['computedAsync']>
     readonly computedEager: UnwrapRef<typeof import('@vueuse/core')['computedEager']>
@@ -416,6 +437,7 @@ declare module 'vue' {
     readonly defineAsyncComponent: UnwrapRef<typeof import('vue')['defineAsyncComponent']>
     readonly defineComponent: UnwrapRef<typeof import('vue')['defineComponent']>
     readonly defineStore: UnwrapRef<typeof import('pinia')['defineStore']>
+    readonly discardUserScopedClientState: UnwrapRef<typeof import('./store/user-scoped-state')['discardUserScopedClientState']>
     readonly eagerComputed: UnwrapRef<typeof import('@vueuse/core')['eagerComputed']>
     readonly effectScope: UnwrapRef<typeof import('vue')['effectScope']>
     readonly extendRef: UnwrapRef<typeof import('@vueuse/core')['extendRef']>
@@ -444,6 +466,8 @@ declare module 'vue' {
     readonly markdownToPlainText: UnwrapRef<typeof import('./utils/markdown')['markdownToPlainText']>
     readonly mountApis: UnwrapRef<typeof import('./api/createApis')['mountApis']>
     readonly nextTick: UnwrapRef<typeof import('vue')['nextTick']>
+    readonly normalizeAiSource: UnwrapRef<typeof import('./utils/aiSource')['normalizeAiSource']>
+    readonly normalizeAiSources: UnwrapRef<typeof import('./utils/aiSource')['normalizeAiSources']>
     readonly onActivated: UnwrapRef<typeof import('vue')['onActivated']>
     readonly onAddToFavorites: UnwrapRef<typeof import('@dcloudio/uni-app')['onAddToFavorites']>
     readonly onBackPress: UnwrapRef<typeof import('@dcloudio/uni-app')['onBackPress']>
@@ -496,6 +520,7 @@ declare module 'vue' {
     readonly reactiveComputed: UnwrapRef<typeof import('@vueuse/core')['reactiveComputed']>
     readonly reactiveOmit: UnwrapRef<typeof import('@vueuse/core')['reactiveOmit']>
     readonly reactivePick: UnwrapRef<typeof import('@vueuse/core')['reactivePick']>
+    readonly readPersistedAuthUserId: UnwrapRef<typeof import('./store/user-scoped-state')['readPersistedAuthUserId']>
     readonly readonly: UnwrapRef<typeof import('vue')['readonly']>
     readonly ref: UnwrapRef<typeof import('vue')['ref']>
     readonly refAutoReset: UnwrapRef<typeof import('@vueuse/core')['refAutoReset']>
@@ -506,6 +531,7 @@ declare module 'vue' {
     readonly renderMarkdown: UnwrapRef<typeof import('./utils/markdown')['renderMarkdown']>
     readonly reportApi: UnwrapRef<typeof import('./api/index')['reportApi']>
     readonly request: UnwrapRef<typeof import('./api/request')['request']>
+    readonly resolveAiSourceLocator: UnwrapRef<typeof import('./utils/aiSource')['resolveAiSourceLocator']>
     readonly resolveComponent: UnwrapRef<typeof import('vue')['resolveComponent']>
     readonly resolveRef: UnwrapRef<typeof import('@vueuse/core')['resolveRef']>
     readonly resolveUnref: UnwrapRef<typeof import('@vueuse/core')['resolveUnref']>
@@ -515,6 +541,11 @@ declare module 'vue' {
     readonly shallowReadonly: UnwrapRef<typeof import('vue')['shallowReadonly']>
     readonly shallowRef: UnwrapRef<typeof import('vue')['shallowRef']>
     readonly shareApi: UnwrapRef<typeof import('./api/index')['shareApi']>
+    readonly shouldDiscardAssistantState: UnwrapRef<typeof import('./store/user-scoped-state')['shouldDiscardAssistantState']>
+    readonly sourceChapterPath: UnwrapRef<typeof import('./utils/aiSource')['sourceChapterPath']>
+    readonly sourceFromRetrieval: UnwrapRef<typeof import('./utils/aiSource')['sourceFromRetrieval']>
+    readonly sourcePageLabel: UnwrapRef<typeof import('./utils/aiSource')['sourcePageLabel']>
+    readonly sourceQuote: UnwrapRef<typeof import('./utils/aiSource')['sourceQuote']>
     readonly storeToRefs: UnwrapRef<typeof import('pinia')['storeToRefs']>
     readonly syncRef: UnwrapRef<typeof import('@vueuse/core')['syncRef']>
     readonly syncRefs: UnwrapRef<typeof import('@vueuse/core')['syncRefs']>
@@ -662,6 +693,7 @@ declare module 'vue' {
     readonly usePreferredLanguages: UnwrapRef<typeof import('@vueuse/core')['usePreferredLanguages']>
     readonly usePreferredReducedMotion: UnwrapRef<typeof import('@vueuse/core')['usePreferredReducedMotion']>
     readonly usePrevious: UnwrapRef<typeof import('@vueuse/core')['usePrevious']>
+    readonly useQuickPrompts: UnwrapRef<typeof import('./composables/useQuickPrompts')['useQuickPrompts']>
     readonly useRafFn: UnwrapRef<typeof import('@vueuse/core')['useRafFn']>
     readonly useRefHistory: UnwrapRef<typeof import('@vueuse/core')['useRefHistory']>
     readonly useRequest: UnwrapRef<typeof import('alova/client')['useRequest']>

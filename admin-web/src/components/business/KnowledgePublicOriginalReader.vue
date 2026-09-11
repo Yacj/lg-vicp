@@ -24,7 +24,7 @@ async function openPage(locator: number | string): Promise<void> {
       : (await fetchPublicLibraryDocumentPageByLabel(props.documentId, locator)).page
   }
   catch (cause) {
-    error.value = cause instanceof Error ? cause.message : '原始页面加载失败'
+    error.value = cause instanceof Error ? cause.message : '页面加载失败'
   }
 }
 
@@ -60,7 +60,7 @@ onMounted(() => { void load() })
           </div>
         </aside>
         <main class="knowledge-public-reader__page">
-          <div class="knowledge-public-reader__meta">原始页面 · 图集页码：{{ page?.pageLabel || currentToc?.pageLabel || '—' }} · PDF 物理页：{{ page?.physicalPageNumber || selectedPage || '—' }}</div>
+          <div class="knowledge-public-reader__meta">页码 {{ page?.pageLabel || currentToc?.pageLabel || page?.physicalPageNumber || selectedPage || '—' }}</div>
           <KnowledgePageView v-if="page" :blocks="[]" :full-text="page.fullText" :page-image-url="page.pageImageUrl" :page-number="page.physicalPageNumber" />
           <AppEmptyState v-else title="暂无页面" description="该资料尚未提供可浏览页面" size="small" />
         </main>

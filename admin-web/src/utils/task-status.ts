@@ -17,6 +17,7 @@ export const FILE_STATUS_TEXT: Record<FileStatus, string> = {
   READY: '已完成',
   FAILED: '失败',
   DELETED: '已删除',
+  RECYCLED: '回收站',
 }
 
 export const TASK_STATUS_TEXT: Record<AsyncTaskStatus, string> = {

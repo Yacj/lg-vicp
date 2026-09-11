@@ -25,6 +25,7 @@ import {
 } from './dashboard'
 import type { TodoCategoryInput } from './dashboard'
 import { formatDate } from '@/utils/day'
+import { knowledgeUserMessage } from '@/utils/knowledge-user'
 import { getReportTypeLabel, reportStateMeta } from '@/utils/report'
 
 defineOptions({ name: 'Home' })
@@ -60,9 +61,9 @@ const reviewPendingTotal = ref<number | null>(null)
 const todoCategories = computed<TodoCategoryInput[]>(() => [
   {
     count: knowledgeNeedsActionTotal.value,
-    description: '需要处理的资料内容与解析任务',
+    description: '需要处理的知识库解析任务',
     id: 'knowledge',
-    label: '知识资料',
+    label: '知识库',
     paths: ['/knowledge/documents'],
   },
   {
@@ -193,9 +194,9 @@ async function loadParsingFailures(): Promise<void> {
 }
 
 const JOB_TYPE_LABELS: Record<KnowledgeParsingJob['jobType'], string> = {
-  CHUNK_REBUILD: '分块重建',
-  OCR: 'OCR 识别',
-  PARSE: '文档解析',
+  CHUNK_REBUILD: '重新整理内容',
+  OCR: '补充文字',
+  PARSE: '解析文件',
   REPARSE: '重新解析',
 }
 
@@ -246,7 +247,7 @@ onMounted(() => {
       <header class="dashboard-panel__header">
         <div class="dashboard-panel__heading">
           <strong id="todo-title">我的待办</strong>
-          <span>按知识资料、产品数据、标准指标与报告分类，入口随菜单权限显示</span>
+          <span>按知识库、产品数据、标准指标与报告分类，入口随菜单权限显示</span>
         </div>
       </header>
 
@@ -413,9 +414,9 @@ onMounted(() => {
             <ul class="dashboard-line-list">
               <li v-for="job in parsingFailures" :key="job.id" class="dashboard-line-item">
                 <span class="dashboard-line-item__main is-static">
-                  <strong>{{ job.document?.title || '未知文档' }}</strong>
+                  <strong>{{ job.document?.title || '未命名知识库' }}</strong>
                   <span class="dashboard-line-item__meta">
-                    {{ JOB_TYPE_LABELS[job.jobType] }} · {{ job.errorMessage || '解析失败' }}
+                    {{ JOB_TYPE_LABELS[job.jobType] }} · {{ knowledgeUserMessage(job.errorMessage || '解析失败') }}
                   </span>
                 </span>
                 <span class="dashboard-line-item__time">
@@ -427,9 +428,9 @@ onMounted(() => {
           </template>
           <AppEmptyState
             v-else-if="parsingFailures"
-            description="知识资料解析失败任务会显示在这里"
+            description="知识库解析失败任务会显示在这里"
             size="small"
-            title="暂无资料异常"
+            title="暂无解析异常"
           />
         </t-loading>
       </section>

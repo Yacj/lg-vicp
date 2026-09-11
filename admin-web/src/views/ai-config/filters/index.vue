@@ -169,7 +169,10 @@ const drawerSubmitting = filterDrawer.isSubmitting
 </script>
 
 <template>
-  <AppPage>
+  <AppPage
+    description="拦截不适合进入筑小格的提问内容。这些规则不会展示给普通用户。"
+    title="内容安全"
+  >
     <AppSearchPanel
       :loading="searchLoading"
       @reset="filterList.reset"

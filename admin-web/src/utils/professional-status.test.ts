@@ -56,7 +56,8 @@ describe('professional-status 状态映射', () => {
       'NO_TEXT_LAYER',
       'SEARCH_SOURCE_REQUIRED',
     ])
-    expect(knowledgeParseStatusMeta.NO_TEXT_LAYER).toEqual({ label: '无文本层', status: 'warning' })
+    expect(knowledgeParseStatusMeta.NO_TEXT_LAYER).toEqual({ label: '需要补充可搜索文字', status: 'warning' })
+    expect(knowledgeParseStatusMeta.SEARCH_SOURCE_REQUIRED).toEqual({ label: '需要补充可搜索文字', status: 'warning' })
     expect(knowledgeParseStatusMetaFor('UNSUPPORTED')).toEqual({ label: 'UNSUPPORTED', status: 'default' })
     expect(knowledgeVersionStatusMetaFor('ARCHIVED')).toEqual({ label: 'ARCHIVED', status: 'default' })
     expect(knowledgeVersionStatusMetaFor('PUBLISHED')).toEqual(knowledgeVersionStatusMeta.PUBLISHED)

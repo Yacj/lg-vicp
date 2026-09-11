@@ -12,10 +12,14 @@ import type {
   KnowledgeCrawlerSourceInput,
   KnowledgeDocument,
   KnowledgeDocumentDetail,
+  KnowledgeCreateWithFileInput,
+  KnowledgeCreateWithFileResult,
+  KnowledgeChapterTreeResult,
   KnowledgeDocumentInput,
   KnowledgeDocumentQuery,
   KnowledgeDocumentAsset,
   KnowledgeParsingJob,
+  KnowledgeReplaceFileInput,
   KnowledgeParsingJobQuery,
   KnowledgeDocumentVersion,
   KnowledgePage,
@@ -42,6 +46,8 @@ import type {
   KnowledgeUploadIntentInput,
   KnowledgeVersionInput,
   KnowledgeVersionSection,
+  KnowledgeVersionTestQaRequest,
+  KnowledgeWorkspace,
   MutationMessageResponse,
   PublicLibraryDocumentDetail,
   PublicLibraryDocumentItem,
@@ -95,6 +101,24 @@ export function createKnowledgeDocument(input: KnowledgeDocumentInput): Promise<
   return api.post<{ document: KnowledgeDocument }>(`${KNOWLEDGE_PREFIX}/documents`, input)
 }
 
+export function createKnowledgeWithFile(input: KnowledgeCreateWithFileInput): Promise<KnowledgeCreateWithFileResult> {
+  return api.post<KnowledgeCreateWithFileResult>(`${KNOWLEDGE_PREFIX}/documents/create-with-file`, input)
+}
+
+export function fetchKnowledgeWorkspace(id: string, signal?: AbortSignal): Promise<KnowledgeWorkspace> {
+  return api.get<KnowledgeWorkspace>(`${KNOWLEDGE_PREFIX}/documents/${encodeURIComponent(id)}/workspace`, { signal })
+}
+
+export function replaceKnowledgeDocumentFile(
+  documentId: string,
+  input: KnowledgeReplaceFileInput,
+): Promise<KnowledgeCreateWithFileResult> {
+  return api.post<KnowledgeCreateWithFileResult>(
+    `${KNOWLEDGE_PREFIX}/documents/${encodeURIComponent(documentId)}/replace-file`,
+    input,
+  )
+}
+
 export function updateKnowledgeDocument(
   id: string,
   input: Partial<KnowledgeDocumentInput>,
@@ -135,6 +159,14 @@ export function completeKnowledgeUpload(
     `${KNOWLEDGE_PREFIX}/versions/${encodeURIComponent(versionId)}/upload-complete`,
     { fileId, ...(assetRole ? { assetRole } : {}) },
   )
+}
+
+export async function bindKnowledgeSearchSource(
+  versionId: string,
+  fileId: string,
+): Promise<MutationMessageResponse> {
+  await createKnowledgeUploadIntent(versionId, { existingFileId: fileId, assetRole: 'SEARCH_SOURCE' })
+  return completeKnowledgeUpload(versionId, fileId, 'SEARCH_SOURCE')
 }
 
 export function fetchVersionAssets(versionId: string, signal?: AbortSignal): Promise<KnowledgeVersionAssetsResult> {
@@ -388,9 +420,9 @@ export interface KnowledgeQaStreamOptions {
  * 发起知识检索问答（SSE 流式）：后端先执行真实检索，再流式返回 AI 回答。
  * 非 200 响应（含敏感词拦截等前置校验失败）统一抛 HttpRequestError。
  */
-export async function postKnowledgeQa(body: KnowledgeQaRequest, options: KnowledgeQaStreamOptions): Promise<void> {
+async function streamKnowledgeQa(path: string, body: unknown, options: KnowledgeQaStreamOptions): Promise<void> {
   const token = getHttpAccessToken()
-  const response = await fetch(joinApiUrl(httpBaseURL, KNOWLEDGE_QA_URL), {
+  const response = await fetch(joinApiUrl(httpBaseURL, path), {
     method: 'POST',
     headers: {
       'Accept': 'text/event-stream',
@@ -452,6 +484,27 @@ export async function postKnowledgeQa(body: KnowledgeQaRequest, options: Knowled
       // cancel 后 reader 锁已释放，无需再次释放
     }
   }
+}
+
+/**
+ * 发起知识检索问答（SSE 流式）：后端先执行真实检索，再流式返回 AI 回答。
+ * 非 200 响应（含敏感词拦截等前置校验失败）统一抛 HttpRequestError。
+ */
+export async function postKnowledgeQa(body: KnowledgeQaRequest, options: KnowledgeQaStreamOptions): Promise<void> {
+  await streamKnowledgeQa(KNOWLEDGE_QA_URL, body, options)
+}
+
+/** 当前版本知识校验问答（SSE）：只检索该 versionId，允许草稿。 */
+export async function postKnowledgeVersionTestQa(
+  versionId: string,
+  body: KnowledgeVersionTestQaRequest,
+  options: KnowledgeQaStreamOptions,
+): Promise<void> {
+  await streamKnowledgeQa(
+    `${KNOWLEDGE_PREFIX}/versions/${encodeURIComponent(versionId)}/test-qa`,
+    body,
+    options,
+  )
 }
 
 function parseKnowledgeQaFrame(frameText: string): KnowledgeQaSseEvent | null {
@@ -628,4 +681,14 @@ export function fetchVersionSections(
   signal?: AbortSignal,
 ): Promise<{ sections: KnowledgeVersionSection[] }> {
   return api.get(`${KNOWLEDGE_PREFIX}/versions/${encodeURIComponent(versionId)}/sections`, { signal })
+}
+
+export function fetchVersionChapterTree(
+  versionId: string,
+  signal?: AbortSignal,
+): Promise<KnowledgeChapterTreeResult> {
+  return api.get<KnowledgeChapterTreeResult>(
+    `${KNOWLEDGE_PREFIX}/versions/${encodeURIComponent(versionId)}/chapter-tree`,
+    { signal },
+  )
 }

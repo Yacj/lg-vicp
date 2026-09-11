@@ -10,6 +10,7 @@ import AppDataTable from '@/components/ui/AppDataTable.vue'
 import AppPage from '@/components/ui/AppPage.vue'
 import { normalizeFeedbackError } from '@/composables/useAppFeedback'
 import { formatDate } from '@/utils/day'
+import { knowledgeDocTypeLabel } from '@/utils/knowledge-user'
 
 /**
  * 公开文库：面向运营/技术人员的已公开资料浏览（不是另一个知识库）。
@@ -21,23 +22,12 @@ defineOptions({ name: 'KnowledgePublicLibrary' })
 
 const docTypeTabs: Array<{ label: string, value: string }> = [
   { label: '全部', value: 'all' },
-  { label: '技术规程', value: 'SPECIFICATION' },
-  { label: '构造图集', value: 'DETAIL_ATLAS' },
-  { label: '产品资料', value: 'APPLICATION_GUIDE' },
-  { label: '地方标准', value: 'STANDARD' },
-  { label: '企业资料', value: 'COMPANY_PROFILE' },
+  { label: knowledgeDocTypeLabel('SPECIFICATION'), value: 'SPECIFICATION' },
+  { label: knowledgeDocTypeLabel('DETAIL_ATLAS'), value: 'DETAIL_ATLAS' },
+  { label: knowledgeDocTypeLabel('APPLICATION_GUIDE'), value: 'APPLICATION_GUIDE' },
+  { label: knowledgeDocTypeLabel('STANDARD'), value: 'STANDARD' },
+  { label: knowledgeDocTypeLabel('COMPANY_PROFILE'), value: 'COMPANY_PROFILE' },
 ]
-
-const docTypeLabels: Record<string, string> = {
-  SPECIFICATION: '技术规程',
-  DETAIL_ATLAS: '构造图集',
-  STANDARD: '地方标准',
-  APPLICATION_GUIDE: '应用指南',
-  MATERIAL_COMPARISON: '材料对比',
-  COMPANY_PROFILE: '企业资料',
-  THERMAL_FORMULA: '热工公式',
-  OTHER: '其他',
-}
 
 const query = reactive({ page: 1, pageSize: 10, docType: 'all', keyword: '' })
 const keywordInput = ref('')
@@ -118,7 +108,7 @@ const columns: PrimaryTableCol<TableRowData>[] = [
   },
   { cell: (_, { row }) => (row as PublicLibraryDocumentItem).docNumber || '—', colKey: 'docNumber', minWidth: 140, title: '编号' },
   {
-    cell: (_, { row }) => docTypeLabels[(row as PublicLibraryDocumentItem).docType] ?? (row as PublicLibraryDocumentItem).docType,
+    cell: (_, { row }) => knowledgeDocTypeLabel((row as PublicLibraryDocumentItem).docType),
     colKey: 'docType',
     minWidth: 110,
     title: '分类',
@@ -157,7 +147,7 @@ onMounted(() => {
 <template>
   <AppPage
     title="公开文库"
-    description="已对业务侧公开的技术规程、构造图集、产品资料、地方标准与企业资料；内容与知识中心同源，点击「查看原文」可按章节和页码完整阅读。"
+    description="已经公开的图集、标准、产品资料和企业资料。点击「查看原文」可按章节阅读。"
   >
     <div class="vicp-library">
       <div class="vicp-library__toolbar">

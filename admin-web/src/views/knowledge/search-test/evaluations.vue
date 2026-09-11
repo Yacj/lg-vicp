@@ -87,7 +87,7 @@ function openForm(): void {
 
 async function submitForm(): Promise<void> {
   if (!form.query.trim()) {
-    MessagePlugin.warning('请输入评测问题')
+    MessagePlugin.warning('请输入要检查的问题')
     return
   }
   if (submitting.value) {
@@ -100,7 +100,7 @@ async function submitForm(): Promise<void> {
       ...(form.expectedDocumentId ? { expectedDocumentId: form.expectedDocumentId } : {}),
       ...(form.expectedPage ? { expectedPage: Number(form.expectedPage) } : {}),
     })
-    MessagePlugin.success('评测已提交（检索结果即时保存）')
+    MessagePlugin.success('已提交，查找结果已保存')
     formVisible.value = false
     query.page = 1
     await load()
@@ -118,7 +118,7 @@ const judgeActions: Record<Exclude<KnowledgeEvaluationJudgement, 'PENDING'>, Ret
     action: async (row) => {
       await judgeKnowledgeEvaluation(row.id, { judgement: 'APPROVED' })
     },
-    confirm: () => ({ title: '判定通过', content: '该评测检索结果符合预期，判定为通过。' }),
+    confirm: () => ({ title: '判定通过', content: '这次查找结果符合预期，判定为通过。' }),
     successMessage: '已判定通过',
     onSuccess: () => load(),
   }),
@@ -126,7 +126,7 @@ const judgeActions: Record<Exclude<KnowledgeEvaluationJudgement, 'PENDING'>, Ret
     action: async (row) => {
       await judgeKnowledgeEvaluation(row.id, { judgement: 'PARTIAL' })
     },
-    confirm: () => ({ title: '判定部分通过', content: '检索结果部分命中，判定为部分通过。' }),
+    confirm: () => ({ title: '判定部分通过', content: '只找到一部分预期内容，判定为部分通过。' }),
     successMessage: '已判定部分通过',
     onSuccess: () => load(),
   }),
@@ -134,7 +134,7 @@ const judgeActions: Record<Exclude<KnowledgeEvaluationJudgement, 'PENDING'>, Ret
     action: async (row) => {
       await judgeKnowledgeEvaluation(row.id, { judgement: 'REJECTED' })
     },
-    confirm: () => ({ title: '判定不通过', content: '检索结果未命中预期，判定为不通过。', danger: true }),
+    confirm: () => ({ title: '判定不通过', content: '没有找到预期内容，判定为不通过。', danger: true }),
     successMessage: '已判定不通过',
     onSuccess: () => load(),
   }),
@@ -150,14 +150,14 @@ function resultSummary(row: KnowledgeEvaluation): string {
     .map((item) => {
       const pageLabel = typeof item.pageLabel === 'string' ? item.pageLabel : null
       const physicalPage = typeof item.physicalPageNumber === 'number' ? item.physicalPageNumber : typeof item.sourcePage === 'number' ? item.sourcePage : null
-      const page = pageLabel ? ` 图集页码 ${pageLabel}` : physicalPage != null ? ` PDF 物理页 ${physicalPage}` : ''
+      const page = pageLabel ? ` 页码 ${pageLabel}` : physicalPage != null ? ` 第 ${physicalPage} 页` : ''
       return `${String(item.sourceTitle ?? '未知')}${page}（${String(item.hitReason ?? '-')}）`
     })
     .join('；')
 }
 
 const columns: PrimaryTableCol<TableRowData>[] = [
-  { cell: (_, { row }) => h('div', { class: 'vicp-query' }, row.query), colKey: 'query', minWidth: 220, title: '评测问题' },
+  { cell: (_, { row }) => h('div', { class: 'vicp-query' }, row.query), colKey: 'query', minWidth: 220, title: '检查问题' },
   { cell: (_, { row }) => h('div', { class: 'vicp-keywords' }, (row.parsedKeywords ?? []).join('、') || '—'), colKey: 'parsedKeywords', minWidth: 160, title: '解析关键词' },
   { cell: (_, { row }) => resultSummary(row as KnowledgeEvaluation), colKey: 'actualTopResults', minWidth: 300, title: '实际检索结果（Top3）' },
   {
@@ -192,7 +192,7 @@ onMounted(() => {
 
 <template>
   <t-space direction="vertical" size="16" style="width: 100%">
-    <t-alert theme="info" message="评测用于验证检索质量：提交测试问题后立即执行真实检索并保存结果，人工判定是否命中预期文档/页码。评测不写入检索日志。" />
+    <t-alert theme="info" message="用来检查提问能不能找到正确的章节和页码。提交问题后会立刻查找并保存结果，再由人判断找得对不对。" />
 
     <t-space>
       <t-select
@@ -204,14 +204,14 @@ onMounted(() => {
         style="width: 160px"
         @change="filter"
       />
-      <t-button v-if="canCreate" theme="primary" @click="openForm">提交评测</t-button>
+      <t-button v-if="canCreate" theme="primary" @click="openForm">提交检查</t-button>
     </t-space>
 
     <AppDataTable
       :columns="columns"
       :data="evaluations"
-      empty-description="暂无评测记录，可提交测试问题开始评测"
-      empty-title="暂无评测"
+      empty-description="还没有检查记录，可以提交问题开始检查"
+      empty-title="暂无检查"
       :error-description="error ? normalizeFeedbackError(error).message : '请检查网络连接后重试'"
       :operations-width="240"
       row-key="id"
@@ -226,15 +226,15 @@ onMounted(() => {
       </template>
     </AppDataTable>
 
-    <t-dialog v-model:visible="formVisible" header="提交检索评测" :confirm-btn="{ content: '提交', theme: 'primary', loading: submitting }" :on-confirm="submitForm" :on-cancel="() => (formVisible = false)" width="min(520px, 92vw)">
+    <t-dialog v-model:visible="formVisible" header="提交检查问题" :confirm-btn="{ content: '提交', theme: 'primary', loading: submitting }" :on-confirm="submitForm" :on-cancel="() => (formVisible = false)" width="min(520px, 92vw)">
       <t-form label-align="top">
-        <t-form-item label="评测问题" required-mark>
+        <t-form-item label="要检查的问题" required-mark>
           <t-input v-model="form.query" maxlength="500" placeholder="如：岩棉板外墙外保温系统传热系数限值" />
         </t-form-item>
-        <t-form-item label="期望命中的文档 ID（可选）">
-          <t-input v-model="form.expectedDocumentId" placeholder="从文档列表复制文档 ID" />
+        <t-form-item label="期望找到的知识库编号（可不填）">
+          <t-input v-model="form.expectedDocumentId" placeholder="从知识库列表复制编号" />
         </t-form-item>
-        <t-form-item label="期望命中页码（可选）">
+        <t-form-item label="期望页码（可不填）">
           <t-input-number v-model="form.expectedPage" :min="1" placeholder="页码" />
         </t-form-item>
       </t-form>

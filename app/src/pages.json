@@ -80,6 +80,15 @@
       }
     },
     {
+      "path": "pages/knowledge-source/index",
+      "type": "page",
+      "name": "knowledge-source",
+      "layout": "default",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
       "path": "pages/profile/index",
       "type": "page",
       "name": "profile",
@@ -136,7 +145,12 @@
     },
     {
       "path": "pages/projects/index",
-      "type": "page"
+      "type": "page",
+      "name": "projects",
+      "layout": "tabbar",
+      "style": {
+        "navigationStyle": "custom"
+      }
     },
     {
       "path": "pages/share/index",

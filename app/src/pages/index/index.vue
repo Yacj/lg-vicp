@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AiScene, ApiEnvelope, ApiPage, ConversationRecord, ProjectRecord } from '@/api/types'
+import type { ApiEnvelope, ApiPage, ConversationRecord, ProjectRecord } from '@/api/types'
 import type { HomeEntryKey } from '@/components/home/HomeEntryGrid.vue'
 import { aiApi } from '@/api/modules/ai'
 import { projectApi } from '@/api/modules/projects'
@@ -77,24 +77,6 @@ onShow(() => {
     resetConversations()
   }
 })
-
-interface SceneMeta {
-  label: string
-  tone: 'primary' | 'energy' | 'ai' | 'warning' | 'neutral'
-}
-
-const sceneMetas: Record<AiScene, SceneMeta> = {
-  general_chat: { label: '通用对话', tone: 'neutral' },
-  project_design: { label: '项目设计', tone: 'primary' },
-  material_compare: { label: '材料对比', tone: 'energy' },
-  standard_qa: { label: '规范问答', tone: 'ai' },
-  report_generate: { label: '报告生成', tone: 'warning' },
-  information_extract: { label: '信息提取', tone: 'neutral' },
-}
-
-function sceneMeta(scene: AiScene) {
-  return sceneMetas[scene] || { label: 'AI 分析', tone: 'neutral' }
-}
 
 function projectMeta(item: ProjectRecord) {
   return item.region || '未填写地区'
@@ -219,9 +201,6 @@ function handleAskAssistant() {
                 更新于 {{ formatTime(item.updatedAt) }}
               </view>
             </view>
-            <view class="home-row__tag shrink-0" :class="`is-${sceneMeta(item.scene).tone}`">
-              {{ sceneMeta(item.scene).label }}
-            </view>
           </view>
         </view>
       </HomeSectionShell>
@@ -235,7 +214,7 @@ function handleAskAssistant() {
         @more="goPublicProjects"
         @retry="loadProjects"
       >
-        <view class="home-rows" v-if="isAuthenticated">
+        <view v-if="isAuthenticated" class="home-rows">
           <view
             v-for="item in recommendProjects"
             :key="item.id"

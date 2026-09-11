@@ -140,6 +140,71 @@ export interface AiConnectionTestResult {
   response: string
 }
 
+/** 快捷提问展示位置，与后端 AI_QUICK_PROMPT_POSITIONS 对齐。 */
+export type AiQuickPromptPosition = 'AI_HOME' | 'PROJECT_AI'
+
+/** 快捷提问图标，与后端 AI_QUICK_PROMPT_ICONS 对齐。 */
+export type AiQuickPromptIcon
+  = | 'book'
+    | 'project'
+    | 'material'
+    | 'standard'
+    | 'calc'
+    | 'compare'
+    | 'chat'
+
+/** 快捷提问内部动作提示，默认 AUTO，不强制路由场景。 */
+export type AiQuickPromptActionType
+  = | 'AUTO'
+    | 'KNOWLEDGE'
+    | 'PROJECT'
+    | 'THERMAL'
+    | 'REPORT'
+
+/** B 端快捷提问（ai_quick_prompts 全行）。 */
+export interface AiQuickPrompt {
+  id: string
+  title: string
+  description: string | null
+  content: string
+  position: AiQuickPromptPosition
+  icon: AiQuickPromptIcon
+  sortOrder: number
+  enabled: boolean
+  actionType: AiQuickPromptActionType
+  createdById: string | null
+  updatedById: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+/** 创建/修改快捷提问请求体。 */
+export interface AiQuickPromptInput {
+  title: string
+  description?: string | null
+  content: string
+  position: AiQuickPromptPosition
+  icon?: AiQuickPromptIcon
+  sortOrder?: number
+  enabled?: boolean
+  actionType?: AiQuickPromptActionType
+}
+
+/** 快捷提问列表查询。 */
+export interface AiQuickPromptQuery {
+  page?: number
+  pageSize?: number
+  keyword?: string
+  position?: AiQuickPromptPosition
+  enabled?: boolean
+}
+
+/** 快捷提问变更响应。 */
+export interface AiQuickPromptMutationResult {
+  message: string
+  quickPrompt?: AiQuickPrompt
+}
+
 /** 场景绑定（GET 列表返回的 publicScene 视图，scene 唯一，GET 无分页）。 */
 export interface AiSceneBinding {
   id: string

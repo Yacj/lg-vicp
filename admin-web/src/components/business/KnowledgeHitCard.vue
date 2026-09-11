@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type { AiSourceRef } from '@/types/ai-source'
 import { computed, ref } from 'vue'
-import { AI_RETRIEVAL_UNIT_LABELS, resolveAiSourceLocator } from '@/types/ai-source'
+import { resolveAiSourceLocator } from '@/types/ai-source'
+import { knowledgePageLabel } from '@/utils/knowledge-user'
 import KnowledgeSourceReader from './KnowledgeSourceReader.vue'
 
 /**
@@ -28,9 +29,6 @@ const readerVisible = ref(false)
 const locator = computed(() => resolveAiSourceLocator(props.source))
 const canOpenReader = computed(() => locator.value !== null)
 
-const retrievalUnitLabel = computed(() =>
-  props.source.retrievalUnit ? AI_RETRIEVAL_UNIT_LABELS[props.source.retrievalUnit] : null)
-
 const evidenceTheme = computed(() => (props.source.evidenceLevel === 'A' ? 'primary' : 'default'))
 
 const pathSegments = computed(() => {
@@ -47,21 +45,10 @@ const pathSegments = computed(() => {
   return segments
 })
 
-const pageText = computed(() => {
-  const label = props.source.pageLabel
-  const physical = props.source.physicalPageNumber ?? props.source.pageStart ?? props.source.pageNumber ?? null
-  if (label && physical != null) {
-    return `${label} · PDF 物理页 ${physical}`
-  }
-  if (label) {
-    return label
-  }
-  if (physical === null) {
-    return ''
-  }
-  const end = props.source.pageEnd ?? physical
-  return end !== physical ? `第 ${physical}-${end} 页` : `第 ${physical} 页`
-})
+const pageText = computed(() => knowledgePageLabel(
+  props.source.pageLabel,
+  props.source.physicalPageNumber ?? props.source.pageStart ?? props.source.pageNumber ?? null,
+))
 
 const hitExcerpt = computed(() => {
   const text = props.source.snippet || props.source.matchedText || ''
@@ -84,16 +71,14 @@ const debugEntries = computed(() => {
       entries.push({ label, value: String(value) })
     }
   }
-  push('检索单位', props.source.retrievalUnit)
-  push('documentId', props.source.documentId)
-  push('versionId', props.source.versionId)
-  push('sectionId', props.source.sectionId)
-  push('pageId', props.source.pageId)
-  push('blockId', props.source.blockId)
-  push('chunkId', props.source.chunkId)
-  push('score', props.source.score)
+  push('来自', props.source.retrievalUnit === 'SECTION' ? '章节' : props.source.retrievalUnit === 'PAGE' ? '页面' : props.source.retrievalUnit ? '内容' : null)
+  push('资料编号', props.source.documentId)
+  push('版本编号', props.source.versionId)
+  push('章节编号', props.source.sectionId)
+  push('页面编号', props.source.pageId)
+  push('匹配程度', props.source.score)
   if (props.source.matchedText) {
-    entries.push({ label: 'matchedText', value: props.source.matchedText })
+    entries.push({ label: '引用内容', value: props.source.matchedText })
   }
   if (props.debug) {
     for (const [key, value] of Object.entries(props.debug)) {
@@ -116,9 +101,6 @@ function openReader(): void {
     <div class="ks-hit-card__head">
       <span v-if="index !== undefined" class="ks-hit-card__index">[资料{{ index }}]</span>
       <span class="ks-hit-card__title">{{ source.title }}</span>
-      <t-tag v-if="retrievalUnitLabel" size="small" variant="outline">
-        {{ retrievalUnitLabel }}
-      </t-tag>
       <t-tag v-if="evidenceLabel" size="small" variant="light" :theme="evidenceTheme">
         {{ evidenceLabel }}
       </t-tag>
@@ -152,7 +134,7 @@ function openReader(): void {
     </div>
 
     <t-collapse v-if="debugEnabled && debugEntries.length > 0" class="ks-hit-card__debug" expand-icon-placement="right">
-      <t-collapse-panel value="debug" header="调试信息">
+      <t-collapse-panel value="debug" header="更多信息">
         <div class="ks-hit-card__debug-list">
           <div v-for="entry in debugEntries" :key="entry.label" class="ks-hit-card__debug-item">
             <span>{{ entry.label }}</span>

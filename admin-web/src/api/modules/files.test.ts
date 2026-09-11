@@ -9,6 +9,8 @@ import {
   fetchFileDownloadUrl,
   fetchFileStatus,
   fetchFiles,
+  fetchFilePreview,
+  fetchRecentFiles,
   requestBlob,
   uploadFileToPresignedUrl,
 } from './files'
@@ -87,6 +89,33 @@ describe('file api contracts', () => {
       params: { page: 2, pageSize: 20, projectId: 'project-1' },
       signal,
     })
+  })
+
+  it('queries file center picker filters, recent files and preview', async () => {
+    const signal = new AbortController().signal
+    await fetchFiles({
+      page: 1,
+      pageSize: 10,
+      keyword: '图集',
+      mimeType: 'application/pdf',
+      status: 'READY',
+    }, signal)
+    expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/files', {
+      params: {
+        page: 1,
+        pageSize: 10,
+        keyword: '图集',
+        mimeType: 'application/pdf',
+        status: 'READY',
+      },
+      signal,
+    })
+
+    await fetchRecentFiles(20, signal)
+    expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/files/recent', { params: { limit: 20 }, signal })
+
+    await fetchFilePreview('file-1', signal)
+    expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/files/file-1/preview', { signal })
   })
 
   it('deletes file by id', async () => {

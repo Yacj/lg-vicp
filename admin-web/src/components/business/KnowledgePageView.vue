@@ -75,10 +75,10 @@ const textSegments = computed(() =>
     >
       <t-radio-group v-model="showPageImage" size="small" variant="default-filled">
         <t-radio-button :value="false">
-          解析文本
+          文字内容
         </t-radio-button>
         <t-radio-button :value="true">
-          原页图片
+          页面图片
         </t-radio-button>
       </t-radio-group>
     </div>
@@ -87,7 +87,7 @@ const textSegments = computed(() =>
       v-if="hasPageImage && showPageImage"
       class="ks-page-view__image"
       :src="pageImageUrl ?? ''"
-      alt="原页图片"
+      alt="页面图片"
     >
 
     <template v-else>

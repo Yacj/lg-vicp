@@ -13,7 +13,6 @@ import { useAsyncResource } from '@/composables/useAsyncResource'
 import { useAsyncSection } from '@/composables/useAsyncSection'
 import { useAuthGate } from '@/composables/useAuthGate'
 import { useBackNavigation } from '@/composables/useBackNavigation'
-import { ENTRY_SCENE } from '@/constants/aiScene'
 import { useAssistantStore } from '@/store/assistant'
 
 definePage({
@@ -166,7 +165,6 @@ function openProjectAssistant() {
   const navigate = () => openAssistant({
     projectId: project.value!.id,
     projectName: project.value!.name,
-    scene: ENTRY_SCENE.project,
   })
 
   if (assistantStore.isStreaming && assistantStore.projectId !== project.value.id) {

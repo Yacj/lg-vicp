@@ -129,7 +129,7 @@ function handlePressCancel() {
         :cursor-spacing="12"
         auto-height
         confirm-type="send"
-        placeholder="描述项目需求或询问节能规范"
+        placeholder="输入你的问题..."
         no-border
         custom-class="!p-0"
         custom-textarea-class="ai-composer__textarea"

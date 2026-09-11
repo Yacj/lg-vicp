@@ -26,6 +26,7 @@ describe('static route boundaries', () => {
       'KnowledgePublicLibrary',
       'ThermalCandidates',
       'AiConfigProviders',
+      'AiConfigQuickPrompts',
       'AiConfigModels',
       'AiConfigScenes',
       'AiConfigPrompts',
@@ -50,9 +51,18 @@ describe('static route boundaries', () => {
 
   it('guards ai pages with permission codes', () => {
     expect(routes.find(route => route.name === 'AiConfigProviders')?.meta?.permissions).toEqual(['system:ai:provider:list'])
+    expect(routes.find(route => route.name === 'AiConfigQuickPrompts')?.meta?.permissions).toEqual(['system:ai:quick-prompt:list'])
     expect(routes.find(route => route.name === 'AiConfigModels')?.meta?.permissions).toEqual(['system:ai:model:list'])
-    expect(routes.find(route => route.name === 'AiConfigScenes')?.meta?.permissions).toEqual(['system:ai:scene:list'])
-    expect(routes.find(route => route.name === 'AiConfigPrompts')?.meta?.permissions).toEqual(['system:ai:prompt:list'])
+    expect(routes.find(route => route.name === 'AiConfigScenes')?.meta).toMatchObject({
+      hidden: true,
+      permissions: ['system:ai:scene:list'],
+      title: 'AI能力配置',
+    })
+    expect(routes.find(route => route.name === 'AiConfigPrompts')?.meta).toMatchObject({
+      hidden: true,
+      permissions: ['system:ai:prompt:list'],
+      title: 'AI基础指令',
+    })
     expect(routes.find(route => route.name === 'AiOpsConversations')?.meta?.permissions).toEqual(['system:ai:conversation:list'])
     expect(routes.find(route => route.name === 'AiOpsConversationDetail')?.meta?.permissions).toEqual(['system:ai:conversation:detail'])
     expect(routes.find(route => route.name === 'AiOpsFeedbacks')?.meta?.permissions).toEqual(['system:ai:feedback:list'])

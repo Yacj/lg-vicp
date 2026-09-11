@@ -37,6 +37,17 @@ export type KnowledgePageMappingMethod = 'PAGE_LABEL' | 'TOC_TITLE' | 'MANUAL'
 export const knowledgePipelineStatuses = ['UPLOAD_PENDING', 'UPLOADED', 'PARSING', 'CHUNKING', 'REVIEW_PENDING', 'PUBLISHED', 'FAILED'] as const
 export type KnowledgePipelineStatus = (typeof knowledgePipelineStatuses)[number]
 
+/** 普通用户可见的知识库状态（后端 knowledge-user-status 映射）。 */
+export const knowledgeUserStatuses = [
+  'PENDING_PARSE',
+  'PARSING',
+  'READY_TO_VERIFY',
+  'READY',
+  'PARSE_FAILED',
+  'SEARCHABLE_FILE_REQUIRED',
+] as const
+export type KnowledgeUserStatus = (typeof knowledgeUserStatuses)[number]
+
 export const knowledgeDocumentHealthStatuses = ['NEEDS_ACTION', 'READY', 'BROWSE_ONLY', 'PUBLISHED', 'PENDING_REVIEW'] as const
 export type KnowledgeDocumentHealthStatus = (typeof knowledgeDocumentHealthStatuses)[number]
 
@@ -79,11 +90,15 @@ export interface KnowledgeDocument {
   categoryId: string | null
   status: 'ACTIVE' | 'DISABLED'
   currentVersionId: string | null
+  publishedVersionId?: string | null
+  workingVersionId?: string | null
+  userStatus?: KnowledgeUserStatus
   healthStatus: KnowledgeDocumentHealthStatus
   aiAvailabilityStatus: KnowledgeAiAvailabilityStatus
   healthBlockers: string[]
   healthWarnings: string[]
   currentVersion: {
+    id?: string
     version: number
     status: KnowledgeVersionStatus
     parseStatus: KnowledgeParseStatus
@@ -242,6 +257,7 @@ export interface KnowledgeDocumentQuery {
   categoryId?: string
   keyword?: string
   healthStatus?: KnowledgeDocumentHealthStatus
+  userStatus?: KnowledgeUserStatus
 }
 
 export interface KnowledgeAliasQuery {
@@ -270,9 +286,10 @@ export interface KnowledgeParsingJobQuery {
 
 export interface KnowledgeUploadIntent {
   fileId: string
-  uploadUrl: string
+  mode?: 'UPLOAD' | 'REUSE'
+  uploadUrl: string | null
   headers: Record<string, string> | null
-  expiresAt: string
+  expiresAt: string | null
 }
 
 export interface KnowledgeDocumentDetail {
@@ -287,11 +304,145 @@ export interface KnowledgeVersionInput {
 }
 
 export interface KnowledgeUploadIntentInput {
-  fileName: string
+  fileName?: string
+  mimeType?: string
+  sizeBytes?: number
+  sha256?: string
+  existingFileId?: string
+  assetRole?: KnowledgeAssetRole
+}
+
+export interface KnowledgeCreateWithFileInput {
+  title: string
+  docType: KnowledgeDocType
+  originalFileId: string
+  searchSourceFileId?: string | null
+  categoryId?: string | null
+  docNumber?: string | null
+  sourceOrg?: string | null
+  issueDate?: string | null
+  effectiveDate?: string | null
+  evidenceLevel?: EvidenceLevel | null
+  allowedPurposes?: string[]
+}
+
+export interface KnowledgeCreateWithFileResult {
+  document: { id: string, title: string, docType: KnowledgeDocType }
+  version: { id: string, versionNo: number }
+  file: { id: string, name: string }
+  parsing: { jobId: string, status: 'QUEUED' }
+}
+
+export interface KnowledgeReplaceFileInput {
+  originalFileId: string
+  searchSourceFileId?: string | null
+  changeNote?: string
+}
+
+export interface KnowledgeWorkspaceFile {
+  id: string
+  name: string
+  mimeType?: string
+  sizeBytes?: number
+}
+
+export interface KnowledgeParseFailureTechnical {
+  parser: string | null
+  page?: number
+  reason: string
+  jobId?: string
+  attempts?: number
+  stage?: string | null
+  stack?: string
+}
+
+export interface KnowledgeWorkspaceLastJob {
+  id: string
+  status: KnowledgeParsingJobStatus
+  progress: number
+  stage: string | null
+  errorMessage: string | null
+  userMessage: string | null
+  errorCode: string | null
+  attempts: number
+  startedAt: string | null
+  finishedAt: string | null
+  technical?: KnowledgeParseFailureTechnical
+}
+
+export interface KnowledgeWorkspace {
+  document: {
+    id: string
+    title: string
+    docType: KnowledgeDocType
+    docNumber?: string | null
+    categoryId?: string | null
+    currentVersionId: string | null
+    publishedVersionId: string | null
+  }
+  currentVersion: {
+    id: string
+    versionNo: number
+    userStatus: KnowledgeUserStatus
+    parseStatus: KnowledgeParseStatus
+    status: KnowledgeVersionStatus
+    pipelineStatus: KnowledgePipelineStatus
+  } | null
+  primaryFile: KnowledgeWorkspaceFile | null
+  searchableFile?: { id: string, name: string } | null
+  parsing: { lastJob: KnowledgeWorkspaceLastJob | null }
+  summary: {
+    pageCount: number
+    tocCount: number
+    sectionCount: number
+    canAskAi: boolean
+    canPublish: boolean
+    canRetry: boolean
+  }
+  actions: {
+    canRetry: boolean
+    canReplaceFile: boolean
+    canBindSearchSource: boolean
+  }
+}
+
+export interface KnowledgeChapterTreeNode {
+  id: string
+  title: string
+  level: number
+  pageLabel: string | null
+  physicalPageNumber: number | null
+  children?: KnowledgeChapterTreeNode[]
+}
+
+export interface KnowledgeChapterTreeResult {
+  items: KnowledgeChapterTreeNode[]
+}
+
+export interface KnowledgeSelectedFile {
+  fileId: string
+  name: string
   mimeType: string
   sizeBytes: number
-  sha256?: string
-  assetRole?: KnowledgeAssetRole
+  fromCenter?: boolean
+}
+
+export interface KnowledgeVersionTestQaRequest {
+  query: string
+  reasoningMode?: 'OFF' | 'ON'
+  limit?: number
+}
+
+/** 普通用户测试知识库引用来源（后端 toUserTestSources，不含 score/chunkId）。 */
+export interface KnowledgeUserTestSource {
+  documentId: string
+  versionId?: string
+  title: string
+  tocPath?: string[] | null
+  sectionTitle?: string | null
+  pageLabel?: string | null
+  physicalPageNumber?: number | null
+  matchedText?: string | null
 }
 
 export interface KnowledgeDocumentAsset {
@@ -673,7 +824,7 @@ export type KnowledgeQaSseEvent
         finishReason: string
         model: { id: string }
         promptVersion: { id: string, version: number }
-        sources: KnowledgeQaSource[]
+        sources: Array<KnowledgeQaSource | KnowledgeUserTestSource>
         latencyMs: number
         usage?: { inputTokens?: number | null, outputTokens?: number | null, reasoningTokens?: number | null }
       }

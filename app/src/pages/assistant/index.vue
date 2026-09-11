@@ -1,13 +1,17 @@
 <script setup lang="ts">
-import type { AiScene, ApiEnvelope, CreateShareResult, ProjectRecord } from '@/api/types'
+import type { AiSourceRef, ApiEnvelope, CreateShareResult, ProjectRecord } from '@/api/types'
 import { projectApi } from '@/api/modules/projects'
 import AiComposer from '@/components/ai/AiComposer.vue'
 import AiFeedbackPanel from '@/components/ai/AiFeedbackPanel.vue'
 import AiMessageList from '@/components/ai/AiMessageList.vue'
+import AiQuickPromptRail from '@/components/ai/AiQuickPromptRail.vue'
 import AiSharePanel from '@/components/ai/AiSharePanel.vue'
 import AiShareSelectBar from '@/components/ai/AiShareSelectBar.vue'
 import AiWelcomeHero from '@/components/ai/AiWelcomeHero.vue'
+import { useQuickPrompts } from '@/composables/useQuickPrompts'
+import { QUICK_PROMPT_POSITION } from '@/constants/aiQuickPrompt'
 import { useAssistantStore } from '@/store/assistant'
+import { compactQuery, resolveAiSourceLocator } from '@/utils/aiSource'
 
 definePage({
   name: 'assistant',
@@ -25,13 +29,13 @@ const { requireLogin } = useAuthGate()
 const { error: showError } = useGlobalToast()
 const globalDialog = useGlobalDialog()
 const assistantStore = useAssistantStore()
+const { items: quickPrompts, loading: quickPromptsLoading, load: loadQuickPrompts } = useQuickPrompts()
 
 const isComposerActive = ref(false)
 const input = ref('')
 /** 跨 Tab 传入的项目上下文：发送时创建/复用该项目会话 */
 const pendingProjectId = ref<string>()
 const pendingProjectName = ref<string>()
-const pendingScene = ref<AiScene>()
 let projectNameRevision = 0
 
 const activeProjectId = computed(() => pendingProjectId.value ?? assistantStore.projectId ?? undefined)
@@ -41,7 +45,7 @@ const navbarTitle = computed(() => assistantStore.conversation?.title?.trim() ||
 const streaming = computed(() => assistantStore.isStreaming)
 const loadingConversation = computed(() => assistantStore.loadState === 'loading')
 const failedConversationId = ref<string>()
-const composerDisabled = computed(() => loadingConversation.value || Boolean(failedConversationId.value))
+const composerDisabled = computed(() => loadingConversation.value || Boolean(failedConversationId.value) || assistantStore.sendLock)
 const followLatest = ref(true)
 const messageScrollTarget = ref('')
 let lastMessageScrollTop = 0
@@ -103,9 +107,38 @@ function handleMessageScrollToLower() {
   followLatest.value = true
 }
 
-function useSuggestion(value: string) {
-  input.value = value
+function useSuggestion(content: string) {
+  if (!assistantStore.canSend) {
+    return
+  }
+  input.value = content
   isComposerActive.value = true
+  void sendMessage()
+}
+
+function openKnowledgeSource(source: AiSourceRef) {
+  if (!requireLogin()) {
+    return
+  }
+  const locator = resolveAiSourceLocator(source)
+  if (!locator && !source.originalFileId) {
+    showError('当前来源暂不支持查看原文')
+    return
+  }
+  router.push({
+    name: 'knowledge-source',
+    query: compactQuery({
+      documentId: locator?.documentId,
+      sectionId: locator?.sectionId,
+      pageId: locator?.pageId,
+      blockId: locator?.blockId,
+      chunkId: locator?.chunkId,
+      originalFileId: source.originalFileId,
+      physicalPageNumber: source.physicalPageNumber,
+      title: source.title,
+      pageLabel: source.pageLabel,
+    }),
+  })
 }
 
 watch(latestMessageFingerprint, () => {
@@ -130,7 +163,6 @@ async function loadConversationSafely(id: string) {
   try {
     await assistantStore.loadConversation(id)
     pendingProjectId.value = undefined
-    pendingScene.value = undefined
     const linkedProjectId = assistantStore.projectId
     if (linkedProjectId && !pendingProjectName.value) {
       void loadProjectName(linkedProjectId)
@@ -147,25 +179,24 @@ async function loadConversationSafely(id: string) {
 
 // 跨 Tab 一次性导航上下文：会话 / 项目 / 场景 / 预设问题消费
 onShow(() => {
+  if (!assistantStore.isStreaming) {
+    assistantStore.sendLock = false
+  }
   const context = assistantStore.consumeNavContext()
 
   if (context.conversationId && context.conversationId !== assistantStore.conversationId) {
     projectNameRevision += 1
     pendingProjectId.value = undefined
     pendingProjectName.value = context.projectName
-    pendingScene.value = undefined
     void loadConversationSafely(context.conversationId)
   }
   else if (context.projectId) {
-    const contextScene = context.scene
     const shouldStartProjectConversation = context.projectId !== assistantStore.projectId
-      || (contextScene && contextScene !== assistantStore.conversation?.scene)
 
     if (shouldStartProjectConversation) {
       failedConversationId.value = undefined
       assistantStore.newConversation()
       pendingProjectId.value = context.projectId
-      pendingScene.value = contextScene
     }
     pendingProjectName.value = context.projectName
     if (!context.projectName) {
@@ -177,6 +208,8 @@ onShow(() => {
     input.value = context.presetQuestion
     isComposerActive.value = true
   }
+
+  refreshQuickPrompts()
 })
 
 watch(() => assistantStore.error, (message) => {
@@ -185,16 +218,20 @@ watch(() => assistantStore.error, (message) => {
   }
 })
 
+function refreshQuickPrompts() {
+  void loadQuickPrompts(pendingProjectId.value || assistantStore.projectId ? QUICK_PROMPT_POSITION.project : QUICK_PROMPT_POSITION.home)
+}
+
 function resetConversation() {
   projectNameRevision += 1
   assistantStore.newConversation()
   failedConversationId.value = undefined
   pendingProjectId.value = undefined
   pendingProjectName.value = undefined
-  pendingScene.value = undefined
   input.value = ''
   isComposerActive.value = false
   followLatest.value = true
+  refreshQuickPrompts()
 }
 
 function startNewConversation() {
@@ -226,7 +263,6 @@ async function sendMessage() {
   try {
     const accepted = await assistantStore.sendMessage(content, {
       projectId: activeProjectId.value,
-      scene: pendingScene.value ?? assistantStore.conversation?.scene,
     })
     if (accepted) {
       input.value = ''
@@ -262,7 +298,7 @@ function handleFeedback(messageId: string, reaction: 'LIKE' | 'DISLIKE' | null) 
   })
 }
 
-function handleFeedbackConfirm(payload: { tags: string[]; content: string }) {
+function handleFeedbackConfirm(payload: { tags: string[], content: string }) {
   const messageId = pendingFeedbackMessageId.value
   if (!messageId) {
     return
@@ -383,7 +419,10 @@ onShareAppMessage(() => {
             重新加载
           </wd-button>
         </view>
-        <AiWelcomeHero v-else-if="!messages.length" :visible="true" @suggest="useSuggestion" />
+        <AiWelcomeHero
+          v-else-if="!messages.length"
+          :visible="true"
+        />
         <AiMessageList
           v-else
           :messages="messages"
@@ -397,6 +436,7 @@ onShareAppMessage(() => {
           @feedback="handleFeedback"
           @share="enterSelectMode"
           @toggle-select="toggleSelect"
+          @open-source="openKnowledgeSource"
         />
         <view id="assistant-message-end" class="h-1" />
       </scroll-view>
@@ -419,15 +459,22 @@ onShareAppMessage(() => {
           @cancel="cancelSelect"
           @confirm="confirmShare"
         />
-        <AiComposer
-          v-else
-          v-model="input"
-          v-model:active="isComposerActive"
-          :streaming="streaming"
-          :disabled="composerDisabled"
-          @send="sendMessage"
-          @stop="assistantStore.stopStreaming()"
-        />
+        <template v-else>
+          <AiQuickPromptRail
+            :prompts="quickPrompts"
+            :loading="quickPromptsLoading"
+            :disabled="!assistantStore.canSend"
+            @suggest="useSuggestion"
+          />
+          <AiComposer
+            v-model="input"
+            v-model:active="isComposerActive"
+            :streaming="streaming"
+            :disabled="composerDisabled"
+            @send="sendMessage"
+            @stop="assistantStore.stopStreaming()"
+          />
+        </template>
       </view>
     </view>
 
@@ -490,7 +537,7 @@ onShareAppMessage(() => {
 .assistant-page__to-bottom {
   position: absolute;
   right: 32rpx;
-  bottom: 176rpx;
+  bottom: 248rpx;
   z-index: 3;
   color: var(--app-text-secondary);
   background: var(--app-bg-elevated);

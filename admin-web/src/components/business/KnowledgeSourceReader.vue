@@ -190,8 +190,8 @@ defineExpose({ reload: load })
           <t-tag size="small" variant="light" theme="primary">
             v{{ detail.document.version }}
           </t-tag>
-          <span v-if="detail.location.pageLabel" class="ks-reader__page">图集页码 {{ detail.location.pageLabel }}</span>
-          <span v-if="pageNumber !== null" class="ks-reader__page">PDF 物理页 {{ detail.location.physicalPageNumber ?? pageNumber }}</span>
+          <span v-if="detail.location.pageLabel" class="ks-reader__page">页码 {{ detail.location.pageLabel }}</span>
+          <span v-else-if="pageNumber !== null" class="ks-reader__page">第 {{ detail.location.physicalPageNumber ?? pageNumber }} 页</span>
           <span v-if="detail.location.citationAnchor" class="ks-reader__anchor">{{ detail.location.citationAnchor }}</span>
           <t-button
             v-if="fileId || detail.original.previewUrl"

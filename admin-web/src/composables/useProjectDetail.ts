@@ -9,7 +9,7 @@ import type {
   ProjectConversation,
   ProjectItem,
 } from '@/types/project'
-import type { FileRecord } from '@/types/file'
+import type { FileCenterItem } from '@/types/file'
 import { computed, ref, shallowRef, watch } from 'vue'
 import { usePermissionAccess } from './usePermissionAccess'
 import { useCrudList } from './useCrudList'
@@ -34,7 +34,7 @@ export function useProjectDetail(projectId: Ref<string | null>) {
   const canViewAuditLogs = computed(() => canAccess({ permissions: ['monitor:audit:list'] }))
   const tabs = computed(() => projectDetailTabs(canViewAuditLogs.value))
 
-  const filesList = useCrudList<FileRecord & TableRowData, Record<string, never>>({
+  const filesList = useCrudList<FileCenterItem & TableRowData, Record<string, never>>({
     createQuery: () => ({}),
     fetcher: ({ page, pageSize, signal }) => {
       const id = projectId.value
@@ -73,7 +73,7 @@ export function useProjectDetail(projectId: Ref<string | null>) {
     rowKey: 'id',
   })
 
-  const fileDeleteAction = useCrudDelete<FileRecord, { message: string }>({
+  const fileDeleteAction = useCrudDelete<FileCenterItem, { message: string }>({
     action: (file) => deleteFile(file.id),
     confirm: (file) => ({
       content: `确认删除文件“${file.originalName}”吗？删除后无法恢复。`,
@@ -89,7 +89,7 @@ export function useProjectDetail(projectId: Ref<string | null>) {
 
   const fileDownloadRunning = ref(false)
 
-  async function downloadFile(file: FileRecord): Promise<void> {
+  async function downloadFile(file: FileCenterItem): Promise<void> {
     if (fileDownloadRunning.value) {
       return
     }

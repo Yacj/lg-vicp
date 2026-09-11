@@ -4,15 +4,20 @@ import {
   createAiModel,
   createAiPrompt,
   createAiProvider,
+  createAiQuickPrompt,
   deleteAiModel,
   deleteAiPrompt,
   deleteAiPromptVersion,
   deleteAiProvider,
+  deleteAiQuickPrompt,
   disableAiPrompt,
+  disableAiQuickPrompt,
+  enableAiQuickPrompt,
   fetchAiModels,
   fetchAiPrompts,
   fetchAiPromptVersions,
   fetchAiProviders,
+  fetchAiQuickPrompts,
   fetchAiSceneBindings,
   fetchPlatformConversationDetail,
   fetchPlatformConversations,
@@ -29,6 +34,7 @@ import {
   updateAiPromptDraft,
   updateAiProvider,
   updateAiProviderStatus,
+  updateAiQuickPrompt,
   upsertAiSceneBinding,
 } from './ai'
 
@@ -159,6 +165,68 @@ describe('ai model api contracts', () => {
     await testAiModelConnection('model-1')
 
     expect(mockedApi.post).toHaveBeenCalledWith('/api/v1/platform/ai/models/model-1/test-connection')
+  })
+})
+
+describe('ai quick prompt api contracts', () => {
+  it('lists quick prompts with pagination and filters', async () => {
+    const signal = new AbortController().signal
+    await fetchAiQuickPrompts({
+      page: 1,
+      pageSize: 20,
+      keyword: '图集',
+      position: 'AI_HOME',
+      enabled: true,
+    }, signal)
+
+    expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/platform/ai/quick-prompts', {
+      params: {
+        page: 1,
+        pageSize: 20,
+        keyword: '图集',
+        position: 'AI_HOME',
+        enabled: true,
+      },
+      signal,
+    })
+  })
+
+  it('creates, updates, enables, disables and deletes a quick prompt', async () => {
+    await createAiQuickPrompt({
+      title: '查询图集',
+      description: '查询图集章节',
+      content: '请查询相关图集',
+      position: 'AI_HOME',
+      icon: 'book',
+      sortOrder: 10,
+      enabled: true,
+      actionType: 'AUTO',
+    })
+    expect(mockedApi.post).toHaveBeenCalledWith('/api/v1/platform/ai/quick-prompts', {
+      title: '查询图集',
+      description: '查询图集章节',
+      content: '请查询相关图集',
+      position: 'AI_HOME',
+      icon: 'book',
+      sortOrder: 10,
+      enabled: true,
+      actionType: 'AUTO',
+    })
+
+    await updateAiQuickPrompt('qp-1', { enabled: false, sortOrder: 20 })
+    expect(mockedApi.put).toHaveBeenCalledWith('/api/v1/platform/ai/quick-prompts/qp-1', {
+      enabled: false,
+      sortOrder: 20,
+    })
+
+    await enableAiQuickPrompt('qp-1')
+    expect(mockedApi.post).toHaveBeenCalledWith('/api/v1/platform/ai/quick-prompts/qp-1/enable')
+
+    await disableAiQuickPrompt('qp-1')
+    expect(mockedApi.post).toHaveBeenCalledWith('/api/v1/platform/ai/quick-prompts/qp-1/disable')
+
+    await deleteAiQuickPrompt('qp-1')
+    expect(mockedApi.delete).toHaveBeenCalledWith('/api/v1/platform/ai/quick-prompts/qp-1')
   })
 })
 

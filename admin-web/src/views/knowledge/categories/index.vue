@@ -148,7 +148,7 @@ onMounted(load)
 </script>
 
 <template>
-  <AppPage title="分类管理" description="知识文档分类树（扁平存储，parentId 关联）；文档挂载分类后随分类调整。">
+  <AppPage title="资料分类" description="给知识库分类，方便查找。">
     <template #search>
       <AppSearchPanel :loading="isLoading" @reset="reset" @search="search">
         <t-form-item label="关键词">

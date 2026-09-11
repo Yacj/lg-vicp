@@ -10,6 +10,7 @@ type _LocationUrl =
   "/pages/appearance-settings/index" |
   "/pages/assistant/index" |
   "/pages/conversation-history/index" |
+  "/pages/knowledge-source/index" |
   "/pages/profile/index" |
   "/pages/profile-info/index" |
   "/pages/project-create/index" |

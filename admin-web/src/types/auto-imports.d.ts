@@ -141,6 +141,7 @@ declare global {
   const useAiModelManagement: typeof import('../composables/useAiModelManagement').useAiModelManagement
   const useAiPromptManagement: typeof import('../composables/useAiPromptManagement').useAiPromptManagement
   const useAiProviderManagement: typeof import('../composables/useAiProviderManagement').useAiProviderManagement
+  const useAiQuickPrompts: typeof import('../composables/useAiQuickPrompts').useAiQuickPrompts
   const useAiSceneBindings: typeof import('../composables/useAiSceneBindings').useAiSceneBindings
   const useAnimate: typeof import('@vueuse/core').useAnimate
   const useAppFeedback: typeof import('../composables/useAppFeedback').useAppFeedback
@@ -385,6 +386,9 @@ declare global {
   // @ts-ignore
   export type { AiProviderTableRow, AiProviderSearchQuery, AiProviderForm, AiProviderTestOutcome } from '../composables/useAiProviderManagement'
   import('../composables/useAiProviderManagement')
+  // @ts-ignore
+  export type { AiQuickPromptTableRow, AiQuickPromptForm, AiQuickPromptSearchQuery, QuickPromptUsageStats } from '../composables/useAiQuickPrompts'
+  import('../composables/useAiQuickPrompts')
   // @ts-ignore
   export type { AiSceneBindingTableRow, AiSceneBindingForm } from '../composables/useAiSceneBindings'
   import('../composables/useAiSceneBindings')

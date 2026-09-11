@@ -73,7 +73,19 @@ const errorDescription = computed(() => error.value
   : '请检查网络连接后重试')
 
 function matchModesText(row: KnowledgeSearchLog): string {
-  return row.matchModes.length > 0 ? row.matchModes.join(' / ') : '—'
+  const labels: Record<string, string> = {
+    PHRASE: '整句',
+    KEYWORD: '关键词',
+    ALIAS: '同义词',
+    FULLTEXT: '全文',
+    FUZZY: '相近词',
+    TITLE: '标题',
+    CLAUSE: '条款号',
+  }
+  if (row.matchModes.length === 0) {
+    return '—'
+  }
+  return row.matchModes.map(mode => labels[mode] ?? '其他').join('、')
 }
 
 function topHit(row: KnowledgeSearchLog): string {
@@ -88,25 +100,25 @@ function topHit(row: KnowledgeSearchLog): string {
 const columns: PrimaryTableCol<TableRowData>[] = [
   { cell: (_, { row }) => h('div', [
     h('div', { class: 'vicp-log-query' }, row.query),
-    h('div', { class: 'vicp-log-normalized' }, `归一化：${row.normalizedQuery}`),
-  ]), colKey: 'query', minWidth: 260, title: '检索词' },
-  { cell: (_, { row }) => matchModesText(row as KnowledgeSearchLog), colKey: 'matchModes', minWidth: 120, title: '匹配模式' },
-  { cell: (_, { row }) => row.resultCount, colKey: 'resultCount', minWidth: 80, title: '命中数' },
-  { cell: (_, { row }) => topHit(row as KnowledgeSearchLog), colKey: 'topResults', minWidth: 220, title: '最高命中' },
-  { cell: (_, { row }) => (row.durationMs != null ? `${row.durationMs} ms` : '—'), colKey: 'durationMs', minWidth: 90, title: '耗时' },
-  { cell: (_, { row }) => row.user?.displayName ?? '匿名', colKey: 'user', minWidth: 110, title: '检索人' },
-  { cell: (_, { row }) => formatDate(new Date(row.searchedAt), 'YYYY-MM-DD HH:mm'), colKey: 'searchedAt', minWidth: 140, title: '检索时间' },
+    h('div', { class: 'vicp-log-normalized' }, `处理后：${row.normalizedQuery}`),
+  ]), colKey: 'query', minWidth: 260, title: '查找内容' },
+  { cell: (_, { row }) => matchModesText(row as KnowledgeSearchLog), colKey: 'matchModes', minWidth: 120, title: '怎么找到的' },
+  { cell: (_, { row }) => row.resultCount, colKey: 'resultCount', minWidth: 80, title: '找到几条' },
+  { cell: (_, { row }) => topHit(row as KnowledgeSearchLog), colKey: 'topResults', minWidth: 220, title: '最相关资料' },
+  { cell: (_, { row }) => (row.durationMs != null ? `${row.durationMs} 毫秒` : '—'), colKey: 'durationMs', minWidth: 90, title: '用时' },
+  { cell: (_, { row }) => row.user?.displayName ?? '未登录', colKey: 'user', minWidth: 110, title: '查找人' },
+  { cell: (_, { row }) => formatDate(new Date(row.searchedAt), 'YYYY-MM-DD HH:mm'), colKey: 'searchedAt', minWidth: 140, title: '查找时间' },
 ]
 
 onMounted(load)
 </script>
 
 <template>
-  <AppPage title="检索日志" description="知识检索的可解释日志：记录归一化词、匹配模式与最高命中结果，用于排查召回质量。">
+  <AppPage title="查找记录" description="查看找过哪些资料，方便检查有没有找对。">
     <template #search>
       <AppSearchPanel :loading="isLoading" @reset="reset" @search="search">
         <t-form-item label="关键词">
-          <t-input v-model="keyword" clearable placeholder="原始检索词 / 归一化词" />
+          <t-input v-model="keyword" clearable placeholder="查找内容" />
         </t-form-item>
       </AppSearchPanel>
     </template>
@@ -114,8 +126,8 @@ onMounted(load)
     <AppDataTable
       :columns="columns"
       :data="logs"
-      empty-description="暂无检索记录"
-      empty-title="暂无日志"
+      empty-description="还没有查找记录"
+      empty-title="暂无记录"
       :error-description="errorDescription"
       :show-operations="false"
       row-key="id"

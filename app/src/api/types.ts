@@ -173,9 +173,27 @@ export interface ConversationListItem extends ConversationRecord {
 export interface CreateConversationBody {
   projectId?: string
   clientApp: 'c_app' | 'pc_ai' | 'b_admin'
-  scene: AiScene
+  /** C 端可省略，后端默认 general_chat；用户不选择场景 */
+  scene?: AiScene
   title?: string
   reasoningMode?: 'OFF' | 'ON'
+}
+
+export type AiQuickPromptPosition = 'AI_HOME' | 'PROJECT_AI'
+export type AiQuickPromptIcon = 'book' | 'project' | 'material' | 'standard' | 'calc' | 'compare' | 'chat'
+
+/** C 端只读快捷提问（GET /ai/quick-prompts） */
+export interface ClientQuickPrompt {
+  id: string
+  title: string
+  description: string | null
+  content: string
+  icon: string
+  position: AiQuickPromptPosition
+}
+
+export interface QuickPromptListQuery {
+  position?: AiQuickPromptPosition
 }
 
 export interface UpdateConversationBody {
@@ -218,9 +236,134 @@ export interface ReportDraftBody {
   requirements?: string
 }
 
+export type AiSourceType = 'KNOWLEDGE' | 'STANDARD' | 'ATLAS' | 'THERMAL' | 'OTHER'
+export type AiRetrievalUnit = 'DOCUMENT' | 'SECTION' | 'PAGE' | 'BLOCK' | 'CHUNK'
+
+export interface AiSourceHighlight {
+  pageId?: string
+  pageNumber?: number | null
+  pageLabel?: string | null
+  blockId?: string
+  charStart?: number | null
+  charEnd?: number | null
+  text?: string
+}
+
+/** AI 回答来源（与后端 ai-source.mapper 对齐）。C 端只展示 title / tocPath / pageLabel / quote。 */
 export interface AiSourceRef {
+  sourceType?: AiSourceType
+  retrievalUnit?: AiRetrievalUnit
+  documentId?: string
+  versionId?: string
+  sectionId?: string
+  pageId?: string
+  blockId?: string
+  chunkId?: string
   title: string
-  page: number | null
+  tocPath?: string[] | null
+  sectionTitle?: string | null
+  chapter?: string | null
+  section?: string | null
+  sectionPath?: string[] | null
+  citationAnchor?: string | null
+  pageNumber?: number | null
+  /** PDF 物理页，仅用于打开原文定位，不展示给用户 */
+  physicalPageNumber?: number | null
+  /** 印刷页码标签（用户主展示：A7 / 21） */
+  pageLabel?: string | null
+  pageTitle?: string | null
+  originalFileId?: string | null
+  pageStart?: number | null
+  pageEnd?: number | null
+  /** 兼容一期字段：等价 pageNumber，不作为用户页码 */
+  page?: number | null
+  matchedText?: string | null
+  quote?: string | null
+  snippet?: string | null
+  highlightRanges?: AiSourceHighlight[]
+  evidenceLevel?: string | null
+  score?: number | null
+}
+
+export interface AiSourceLocatorQuery {
+  documentId?: string
+  sectionId?: string
+  pageId?: string
+  blockId?: string
+  chunkId?: string
+  matchedText?: string
+}
+
+export interface AiSourceDocumentSummary {
+  id: string
+  title: string
+  versionId: string
+  version: number
+  docNumber: string | null
+  docType: string
+  visibility: string
+  projectId: string | null
+}
+
+export interface AiSourceDetailLocation {
+  sectionId: string | null
+  chapter: string | null
+  section: string | null
+  sectionPath: string[] | null
+  citationAnchor: string | null
+  pageNumber: number | null
+  physicalPageNumber: number | null
+  pageLabel: string | null
+  pageTitle: string | null
+}
+
+export interface AiSourcePageBlock {
+  id: string
+  blockIndex: number
+  content: string
+  contentType: string
+  sourceAnchor: string | null
+  metadata: Record<string, unknown> | null
+}
+
+export interface AiSourcePage {
+  id: string
+  pageNumber: number
+  physicalPageNumber: number
+  pageLabel: string | null
+  pageTitle: string | null
+  fullText: string
+  extractedText: string
+  blocks: AiSourcePageBlock[]
+  pageImageUrl: string | null
+}
+
+export interface AiSourceDetailHighlight {
+  pageId: string
+  pageNumber: number
+  physicalPageNumber?: number
+  pageLabel: string | null
+  blockId: string | null
+  text: string
+  charStart: number | null
+  charEnd: number | null
+}
+
+export interface AiSourceDetail {
+  document: AiSourceDocumentSummary
+  toc: { path: string[] | null }
+  location: AiSourceDetailLocation
+  original: {
+    fileId: string | null
+    pageImageUrl: string | null
+    previewUrl: string | null
+  }
+  extracted: {
+    text: string | null
+    blocks: AiSourcePageBlock[]
+  }
+  page: AiSourcePage | null
+  highlights: AiSourceDetailHighlight[]
 }
 
 export interface AiRetrievalRecord {

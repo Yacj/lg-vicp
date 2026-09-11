@@ -215,7 +215,7 @@ async function submitCreate(): Promise<void> {
     return
   }
   if (createForm.systemPrompt.trim().length < 10) {
-    await feedback.message('warning', '系统提示词至少需要 10 个字符')
+    await feedback.message('warning', '系统指令至少需要 10 个字符')
     return
   }
   createSubmitting.value = true
@@ -352,7 +352,14 @@ const diffLines = computed(() => {
 </script>
 
 <template>
-  <AppPage>
+  <AppPage
+    description="AI基础指令会直接影响筑小格的回答规则。普通用户不会看到这些内容，建议仅由技术管理员调整。"
+    title="AI基础指令"
+  >
+    <t-alert
+      message="这些内容不会展示给筑小格用户。请仅在明确需要调整回答规则时修改，并在发布前核对版本。"
+      theme="warning"
+    />
     <div class="ai-prompt-workspace" :class="{ 'ai-prompt-workspace--panel-open': panelOpen }">
       <!-- 窄屏顶部选择条（<1024px） -->
       <div v-if="isNarrow" class="ai-prompt-workspace__narrow-bar">
@@ -363,7 +370,7 @@ const diffLines = computed(() => {
         />
         <t-select
           :model-value="selectedPromptId ?? undefined"
-          placeholder="选择模板"
+          placeholder="选择基础指令"
           @change="(value: unknown) => handleSelectPrompt(String(value))"
         >
           <t-option v-for="prompt in scenePrompts" :key="prompt.id" :label="prompt.name" :value="prompt.id" />
@@ -382,7 +389,7 @@ const diffLines = computed(() => {
         </t-select>
         <div class="ai-prompt-workspace__narrow-actions">
           <t-button v-if="canAddPrompt" theme="primary" variant="outline" @click="openCreateDialog">
-            新增模板
+            新增基础指令
           </t-button>
           <t-button variant="text" @click="openCompareDialog">
             版本对比
@@ -396,12 +403,12 @@ const diffLines = computed(() => {
       <!-- 左栏：场景 → 模板 → 版本 -->
       <aside v-show="!isNarrow" class="ai-prompt-workspace__left">
         <div class="ai-prompt-workspace__left-head">
-          <span class="ai-prompt-workspace__section-title">场景</span>
+          <span class="ai-prompt-workspace__section-title">AI能力</span>
           <t-button v-if="canAddPrompt" theme="primary" block @click="openCreateDialog">
             <template #icon>
               <AddIcon />
             </template>
-            新增模板
+            新增基础指令
           </t-button>
         </div>
         <div class="ai-prompt-workspace__scene-list">
@@ -426,7 +433,7 @@ const diffLines = computed(() => {
         </template>
         <template v-else>
           <p class="ai-prompt-workspace__section-title ai-prompt-workspace__section-title--mt">
-            模板
+            基础指令模板
           </p>
           <div v-if="scenePrompts.length" class="ai-prompt-workspace__prompt-list">
             <div
@@ -450,9 +457,9 @@ const diffLines = computed(() => {
           <AppEmptyState
             v-else-if="tableStatus === 'ready'"
             class="ai-prompt-workspace__empty"
-            description="当前场景尚未创建提示词模板"
+            description="当前能力尚未创建基础指令模板"
             size="small"
-            title="暂无模板"
+            title="暂无基础指令"
           />
 
           <template v-if="selectedPrompt">
@@ -561,15 +568,15 @@ const diffLines = computed(() => {
         <template v-else-if="tableStatus === 'ready'">
           <AppEmptyState
             class="ai-prompt-workspace__empty ai-prompt-workspace__empty--main"
-            description="从左侧选择模板与版本开始编辑"
-            title="请选择提示词模板"
+            description="从左侧选择基础指令与版本开始编辑"
+            title="请选择基础指令模板"
           >
             <template v-if="canAddPrompt" #action>
               <t-button theme="primary" @click="openCreateDialog">
                 <template #icon>
                   <AddIcon />
                 </template>
-                新增模板
+                新增基础指令
               </t-button>
             </template>
           </AppEmptyState>
@@ -688,7 +695,7 @@ const diffLines = computed(() => {
         <AppEmptyState
           v-else
           class="ai-prompt-workspace__empty"
-          description="选择模板与版本后展示操作与信息"
+          description="选择基础指令与版本后展示操作与信息"
           size="small"
           title="未选择版本"
         />
@@ -725,7 +732,7 @@ const diffLines = computed(() => {
     <t-dialog
       :cancel-btn="{ content: '取消' }"
       confirm-text="创建草稿"
-      header="新增提示词模板"
+      header="新增基础指令模板"
       :loading="createSubmitting"
       :visible="createVisible"
       width="min(640px, 92vw)"
@@ -745,13 +752,13 @@ const diffLines = computed(() => {
         </t-form-item>
         <t-form-item
           help="支持 {{变量名}} 占位符，由会话上下文注入；至少 10 个字符。"
-          label="系统提示词"
+          label="系统指令"
           required-mark
         >
           <t-textarea
             v-model="createForm.systemPrompt"
             :autosize="{ minRows: 6, maxRows: 16 }"
-            placeholder="输入系统提示词内容"
+            placeholder="输入系统指令内容"
           />
           <div class="ai-prompt-workspace__editor-meta">
             <span>字数：{{ countPromptChars(createForm.systemPrompt) }}</span>

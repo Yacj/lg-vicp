@@ -136,6 +136,16 @@ async function uploadOne(uploadFile: UploadFile): Promise<CompleteUploadResult> 
       sha256,
       sizeBytes: raw.size,
     })
+    if (intent.mode === 'REUSE' || !intent.uploadUrl) {
+      const result: CompleteUploadResult = {
+        fileId: intent.fileId,
+        message: intent.message || '已从文件中心使用，不会重复上传',
+        taskId: '',
+      }
+      reportProgress(uploadFile, 100)
+      emit('success', raw, result)
+      return result
+    }
     await uploadFileToPresignedUrl(intent.uploadUrl, raw, {
       onProgress: (progress) => reportProgress(uploadFile, progress.percent),
       signal: controller.signal,

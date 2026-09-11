@@ -7,6 +7,8 @@ import type {
   DownloadUrlResult,
   FilePageQuery,
   FilePageResult,
+  FilePreviewResult,
+  FileRecentResult,
   FileStatusResult,
   UploadFileContext,
   UploadIntent,
@@ -35,9 +37,19 @@ export function fetchFileDownloadUrl(fileId: string): Promise<DownloadUrlResult>
   return api.get<DownloadUrlResult>(`${FILES_PREFIX}/${encodeURIComponent(fileId)}/download-url`)
 }
 
-/** 分页获取我的源文件列表。 */
+/** 分页获取文件中心 / FilePicker 列表。 */
 export function fetchFiles(query: FilePageQuery, signal?: AbortSignal): Promise<FilePageResult> {
   return api.get<FilePageResult>(FILES_PREFIX, { params: query, signal })
+}
+
+/** FilePicker 最近使用文件。 */
+export function fetchRecentFiles(limit = 20, signal?: AbortSignal): Promise<FileRecentResult> {
+  return api.get<FileRecentResult>(`${FILES_PREFIX}/recent`, { params: { limit }, signal })
+}
+
+/** 文件中心预览（可内联类型返回短期签名 URL）。 */
+export function fetchFilePreview(fileId: string, signal?: AbortSignal): Promise<FilePreviewResult> {
+  return api.get<FilePreviewResult>(`${FILES_PREFIX}/${encodeURIComponent(fileId)}/preview`, { signal })
 }
 
 /** 删除文件（软删除，存储对象由维护任务延迟清理）。 */

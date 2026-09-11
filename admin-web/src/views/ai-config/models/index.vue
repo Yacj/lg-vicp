@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import type { FormRules, PrimaryTableCol, TableRowData } from 'tdesign-vue-next'
 import type { AiModelForm } from '@/composables/useAiModelManagement'
-import type { AiConnectionTestResult, AiModel } from '@/types/ai'
+import type { AiConnectionTestResult, AiModel, AiSceneBinding } from '@/types/ai'
 import type { AppTableAction } from '@/types/crud'
 import { AddIcon } from 'tdesign-icons-vue-next'
-import { computed, h, ref, watch } from 'vue'
+import { computed, h, onMounted, ref, watch } from 'vue'
+import { fetchAiSceneBindings } from '@/api/modules/ai'
 import AppCrudFormDialog from '@/components/business/AppCrudFormDialog.vue'
 import AppTableActions from '@/components/business/AppTableActions.vue'
 import AppDataTable from '@/components/ui/AppDataTable.vue'
@@ -17,7 +18,11 @@ import {
 } from '@/composables/useAiModelManagement'
 import { normalizeFeedbackError, useAppFeedback } from '@/composables/useAppFeedback'
 import { usePermissionAccess } from '@/composables/usePermissionAccess'
-import { getAiModelCapabilityLabels } from '@/utils/ai'
+import {
+  getAiModelCapabilityLabels,
+  getRuntimeModelHealthLabel,
+  resolveRuntimeModelSlots,
+} from '@/utils/ai'
 import { formatDate } from '@/utils/day'
 
 const {
@@ -48,6 +53,34 @@ const canAddModel = computed(() => canAccess({ permissions: ['system:ai:model:ad
 const canEditModel = computed(() => canAccess({ permissions: ['system:ai:model:edit'] }))
 const canRemoveModel = computed(() => canAccess({ permissions: ['system:ai:model:remove'] }))
 const canTestModel = computed(() => canAccess({ permissions: ['system:ai:model:test'] }))
+const canManageModels = computed(() =>
+  canAddModel.value || canEditModel.value || canRemoveModel.value || canTestModel.value)
+const canReadScene = computed(() => canAccess({ permissions: ['system:ai:scene:list'] }))
+const generalChatBinding = ref<AiSceneBinding | null>(null)
+const advancedOpen = ref<Array<string | number>>([])
+
+const runtimeSlots = computed(() => resolveRuntimeModelSlots(
+  rows.value as AiModel[],
+  generalChatBinding.value
+    ? {
+        primaryModelId: generalChatBinding.value.primaryModelId,
+        reasoningModelId: generalChatBinding.value.reasoningModelId,
+      }
+    : null,
+))
+
+onMounted(() => {
+  if (!canReadScene.value) {
+    return
+  }
+  void fetchAiSceneBindings()
+    .then((result) => {
+      generalChatBinding.value = result.items.find(item => item.scene === 'general_chat') ?? null
+    })
+    .catch(() => {
+      generalChatBinding.value = null
+    })
+})
 
 /** 打开模型表单前确保服务商选项已加载。 */
 watch(drawerVisible, (visible) => {
@@ -219,49 +252,73 @@ function getActions(row: TableRowData): AppTableAction[] {
 </script>
 
 <template>
-  <AppPage>
-    <template #search>
-      <AppSearchPanel
-        :loading="modelList.isLoading.value"
-        @reset="modelList.reset"
-        @search="modelList.search"
-      >
-        <t-form-item label="关键词">
-          <t-input
-            v-model="modelList.query.keyword"
-            clearable
-            placeholder="模型名称或编码"
-          />
-        </t-form-item>
-        <t-form-item label="状态">
-          <t-select v-model="modelList.query.status" :options="statusOptions" />
-        </t-form-item>
-      </AppSearchPanel>
-    </template>
+  <AppPage
+    description="查看筑小格当前使用的默认模型和深度思考模型。详细参数请在高级配置中调整。"
+    title="模型配置"
+  >
+    <section class="ai-model-page__runtime">
+      <div class="ai-model-page__runtime-item">
+        <span class="ai-model-page__runtime-label">{{ runtimeSlots.defaultModel.label }}</span>
+        <strong class="ai-model-page__runtime-name">{{ runtimeSlots.defaultModel.name ?? '未设置' }}</strong>
+        <AppStatusTag
+          :label="getRuntimeModelHealthLabel(runtimeSlots.defaultModel.status)"
+          :status="runtimeSlots.defaultModel.status === 'ok' ? 'success' : runtimeSlots.defaultModel.status === 'disabled' ? 'warning' : 'disabled'"
+        />
+      </div>
+      <div class="ai-model-page__runtime-item">
+        <span class="ai-model-page__runtime-label">{{ runtimeSlots.reasoningModel.label }}</span>
+        <strong class="ai-model-page__runtime-name">{{ runtimeSlots.reasoningModel.name ?? '未设置' }}</strong>
+        <AppStatusTag
+          :label="getRuntimeModelHealthLabel(runtimeSlots.reasoningModel.status)"
+          :status="runtimeSlots.reasoningModel.status === 'ok' ? 'success' : runtimeSlots.reasoningModel.status === 'disabled' ? 'warning' : 'disabled'"
+        />
+      </div>
+    </section>
 
-    <AppDataTable
-      :columns="columns"
-      :data="rows"
-      empty-description="可新增第一个 AI 模型"
-      empty-title="暂无模型"
-      :error-description="errorDescription"
-      row-key="id"
-      :status="tableStatus"
-      @refresh="modelList.refresh"
-      @retry="modelList.retry"
-    >
-      <template v-if="canAddModel" #toolbar>
-        <t-button theme="primary" @click="modelDrawer.openCreate">
-          <template #icon>
-            <AddIcon />
+    <t-collapse v-if="canManageModels" v-model="advancedOpen" class="ai-model-page__advanced" expand-icon-placement="right">
+      <t-collapse-panel header="高级配置" value="advanced">
+        <AppSearchPanel
+          :loading="modelList.isLoading.value"
+          @reset="modelList.reset"
+          @search="modelList.search"
+        >
+          <t-form-item label="关键词">
+            <t-input
+              v-model="modelList.query.keyword"
+              clearable
+              placeholder="模型名称或编码"
+            />
+          </t-form-item>
+          <t-form-item label="状态">
+            <t-select v-model="modelList.query.status" :options="statusOptions" />
+          </t-form-item>
+        </AppSearchPanel>
+
+        <AppDataTable
+          :columns="columns"
+          :data="rows"
+          empty-description="可新增第一个 AI 模型"
+          empty-title="暂无模型"
+          :error-description="errorDescription"
+          row-key="id"
+          :status="tableStatus"
+          @refresh="modelList.refresh"
+          @retry="modelList.retry"
+        >
+          <template v-if="canAddModel" #toolbar>
+            <t-button theme="primary" @click="modelDrawer.openCreate">
+              <template #icon>
+                <AddIcon />
+              </template>
+              新增模型
+            </t-button>
           </template>
-          新增模型
-        </t-button>
-      </template>
-      <template #operations="{ row }">
-        <AppTableActions :actions="getActions(row)" />
-      </template>
-    </AppDataTable>
+          <template #operations="{ row }">
+            <AppTableActions :actions="getActions(row)" />
+          </template>
+        </AppDataTable>
+      </t-collapse-panel>
+    </t-collapse>
 
     <AppCrudFormDialog
       :columns="2"
@@ -424,6 +481,46 @@ function getActions(row: TableRowData): AppTableAction[] {
 </template>
 
 <style scoped>
+.ai-model-page__runtime {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--td-size-4);
+  padding: var(--td-comp-paddingTB-m) var(--td-comp-paddingLR-l);
+  border: 1px solid var(--td-component-stroke);
+  border-radius: var(--vicp-radius);
+  background: var(--td-bg-color-container);
+}
+
+.ai-model-page__runtime-item {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--td-size-2);
+}
+
+.ai-model-page__runtime-label {
+  color: var(--td-text-color-secondary);
+  font-size: var(--td-font-size-body-small);
+}
+
+.ai-model-page__runtime-name {
+  color: var(--td-text-color-primary);
+  font-size: var(--td-font-size-title-small);
+  font-weight: 600;
+}
+
+.ai-model-page__advanced :deep(.t-collapse-panel__content) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vicp-page-gap);
+}
+
+@media (max-width: 720px) {
+  .ai-model-page__runtime {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .ai-model-page__code {
   padding: 0 var(--td-size-1);
   color: var(--td-brand-color);

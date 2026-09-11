@@ -24,7 +24,12 @@ import {
   reorderVersionToc,
   verifyVersionPageMappings,
   updateVersionUsageMode,
+  createKnowledgeWithFile,
+  fetchKnowledgeWorkspace,
+  fetchVersionChapterTree,
   fetchVersionSections,
+  postKnowledgeVersionTestQa,
+  replaceKnowledgeDocumentFile,
   judgeKnowledgeEvaluation,
   mergeKnowledgeChunk,
   postKnowledgeQa,
@@ -343,6 +348,26 @@ describe('postKnowledgeQa (SSE)', () => {
     expect(events.map(event => event.type)).toEqual(['error'])
   })
 
+  it('posts version-scoped test-qa instead of filtering full-library search', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(sseResponse([
+      'event: done\ndata: {"messageId":"message-1","conversationId":"conversation-1","finishReason":"COMPLETED",'
+      + '"model":{"id":"deepseek-r1"},"promptVersion":{"id":"prompt-1","version":3},'
+      + '"sources":[{"title":"基本构造","pageLabel":"A5","matchedText":"构造做法"}],"latencyMs":800}\n\n',
+    ]))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await postKnowledgeVersionTestQa('version-1', { query: '包含哪些保温系统？' }, { onEvent: vi.fn() })
+    vi.unstubAllGlobals()
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.example.test/api/v1/platform/knowledge/versions/version-1/test-qa',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ query: '包含哪些保温系统？' }),
+      }),
+    )
+  })
+
   it('throws HttpRequestError with backend error message on non-200 response', async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(
       JSON.stringify({ error: { message: '请先配置知识问答场景的模型绑定' } }),
@@ -357,6 +382,38 @@ describe('postKnowledgeQa (SSE)', () => {
         status: 400,
       })
     vi.unstubAllGlobals()
+  })
+})
+
+describe('knowledge user workflow contracts', () => {
+  it('creates a knowledge base with a file center id and auto parse', async () => {
+    await createKnowledgeWithFile({
+      title: 'VICP建筑构造图集',
+      docType: 'DETAIL_ATLAS',
+      originalFileId: '11111111-1111-1111-1111-111111111111',
+    })
+
+    expect(mockedApi.post).toHaveBeenCalledWith('/api/v1/platform/knowledge/documents/create-with-file', {
+      title: 'VICP建筑构造图集',
+      docType: 'DETAIL_ATLAS',
+      originalFileId: '11111111-1111-1111-1111-111111111111',
+    })
+  })
+
+  it('loads workspace summary and user-facing chapter tree', async () => {
+    const signal = new AbortController().signal
+    await fetchKnowledgeWorkspace('document-1', signal)
+    expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/platform/knowledge/documents/document-1/workspace', { signal })
+
+    await fetchVersionChapterTree('version-1', signal)
+    expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/platform/knowledge/versions/version-1/chapter-tree', { signal })
+  })
+
+  it('replaces the knowledge file by creating a new version', async () => {
+    await replaceKnowledgeDocumentFile('document-1', { originalFileId: '22222222-2222-2222-2222-222222222222' })
+    expect(mockedApi.post).toHaveBeenCalledWith('/api/v1/platform/knowledge/documents/document-1/replace-file', {
+      originalFileId: '22222222-2222-2222-2222-222222222222',
+    })
   })
 })
 

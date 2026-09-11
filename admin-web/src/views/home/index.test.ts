@@ -62,13 +62,13 @@ describe('dashboard', () => {
     }
 
     // 待办分类入口按菜单投影路由渲染
-    for (const label of ['知识资料', '产品数据', '标准指标', '报告']) {
+    for (const label of ['知识库', '产品数据', '标准指标', '报告']) {
       expect(text).toContain(label)
     }
 
     // 无数据时的诚实表达：接口不可用即空状态，不使用随机或假数据
     expect(text).toContain('暂无最近项目')
-    expect(text).toContain('暂无资料异常')
+    expect(text).toContain('暂无解析异常')
 
     // 禁止保留开发占位文案
     for (const placeholder of [

@@ -73,7 +73,7 @@ export const staticRoutes: RouteRecordRaw[] = [  {
           hidden: true,
           noTab: true,
           permissions: ['system:knowledge:doc:list'],
-          title: '文档详情',
+          title: '知识库',
         },
       },
       {
@@ -104,12 +104,21 @@ export const staticRoutes: RouteRecordRaw[] = [  {
         },
       },
       {
+        path: 'ai-config/quick-prompts',
+        name: 'AiConfigQuickPrompts',
+        component: () => import('@/views/ai-config/quick-prompts/index.vue'),
+        meta: {
+          permissions: ['system:ai:quick-prompt:list'],
+          title: '快捷提问',
+        },
+      },
+      {
         path: 'ai-config/models',
         name: 'AiConfigModels',
         component: () => import('@/views/ai-config/models/index.vue'),
         meta: {
           permissions: ['system:ai:model:list'],
-          title: '模型管理',
+          title: '模型配置',
         },
       },
       {
@@ -117,8 +126,9 @@ export const staticRoutes: RouteRecordRaw[] = [  {
         name: 'AiConfigScenes',
         component: () => import('@/views/ai-config/scenes/index.vue'),
         meta: {
+          hidden: true,
           permissions: ['system:ai:scene:list'],
-          title: '场景配置',
+          title: 'AI能力配置',
         },
       },
       {
@@ -126,8 +136,9 @@ export const staticRoutes: RouteRecordRaw[] = [  {
         name: 'AiConfigPrompts',
         component: () => import('@/views/ai-config/prompts/index.vue'),
         meta: {
+          hidden: true,
           permissions: ['system:ai:prompt:list'],
-          title: '提示词管理',
+          title: 'AI基础指令',
         },
       },
       {
@@ -136,7 +147,7 @@ export const staticRoutes: RouteRecordRaw[] = [  {
         component: () => import('@/views/ai-config/filters/index.vue'),
         meta: {
           permissions: ['system:ai:filter:list'],
-          title: '对话围栏',
+          title: '内容安全',
         },
       },
       {

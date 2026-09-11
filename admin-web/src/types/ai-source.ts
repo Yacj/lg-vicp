@@ -272,9 +272,9 @@ export function normalizeAiSource(value: unknown): AiSourceRef | null {
 }
 
 export const AI_RETRIEVAL_UNIT_LABELS: Record<AiRetrievalUnit, string> = {
-  DOCUMENT: '整份文档',
+  DOCUMENT: '整份资料',
   SECTION: '章节',
   PAGE: '页面',
-  BLOCK: '内容块',
-  CHUNK: '辅助切片',
+  BLOCK: '内容',
+  CHUNK: '内容',
 }

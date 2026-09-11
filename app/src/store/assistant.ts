@@ -16,6 +16,7 @@ import { aiApi } from '@/api/modules/ai'
 import { FALLBACK_SCENE, markSceneUnavailable, resolveScene } from '@/constants/aiScene'
 import { createAiStreamRequest } from '@/services/platform'
 import { useAuthStore } from '@/store/auth'
+import { normalizeAiSources, sourceFromRetrieval } from '@/utils/aiSource'
 
 /**
  * 跨 Tab 一次性导航上下文。
@@ -55,6 +56,8 @@ interface AssistantState {
   activeAbort: (() => void) | null
   streamRevision: number
   loadRevision: number
+  /** 进入 ensureConversation 前即锁定，避免连点打出并发 POST */
+  sendLock: boolean
 }
 
 function parseStreamEvent(event: string, data: Record<string, unknown>): AiStreamEventPayload | null {
@@ -99,7 +102,7 @@ function parseStreamEvent(event: string, data: Record<string, unknown>): AiStrea
           messageId: data.messageId,
           conversationId: data.conversationId,
           finishReason: typeof data.finishReason === 'string' ? data.finishReason : 'COMPLETED',
-          sources: Array.isArray(data.sources) ? data.sources as AiSourceRef[] : [],
+          sources: normalizeAiSources(data.sources),
           model: data.model && typeof data.model === 'object' ? (data.model as { id: string }) : null,
           regeneratedMessageId: typeof data.regeneratedMessageId === 'string' ? data.regeneratedMessageId : undefined,
         },
@@ -151,6 +154,26 @@ function indexFeedbacks(feedbacks: AiMessageFeedback[]) {
   return map
 }
 
+function attachSourcesFromRetrievals(messages: ConversationMessage[], retrievals: ConversationDetail['retrievals']): LocalMessage[] {
+  const sourcesByMessage = new Map<string, AiSourceRef[]>()
+  for (const retrieval of retrievals) {
+    if (!retrieval.messageId) {
+      continue
+    }
+    const source = sourceFromRetrieval(retrieval)
+    if (!source) {
+      continue
+    }
+    const list = sourcesByMessage.get(retrieval.messageId) ?? []
+    list.push(source)
+    sourcesByMessage.set(retrieval.messageId, list)
+  }
+  return messages.map((message) => {
+    const sources = sourcesByMessage.get(message.id)
+    return sources?.length ? { ...message, sources } : message
+  })
+}
+
 export const useAssistantStore = defineStore('assistant', {
   state: (): AssistantState => ({
     nav: {},
@@ -169,11 +192,12 @@ export const useAssistantStore = defineStore('assistant', {
     activeAbort: null,
     streamRevision: 0,
     loadRevision: 0,
+    sendLock: false,
   }),
 
   getters: {
     /** 会话是否可发送：已加载（含新建空会话）且不在流式 */
-    canSend: state => state.loadState !== 'loading' && !state.isStreaming,
+    canSend: state => state.loadState !== 'loading' && !state.isStreaming && !state.sendLock,
     /** 最近一条流式消息（UI 光标与进度展示） */
     streamingMessage: (state) => {
       const id = state.streamingMessageId
@@ -197,18 +221,28 @@ export const useAssistantStore = defineStore('assistant', {
     },
 
     /**
-     * 获取可用会话：项目与场景都匹配才复用，否则创建。
-     * 目标场景未开放时，本次启动内记住结果并降级到通用场景。
+     * 获取可用会话：已有会话且项目一致则复用（含历史专业场景会话）。
+     * C 端新建一律 general_chat，不要求用户选择 Scene。
      */
     async ensureConversation(options: { projectId?: string, scene?: AiScene } = {}): Promise<ConversationRecord> {
       const { projectId } = options
-      const targetScene = resolveScene(options.scene)
+      const authStore = useAuthStore()
+      const currentUserId = authStore.user?.id ?? null
       const current = this.conversation
-      if (current
-        && current.projectId === (projectId ?? null)
-        && current.scene === targetScene) {
-        return current
+      const ownedByCurrentUser = Boolean(current && currentUserId && current.userId === currentUserId)
+      if (current && !ownedByCurrentUser) {
+        this.conversation = null
+        this.messages = []
+        this.feedbacks = {}
       }
+      else if (ownedByCurrentUser && current) {
+        const currentProject = current.projectId ?? null
+        const requestedProject = projectId === undefined ? currentProject : (projectId ?? null)
+        if (currentProject === requestedProject) {
+          return current
+        }
+      }
+      const targetScene = resolveScene(options.scene)
       if (this.creatingConversation && this.creatingConversationRevision === this.loadRevision) {
         return this.creatingConversation
       }
@@ -263,6 +297,7 @@ export const useAssistantStore = defineStore('assistant', {
       this.feedbacks = {}
       this.loadState = 'loading'
       this.loadError = ''
+      this.sendLock = false
 
       try {
         const response = await aiApi.getConversation(id).send() as ApiEnvelope<ConversationDetail>
@@ -270,7 +305,7 @@ export const useAssistantStore = defineStore('assistant', {
           return
         }
         this.conversation = response.data.conversation
-        this.messages = response.data.messages
+        this.messages = attachSourcesFromRetrievals(response.data.messages, response.data.retrievals || [])
         this.feedbacks = indexFeedbacks(response.data.feedbacks)
         this.loadState = 'ready'
       }
@@ -297,10 +332,17 @@ export const useAssistantStore = defineStore('assistant', {
       this.progressMessage = null
       this.activeAbort = null
       abort?.()
+      this.sendLock = false
 
       if (notifyBackend && messageId && !messageId.startsWith('local-')) {
         void aiApi.stopMessage(messageId).send().catch(() => undefined)
       }
+    },
+
+    /** 退出登录或切换账号：丢弃当前会话，避免下一个账号复用 conversationId。 */
+    resetForAccountChange() {
+      this.cancelActiveStream(false)
+      this.$reset()
     },
 
     /** 开始新对话：仅重置本地状态，首次发送时再创建后端会话。 */
@@ -312,6 +354,7 @@ export const useAssistantStore = defineStore('assistant', {
       this.feedbacks = {}
       this.loadState = 'ready'
       this.loadError = ''
+      this.sendLock = false
     },
 
     async sendMessage(content: string, options: { projectId?: string, scene?: AiScene } = {}) {
@@ -319,13 +362,15 @@ export const useAssistantStore = defineStore('assistant', {
       if (!authStore.accessToken) {
         throw new Error('请先登录')
       }
-      if (this.isStreaming || this.loadState === 'loading') {
+      if (this.isStreaming || this.sendLock || this.loadState === 'loading') {
         return false
       }
 
+      this.sendLock = true
       const loadRevision = this.loadRevision
       this.loadError = ''
       console.log('[assistant] 步骤1 发送前检查通过，准备会话')
+      try {
       const conversation = await this.ensureConversation(options)
       console.log('[assistant] 步骤2 会话就绪', { conversationId: conversation.id })
       if (loadRevision !== this.loadRevision || this.conversation?.id !== conversation.id) {
@@ -391,6 +436,10 @@ export const useAssistantStore = defineStore('assistant', {
         throw error instanceof Error ? error : new Error('发送失败，请重试')
       }
       return true
+      }
+      finally {
+        this.sendLock = false
+      }
     },
 
     /** 停止当前生成：立即停止本地展示，并尽力通知后端。 */
@@ -414,10 +463,12 @@ export const useAssistantStore = defineStore('assistant', {
       if (!authStore.accessToken) {
         throw new Error('请先登录')
       }
-      if (this.isStreaming || this.loadState === 'loading') {
+      if (this.isStreaming || this.sendLock || this.loadState === 'loading') {
         return false
       }
 
+      this.sendLock = true
+      try {
       const index = this.messages.findIndex(message => message.id === messageId && message.role === 'ASSISTANT')
       if (index === -1 || !this.conversation) {
         return false
@@ -469,6 +520,10 @@ export const useAssistantStore = defineStore('assistant', {
         throw error instanceof Error ? error : new Error('重新生成失败，请重试')
       }
       return true
+      }
+      finally {
+        this.sendLock = false
+      }
     },
 
     async feedback(messageId: string, reaction: AiFeedbackReaction | null, options: { tags?: string[], content?: string } = {}) {
@@ -532,7 +587,7 @@ export const useAssistantStore = defineStore('assistant', {
           if (message) {
             message.status = 'COMPLETED'
             message.finishedAt = new Date().toISOString()
-            message.sources = payload.data.sources
+            message.sources = normalizeAiSources(payload.data.sources)
             message.model = payload.data.model?.id ?? null
           }
           this.finishStreaming(streamRevision)
@@ -581,6 +636,7 @@ export const useAssistantStore = defineStore('assistant', {
       this.progressMessage = null
       this.activeAbort = null
       this.streamRevision += 1
+      this.sendLock = false
     },
 
     /** 网络层失败且未收到完成事件时，把当前流式消息标记失败。 */

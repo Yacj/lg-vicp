@@ -167,7 +167,7 @@ onMounted(load)
 </script>
 
 <template>
-  <AppPage title="别名词典" description="术语与别名的归一化映射，检索时用于同义扩展；停用后不参与匹配。">
+  <AppPage title="同义词" description="把意思相同的词对应起来，提问时更容易找到资料。">
     <template #search>
       <AppSearchPanel :loading="isLoading" @reset="reset" @search="search">
         <t-form-item label="关键词">

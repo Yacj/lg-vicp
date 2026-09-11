@@ -12,29 +12,29 @@ const rows = computed(() => props.mappings.map((mapping) => {
     originalPageLabel: original?.pageLabel ?? mapping.pageLabel,
   }
 }))
-const methodLabel: Record<string, string> = { PAGE_LABEL: '页码标签', TOC_TITLE: '目录标题', MANUAL: '人工绑定' }
+const methodLabel: Record<string, string> = { PAGE_LABEL: '按页码', TOC_TITLE: '按章节标题', MANUAL: '人工对应' }
 </script>
 
 <template>
   <div class="knowledge-mapping">
-    <div class="knowledge-mapping__toolbar"><span>检索文件页 ↔ 正式原文件页，不按物理页号默认相等</span><t-space v-if="editable"><t-button size="small" variant="outline" @click="emit('autoMatch')">自动匹配</t-button><t-button size="small" theme="primary" :loading="saving" @click="emit('batchConfirm')">批量确认</t-button></t-space></div>
+    <div class="knowledge-mapping__toolbar"><span>把可搜索文字版本的页，对到原文件对应页</span><t-space v-if="editable"><t-button size="small" variant="outline" @click="emit('autoMatch')">自动对应</t-button><t-button size="small" theme="primary" :loading="saving" @click="emit('batchConfirm')">全部确认</t-button></t-space></div>
     <t-table :data="rows" row-key="id" size="small" :columns="[
       { colKey: 'status', title: '状态', width: 70 },
-      { colKey: 'pageLabel', title: '图集页码', width: 110 },
-      { colKey: 'searchPhysicalPageNumber', title: '检索文件物理页', width: 140 },
-      { colKey: 'originalPhysicalPageNumber', title: '正式原文件物理页', width: 150 },
-      { colKey: 'mappingMethod', title: '映射方式', width: 120 },
-      { colKey: 'confidence', title: '置信度', width: 90 },
+      { colKey: 'pageLabel', title: '印刷页码', width: 110 },
+      { colKey: 'searchPhysicalPageNumber', title: '文字版本页', width: 140 },
+      { colKey: 'originalPhysicalPageNumber', title: '原文件页', width: 150 },
+      { colKey: 'mappingMethod', title: '对应方式', width: 120 },
+      { colKey: 'confidence', title: '把握', width: 90 },
       { colKey: 'actions', title: '操作', width: 90 },
     ]">
       <template #status="{ row }"><t-tag size="small" :theme="row.verified ? 'success' : 'warning'">{{ row.verified ? '✓' : '!' }}</t-tag></template>
       <template #pageLabel="{ row }">{{ row.originalPageLabel || row.pageLabel || '—' }}</template>
-      <template #originalPhysicalPageNumber="{ row }">{{ row.originalPhysicalPageNumber ?? '待人工绑定' }}</template>
+      <template #originalPhysicalPageNumber="{ row }">{{ row.originalPhysicalPageNumber ?? '待对应' }}</template>
       <template #mappingMethod="{ row }">{{ methodLabel[row.mappingMethod] ?? row.mappingMethod }}</template>
       <template #confidence="{ row }">{{ row.confidence == null ? '—' : `${Math.round(row.confidence * 100)}%` }}</template>
-      <template #actions="{ row }"><t-button v-if="editable && !row.verified" size="small" variant="text" theme="primary" @click="emit('verify', row)">人工绑定</t-button></template>
+      <template #actions="{ row }"><t-button v-if="editable && !row.verified" size="small" variant="text" theme="primary" @click="emit('verify', row)">确认对应</t-button></template>
     </t-table>
-    <div v-if="rows.length === 0" class="knowledge-mapping__empty">暂无页面映射。检索文件与正式原文件页数不同或未生成映射时，需要人工绑定。</div>
+    <div v-if="rows.length === 0" class="knowledge-mapping__empty">还没有页面对应关系。文字版本和原文件页数不同时，需要人工对一下。</div>
   </div>
 </template>
 
