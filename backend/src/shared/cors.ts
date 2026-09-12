@@ -1,6 +1,7 @@
 /**
  * 浏览器跨域配置：C 端/B 端本地与生产域名并存，预检必须稳定返回 CORS 头。
  * CORS_ORIGIN 支持 `*`、空值（回显请求 Origin）或逗号分隔白名单。
+ * 允许头必须与 `deploy/nginx.conf` 预检白名单同步（B 端会带 X-Client-Type）。
  */
 export const CORS_METHODS = ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"] as const;
 
@@ -10,7 +11,8 @@ export const CORS_ALLOWED_HEADERS = [
   "Accept",
   "Origin",
   "X-Requested-With",
-  "X-Request-Id"
+  "X-Request-Id",
+  "X-Client-Type"
 ] as const;
 
 export const CORS_EXPOSED_HEADERS = ["x-request-id"] as const;

@@ -31,8 +31,27 @@ describe("浏览器预检 OPTIONS", () => {
       strictTransportSecurity: false
     });
     app.get("/api/v1/ai/conversations", async () => ({ ok: true }));
+    app.get("/api/v1/auth/b/getInfo", async () => ({ ok: true }));
     return app;
   }
+
+  it("B 端 X-Client-Type 预检返回 Allow-Headers", async () => {
+    const app = await buildCorsApp("*");
+    const response = await app.inject({
+      method: "OPTIONS",
+      url: "/api/v1/auth/b/getInfo",
+      headers: {
+        origin: "http://192.168.2.117:5173",
+        "access-control-request-method": "GET",
+        "access-control-request-headers": "authorization,x-client-type"
+      }
+    });
+
+    expect(response.statusCode).toBe(204);
+    expect(response.headers["access-control-allow-origin"]).toBe("http://192.168.2.117:5173");
+    expect(String(response.headers["access-control-allow-headers"]).toLowerCase()).toContain("x-client-type");
+    await app.close();
+  });
 
   it("C 端 Authorization 预检返回 Allow-Origin 且不经过业务路由", async () => {
     const app = await buildCorsApp("*");
