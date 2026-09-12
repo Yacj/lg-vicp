@@ -62,6 +62,7 @@ export interface ReportTemplateCreateInput {
   description?: string | null;
   sections: ReportTemplateSection[];
   changeNote?: string | null;
+  requiresProject?: boolean;
   evidenceSource?: string | null;
   evidenceRef?: string | null;
   evidenceLevel?: "A" | "B" | "C" | null;
@@ -175,6 +176,7 @@ export function toTemplateDto(row: (typeof reportTemplates.$inferSelect)) {
     description: row.description,
     sections: (row.sectionsJson ?? []) as ReportTemplateSection[],
     changeNote: row.changeNote,
+    requiresProject: row.requiresProject,
     evidenceSource: row.evidenceSource,
     evidenceRef: row.evidenceRef,
     evidenceLevel: row.evidenceLevel,
@@ -216,6 +218,7 @@ export async function createReportTemplate(
       effectiveAt: input.effectiveAt,
       expiresAt: input.expiresAt,
       changeNote: input.changeNote,
+      requiresProject: input.requiresProject ?? false,
       status: "DRAFT",
       createdById: actor.id,
       updatedById: actor.id
@@ -250,6 +253,7 @@ export async function updateReportTemplate(
       effectiveAt: input.effectiveAt === undefined ? existing.effectiveAt : input.effectiveAt,
       expiresAt: input.expiresAt === undefined ? existing.expiresAt : input.expiresAt,
       changeNote: input.changeNote === undefined ? existing.changeNote : input.changeNote,
+      requiresProject: input.requiresProject === undefined ? existing.requiresProject : input.requiresProject,
       updatedById: actor.id,
       updatedAt: new Date()
     }).where(eq(reportTemplates.id, id)).returning();

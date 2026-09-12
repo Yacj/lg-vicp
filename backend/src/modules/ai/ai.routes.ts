@@ -7,6 +7,7 @@ import { z } from "zod";
 import { env } from "../../config/env.js";
 import {
   aiConversations,
+  aiMessageAttachments,
   aiMessageFeedbacks,
   aiMessageRegenerations,
   aiMessages,
@@ -30,6 +31,7 @@ import { estimateTokens, buildSystemMessages, budgetHistory, formatInsulationSys
 import { getPublishedInsulationSystem, listPublishedInsulationSystems } from "../construction/construction-read.service.js";
 import { createNotification } from "../notifications/notification.service.js";
 import { toAiSources } from "./ai-source.mapper.js";
+import { formatVisionContext } from "./ai-vision.service.js";
 import { ok } from "../../shared/response.js";
 import { isAbortError, startSseStream, writeProgress, writeSse } from "./ai-sse.js";
 import { writeAuditLog } from "../audit-logs/audit-log.service.js";
@@ -97,7 +99,8 @@ const conversationUpdateBodySchema = z.object({
 const pinBodySchema = z.object({ pinned: z.boolean() });
 const moveProjectBodySchema = z.object({ projectId: z.uuid("项目 ID 格式不正确").nullable() });
 const sendMessageBodySchema = z.object({
-  content: z.string().trim().min(1, "请输入消息内容").max(20_000, "单条消息不能超过 20000 个字符")
+  content: z.string().trim().min(1, "请输入消息内容").max(20_000, "单条消息不能超过 20000 个字符"),
+  attachmentFileIds: z.array(z.uuid("图片文件 ID 格式不正确")).max(4, "单次最多发送 4 张图片").optional()
 });
 const messageParamsSchema = z.object({ id: z.uuid("AI 消息 ID 格式不正确") });
 const feedbackBodySchema = z.object({
@@ -340,6 +343,14 @@ export async function aiRoutes(app: FastifyInstance) {
     ensureConversationOwner(user, conversation);
     const messages = await app.db.select().from(aiMessages)
       .where(eq(aiMessages.conversationId, conversation.id)).orderBy(aiMessages.createdAt);
+    const messageIds = messages.map((message) => message.id);
+    const attachmentRows = messageIds.length === 0 ? [] : await app.db.select({
+      attachment: aiMessageAttachments,
+      file: files
+    }).from(aiMessageAttachments)
+      .innerJoin(files, eq(files.id, aiMessageAttachments.fileId))
+      .where(inArray(aiMessageAttachments.messageId, messageIds))
+      .orderBy(asc(aiMessageAttachments.sortOrder));
     const assistantMessageIds = messages.filter((message) => message.role === "ASSISTANT").map((message) => message.id);
     const [retrievals, feedbacks, regenerations, conversationReports] = await Promise.all([
       app.db.select().from(aiRetrievalLogs).where(eq(aiRetrievalLogs.conversationId, conversation.id)).orderBy(asc(aiRetrievalLogs.createdAt)),
@@ -383,7 +394,21 @@ export async function aiRoutes(app: FastifyInstance) {
       startedAt: message.startedAt,
       finishedAt: message.finishedAt,
       stopReason: message.stopReason,
-      createdAt: message.createdAt
+      createdAt: message.createdAt,
+      attachments: attachmentRows.filter((row) => row.attachment.messageId === message.id).map((row) => ({
+        id: row.attachment.id,
+        fileId: row.file.id,
+        attachmentType: row.attachment.attachmentType,
+        sortOrder: row.attachment.sortOrder,
+        visionStatus: row.attachment.visionStatus,
+        file: {
+          id: row.file.id,
+          originalName: row.file.originalName,
+          mimeType: row.file.mimeType,
+          sizeBytes: row.file.sizeBytes,
+          status: row.file.status
+        }
+      }))
     }));
     return ok(request, {
       conversation,
@@ -700,7 +725,8 @@ export async function aiRoutes(app: FastifyInstance) {
       reply,
       user,
       conversation,
-      content: request.body.content
+      content: request.body.content,
+      attachmentFileIds: request.body.attachmentFileIds
     });
   });
 
@@ -963,8 +989,20 @@ export async function aiRoutes(app: FastifyInstance) {
       needSearch: capabilities.needKnowledgeSearch
     });
 
-    const projectContext = (runtime.requireProject || capabilities.needProjectContext)
+    const projectContext = row.conversation.projectId
       ? await resolveProjectContext(app, row.conversation.projectId)
+      : null;
+    const lastUserAttachments = await app.db.select({
+      visionStatus: aiMessageAttachments.visionStatus,
+      visionResultJson: aiMessageAttachments.visionResultJson
+    }).from(aiMessageAttachments)
+      .where(eq(aiMessageAttachments.messageId, lastUserMessage.id))
+      .orderBy(asc(aiMessageAttachments.sortOrder));
+    const storedVisionText = lastUserAttachments.find((item) => item.visionStatus === "SUCCEEDED"
+      && item.visionResultJson && typeof item.visionResultJson.text === "string")
+      ?.visionResultJson?.text;
+    const visionContext = typeof storedVisionText === "string" && storedVisionText.trim()
+      ? formatVisionContext(storedVisionText)
       : null;
     // 会话保温体系上下文（与正常生成链路共用同一上下文与 mapper）
     const insulationSystem = row.conversation.insulationSystemId
@@ -984,7 +1022,8 @@ export async function aiRoutes(app: FastifyInstance) {
         : null,
       knowledgeContext: shouldInjectKnowledge ? formatKnowledgeContext(chunks, { retrievalFailed }) : null,
       ruleContext: comparisonRules.length > 0 ? formatComparisonRuleContext(comparisonRules) : null,
-      thermalContext: capabilities.needThermalTool ? formatThermalCapabilityContext() : null
+      thermalContext: capabilities.needThermalTool ? formatThermalCapabilityContext() : null,
+      visionContext
     });
     const system = systemMessages.map((message) => message.content).join("\n\n");
 
@@ -1274,11 +1313,14 @@ export async function aiRoutes(app: FastifyInstance) {
     const conversation = await findConversation(app, request.params.id);
     if (!conversation) throw new NotFoundError("AI 会话不存在");
     ensureConversationOwner(user, conversation);
-    if (!conversation.projectId) throw new ForbiddenError("生成项目报告前必须先关联项目");
-    const [project] = await app.db.select().from(projects).where(and(
-      eq(projects.id, conversation.projectId), isNull(projects.deletedAt)
-    )).limit(1);
-    if (!project || !canManageProject(user, project)) throw new NotFoundError("项目不存在或无权生成报告");
+    const project = conversation.projectId
+      ? (await app.db.select().from(projects).where(and(
+        eq(projects.id, conversation.projectId), isNull(projects.deletedAt)
+      )).limit(1))[0] ?? null
+      : null;
+    if (conversation.projectId && (!project || !canManageProject(user, project))) {
+      throw new NotFoundError("项目不存在或无权生成报告");
+    }
     await enforceAiRateLimit(app, user.id);
 
     const runtime = await resolveSceneRuntime(app.db, AI_SCENES.REPORT_GENERATE, "OFF");
@@ -1289,17 +1331,23 @@ export async function aiRoutes(app: FastifyInstance) {
       )).orderBy(desc(aiMessages.createdAt)).limit(30);
     const knowledge = await searchProjectKnowledge(
       app,
-      project.id,
+      project?.id ?? null,
       request.body.requirements ?? history.map((item) => item.content).join(" ").slice(0, 500)
     );
     const context = formatKnowledgeContext(knowledge);
-    const systemMessages = buildSystemMessages({ scenePrompt: runtime.promptContent, projectContext: null, knowledgeContext: context });
+    const projectContext = conversation.projectId
+      ? await resolveProjectContext(app, conversation.projectId)
+      : null;
+    const systemMessages = buildSystemMessages({ scenePrompt: runtime.promptContent, projectContext, knowledgeContext: context });
     const system = `${systemMessages.map((message) => message.content).join("\n\n")}\n\n请生成结构化中文报告草稿。所有技术结论必须来自提供的资料或明确标注“待专业人员复核”。`;
     const result = await generateObject({
       model: runtime.primary.languageModel,
       schema: reportDraftOutputSchema,
       system,
-      prompt: `项目：${project.name}\n地区：${project.region ?? "未填写"}\n建筑类型：${project.buildingType ?? "未填写"}\n报告类型：${request.body.reportType}\n补充要求：${request.body.requirements ?? "无"}\n\n会话摘要材料：\n${history.reverse().map((item) => `${item.role}：${item.content}`).join("\n").slice(0, 12000)}\n\n${context}`,
+      prompt: `${project
+        ? `项目：${project.name}\n地区：${project.region ?? "未填写"}\n建筑类型：${project.buildingType ?? "未填写"}`
+        : "当前会话未关联项目，projectOverview.name 使用会话主题或“未关联项目”，不要编造项目参数。"
+      }\n报告类型：${request.body.reportType}\n补充要求：${request.body.requirements ?? "无"}\n\n会话摘要材料：\n${history.reverse().map((item) => `${item.role}：${item.content}`).join("\n").slice(0, 12000)}\n\n${context}`,
       maxOutputTokens: runtime.sceneMaxOutputTokens ?? runtime.primary.maxOutputTokens ?? 4000,
       temperature: runtime.sceneTemperature ?? runtime.primary.defaultTemperature ?? 0.2,
       abortSignal: AbortSignal.timeout(runtime.primary.timeoutMs)
@@ -1325,7 +1373,7 @@ export async function aiRoutes(app: FastifyInstance) {
         metadata: { type: "report_draft", reportType: request.body.reportType }
       }).returning();
       const [report] = await tx.insert(reports).values({
-        projectId: project.id,
+        projectId: project?.id ?? null,
         conversationId: conversation.id,
         reportType: request.body.reportType,
         status: "DRAFT",
@@ -1334,7 +1382,7 @@ export async function aiRoutes(app: FastifyInstance) {
         createdById: user.id
       }).returning();
       await writeAuditLog({
-        db: tx, request, actor: user, projectId: project.id,
+        db: tx, request, actor: user, projectId: project?.id,
         action: AUDIT_ACTIONS.REPORT_GENERATED, targetType: "report", targetId: report!.id,
         afterJson: { status: "DRAFT", messageId: message!.id, model: runtime.primary.modelId }
       });

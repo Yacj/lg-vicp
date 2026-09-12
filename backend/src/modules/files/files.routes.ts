@@ -30,6 +30,12 @@ import {
 } from "./file-center.service.js";
 import { getFileReferences } from "./file-reference.service.js";
 import {
+  chatImageMaxBytes,
+  isChatImageMime,
+  isReusableChatImage,
+  shouldEnqueueDocumentParse
+} from "../../shared/chat-image.js";
+import {
   createUploadIntentBodySchema,
   fileCenterListQuerySchema,
   fileParamsSchema,
@@ -99,7 +105,15 @@ export async function fileRoutes(app: FastifyInstance) {
 
   const createUploadIntent = async (request: FastifyRequest<{ Body: z.infer<typeof createUploadIntentBodySchema> }>) => {
     const user = getCurrentUser(request);
-    if (request.body.sizeBytes > env.MAX_UPLOAD_BYTES) {
+    if (request.body.purpose === "CHAT_IMAGE") {
+      if (!isChatImageMime(request.body.mimeType)) {
+        throw new ForbiddenError("聊天图片仅支持 JPG、JPEG、PNG");
+      }
+      const chatMax = chatImageMaxBytes();
+      if (request.body.sizeBytes > chatMax) {
+        throw new ForbiddenError(`聊天图片不能超过 ${Math.floor(chatMax / 1024 / 1024)} MB`);
+      }
+    } else if (request.body.sizeBytes > env.MAX_UPLOAD_BYTES) {
       throw new ForbiddenError(`文件不能超过 ${Math.floor(env.MAX_UPLOAD_BYTES / 1024 / 1024)} MB`);
     }
     if (request.body.projectId) {
@@ -112,7 +126,7 @@ export async function fileRoutes(app: FastifyInstance) {
     // SHA256 去重：同内容且状态 READY 的文件直接复用，不重复占用对象存储
     if (request.body.sha256) {
       const reusable = await findReusableFile(app, request.body.sha256);
-      if (reusable) {
+      if (reusable && (request.body.purpose !== "CHAT_IMAGE" || isReusableChatImage(reusable))) {
         await writeAuditLog({
           db: app.db, request, actor: user, projectId: reusable.projectId ?? undefined,
           action: AUDIT_ACTIONS.FILE_REUSED, targetType: "file", targetId: reusable.id,
@@ -148,6 +162,7 @@ export async function fileRoutes(app: FastifyInstance) {
         mimeType: request.body.mimeType,
         sizeBytes: request.body.sizeBytes,
         sha256: request.body.sha256,
+        purpose: request.body.purpose,
         status: "UPLOADING"
       }).returning();
       await writeAuditLog({
@@ -208,6 +223,9 @@ export async function fileRoutes(app: FastifyInstance) {
     if (!supportedMimeTypes.includes(detectedMime as typeof supportedMimeTypes[number])) {
       throw new ForbiddenError("文件真实类型不受支持");
     }
+    if (file.purpose === "CHAT_IMAGE" && !isChatImageMime(detectedMime)) {
+      throw new ForbiddenError("聊天图片仅支持 JPG、JPEG、PNG");
+    }
 
     // 去重兜底：上传完成后发现同 SHA-256 的 READY 文件已存在，本次文件直接标记删除（不影响已有文件，不阻塞上传）
     const duplicate = await findReusableFile(app, actualSha256, file.id);
@@ -230,6 +248,23 @@ export async function fileRoutes(app: FastifyInstance) {
     }
 
     const normalizedSha256 = file.sha256 ? undefined : actualSha256.toLowerCase();
+    if (!shouldEnqueueDocumentParse(file.purpose)) {
+      await app.db.transaction(async (tx) => {
+        await tx.update(files).set({
+          mimeType: detectedMime,
+          status: "READY",
+          updatedAt: new Date(),
+          ...(normalizedSha256 ? { sha256: normalizedSha256 } : {})
+        }).where(eq(files.id, file.id));
+        await writeAuditLog({
+          db: tx, request, actor: user, projectId: file.projectId ?? undefined,
+          action: AUDIT_ACTIONS.FILE_UPLOAD_COMPLETED, targetType: "file", targetId: file.id,
+          afterJson: { status: "READY", purpose: file.purpose }
+        });
+      });
+      return ok(request, { message: "聊天图片上传完成", fileId: file.id, status: "READY" });
+    }
+
     const task = await app.db.transaction(async (tx) => {
       await tx.update(files).set({ mimeType: detectedMime, status: "QUEUED", updatedAt: new Date(), ...(normalizedSha256 ? { sha256: normalizedSha256 } : {}) })
         .where(eq(files.id, file.id));

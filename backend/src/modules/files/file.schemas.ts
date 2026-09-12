@@ -10,8 +10,11 @@ export const supportedMimeTypes = [
   "application/dxf"
 ] as const;
 
+export const filePurposeSchema = z.enum(["GENERAL", "CHAT_IMAGE"]);
+
 export const createUploadIntentBodySchema = z.object({
   projectId: z.uuid("项目 ID 格式不正确").optional(),
+  purpose: filePurposeSchema.default("GENERAL"),
   fileName: z.string().trim().min(1, "请输入文件名").max(255, "文件名不能超过 255 个字符"),
   mimeType: z.enum(supportedMimeTypes, "暂不支持该文件类型"),
   sizeBytes: z.number().int().positive("文件大小必须大于 0"),

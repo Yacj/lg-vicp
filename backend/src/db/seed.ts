@@ -317,6 +317,7 @@ try {
       description: "默认工程报告模板：企业/项目条件/标准限值/候选方案/用户选择/热工计算/节点/构造/对比/验收/来源/免责声明",
       sectionsJson: DEFAULT_REPORT_SECTIONS,
       changeNote: "初始默认模板",
+      requiresProject: true,
       status: "PUBLISHED",
       publishedAt: new Date()
     }).onConflictDoNothing();

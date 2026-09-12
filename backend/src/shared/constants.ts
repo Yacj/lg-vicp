@@ -109,6 +109,7 @@ export const AUDIT_ACTIONS = {
   REPORT_PUBLISHED: "report.published",
   REPORT_DOWNLOADED: "report.downloaded",
   REPORT_DELETED: "report.deleted",
+  REPORT_PROJECT_LINKED: "report.project_linked",
   REPORT_SNAPSHOT_CREATED: "report.snapshot_created",
   REPORT_SUBMITTED: "report.submitted_for_review",
   REPORT_APPROVED: "report.approved",

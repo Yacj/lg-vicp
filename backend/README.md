@@ -216,9 +216,9 @@ pnpm db:studio
 - 用户、角色、部门、岗位、字典：`src/modules/users`、`src/modules/system-management`、`src/modules/platform-ops`。
 - 客户端认证和动态路由：`src/modules/auth`、`src/plugins/auth.ts`、`src/modules/menus`。
 - 项目可见性和项目权限：`src/modules/projects`、`src/shared/permissions.ts`。
-- AI 配置、对话、围栏和检索：`src/modules/ai-config`、`src/modules/ai`、`src/modules/knowledge`。
+- AI 配置、对话、围栏和检索：`src/modules/ai-config`、`src/modules/ai`、`src/modules/knowledge`。聊天图片走 `ai_message_attachments` + `purpose=CHAT_IMAGE`，会话可不关联项目。
 - 文件、解析、OCR 和队列：`src/modules/files`（含文件资产中心：列表/引用/预览/回收站/SHA-256 复用，详见 `docs/files/README.md`）、`src/workers`、`src/queues`、`src/storage`。
-- 报告、来源和导出：`src/modules/reports`、`src/workers/report.worker.ts`。
+- 报告、来源和导出：`src/modules/reports`、`src/workers/report.worker.ts`。AI 会话报告 `projectId` 可空；`GET /api/v1/reports/my` 查当前用户报告。
 - 分享和匿名访问：`src/modules/shares`、`share_links`、`share_views`。
 - 全局响应、错误和中文提示：`src/shared/response.ts`、`src/shared/errors.ts`、`src/plugins/error-handler.ts`。
 

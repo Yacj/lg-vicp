@@ -1,6 +1,7 @@
 import { and, eq, isNull, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import {
+  aiMessageAttachments,
   constructionSchemes,
   enterpriseCertificates,
   enterpriseProfiles,
@@ -26,7 +27,8 @@ export type FileReference = {
     | "PRODUCT_ATTACHMENT"
     | "CONSTRUCTION_SCHEME"
     | "NODE_DRAWING"
-    | "THERMAL_IMPORT";
+    | "THERMAL_IMPORT"
+    | "AI_CHAT_IMAGE";
   bizId: string;
   bizName: string;
   role: string;
@@ -122,7 +124,14 @@ async function selectReferences(db: Db, fileId: string, limit: number | undefine
       bizName: sql<string>`coalesce(${thermalImportJobs.name}, ${thermalImportJobs.setCode})`,
       role: sql<string>`'IMPORT_SOURCE'`
     }).from(thermalImportJobs)
-      .where(eq(thermalImportJobs.fileId, fileId))
+      .where(eq(thermalImportJobs.fileId, fileId)),
+    db.select({
+      bizType: sql<"AI_CHAT_IMAGE">`'AI_CHAT_IMAGE'`,
+      bizId: aiMessageAttachments.messageId,
+      bizName: sql<string>`'chat-image'`,
+      role: aiMessageAttachments.attachmentType
+    }).from(aiMessageAttachments)
+      .where(eq(aiMessageAttachments.fileId, fileId))
   ]);
 
   const seen = new Set<string>();
@@ -175,6 +184,8 @@ export async function getFileReferenceCounts(db: Db, fileIds: string[]): Promise
       select cad_file_id as file_id from node_drawings where cad_file_id = any(${fileIds}::uuid[])
       union all
       select file_id from thermal_import_jobs where file_id = any(${fileIds}::uuid[])
+      union all
+      select file_id from ai_message_attachments where file_id = any(${fileIds}::uuid[])
     ) refs
     where file_id is not null
     group by file_id

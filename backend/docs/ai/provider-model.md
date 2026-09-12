@@ -27,6 +27,7 @@
 ## 模型解析（运行时）
 
 - `resolveModelById`：模型 → 服务商 → 构造 `createOpenAICompatible` 语言模型，模型或服务商不可用 / 停用时报 `AI_MODEL_UNAVAILABLE` / `AI_PROVIDER_UNAVAILABLE`。
+- `resolveDefaultVisionModel`：启用模型中 `capabilities.vision=true`，优先 `code=default_vision`，否则取 priority 最高者；没有可用视觉模型时报 `VISION_MODEL_NOT_CONFIGURED`。业务代码不得写死 provider/model id。
 - `resolveReasoningProviderOptions`：
 
 ```mermaid

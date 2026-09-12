@@ -62,6 +62,9 @@ export async function assembleReportSnapshot(app: FastifyInstance, input: Templa
       ...publishedReferenceConditions(reportTemplates, asOfDate)
     )).limit(1);
   if (!template) throw new ReportError("REPORT_TEMPLATE_NOT_PUBLISHED");
+  if (template.requiresProject && !input.projectId) {
+    throw new ReportError("REPORT_PROJECT_REQUIRED");
+  }
 
   const candidate = (selection.candidateJson ?? {}) as Record<string, any>;
   const scheme = (candidate.scheme ?? {}) as Record<string, any>;

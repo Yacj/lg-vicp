@@ -16,7 +16,8 @@ alwaysApply: true
 - AI 服务商、模型、场景和提示词：AI 配置模块。快捷提问：`ai_quick_prompts`、`src/modules/ai/ai-quick-prompt.*`。
 - AI 对话、围栏、能力路由和检索：AI 模块、`ai-capability-router.ts`、知识模块、AI 参考规则。
 - AI 回答点赞、反馈和重新生成：AI 模块、平台 AI 反馈模块、Drizzle schema。
-- 报告记录、来源、发布和导出：报告模块、报告 Worker、`report_sources`。
+- AI 聊天图片附件与 Vision 看图：`ai_message_attachments`、`src/modules/ai/ai-vision.service.ts`、文件 `purpose=CHAT_IMAGE`。
+- 报告记录、来源、发布和导出：报告模块、报告 Worker、`report_sources`；`reports.projectId` 可空，`GET /api/v1/reports/my`。
 - 公开分享：分享模块、`share_links`、`share_views`。
 - 全局响应、错误和中文提示：共享响应/错误与错误处理插件。
 - 长期业务或架构规则：同步更新 `AGENTS.md`、`README.md`、Codex skill 和 Cursor rules。

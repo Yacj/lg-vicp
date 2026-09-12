@@ -19,6 +19,8 @@
 | `AI_GENERATION_NOT_RUNNING` | 409 | false | 没有正在进行的生成任务 |
 | `AI_REASONING_NOT_SUPPORTED` | 400 | false | 场景/模型不支持深度思考 |
 | `AI_QUOTA_EXCEEDED` | 429 | true | 并发或每日配额超限 |
+| `AI_INSULATION_SYSTEM_REQUIRED` | 400 | false | 专业场景未选择保温体系 |
+| `VISION_MODEL_NOT_CONFIGURED` | 400 | false | 发送图片时没有启用的 vision 模型（`capabilities.vision`，优先 `code=default_vision`） |
 
 ## 底层错误映射（`toAiError`）
 

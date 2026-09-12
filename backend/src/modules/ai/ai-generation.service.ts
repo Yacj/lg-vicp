@@ -9,7 +9,7 @@ import { streamText, type LanguageModelUsage, type ModelMessage } from "ai";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { and, count, desc, eq, inArray, isNull, notInArray } from "drizzle-orm";
 import { env } from "../../config/env.js";
-import { aiConversations, aiMessages, projects } from "../../db/schema.js";
+import { aiConversations, aiMessageAttachments, aiMessages, projects } from "../../db/schema.js";
 import { AI_SCENES, AUDIT_ACTIONS } from "../../shared/constants.js";
 import { AiError, toAiError } from "../../shared/ai-errors.js";
 import type { AuthUser } from "../../shared/auth-user.js";
@@ -26,6 +26,13 @@ import { formatComparisonRuleContext, loadApprovedComparisonRules, logComparison
 import { createConcurrencyRelease, enforceAiQuota, resolveSceneRuntime, type SceneRuntime } from "./ai-runtime.service.js";
 import { loadKnowledgeForGeneration } from "./ai-knowledge-load.js";
 import { resolveAiCapabilities } from "./ai-capability-router.js";
+import {
+  describeChatImages,
+  formatVisionContext,
+  validateChatImageAttachments,
+  visionResultPayload,
+  type VisionContext
+} from "./ai-vision.service.js";
 
 /** 模型 contextWindow 缺省时的保守预算 */
 export const DEFAULT_CONTEXT_WINDOW = 32_000;
@@ -79,12 +86,14 @@ export async function streamConversationReply(options: {
   user: AuthUser;
   conversation: typeof aiConversations.$inferSelect;
   content: string;
+  /** 聊天图片 fileId，不属于项目文件；0 张走原文字流程 */
+  attachmentFileIds?: string[];
   /** 传入时跳过场景内自动检索，直接使用该检索结果（知识问答场景；空数组表示无检索结果） */
   knowledgeChunks?: WikiHit[];
   /** 覆盖 done.sources 映射（B 端版本测试可裁剪调试字段） */
   mapSources?: (hits: readonly WikiHit[]) => unknown;
 }): Promise<void> {
-  const { app, request, reply, user, conversation, content, knowledgeChunks: providedChunks, mapSources } = options;
+  const { app, request, reply, user, conversation, content, attachmentFileIds, knowledgeChunks: providedChunks, mapSources } = options;
   const startedAt = Date.now();
   const requestId = request.id;
 
@@ -120,6 +129,8 @@ export async function streamConversationReply(options: {
     });
     throw new AiError("AI_CONTENT_BLOCKED", blocked.hitMessage?.trim() || undefined);
   }
+
+  const chatImages = await validateChatImageAttachments(app, user, attachmentFileIds);
 
   // 生成请求限流与配额（与历史发送消息端点行为一致）
   await enforceAiRateLimit(app, user.id);
@@ -184,9 +195,36 @@ export async function streamConversationReply(options: {
       requestId,
       metadata: { reasoningMode: conversation.reasoningMode, reasoning: runtime.reasoning }
     }).returning();
+    if (chatImages.length > 0) {
+      await tx.insert(aiMessageAttachments).values(chatImages.map((image, index) => ({
+        messageId: userRow!.id,
+        fileId: image.fileId,
+        attachmentType: "IMAGE" as const,
+        sortOrder: index,
+        visionStatus: "PENDING" as const
+      })));
+    }
     return [userRow!, assistantRow!];
   });
   createdAssistantMessageId = assistantMessage.id;
+
+  let vision: VisionContext | null = null;
+  if (chatImages.length > 0) {
+    try {
+      vision = await describeChatImages(app, chatImages, content);
+      await app.db.update(aiMessageAttachments).set({
+        visionStatus: "SUCCEEDED",
+        visionResultJson: visionResultPayload(vision, chatImages.map((image) => image.fileId))
+      }).where(eq(aiMessageAttachments.messageId, userMessage.id));
+    } catch (error) {
+      await app.db.update(aiMessageAttachments).set({
+        visionStatus: "FAILED",
+        visionResultJson: { error: error instanceof Error ? error.message : "视觉识别失败" }
+      }).where(eq(aiMessageAttachments.messageId, userMessage.id));
+      throw error;
+    }
+  }
+  const visionContext = vision ? formatVisionContext(vision.text) : null;
 
   // 会话保温体系上下文（专业场景必选；只注入标识信息，技术规则仍须来自检索/工具）
   const insulationSystem = conversation.insulationSystemId
@@ -223,7 +261,7 @@ export async function streamConversationReply(options: {
     providedChunks
   });
 
-  const projectContext = (runtime.requireProject || capabilities.needProjectContext)
+  const projectContext = conversation.projectId
     ? await resolveProjectContext(app, conversation.projectId)
     : null;
   const comparisonRules = conversation.scene === AI_SCENES.MATERIAL_COMPARE || capabilities.needComparisonTool
@@ -242,7 +280,8 @@ export async function streamConversationReply(options: {
       : null,
     knowledgeContext,
     ruleContext: comparisonRules.length > 0 ? formatComparisonRuleContext(comparisonRules) : null,
-    thermalContext: capabilities.needThermalTool ? formatThermalCapabilityContext() : null
+    thermalContext: capabilities.needThermalTool ? formatThermalCapabilityContext() : null,
+    visionContext
   });
   const system = systemMessages.map((message) => message.content).join("\n\n");
 
@@ -290,7 +329,9 @@ export async function streamConversationReply(options: {
 
   startSseStream(reply, request.id);
   writeSse(reply, "message", { messageId: assistantMessage.id, userMessageId: userMessage.id, conversationId: conversation.id, requestId });
-  writeProgress(reply, "analyzing", conversation.projectId ? "正在分析项目资料..." : "正在分析问题...");
+  writeProgress(reply, "analyzing", chatImages.length > 0
+    ? "正在识别图片并分析问题..."
+    : conversation.projectId ? "正在分析项目资料..." : "正在分析问题...");
   request.raw.once("close", onClientClose);
   await app.db.update(aiMessages).set({ status: "STREAMING", startedAt: new Date() }).where(eq(aiMessages.id, assistantMessage.id));
   // checking 阶段仅在真实执行知识检索时发送，不伪造“检索/计算”进度
@@ -503,10 +544,10 @@ export async function streamConversationReply(options: {
   }
 }
 
-/** 项目上下文（关联项目时注入真实数据；用户问及项目但未绑定时提示选择项目） */
+/** 项目上下文：仅在 conversation.projectId 有值时注入结构化字段；无项目则跳过，不阻断图片/检索/问答。 */
 export async function resolveProjectContext(app: FastifyInstance, projectId: string | null): Promise<string | null> {
   if (!projectId) {
-    return "当前会话未关联项目。涉及项目数据时请先选择项目，不要编造项目名称、地区、建筑类型或工程参数。";
+    return null;
   }
   const [project] = await app.db.select().from(projects)
     .where(and(eq(projects.id, projectId), isNull(projects.deletedAt))).limit(1);

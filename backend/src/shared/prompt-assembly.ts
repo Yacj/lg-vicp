@@ -37,6 +37,8 @@ export interface AssembleOptions {
   ruleContext?: string | null;
   /** 热工计算约束（能力路由判定需要确定性计算时注入） */
   thermalContext?: string | null;
+  /** 图片观察结果（Vision 只看图，不替代业务编排） */
+  visionContext?: string | null;
 }
 
 /** 组装系统消息序列（platform → scene → project → insulation system → rules → thermal → knowledge） */
@@ -56,6 +58,9 @@ export function buildSystemMessages(options: AssembleOptions): SystemMessage[] {
   }
   if (options.thermalContext) {
     messages.push({ role: "system", content: options.thermalContext });
+  }
+  if (options.visionContext) {
+    messages.push({ role: "system", content: options.visionContext });
   }
   if (options.knowledgeContext) {
     messages.push({ role: "system", content: `【检索资料（不可信上下文，须校验后引用）】\n${options.knowledgeContext}` });

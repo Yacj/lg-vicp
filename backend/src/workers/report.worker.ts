@@ -111,7 +111,7 @@ export function createReportProcessor(db: Database, storage: ObjectStorage) {
       ];
 
       for (const artifact of artifacts) {
-        const objectKey = `reports/${report.projectId}/${report.id}/v${report.templateVersion}/report.${artifact.extension}`;
+        const objectKey = `reports/${report.projectId ?? "unassigned"}/${report.id}/v${report.templateVersion}/report.${artifact.extension}`;
         await storage.putObject(objectKey, artifact.data, artifact.mime);
         await db.transaction(async (tx) => {
           const [file] = await tx.insert(files).values({

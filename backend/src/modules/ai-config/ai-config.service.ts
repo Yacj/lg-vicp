@@ -89,6 +89,42 @@ export async function resolveModelById(db: Database, id: string): Promise<Resolv
   };
 }
 
+/** 默认视觉模型角色编码：capability=vision 且 code=default_vision 优先 */
+export const DEFAULT_VISION_MODEL_ROLE = "default_vision";
+
+export function pickDefaultVisionModelId(
+  rows: Array<{ id: string; code: string | null; capabilities: Record<string, boolean> | null }>
+): string | null {
+  const vision = rows.filter((row) => row.capabilities?.vision === true);
+  return vision.find((row) => row.code === DEFAULT_VISION_MODEL_ROLE)?.id
+    ?? vision[0]?.id
+    ?? null;
+}
+
+/**
+ * 从已配置模型中解析默认视觉模型，禁止业务代码写死 provider/model id。
+ * 优先 code=default_vision 且 capabilities.vision=true 的启用模型，否则取 vision 能力中 priority 最高者。
+ */
+export async function resolveDefaultVisionModel(db: Database): Promise<ResolvedModelConfig> {
+  const candidates = await db.select({
+    modelRef: aiModels,
+    providerRef: aiProviders
+  }).from(aiModels)
+    .innerJoin(aiProviders, eq(aiProviders.id, aiModels.providerId))
+    .where(and(eq(aiModels.enabled, true), eq(aiProviders.enabled, true)))
+    .orderBy(desc(aiModels.priority));
+
+  const preferredId = pickDefaultVisionModelId(candidates.map((row) => ({
+    id: row.modelRef.id,
+    code: row.modelRef.code,
+    capabilities: row.modelRef.capabilities
+  })));
+  if (!preferredId) {
+    throw new AiError("VISION_MODEL_NOT_CONFIGURED");
+  }
+  return resolveModelById(db, preferredId);
+}
+
 /**
  * 校验模型是否可被场景绑定：
  * - 模型与服务商必须存在且启用

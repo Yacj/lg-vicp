@@ -79,6 +79,11 @@ export const aiQuickPromptActionTypeEnum = pgEnum("ai_quick_prompt_action_type",
   "REPORT"
 ]);
 export const aiFeedbackReactionEnum = pgEnum("ai_feedback_reaction", ["LIKE", "DISLIKE"]);
+/** 聊天附件类型：本轮仅图片；项目关系经 message → conversation → projectId 推导，不落 projectId */
+export const aiAttachmentTypeEnum = pgEnum("ai_attachment_type", ["IMAGE"]);
+export const aiVisionStatusEnum = pgEnum("ai_vision_status", ["PENDING", "SUCCEEDED", "FAILED", "SKIPPED"]);
+/** 文件业务用途：CHAT_IMAGE 上传完成后直接 READY，不进入文档/知识解析 */
+export const filePurposeEnum = pgEnum("file_purpose", ["GENERAL", "CHAT_IMAGE"]);
 export const reportStatusEnum = pgEnum("report_status", [
   "DRAFT",
   "QUEUED",
@@ -583,6 +588,7 @@ export const files = pgTable(
     sizeBytes: bigint("size_bytes", { mode: "number" }).notNull(),
     sha256: varchar("sha256", { length: 64 }),
     source: knowledgeFileSourceEnum("source").notNull().default("USER_UPLOAD"),
+    purpose: filePurposeEnum("purpose").notNull().default("GENERAL"),
     status: fileStatusEnum("status").notNull().default("UPLOADING"),
     errorMessage: text("error_message"),
     version: integer("version").notNull().default(1),
@@ -598,7 +604,8 @@ export const files = pgTable(
     index("files_owner_idx").on(table.ownerUserId),
     index("files_sha256_idx").on(table.sha256),
     index("files_mimetype_idx").on(table.mimeType),
-    index("files_status_created_idx").on(table.status, table.createdAt)
+    index("files_status_created_idx").on(table.status, table.createdAt),
+    index("files_purpose_idx").on(table.purpose)
   ]
 );
 
@@ -1278,6 +1285,29 @@ export const aiMessages = pgTable(
 );
 
 /**
+ * 聊天图片附件：属于 Message，不落 projectId。
+ * 项目关系需要时通过 attachment → message → conversation → projectId 推导。
+ */
+export const aiMessageAttachments = pgTable(
+  "ai_message_attachments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    messageId: uuid("message_id").notNull().references(() => aiMessages.id, { onDelete: "cascade" }),
+    fileId: uuid("file_id").notNull().references(() => files.id, { onDelete: "restrict" }),
+    attachmentType: aiAttachmentTypeEnum("attachment_type").notNull().default("IMAGE"),
+    sortOrder: integer("sort_order").notNull().default(0),
+    visionStatus: aiVisionStatusEnum("vision_status").notNull().default("PENDING"),
+    visionResultJson: jsonb("vision_result_json").$type<Record<string, unknown>>(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => [
+    uniqueIndex("ai_message_attachments_message_file_unique").on(table.messageId, table.fileId),
+    index("ai_message_attachments_message_idx").on(table.messageId),
+    index("ai_message_attachments_file_idx").on(table.fileId)
+  ]
+);
+
+/**
  * AI 对话敏感词围栏：发送消息前做确定性校验，命中即拦截（不发模型请求）。
  * sceneCodes 为空表示全局生效，否则仅对列出的场景生效；keyword 按 matchType 匹配。
  */
@@ -1405,7 +1435,7 @@ export const reports = pgTable(
   "reports",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    projectId: uuid("project_id").notNull().references(() => projects.id),
+    projectId: uuid("project_id").references(() => projects.id),
     conversationId: uuid("conversation_id").references(() => aiConversations.id),
     reportType: varchar("report_type", { length: 80 }).notNull(),
     status: reportStatusEnum("status").notNull().default("DRAFT"),
@@ -2447,6 +2477,8 @@ export const reportTemplates = pgTable(
     name: varchar("name", { length: 160 }).notNull(),
     description: text("description"),
     sectionsJson: jsonb("sections_json").$type<ReportTemplateSection[]>().notNull().default(sql`'[]'::jsonb`),
+    /** 仅该模板生成时要求会话/报告必须关联项目；默认不强制所有报告都有项目 */
+    requiresProject: boolean("requires_project").notNull().default(false),
     changeNote: text("change_note"),
     ...mdEvidenceColumns,
     ...mdReviewColumns,
@@ -2777,6 +2809,11 @@ export const conversationsRelations = relations(aiConversations, ({ one, many })
   feedbacks: many(aiMessageFeedbacks)
 }));
 
+export const aiMessageAttachmentsRelations = relations(aiMessageAttachments, ({ one }) => ({
+  message: one(aiMessages, { fields: [aiMessageAttachments.messageId], references: [aiMessages.id] }),
+  file: one(files, { fields: [aiMessageAttachments.fileId], references: [files.id] })
+}));
+
 export type User = typeof users.$inferSelect;
 export type Project = typeof projects.$inferSelect;
 export type FileRecord = typeof files.$inferSelect;
@@ -2787,6 +2824,7 @@ export type Prompt = typeof prompts.$inferSelect;
 export type PromptVersion = typeof promptVersions.$inferSelect;
 export type AiQuickPrompt = typeof aiQuickPrompts.$inferSelect;
 export type Report = typeof reports.$inferSelect;
+export type AiMessageAttachment = typeof aiMessageAttachments.$inferSelect;
 export type ShareLink = typeof shareLinks.$inferSelect;
 export type KnowledgeDocument = typeof knowledgeDocuments.$inferSelect;
 export type KnowledgeDocumentVersion = typeof knowledgeDocumentVersions.$inferSelect;

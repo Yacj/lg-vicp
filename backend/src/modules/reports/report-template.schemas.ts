@@ -79,6 +79,7 @@ export const reportTemplateCreateSchema = z.object({
   description: z.string().trim().max(4000).nullable().optional(),
   sections: z.array(reportSectionSchema).min(1, "至少配置一个报告章节"),
   changeNote: z.string().trim().max(2000).nullable().optional(),
+  requiresProject: z.boolean().default(false),
   ...evidenceFields()
 });
 export const reportTemplateUpdateSchema = reportTemplateCreateSchema.partial();
@@ -91,6 +92,7 @@ export const reportTemplateDto = z.object({
   description: z.string().nullable(),
   sections: z.array(reportSectionSchema),
   changeNote: z.string().nullable(),
+  requiresProject: z.boolean(),
   evidenceSource: z.string().nullable(),
   evidenceRef: z.string().nullable(),
   evidenceLevel: reportEvidenceLevelSchema.nullable(),

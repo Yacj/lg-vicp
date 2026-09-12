@@ -25,6 +25,8 @@ alwaysApply: false
 - 会话软删除时保留审计和消息数据，并禁用该会话产生的 AI 分享链接；恢复不会自动恢复分享链接。
 - 项目分享只保存项目摘要和已发布报告快照，不能包含源文件、知识库原文、未发布报告或原始 AI 会话。
 - 点赞、反馈和重新生成不得覆盖原始 AI 回答；重新生成必须生成新消息并记录关系。
+- 聊天图片走 `ai_message_attachments` + 文件中心 `CHAT_IMAGE`，不依赖 projectId；Vision 只看图，模型按 `capabilities.vision` / `code=default_vision` 解析。
+- 会话无项目时跳过 projectContext，不阻断图片、检索、SSE 和报告生成。`reports.projectId` 可空；`GET /reports/my` 无项目时 `project=null`。
 - 多条 AI 回答生成报告时，使用 `report_sources` 保存来源顺序和回答快照。
 - AI 只生成结构化报告草稿，Worker 根据模板导出 HTML、图片、Word 和 PDF。
 - 公开项目只允许查看已发布报告，原始 AI 会话保持私有。

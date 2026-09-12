@@ -56,11 +56,11 @@ export async function submitTemplateReportForReview(
       entityId: id,
       status: "PENDING_REVIEW",
       actorUserId: actor.id,
-      projectId: report.projectId,
+      projectId: report.projectId ?? undefined,
       requestId: request.id
     });
     await writeAuditLog({
-      db: tx, request, actor, projectId: report.projectId,
+      db: tx, request, actor, projectId: report.projectId ?? undefined,
       action: AUDIT_ACTIONS.REPORT_SUBMITTED, targetType: "report", targetId: id,
       beforeJson: { status: report.status }, afterJson: { status: updated!.status }
     });
@@ -91,11 +91,11 @@ export async function approveTemplateReport(
       status: "APPROVED",
       comment: approvalNote ?? null,
       actorUserId: actor.id,
-      projectId: report.projectId,
+      projectId: report.projectId ?? undefined,
       requestId: request.id
     });
     await writeAuditLog({
-      db: tx, request, actor, projectId: report.projectId,
+      db: tx, request, actor, projectId: report.projectId ?? undefined,
       action: AUDIT_ACTIONS.REPORT_APPROVED, targetType: "report", targetId: id,
       beforeJson: { status: report.status }, afterJson: { status: updated!.status, approvalNote: approvalNote ?? null }
     });
@@ -126,11 +126,11 @@ export async function rejectTemplateReport(
       status: "REJECTED",
       comment: rejectReason,
       actorUserId: actor.id,
-      projectId: report.projectId,
+      projectId: report.projectId ?? undefined,
       requestId: request.id
     });
     await writeAuditLog({
-      db: tx, request, actor, projectId: report.projectId,
+      db: tx, request, actor, projectId: report.projectId ?? undefined,
       action: AUDIT_ACTIONS.REPORT_REJECTED, targetType: "report", targetId: id,
       beforeJson: { status: report.status }, afterJson: { status: updated!.status, rejectReason }
     });

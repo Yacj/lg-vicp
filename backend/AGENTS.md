@@ -106,7 +106,9 @@
 - AI 配额：并发生成（Redis 计数）+ 每日请求数双重限制，`SUPER_ADMIN` 豁免；错误使用统一 `AI_*` 错误码（`src/shared/ai-errors.ts`）。
 - AI 配置、运营、反馈处理与调试使用独立 `system:ai:*` 权限码并写审计，详见 `docs/ai/`。
 - AI 会话历史支持分页、搜索、来源筛选、项目筛选、重命名、按用户置顶、移动项目、软删除和恢复；删除会话必须禁用由该会话产生的有效 AI 分享链接。
-- 多条 AI 回答生成报告时，通过 `report_sources` 保存来源顺序和回答快照。
+- 聊天图片属于 Message 附件（`ai_message_attachments`），不落 projectId；上传 `purpose=CHAT_IMAGE` 完成后直接 READY，不进文档解析。Vision 只产出观察上下文再进入现有编排，模型从配置解析，未配置返回 `VISION_MODEL_NOT_CONFIGURED`。
+- 会话 `projectId` 可空：有项目才注入项目结构化上下文；无项目仍可发图片、检索知识和生成报告。
+- 多条 AI 回答生成报告时，通过 `report_sources` 保存来源顺序和回答快照。`reports.projectId` 可空（继承会话项目，无项目则为 null）；`GET /api/v1/reports/my` 返回当前用户报告，无项目时 `project=null`。仅 `requiresProject=true` 的模板阻止无项目生成。
 - 公开分享只暴露分享快照或已生成报告文件，不开放源文件、知识库原文或原始 AI 会话。
 - `PROJECT` 分享只暴露项目摘要和已发布报告快照；不得返回项目源文件、知识库原文、未发布报告、原始会话或后台权限信息。
 - 源文件使用预签名直传；解析、OCR、索引和报告导出必须通过 BullMQ Worker。

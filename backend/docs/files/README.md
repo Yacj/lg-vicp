@@ -6,8 +6,8 @@
 
 ## 统一上传与 SHA-256 去重
 
-- `POST /api/v1/files/upload-intent`（`/upload-intents` 别名）：请求带可选 `sha256`；命中同哈希且 `status=READY` 的未删除文件时返回 `{ mode: "REUSE", fileId, file }`，不创建 files 行、不预签名；否则返回 `{ mode: "UPLOAD", uploadUrl, ... }` 走预签名直传。
-- `POST /api/v1/files/:id/complete`：校验大小/SHA-256/真实 MIME；若发现同 SHA-256 的 READY 文件已存在（去重兜底，前端未传哈希场景），本次文件标记 DELETED 并返回 `duplicateOfFileId`，不阻塞、不报错。
+- `POST /api/v1/files/upload-intent`（`/upload-intents` 别名）：请求带可选 `sha256`、`purpose`（`GENERAL`/`CHAT_IMAGE`）；命中同哈希且 `status=READY` 的未删除文件时返回 `{ mode: "REUSE", fileId, file }`，不创建 files 行、不预签名；`CHAT_IMAGE` 仅复用 READY 的 JPG/PNG。否则返回 `{ mode: "UPLOAD", uploadUrl, ... }` 走预签名直传。
+- `POST /api/v1/files/:id/complete`：校验大小/SHA-256/真实 MIME；`purpose=CHAT_IMAGE` 完成后直接 `READY`，不进入文档/知识/PDF 解析队列。若发现同 SHA-256 的 READY 文件已存在（去重兜底，前端未传哈希场景），本次文件标记 DELETED 并返回 `duplicateOfFileId`，不阻塞、不报错。
 - 只按 SHA-256 判重（小写），不按文件名；非交互通道（批量导入/爬虫/内部 API）沿用 `knowledge-ingest.service.assertNoDuplicateSha256` 的拒绝/幂等语义。
 
 ## 文件中心 API（B_ADMIN）
@@ -25,7 +25,7 @@
 
 ## 引用聚合（FileReferenceService）
 
-`src/modules/files/file-reference.service.ts` 只读聚合以下权威关系表（不建统一 file_references 表、不做第二真相源）：`knowledge_document_assets`（ORIGINAL/SEARCH_SOURCE/OCR_SOURCE/PREVIEW）、`knowledge_document_versions.fileId`（历史版本主文件）、`report_artifacts`、`enterprise_profiles.logoFileId`、`enterprise_certificates`、`product_attachments`、`construction_schemes.drawingFileId`、`node_drawings`（image/cadFileId）、`thermal_import_jobs`。列表页引用计数用一次 UNION ALL 分组统计（避免 N+1）。
+`src/modules/files/file-reference.service.ts` 只读聚合以下权威关系表（不建统一 file_references 表、不做第二真相源）：`knowledge_document_assets`（ORIGINAL/SEARCH_SOURCE/OCR_SOURCE/PREVIEW）、`knowledge_document_versions.fileId`（历史版本主文件）、`report_artifacts`、`enterprise_profiles.logoFileId`、`enterprise_certificates`、`product_attachments`、`construction_schemes.drawingFileId`、`node_drawings`（image/cadFileId）、`thermal_import_jobs`、`ai_message_attachments`。列表页引用计数用一次 UNION ALL 分组统计（避免 N+1）。
 
 ## 与知识中心的一体化
 

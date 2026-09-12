@@ -36,8 +36,8 @@ describe("resolveAiCapabilities", () => {
     expect(result.needProjectContext).toBe(true);
   });
 
-  it("提到当前项目时即使没有 projectId 也标记 needProjectContext", () => {
-    expect(resolveAiCapabilities({ message: "分析当前项目的保温方案" }).needProjectContext).toBe(true);
+  it("提到当前项目但没有 projectId 时不注入项目上下文（无项目不等于 AI 不可用）", () => {
+    expect(resolveAiCapabilities({ message: "分析当前项目的保温方案" }).needProjectContext).toBe(false);
   });
 
   it("热工 / 对比 / 报告关键词分别触发对应能力", () => {

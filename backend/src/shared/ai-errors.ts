@@ -20,7 +20,8 @@ export const AI_ERROR_CODES = {
   AI_GENERATION_NOT_RUNNING: "AI_GENERATION_NOT_RUNNING",
   AI_REASONING_NOT_SUPPORTED: "AI_REASONING_NOT_SUPPORTED",
   AI_QUOTA_EXCEEDED: "AI_QUOTA_EXCEEDED",
-  AI_INSULATION_SYSTEM_REQUIRED: "AI_INSULATION_SYSTEM_REQUIRED"
+  AI_INSULATION_SYSTEM_REQUIRED: "AI_INSULATION_SYSTEM_REQUIRED",
+  VISION_MODEL_NOT_CONFIGURED: "VISION_MODEL_NOT_CONFIGURED"
 } as const;
 
 export type AiErrorCode = (typeof AI_ERROR_CODES)[keyof typeof AI_ERROR_CODES];
@@ -48,7 +49,8 @@ export const AI_ERROR_SPECS: Record<AiErrorCode, AiErrorSpec> = {
   AI_GENERATION_NOT_RUNNING: { statusCode: 409, retryable: false, message: "当前没有正在进行的生成任务" },
   AI_REASONING_NOT_SUPPORTED: { statusCode: 400, retryable: false, message: "当前会话或模型不支持深度思考" },
   AI_QUOTA_EXCEEDED: { statusCode: 429, retryable: true, message: "AI 使用额度已达上限，请稍后再试" },
-  AI_INSULATION_SYSTEM_REQUIRED: { statusCode: 400, retryable: false, message: "专业咨询前请先选择保温体系" }
+  AI_INSULATION_SYSTEM_REQUIRED: { statusCode: 400, retryable: false, message: "专业咨询前请先选择保温体系" },
+  VISION_MODEL_NOT_CONFIGURED: { statusCode: 400, retryable: false, message: "尚未配置可用的视觉模型，请联系管理员启用 vision 能力模型" }
 };
 
 /** AI 业务错误：code 为稳定 AI_* 错误码，statusCode 为数值型 HTTP 语义码 */

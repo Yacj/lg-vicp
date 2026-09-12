@@ -9,7 +9,7 @@ erDiagram
     report_templates ||--o{ report_snapshots : "templateId (set null)"
     reports ||--o{ report_snapshots : "reportId (cascade, 唯一)"
     reports ||--o{ report_artifacts : "reportId (cascade, 既有)"
-    projects ||--o{ reports : "projectId"
+    projects ||--o{ reports : "projectId 可空"
     professional_reviews ||--o{ reports : "entityType=report"
 ```
 
@@ -65,6 +65,13 @@ flowchart LR
 | `/api/v1/platform/review-center` | `B端 / 平台 / 审核中心` | 队列/详情/决议（approve/reject） |
 
 平台路由均要求 `B_ADMIN` + 具体权限码；模板报告的查看/下载仍走项目级 `canViewProject`/`canManageProject`。
+
+## AI 会话报告与可选项目
+
+- `reports.projectId` 可空。会话有 `projectId` 时报告继承该项目；会话无项目时 `report.projectId=null`，用户不必再选项目。
+- 默认 AI 报告类型（`energy_design` / `design_note` / `marketing_copy`）不要求项目。仅 `report_templates.requiresProject=true` 的模板（默认 `standard_report`）阻止无项目生成。
+- `GET /api/v1/reports/my`：当前用户全部报告，可选 `?projectId=`；列表项 `project` 为 `{ id, name }` 或 `null`，不返回“无”。
+- `PATCH /api/v1/reports/:id/project`：独立报告后续关联项目，只改 `projectId`，不重新生成内容。
 
 ## 待甲方确认项
 

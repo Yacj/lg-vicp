@@ -10,7 +10,7 @@ MinIO 内部连接地址与返回浏览器的预签名公开地址必须分开�
 
 `files` 表是唯一文件资产表；业务表只存 `fileId`，文件中心负责"文件本身"，业务模块负责"文件怎么被使用"。详见 `docs/files/README.md`：
 
-- 上传去重：`POST /api/v1/files/upload-intent`（别名 `/upload-intents`）带可选 `sha256`，命中 READY 同哈希文件返回 `{ mode: "REUSE", fileId }`；`/:id/complete` 发现重复内容兜底合并（本次文件标 DELETED，返回 `duplicateOfFileId`），不阻塞上传。只按 SHA-256 判重，不按文件名。
+- 上传去重：`POST /api/v1/files/upload-intent`（别名 `/upload-intents`）带可选 `sha256` 与 `purpose`（`GENERAL`/`CHAT_IMAGE`），命中 READY 同哈希文件返回 `{ mode: "REUSE", fileId }`；`CHAT_IMAGE` 完成后直接 READY，不进文档解析。`/:id/complete` 发现重复内容兜底合并（本次文件标 DELETED，返回 `duplicateOfFileId`），不阻塞上传。只按 SHA-256 判重，不按文件名。
 - B_ADMIN FilePicker：`GET /api/v1/files` 全平台 READY 列表（keyword/mimeType/extension/source/sort/分页 + `referenceCount` 轻字段）；`GET /recent` 最近使用；`GET /:id` 详情；`GET /:id/preview` 内联短期签名 URL（`createPreviewUrl`，PDF/图片）或 DOWNLOAD 模式；C 端/PC AI 端同路径保持"我的源文件"口径。
 - 引用聚合：`file-reference.service.ts` 只读 UNION 各业务关系表（knowledge_document_assets、report_artifacts、enterprise、product_attachments、construction_schemes、node_drawings、thermal_import_jobs），业务表是唯一事实源，不建统一引用表；回收/永久删除前引用数 > 0 抛 `FILE_IN_USE`（`error.details.references`）。
 - 回收站：`fileStatusEnum` 增加 `RECYCLED`（recycledAt/recycledById），`/:id/recycle`、`/:id/restore`、`DELETE /:id/permanent` 走 `file:center:manage` 权限码；FilePicker 列表/详情/预览只需 B_ADMIN 登录。
