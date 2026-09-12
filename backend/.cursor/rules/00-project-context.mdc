@@ -18,3 +18,4 @@ alwaysApply: true
 - 客户端隔离固定为 `B_ADMIN`、`C_APP`、`PC_AI`。`/platform` 和 `/workspace` 只允许 `B_ADMIN`，C/AI 端不得访问后台管理接口。
 - B 端接口必须同时执行 JWT、客户端类型和具体按钮权限码校验；项目接口还必须执行项目级权限。
 - 禁用角色不得继续产生权限，查询角色权限时必须过滤 `roles.enabled = true`。
+- 浏览器与 API 必须同源（开发走 Vite 代理，生产走同域反代），后端不回写 CORS。

@@ -80,7 +80,6 @@ if [[ ! -f .env ]]; then
 
   info "请打开 $(pwd)/.env 修改以下两项后重新运行本脚本："
   info "  BOOTSTRAP_ADMIN_PASSWORD：管理员登录密码（至少 5 位）"
-  info "  CORS_ORIGIN：前端访问地址，多个用逗号分隔（如 https://admin.example.com,http://localhost:8871）"
   exit 0
 fi
 

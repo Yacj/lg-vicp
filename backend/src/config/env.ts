@@ -52,7 +52,6 @@ const envSchema = z.object({
   PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH: optionalString,
   BOOTSTRAP_ADMIN_USERNAME: z.string().min(3).default("admin"),
   BOOTSTRAP_ADMIN_PASSWORD: z.string().min(5),
-  CORS_ORIGIN: z.preprocess((value) => value === "" ? undefined : value, z.string().default("*")),
   /** 内部服务间调用密钥（/api/v1/internal/* 鉴权）；空值视为未配置，内部接口整体禁用 */
   INTERNAL_API_KEY: z.preprocess((value) => value === "" ? undefined : value, z.string().min(16).optional()),
   /** 百度短语音识别极速版：API Key（未配置时语音识别接口返回 503） */

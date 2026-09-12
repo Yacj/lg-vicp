@@ -1,5 +1,4 @@
 import { randomUUID } from "node:crypto";
-import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import fastify, { LogController } from "fastify";
 import { sql } from "drizzle-orm";
@@ -8,7 +7,6 @@ import {
   validatorCompiler
 } from "fastify-type-provider-zod";
 import { env } from "./config/env.js";
-import { corsPluginOptions } from "./shared/cors.js";
 import { aiRoutes } from "./modules/ai/ai.routes.js";
 import { aiKnowledgeRoutes } from "./modules/ai/ai-knowledge.routes.js";
 import { aiVoiceRoutes } from "./modules/ai/ai-voice.routes.js";
@@ -75,8 +73,6 @@ export async function buildApp() {
   app.setSerializerCompiler(serializerCompiler);
 
   await app.register(errorHandlerPlugin);
-  // CORS 必须先于 helmet：预检 OPTIONS 在 onRequest 阶段直接结束，避免安全头/后续钩子抢先写出无 CORS 的响应
-  await app.register(cors, corsPluginOptions(env.CORS_ORIGIN));
   await app.register(helmet, {
     // 纯 HTTP 公网部署下，upgrade-insecure-requests 会把页面子资源强制升级为 https，
     // 而 8080 无 TLS，导致 swagger-ui 静态资源全部 ERR_SSL_PROTOCOL_ERROR
@@ -86,7 +82,7 @@ export async function buildApp() {
         "upgrade-insecure-requests": null
       }
     },
-    // API 供 B/C/AI 前端跨域调用，不能使用 helmet 默认的 Cross-Origin-Resource-Policy: same-origin
+    // 前端必须同源访问，不再回写 CORS；保持 CORP 关闭以免误伤 Swagger 静态资源
     crossOriginResourcePolicy: false,
     // COOP/HSTS 仅对可信来源（HTTPS/localhost）生效，公网 IP 明文 HTTP 下无意义且产生浏览器告警
     crossOriginOpenerPolicy: false,

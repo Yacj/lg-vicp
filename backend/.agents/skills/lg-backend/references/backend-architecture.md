@@ -25,3 +25,4 @@
 - migration 必须提交到 `drizzle/`，生产只运行已提交 migration。
 - 所有后台接口都必须先通过 JWT 和 `B_ADMIN` 客户端校验，再执行具体权限码校验。C/AI 客户端不能访问 `/platform` 或 `/workspace`。
 - Fastify 请求上下文中的权限编码来自启用角色；禁用角色不会参与权限计算。
+- 浏览器与 API 必须同源（开发走 Vite 代理，生产走同域反代），不注册 CORS。
