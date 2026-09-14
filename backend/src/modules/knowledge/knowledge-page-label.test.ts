@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { detectFooterPageLabel, fallbackPageLabel, isReliablePageLabel } from "./knowledge-page-label.js";
+import {
+  buildPrintedPageLabelMap,
+  detectFooterPageLabel,
+  detectPrintedPageLabel,
+  fallbackPageLabel,
+  isReliablePageLabel,
+  pageLabelMappingStatus,
+  resolveTocPhysicalPage
+} from "./knowledge-page-label.js";
 
 describe("detectFooterPageLabel", () => {
   it("只识别页面底部的字符串印刷页码", () => {
@@ -30,5 +38,30 @@ describe("detectFooterPageLabel", () => {
     expect(isReliablePageLabel("FALLBACK", null, false, 0.85)).toBe(false);
     expect(isReliablePageLabel("PDF_PAGE_LABEL", 1, false, 0.85)).toBe(true);
     expect(isReliablePageLabel("MANUAL", null, true, 0.85)).toBe(true);
+  });
+});
+
+describe("detectPrintedPageLabel", () => {
+  it("优先使用图框「页次」右侧标签，而不是物理页号", () => {
+    expect(detectPrintedPageLabel([
+      { text: "页 次", x: 585, y: 57, width: 19, height: 10 },
+      { text: "4", x: 643, y: 57, width: 4, height: 10 },
+      { text: "总说明", x: 466, y: 62, width: 46, height: 12 }
+    ], 524)).toEqual({ pageLabel: "4", confidence: 0.9 });
+  });
+});
+
+describe("buildPrintedPageLabelMap", () => {
+  it("忽略 FALLBACK，不把 TOC 的 4 映射到物理第 4 页", () => {
+    const map = buildPrintedPageLabelMap([
+      { physical: 4, label: "4", source: "FALLBACK", confidence: null },
+      { physical: 6, label: "4", source: "FOOTER_TEXT", confidence: 0.9 },
+      { physical: 103, label: "A5", source: "FOOTER_TEXT", confidence: 0.9 }
+    ]);
+    expect(map.get("4")).toBe(6);
+    expect(map.get("A5")).toBe(103);
+    expect(resolveTocPhysicalPage("A5", map)).toBe(103);
+    expect(pageLabelMappingStatus({ source: "FOOTER_TEXT", confidence: 0.9 })).toBe("HIGH_CONFIDENCE");
+    expect(pageLabelMappingStatus({ source: "FALLBACK", confidence: null })).toBe("UNMAPPED");
   });
 });

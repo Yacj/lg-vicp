@@ -229,6 +229,27 @@ export async function projectRoutes(app: FastifyInstance) {
     return ok(request, { message: "项目可见性修改成功", project: projectResponse(user, updated) });
   });
 
+  route.delete("/client/projects/:id", {
+    preHandler: [app.authenticate],
+    schema: { tags: ["共用 / 项目"], summary: "删除项目（C 端）", params: projectParamsSchema }
+  }, async (request) => {
+    const user = getCurrentUser(request);
+    const project = await findActiveProject(app, request.params.id);
+    if (!project) throw new NotFoundError("项目不存在");
+    if (!canManageProject(user, project)) throw new ForbiddenError("只有项目创建者或超级管理员可以删除项目");
+
+    await app.db.transaction(async (tx) => {
+      await tx.update(projects).set({ deletedAt: new Date(), status: "deleted", updatedAt: new Date() })
+        .where(eq(projects.id, project.id));
+      await writeAuditLog({
+        db: tx, request, actor: user, projectId: project.id,
+        action: AUDIT_ACTIONS.PROJECT_DELETED, targetType: "project", targetId: project.id,
+        beforeJson: project
+      });
+    });
+    return ok(request, { message: "项目已删除" });
+  });
+
   route.get("/projects/public", {
     preHandler: [app.authenticate],
     schema: { tags: ["共用 / 项目"], summary: "获取公开项目", querystring: paginationQuerySchema }

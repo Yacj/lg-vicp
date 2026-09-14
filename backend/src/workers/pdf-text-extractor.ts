@@ -16,10 +16,13 @@ export interface PdfExtractedPage {
   pageLabel: string | null;
   pageLabelSource: Extract<PageLabelSource, "PDF_PAGE_LABEL" | "FOOTER_TEXT"> | null;
   pageLabelConfidence: number | null;
+  pageWidth?: number;
+  pageHeight?: number;
+  columnCount?: number;
 }
 
 type PdfTextMessage =
-  | { type: "page"; pageNumber: number; totalPages: number; text: string; items: PdfExtractedPage["items"]; pageLabel: string | null; pageLabelSource: PdfExtractedPage["pageLabelSource"]; pageLabelConfidence: number | null }
+  | { type: "page"; pageNumber: number; totalPages: number; text: string; items: PdfExtractedPage["items"]; pageLabel: string | null; pageLabelSource: PdfExtractedPage["pageLabelSource"]; pageLabelConfidence: number | null; pageWidth?: number; pageHeight?: number; columnCount?: number }
   | { type: "done"; totalPages: number; outline?: PdfOutlineItem[] }
   | { type: "error"; message: string };
 
@@ -174,7 +177,10 @@ export function extractPdfDocument(
           items: message.items ?? [],
           pageLabel: message.pageLabel ?? null,
           pageLabelSource: message.pageLabelSource ?? null,
-          pageLabelConfidence: message.pageLabelConfidence ?? null
+          pageLabelConfidence: message.pageLabelConfidence ?? null,
+          pageWidth: message.pageWidth,
+          pageHeight: message.pageHeight,
+          columnCount: message.columnCount
         };
         onPage?.({ pageNumber: message.pageNumber, totalPages: message.totalPages });
         return;
@@ -188,7 +194,8 @@ export function extractPdfDocument(
             items: [],
             pageLabel: null,
             pageLabelSource: null,
-            pageLabelConfidence: null
+            pageLabelConfidence: null,
+            columnCount: 1
           };
         }
         outline = message.outline ?? [];

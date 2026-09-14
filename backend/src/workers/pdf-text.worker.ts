@@ -23,10 +23,13 @@ export interface PdfExtractedPage {
   pageLabel: string | null;
   pageLabelSource: Extract<PageLabelSource, "PDF_PAGE_LABEL" | "FOOTER_TEXT"> | null;
   pageLabelConfidence: number | null;
+  pageWidth?: number;
+  pageHeight?: number;
+  columnCount?: number;
 }
 
 type PdfTextMessage =
-  | { type: "page"; pageNumber: number; totalPages: number; text: string; items: PdfExtractedTextItem[]; pageLabel: string | null; pageLabelSource: Extract<PageLabelSource, "PDF_PAGE_LABEL" | "FOOTER_TEXT"> | null; pageLabelConfidence: number | null }
+  | { type: "page"; pageNumber: number; totalPages: number; text: string; items: PdfExtractedTextItem[]; pageLabel: string | null; pageLabelSource: Extract<PageLabelSource, "PDF_PAGE_LABEL" | "FOOTER_TEXT"> | null; pageLabelConfidence: number | null; pageWidth?: number; pageHeight?: number; columnCount?: number }
   | { type: "done"; totalPages: number; outline?: OutlineItem[] }
   | { type: "error"; message: string };
 
@@ -115,6 +118,7 @@ function toTextItem(item: unknown): PdfExtractedTextItem | null {
     y: numberAt(5),
     width: typeof value.width === "number" && Number.isFinite(value.width) ? value.width : 0,
     height: typeof value.height === "number" && Number.isFinite(value.height) ? value.height : 0,
+    fontSize: Math.abs(numberAt(0)) || Math.abs(numberAt(3)) || (typeof value.height === "number" ? value.height : 0),
     hasEOL: value.hasEOL === true
   };
 }
@@ -130,8 +134,10 @@ async function extractPagesSequentially(
 ): Promise<{ totalPages: number; outline: OutlineItem[] }> {
   const runtimeCompatSpecifier = `../shared/runtime-compat.${import.meta.url.endsWith(".ts") ? "ts" : "js"}`;
   const pageLabelSpecifier = `../modules/knowledge/knowledge-page-label.${import.meta.url.endsWith(".ts") ? "ts" : "js"}`;
+  const layoutSpecifier = `../modules/knowledge/pdf-layout-text.${import.meta.url.endsWith(".ts") ? "ts" : "js"}`;
   const { installPdfRuntimeCompat } = await import(runtimeCompatSpecifier);
-  const { detectFooterPageLabel } = await import(pageLabelSpecifier);
+  const { detectPrintedPageLabel } = await import(pageLabelSpecifier);
+  const { reconstructPageText } = await import(layoutSpecifier);
   installPdfRuntimeCompat();
   const { getDocumentProxy } = await import("unpdf");
 
@@ -146,19 +152,24 @@ async function extractPagesSequentially(
         const items = content.items
           .map(toTextItem)
           .filter((item): item is PdfExtractedTextItem => item !== null);
-        const text = items.map((item) => item.text + (item.hasEOL ? "\n" : "")).join("");
-        const pageHeight = page.getViewport({ scale: 1 }).height;
+        const viewport = page.getViewport({ scale: 1 });
+        const pageWidth = viewport.width;
+        const pageHeight = viewport.height;
         const pdfPageLabel = pageLabels[pageNumber - 1] ?? null;
-        const footer = pdfPageLabel ? null : detectFooterPageLabel(items, pageHeight);
+        const printed = pdfPageLabel ? null : detectPrintedPageLabel(items, pageHeight);
+        const layout = reconstructPageText(items, pageWidth, pageHeight);
         emit({
           type: "page",
           pageNumber,
           totalPages,
-          text,
+          text: layout.text,
           items,
-          pageLabel: pdfPageLabel ?? footer?.pageLabel ?? null,
-          pageLabelSource: pdfPageLabel ? "PDF_PAGE_LABEL" : footer ? "FOOTER_TEXT" : null,
-          pageLabelConfidence: pdfPageLabel ? 1 : footer?.confidence ?? null
+          pageLabel: pdfPageLabel ?? printed?.pageLabel ?? null,
+          pageLabelSource: pdfPageLabel ? "PDF_PAGE_LABEL" : printed ? "FOOTER_TEXT" : null,
+          pageLabelConfidence: pdfPageLabel ? 1 : printed?.confidence ?? null,
+          pageWidth,
+          pageHeight,
+          columnCount: layout.columnCount
         });
       } finally {
         page.cleanup();

@@ -13,6 +13,7 @@ export interface PdfTextItemForLabel {
   y: number;
   width: number;
   height: number;
+  fontSize?: number;
 }
 
 export interface PageLabelCandidate {
@@ -34,6 +35,93 @@ function normalizeCandidate(value: string): string {
 
 function isPrintedPageLabel(value: string): boolean {
   return PRINTED_PAGE_LABEL.test(value) && !NOISE_TEXT.test(value);
+}
+
+/** 图框「页次」右侧的印刷页码，优先于泛页脚最低点候选。 */
+export function detectTitleBlockPageLabel(
+  items: ReadonlyArray<PdfTextItemForLabel>
+): PageLabelCandidate | null {
+  const markers = items.filter((item) => {
+    const compact = item.text.replace(/\s+/g, "");
+    return compact === "页次" || /^页次$/.test(item.text.trim());
+  });
+  const candidates: Array<{ value: string; distance: number }> = [];
+  for (const marker of markers) {
+    for (const item of items) {
+      if (item === marker) continue;
+      const value = normalizeCandidate(item.text);
+      if (!isPrintedPageLabel(value)) continue;
+      const dy = Math.abs(item.y - marker.y);
+      if (dy > 16) continue;
+      if (item.x < marker.x - 8) continue;
+      candidates.push({ value, distance: Math.abs(item.x - marker.x) + dy });
+    }
+  }
+  if (candidates.length === 0) return null;
+  candidates.sort((a, b) => a.distance - b.distance);
+  return { pageLabel: candidates[0]!.value, confidence: 0.9 };
+}
+
+/** 印刷页码识别：页次标题栏 → 页脚区域。 */
+export function detectPrintedPageLabel(
+  items: ReadonlyArray<PdfTextItemForLabel>,
+  pageHeight: number,
+  footerRatio = 0.15
+): PageLabelCandidate | null {
+  return detectTitleBlockPageLabel(items) ?? detectFooterPageLabel(items, pageHeight, footerRatio);
+}
+
+export type PageLabelMappingStatus = "VERIFIED" | "HIGH_CONFIDENCE" | "LOW_CONFIDENCE" | "UNMAPPED";
+
+export function pageLabelMappingStatus(input: {
+  source: PageLabelSource;
+  confidence: number | null;
+  verified?: boolean;
+}): PageLabelMappingStatus {
+  if (input.verified || input.source === "MANUAL") return "VERIFIED";
+  if (input.source === "FALLBACK" || input.confidence == null) return "UNMAPPED";
+  if (input.confidence >= 0.8) return "HIGH_CONFIDENCE";
+  if (input.confidence >= 0.5) return "LOW_CONFIDENCE";
+  return "UNMAPPED";
+}
+
+export interface PrintedPageLabelEntry {
+  physical: number;
+  label: string;
+  source: PageLabelSource;
+  confidence: number | null;
+}
+
+/**
+ * 仅收非 FALLBACK 的印刷页码。同标签多页时保持未映射，避免把 TOC 的 A5 指到错误物理页。
+ */
+export function buildPrintedPageLabelMap(
+  pages: ReadonlyArray<PrintedPageLabelEntry>
+): Map<string, number> {
+  const grouped = new Map<string, PrintedPageLabelEntry[]>();
+  for (const page of pages) {
+    if (!page.label || page.source === "FALLBACK") continue;
+    const key = page.label.replace(/\s+/g, "").toUpperCase();
+    if (!key) continue;
+    const list = grouped.get(key) ?? [];
+    list.push(page);
+    grouped.set(key, list);
+  }
+  const map = new Map<string, number>();
+  for (const [label, list] of grouped) {
+    const uniquePhysical = [...new Set(list.map((item) => item.physical))];
+    if (uniquePhysical.length !== 1) continue;
+    map.set(label, uniquePhysical[0]!);
+  }
+  return map;
+}
+
+export function resolveTocPhysicalPage(
+  pageLabel: string | null | undefined,
+  pageLabelMap: ReadonlyMap<string, number>
+): number | null {
+  if (!pageLabel) return null;
+  return pageLabelMap.get(pageLabel.replace(/\s+/g, "").toUpperCase()) ?? null;
 }
 
 /** 仅从 PDF 页面底部区域识别印刷页码，不使用整页字符串。 */

@@ -18,7 +18,7 @@ MinIO 内部连接地址与返回浏览器的预签名公开地址必须分开�
 
 文档 Worker：
 
-- PDF 使用 UnPDF，DOCX 使用 Mammoth，XLSX 使用 ExcelJS（每工作表一个页面，表格按行产出结构化 TABLE 分块，metadata 保留行列与合并单元格）；`.doc`/`.xls` 老格式不支持，标记 `OCR_REQUIRED` 并提示转换后重传。
+- PDF 使用 UnPDF 逐页提取：书签大纲须经 `validatePdfOutline` 质量门，噪声 CAD 导航不写入 TOC，改解析目录页；正文按分栏几何重建阅读顺序；pageLabel 与 physicalPageNumber 分离。DOCX 使用 Mammoth，XLSX 使用 ExcelJS（每工作表一个页面，表格按行产出结构化 TABLE 分块，metadata 保留行列与合并单元格）；`.doc`/`.xls` 老格式不支持，标记 `OCR_REQUIRED` 并提示转换后重传。
 - 保存文档版本、页码、章节和切片序号。
 - 可提取文本进入 PostgreSQL 全文索引。
 - 图片或无有效文本的 PDF 标记 `OCR_REQUIRED`。

@@ -139,7 +139,7 @@ bash deploy/deploy.sh <git 仓库地址>
 脚本首次运行会生成随机 `JWT_SECRET`、`AI_CONFIG_ENCRYPTION_KEY`、`POSTGRES_PASSWORD` 和 MinIO 凭证，随后退出并提示你编辑 `.env`：
 
 - `BOOTSTRAP_ADMIN_PASSWORD`：管理员登录密码，至少 12 位。
-- 浏览器必须与 API 同源：B 端生产用相对路径 `/`，本地开发开启 `VITE_OPEN_PROXY` 走 Vite 代理。后端不再回写 CORS。
+- 跨域对任意前端来源放行（含 `http://192.168.x.x:8871` 等局域网调试地址）。生产若有外层 Nginx/宝塔，请按 `deploy/host-nginx.example.conf` 让 OPTIONS 预检直接返回 204。
 
 修改完成后再次运行同一命令，脚本校验必填配置、构建镜像并启动 `postgres`、`redis`、`minio`、`api`、`worker`、`nginx` 六个服务，最后自动健康检查（最多 120 秒）。访问地址为 `http://<服务器IP>:8080`。
 

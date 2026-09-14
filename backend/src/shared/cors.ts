@@ -1,5 +1,18 @@
 /**
- * 浏览器与 API 必须同源：开发走 Vite 代理，生产走同域反代。
- * 不再注册 @fastify/cors，也不回写 Access-Control-*。
+ * 对任意浏览器来源放行跨域（含局域网 IP / 任意端口）。
+ * 回显请求 Origin，避免 `*` 与 credentials 冲突；鉴权仍走 JWT，不依赖同源。
  */
-export const CORS_DISABLED = true;
+export const CORS_METHODS = ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"] as const;
+
+export const CORS_EXPOSED_HEADERS = ["x-request-id"] as const;
+
+export const corsPluginOptions = {
+  origin: true as const,
+  credentials: true,
+  methods: [...CORS_METHODS],
+  exposedHeaders: [...CORS_EXPOSED_HEADERS],
+  maxAge: 86400,
+  strictPreflight: false,
+  preflightContinue: false,
+  hook: "onRequest" as const
+};

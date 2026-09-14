@@ -154,7 +154,7 @@ export const knowledgeAssetRoleEnum = pgEnum("knowledge_asset_role", [
   "PREVIEW"
 ]);
 
-/** TOC 条目来源：PDF 书签 / 目录页解析（P1）/ 人工 / 配套检索文件 */
+/** TOC 条目来源：质量合格的 PDF 书签 / 目录页解析 / 人工 / 配套检索文件 */
 export const knowledgeTocSourceEnum = pgEnum("knowledge_toc_source", [
   "PDF_BOOKMARK",
   "TOC_PAGE",

@@ -49,6 +49,14 @@ import {
 } from "../modules/knowledge/knowledge-chunking.js";
 import { buildPageMappings, type PageMappingDraft } from "../modules/knowledge/knowledge-page-mapping.js";
 import { findVisualPageMatches } from "../modules/knowledge/pdf-visual-matcher.js";
+import { buildKnowledgeTocDraft } from "../modules/knowledge/knowledge-toc-draft.js";
+import { validatePdfOutline } from "../modules/knowledge/pdf-outline-quality.js";
+import {
+  collectRepeatedTemplateLines,
+  stripRepeatedTemplateLines
+} from "../modules/knowledge/pdf-layout-text.js";
+import type { ParsedTocItem } from "../modules/knowledge/pdf-toc-page.js";
+import type { PageLabelSource } from "../modules/knowledge/knowledge-page-label.js";
 
 // 兼容既有测试与调用方：splitText 由分块纯函数模块提供
 export { splitText };
@@ -58,8 +66,9 @@ interface ParsedPage {
   text: string;
   items?: PdfExtractedPage["items"];
   label?: string | null;
-  labelSource?: "PDF_PAGE_LABEL" | "FOOTER_TEXT" | null;
+  labelSource?: Extract<PageLabelSource, "PDF_PAGE_LABEL" | "FOOTER_TEXT"> | null;
   labelConfidence?: number | null;
+  columnCount?: number;
 }
 
 interface ParsedDocument {
@@ -138,7 +147,8 @@ async function parseDocument(
         items: page.items,
         label: page.pageLabel,
         labelSource: page.pageLabelSource,
-        labelConfidence: page.pageLabelConfidence
+        labelConfidence: page.pageLabelConfidence,
+        columnCount: page.columnCount
       }))
     };
   }
@@ -545,52 +555,106 @@ export function isNoTextLayer(totalTextLength: number): boolean {
   return totalTextLength < env.PDF_TEXT_LAYER_MIN_CHARS;
 }
 
-/** 由书签大纲写 TOC（PENDING_REVIEW 初稿）：同来源非 CONFIRMED 条目可被重跑覆盖，人工确认条目永不覆盖 */
-async function writeTocFromOutline(
+/** 由解析 TOC 草稿写正式目录：覆盖自动条目，保留 CONFIRMED 与 MANUAL。 */
+async function replaceAutoToc(
   tx: DbExecutor,
   input: {
     documentId: string;
     versionId: string;
-    outline: PdfOutlineItem[];
-    source: "PDF_BOOKMARK" | "COMPANION_FILE";
+    items: ParsedTocItem[];
     maxPage: number | null;
     createdById?: string | null;
   }
 ): Promise<number> {
-  const items = input.outline.filter((item) => item.title.trim());
-  if (items.length === 0) return 0;
   await tx.delete(knowledgeTocItems).where(and(
     eq(knowledgeTocItems.versionId, input.versionId),
-    eq(knowledgeTocItems.source, input.source),
-    ne(knowledgeTocItems.status, "CONFIRMED")
+    ne(knowledgeTocItems.status, "CONFIRMED"),
+    ne(knowledgeTocItems.source, "MANUAL")
   ));
+  const items = input.items.filter((item) => item.title.trim());
+  if (items.length === 0) return 0;
   const parentStack: Array<{ id: string; level: number }> = [];
   let sortOrder = 0;
   for (const item of items) {
-    while (parentStack.length > 0 && parentStack[parentStack.length - 1]!.level >= Math.max(1, item.level)) {
+    const level = Math.max(1, item.level);
+    while (parentStack.length > 0 && parentStack[parentStack.length - 1]!.level >= level) {
       parentStack.pop();
     }
-    const physical = item.pageNumber != null && item.pageNumber >= 1
-      && (input.maxPage == null || item.pageNumber <= input.maxPage)
-      ? item.pageNumber
+    const physical = item.physicalPageNumber != null && item.physicalPageNumber >= 1
+      && (input.maxPage == null || item.physicalPageNumber <= input.maxPage)
+      ? item.physicalPageNumber
       : null;
+    const source = item.source === "PDF_BOOKMARK" || item.source === "TOC_PAGE" || item.source === "COMPANION_FILE"
+      ? item.source
+      : "TOC_PAGE";
     const [row] = await tx.insert(knowledgeTocItems).values({
       documentId: input.documentId,
       versionId: input.versionId,
       parentId: parentStack.length > 0 ? parentStack[parentStack.length - 1]!.id : null,
-      level: Math.max(1, item.level),
+      level,
       sortOrder,
       title: item.title.slice(0, 255),
+      pageLabel: item.pageLabel ?? null,
       physicalPageNumber: physical,
-      source: input.source,
-      confidence: physical != null ? 1 : 0.5,
+      source,
+      confidence: item.confidence,
       status: "PENDING_REVIEW" as const,
       createdById: input.createdById ?? null
     }).returning({ id: knowledgeTocItems.id });
-    if (row) parentStack.push({ id: row.id, level: Math.max(1, item.level) });
+    if (row) parentStack.push({ id: row.id, level });
     sortOrder += 1;
   }
   return sortOrder;
+}
+
+function applyRepeatedTemplateFilter(pages: ParsedPage[]): ParsedPage[] {
+  const repeated = collectRepeatedTemplateLines(pages.map((page) => page.text));
+  if (repeated.size === 0) return pages;
+  return pages.map((page) => ({ ...page, text: stripRepeatedTemplateLines(page.text, repeated) }));
+}
+
+function logKnowledgeParseSummary(input: {
+  versionId: string;
+  pageCount: number;
+  outlineCount: number;
+  uniqueTitles: number;
+  outlineAccepted: boolean;
+  rejectionReasons: string[];
+  tocSource: string | null;
+  tocItemCount: number;
+  recognizedLabels: number;
+  fallbackLabels: number;
+  unmappedToc: number;
+  multiColumnPages: number;
+}): void {
+  console.info("知识库 PDF 解析摘要", {
+    versionId: input.versionId,
+    pageCount: input.pageCount,
+    outline: {
+      count: input.outlineCount,
+      uniqueTitles: input.uniqueTitles,
+      accepted: input.outlineAccepted,
+      rejectionReasons: input.rejectionReasons
+    },
+    toc: {
+      source: input.tocSource,
+      itemCount: input.tocItemCount
+    },
+    pageLabels: {
+      recognized: input.recognizedLabels,
+      fallback: input.fallbackLabels,
+      unmapped: input.unmappedToc
+    },
+    layout: {
+      multiColumnPages: input.multiColumnPages
+    }
+  });
+  if (!input.outlineAccepted && input.outlineCount > 0) {
+    console.info("OUTLINE_REJECTED", {
+      versionId: input.versionId,
+      reasons: input.rejectionReasons
+    });
+  }
 }
 
 /** 落库页面映射草稿：仅替换自动映射，人工 MANUAL/verified 映射在重跑时保持不变。 */
@@ -717,6 +781,18 @@ async function parseSingleSource(
     .where(eq(knowledgeDocumentVersions.id, context.versionId));
   await job.updateProgress(60);
 
+  const pages = applyRepeatedTemplateFilter(parsed.pages);
+  const tocDraft = buildKnowledgeTocDraft({
+    outline,
+    pages: pages.flatMap((page) => page.page == null ? [] : [{
+      physical: page.page,
+      text: page.text,
+      label: page.label ?? null,
+      labelSource: page.labelSource ?? "FALLBACK",
+      labelConfidence: page.labelConfidence ?? null
+    }])
+  });
+
   const result = await db.transaction(async (tx) => {
     const written = await writeKnowledgeContent(tx, {
       documentId: version.documentId,
@@ -725,27 +801,24 @@ async function parseSingleSource(
       projectId: documentRow.projectId,
       aliases,
       evidenceLevel: version.evidenceLevel,
-      originalPages: parsed.pages.map((page) => ({
+      originalPages: pages.map((page) => ({
         physical: page.page ?? 0,
         label: page.label ?? null,
         labelSource: page.labelSource ?? "FALLBACK",
         labelConfidence: page.labelConfidence ?? null,
         text: page.text
       })),
-      contentPages: parsed.pages
+      contentPages: pages
         .filter((page) => page.page != null)
         .map((page) => ({ physical: page.page!, text: page.text, targetPhysical: page.page! })),
       sheets: parsed.sheets ?? null
     });
-    if (outline.length > 0) {
-      await writeTocFromOutline(tx, {
-        documentId: version.documentId,
-        versionId: context.versionId,
-        outline,
-        source: "PDF_BOOKMARK",
-        maxPage: parsed.pages.length
-      });
-    }
+    const tocItemCount = await replaceAutoToc(tx, {
+      documentId: version.documentId,
+      versionId: context.versionId,
+      items: tocDraft.items,
+      maxPage: pages.length
+    });
     await tx.update(knowledgeDocumentVersions).set({
       parseStatus: "PARSED",
       pageCount: written.pageCount,
@@ -757,7 +830,7 @@ async function parseSingleSource(
     }).where(eq(knowledgeDocumentVersions.id, context.versionId));
     await tx.update(files).set({ status: "READY", errorMessage: null, updatedAt: new Date() })
       .where(eq(files.id, context.fileId));
-    return written;
+    return { ...written, tocItemCount };
   });
 
   await db.update(parsingJobs).set({
@@ -765,11 +838,27 @@ async function parseSingleSource(
     result: {
       status: "READY", versionId: context.versionId,
       pageCount: result.pageCount, chunkCount: result.chunkCount, parser: parsed.parser,
-      tocItemCount: outline.length
+      tocItemCount: result.tocItemCount,
+      tocSource: tocDraft.source,
+      outlineAccepted: tocDraft.outlineQuality.valid
     },
     finishedAt: new Date(), updatedAt: new Date()
   }).where(eq(parsingJobs.id, context.parsingJobId));
   await job.updateProgress(100);
+  logKnowledgeParseSummary({
+    versionId: context.versionId,
+    pageCount: result.pageCount,
+    outlineCount: tocDraft.outlineQuality.metrics.outlineCount,
+    uniqueTitles: tocDraft.outlineQuality.metrics.uniqueTitleCount,
+    outlineAccepted: tocDraft.outlineQuality.valid,
+    rejectionReasons: tocDraft.outlineQuality.reasons,
+    tocSource: tocDraft.source,
+    tocItemCount: result.tocItemCount,
+    recognizedLabels: pages.filter((page) => Boolean(page.labelSource)).length,
+    fallbackLabels: pages.filter((page) => !page.labelSource).length,
+    unmappedToc: tocDraft.items.filter((item) => item.pageLabel && item.physicalPageNumber == null).length,
+    multiColumnPages: pages.filter((page) => (page.columnCount ?? 1) >= 2).length
+  });
   if (parsed.parser === "unpdf") {
     const [fileRow] = await db.select({ objectKey: files.objectKey }).from(files).where(eq(files.id, context.fileId)).limit(1);
     if (fileRow) await renderOriginalPreviews(db, storage, { versionId: context.versionId, objectKey: fileRow.objectKey });
@@ -803,6 +892,38 @@ async function parseDualSource(
     return finishNoSearchSource(context, originalPageDetails, version, "检索文本源也没有文本层：请提供可复制文本的检索版 PDF，或开启 OCR 后重试");
   }
   const aliases = await loadActiveAliases(db);
+  const originalHasText = originalPageDetails.some((page) => page.text.trim().length > 50);
+  const searchPages = applyRepeatedTemplateFilter(searchExtraction.pageDetails.map((page) => ({
+    page: page.pageNumber,
+    text: page.text,
+    label: page.pageLabel,
+    labelSource: page.pageLabelSource,
+    labelConfidence: page.pageLabelConfidence,
+    columnCount: page.columnCount
+  })));
+  const tocDraft = (() => {
+    const fromOriginal = buildKnowledgeTocDraft({
+      outline: originalOutline,
+      pages: originalPageDetails.map((page) => ({
+        physical: page.pageNumber,
+        text: page.text,
+        label: page.pageLabel,
+        labelSource: page.pageLabelSource ?? "FALLBACK",
+        labelConfidence: page.pageLabelConfidence
+      }))
+    });
+    if (fromOriginal.items.length > 0 || originalHasText) return fromOriginal;
+    return buildKnowledgeTocDraft({
+      outline: searchExtraction.outline,
+      pages: searchPages.flatMap((page) => page.page == null ? [] : [{
+        physical: page.page,
+        text: page.text,
+        label: page.label ?? null,
+        labelSource: page.labelSource ?? "FALLBACK",
+        labelConfidence: page.labelConfidence ?? null
+      }])
+    });
+  })();
 
   // Original 只保存页面与预览；其印刷页码优先来自自身 PDF 标签或页脚识别结果。
   const originalPages: OriginalPageInput[] = originalPageDetails.map((page) => ({
@@ -849,16 +970,18 @@ async function parseDualSource(
         pageLabel: row.pageLabel,
         physicalPageNumber: row.physicalPageNumber
       })),
-      ...originalOutline.map((item) => ({
+      ...tocDraft.items.map((item) => ({
         title: item.title,
-        pageLabel: null,
-        physicalPageNumber: item.pageNumber
+        pageLabel: item.pageLabel ?? null,
+        physicalPageNumber: item.physicalPageNumber ?? null
       }))
     ],
-    searchOutline: searchExtraction.outline.map((item) => ({
-      title: item.title,
-      pageNumber: item.pageNumber
-    })),
+    searchOutline: validatePdfOutline(searchExtraction.outline, searchExtraction.pages.length).valid
+      ? searchExtraction.outline.map((item) => ({
+        title: item.title,
+        pageNumber: item.pageNumber
+      }))
+      : [],
     visualMatches
   });
   const preservedMappings = await db.select({
@@ -898,24 +1021,21 @@ async function parseDualSource(
       aliases,
       evidenceLevel: version.evidenceLevel,
       originalPages,
-      contentPages: searchExtraction.pages.map((text, index) => ({
-        physical: index + 1,
-        text,
+      contentPages: searchPages.map((page) => ({
+        physical: page.page ?? 0,
+        text: page.text,
         // 不按物理页硬对齐；未映射内容不进入可引用索引。
-        targetPhysical: mappingBySearchPage.get(index + 1) ?? null
+        targetPhysical: page.page != null ? mappingBySearchPage.get(page.page) ?? null : null
       })),
       sheets: null,
       contentFromSearchSource: true
     });
-    if (originalOutline.length > 0) {
-      await writeTocFromOutline(tx, {
-        documentId: version.documentId,
-        versionId: context.versionId,
-        outline: originalOutline,
-        source: "PDF_BOOKMARK",
-        maxPage: originalTotalPages
-      });
-    }
+    const tocItemCount = await replaceAutoToc(tx, {
+      documentId: version.documentId,
+      versionId: context.versionId,
+      items: tocDraft.items,
+      maxPage: originalTotalPages
+    });
     const originalPageIdByPhysical = new Map<number, string>();
     const pageRows = await tx.select({ id: knowledgePages.id, physicalPageNumber: knowledgePages.physicalPageNumber })
       .from(knowledgePages).where(eq(knowledgePages.versionId, context.versionId));
@@ -926,15 +1046,6 @@ async function parseDualSource(
       mappings,
       originalPageIdByPhysical
     });
-    if (searchExtraction.outline.length > 0) {
-      await writeTocFromOutline(tx, {
-        documentId: version.documentId,
-        versionId: context.versionId,
-        outline: searchExtraction.outline,
-        source: "COMPANION_FILE",
-        maxPage: searchExtraction.pages.length
-      });
-    }
     await tx.update(knowledgeDocumentVersions).set({
       parseStatus: "NO_TEXT_LAYER",
       pageCount: written.pageCount,
@@ -946,7 +1057,7 @@ async function parseDualSource(
     }).where(eq(knowledgeDocumentVersions.id, context.versionId));
     await tx.update(files).set({ status: "READY", errorMessage: null, updatedAt: new Date() })
       .where(eq(files.id, context.fileId));
-    return { written, mappingCount };
+    return { written, mappingCount, tocItemCount };
   });
 
   await db.update(parsingJobs).set({
@@ -956,11 +1067,28 @@ async function parseDualSource(
       pageCount: result.written.pageCount, chunkCount: result.written.chunkCount,
       searchPageCount: searchExtraction.pages.length,
       mappedPages: result.mappingCount,
-      verifiedMappings: 0
+      verifiedMappings: 0,
+      tocItemCount: result.tocItemCount,
+      tocSource: tocDraft.source,
+      outlineAccepted: tocDraft.outlineQuality.valid
     },
     finishedAt: new Date(), updatedAt: new Date()
   }).where(eq(parsingJobs.id, context.parsingJobId));
   await job.updateProgress(100);
+  logKnowledgeParseSummary({
+    versionId: context.versionId,
+    pageCount: result.written.pageCount,
+    outlineCount: tocDraft.outlineQuality.metrics.outlineCount,
+    uniqueTitles: tocDraft.outlineQuality.metrics.uniqueTitleCount,
+    outlineAccepted: tocDraft.outlineQuality.valid,
+    rejectionReasons: tocDraft.outlineQuality.reasons,
+    tocSource: tocDraft.source,
+    tocItemCount: result.tocItemCount,
+    recognizedLabels: originalPages.filter((page) => page.labelSource && page.labelSource !== "FALLBACK").length,
+    fallbackLabels: originalPages.filter((page) => !page.labelSource || page.labelSource === "FALLBACK").length,
+    unmappedToc: tocDraft.items.filter((item) => item.pageLabel && item.physicalPageNumber == null).length,
+    multiColumnPages: searchPages.filter((page) => (page.columnCount ?? 1) >= 2).length
+  });
   const [originalFile] = await db.select({ objectKey: files.objectKey }).from(files).where(eq(files.id, context.fileId)).limit(1);
   if (originalFile) {
     await renderOriginalPreviews(db, storage, { versionId: context.versionId, objectKey: originalFile.objectKey });
@@ -1069,7 +1197,8 @@ async function handleParseJob(
           text: page.text,
           label: page.pageLabel,
           labelSource: page.pageLabelSource ?? undefined,
-          labelConfidence: page.pageLabelConfidence
+          labelConfidence: page.pageLabelConfidence,
+          columnCount: page.columnCount
         }))
       };
       if (isNoTextLayer(totalTextLength)) {

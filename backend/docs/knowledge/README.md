@@ -155,9 +155,10 @@ document → document_versions(fileId) → files(bucket+objectKey) → OSS/MinIO
 ```
 
 - **双源资产**（`knowledge_document_assets`）：ORIGINAL 正式展示原文件；SEARCH_SOURCE 检索文本源（可后绑定到任意未停用版本，upload-intent/complete 传 `assetRole`）；历史 fileId 已回填为 ORIGINAL+SEARCH_SOURCE 同文件。
-- **TOC**（`knowledge_toc_items`）：来源 PDF_BOOKMARK/COMPANION_FILE/MANUAL/TOC_PAGE(P1)；自动识别一律 PENDING_REVIEW 初稿，B 端「目录维护」人工校正后 CONFIRMED；TOC ≠ Section（`sectionId` 仅导航关联）。
-- **Page 拆分**：`physical_page_number`（程序定位）+ `page_label`（用户展示，A1/A5/D16 等非整数，禁止 Number()）+ `page_title`；`pageNumber` 保留过渡。
-- **转曲件**：`NO_TEXT_LAYER`（非解析失败）→ 绑定 SEARCH_SOURCE 后双源解析并建立 `knowledge_page_mappings`（TOC 标题对齐 0.9 → 插值 0.25 → 页数相等恒等兜底 0.3；禁止物理页硬对齐）；无检索源 `SEARCH_SOURCE_REQUIRED` 只能 BROWSE_ONLY 发布。
+- **TOC**（`knowledge_toc_items`）：来源优先「质量合格的 PDF_BOOKMARK」，否则解析目录页 TOC_PAGE（点线+页码标签，保留 A/B/C 层级）；CAD 软件导航（「图纸和视图/模型」重复树）经 `validatePdfOutline` 拒绝，不写入正式目录。自动识别一律 PENDING_REVIEW 初稿，B 端「目录维护」人工校正后 CONFIRMED；重新解析只覆盖非 CONFIRMED 且非 MANUAL 的自动条目；TOC ≠ Section（`sectionId` 仅导航关联）。
+- **Page 拆分**：`physical_page_number`（程序定位）+ `page_label`（用户展示，A1/A5/D16 等非整数，禁止 Number()）+ `page_title`；`pageNumber` 保留过渡。印刷页码优先 PDF Page Labels → 图框「页次」/页脚 → TOC 映射，禁止把 FALLBACK 的物理页号当成印刷页码。
+- **转曲件**：`NO_TEXT_LAYER`（非解析失败）→ 绑定 SEARCH_SOURCE 后双源解析并建立 `knowledge_page_mappings`（页签精确 / TOC 标题 / 视觉匹配；禁止线性插值和物理页硬对齐）；无检索源 `SEARCH_SOURCE_REQUIRED` 只能 BROWSE_ONLY 发布。
+- **正文抽取**：PDF 文本按几何重建阅读顺序（先分栏，栏内从上到下、行内从左到右），页眉页脚图框模板在提取 pageLabel 后再从正文剔除。
 - **发布门禁**：AI_ENABLED 必须存在可搜索文本源（硬拦截）；TOC 未确认/映射未核验为软提示（发布响应 `warnings`）。
 - **页面预览**：ORIGINAL PDF 逐页渲染 PNG→OSS（`pdf-page-renderer.ts`，请求-应答协议 concurrency=1，`PDF_PREVIEW_DPI` 默认 130，幂等跳过已渲染页）。
 - **Block 级 Section 归属**：`parsePageToBlocks` 逐行扫描遇标题切换 activeSection，同页多小节各归各；`buildSectionDrafts` 由块聚合章节（替代 detectHeading 整页猜测）。
