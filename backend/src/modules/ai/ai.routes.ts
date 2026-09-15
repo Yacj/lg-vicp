@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { generateObject, streamText, type LanguageModelUsage, type ModelMessage } from "ai";
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
-import { and, asc, count, desc, eq, ilike, inArray, isNull, lt, notInArray, or } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, inArray, isNull, lt, lte, notInArray, or } from "drizzle-orm";
 import { z } from "zod";
 import { env } from "../../config/env.js";
 import {
@@ -188,6 +188,43 @@ async function findAssistantMessageWithConversation(app: FastifyInstance, id: st
     ))
     .limit(1);
   return row;
+}
+
+/**
+ * 重新生成时定位对应的用户问题。
+ * 用户消息与助手消息在同一事务插入，PostgreSQL now() 事务内稳定，created_at 会相同；
+ * 不能用严格小于 created_at，否则会 404「未找到可用于重新生成的用户问题」。
+ */
+async function findUserQuestionForAssistant(
+  app: FastifyInstance,
+  conversationId: string,
+  assistant: typeof aiMessages.$inferSelect
+) {
+  if (assistant.requestId) {
+    const [paired] = await app.db.select().from(aiMessages)
+      .where(and(
+        eq(aiMessages.conversationId, conversationId),
+        eq(aiMessages.role, "USER"),
+        eq(aiMessages.status, "COMPLETED"),
+        eq(aiMessages.requestId, assistant.requestId)
+      ))
+      .orderBy(desc(aiMessages.createdAt))
+      .limit(1);
+    if (paired) {
+      return paired;
+    }
+  }
+
+  const [lastUser] = await app.db.select().from(aiMessages)
+    .where(and(
+      eq(aiMessages.conversationId, conversationId),
+      eq(aiMessages.role, "USER"),
+      eq(aiMessages.status, "COMPLETED"),
+      lte(aiMessages.createdAt, assistant.createdAt)
+    ))
+    .orderBy(desc(aiMessages.createdAt))
+    .limit(1);
+  return lastUser;
 }
 
 export async function aiRoutes(app: FastifyInstance) {
@@ -928,15 +965,7 @@ export async function aiRoutes(app: FastifyInstance) {
       throw new ConflictError("当前会话已有正在生成的 AI 回答");
     }
 
-    const [lastUserMessage] = await app.db.select().from(aiMessages)
-      .where(and(
-        eq(aiMessages.conversationId, row.conversation.id),
-        eq(aiMessages.role, "USER"),
-        eq(aiMessages.status, "COMPLETED"),
-        lt(aiMessages.createdAt, row.message.createdAt)
-      ))
-      .orderBy(desc(aiMessages.createdAt))
-      .limit(1);
+    const lastUserMessage = await findUserQuestionForAssistant(app, row.conversation.id, row.message);
     if (!lastUserMessage) {
       await releaseGenerationLock(app, lockKey, lockToken);
       throw new NotFoundError("未找到可用于重新生成的用户问题");
