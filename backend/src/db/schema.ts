@@ -2467,7 +2467,7 @@ export type ReportTemplateSection = {
   content?: string;
 };
 
-/** 报告模板：版本化审核实体（发布后供报告生成引用），章节顺序/启用集在 B 端配置 */
+/** 报告模板：内部渲染配置（版本化实体）。普通业务按 reportType 自动选用，不在日常菜单维护。 */
 export const reportTemplates = pgTable(
   "report_templates",
   {
@@ -2507,6 +2507,27 @@ export const reportSnapshots = pgTable(
     ...timestamps
   },
   (table) => [uniqueIndex("report_snapshots_report_unique").on(table.reportId)]
+);
+
+/** 全局报告设置（单行）：页眉页脚/免责声明/默认类型与导出格式。企业名称与 Logo 复用已发布 enterprise_profiles，不在此表重复存储。 */
+export const reportSettings = pgTable(
+  "report_settings",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    key: varchar("key", { length: 32 }).notNull().default("default"),
+    defaultReportType: varchar("default_report_type", { length: 80 }),
+    coverTitle: varchar("cover_title", { length: 200 }),
+    showCalculationProcess: boolean("show_calculation_process").notNull().default(true),
+    showSourceReferences: boolean("show_source_references").notNull().default(true),
+    showDisclaimer: boolean("show_disclaimer").notNull().default(true),
+    disclaimerText: text("disclaimer_text"),
+    headerText: varchar("header_text", { length: 200 }),
+    footerText: varchar("footer_text", { length: 200 }),
+    defaultExportFormat: varchar("default_export_format", { length: 16 }).notNull().default("PDF"),
+    updatedById: uuid("updated_by_id").references(() => users.id, { onDelete: "set null" }),
+    ...timestamps
+  },
+  (table) => [uniqueIndex("report_settings_key_unique").on(table.key)]
 );
 
 /** 统一审核状态：跨域（产品/构造/热工/标准/比较/报告）审核记录状态 */
@@ -2824,6 +2845,7 @@ export type Prompt = typeof prompts.$inferSelect;
 export type PromptVersion = typeof promptVersions.$inferSelect;
 export type AiQuickPrompt = typeof aiQuickPrompts.$inferSelect;
 export type Report = typeof reports.$inferSelect;
+export type ReportSettings = typeof reportSettings.$inferSelect;
 export type AiMessageAttachment = typeof aiMessageAttachments.$inferSelect;
 export type ShareLink = typeof shareLinks.$inferSelect;
 export type KnowledgeDocument = typeof knowledgeDocuments.$inferSelect;

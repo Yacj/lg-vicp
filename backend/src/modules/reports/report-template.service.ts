@@ -19,8 +19,8 @@ import {
 } from "../masterdata/md-workflow.service.js";
 
 /**
- * 报告模板服务：版本化审核实体（发布后供模板报告生成引用）。
- * 章节配置（sectionsJson）在 B 端维护，模板发布后不可直接修改，通过 new-version 派生新草稿。
+ * 报告模板服务：内部渲染配置（版本化实体）。
+ * 普通业务按系统预置 reportType 自动选用已发布模板；本章节配置仅 SUPER_ADMIN / 高级技术管理员维护。
  */
 
 // 模块加载时注册版本化实体元数据（masterdata 状态机按名取元数据，注册后即可复用 submit/approve/...）
@@ -291,7 +291,10 @@ export function createTemplateNextVersion(
   return createNextVersion(app, request, actor, "reportTemplate", id, changeNote);
 }
 
-/** 默认模板章节配置（种子与示例使用）：章节齐全、按任务清单顺序，免责声明为 TEXT 待甲方确认文案 */
+const DEFAULT_DISCLAIMER =
+  "本报告由蓝格 VICP 建筑节能 AI 智配系统生成，工程结论应由专业人员复核。（免责声明正式措辞待甲方确认）";
+
+/** 默认模板章节配置（内部预置）：章节齐全、按标准工程报告顺序 */
 export const DEFAULT_REPORT_SECTIONS: ReportTemplateSection[] = [
   { key: "enterprise", title: "企业介绍", enabled: true, order: 1, sourceType: "DATA" },
   { key: "project", title: "项目条件", enabled: true, order: 2, sourceType: "DATA" },
@@ -304,5 +307,23 @@ export const DEFAULT_REPORT_SECTIONS: ReportTemplateSection[] = [
   { key: "comparison", title: "材料对比", enabled: false, order: 9, sourceType: "DATA" },
   { key: "acceptance", title: "施工验收", enabled: true, order: 10, sourceType: "DATA" },
   { key: "sources", title: "来源", enabled: true, order: 11, sourceType: "DATA" },
-  { key: "disclaimer", title: "免责声明", enabled: true, order: 12, sourceType: "TEXT", content: "本报告由蓝格 VICP 建筑节能 AI 智配系统生成，工程结论应由专业人员复核。（免责声明正式措辞待甲方确认）" }
+  { key: "disclaimer", title: "免责声明", enabled: true, order: 12, sourceType: "TEXT", content: DEFAULT_DISCLAIMER }
+];
+
+/** 项目方案简报：固定精简章节，普通管理员不可拖拽增删 */
+export const PROJECT_BRIEF_SECTIONS: ReportTemplateSection[] = [
+  { key: "enterprise", title: "封面", enabled: true, order: 1, sourceType: "DATA" },
+  { key: "project", title: "项目概况", enabled: true, order: 2, sourceType: "DATA" },
+  { key: "construction", title: "方案", enabled: true, order: 3, sourceType: "DATA" },
+  { key: "selection", title: "选用结论", enabled: true, order: 4, sourceType: "DATA" },
+  { key: "sources", title: "引用依据", enabled: true, order: 5, sourceType: "DATA" },
+  { key: "disclaimer", title: "免责声明", enabled: true, order: 6, sourceType: "TEXT", content: DEFAULT_DISCLAIMER }
+];
+
+/** 材料对比报告：固定对比章节 */
+export const MATERIAL_COMPARE_SECTIONS: ReportTemplateSection[] = [
+  { key: "enterprise", title: "封面", enabled: true, order: 1, sourceType: "DATA" },
+  { key: "comparison", title: "对比", enabled: true, order: 2, sourceType: "DATA" },
+  { key: "sources", title: "引用依据", enabled: true, order: 3, sourceType: "DATA" },
+  { key: "disclaimer", title: "免责声明", enabled: true, order: 4, sourceType: "TEXT", content: DEFAULT_DISCLAIMER }
 ];

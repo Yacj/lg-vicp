@@ -13,6 +13,6 @@ alwaysApply: false
 - 路由和 JSON 字段使用英文，Swagger 摘要、校验、错误及日志使用中文。
 
 路由边界：`platform` 为 B 端平台管理，`workspace` 为 B 端渠道工作台，`projects` 为共享只读项目，`files` 为统一文件资产中心 + 源文件（B_ADMIN FilePicker/文件中心，C/AI 端保持"我的源文件"口径，详见 `docs/files/README.md`），`ai` 为对话，`reports` 为报告，`client` 为 C 端/PC AI 端只读内容（企业介绍、公开文库，不依赖后台 RBAC）。平台路由要求 `B_ADMIN`，具体能力由权限码控制，超级管理员全量放行。
-- 平台路由的 `preHandler` 至少包含 `app.authenticate`；后台业务处理器还必须校验具体权限码。超级管理员直通，普通 B 端账号按角色权限执行。
+- 平台路由的 `preHandler` 至少包含 `app.authenticate`；后台业务处理器默认还必须校验具体权限码。超级管理员直通，普通 B 端账号按角色权限执行。例外：当前账号可见范围内的只读项目统计（`GET /platform/projects/statistics`）不要求按钮权限码，数据范围仍按业务角色约束。
 - 不能仅因为请求来自 B 端就允许系统管理操作；不能仅因为请求来自 C/AI 端就绕过项目、文件或会话权限。
 - 跨域对任意 Origin 放行：注册 `@fastify/cors` 回显请求 Origin；网关 OPTIONS 预检直接 204。

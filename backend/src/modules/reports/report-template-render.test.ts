@@ -33,6 +33,19 @@ describe("模板报告确定性渲染（无 AI、无数据库）", () => {
     expect(html.indexOf("<h2>企业介绍</h2>")).toBeLessThan(html.indexOf("<h2>免责声明</h2>"));
   });
 
+  it("快照内冻结的页眉页脚与封面标题参与渲染，不影响历史默认页脚", () => {
+    const html = renderTemplateHtml({
+      title: "原标题",
+      template: { name: "标准工程报告", sections },
+      enterprise: { name: "蓝格" },
+      settings: { coverTitle: "封面标题", headerText: "页眉", footerText: "自定义页脚" }
+    } as ReportSnapshotPayload);
+    expect(html).toContain("封面标题");
+    expect(html).toContain("页眉");
+    expect(html).toContain("自定义页脚");
+    expect(html).not.toContain("<h1>原标题</h1>");
+  });
+
   it("缺失数据不吞错：章节显式标注待补充", () => {
     const html = renderTemplateHtml({
       title: "空报告",

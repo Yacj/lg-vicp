@@ -11,7 +11,8 @@ import {
   schemeDocuments,
   thermalCalcRecords,
   thermalCandidateSelections,
-  thermalStandardLimits
+  thermalStandardLimits,
+  type ReportTemplateSection
 } from "../../db/schema.js";
 import { QUEUE_NAMES } from "../../queues/queues.js";
 import type { AuthUser } from "../../shared/auth-user.js";
@@ -23,61 +24,117 @@ import { writeAuditLog } from "../audit-logs/audit-log.service.js";
 import { publishedReferenceConditions, effectiveRangeConditions } from "../construction/construction-structure.service.js";
 import { listPublishedEnterpriseProfiles, listPublishedProductParameters } from "../masterdata/md-read.service.js";
 import { listPublishedNodesWithLinks } from "../nodes/node.service.js";
+import { assertReportProjectRequirement } from "./report-access.js";
+import {
+  applyReportSettingsToSections,
+  DEFAULT_REPORT_SETTINGS,
+  loadReportSettingsValues,
+  type ReportSettingsValues
+} from "./report-settings.service.js";
 import { toTemplateDto } from "./report-template.service.js";
+import { resolveReportType, templateBackedReportTypeCodes, type ReportTypeDefinition } from "./report-types.js";
 
 /**
  * 模板报告数据快照组装与报告创建：
+ * - 普通调用按 reportType 自动选用内部预置模板；templateId 仅兼容旧接口。
  * - 数值只来自已确认候选（thermal_candidate_selections）与计算记录（thermal_calc_records）的冻结快照，
  *   不向 AI 索要数值、不重新计算；
  * - 企业/标准限值/节点/施工验收引用等静态章节来自 PUBLISHED + 生效中读取，在生成时点冻结进 dataJson；
- * - 报告与快照同事务落库并投递 report-generation 队列（Worker 只做确定性渲染）。
+ * - 报告设置在生成时点冻结，历史报告不随后台设置漂移；Worker 只做确定性渲染。
  */
 
 export interface TemplateReportInput {
-  projectId: string;
-  selectionId: string;
-  templateId: string;
+  reportType?: string;
+  projectId?: string | null;
+  conversationId?: string | null;
+  selectionId?: string;
+  /** 兼容旧接口：显式指定内部模板。普通业务不传。 */
+  templateId?: string;
   /** 数据生效时点（默认当前时间），用于已发布数据生效窗判定 */
   asOfDate?: Date;
+  settings?: ReportSettingsValues;
+}
+
+async function resolvePublishedTemplate(
+  app: FastifyInstance,
+  input: { templateId?: string; templateCode?: string | null; asOfDate: Date }
+) {
+  if (input.templateId) {
+    const [row] = await app.db.select().from(reportTemplates)
+      .where(and(
+        eq(reportTemplates.id, input.templateId),
+        ...publishedReferenceConditions(reportTemplates, input.asOfDate)
+      )).limit(1);
+    return row ?? null;
+  }
+  if (input.templateCode) {
+    const [row] = await app.db.select().from(reportTemplates)
+      .where(and(
+        eq(reportTemplates.code, input.templateCode),
+        ...publishedReferenceConditions(reportTemplates, input.asOfDate)
+      ))
+      .orderBy(desc(reportTemplates.version)).limit(1);
+    return row ?? null;
+  }
+  return null;
 }
 
 /** 快照组装（只读，不落库）：返回 dataJson 与模板版本信息 */
 export async function assembleReportSnapshot(app: FastifyInstance, input: TemplateReportInput) {
   const asOfDate = input.asOfDate ?? new Date();
+  const typeDef: ReportTypeDefinition | null = input.reportType ? resolveReportType(input.reportType) : null;
+  const settings = input.settings ?? DEFAULT_REPORT_SETTINGS;
+  const projectId = input.projectId ?? null;
 
-  const [project] = await app.db.select().from(projects)
-    .where(and(eq(projects.id, input.projectId), isNull(projects.deletedAt))).limit(1);
-  if (!project) throw new NotFoundError("项目不存在");
-
-  const [selection] = await app.db.select().from(thermalCandidateSelections)
-    .where(eq(thermalCandidateSelections.id, input.selectionId)).limit(1);
-  if (!selection) throw new ReportError("REPORT_SELECTION_NOT_FOUND");
-  if (selection.projectId !== input.projectId) {
-    throw new ReportError("REPORT_SELECTION_PROJECT_MISMATCH");
+  if (typeDef) {
+    assertReportProjectRequirement({ requiresProject: typeDef.requiresProject, projectId });
   }
 
-  const [template] = await app.db.select().from(reportTemplates)
-    .where(and(
-      eq(reportTemplates.id, input.templateId),
-      ...publishedReferenceConditions(reportTemplates, asOfDate)
-    )).limit(1);
+  const project = projectId
+    ? (await app.db.select().from(projects)
+        .where(and(eq(projects.id, projectId), isNull(projects.deletedAt))).limit(1))[0] ?? null
+    : null;
+  if (projectId && !project) throw new NotFoundError("项目不存在");
+
+  let selection = input.selectionId
+    ? (await app.db.select().from(thermalCandidateSelections)
+        .where(eq(thermalCandidateSelections.id, input.selectionId)).limit(1))[0] ?? null
+    : null;
+  if (input.selectionId && !selection) throw new ReportError("REPORT_SELECTION_NOT_FOUND");
+  if (selection && projectId && selection.projectId !== projectId) {
+    throw new ReportError("REPORT_SELECTION_PROJECT_MISMATCH");
+  }
+  if (!selection && typeDef?.needsSelection) {
+    if (!projectId) throw new ReportError("REPORT_PROJECT_REQUIRED");
+    const [latest] = await app.db.select().from(thermalCandidateSelections)
+      .where(eq(thermalCandidateSelections.projectId, projectId))
+      .orderBy(desc(thermalCandidateSelections.createdAt)).limit(1);
+    if (!latest) throw new ReportError("REPORT_SELECTION_NOT_FOUND", "请先确认候选方案后再生成该报告类型");
+    selection = latest;
+  }
+
+  const template = await resolvePublishedTemplate(app, {
+    templateId: input.templateId,
+    templateCode: typeDef?.templateCode,
+    asOfDate
+  });
   if (!template) throw new ReportError("REPORT_TEMPLATE_NOT_PUBLISHED");
-  if (template.requiresProject && !input.projectId) {
+  if ((typeDef?.requiresProject || template.requiresProject) && !projectId) {
     throw new ReportError("REPORT_PROJECT_REQUIRED");
   }
 
-  const candidate = (selection.candidateJson ?? {}) as Record<string, any>;
+  const candidate = ((selection?.candidateJson ?? {}) as Record<string, any>);
   const scheme = (candidate.scheme ?? {}) as Record<string, any>;
   const system = (candidate.system ?? {}) as Record<string, any>;
   const productSpec = (candidate.productSpec ?? {}) as Record<string, any>;
-  const query = (selection.queryJson ?? {}) as Record<string, any>;
+  const query = ((selection?.queryJson ?? {}) as Record<string, any>);
 
   // 热工计算记录：与确认候选同一 requestId 且属于本项目的记录（查表模式可能无记录，允许为空）
-  const calcRecords = selection.requestId
+  const calcRecords = selection?.requestId && projectId
     ? await app.db.select().from(thermalCalcRecords)
         .where(and(
           eq(thermalCalcRecords.requestId, selection.requestId),
-          eq(thermalCalcRecords.projectId, input.projectId)
+          eq(thermalCalcRecords.projectId, projectId)
         ))
         .orderBy(asc(thermalCalcRecords.createdAt))
     : [];
@@ -194,15 +251,25 @@ export async function assembleReportSnapshot(app: FastifyInstance, input: Templa
     });
   }
 
-  // 免责声明：模板 TEXT 章节配置文案（未配置时报告标注"待补充"）
-  const sections = (template.sectionsJson ?? []) as Array<{ key: string; sourceType: string; content?: string | null }>;
+  // 免责声明与章节：按生成时点的报告设置裁剪（冻结进快照，历史不漂移）
+  const rawSections = (template.sectionsJson ?? []) as ReportTemplateSection[];
+  const sections = applyReportSettingsToSections(rawSections, settings);
   const disclaimerSection = sections.find((section) => section.key === "disclaimer" && section.sourceType === "TEXT");
   const disclaimerText = disclaimerSection?.content?.trim() || null;
+  const title = settings.coverTitle
+    ?? (project ? `${template.name}（${project.name}）` : template.name);
 
   const dataJson = {
-    title: `${template.name}（${project.name}）`,
+    title,
     generatedAt: new Date().toISOString(),
     asOfDate: asOfDate.toISOString(),
+    reportType: typeDef?.code ?? input.reportType ?? "TEMPLATE",
+    settings: {
+      ...settings,
+      companyLogoFileId: enterprise && typeof (enterprise as { logoFileId?: unknown }).logoFileId === "string"
+        ? (enterprise as { logoFileId: string }).logoFileId
+        : null
+    },
     template: {
       id: template.id,
       code: template.code,
@@ -210,28 +277,32 @@ export async function assembleReportSnapshot(app: FastifyInstance, input: Templa
       name: template.name,
       sections
     },
-    project: {
-      id: project.id,
-      name: project.name,
-      description: project.description,
-      region: project.region,
-      buildingType: project.buildingType,
-      visibility: project.visibility,
-      status: project.status,
-      createdAt: project.createdAt
-    },
+    project: project
+      ? {
+        id: project.id,
+        name: project.name,
+        description: project.description,
+        region: project.region,
+        buildingType: project.buildingType,
+        visibility: project.visibility,
+        status: project.status,
+        createdAt: project.createdAt
+      }
+      : null,
     enterprise,
     productSpec: publishedSpec ?? null,
     productParameters,
     standardLimit,
-    selection: {
-      id: selection.id,
-      query: selection.queryJson,
-      candidate: selection.candidateJson,
-      selectionReason: selection.selectionReason,
-      selectedById: selection.selectedById,
-      createdAt: selection.createdAt
-    },
+    selection: selection
+      ? {
+        id: selection.id,
+        query: selection.queryJson,
+        candidate: selection.candidateJson,
+        selectionReason: selection.selectionReason,
+        selectedById: selection.selectedById,
+        createdAt: selection.createdAt
+      }
+      : null,
     calcRecords,
     nodes,
     acceptance,
@@ -242,16 +313,19 @@ export async function assembleReportSnapshot(app: FastifyInstance, input: Templa
   return { dataJson, template, asOfDate };
 }
 
-/** 生成模板报告：快照组装 -> reports(TEMPLATE,DRAFT) + report_snapshots 同事务落库 -> 投递生成队列 */
+/** 生成模板报告：快照组装 -> reports + report_snapshots 同事务落库 -> 投递生成队列 */
 export async function generateTemplateReport(
   app: FastifyInstance, request: FastifyRequest, actor: AuthUser, input: TemplateReportInput
 ) {
-  const { dataJson, template, asOfDate } = await assembleReportSnapshot(app, input);
+  const settings = input.settings ?? await loadReportSettingsValues(app);
+  const storedType = input.reportType ?? "TEMPLATE";
+  const { dataJson, template, asOfDate } = await assembleReportSnapshot(app, { ...input, settings });
 
   const result = await app.db.transaction(async (tx) => {
     const [report] = await tx.insert(reports).values({
-      projectId: input.projectId,
-      reportType: "TEMPLATE",
+      projectId: input.projectId ?? null,
+      conversationId: input.conversationId ?? null,
+      reportType: storedType,
       contentJson: null,
       status: "DRAFT",
       templateVersion: String(template.version),
@@ -273,14 +347,15 @@ export async function generateTemplateReport(
       payload: { reportId: report!.id }
     }).returning();
     await writeAuditLog({
-      db: tx, request, actor, projectId: input.projectId,
+      db: tx, request, actor, projectId: input.projectId ?? undefined,
       action: AUDIT_ACTIONS.REPORT_SNAPSHOT_CREATED, targetType: "report", targetId: report!.id,
       afterJson: {
         reportId: report!.id,
+        reportType: storedType,
         templateId: template.id,
         templateCode: template.code,
         templateVersion: template.version,
-        selectionId: input.selectionId,
+        selectionId: input.selectionId ?? null,
         asOfDate: asOfDate.toISOString(),
         taskId: task!.id
       }
@@ -315,7 +390,7 @@ export async function getReportSnapshot(app: FastifyInstance, reportId: string) 
   return snapshot;
 }
 
-/** 模板报告列表（平台端）：按项目过滤，仅 TEMPLATE 类型 */
+/** 模板报告列表（平台端）：按项目过滤，含历史 TEMPLATE 与预置模板类报告类型 */
 export async function listTemplateReports(
   app: FastifyInstance,
   query: { page: number; pageSize: number; projectId: string; status?: string }
@@ -323,7 +398,7 @@ export async function listTemplateReports(
   const { skip, take } = getPagination(query.page, query.pageSize);
   const conditions = and(
     eq(reports.projectId, query.projectId),
-    eq(reports.reportType, "TEMPLATE"),
+    inArray(reports.reportType, templateBackedReportTypeCodes()),
     isNull(reports.deletedAt),
     query.status ? eq(reports.status, query.status as never) : undefined
   );

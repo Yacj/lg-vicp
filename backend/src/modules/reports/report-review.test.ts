@@ -116,9 +116,11 @@ describe("模板报告审核流转（READY -> PENDING_REVIEW -> APPROVED/REJECTE
 });
 
 describe("发布门控（模板报告必须 APPROVED，AI 报告 READY 即可）", () => {
-  it("TEMPLATE + APPROVED 可发布；TEMPLATE + READY 被拒", () => {
+  it("TEMPLATE + APPROVED 可发布；TEMPLATE + READY 被拒；预置技术方案同样需审核", () => {
     expect(() => assertPublishable({ reportType: "TEMPLATE", status: "APPROVED" })).not.toThrow();
     expect(() => assertPublishable({ reportType: "TEMPLATE", status: "READY" })).toThrow("模板报告需经审核通过后才能发布");
+    expect(() => assertPublishable({ reportType: "technical_scheme", status: "APPROVED" })).not.toThrow();
+    expect(() => assertPublishable({ reportType: "ai_conversation", status: "READY" })).not.toThrow();
   });
 
   it("AI 会话报告 READY 可发布，DRAFT 被拒（行为保持现状）", () => {

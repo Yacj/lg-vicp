@@ -16,6 +16,6 @@ alwaysApply: true
 - 业务错误统一返回 HTTP `200`，`error.code` 使用数值型 HTTP 语义码：访问令牌、刷新令牌和当前登录态无效使用 `401`；权限不足使用 `403`；参数错误使用 `400`；其他业务处理失败使用 `500`；未捕获的服务器异常返回 HTTP `500` 且 `error.code` 为 `500`。
 - 修改长期规则时同步更新 `AGENTS.md`、Codex skill 和 Cursor rules。
 - 客户端隔离固定为 `B_ADMIN`、`C_APP`、`PC_AI`。`/platform` 和 `/workspace` 只允许 `B_ADMIN`，C/AI 端不得访问后台管理接口。
-- B 端接口必须同时执行 JWT、客户端类型和具体按钮权限码校验；项目接口还必须执行项目级权限。
+- B 端接口必须同时执行 JWT、客户端类型和具体按钮权限码校验；项目接口还必须执行项目级权限。例外：当前账号可见范围内的只读项目统计（如 `GET /platform/projects/statistics`）不要求按钮权限码。
 - 禁用角色不得继续产生权限，查询角色权限时必须过滤 `roles.enabled = true`。
 - 跨域对任意 Origin 放行（回显请求 Origin，含局域网 IP）；鉴权仍走 JWT / 客户端隔离 / 权限码。

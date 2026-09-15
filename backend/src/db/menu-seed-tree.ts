@@ -63,7 +63,9 @@ export const HIDDEN_MENU_ROUTE_PATHS = [
   "/monitor/cache",
   // 场景/提示词对普通业务管理员隐藏，仅 SUPER_ADMIN / 持有对应权限的技术管理员走接口或隐藏路由
   "/ai-config/scenes",
-  "/ai-config/prompts"
+  "/ai-config/prompts",
+  // 报告模板对普通业务管理员隐藏，仅 SUPER_ADMIN / 持有模板权限的技术管理员走接口或隐藏路由
+  "/reports/templates"
 ] as const;
 
 const actionButtons = (
@@ -278,7 +280,11 @@ const MENU_SEED_TREE: MenuSeedNode[] = [
           { suffix: "review", name: "报告审核", permissionCode: "system:report:review" }
         ])
       }),
-      leaf("报告模板", "/reports/templates", 20, "system:report:template:list", { children: crudButtons("/reports/templates", "system:report:template", "报告模板") }),
+      leaf("报告设置", "/reports/settings", 15, "system:report:settings"),
+      leaf("报告模板", "/reports/templates", 20, "system:report:template:list", {
+        visible: false,
+        children: crudButtons("/reports/templates", "system:report:template", "报告模板")
+      }),
       leaf("审核队列", "/review-center/queue", 30, "system:review:list", {
         visible: false,
         children: actionButtons("/review-center/queue", [

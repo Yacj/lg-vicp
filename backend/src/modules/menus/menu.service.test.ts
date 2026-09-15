@@ -126,19 +126,21 @@ describe("buildMenuTreeForPermissions（瘦身菜单 × 三类角色）", () => 
     expect(products?.children.map((child) => child.name)).toEqual([
       "产品管理", "材料与参数", "构造体系", "热工数据", "节点图", "材料对比"
     ]);
+    const reports = tree.find((item) => item.routePath === "/reports");
+    expect(reports?.children.map((child) => child.name)).toEqual(["报告列表", "报告设置"]);
     // 隐藏路由不出现在任何角色菜单树中
     const allIds = collectMenuTreeIds(tree);
     expect(allIds).not.toContain("/ai");
     expect(allIds).not.toContain("/thermal/calc-records");
     expect(allIds).not.toContain("/review-center/queue");
     expect(allIds).not.toContain("/monitor/audit");
+    expect(allIds).not.toContain("/reports/templates");
   });
 
-  it("CHANNEL_USER：只看到项目管理与报告管理（报告模板需模板权限）", () => {
+  it("CHANNEL_USER：只看到项目管理与报告管理（报告模板为隐藏路由，报告设置需独立权限）", () => {
     const tree = buildMenuTreeForPermissions(rows, channelUserCodes);
     expect(tree.map((item) => item.name)).toEqual(["项目管理", "报告管理"]);
     const reports = tree.find((item) => item.routePath === "/reports");
-    // 报告模板需要 system:report:template:list；审核队列为隐藏路由
     expect(reports?.children.map((child) => child.name)).toEqual(["报告列表"]);
   });
 

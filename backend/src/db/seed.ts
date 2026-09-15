@@ -18,7 +18,7 @@ import { AI_QUICK_PROMPT_PERMISSION_SEEDS } from "../shared/ai-permissions.js";
 import { buildMenuSeedTree, DEPRECATED_MENU_ROUTE_PATHS, LEGACY_MENU_ROUTE_PATHS, type MenuSeedNode } from "./menu-seed-tree.js";
 import { normalizeLoginIdentifier } from "../shared/login-identifier.js";
 import { buildRankingRuleSeeds } from "../modules/knowledge/knowledge-ingest.service.js";
-import { DEFAULT_REPORT_SECTIONS } from "../modules/reports/report-template.service.js";
+import { DEFAULT_REPORT_SECTIONS, MATERIAL_COMPARE_SECTIONS, PROJECT_BRIEF_SECTIONS } from "../modules/reports/report-template.service.js";
 import {
   aiModels,
   aiProviders,
@@ -26,6 +26,7 @@ import {
   aiScenes,
   comparisonDimensions,
   reportTemplates,
+  reportSettings,
   knowledgeAliases,
   knowledgeCategories,
   knowledgeRankingRules,
@@ -309,17 +310,47 @@ try {
       { code: "approval", name: "报审", sortOrder: 50, remark: "五维固定维度" }
     ]).onConflictDoNothing();
 
-    // 默认报告模板（章节齐全、按标准工程报告顺序；免责声明文案待甲方确认，配置可在 B 端调整）
+    // 系统预置报告模板（内部渲染配置；普通业务按 reportType 自动选用，不在日常菜单维护）
     await tx.insert(reportTemplates).values({
       code: "standard_report",
       version: 1,
-      name: "标准工程报告",
-      description: "默认工程报告模板：企业/项目条件/标准限值/候选方案/用户选择/热工计算/节点/构造/对比/验收/来源/免责声明",
+      name: "综合技术方案报告",
+      description: "内部预置：企业/项目条件/标准限值/候选方案/用户选择/热工计算/节点/构造/对比/验收/来源/免责声明",
       sectionsJson: DEFAULT_REPORT_SECTIONS,
       changeNote: "初始默认模板",
       requiresProject: true,
       status: "PUBLISHED",
       publishedAt: new Date()
+    }).onConflictDoNothing();
+    await tx.insert(reportTemplates).values({
+      code: "project_brief",
+      version: 1,
+      name: "项目方案简报",
+      description: "内部预置：封面/项目概况/方案/选用结论/引用依据/免责声明",
+      sectionsJson: PROJECT_BRIEF_SECTIONS,
+      changeNote: "初始预置简报模板",
+      requiresProject: true,
+      status: "PUBLISHED",
+      publishedAt: new Date()
+    }).onConflictDoNothing();
+    await tx.insert(reportTemplates).values({
+      code: "material_compare",
+      version: 1,
+      name: "材料对比报告",
+      description: "内部预置：封面/对比/引用依据/免责声明",
+      sectionsJson: MATERIAL_COMPARE_SECTIONS,
+      changeNote: "初始预置对比模板",
+      requiresProject: false,
+      status: "PUBLISHED",
+      publishedAt: new Date()
+    }).onConflictDoNothing();
+    await tx.insert(reportSettings).values({
+      key: "default",
+      defaultReportType: "technical_scheme",
+      showCalculationProcess: true,
+      showSourceReferences: true,
+      showDisclaimer: true,
+      defaultExportFormat: "PDF"
     }).onConflictDoNothing();
 
     await tx.insert(aiProviders).values({

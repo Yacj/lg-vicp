@@ -7,10 +7,11 @@ import { NotFoundError } from "../../shared/errors.js";
 import { ReportError } from "../../shared/report-errors.js";
 import { writeAuditLog } from "../audit-logs/audit-log.service.js";
 import { upsertProfessionalReview } from "../review-center/professional-review.js";
+import { reportTypeRequiresReview } from "./report-types.js";
 
 /**
- * 模板报告审核：READY -> PENDING_REVIEW -> APPROVED（可发布）/ REJECTED（可重新提交）。
- * 仅 reportType=TEMPLATE 的报告强制审核（AI 会话报告发布保持现状）。
+ * 报告审核：READY -> PENDING_REVIEW -> APPROVED（可发布）/ REJECTED（可重新提交）。
+ * 仅需审核的报告类型强制审核（预置模板类 + 历史 TEMPLATE）；AI 会话报告 publish 保持现状。
  * 状态变更、统一审核记录、审计日志在同一事务内完成。
  */
 
@@ -18,15 +19,15 @@ async function requireReport(app: FastifyInstance, id: string) {
   const [report] = await app.db.select().from(reports)
     .where(and(eq(reports.id, id), isNull(reports.deletedAt))).limit(1);
   if (!report) throw new NotFoundError("报告不存在");
-  if (report.reportType !== "TEMPLATE") {
+  if (!reportTypeRequiresReview(report.reportType)) {
     throw new ReportError("REPORT_NOT_REVIEWABLE", "只有模板报告需要审核");
   }
   return report;
 }
 
-/** 发布门控（共用发布端点调用）：模板报告必须先审核通过（APPROVED），AI 会话报告 READY 即可发布 */
+/** 发布门控（共用发布端点调用）：需审核类型必须先审核通过（APPROVED），AI 会话报告 READY 即可发布 */
 export function assertPublishable(report: { reportType: string; status: string }) {
-  if (report.reportType === "TEMPLATE") {
+  if (reportTypeRequiresReview(report.reportType)) {
     if (report.status !== "APPROVED") {
       throw new ReportError("REPORT_NOT_REVIEWABLE", "模板报告需经审核通过后才能发布");
     }

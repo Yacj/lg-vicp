@@ -12,6 +12,7 @@ import {
   type ReportSnapshotPayload
 } from "../modules/reports/report-template-render.js";
 import { createNotification } from "../modules/notifications/notification.service.js";
+import { reportListTitle } from "../modules/reports/report-access.js";
 
 interface ReportJobData {
   taskId: string;
@@ -66,22 +67,20 @@ export function createReportProcessor(db: Database, storage: ObjectStorage) {
       const [report] = await db.select().from(reports).where(eq(reports.id, reportId)).limit(1);
       if (!report) throw new Error("待生成报告不存在");
 
-      // 模板报告：渲染源为报告数据快照（已确认候选 + 计算记录 + 已发布数据在生成时点冻结），
-      // 只做确定性章节渲染，不向 AI 索要数值；AI 会话报告保持原有 contentJson 渲染链路。
+      // 有快照则走内部模板渲染（含历史 TEMPLATE 与预置 reportType）；否则走 AI 会话 contentJson。
       let html: string;
       let word: Buffer;
       let title: string;
-      if (report.reportType === "TEMPLATE") {
-        const [snapshot] = await db.select().from(reportSnapshots)
-          .where(eq(reportSnapshots.reportId, reportId)).limit(1);
-        if (!snapshot) throw new Error("模板报告缺少数据快照，无法渲染");
+      const [snapshot] = await db.select().from(reportSnapshots)
+        .where(eq(reportSnapshots.reportId, reportId)).limit(1);
+      if (snapshot) {
         const payload = snapshot.dataJson as ReportSnapshotPayload;
         title = payload.title ?? "VICP 项目报告";
         html = renderTemplateHtml(payload);
         word = await renderTemplateWord(payload);
       } else {
         const content = report.contentJson ?? {};
-        title = report.reportType === "energy_design" ? "建筑节能设计报告" : report.reportType === "design_note" ? "VICP 设计说明" : "VICP 项目说明";
+        title = reportListTitle(report);
         html = createReportHtml(title, content);
         word = await createWord(title, content);
       }

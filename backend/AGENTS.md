@@ -46,7 +46,7 @@
 
 路由边界：
 
-- `/api/v1/platform/*`：B 端平台管理，先校验 `B_ADMIN`，再按具体权限码授权；超级管理员全量放行。
+- `/api/v1/platform/*`：B 端平台管理，先校验 `B_ADMIN`，再按具体权限码授权；超级管理员全量放行。例外：当前账号可见范围内的只读项目统计 `GET /platform/projects/statistics` 与工作台「我的项目」相同，不要求按钮权限码；平台项目列表 `GET /platform/projects` 仍需 `system:project:list`。
 - `/api/v1/platform/knowledge/*`：B 端平台知识库管理（分类/文档/版本/解析/审核/发布/检索日志/别名词典/批量导入/抓取源/排序规则/检索评测/版本 Wiki 章节树/公开文库只读列表），按 `system:knowledge:*` 权限码授权；批量导入返回预签名地址，直传后走 upload-complete 确认；普通新建走编排层 `POST /documents/create-with-file`（同事务 Document + v1 + ORIGINAL + ParsingJob，事务外自动入队，只收 fileId），详情摘要 `GET /documents/:id/workspace`（workingVersion + userStatus + lastJob），更换文件 `POST /documents/:id/replace-file`（新建下一版本并自动解析），草稿 AI 测试 `POST /versions/:versionId/test-qa`（SSE，检索入口限定 versionId，允许 DRAFT/APPROVED/PUBLISHED，权限 `system:knowledge:doc:test`，不对 C_APP 开放）；`GET /versions/:versionId/chapter-tree` 为用户可读章节树（已确认 TOC 优先，否则语义 Section）；`GET /versions/:versionId/sections` 与 C 端公开文库/AI 来源详情共用 knowledge-wiki-read 服务（DRAFT 审核与已发布阅读共用），`GET /public/documents` 与 `/client/knowledge/documents` 同一读取口径（PUBLIC + PUBLISHED + 生效中）。生产 `/api/v1/ai/knowledge-qa` 仍只检索 PUBLISHED + AI_ENABLED + 当前受控版本，不传 versionId。
 - `/api/v1/platform/masterdata/*`：B 端平台主数据管理（企业内容/证书、产品系列/规格/性能参数/附件、材料/材料参数版本），按 `system:md:*` 权限码授权；统一审核状态机 DRAFT -> PENDING_REVIEW -> APPROVED -> PUBLISHED（可驳回 REJECTED，发布后 new-version 派生新草稿），已发布读取接口 `/published/*` 只返回 PUBLISHED 且生效中的数据，供计算模块确定性取数。
 - `/api/v1/platform/construction/*`：B 端平台构造方案管理（保温系统、构造方案/构造层/产品选项/方案文档），按 `system:construction:*` 权限码授权；版本化状态机复用 masterdata `md-workflow.service.ts`（`registerVersionedEntity` 注册 + 共用工作流工厂），new-version 同事务复制子表；submit/publish 前强制结构校验（层序连续、基层/产品层唯一、产品层厚度落在选项区间、引用规格/材料已发布生效）；已发布读取接口 `/published/*` 只返回 PUBLISHED 且生效中的数据，供未来图集热工查表模块取数。详见 `docs/construction/README.md`。
@@ -54,7 +54,7 @@
 - `/api/v1/platform/standard/*`：B 端平台地方标准采集（标准来源配置/抓取作业 + 爬虫 CRAWL 与人工 MANUAL 双通道汇入 + 轻量审核流转 + 指标发布转换落库 + 版本替代/过渡期），按 `system:standard:*` 权限码授权；定时抓取复用 `cron_jobs`（jobType `standard_crawl`，`maintenance` 队列分发，worker.ts 已有 `knowledge_crawler` 同款先例），手动触发 `POST /sources/:id/crawl`；通用解析器按站点配置（栏目 URL/url-scroll-none 三种分页/关键字过滤/提取正则），先存详情页原文（对象存储 + SHA-256 幂等/变更检测）后按规则提取，规则调整可重跑不重抓网页；人工录入 `POST /documents` 组合提交（文档+适用范围+指标，指标证据条款引用必填），与爬虫文档同表同身份空间防重复；审核流转 DRAFT -> PENDING_REVIEW -> APPROVED -> PUBLISHED（可驳回 REJECTED，发布同编号旧版自动 DISABLED）；指标 publish 同事务生成 `thermal_standard_limits` 消费行（basisCode=documentNo、standard_document_id 溯源，同 regionCode 不同 basisCode 天然并存）；替代关系 confirm 设置旧文档过渡期 `expiresAt`，过渡期结束由每日抓取 job 顺带扫描失效；AI 对话只消费已发布限值，不直接读抓取库。详见 `docs/standard/README.md`。
 - `/api/v1/platform/comparison/*`：B 端平台材料对比规则管理（版本/材料/规则/证据/维度 + 批量导入 + 已发布读取），按 `system:comparison:*` 权限码授权；版本化状态机复用 masterdata，new-version 同事务复制材料/规则/证据并重映射内部 FK；submit/publish 前强制结构校验（规则至少一条、双方材料同版本且类别正确、每条规则至少一条 VICP 侧证据、竞品数值必带竞品侧证据、优势文案/适用条件/必要披露非空）；规则引用同一版本内双方材料（VICP 侧类别为 VICP、竞品侧非 VICP），防不同型号/密度混比；已发布读取 `/published/rules` 只返回 PUBLISHED 且生效中的数据；AI 端 `/api/v1/ai/comparison/rules`（C_APP/PC_AI + 项目可见性守卫）；`material_compare` 场景对话以 prompt 注入消费已审核规则（`prompt-assembly.ts` ruleContext），回答完成后按引用规则写 `ai_rule_usage_logs`（含快照）。详见 `docs/comparison/README.md`。
 - `/api/v1/platform/nodes/*`：B 端平台节点图库管理（节点大样图 + 节点-方案关联），按 `system:node:*` 权限码授权；版本化状态机复用 masterdata，new-version 同事务复制关联子表；submit/publish 前强制结构校验（部位必填、高清图/CAD 至少一个、引用保温系统与关联方案已发布生效）；已发布读取 `/nodes/published` 只返回 PUBLISHED 且生效中的节点（关联只保留已发布方案）。详见 `docs/nodes/README.md`。
-- `/api/v1/platform/report-templates/*` 与 `/api/v1/platform/reports/*`：B 端平台报告模板与模板报告（章节配置 + 快照冻结 + 强制审核），按 `system:report:*` 权限码授权；模板为版本化审核实体（章节 key 固定枚举、order 连续、DATA 无文案/TEXT 必填文案）；模板报告生成时快照冻结全部章节数据（候选/计算记录整份嵌入 + 已发布静态章节，历史不漂移），Worker 只做确定性渲染；仅模板报告强制审核（READY → PENDING_REVIEW → APPROVED 可发布/REJECTED 可重提），AI 会话报告 publish 保持现状；共用发布端点对 TEMPLATE 强制 APPROVED。详见 `docs/reports/README.md`。
+- `/api/v1/platform/report-templates/*` 与 `/api/v1/platform/reports/*`：B 端平台报告。普通业务按系统预置 `reportType` + 报告设置生成/列表/审核，不传 templateId；内部 `report_templates` 作为渲染配置保留，模板管理菜单隐藏，仅 SUPER_ADMIN / `system:report:template:*` 高级接口可访问。模板类报告生成时快照冻结章节数据，Worker 确定性渲染；需审核类型 READY → PENDING_REVIEW → APPROVED 可发布。详见 `docs/reports/README.md`。
 - `/api/v1/platform/review-center/*`：B 端平台统一审核中心（产品/构造/热工/标准/比较/节点/模板/模板报告），按 `system:review:{list,approve}` 权限码授权；`professional_reviews` 为单一数据源，各域 transition（md-workflow/standard/报告审核）在状态变更同一事务内 upsert，审核中心只做队列读取与决议委托（无审核分叉），不替代各模块原审核端点。详见 `docs/reports/README.md`。
 - `/api/v1/internal/knowledge/*`：服务间受控接口（静态密钥 `x-internal-key` = `env.INTERNAL_API_KEY`，未配置则整体禁用）；服务端直写对象存储并投递解析，产物为 DRAFT 待审核，不自动发布；不校验 B_ADMIN 客户端。
 - 客户端访问令牌按客户端类型分别配置：`B_ADMIN` 默认 `24h`，`C_APP` 默认 `30d`，`PC_AI` 默认 `30d`；refresh token 统一默认有效 `30` 天。
@@ -108,7 +108,7 @@
 - AI 会话历史支持分页、搜索、来源筛选、项目筛选、重命名、按用户置顶、移动项目、软删除和恢复；删除会话必须禁用由该会话产生的有效 AI 分享链接。
 - 聊天图片属于 Message 附件（`ai_message_attachments`），不落 projectId；上传 `purpose=CHAT_IMAGE` 完成后直接 READY，不进文档解析。Vision 只产出观察上下文再进入现有编排，模型从配置解析，未配置返回 `VISION_MODEL_NOT_CONFIGURED`。
 - 会话 `projectId` 可空：有项目才注入项目结构化上下文；无项目仍可发图片、检索知识和生成报告。
-- 多条 AI 回答生成报告时，通过 `report_sources` 保存来源顺序和回答快照。`reports.projectId` 可空（继承会话项目，无项目则为 null）；`GET /api/v1/reports/my` 返回当前用户报告，无项目时 `project=null`。仅 `requiresProject=true` 的模板阻止无项目生成。
+- `reports.projectId` 可空（继承会话项目，无项目则为 null）；`GET /api/v1/reports/my` 返回当前用户报告，无项目时 `project=null`。仅 `requiresProject=true` 的报告类型（如综合技术方案报告）阻止无项目生成。
 - 公开分享只暴露分享快照或已生成报告文件，不开放源文件、知识库原文或原始 AI 会话。
 - `PROJECT` 分享只暴露项目摘要和已发布报告快照；不得返回项目源文件、知识库原文、未发布报告、原始会话或后台权限信息。
 - 源文件使用预签名直传；解析、OCR、索引和报告导出必须通过 BullMQ Worker。
@@ -136,7 +136,7 @@
 - 地方标准采集（爬虫/人工双通道、审核与消费转换）：standard 模块（`src/modules/standard/`，服务层 `standard.service.ts` + 通用站点抓取 `standard-crawl.service.ts` + `standard.schemas.ts` DTO + `standard.routes.ts`）、`standard_sources`/`crawl_jobs`/`standard_documents`/`standard_applicability`/`standard_indicators`/`standard_replacements` 表（迁移 0019_tough_harpoon + 0020）+ `thermal_standard_limits.standard_document_id` 溯源列；定时抓取复用 cron_jobs（jobType `standard_crawl`，`maintenance` 队列，`src/worker.ts` 分发到 `runStandardCrawl`）；权限码见 `src/shared/standard-permissions.ts`（`system:standard:*`），错误码见 `src/shared/standard-errors.ts`；指标 publish 同事务转换落库 `thermal_standard_limits`（消费模型，候选查询/计算引擎零改造），同地区多 basisCode 天然并存、同键新版本发布自动停用旧版。详见 `docs/standard/README.md`。
 - 材料对比规则引擎（VICP vs 竞品对比的审核化结构化规则）：comparison 模块（`src/modules/comparison/`，服务层 `comparison.service.ts` + 已发布读取 `comparison-read.service.ts` + prompt 上下文与使用日志 `material-compare.service.ts` + `comparison.schemas.ts` DTO + `comparison.routes.ts`/`ai-comparison.routes.ts`）、`comparison_versions`/`comparison_materials`/`comparison_dimensions`/`comparison_rules`/`comparison_evidence`/`ai_rule_usage_logs` 表；版本化状态机复用 masterdata，new-version 同事务复制子表并重映射 FK；五维固定维度（thermal/fire/durability/construction/approval）seed 预置、禁止删除/禁用；权限码见 `src/shared/comparison-permissions.ts`（`system:comparison:*`），错误码见 `src/shared/comparison-errors.ts`；AI 集成：`material_compare` 场景 prompt 注入（`prompt-assembly.ts` ruleContext + `ai.routes.ts` 发送/regenerate 两处），使用日志 `ai_rule_usage_logs` 含规则快照；导入示例 `pnpm comparison:import-example`。详见 `docs/comparison/README.md`。
 - 节点图库（节点大样图 + 节点-方案关联）：nodes 模块（`src/modules/nodes/`，服务层 `node.service.ts` + 已发布读取 `listPublishedNodesWithLinks` + `node.schemas.ts` DTO + `node.routes.ts`）、`node_drawings`/`node_scheme_links` 表；版本化状态机复用 masterdata，new-version 同事务复制关联子表；submit/publish 前结构校验（部位必填、图/CAD 至少一个、引用系统与方案已发布生效）；权限码见 `src/shared/node-permissions.ts`（`system:node:*`），错误码见 `src/shared/node-errors.ts`；节点图/CAD 文件 MIME 白名单（png/jpeg/svg/dwg/dxf）见 `src/modules/files/file.schemas.ts`。详见 `docs/nodes/README.md`。
-- 报告模板/模板报告快照/统一审核中心：reports 模块（`src/modules/reports/`，模板服务 `report-template.service.ts` + 快照组装 `report-snapshot.service.ts` + 审核 `report-review.service.ts` + 确定性渲染 `report-template-render.ts` + 平台路由 `report-platform.routes.ts`）+ review-center 模块（`src/modules/review-center/`，统一审核记录 `professional-review.ts` + 委托服务 `review-center.service.ts` + `review-center.routes.ts`）、`report_templates`/`report_snapshots`/`professional_reviews` 表 + `reports` 审核列；仅模板报告强制审核（READY → PENDING_REVIEW → APPROVED 可发布/REJECTED 可重提），AI 会话报告 publish 保持现状；`professional_reviews` 由各域 transition（md-workflow/standard/报告审核）同事务 upsert，审核中心只读队列与委托决议；权限码见 `src/shared/report-permissions.ts`（`system:report:*`）/`src/shared/review-permissions.ts`（`system:review:*`），错误码见 `src/shared/report-errors.ts`/`src/shared/review-errors.ts`；默认模板 `standard_report` 由 seed 写入。详见 `docs/reports/README.md`。
+- 报告类型/设置/生成/内部模板/统一审核中心：reports 模块（`src/modules/reports/`，预置类型 `report-types.ts` + 设置 `report-settings.service.ts` + 模板服务 `report-template.service.ts` + 快照组装 `report-snapshot.service.ts` + 审核 `report-review.service.ts` + 确定性渲染 `report-template-render.ts` + 平台路由 `report-platform.routes.ts`）+ review-center 模块、`report_templates`/`report_snapshots`/`report_settings`/`professional_reviews` 表；普通生成只传 `reportType`，内部按类型选用预置模板；模板管理降级为隐藏路由。权限码见 `src/shared/report-permissions.ts`。详见 `docs/reports/README.md`。
 - AI 模型配置、围栏、对话：AI 配置模块、AI 模块和知识检索模块；后台 AI 配置与运营接口按 `system:ai:*` 权限码授权。
 - B 端消息通知/提醒闭环：notifications 模块（`src/modules/notifications/`），`notifications`/`notification_reads` 表；AI 反馈埋点在 `ai.routes.ts`、标准待审在 `standard.service.ts`、解析失败在 `document.worker.ts`、报告失败在 `report.worker.ts`；权限码见 `src/shared/notification-permissions.ts`。
 - 会话保温体系：`ai_conversations.insulation_system_id`、`ai.routes.ts`（创建/发送守卫/切换/体系列表）、`ai-source.mapper.ts`（统一 sources）、错误码 `AI_INSULATION_SYSTEM_REQUIRED`。
@@ -150,7 +150,7 @@
 
 修改长期约束时，同步更新本文件、`README.md`、`.agents/skills/lg-backend` 和 `.cursor/rules`。
 - 客户端固定为 `B_ADMIN`、`C_APP`、`PC_AI`。所有 `/api/v1/platform/*` 和 `/api/v1/workspace/*` 接口必须先通过 JWT 和 `B_ADMIN` 客户端校验，C 端和 PC AI 端不得调用后台管理接口。
-- B 端后台接口必须同时具备认证和接口级权限码校验。超级管理员可以直通；其他 B 端账号必须拥有对应按钮权限，例如 `system:user:list`、`system:user:add`、`system:menu:edit`、`system:ai:model:test`。
+- B 端后台接口必须同时具备认证和接口级权限码校验。超级管理员可以直通；其他 B 端账号必须拥有对应按钮权限，例如 `system:user:list`、`system:user:add`、`system:menu:edit`、`system:ai:model:test`。例外：统计当前账号可见/自有业务数据的只读接口（如 `GET /platform/projects/statistics`）只要求 JWT + `B_ADMIN` + 数据范围，不要求按钮权限码。
 - 不允许使用“拥有任意 `system:*` 权限即可访问整个模块”的宽权限判断。新增、修改、删除、导出、分配和查看必须使用不同权限码。
 - 角色权限查询必须过滤 `roles.enabled = true`。禁用角色不能继续授予菜单或接口权限。
 - C 端和 PC AI 端虽然不能访问后台管理接口，但可以访问明确开放的业务接口（AI、公开项目、本人项目、受控文件、报告和分享）；这些接口必须继续执行项目所有者、项目可见性、会话归属和文件归属校验。
@@ -160,6 +160,7 @@
 ### 权限变更验收
 
 - 用 C_APP 和 PC_AI 令牌请求任意 `/platform`、`/workspace` 接口必须返回 `FORBIDDEN`。
+- B_ADMIN 无 `system:project:list` 时，`GET /platform/projects/statistics` 仍返回当前可见范围计数；`GET /platform/projects` 仍返回 `FORBIDDEN`。
 - B_ADMIN 无权限时，查看、新增、修改、删除、导出和分配接口分别返回 `FORBIDDEN`。
 - 禁用角色后重新请求接口，原角色权限立即失效。
 - B 端仍可访问 AI 业务接口，但必须通过场景、客户端来源、项目和会话权限校验。

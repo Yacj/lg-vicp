@@ -46,7 +46,8 @@
 └─ 质量与调试 /knowledge/quality（AI 问答测试 / 解析异常 / 检索效果 / 高级调试）
 报告管理 /reports
 ├─ 报告列表 /reports/center
-├─ 报告模板 /reports/templates
+├─ 报告设置 /reports/settings
+├─ 报告模板 /reports/templates（隐藏，高级技术管理员接口仍可用）
 └─ 审核队列 /review-center/queue（隐藏，工作台待办进入）
 AI 配置 /ai-config
 ├─ 服务商管理 /ai-config/providers（含「测试服务商连接」按钮）

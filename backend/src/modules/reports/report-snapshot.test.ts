@@ -77,6 +77,38 @@ describe("报告快照组装（数值冻结，历史不漂移）", () => {
     expect((dataJson.template as any).sections).toHaveLength(1);
   });
 
+  it("普通生成只传 reportType、不传 templateId 时按预置模板 code 选用", async () => {
+    const { db } = makeDb([
+      [projectRow],
+      [selectionRow],
+      [templateRow],
+      [profileRow]
+    ]);
+    const { dataJson, template } = await assembleReportSnapshot(app(db), {
+      reportType: "technical_scheme",
+      projectId: "p-1",
+      selectionId: "sel-1"
+    });
+    expect(template.code).toBe("standard_report");
+    expect(dataJson.reportType).toBe("technical_scheme");
+    expect(dataJson.template).toMatchObject({ code: "standard_report" });
+  });
+
+  it("requiresProject 的类型在无项目时拒绝", async () => {
+    await expect(assembleReportSnapshot(app(makeDb([]).db), { reportType: "technical_scheme" }))
+      .rejects.toThrow("该报告类型需要关联项目后才能生成");
+  });
+
+  it("无项目报告类型可以不传 projectId/templateId", async () => {
+    const { db } = makeDb([
+      [{ ...templateRow, code: "material_compare", requiresProject: false }],
+      [profileRow]
+    ]);
+    const { dataJson } = await assembleReportSnapshot(app(db), { reportType: "material_compare" });
+    expect(dataJson.project).toBeNull();
+    expect(dataJson.reportType).toBe("material_compare");
+  });
+
   it("selection 不属于项目时拒绝组装", async () => {
     const { db } = makeDb([[projectRow], [{ ...selectionRow, projectId: "p-other" }]]);
     await expect(assembleReportSnapshot(app(db), { projectId: "p-1", selectionId: "sel-1", templateId: "tpl-1" }))

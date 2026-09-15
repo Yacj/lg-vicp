@@ -5,6 +5,7 @@
 import type { AuthUser } from "../../shared/auth-user.js";
 import { ReportError } from "../../shared/report-errors.js";
 import { canManageProject, canViewProject } from "../../shared/permissions.js";
+import { reportTypeDisplayName } from "./report-types.js";
 
 export type ReportAccessRow = {
   id: string;
@@ -58,11 +59,7 @@ export function reportListTitle(report: Pick<ReportAccessRow, "reportType" | "co
     ? report.contentJson.title.trim()
     : "";
   if (raw) return raw;
-  if (report.reportType === "energy_design") return "建筑节能设计报告";
-  if (report.reportType === "design_note") return "VICP 设计说明";
-  if (report.reportType === "marketing_copy") return "VICP 项目说明";
-  if (report.reportType === "TEMPLATE") return "工程报告";
-  return report.reportType;
+  return reportTypeDisplayName(report.reportType);
 }
 
 export function toMyReportItem(report: ReportAccessRow & {

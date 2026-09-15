@@ -3,7 +3,7 @@ import type { FastifyRequest } from "fastify";
 import type { DbExecutor } from "../../db/client.js";
 import { projects } from "../../db/schema.js";
 import { getPagination } from "../../shared/pagination.js";
-import { AUDIT_ACTIONS, PROJECT_VISIBILITY, VISIBILITY_POLICY } from "../../shared/constants.js";
+import { AUDIT_ACTIONS, PROJECT_VISIBILITY, USER_ROLES, VISIBILITY_POLICY } from "../../shared/constants.js";
 import type { AuthUser } from "../../shared/auth-user.js";
 import { writeAuditLog } from "../audit-logs/audit-log.service.js";
 
@@ -55,6 +55,42 @@ export async function listCreatedProjects(input: CreatedProjectListInput) {
     total: totalRow?.value ?? 0,
     page: input.page,
     pageSize: input.pageSize
+  };
+}
+
+/** 平台列表按最终业务口径返回公开项目；渠道账号可额外查看自己创建的私有项目。 */
+export function platformProjectScopeWhere(user: Pick<AuthUser, "id" | "role">) {
+  if (user.role === USER_ROLES.SUPER_ADMIN) return undefined;
+  if (user.role === USER_ROLES.CHANNEL_USER) {
+    return or(eq(projects.visibility, PROJECT_VISIBILITY.PUBLIC), eq(projects.createdById, user.id));
+  }
+  return eq(projects.visibility, PROJECT_VISIBILITY.PUBLIC);
+}
+
+export type ProjectStatistics = {
+  total: number;
+  public: number;
+  private: number;
+};
+
+/** 当前账号可见项目的计数；不依赖 system:project:list，数据范围由业务角色约束。 */
+export async function getVisibleProjectStatistics(input: {
+  db: DbExecutor;
+  user: Pick<AuthUser, "id" | "role">;
+}): Promise<ProjectStatistics> {
+  const activeWhere = and(
+    isNull(projects.deletedAt),
+    platformProjectScopeWhere(input.user)
+  );
+  const [totalRow, publicRow, privateRow] = await Promise.all([
+    input.db.select({ value: count() }).from(projects).where(activeWhere),
+    input.db.select({ value: count() }).from(projects).where(and(activeWhere, eq(projects.visibility, PROJECT_VISIBILITY.PUBLIC))),
+    input.db.select({ value: count() }).from(projects).where(and(activeWhere, eq(projects.visibility, PROJECT_VISIBILITY.PRIVATE)))
+  ]);
+  return {
+    total: totalRow[0]?.value ?? 0,
+    public: publicRow[0]?.value ?? 0,
+    private: privateRow[0]?.value ?? 0
   };
 }
 

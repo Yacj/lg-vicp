@@ -31,7 +31,7 @@ import {
 
 const REPORT_TEMPLATE_TAG = "B端 / 平台 / 报告模板";
 
-/** 报告模板权限校验：SUPER_ADMIN 直通，否则校验具体权限码（本地函数模式，与 construction 一致） */
+/** 报告模板为内部高级配置：SUPER_ADMIN 直通，否则校验模板权限码。普通管理员不依赖本接口。 */
 function requirePermission(request: Parameters<typeof getCurrentUser>[0], permissionCode: string) {
   const user = getCurrentUser(request);
   if (user.role !== "SUPER_ADMIN" && !(user.permissionCodes ?? []).includes(permissionCode)) {

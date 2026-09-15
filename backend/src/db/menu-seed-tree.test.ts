@@ -122,6 +122,7 @@ describe("buildMenuSeedTree（B 端菜单信息架构 2026-09 瘦身）", () => 
       ["/knowledge/quality", "质量与调试"],
       ["/content/certificates", "企业资质证书"],
       ["/reports/center", "报告列表"],
+      ["/reports/settings", "报告设置"],
       ["/monitor/audit", "操作日志"],
       ["/ai-config", "AI 配置"],
       ["/ai-config/providers", "服务商管理"],
@@ -241,6 +242,7 @@ describe("buildMenuSeedTree（B 端菜单信息架构 2026-09 瘦身）", () => 
       // 报告管理（system:report:*）
       ["/reports/center", "system:report:generate"],
       ["/reports/center/review", "system:report:review"],
+      ["/reports/settings", "system:report:settings"],
       ["/reports/templates", "system:report:template:list"],
       ...["add", "edit", "remove", "approve", "publish"].map((action) =>
         [`/reports/templates/${action}`, `system:report:template:${action}`] as const

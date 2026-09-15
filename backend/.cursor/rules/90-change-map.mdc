@@ -17,7 +17,7 @@ alwaysApply: true
 - AI 对话、围栏、能力路由和检索：AI 模块、`ai-capability-router.ts`、知识模块、AI 参考规则。
 - AI 回答点赞、反馈和重新生成：AI 模块、平台 AI 反馈模块、Drizzle schema。
 - AI 聊天图片附件与 Vision 看图：`ai_message_attachments`、`src/modules/ai/ai-vision.service.ts`、文件 `purpose=CHAT_IMAGE`。
-- 报告记录、来源、发布和导出：报告模块、报告 Worker、`report_sources`；`reports.projectId` 可空，`GET /api/v1/reports/my`。
+- 报告记录、来源、发布和导出：报告模块、报告 Worker、`report_sources`；普通生成按系统预置 `reportType` + `report_settings`，不传 templateId；`reports.projectId` 可空，`GET /api/v1/reports/my`。内部模板见 `docs/reports/README.md`。
 - 公开分享：分享模块、`share_links`、`share_views`。
 - 全局响应、错误和中文提示：共享响应/错误与错误处理插件。
 - 长期业务或架构规则：同步更新 `AGENTS.md`、`README.md`、Codex skill 和 Cursor rules。

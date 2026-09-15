@@ -16,6 +16,12 @@ export interface ReportSnapshotPayload {
     name?: string;
     sections?: ReportTemplateSection[];
   };
+  settings?: {
+    coverTitle?: string | null;
+    headerText?: string | null;
+    footerText?: string | null;
+    showDisclaimer?: boolean;
+  };
   disclaimerText?: string | null;
   [key: string]: unknown;
 }
@@ -102,6 +108,12 @@ export function renderTemplateHtml(payload: ReportSnapshotPayload): string {
   const meta = payload.generatedAt || payload.asOfDate
     ? `<p class="meta">数据生效时点：${escapeHtml(payload.asOfDate ?? "")}；报告生成时间：${escapeHtml(payload.generatedAt ?? "")}</p>`
     : "";
+  const header = payload.settings?.headerText?.trim()
+    ? `<p class="header">${escapeHtml(payload.settings.headerText.trim())}</p>`
+    : "";
+  const title = payload.settings?.coverTitle?.trim() || payload.title || "VICP 项目报告";
+  const footer = payload.settings?.footerText?.trim()
+    || "本报告由蓝格 VICP 建筑节能 AI 智配系统生成，需经专业审核后方可作为正式技术文件使用。";
   return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><style>
   body{font-family:"Microsoft YaHei",sans-serif;color:#1f2937;margin:48px;line-height:1.7}
   h1{font-size:28px;border-bottom:2px solid #176b57;padding-bottom:12px}
@@ -112,10 +124,10 @@ export function renderTemplateHtml(payload: ReportSnapshotPayload): string {
   th{background:#f3f4f6}
   dl{font-size:14px}dt{font-weight:600;margin-top:8px}dd{margin-left:16px}
   .missing{color:#b45309}
-  .meta{color:#6b7280;font-size:12px}
+  .meta,.header{color:#6b7280;font-size:12px}
   footer{margin-top:48px;color:#6b7280;font-size:12px;border-top:1px solid #e5e7eb;padding-top:12px}
-  </style></head><body><h1>${escapeHtml(payload.title ?? "VICP 项目报告")}</h1>${meta}${body}
-  <footer>本报告由蓝格 VICP 建筑节能 AI 智配系统生成，需经专业审核后方可作为正式技术文件使用。</footer></body></html>`;
+  </style></head><body>${header}<h1>${escapeHtml(title)}</h1>${meta}${body}
+  <footer>${escapeHtml(footer)}</footer></body></html>`;
 }
 
 /** 模板报告 -> Word 文档 */
@@ -123,8 +135,13 @@ export async function renderTemplateWord(payload: ReportSnapshotPayload): Promis
   const sections = (payload.template?.sections ?? [])
     .filter((section) => section.enabled)
     .sort((a, b) => a.order - b.order);
+  const footer = payload.settings?.footerText?.trim()
+    || "本报告由蓝格 VICP 建筑节能 AI 智配系统生成，需经专业审核后方可作为正式技术文件使用。";
   const paragraphs = [
-    new Paragraph({ text: payload.title ?? "VICP 项目报告", heading: HeadingLevel.TITLE }),
+    ...(payload.settings?.headerText?.trim()
+      ? [new Paragraph({ children: [new TextRun({ text: payload.settings.headerText.trim(), size: 20 })] })]
+      : []),
+    new Paragraph({ text: payload.settings?.coverTitle?.trim() || payload.title || "VICP 项目报告", heading: HeadingLevel.TITLE }),
     ...sections.flatMap((section) => [
       new Paragraph({ text: section.title, heading: HeadingLevel.HEADING_1 }),
       new Paragraph({
@@ -135,7 +152,7 @@ export async function renderTemplateWord(payload: ReportSnapshotPayload): Promis
         )]
       })
     ]),
-    new Paragraph({ text: "本报告由蓝格 VICP 建筑节能 AI 智配系统生成，需经专业审核后方可作为正式技术文件使用。" })
+    new Paragraph({ text: footer })
   ];
   return Packer.toBuffer(new Document({ sections: [{ children: paragraphs }] }));
 }

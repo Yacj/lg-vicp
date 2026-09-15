@@ -17,13 +17,22 @@ import {
   canManageReport,
   canViewReport,
   resolveReportProjectId,
-  toMyReportItem
+  toMyReportItem,
+  assertReportProjectRequirement
 } from "./report-access.js";
+import { generateTemplateReport } from "./report-snapshot.service.js";
+import {
+  generatableReportTypeSchema,
+  isTemplateBackedReportType,
+  listPublicReportTypes,
+  resolveReportType
+} from "./report-types.js";
+import { publicReportTypeDto } from "./report-settings.schemas.js";
 
 const createReportBodySchema = z.object({
   projectId: z.uuid("项目 ID 格式不正确").optional(),
   conversationId: z.uuid("AI 会话 ID 格式不正确").optional(),
-  reportType: z.enum(["energy_design", "design_note", "marketing_copy"]),
+  reportType: generatableReportTypeSchema,
   contentJson: z.record(z.string(), z.unknown()).default({}),
   sourceMessageIds: z.array(z.uuid("AI 回答 ID 格式不正确")).max(20, "一次最多选择 20 条 AI 回答").optional()
 });
@@ -52,6 +61,21 @@ function uniqueIds(ids: string[] | undefined) {
 
 export async function reportRoutes(app: FastifyInstance) {
   const route = app.withTypeProvider<ZodTypeProvider>();
+
+  route.get("/reports/types", {
+    preHandler: [app.authenticate],
+    schema: {
+      tags: ["共用 / 报告"],
+      summary: "系统预置报告类型（不含内部模板版本与渲染细节）",
+      response: { 200: z.object({
+        success: z.boolean(),
+        data: z.object({ items: z.array(publicReportTypeDto) }),
+        requestId: z.string()
+      }) }
+    }
+  }, async (request) => {
+    return ok(request, { items: listPublicReportTypes() });
+  });
 
   route.get("/reports/my", {
     preHandler: [app.authenticate],
@@ -110,6 +134,21 @@ export async function reportRoutes(app: FastifyInstance) {
       : null;
     if (projectId && (!project || !canManageProject(user, project))) {
       throw new NotFoundError("项目不存在或无权生成报告");
+    }
+    const typeDef = resolveReportType(request.body.reportType);
+    assertReportProjectRequirement({ requiresProject: typeDef.requiresProject, projectId });
+
+    if (isTemplateBackedReportType(typeDef.code)) {
+      const result = await generateTemplateReport(app, request, user, {
+        reportType: typeDef.code,
+        projectId,
+        conversationId: request.body.conversationId ?? null
+      });
+      return ok(request, {
+        message: "报告已进入生成队列",
+        report: result.report,
+        taskId: result.taskId
+      });
     }
 
     const sourceMessageIds = uniqueIds(request.body.sourceMessageIds);

@@ -6,7 +6,7 @@
 - `CHANNEL_USER`：经销商或业务员，可以创建和管理自己的项目。
 - `NORMAL_USER`：可以查看公开项目，第一期不能创建项目。
 
-经销商和业务员使用 `channelType` 区分，不拆基础权限。动态 RBAC 只控制后台菜单和操作，项目权限必须独立校验。渠道用户默认角色 `channel_operator` 拥有：创建/管理项目、AI 对话、模板报告生成与审核（`system:report:generate`、`system:report:review`）；报告模板管理（`system:report:template:*`）不授予渠道用户。
+经销商和业务员使用 `channelType` 区分，不拆基础权限。动态 RBAC 只控制后台菜单和操作，项目权限必须独立校验。渠道用户默认角色 `channel_operator` 拥有：创建/管理项目、AI 对话、报告生成与审核（`system:report:generate`、`system:report:review`）；报告设置（`system:report:settings`）与内部模板管理（`system:report:template:*`）不授予渠道用户。
 
 项目规则：
 
@@ -18,6 +18,7 @@
 
 必须审计项目、用户状态、角色权限、部门、字典、文件、AI 配置、AI 调用和报告操作。可见性切换保存前后值；审计包含操作者、项目、请求 ID、IP、User-Agent 和时间。
 - 客户端边界：`B_ADMIN` 才能访问 `/api/v1/platform/*` 和 `/api/v1/workspace/*`；`C_APP`、`PC_AI` 访问这些路径必须被拒绝。
-- B 端后台每个接口都需要具体权限码，禁止用任意 `system:*` 作为模块通行证。查看、新增、修改、删除、导出、分配分别定义权限码。
+- B 端后台系统管理接口需要具体权限码，禁止用任意 `system:*` 作为模块通行证。查看、新增、修改、删除、导出、分配分别定义权限码。
+- 当前账号可见范围内的只读项目统计（`GET /platform/projects/statistics`）与工作台「我的项目」相同，只要求 JWT + `B_ADMIN` + 数据范围，不要求 `system:project:list`。平台项目列表 `GET /platform/projects` 仍需该权限码。
 - 权限查询必须过滤启用角色；`roles.enabled = false` 的角色不能授予菜单、按钮或接口权限。
 - C/AI 端允许访问明确开放的 AI 和业务接口，但仍必须执行项目、会话、文件和报告的业务权限校验。

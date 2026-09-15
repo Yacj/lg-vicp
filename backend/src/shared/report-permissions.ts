@@ -1,9 +1,8 @@
 /**
- * 报告模板与模板报告后台权限码常量（与 src/db/seed.ts permissionSeeds 保持一致）。
- * - 报告模板（report_templates）：版本化审核实体，list/add/edit/remove/approve/publish 六动作。
- * - 模板报告生成（/api/v1/platform/reports）：system:report:generate（生成+提交审核+查看快照）。
- * - 模板报告审核（submit 后 approve/reject）：system:report:review。
- * 超级管理员全量放行；模板报告的查看/下载仍走项目级 canViewProject/canManageProject。
+ * 报告后台权限码常量（与 src/db/seed.ts permissionSeeds 保持一致）。
+ * - 普通业务：报告列表/生成 `system:report:generate`、审核 `system:report:review`、设置 `system:report:settings`。
+ * - 报告模板（report_templates）为内部渲染配置：权限码保留给 SUPER_ADMIN / 高级技术管理员，普通菜单不展示。
+ * 超级管理员全量放行；报告查看/下载仍走项目级或创建者归属校验。
  */
 export const REPORT_PERMISSIONS = {
   TEMPLATE_LIST: "system:report:template:list",
@@ -13,7 +12,8 @@ export const REPORT_PERMISSIONS = {
   TEMPLATE_APPROVE: "system:report:template:approve",
   TEMPLATE_PUBLISH: "system:report:template:publish",
   GENERATE: "system:report:generate",
-  REVIEW: "system:report:review"
+  REVIEW: "system:report:review",
+  SETTINGS: "system:report:settings"
 } as const;
 
 export type ReportPermission = (typeof REPORT_PERMISSIONS)[keyof typeof REPORT_PERMISSIONS];
@@ -31,6 +31,7 @@ export const REPORT_PERMISSION_SEEDS: ReadonlyArray<{
   { code: REPORT_PERMISSIONS.TEMPLATE_DELETE, name: "删除报告模板草稿", resource: "report_template", action: "remove" },
   { code: REPORT_PERMISSIONS.TEMPLATE_APPROVE, name: "审核报告模板", resource: "report_template", action: "approve" },
   { code: REPORT_PERMISSIONS.TEMPLATE_PUBLISH, name: "发布或停用报告模板", resource: "report_template", action: "publish" },
-  { code: REPORT_PERMISSIONS.GENERATE, name: "生成模板报告与提交审核", resource: "report", action: "generate" },
-  { code: REPORT_PERMISSIONS.REVIEW, name: "审核模板报告", resource: "report", action: "review" }
+  { code: REPORT_PERMISSIONS.GENERATE, name: "生成报告与提交审核", resource: "report", action: "generate" },
+  { code: REPORT_PERMISSIONS.REVIEW, name: "审核报告", resource: "report", action: "review" },
+  { code: REPORT_PERMISSIONS.SETTINGS, name: "查看和修改报告设置", resource: "report", action: "settings" }
 ];

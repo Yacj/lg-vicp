@@ -15,7 +15,8 @@ export const REPORT_ERROR_CODES = {
   REPORT_NOT_REVIEWABLE: "REPORT_NOT_REVIEWABLE",
   REPORT_REVIEW_STATUS_CONFLICT: "REPORT_REVIEW_STATUS_CONFLICT",
   REPORT_SNAPSHOT_NOT_FOUND: "REPORT_SNAPSHOT_NOT_FOUND",
-  REPORT_PROJECT_REQUIRED: "REPORT_PROJECT_REQUIRED"
+  REPORT_PROJECT_REQUIRED: "REPORT_PROJECT_REQUIRED",
+  REPORT_TYPE_UNKNOWN: "REPORT_TYPE_UNKNOWN"
 } as const;
 
 export type ReportErrorCode = (typeof REPORT_ERROR_CODES)[keyof typeof REPORT_ERROR_CODES];
@@ -37,7 +38,8 @@ export const REPORT_ERROR_SPECS: Record<ReportErrorCode, ReportErrorSpec> = {
   REPORT_NOT_REVIEWABLE: { statusCode: 409, message: "该报告不是模板报告或未处于可审核状态" },
   REPORT_REVIEW_STATUS_CONFLICT: { statusCode: 409, message: "报告当前状态不允许执行该审核操作" },
   REPORT_SNAPSHOT_NOT_FOUND: { statusCode: 404, message: "报告数据快照不存在" },
-  REPORT_PROJECT_REQUIRED: { statusCode: 400, message: "该报告类型需要关联项目后才能生成" }
+  REPORT_PROJECT_REQUIRED: { statusCode: 400, message: "该报告类型需要关联项目后才能生成" },
+  REPORT_TYPE_UNKNOWN: { statusCode: 400, message: "未知的报告类型" }
 };
 
 /** 报告模板 / 模板报告业务错误：code 为稳定 REPORT_* 错误码，statusCode 为数值型 HTTP 语义码 */

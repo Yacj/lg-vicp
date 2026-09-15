@@ -77,5 +77,7 @@ describe("我的报告列表项", () => {
 
   it("标题回退到报告类型中文名", () => {
     expect(reportListTitle({ reportType: "marketing_copy", contentJson: null })).toBe("VICP 项目说明");
+    expect(reportListTitle({ reportType: "technical_scheme", contentJson: null })).toBe("综合技术方案报告");
+    expect(reportListTitle({ reportType: "ai_conversation", contentJson: null })).toBe("AI对话整理报告");
   });
 });

@@ -11,7 +11,14 @@ import { canCreateProjectFromClient, canManageProject, canViewProject } from "..
 import { assertPermission } from "../../shared/permission-guard.js";
 import { ok } from "../../shared/response.js";
 import { writeAuditLog } from "../audit-logs/audit-log.service.js";
-import { createProjectInTransaction, listCreatedProjects, updateProjectInTransaction, updateProjectVisibilityInTransaction } from "./project.service.js";
+import {
+  createProjectInTransaction,
+  getVisibleProjectStatistics,
+  listCreatedProjects,
+  platformProjectScopeWhere,
+  updateProjectInTransaction,
+  updateProjectVisibilityInTransaction
+} from "./project.service.js";
 import {
   clientProjectListQuerySchema,
   createProjectBodySchema,
@@ -33,13 +40,6 @@ function projectResponse(user: ReturnType<typeof getCurrentUser>, project: typeo
     ...project,
     canManage: canManageProject(user, project)
   };
-}
-
-/** 平台列表按最终业务口径返回公开项目；渠道/后台业务账号可额外查看自己创建的私有项目。 */
-function platformProjectScopeWhere(user: ReturnType<typeof getCurrentUser>) {
-  if (user.role === "SUPER_ADMIN") return undefined;
-  if (user.role === "CHANNEL_USER") return or(eq(projects.visibility, PROJECT_VISIBILITY.PUBLIC), eq(projects.createdById, user.id));
-  return eq(projects.visibility, PROJECT_VISIBILITY.PUBLIC);
 }
 
 function projectKeywordWhere(keyword: string | undefined) {
@@ -292,25 +292,12 @@ export async function platformProjectRoutes(app: FastifyInstance) {
     preHandler: [app.authenticate],
     schema: {
       tags: ["B端 / 平台 / 项目"],
-      summary: "查询项目统计",
+      summary: "查询当前账号可见项目统计",
+      description: "只要求 B 端登录。计数按业务角色可见范围，不校验 system:project:list。"
     }
   }, async (request) => {
-    await assertPermission(request, "system:project:list");
     const user = getCurrentUser(request);
-    const activeWhere = and(
-      isNull(projects.deletedAt),
-      platformProjectScopeWhere(user)
-    );
-    const [totalRow, publicRow, privateRow] = await Promise.all([
-      app.db.select({ value: count() }).from(projects).where(activeWhere),
-      app.db.select({ value: count() }).from(projects).where(and(activeWhere, eq(projects.visibility, PROJECT_VISIBILITY.PUBLIC))),
-      app.db.select({ value: count() }).from(projects).where(and(activeWhere, eq(projects.visibility, PROJECT_VISIBILITY.PRIVATE)))
-    ]);
-    return ok(request, {
-      total: totalRow[0]?.value ?? 0,
-      public: publicRow[0]?.value ?? 0,
-      private: privateRow[0]?.value ?? 0
-    });
+    return ok(request, await getVisibleProjectStatistics({ db: app.db, user }));
   });
 
   route.get("/projects", {

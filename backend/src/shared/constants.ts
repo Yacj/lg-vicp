@@ -114,6 +114,7 @@ export const AUDIT_ACTIONS = {
   REPORT_SUBMITTED: "report.submitted_for_review",
   REPORT_APPROVED: "report.approved",
   REPORT_REJECTED: "report.rejected",
+  REPORT_SETTINGS_UPDATED: "report.settings_updated",
   SHARE_LINK_CREATED: "share.link_created",
   SHARE_LINK_DISABLED: "share.link_disabled",
   SHARE_LINK_VIEWED: "share.link_viewed",
