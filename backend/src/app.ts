@@ -36,6 +36,8 @@ import { knowledgeClientRoutes } from "./modules/knowledge/knowledge-client.rout
 import { internalKnowledgeRoutes } from "./modules/knowledge/knowledge-internal.routes.js";
 import { masterdataRoutes } from "./modules/masterdata/masterdata.routes.js";
 import { masterdataClientRoutes } from "./modules/masterdata/masterdata-client.routes.js";
+import { companyRoutes } from "./modules/company/company.routes.js";
+import { companyAboutRoutes } from "./modules/company/company-about.routes.js";
 import { constructionRoutes } from "./modules/construction/construction.routes.js";
 import { thermalRoutes } from "./modules/thermal/thermal.routes.js";
 import { aiThermalRoutes } from "./modules/thermal/ai-thermal.routes.js";
@@ -146,6 +148,7 @@ export async function buildApp() {
   await app.register(knowledgeRoutes, { prefix: "/api/v1/platform/knowledge" });
   await app.register(internalKnowledgeRoutes, { prefix: "/api/v1/internal/knowledge" });
   await app.register(masterdataRoutes, { prefix: "/api/v1/platform/masterdata" });
+  await app.register(companyRoutes, { prefix: "/api/v1/platform/company" });
   await app.register(constructionRoutes, { prefix: "/api/v1/platform/construction" });
   await app.register(thermalRoutes, { prefix: "/api/v1/platform/thermal" });
   await app.register(aiThermalRoutes, { prefix: "/api/v1/ai/thermal" });
@@ -167,6 +170,7 @@ export async function buildApp() {
   await app.register(aiKnowledgeRoutes, { prefix: "/api/v1/ai/knowledge" });
   await app.register(aiVoiceRoutes, { prefix: "/api/v1/ai" });
   await app.register(masterdataClientRoutes, { prefix: "/api/v1/client" });
+  await app.register(companyAboutRoutes, { prefix: "/api/v1" });
   await app.register(knowledgeClientRoutes, { prefix: "/api/v1/client" });
   await app.register(fileRoutes, { prefix: "/api/v1/files" });
   await app.register(reportRoutes, { prefix: "/api/v1" });

@@ -60,7 +60,7 @@ const templateRow = {
 const profileRow = { id: "ep-1", code: "company_profile", version: 3, name: "蓝格节能科技有限公司", status: "PUBLISHED" };
 
 describe("报告快照组装（数值冻结，历史不漂移）", () => {
-  it("项目/模板校验通过后冻结章节数据，企业来自已发布读取", async () => {
+  it("项目/模板校验通过后冻结章节数据，企业来自 CompanyProfile", async () => {
     const { db } = makeDb([
       [projectRow],
       [selectionRow],
@@ -70,6 +70,8 @@ describe("报告快照组装（数值冻结，历史不漂移）", () => {
     const { dataJson } = await assembleReportSnapshot(app(db), { projectId: "p-1", selectionId: "sel-1", templateId: "tpl-1" });
     expect(dataJson.project).toMatchObject({ id: "p-1", name: "某住宅楼外墙保温项目" });
     expect(dataJson.enterprise).toMatchObject({ name: "蓝格节能科技有限公司" });
+    expect(dataJson.enterprise).not.toHaveProperty("address");
+    expect(dataJson.enterprise).not.toHaveProperty("contactPhone");
     expect(dataJson.template).toMatchObject({ code: "standard_report", version: 1 });
     expect(dataJson.selection).toMatchObject({ id: "sel-1", selectionReason: "满足苏州地区限值且经济性最优" });
     expect(typeof dataJson.asOfDate).toBe("string");

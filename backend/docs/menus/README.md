@@ -69,7 +69,7 @@ AI 运营 /ai-ops
 ├─ 字典管理 /system/dict
 ├─ 企业信息 /system/enterprise
 │  ├─ 企业简介 /content/profile
-│  └─ 企业资质证书 /content/certificates
+│  └─ 企业资质 /content/certificates
 ├─ 操作日志 /monitor/audit（隐藏，待前端补页面）
 └─ 高级设置 /system/advanced
    ├─ 在线用户 /monitor/online（隐藏）
@@ -100,7 +100,7 @@ AI 对话 /ai（隐藏路由，B 端不再提供一级入口）
 ## 三、保留 / 隐藏 / 废弃清单
 
 - **保留 routePath（menuId 不变）**：全部业务叶子与按钮，包括 /masterdata/*、/construction/*、/thermal/*、/comparison/*、/standard/*、/nodes/*、/content/*、/knowledge/*、/reports/*、/review-center/queue、/monitor/*、/system/*、/ai-config/*、/ai-ops/*。
-- **隐藏路由（visible=false、enabled=true，7 条）**：/ai、/thermal/calc-records、/review-center/queue、/monitor/audit、/monitor/online、/monitor/job、/monitor/cache。前端静态注册后即可访问，页面补齐后由菜单管理开启 visible。
+- **隐藏路由（visible=false、enabled=true）**：/ai、/thermal/calc-records、/review-center/queue、/monitor/audit、/monitor/online、/monitor/job、/monitor/cache、/ai-config/scenes、/ai-config/prompts、/reports/templates、/content/approve、/content/publish。前端静态注册后即可访问；企业信息审核/发布仅兼容旧接口。
 - **废弃菜单记录（seed 删除，9 条旧一级目录）**：/content、/masterdata、/construction、/thermal、/comparison、/standard、/nodes、/monitor、/review-center。删除前子项已在同事务内重挂到新父目录；另有旧按钮残留（/construction/add 等 19 条 2026-08 清理清单）继续由 seed 清除。
 - **已被替代 / 残留菜单清理（seed 删除，`LEGACY_MENU_ROUTE_PATHS`）**：/report/index、/projects 为早期 seed 残留幽灵菜单（与新菜单重名、permissionCode 为空，曾导致 `/api/v1/auth/b/getRouters` 返回重复菜单）；/system/ai 为旧「AI 配置」合并页、/monitor/ai 为旧「AI 运行情况」隐藏页（AI 配置 /ai-config、AI 运营 /ai-ops 恢复为独立一级菜单，叶子挂 `system:ai:*` 权限码，修复早期对所有角色可见的问题）；/ai-config/prompt 为旧提示词路径（统一为 /ai-config/prompts，对齐前端静态路由）。seed 只删顶级节点，子菜单由悬空节点兜底清理移除。
 - **悬空节点兜底清理**：seed 末尾循环删除 parentId 指向不存在菜单的节点（menus.parentId 无外键约束），同时兜住历史遗留孤儿节点与上述级联悬空，清理数量打印到 seed 日志。
@@ -125,9 +125,10 @@ AI 对话 /ai（隐藏路由，B 端不再提供一级入口）
 2. 系统监控页面（views/monitor/**）当前缺失，实现后由菜单管理开启 visible。
 3. 文件中心页面实现后，在知识中心下新增 `/files` 菜单（permissionCode `file:center:view`；本次未 seed，避免不可用页面）。
 4. 确认侧边栏支持三级目录渲染（产品中心下 6 个二级目录各带叶子）。
-5. 页面内写死的标题/面包屑与新菜单名对齐：模板报告→报告列表、图集参考表→图集热工参考表、材料库→保温材料库、材料参数版本→材料性能参数、节点图纸→节点大样图、对比版本→对比规则、标准文档→标准文件、指标管理→节能指标、替代关系→新旧标准替代、采集来源→标准采集源、企业证书→企业资质证书、审计日志→操作日志、AI 运营→AI 运行情况、报告中心→报告管理。
+5. 页面内写死的标题/面包屑与新菜单名对齐：模板报告→报告列表、图集参考表→图集热工参考表、材料库→保温材料库、材料参数版本→材料性能参数、节点图纸→节点大样图、对比版本→对比规则、标准文档→标准文件、指标管理→节能指标、替代关系→新旧标准替代、采集来源→标准采集源、企业证书→企业资质、审计日志→操作日志、AI 运营→AI 运行情况、报告中心→报告管理。
 6. 工作台"我的待办 / 待审核"需要 Dashboard 聚合 API（本次未实现，建议 `GET /api/v1/platform/dashboard/summary`：待审数、最近项目、最近报告、资料异常、AI 用量概览）。
 7. AI 配置 / AI 运营页面已由静态路由承载（/ai-config/*、/ai-ops/*），后端菜单同名路径直接复用静态页面；工作台首页不再提供「AI 与系统」聚合面板，AI 入口经侧栏一级菜单进入；报告管理内嵌"报告审核"入口。
+8. 企业信息普通页对接 `/api/v1/platform/company/profile` 与 `/qualifications`（见 `docs/company/README.md`），不要再走 `/platform/masterdata/enterprise-*` 审核流；不要在报告设置里维护第二套企业名称/Logo。C 端关于我们用 `GET /api/v1/company/about`。
 
 ## 七、AI 辅助录入边界（本次信息架构调整配套约定）
 

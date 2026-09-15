@@ -1621,7 +1621,7 @@ const mdReviewColumns = {
   updatedById: uuid("updated_by_id").references(() => users.id, { onDelete: "set null" })
 };
 
-/** 企业内容：同 code 多版本行并存，同一时刻仅一个 PUBLISHED 生效 */
+/** 企业内容：普通业务按单份 CompanyProfile 读写；历史版本行与审核列保留兼容，不在普通 API 暴露。 */
 export const enterpriseProfiles = pgTable(
   "enterprise_profiles",
   {
@@ -1647,7 +1647,7 @@ export const enterpriseProfiles = pgTable(
   ]
 );
 
-/** 企业证书：文档引用型（fileId），无版本递增，走审核状态机 */
+/** 企业资质：普通业务轻量 CRUD（名称/附件/编号/有效期/排序）；审核列与签发机构等历史字段保留兼容。 */
 export const enterpriseCertificates = pgTable(
   "enterprise_certificates",
   {
@@ -1659,13 +1659,15 @@ export const enterpriseCertificates = pgTable(
     expiryDate: date("expiry_date"),
     fileId: uuid("file_id").references(() => files.id, { onDelete: "set null" }),
     description: text("description"),
+    sortOrder: integer("sort_order").notNull().default(0),
     ...mdEvidenceColumns,
     ...mdReviewColumns,
     ...timestamps
   },
   (table) => [
     index("enterprise_certificates_status_created_idx").on(table.status, table.createdAt),
-    index("enterprise_certificates_file_idx").on(table.fileId)
+    index("enterprise_certificates_file_idx").on(table.fileId),
+    index("enterprise_certificates_sort_idx").on(table.sortOrder, table.createdAt)
   ]
 );
 
@@ -2509,7 +2511,7 @@ export const reportSnapshots = pgTable(
   (table) => [uniqueIndex("report_snapshots_report_unique").on(table.reportId)]
 );
 
-/** 全局报告设置（单行）：页眉页脚/免责声明/默认类型与导出格式。企业名称与 Logo 复用已发布 enterprise_profiles，不在此表重复存储。 */
+/** 全局报告设置（单行）：页眉页脚/免责声明/默认类型与导出格式。企业名称与 Logo 优先读 CompanyProfile，不在此表重复存储。 */
 export const reportSettings = pgTable(
   "report_settings",
   {

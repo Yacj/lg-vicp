@@ -9,7 +9,7 @@
 - `src/worker.ts`：文档、报告和维护 Worker 入口。
 - `src/db`：Drizzle schema、数据库客户端、生产迁移和 seed。
 - `src/plugins`：数据库、Redis、队列、存储、认证、错误、Swagger。
-- `src/modules`：业务模块。
+- `src/modules`：业务模块（普通企业信息见 `src/modules/company/`）。
 - `src/workers`：BullMQ 处理器。
 - `src/storage`：对象存储接口与适配器。
 - `src/shared`：权限、错误、响应、分页和常量。

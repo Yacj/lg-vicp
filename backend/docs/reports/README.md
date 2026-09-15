@@ -44,7 +44,7 @@ flowchart LR
 
 - `defaultReportType` / `coverTitle` / `showCalculationProcess` / `showSourceReferences` / `showDisclaimer`
 - `disclaimerText` / `headerText` / `footerText` / `defaultExportFormat`（PDF | DOCX）
-- `companyLogoFileId` **只读派生**，来自已发布 `enterprise_profiles.logoFileId`，不重复存储
+- `companyLogoFileId` **只读派生**，优先来自 CompanyProfile（`docs/company/README.md`），不重复存储；报告设置不再维护第二套企业名称/Logo
 
 设置在生成时点冻结进 `report_snapshots.dataJson.settings`，历史报告不随后台修改漂移。
 

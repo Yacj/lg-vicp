@@ -1,6 +1,10 @@
-# 主数据（企业 / 产品 / 材料参数）
+# 主数据（产品 / 材料参数）
 
-可配置主数据底座：企业内容与证书、产品系列/规格/性能参数、材料与材料参数版本、附件，全部经过"提交 → 审核 → 发布"状态机后进入**只读的已发布读取服务**，供未来构造方案、热工计算模块确定性取数。知识库负责条文检索/解释/页码引用，结构化库负责产品/系统/构造/热工表/筛选/确定性计算，二者分工不重叠。
+可配置主数据底座：产品系列/规格/性能参数、材料与材料参数版本、附件，全部经过"提交 → 审核 → 发布"状态机后进入**只读的已发布读取服务**，供构造方案、热工计算模块确定性取数。
+
+**企业信息已从普通业务主数据中拆出**：日常维护走 `src/modules/company/`（`docs/company/README.md`）。本模块仍保留 `enterprise_profiles` / `enterprise_certificates` 表与旧审核 API，供兼容，不再作为普通 B 端入口。
+
+知识库负责条文检索/解释/页码引用，结构化库负责产品/系统/构造/热工表/筛选/确定性计算，二者分工不重叠。
 
 ## 数据模型（8 张表）
 
@@ -51,7 +55,7 @@ stateDiagram-v2
 
 | 域 | 权限码（list/add/edit/remove/approve/publish） |
 | --- | --- |
-| 企业内容与证书 | `system:md:enterprise:*` |
+| 企业信息（普通能力复用，详见 `docs/company/README.md`） | `system:md:enterprise:*`（list 查看、edit 编辑档案、add/remove 资质；approve/publish 仅兼容旧接口） |
 | 产品（系列/规格/参数/附件） | `system:md:product:*` |
 | 材料与材料参数 | `system:md:material:*` |
 
@@ -63,8 +67,8 @@ stateDiagram-v2
 
 | 资源 | 端点 |
 | --- | --- |
-| 企业内容 | `GET/POST /enterprise-profiles`、`GET/PATCH/DELETE /enterprise-profiles/:id` + 工作流 |
-| 企业证书 | `GET/POST /enterprise-certificates`、`GET/PATCH/DELETE /enterprise-certificates/:id` + 工作流（无 new-version） |
+| 企业内容（兼容旧审核流；普通业务请用 `/api/v1/platform/company`） | `GET/POST /enterprise-profiles`、`GET/PATCH/DELETE /enterprise-profiles/:id` + 工作流 |
+| 企业证书（兼容旧审核流；普通业务请用 `/qualifications`） | `GET/POST /enterprise-certificates`、`GET/PATCH/DELETE /enterprise-certificates/:id` + 工作流（无 new-version） |
 | 产品系列 | `GET/POST /product-series`、`GET/PATCH/DELETE /product-series/:id` + 工作流 |
 | 产品规格 | `GET/POST /product-specs`、`GET/PATCH/DELETE /product-specs/:id` + 工作流 |
 | 产品参数 | `GET/POST /product-parameters`、`GET /product-parameters/groups`（按参数分组冲突视图）、`GET/PATCH/DELETE /product-parameters/:id` + 工作流 |
@@ -101,5 +105,5 @@ pnpm md:import-example
 4. Ⅰ/Ⅱ/Ⅲ 型规格的尺寸/厚度对应表（应以图集选用表为准）。
 5. 供应区域值域。
 6. 材料强度字段集与单位约定、材料分类值域。
-7. 企业简介字段集（logo/地址/联系方式/注册资本等）。
+7. ~~企业简介字段集（logo/地址/联系方式/注册资本等）。~~ 普通企业信息已收敛为名称/简称/Logo/简介/官网/资质，见 `docs/company/README.md`。
 8. 修正系数取值规则与《VICP热工计算表格公式》的对应关系。

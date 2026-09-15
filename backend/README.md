@@ -20,7 +20,7 @@
 ## 客户端与权限
 
 - `/api/v1/platform/*` 和 `/api/v1/workspace/*` 必须使用 `B_ADMIN` 令牌。
-- `/api/v1/client/*` 为 C 端/PC AI 端只读内容接口（已发布企业介绍、公开文库），要求 JWT 且客户端为 `C_APP`/`PC_AI`，不依赖后台 RBAC。
+- `/api/v1/client/*` 为 C 端/PC AI 端只读内容接口（企业介绍兼容入口、公开文库），要求 JWT 且客户端为 `C_APP`/`PC_AI`，不依赖后台 RBAC。普通企业介绍请用 `GET /api/v1/company/about`。
 - 客户端访问令牌按客户端类型分别配置：`B_ADMIN` 默认 `24h`，`C_APP` 默认 `30d`，`PC_AI` 默认 `30d`；refresh token 统一默认有效 `30` 天。
 - B 端后台接口必须先通过 JWT 和客户端校验，再通过具体按钮权限码校验；超级管理员直通。例外：当前账号可见范围内的只读项目统计（`GET /platform/projects/statistics`）不要求按钮权限码。
 - 知识库采用“原文档导航 + 原始页面 + AI 检索索引”：平台管理路径 `/api/v1/platform/knowledge/*` 要求 `B_ADMIN` 与精确 `system:knowledge:*` 权限；C_APP/PC_AI 公开读取仅使用 `/api/v1/client/knowledge/*`。普通 B 端新建走 `POST /documents/create-with-file`（只收 fileId，自动解析），草稿验证走 `POST /versions/:versionId/test-qa`（只检索当前版本）。生产 AI 只检索当前、已发布、未过期且 `AI_ENABLED` 的版本；`BROWSE_ONLY` 仅可浏览原文件。
@@ -86,7 +86,7 @@ schema: {
 - 用户端详情只展示本人消息、处理阶段、检索摘要、反馈、报告和分享；不展示模型原始思考链。
 - B 端 AI 运营详情是独立后台接口，需要 `system:ai:conversation:*` 权限，可查看工具调用、任务、分享访问和审计摘要。
 - AI 配置（服务商/模型/快捷提问/场景/提示词版本化）、SSE 协议、错误码、配额与安全细则见 `docs/ai/`。
-- 主数据/构造方案/图集热工/标准采集/材料对比/节点图库/报告与审核中心细则见 `docs/masterdata|construction|thermal|standard|comparison|nodes|reports/README.md`；B 端菜单信息架构（8 个一级、映射表、隐藏路由、Admin-Web 同步清单）见 `docs/menus/README.md`。
+- 主数据/企业信息/构造方案/图集热工/标准采集/材料对比/节点图库/报告与审核中心细则见 `docs/masterdata|company|construction|thermal|standard|comparison|nodes|reports/README.md`；B 端菜单信息架构（8 个一级、映射表、隐藏路由、Admin-Web 同步清单）见 `docs/menus/README.md`。
 - API Key 使用 AES-256-GCM 加密，任何接口都不能返回密钥明文或完整密文。
 - 报告来源通过 `report_sources` 保存回答快照和顺序，报告由 Worker 导出 HTML、PDF、图片和 Word。
 

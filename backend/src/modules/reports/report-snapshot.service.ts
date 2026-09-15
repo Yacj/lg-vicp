@@ -22,7 +22,8 @@ import { getPagination } from "../../shared/pagination.js";
 import { ReportError } from "../../shared/report-errors.js";
 import { writeAuditLog } from "../audit-logs/audit-log.service.js";
 import { publishedReferenceConditions, effectiveRangeConditions } from "../construction/construction-structure.service.js";
-import { listPublishedEnterpriseProfiles, listPublishedProductParameters } from "../masterdata/md-read.service.js";
+import { loadReportEnterprise } from "../company/company.service.js";
+import { listPublishedProductParameters } from "../masterdata/md-read.service.js";
 import { listPublishedNodesWithLinks } from "../nodes/node.service.js";
 import { assertReportProjectRequirement } from "./report-access.js";
 import {
@@ -39,7 +40,8 @@ import { resolveReportType, templateBackedReportTypeCodes, type ReportTypeDefini
  * - 普通调用按 reportType 自动选用内部预置模板；templateId 仅兼容旧接口。
  * - 数值只来自已确认候选（thermal_candidate_selections）与计算记录（thermal_calc_records）的冻结快照，
  *   不向 AI 索要数值、不重新计算；
- * - 企业/标准限值/节点/施工验收引用等静态章节来自 PUBLISHED + 生效中读取，在生成时点冻结进 dataJson；
+ * - 企业名称/Logo/简介来自普通 CompanyProfile，生成时点冻结进 dataJson；
+ * - 标准限值/节点/施工验收引用等静态章节来自 PUBLISHED + 生效中读取，在生成时点冻结进 dataJson；
  * - 报告设置在生成时点冻结，历史报告不随后台设置漂移；Worker 只做确定性渲染。
  */
 
@@ -139,9 +141,8 @@ export async function assembleReportSnapshot(app: FastifyInstance, input: Templa
         .orderBy(asc(thermalCalcRecords.createdAt))
     : [];
 
-  // 企业介绍章节：已发布企业内容（最新版本）+ 候选产品规格与已发布参数
-  const profiles = await listPublishedEnterpriseProfiles(app.db);
-  const enterprise = profiles[0] ?? null;
+  // 企业介绍 / 封面 Logo：优先 CompanyProfile（普通企业信息），生成时点冻结，历史报告不漂移
+  const enterprise = await loadReportEnterprise(app);
   const [publishedSpec] = productSpec?.id
     ? await app.db.select().from(productSpecs)
         .where(and(
@@ -266,9 +267,7 @@ export async function assembleReportSnapshot(app: FastifyInstance, input: Templa
     reportType: typeDef?.code ?? input.reportType ?? "TEMPLATE",
     settings: {
       ...settings,
-      companyLogoFileId: enterprise && typeof (enterprise as { logoFileId?: unknown }).logoFileId === "string"
-        ? (enterprise as { logoFileId: string }).logoFileId
-        : null
+      companyLogoFileId: enterprise?.logoFileId ?? null
     },
     template: {
       id: template.id,

@@ -65,7 +65,10 @@ export const HIDDEN_MENU_ROUTE_PATHS = [
   "/ai-config/scenes",
   "/ai-config/prompts",
   // 报告模板对普通业务管理员隐藏，仅 SUPER_ADMIN / 持有模板权限的技术管理员走接口或隐藏路由
-  "/reports/templates"
+  "/reports/templates",
+  // 企业信息审核/发布仅兼容旧主数据工作流，普通 B 端不展示
+  "/content/approve",
+  "/content/publish"
 ] as const;
 
 const actionButtons = (
@@ -348,8 +351,28 @@ const MENU_SEED_TREE: MenuSeedNode[] = [
       directory("企业信息", "/system/enterprise", 70, {
         children: [
           leaf("企业简介", "/content/profile", 10, "system:md:enterprise:list"),
-          leaf("企业资质证书", "/content/certificates", 20, "system:md:enterprise:list"),
-          ...crudButtons("/content", "system:md:enterprise", "企业信息")
+          leaf("企业资质", "/content/certificates", 20, "system:md:enterprise:list"),
+          ...actionButtons("/content", [
+            { suffix: "edit", name: "编辑企业信息", permissionCode: "system:md:enterprise:edit" },
+            { suffix: "add", name: "新增企业资质", permissionCode: "system:md:enterprise:add" },
+            { suffix: "remove", name: "删除企业资质", permissionCode: "system:md:enterprise:remove" }
+          ]),
+          {
+            menuType: "BUTTON",
+            name: "企业信息审核",
+            routePath: "/content/approve",
+            sortOrder: 40,
+            permissionCode: "system:md:enterprise:approve",
+            visible: false
+          },
+          {
+            menuType: "BUTTON",
+            name: "企业信息发布",
+            routePath: "/content/publish",
+            sortOrder: 50,
+            permissionCode: "system:md:enterprise:publish",
+            visible: false
+          }
         ]
       }),
       leaf("操作日志", "/monitor/audit", 90, "monitor:audit:list", { visible: false }),

@@ -1,7 +1,7 @@
 /**
- * 主数据（企业/产品/材料参数）后台权限码常量（与 src/db/seed.ts permissionSeeds 保持一致）。
- * 命名遵循现有 system:* 规范，按业务域划分：企业内容与证书、产品（系列/规格/参数/附件）、材料。
- * 查看、新增、修改、删除、审核、发布使用独立权限码；超级管理员全量放行。
+ * 主数据（产品/材料参数）后台权限码常量（与 src/db/seed.ts permissionSeeds 保持一致）。
+ * 企业信息普通能力复用 system:md:enterprise:* ：list 查看、edit 编辑档案、add/remove 管理资质。
+ * approve/publish 仅兼容旧主数据工作流接口。查看、新增、修改、删除、审核、发布使用独立权限码；超级管理员全量放行。
  */
 export const MD_PERMISSIONS = {
   ENTERPRISE_LIST: "system:md:enterprise:list",
@@ -33,12 +33,12 @@ export const MD_PERMISSION_SEEDS: ReadonlyArray<{
   resource: string;
   action: string;
 }> = [
-  { code: MD_PERMISSIONS.ENTERPRISE_LIST, name: "查看企业内容与证书", resource: "md_enterprise", action: "list" },
-  { code: MD_PERMISSIONS.ENTERPRISE_CREATE, name: "新增企业内容与证书", resource: "md_enterprise", action: "add" },
-  { code: MD_PERMISSIONS.ENTERPRISE_UPDATE, name: "修改企业内容与证书", resource: "md_enterprise", action: "edit" },
-  { code: MD_PERMISSIONS.ENTERPRISE_DELETE, name: "删除企业内容与证书草稿", resource: "md_enterprise", action: "remove" },
-  { code: MD_PERMISSIONS.ENTERPRISE_APPROVE, name: "审核企业内容与证书", resource: "md_enterprise", action: "approve" },
-  { code: MD_PERMISSIONS.ENTERPRISE_PUBLISH, name: "发布或停用企业内容与证书", resource: "md_enterprise", action: "publish" },
+  { code: MD_PERMISSIONS.ENTERPRISE_LIST, name: "查看企业信息", resource: "md_enterprise", action: "list" },
+  { code: MD_PERMISSIONS.ENTERPRISE_CREATE, name: "新增企业资质", resource: "md_enterprise", action: "add" },
+  { code: MD_PERMISSIONS.ENTERPRISE_UPDATE, name: "编辑企业信息", resource: "md_enterprise", action: "edit" },
+  { code: MD_PERMISSIONS.ENTERPRISE_DELETE, name: "删除企业资质", resource: "md_enterprise", action: "remove" },
+  { code: MD_PERMISSIONS.ENTERPRISE_APPROVE, name: "审核企业内容与证书（兼容）", resource: "md_enterprise", action: "approve" },
+  { code: MD_PERMISSIONS.ENTERPRISE_PUBLISH, name: "发布或停用企业内容与证书（兼容）", resource: "md_enterprise", action: "publish" },
   { code: MD_PERMISSIONS.PRODUCT_LIST, name: "查看产品系列、规格与参数", resource: "md_product", action: "list" },
   { code: MD_PERMISSIONS.PRODUCT_CREATE, name: "新增产品系列、规格与参数", resource: "md_product", action: "add" },
   { code: MD_PERMISSIONS.PRODUCT_UPDATE, name: "修改产品系列、规格与参数", resource: "md_product", action: "edit" },

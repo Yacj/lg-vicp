@@ -5,7 +5,7 @@ import { reportSettings } from "../../db/schema.js";
 import type { AuthUser } from "../../shared/auth-user.js";
 import { AUDIT_ACTIONS } from "../../shared/constants.js";
 import { writeAuditLog } from "../audit-logs/audit-log.service.js";
-import { listPublishedEnterpriseProfiles } from "../masterdata/md-read.service.js";
+import { loadCompanyLogoFileId } from "../company/company.service.js";
 import type { reportSettingsUpdateSchema } from "./report-settings.schemas.js";
 import type { z } from "zod";
 
@@ -60,9 +60,7 @@ function toValues(row: typeof reportSettings.$inferSelect | undefined): ReportSe
 }
 
 async function publishedCompanyLogoFileId(app: FastifyInstance): Promise<string | null> {
-  const profiles = await listPublishedEnterpriseProfiles(app.db);
-  const logoFileId = profiles[0]?.logoFileId;
-  return typeof logoFileId === "string" ? logoFileId : null;
+  return loadCompanyLogoFileId(app);
 }
 
 export async function loadReportSettingsValues(app: FastifyInstance): Promise<ReportSettingsValues> {

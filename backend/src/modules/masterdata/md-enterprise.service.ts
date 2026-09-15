@@ -16,8 +16,9 @@ import {
 } from "./md-workflow.service.js";
 
 /**
- * 企业内容与证书服务。
- * enterprise_profiles：版本化实体（同 code 多版本行，发布互斥）；enterprise_certificates：文档引用型（fileId），无版本递增，编辑就地改。
+ * 企业内容与证书服务（兼容旧审核流）。
+ * 普通业务请使用 `src/modules/company/`：GET/PUT profile + 资质轻量 CRUD，不再强制填写联系人/地址等历史字段。
+ * enterprise_profiles：版本化实体保留；enterprise_certificates：文档引用型（fileId）。
  */
 
 // ---------------------------------------------------------------- 企业内容（版本化）

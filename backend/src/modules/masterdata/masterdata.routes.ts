@@ -143,7 +143,7 @@ const workflowCtx = {
 export async function masterdataRoutes(app: FastifyInstance) {
   const route = app.withTypeProvider<ZodTypeProvider>();
 
-  // ================================================================ 企业内容（版本化）
+  // ================================================================ 企业内容（兼容旧审核流，普通业务请用 /api/v1/platform/company）
   route.get("/enterprise-profiles", {
     preHandler: [app.authenticate],
     schema: {
@@ -199,7 +199,7 @@ export async function masterdataRoutes(app: FastifyInstance) {
 
   registerVersionedWorkflow({ ...workflowCtx, app, base: "/enterprise-profiles", label: "企业内容", entity: "enterpriseProfile", perms: ENTERPRISE_PERMS, dto: enterpriseProfileDto });
 
-  // ================================================================ 企业证书（非版本化）
+  // ================================================================ 企业证书（兼容旧审核流，普通业务请用 /api/v1/platform/company/qualifications）
   route.get("/enterprise-certificates", {
     preHandler: [app.authenticate],
     schema: {

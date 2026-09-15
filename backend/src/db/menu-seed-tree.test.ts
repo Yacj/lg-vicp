@@ -120,7 +120,7 @@ describe("buildMenuSeedTree（B 端菜单信息架构 2026-09 瘦身）", () => 
       ["/standard/sources", "标准采集源"],
       ["/knowledge/crawlers", "资料采集源"],
       ["/knowledge/quality", "质量与调试"],
-      ["/content/certificates", "企业资质证书"],
+      ["/content/certificates", "企业资质"],
       ["/reports/center", "报告列表"],
       ["/reports/settings", "报告设置"],
       ["/monitor/audit", "操作日志"],
@@ -274,7 +274,7 @@ describe("buildMenuSeedTree（B 端菜单信息架构 2026-09 瘦身）", () => 
       ["/system/dept", "system:dept:list"],
       ["/system/post", "system:post:list"],
       ["/system/dict", "system:dict:list"],
-      // 企业信息（system:md:enterprise:*，按钮 routePath 保持 /content/*）
+      // 企业信息（普通：查看/编辑/资质 CRUD；审核发布按钮隐藏，权限码保留兼容）
       ["/content/profile", "system:md:enterprise:list"],
       ["/content/certificates", "system:md:enterprise:list"],
       ...["add", "edit", "remove", "approve", "publish"].map((action) =>
