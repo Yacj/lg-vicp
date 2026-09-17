@@ -445,22 +445,37 @@ try {
       if (!promptId) return;
       const [published] = await tx.select({ id: promptVersions.id }).from(promptVersions)
         .where(and(eq(promptVersions.promptId, promptId), eq(promptVersions.status, "PUBLISHED"))).limit(1);
-      if (!published && promptSeed) {
-        const [v1] = await tx.insert(promptVersions).values({
-          promptId,
-          version: 1,
-          content: promptSeed.systemPrompt,
-          status: "PUBLISHED",
-          changeNote: "初始版本"
-        }).returning();
-        await tx.update(prompts).set({ activeVersionId: v1!.id, updatedAt: new Date() }).where(eq(prompts.id, promptId));
-        await tx.update(aiScenes).set({ promptId, updatedAt: new Date() }).where(eq(aiScenes.id, scene.id));
-      } else {
-        await tx.update(prompts).set({ activeVersionId: published!.id, updatedAt: new Date() })
+      if (published) {
+        await tx.update(prompts).set({ activeVersionId: published.id, updatedAt: new Date() })
           .where(and(eq(prompts.id, promptId), isNull(prompts.activeVersionId)));
         await tx.update(aiScenes).set({ promptId, updatedAt: new Date() })
           .where(and(eq(aiScenes.id, scene.id), isNull(aiScenes.promptId)));
+        return;
       }
+
+      await tx.update(aiScenes).set({ promptId, updatedAt: new Date() })
+        .where(and(eq(aiScenes.id, scene.id), isNull(aiScenes.promptId)));
+      if (!promptSeed) return;
+
+      const existingVersions = await tx.select({
+        version: promptVersions.version,
+        status: promptVersions.status
+      }).from(promptVersions).where(eq(promptVersions.promptId, promptId));
+      // 已有 DISABLED/历史发布时不再强插，避免覆盖管理员停用，也避免 (prompt_id, version) 唯一冲突
+      if (existingVersions.some((row) => row.status !== "DRAFT")) return;
+
+      const nextVersion = existingVersions.reduce((max, row) => Math.max(max, row.version), 0) + 1;
+      const [created] = await tx.insert(promptVersions).values({
+        promptId,
+        version: nextVersion,
+        content: promptSeed.systemPrompt,
+        status: "PUBLISHED",
+        changeNote: nextVersion === 1 ? "初始版本" : "seed 补齐已发布版本",
+        publishedAt: new Date()
+      }).returning({ id: promptVersions.id });
+      if (!created) return;
+      await tx.update(prompts).set({ activeVersionId: created.id, updatedAt: new Date() }).where(eq(prompts.id, promptId));
+      await tx.update(aiScenes).set({ promptId, updatedAt: new Date() }).where(eq(aiScenes.id, scene.id));
     };
     for (const scene of sceneSeeds) await ensureScenePrompt(scene.code);
 
