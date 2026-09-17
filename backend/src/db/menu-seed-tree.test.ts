@@ -21,7 +21,7 @@ describe("buildMenuSeedTree（B 端菜单信息架构 2026-09 瘦身）", () => 
   it("顶层可见一级只保留 7 个（工作台由 Admin-Web 静态首页承担，不入库）", () => {
     const tree = buildMenuSeedTree();
     const topVisible = tree.filter((node) => node.visible !== false);
-    expect(topVisible.map((node) => node.name)).toEqual(["项目管理", "产品中心", "知识中心", "报告管理", "AI 配置", "AI 运营", "系统管理"]);
+    expect(topVisible.map((node) => node.name)).toEqual(["项目管理", "知识中心", "采集管理", "报告管理", "AI 配置", "AI 运营", "系统管理"]);
     // AI 对话保留为隐藏路由，不再是可见一级入口
     const aiEntry = tree.find((node) => node.routePath === "/ai");
     expect(aiEntry?.visible).toBe(false);
@@ -70,6 +70,12 @@ describe("buildMenuSeedTree（B 端菜单信息架构 2026-09 瘦身）", () => 
     expect(parentByRoutePath.get("/thermal/calc-rules")).toBe("/products/thermal");
     expect(parentByRoutePath.get("/nodes/drawings")).toBe("/products/nodes");
     expect(parentByRoutePath.get("/comparison/versions")).toBe("/products/comparison");
+    expect(parentByRoutePath.get("/products")).toBe(null);
+    // 采集管理独立一级
+    expect(parentByRoutePath.get("/collection")).toBe(null);
+    expect(parentByRoutePath.get("/collection/manual")).toBe("/collection");
+    expect(parentByRoutePath.get("/collection/sources")).toBe("/collection");
+    expect(parentByRoutePath.get("/collection/tasks")).toBe("/collection");
     // 标准政策并入知识中心/标准规范，热工标准限值一并归入
     expect(parentByRoutePath.get("/knowledge/standards")).toBe("/knowledge");
     expect(parentByRoutePath.get("/standard/documents")).toBe("/knowledge/standards");
@@ -119,6 +125,10 @@ describe("buildMenuSeedTree（B 端菜单信息架构 2026-09 瘦身）", () => 
       ["/standard/replacements", "新旧标准替代"],
       ["/standard/sources", "标准采集源"],
       ["/knowledge/crawlers", "资料采集源"],
+      ["/collection", "采集管理"],
+      ["/collection/manual", "手动采集"],
+      ["/collection/sources", "自动采集源"],
+      ["/collection/tasks", "采集任务"],
       ["/knowledge/quality", "质量与调试"],
       ["/content/certificates", "企业资质"],
       ["/reports/center", "报告列表"],
@@ -206,6 +216,15 @@ describe("buildMenuSeedTree（B 端菜单信息架构 2026-09 瘦身）", () => 
       ...["add", "edit", "run", "remove"].map((action) =>
         [`/knowledge/crawlers/${action}`, `system:knowledge:crawler:${action}`] as const
       ),
+      ["/collection/manual", "system:collection:manual:create"],
+      ["/collection/sources", "system:collection:auto:list"],
+      ["/collection/sources/add", "system:collection:auto:create"],
+      ["/collection/sources/edit", "system:collection:auto:update"],
+      ["/collection/sources/enable", "system:collection:auto:toggle"],
+      ["/collection/sources/disable", "system:collection:auto:toggle"],
+      ["/collection/tasks", "system:collection:list"],
+      ["/collection/tasks/view", "system:collection:task:view"],
+      ["/collection/tasks/import", "system:collection:task:import"],
       ["/knowledge/search-test", "system:knowledge:search:answer"],
       ["/knowledge/search-test/answer", "system:knowledge:search:answer"],
       ["/knowledge/search-test/eval-add", "system:knowledge:eval:add"],

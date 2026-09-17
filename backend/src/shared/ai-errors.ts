@@ -21,7 +21,13 @@ export const AI_ERROR_CODES = {
   AI_REASONING_NOT_SUPPORTED: "AI_REASONING_NOT_SUPPORTED",
   AI_QUOTA_EXCEEDED: "AI_QUOTA_EXCEEDED",
   AI_INSULATION_SYSTEM_REQUIRED: "AI_INSULATION_SYSTEM_REQUIRED",
-  VISION_MODEL_NOT_CONFIGURED: "VISION_MODEL_NOT_CONFIGURED"
+  VISION_MODEL_NOT_CONFIGURED: "VISION_MODEL_NOT_CONFIGURED",
+  AGENT_MODEL_NOT_CONFIGURED: "AGENT_MODEL_NOT_CONFIGURED",
+  AGENT_LOOP_LIMIT: "AGENT_LOOP_LIMIT",
+  AGENT_RUN_NOT_FOUND: "AGENT_RUN_NOT_FOUND",
+  AGENT_RUN_NOT_WAITING: "AGENT_RUN_NOT_WAITING",
+  AGENT_TOOL_TIMEOUT: "AGENT_TOOL_TIMEOUT",
+  AGENT_CANCELLED: "AGENT_CANCELLED"
 } as const;
 
 export type AiErrorCode = (typeof AI_ERROR_CODES)[keyof typeof AI_ERROR_CODES];
@@ -50,7 +56,13 @@ export const AI_ERROR_SPECS: Record<AiErrorCode, AiErrorSpec> = {
   AI_REASONING_NOT_SUPPORTED: { statusCode: 400, retryable: false, message: "当前会话或模型不支持深度思考" },
   AI_QUOTA_EXCEEDED: { statusCode: 429, retryable: true, message: "AI 使用额度已达上限，请稍后再试" },
   AI_INSULATION_SYSTEM_REQUIRED: { statusCode: 400, retryable: false, message: "专业咨询前请先选择保温体系" },
-  VISION_MODEL_NOT_CONFIGURED: { statusCode: 400, retryable: false, message: "尚未配置可用的视觉模型，请联系管理员启用 vision 能力模型" }
+  VISION_MODEL_NOT_CONFIGURED: { statusCode: 400, retryable: false, message: "尚未配置可用的视觉模型，请联系管理员启用 vision 能力模型" },
+  AGENT_MODEL_NOT_CONFIGURED: { statusCode: 400, retryable: false, message: "尚未配置支持工具调用的 Agent 模型，请联系管理员启用 tools 能力模型" },
+  AGENT_LOOP_LIMIT: { statusCode: 500, retryable: false, message: "AI 工具调用次数过多或出现循环，已停止本次任务" },
+  AGENT_RUN_NOT_FOUND: { statusCode: 404, retryable: false, message: "Agent 任务不存在" },
+  AGENT_RUN_NOT_WAITING: { statusCode: 409, retryable: false, message: "当前 Agent 任务不在等待用户输入状态" },
+  AGENT_TOOL_TIMEOUT: { statusCode: 500, retryable: true, message: "工具执行超时，请稍后重试" },
+  AGENT_CANCELLED: { statusCode: 409, retryable: false, message: "AI 任务已取消" }
 };
 
 /** AI 业务错误：code 为稳定 AI_* 错误码，statusCode 为数值型 HTTP 语义码 */

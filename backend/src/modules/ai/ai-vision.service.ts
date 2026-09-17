@@ -32,7 +32,27 @@ export type VisionContext = {
   modelId: string;
   providerId: string;
   durationMs: number;
+  semanticSummary: string;
+  extractedText: string | null;
+  detectedObjects: string[];
 };
+
+export function parseVisionSemantics(text: string): {
+  semanticSummary: string;
+  extractedText: string | null;
+  detectedObjects: string[];
+} {
+  const summaryMatch = text.match(/【观察摘要】\s*([\s\S]*?)(?=【可见文字】|【可见对象】|$)/);
+  const textMatch = text.match(/【可见文字】\s*([\s\S]*?)(?=【可见对象】|【观察摘要】|$)/);
+  const objectsMatch = text.match(/【可见对象】\s*([\s\S]*?)(?=【观察摘要】|【可见文字】|$)/);
+  const semanticSummary = (summaryMatch?.[1] ?? text).trim();
+  const extractedText = textMatch?.[1]?.trim() || null;
+  const detectedObjects = (objectsMatch?.[1] ?? "")
+    .split(/[,，、\n]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+  return { semanticSummary, extractedText, detectedObjects };
+}
 
 function uniqueFileIds(ids: string[] | undefined): string[] {
   return [...new Set(ids ?? [])];
@@ -138,6 +158,10 @@ export async function describeChatImages(
           text: [
             "你是视觉观察助手。请客观描述这些图片中可见的内容（材料、构造、文字、尺寸标注、图表、颜色与相对位置等）。",
             "只输出观察结果，不要给出工程结论，不要编造图中看不到的标准号、参数或项目信息。",
+            "请按以下结构输出：",
+            "【观察摘要】对图片的可复用语义描述，便于后续追问“刚才那张图第二个节点”。",
+            "【可见文字】图中可读文字；没有则写无。",
+            "【可见对象】逗号分隔的可见对象/节点/标注。",
             `用户问题：${userText}`
           ].join("\n")
         },
@@ -154,17 +178,22 @@ export async function describeChatImages(
   if (!text) {
     throw new AiError("AI_CONTENT_REJECTED", "视觉模型未返回有效的图片观察结果");
   }
+  const parsed = parseVisionSemantics(text);
   return {
     text,
     modelId: vision.modelRef.id,
     providerId: vision.providerId,
-    durationMs: Date.now() - startedAt
+    durationMs: Date.now() - startedAt,
+    ...parsed
   };
 }
 
 export function visionResultPayload(vision: VisionContext, fileIds: string[]): Record<string, unknown> {
   return {
     text: vision.text,
+    semanticSummary: vision.semanticSummary,
+    extractedText: vision.extractedText,
+    detectedObjects: vision.detectedObjects,
     modelId: vision.modelId,
     providerId: vision.providerId,
     durationMs: vision.durationMs,

@@ -69,6 +69,7 @@ const validateResponseSchema = z.object({
   requestId: z.string()
 });
 
+/** Legacy：节点图库普通菜单已隐藏，本路由保留兼容。 */
 export async function nodeRoutes(app: FastifyInstance) {
   const route = app.withTypeProvider<ZodTypeProvider>();
 

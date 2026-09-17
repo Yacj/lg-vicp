@@ -27,7 +27,7 @@ import { getCurrentUser } from "../../shared/current-user.js";
 import { ConflictError, ForbiddenError, NotFoundError } from "../../shared/errors.js";
 import { canManageProject, canViewProject } from "../../shared/permissions.js";
 import { getPagination, paginationQuerySchema } from "../../shared/pagination.js";
-import { estimateTokens, buildSystemMessages, budgetHistory, formatInsulationSystemContext, formatThermalCapabilityContext, type ContextMessage } from "../../shared/prompt-assembly.js";
+import { DEFAULT_CONTEXT_WINDOW, estimateTokens, buildSystemMessages, budgetHistory, formatInsulationSystemContext, formatThermalCapabilityContext, type ContextMessage } from "../../shared/prompt-assembly.js";
 import { getPublishedInsulationSystem, listPublishedInsulationSystems } from "../construction/construction-read.service.js";
 import { createNotification } from "../notifications/notification.service.js";
 import { toAiSources } from "./ai-source.mapper.js";
@@ -37,7 +37,6 @@ import { isAbortError, startSseStream, writeProgress, writeSse } from "./ai-sse.
 import { writeAuditLog } from "../audit-logs/audit-log.service.js";
 import {
   activeGenerations,
-  DEFAULT_CONTEXT_WINDOW,
   enforceAiRateLimit,
   failPendingGenerationMessage,
   releaseGenerationLock,
@@ -45,6 +44,9 @@ import {
   streamConversationReply,
   type ActiveGeneration
 } from "./ai-generation.service.js";
+import { updateConversationSummary } from "./ai-conversation-state.service.js";
+import { refreshProjectMemoryFromConversation } from "./ai-project-memory.service.js";
+import { assertAgentRunAccess, getActiveAgentRun, getAgentRunById, toAgentRunDto } from "./ai-agent.service.js";
 import { loadKnowledgeForGeneration } from "./ai-knowledge-load.js";
 import { formatKnowledgeContext, runSearch, searchProjectKnowledge } from "../knowledge/knowledge.service.js";
 import { KNOWLEDGE_PERMISSIONS } from "../../shared/knowledge-permissions.js";
@@ -288,6 +290,18 @@ export async function aiRoutes(app: FastifyInstance) {
       });
       return created!;
     });
+    if (request.body.projectId) {
+      const previous = await app.db.select({ id: aiConversations.id }).from(aiConversations).where(and(
+        eq(aiConversations.userId, user.id),
+        eq(aiConversations.projectId, request.body.projectId),
+        eq(aiConversations.status, "active")
+      )).orderBy(desc(aiConversations.updatedAt)).limit(3);
+      for (const row of previous) {
+        if (row.id === conversation.id) continue;
+        void updateConversationSummary(app, row.id, { force: true }).catch(() => undefined);
+        void refreshProjectMemoryFromConversation(app, row.id, user, request).catch(() => undefined);
+      }
+    }
     return ok(request, { message: "AI 会话创建成功", conversation });
   });
 
@@ -375,8 +389,8 @@ export async function aiRoutes(app: FastifyInstance) {
     schema: { tags: ["共用 / AI对话"], summary: "获取 AI 会话和消息", params: conversationParamsSchema }
   }, async (request) => {
     const user = getCurrentUser(request);
-    const conversation = await findConversation(app, request.params.id);
-    if (!conversation) throw new NotFoundError("AI 会话不存在");
+    const conversation = await findConversationById(app, request.params.id);
+    if (!conversation || conversation.deletedAt) throw new NotFoundError("AI 会话不存在");
     ensureConversationOwner(user, conversation);
     const messages = await app.db.select().from(aiMessages)
       .where(eq(aiMessages.conversationId, conversation.id)).orderBy(aiMessages.createdAt);
@@ -438,6 +452,7 @@ export async function aiRoutes(app: FastifyInstance) {
         attachmentType: row.attachment.attachmentType,
         sortOrder: row.attachment.sortOrder,
         visionStatus: row.attachment.visionStatus,
+        semanticSummary: row.attachment.semanticSummary,
         file: {
           id: row.file.id,
           originalName: row.file.originalName,
@@ -447,9 +462,11 @@ export async function aiRoutes(app: FastifyInstance) {
         }
       }))
     }));
+    const activeAgentRun = await getActiveAgentRun(app, conversation.id);
     return ok(request, {
       conversation,
       messages: visibleMessages,
+      activeAgentRun: activeAgentRun ? toAgentRunDto(activeAgentRun) : null,
       processingSummary: {
         stages: [
           { stage: "analyzing", message: conversation.projectId ? "正在分析项目资料..." : "正在分析问题..." },
@@ -739,6 +756,87 @@ export async function aiRoutes(app: FastifyInstance) {
       return row!;
     });
     return ok(request, { message: "AI 会话保温体系已更新", conversation: updated });
+  });
+
+  route.post("/conversations/:id/end", {
+    preHandler: [app.authenticate],
+    schema: {
+      tags: ["共用 / AI对话"],
+      summary: "结束 AI 会话并整理摘要与项目记忆",
+      params: conversationParamsSchema
+    }
+  }, async (request) => {
+    const user = getCurrentUser(request);
+    const conversation = await findConversation(app, request.params.id);
+    if (!conversation) throw new NotFoundError("AI 会话不存在");
+    ensureConversationOwner(user, conversation);
+    const [updated] = await app.db.update(aiConversations).set({
+      status: "ended",
+      updatedAt: new Date()
+    }).where(eq(aiConversations.id, conversation.id)).returning();
+    await writeAuditLog({
+      db: app.db, request, actor: user, projectId: conversation.projectId ?? undefined,
+      action: AUDIT_ACTIONS.AI_CONVERSATION_ENDED,
+      targetType: "ai_conversation", targetId: conversation.id
+    });
+    await updateConversationSummary(app, conversation.id, { force: true }).catch(() => undefined);
+    if (conversation.projectId) {
+      await refreshProjectMemoryFromConversation(app, conversation.id, user, request).catch(() => undefined);
+    }
+    return ok(request, { message: "AI 会话已结束", conversation: updated });
+  });
+
+  route.get("/conversations/:id/active-agent-run", {
+    preHandler: [app.authenticate],
+    schema: {
+      tags: ["共用 / AI对话"],
+      summary: "获取会话当前 Agent Run（用于 SSE 断线恢复）",
+      params: conversationParamsSchema
+    }
+  }, async (request) => {
+    const user = getCurrentUser(request);
+    const conversation = await findConversationById(app, request.params.id);
+    if (!conversation || conversation.deletedAt) throw new NotFoundError("AI 会话不存在");
+    ensureConversationOwner(user, conversation);
+    const run = await getActiveAgentRun(app, conversation.id);
+    return ok(request, { run: run ? toAgentRunDto(run) : null });
+  });
+
+  route.get("/agent-runs/:id", {
+    preHandler: [app.authenticate],
+    schema: {
+      tags: ["共用 / AI对话"],
+      summary: "获取 Agent Run 详情",
+      params: z.object({ id: z.uuid("任务 ID 格式不正确") })
+    }
+  }, async (request) => {
+    const user = getCurrentUser(request);
+    const run = await getAgentRunById(app, request.params.id);
+    if (!run) throw new NotFoundError("Agent 任务不存在");
+    await assertAgentRunAccess(app, user, run);
+    return ok(request, { run: toAgentRunDto(run) });
+  });
+
+  route.post("/agent-runs/:id/resume", {
+    preHandler: [app.authenticate],
+    schema: {
+      tags: ["共用 / AI对话"],
+      summary: "恢复等待用户输入的 Agent Run（SSE）",
+      params: z.object({ id: z.uuid("任务 ID 格式不正确") }),
+      body: z.object({ content: z.string().trim().min(1).max(8000) })
+    }
+  }, async (request, reply) => {
+    const user = getCurrentUser(request);
+    const run = await getAgentRunById(app, request.params.id);
+    if (!run) throw new NotFoundError("Agent 任务不存在");
+    const conversation = await assertAgentRunAccess(app, user, run);
+    if (run.status !== "WAITING_USER_INPUT") {
+      throw new AiError("AGENT_RUN_NOT_WAITING");
+    }
+    assertInsulationSystemForScene(conversation.scene, conversation.insulationSystemId);
+    await streamConversationReply({
+      app, request, reply, user, conversation, content: request.body.content
+    });
   });
 
   route.post("/conversations/:id/messages", {

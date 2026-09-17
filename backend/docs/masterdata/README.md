@@ -1,10 +1,12 @@
-# 主数据（产品 / 材料参数）
+# 主数据（产品 / 材料参数）— Legacy / Deprecated
 
-可配置主数据底座：产品系列/规格/性能参数、材料与材料参数版本、附件，全部经过"提交 → 审核 → 发布"状态机后进入**只读的已发布读取服务**，供构造方案、热工计算模块确定性取数。
+产品中心已退出普通业务。本模块表与 `/api/v1/platform/masterdata` 审核 API **保留兼容，不 DROP**。普通菜单不再暴露；新功能禁止继续增加 Product 依赖。
+
+正式图集、标准规范、技术资料、企业技术文件统一进入 Knowledge。产品/材料/构造/参数不再要求用户二次录入产品中心。
+
+确定性计算优先 `VERIFIED knowledge_facts`（`resolveThermalParameter` / `resolveMaterialFacts`），缺省 fallback 本模块已发布读取。
 
 **企业信息已从普通业务主数据中拆出**：日常维护走 `src/modules/company/`（`docs/company/README.md`）。本模块仍保留 `enterprise_profiles` / `enterprise_certificates` 表与旧审核 API，供兼容，不再作为普通 B 端入口。
-
-知识库负责条文检索/解释/页码引用，结构化库负责产品/系统/构造/热工表/筛选/确定性计算，二者分工不重叠。
 
 ## 数据模型（8 张表）
 

@@ -12,7 +12,10 @@ import type { DocumentJobData } from "./workers/document-job-state.js";
 import { isTerminalDocumentFailure, reconcileDocumentJobFailure } from "./workers/document-job-state.js";
 import { createReportProcessor } from "./workers/report.worker.js";
 import { createConversationTitleProcessor } from "./workers/conversation-title.worker.js";
+import { createConversationMaintenanceProcessor } from "./workers/ai-conversation-maintenance.worker.js";
 import { createThermalImportProcessor } from "./workers/thermal-import.worker.js";
+import { createCollectionFetchProcessor } from "./workers/collection-fetch.worker.js";
+import { COLLECTION_AUTO_INTERVAL_MS } from "./modules/collection/collection.service.js";
 import { runCrawlerSource } from "./modules/knowledge/knowledge-ingest.service.js";
 import { runStandardCrawl } from "./modules/standard/standard-crawl.service.js";
 import { configureConsoleEncoding } from "./shared/console-encoding.js";
@@ -24,11 +27,21 @@ const redis = createRedisConnection();
 redis.on("error", (error) => console.error("Redis 连接异常", error));
 await redis.connect();
 const storage = createObjectStorage(env);
+const queues = createQueues(redis);
 try {
   await storage.ensureBucket();
 } catch (error) {
   // 启动自检失败（如 OSS 对象级权限 AK 无法读取 bucket 元信息）不阻断 Worker 启动，任务内会重试
   console.warn("对象存储启动自检失败，Worker 继续启动", error);
+}
+
+try {
+  await queues.collectionFetch.add("scan_sources", {}, {
+    repeat: { every: COLLECTION_AUTO_INTERVAL_MS },
+    jobId: "collection-auto-scan"
+  });
+} catch (error) {
+  console.warn("注册自动采集扫描任务失败，Worker 继续启动", error);
 }
 
 const documentWorker = new Worker<DocumentJobData>(
@@ -41,7 +54,9 @@ const workers = [
   documentWorker,
   new Worker(QUEUE_NAMES.REPORT_GENERATION, createReportProcessor(db, storage), { connection: redis, concurrency: 1, lockDuration: 10 * 60 * 1000 }),
   new Worker(QUEUE_NAMES.AI_TITLE_GENERATION, createConversationTitleProcessor(db), { connection: redis, concurrency: 2, lockDuration: 2 * 60 * 1000 }),
+  new Worker(QUEUE_NAMES.AI_CONVERSATION_MAINTENANCE, createConversationMaintenanceProcessor({ db } as never), { connection: redis, concurrency: 2, lockDuration: 5 * 60 * 1000 }),
   new Worker(QUEUE_NAMES.THERMAL_IMPORT, createThermalImportProcessor(db, storage), { connection: redis, concurrency: 2, lockDuration: 5 * 60 * 1000 }),
+  new Worker(QUEUE_NAMES.COLLECTION_FETCH, createCollectionFetchProcessor(db, storage, queues), { connection: redis, concurrency: 2, lockDuration: 5 * 60 * 1000 }),
   new Worker(QUEUE_NAMES.MAINTENANCE, async (job) => {
     const executionId = typeof job.data?.executionId === "string" ? job.data.executionId : undefined;
     if (executionId) await db.update(cronExecutions).set({ status: "RUNNING", startedAt: new Date() }).where(eq(cronExecutions.id, executionId));
@@ -50,7 +65,6 @@ const workers = [
       if (job.name === "knowledge_crawler") {
         const sourceId = typeof job.data?.sourceId === "string" ? job.data.sourceId : undefined;
         if (!sourceId) throw new Error("knowledge_crawler 任务缺少 sourceId 参数");
-        const queues = createQueues(redis);
         const result = await runCrawlerSource({ db, storage, queues }, null, sourceId);
         return { message: result.message, sourceName: result.sourceName };
       }

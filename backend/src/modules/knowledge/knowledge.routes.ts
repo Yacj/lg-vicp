@@ -865,7 +865,7 @@ export async function knowledgeRoutes(app: FastifyInstance) {
     preHandler: [app.authenticate, requireClient(AUTH_CLIENTS.B_ADMIN)],
     schema: {
       tags: ["B端 / 平台 / 知识库"],
-      summary: "查询抓取源列表",
+      summary: "查询抓取源列表（Legacy：普通入口已迁至独立采集管理）",
       querystring: z.object({
         enabled: z.enum(["true", "false"]).optional()
       })

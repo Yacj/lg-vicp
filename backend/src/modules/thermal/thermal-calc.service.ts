@@ -2,7 +2,6 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import { and, count, desc, eq, inArray, or, ilike, isNull } from "drizzle-orm";
 import type { DbExecutor } from "../../db/client.js";
 import {
-  productParameters,
   projects as projectsTable,
   thermalCalcRecords,
   thermalCalcRules,
@@ -22,7 +21,7 @@ import {
   registerVersionedEntity,
   type MdReviewStatus
 } from "../masterdata/md-workflow.service.js";
-import { listPublishedMaterialParameters, listPublishedProductParameters } from "../masterdata/md-read.service.js";
+import { resolveMaterialFacts, resolveStandardLimit, resolveThermalParameter, type ResolvedStandardLimit } from "../knowledge/knowledge-fact-resolver.js";
 import { getPublishedConstructionSchemeDetail } from "../construction/construction-read.service.js";
 import { effectiveRangeConditions, publishedReferenceConditions } from "../construction/construction-structure.service.js";
 import { listPublishedThermalSets } from "./thermal-read.service.js";
@@ -482,14 +481,7 @@ async function resolvePublishedRule(app: FastifyInstance, ruleCode?: string) {
 
 /** 取已发布标准限值（regionCode + 最新版本）；无则返回 null（不阻断计算，compliant=null） */
 async function resolvePublishedLimit(app: FastifyInstance, regionCode?: string) {
-  if (!regionCode) return null;
-  const [limit] = await app.db.select().from(thermalStandardLimits)
-    .where(and(
-      eq(thermalStandardLimits.regionCode, regionCode),
-      ...publishedReferenceConditions(thermalStandardLimits)
-    ))
-    .orderBy(desc(thermalStandardLimits.version)).limit(1);
-  return limit ?? null;
+  return resolveStandardLimit(app.db, { regionCode });
 }
 
 /** 按来源优先级取产品参数：空优先级取最新版本；配置优先级取第一个命中的来源；无命中返回 null */
@@ -592,7 +584,7 @@ export async function executeThermalCalc(
   const materialParams = new Map<string, { lambda: number; correctionFactor: number | null; snapshot: Record<string, unknown> }>();
   const materialIds = [...new Set(scheme.layers.map((l) => l.materialId).filter((id): id is string => id !== null))];
   for (const materialId of materialIds) {
-    const rows = await listPublishedMaterialParameters(app.db, { materialId });
+    const rows = await resolveMaterialFacts(app.db, { materialId });
     const latest = rows[0];
     if (!latest) {
       errors.push({
@@ -622,12 +614,12 @@ export async function executeThermalCalc(
     } else if (!productLayer) {
       errors.push({ field: "schemeId", code: "CALC_SCHEME_INVALID", message: "构造方案没有产品层，无法进行整体当量法计算" });
     } else {
-      const conductivityRows = await listPublishedProductParameters(app.db, {
+      const conductivityRows = await resolveThermalParameter(app.db, {
         specId: input.productSpecId,
         parameterCode: rule.parameterCodes.equivalentConductivity,
         usage: rule.usage ?? undefined
       });
-      const correctionRows = await listPublishedProductParameters(app.db, {
+      const correctionRows = await resolveThermalParameter(app.db, {
         specId: input.productSpecId,
         parameterCode: rule.parameterCodes.correctionFactor,
         usage: rule.usage ?? undefined
@@ -741,7 +733,7 @@ export async function executeThermalCalc(
       projectId: input.projectId ?? null,
       ruleId: rule!.id,
       ruleVersion: rule!.version,
-      standardLimitId: limit?.id ?? null,
+      standardLimitId: limit?.resolverSource === "LEGACY_PRODUCT" ? limit.id : null,
       limitVersion: limit?.version ?? null,
       inputJson: {
         mode: input.mode,
@@ -817,7 +809,7 @@ async function executeReferenceTable(
   actor: AuthUser,
   input: ThermalCalcInput,
   rule: (typeof thermalCalcRules.$inferSelect) | null,
-  limit: (typeof thermalStandardLimits.$inferSelect) | null,
+  limit: ResolvedStandardLimit | null,
   notes: string[]
 ): Promise<ThermalCalcExecution> {
   const sets = await listPublishedThermalSets(app.db, { schemeId: input.schemeId, productSpecId: input.productSpecId });
@@ -875,7 +867,7 @@ async function executeReferenceTable(
       projectId: input.projectId ?? null,
       ruleId: rule?.id ?? null,
       ruleVersion: rule?.version ?? null,
-      standardLimitId: limit?.id ?? null,
+      standardLimitId: limit?.resolverSource === "LEGACY_PRODUCT" ? limit.id : null,
       limitVersion: limit?.version ?? null,
       inputJson: {
         mode: input.mode,

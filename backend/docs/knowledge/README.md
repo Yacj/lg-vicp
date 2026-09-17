@@ -1,6 +1,10 @@
 # 知识库（非向量底座）
 
-可追溯知识库：原文件进 OSS/MinIO，解析后的页面/分块进 PostgreSQL，支持版本发布、来源引用与确定性检索。第一批只做文本切片，OCR 仅预留任务类型。
+可追溯知识库：原文件进 OSS/MinIO，解析后的页面/分块进 PostgreSQL，支持版本发布、来源引用与确定性检索。正式图集、标准规范、技术资料、企业技术文件统一进入 Knowledge，不再要求二次录入产品中心。
+
+内部 Structured Knowledge 表 `knowledge_facts` 保存已核验确定性参数（材料/规格/构造/热工/限值/节点），必须带 `sourceDocumentId` 等溯源字段；**不是**新的 B 端产品中心。计算 resolver 优先 VERIFIED Fact。
+
+外部候选资料由独立 Collection Domain 获取（`docs/collection/README.md`），确认后导入本模块 DRAFT，走现有解析/审核/发布。旧 `knowledge_crawler_sources` 仅 Legacy 兼容。
 
 ## 数据模型
 

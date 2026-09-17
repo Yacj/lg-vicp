@@ -22,6 +22,10 @@
 | `reasoningAlwaysOn` | 始终推理，不可关闭 |
 | `tools` / `vision` / `files` / `structuredOutput` | 工具 / 视觉 / 文件 / 结构化输出 |
 
+- Agent 主模型必须 `tools=true`。优先 `code=default_agent`，否则取 tools 能力中 priority 最高者。普通聊天模型若不支持 Tools，运行时拆分为 Chat Model / Agent Model / Vision Model，不得假装无工具模型已具备完整 Agent 能力。
+- `resolveDefaultVisionModel`：启用模型中 `capabilities.vision=true`，优先 `code=default_vision`。
+- `resolveAgentModelOrNull`：启用模型中 `capabilities.tools=true`，优先 `code=default_agent`；未配置则对话回退单次生成。
+
 - 关联服务商必须存在且启用；新增模型时同 provider 下 `modelId` 唯一约束由数据库保证。
 
 ## 模型解析（运行时）

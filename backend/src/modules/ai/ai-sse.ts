@@ -6,6 +6,12 @@ import type { FastifyReply } from "fastify";
 
 export type ProgressStage = "analyzing" | "checking" | "composing" | "completed";
 
+export type AgentStatusPayload = {
+  message: string;
+  toolName?: string;
+  stage?: ProgressStage;
+};
+
 /**
  * 启动 SSE 响应流：hijack 后 Fastify 不再写出响应头，
  * 必须把 @fastify/cors 在 onRequest 阶段登记到 reply 上的 CORS 头一并写入手动 writeHead。
@@ -42,6 +48,7 @@ export function writeSse(reply: FastifyReply, event: string, data: unknown) {
 
 export function writeProgress(reply: FastifyReply, stage: ProgressStage, message: string) {
   writeSse(reply, "progress", { stage, message });
+  writeSse(reply, "agent_status", { stage, message });
 }
 
 export function isAbortError(error: unknown) {

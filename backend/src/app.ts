@@ -9,6 +9,7 @@ import {
 } from "fastify-type-provider-zod";
 import { env } from "./config/env.js";
 import { corsPluginOptions } from "./shared/cors.js";
+import { projectAiMemoryRoutes } from "./modules/ai/ai-project-memory.routes.js";
 import { aiRoutes } from "./modules/ai/ai.routes.js";
 import { aiKnowledgeRoutes } from "./modules/ai/ai-knowledge.routes.js";
 import { aiVoiceRoutes } from "./modules/ai/ai-voice.routes.js";
@@ -31,6 +32,7 @@ import {
 import { reportRoutes } from "./modules/reports/reports.routes.js";
 import { publicShareRoutes, shareRoutes } from "./modules/shares/shares.routes.js";
 import { fileRoutes } from "./modules/files/files.routes.js";
+import { collectionRoutes } from "./modules/collection/collection.routes.js";
 import { knowledgeRoutes } from "./modules/knowledge/knowledge.routes.js";
 import { knowledgeClientRoutes } from "./modules/knowledge/knowledge-client.routes.js";
 import { internalKnowledgeRoutes } from "./modules/knowledge/knowledge-internal.routes.js";
@@ -146,6 +148,7 @@ export async function buildApp() {
   await app.register(systemManagementRoutes, { prefix: "/api/v1/platform" });
   await app.register(platformOpsRoutes, { prefix: "/api/v1/platform" });
   await app.register(knowledgeRoutes, { prefix: "/api/v1/platform/knowledge" });
+  await app.register(collectionRoutes, { prefix: "/api/v1/platform/collection" });
   await app.register(internalKnowledgeRoutes, { prefix: "/api/v1/internal/knowledge" });
   await app.register(masterdataRoutes, { prefix: "/api/v1/platform/masterdata" });
   await app.register(companyRoutes, { prefix: "/api/v1/platform/company" });
@@ -167,6 +170,7 @@ export async function buildApp() {
   await app.register(aiAdminRoutes, { prefix: "/api/v1/platform/ai" });
   await app.register(aiDebugRoutes, { prefix: "/api/v1/platform/ai" });
   await app.register(aiRoutes, { prefix: "/api/v1/ai" });
+  await app.register(projectAiMemoryRoutes, { prefix: "/api/v1" });
   await app.register(aiKnowledgeRoutes, { prefix: "/api/v1/ai/knowledge" });
   await app.register(aiVoiceRoutes, { prefix: "/api/v1/ai" });
   await app.register(masterdataClientRoutes, { prefix: "/api/v1/client" });

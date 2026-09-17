@@ -76,7 +76,7 @@ import {
 
 const CONSTRUCTION_TAG = "B端 / 平台 / 构造方案";
 
-/** 构造模块权限校验：SUPER_ADMIN 直通，否则校验具体权限码（本地函数模式，与 masterdata 一致） */
+/** Legacy：构造方案普通菜单已隐藏，本路由保留兼容。 */
 function requirePermission(request: Parameters<typeof getCurrentUser>[0], permissionCode: string) {
   const user = getCurrentUser(request);
   if (user.role !== "SUPER_ADMIN" && !(user.permissionCodes ?? []).includes(permissionCode)) {

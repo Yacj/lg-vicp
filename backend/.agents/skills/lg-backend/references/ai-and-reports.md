@@ -56,7 +56,9 @@ AI 回答是可复用资产。点赞、反馈和重新生成不得覆盖原始�
 - 生产知识检索只覆盖 PUBLISHED + AI_ENABLED + 当前受控版本；无项目时只搜平台文档，有项目时平台 + 当前项目。草稿与无权限项目文档不得进入正式聊天。
 - 运行时解析链路：场景（须启用）→ 当前 PUBLISHED 提示词版本 → 按 `reasoningMode` 解析模型 → 校验 provider/model 启用 → 构造语言模型。禁止在业务代码写死模型 ID。
 - reasoningMode=ON：`allowReasoning=false` 抛 `AI_REASONING_NOT_SUPPORTED`；`reasoningModelId` 不可用降级默认模型并写入 `metadata.downgradeNote`；fallback 仅在主模型未产出任何 token 时重试一次。
-- 上下文预算：`estimateTokens`（CJK/1.5 + ASCII/4）裁剪历史窗口，预算 = contextWindow − 系统提示词 − 用户消息 − 输出预留 − 10% 安全余量，超长裁剪最早历史（默认最多 20 条）。
+- 上下文预算：`estimateTokens`（CJK/1.5 + ASCII/4）分桶裁剪（系统 / 项目档案 / 项目记忆 / 会话摘要 / 近期消息 / 工具与知识 / 当前消息）；即将裁剪时增量更新 `ai_conversation_states`。
+- Agent：`ai_agent_runs` + 现有 `ai_tool_calls` 真实写入；maxSteps / 重复 tool+input / timeout / cancel；WAITING_USER_INPUT 可 Resume。
+- 项目记忆：`project_ai_memories`，查询必须校验 projectId 与项目权限。
 - 配额：Redis 并发（`ai:active:{userId}`，默认 2）+ 每日（`ai:quota:{userId}:{yyyy-mm-dd}`，默认 200），`SUPER_ADMIN` 豁免；`GET /api/v1/ai/quota` 查询额度。
 - 错误码：统一 `AI_*` 常量（`src/shared/ai-errors.ts`），SSE error 事件、消息 `errorCode` 落库、运营查询三处共用；底层错误经 `toAiError` 映射。
 - AI 调试（`/api/v1/platform/ai/debug/*`，`system:ai:debug:use`）：SSE 复用业务事件流，不落 `ai_messages`，写审计。

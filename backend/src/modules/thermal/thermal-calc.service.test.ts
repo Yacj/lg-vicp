@@ -113,9 +113,12 @@ describe("executeThermalCalc LAYERED 分层法", () => {
       [optionRow],                                // 3. 产品选项
       [],                                         // 4. 方案文档
       [ruleRow],                                  // 5. 已发布规则
-      [limitRow],                                 // 6. 已发布限值
-      [matProd],                                  // 7. 产品层材料参数
-      [matBase],                                  // 8. 基层材料参数
+      [],                                         // 5b. STANDARD_LIMIT facts
+      [limitRow],                                 // 6. 已发布限值 fallback
+      [],                                         // 7b. MATERIAL facts (产品层)
+      [matProd],                                  // 7. 产品层材料参数 fallback
+      [],                                         // 8b. MATERIAL facts (基层)
+      [matBase],                                  // 8. 基层材料参数 fallback
       [recordRow()],                              // 9. 记录 insert returning
       []                                          // 10. 审计 insert
     ]);
@@ -190,8 +193,11 @@ describe("executeThermalCalc LAYERED 分层法", () => {
       [optionRow],
       [],
       [ruleRow],
+      [],        // STANDARD_LIMIT facts
       [],        // 限值查询无结果
+      [],        // MATERIAL facts
       [matProd],
+      [],        // MATERIAL facts
       [matBase],
       [recordRow({ standardLimitId: null, limitVersion: null })],
       []
@@ -212,9 +218,12 @@ describe("executeThermalCalc LAYERED 分层法", () => {
       [optionRow],
       [],
       [ruleRow],
+      [],        // STANDARD_LIMIT facts
       [limitRow],
+      [],        // MATERIAL facts
       [matProd],
-      []   // 基层材料参数缺失
+      [],        // MATERIAL facts (基层)
+      []         // 基层材料参数缺失
     ]);
     const execution = await executeThermalCalc(app(db), request, actor, calcInput);
     expect(execution.valid).toBe(false);
@@ -251,14 +260,19 @@ describe("executeThermalCalc EQUIVALENT 整体当量法", () => {
       [optionRow],
       [],
       [priorityRule],
+      [],   // STANDARD_LIMIT facts
       [],   // 无限值 → compliant null
+      [],   // MATERIAL facts
       [matProd],
+      [],   // MATERIAL facts
       [matBase],
+      [],   // THERMAL_PARAMETER facts (当量导热系数)
       // 当量导热系数：TEST 来源 version 1 命中优先级，优先于 LAB version 3
       [
         { id: "p-lambda-lab", specId: "spec-1", parameterCode: "lambda_eq", parameterName: "当量导热系数", paramSource: "LAB", version: 3, value: 0.045, unit: "W/(m·K)", evidenceSource: "检测报告", evidenceRef: "R1", evidenceLevel: "B" },
         { id: "p-lambda-test", specId: "spec-1", parameterCode: "lambda_eq", parameterName: "当量导热系数", paramSource: "TEST", version: 1, value: 0.03, unit: "W/(m·K)", evidenceSource: "企业实测", evidenceRef: "T1", evidenceLevel: "C" }
       ],
+      [],   // THERMAL_PARAMETER facts (修正系数)
       [
         { id: "p-a-lab", specId: "spec-1", parameterCode: "a_eq", parameterName: "修正系数", paramSource: "LAB", version: 3, value: 1.1, unit: null, evidenceSource: "检测报告", evidenceRef: "R2", evidenceLevel: "B" },
         { id: "p-a-test", specId: "spec-1", parameterCode: "a_eq", parameterName: "修正系数", paramSource: "TEST", version: 1, value: 1.2, unit: null, evidenceSource: "企业实测", evidenceRef: "T2", evidenceLevel: "C" }
@@ -288,10 +302,15 @@ describe("executeThermalCalc EQUIVALENT 整体当量法", () => {
       [optionRow],
       [],
       [ruleRow],
+      [],   // STANDARD_LIMIT facts
       [limitRow],
+      [],   // MATERIAL facts
       [matProd],
+      [],   // MATERIAL facts
       [matBase],
+      [],   // THERMAL_PARAMETER facts
       [],   // 当量导热系数无结果
+      [],   // THERMAL_PARAMETER facts
       []    // 修正系数无结果
     ]);
     const execution = await executeThermalCalc(app(db), request, actor, equivalentInput);
@@ -317,6 +336,7 @@ describe("executeThermalCalc REFERENCE_TABLE 图集查表", () => {
       [optionRow],
       [],
       [ruleRow],
+      [],   // STANDARD_LIMIT facts
       [limitRow],
       [{ id: "set-1", code: "ATLAS-2026", version: 1, name: "图集 X", status: "PUBLISHED" }],  // 已发布集
       [{ setId: "set-1" }],   // 行级过滤匹配
@@ -347,6 +367,7 @@ describe("executeThermalCalc REFERENCE_TABLE 图集查表", () => {
       [optionRow],
       [],
       [ruleRow],
+      [],   // STANDARD_LIMIT facts
       [limitRow],
       [{ id: "set-1", code: "ATLAS-2026", version: 1, name: "图集 X", status: "PUBLISHED" }],
       [{ setId: "set-1" }],
@@ -370,6 +391,7 @@ describe("executeThermalCalc REFERENCE_TABLE 图集查表", () => {
       [optionRow],
       [],
       [],   // 规则查询无结果：REFERENCE_TABLE 允许无规则查表
+      [],   // STANDARD_LIMIT facts
       [limitRow],
       [],   // 已发布集为空
       [],   // 无匹配行查询（setIds 空则跳过，不消耗行）

@@ -1,14 +1,15 @@
 /**
- * B 端菜单种子纯数据（信息架构 2026-09 瘦身版）。
+ * B 端菜单种子纯数据（信息架构 2026-09：产品中心退出普通菜单 + 采集管理独立）。
  *
- * 目标一级菜单：工作台（Admin-Web 静态首页 `/`，不入库）+ 项目管理 / 产品中心 / 知识中心 / 报告管理 / AI 配置 / AI 运营 / 系统管理。
- * 旧「企业内容 / 基础数据 / 系统构造 / 热工中心 / 材料对比 / 标准政策 / 节点图库 / 系统监控 / 审核中心」一级目录全部废弃。
+ * 目标一级菜单：工作台（Admin-Web 静态首页 `/`，不入库）+ 项目管理 / 知识中心 / 采集管理 / 报告管理 / AI 配置 / AI 运营 / 系统管理。
+ * 产品中心（产品/材料/构造/热工/节点/对比）整棵子树保留 routePath，visible=false，Backend Route 不删。
  *
  * 迁移安全约定：
  * - 叶子 routePath 全部保留（seed 按 routePath upsert，menuId 不变），菜单可见性由 permissionCode 经角色权限关联决定，
  *   移动挂载 / 改名 / 隐藏对角色权限零损失；
  * - 权限码全部沿用各领域原码（system:md:* / system:construction:* / system:thermal:* 等），不做 product:* 重命名；
  * - 后端业务模块（masterdata/construction/thermal/comparison/standard/nodes/review-center/reports/knowledge）保持独立，不合并。
+ * - Collection 是独立 Domain，不作为 Knowledge 子模块。
  */
 
 export type MenuSeedNode = {
@@ -68,7 +69,11 @@ export const HIDDEN_MENU_ROUTE_PATHS = [
   "/reports/templates",
   // 企业信息审核/发布仅兼容旧主数据工作流，普通 B 端不展示
   "/content/approve",
-  "/content/publish"
+  "/content/publish",
+  // 产品中心退出普通业务：整棵目录隐藏，Backend Route 保留兼容
+  "/products",
+  // 知识库旧抓取源菜单迁出：普通入口改为独立采集管理
+  "/knowledge/crawlers"
 ] as const;
 
 const actionButtons = (
@@ -142,9 +147,10 @@ const MENU_SEED_TREE: MenuSeedNode[] = [
     ]
   },
 
-  // ===== 产品中心（收纳产品 / 材料 / 构造 / 热工 / 节点 / 对比六类维护入口）=====
+  // ===== 产品中心（Legacy：普通菜单隐藏，routePath / Backend API 保留兼容）=====
   directory("产品中心", "/products", 30, {
     icon: "tdesign:app",
+    visible: false,
     children: [
       directory("产品管理", "/products/catalog", 10, {
         children: [
@@ -245,6 +251,7 @@ const MENU_SEED_TREE: MenuSeedNode[] = [
         ])
       }),
       leaf("资料采集源", "/knowledge/crawlers", 50, "system:knowledge:crawler:list", {
+        visible: false,
         children: actionButtons("/knowledge/crawlers", [
           { suffix: "add", name: "采集源新增", permissionCode: "system:knowledge:crawler:add" },
           { suffix: "edit", name: "采集源编辑", permissionCode: "system:knowledge:crawler:edit" },
@@ -270,6 +277,28 @@ const MENU_SEED_TREE: MenuSeedNode[] = [
           leaf("检索效果", "/knowledge/search-test/evaluations", 30, "system:knowledge:eval:list", { component: "knowledge/search-test/evaluations" }),
           leaf("高级调试", "/knowledge/debug", 40, "system:knowledge:debug")
         ]
+      })
+    ]
+  }),
+
+  // ===== 采集管理（独立 Domain：获取外部候选资料，确认后导入 Knowledge）=====
+  directory("采集管理", "/collection", 45, {
+    icon: "tdesign:cloud-download",
+    children: [
+      leaf("手动采集", "/collection/manual", 10, "system:collection:manual:create"),
+      leaf("自动采集源", "/collection/sources", 20, "system:collection:auto:list", {
+        children: actionButtons("/collection/sources", [
+          { suffix: "add", name: "自动采集源新增", permissionCode: "system:collection:auto:create" },
+          { suffix: "edit", name: "自动采集源编辑", permissionCode: "system:collection:auto:update" },
+          { suffix: "enable", name: "启用自动采集源", permissionCode: "system:collection:auto:toggle" },
+          { suffix: "disable", name: "停用自动采集源", permissionCode: "system:collection:auto:toggle" }
+        ])
+      }),
+      leaf("采集任务", "/collection/tasks", 30, "system:collection:list", {
+        children: actionButtons("/collection/tasks", [
+          { suffix: "view", name: "查看采集任务", permissionCode: "system:collection:task:view" },
+          { suffix: "import", name: "确认入库知识库", permissionCode: "system:collection:task:import" }
+        ])
       })
     ]
   }),

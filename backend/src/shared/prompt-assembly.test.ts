@@ -115,3 +115,11 @@ describe("上下文预算裁剪", () => {
     expect(kept).toEqual([]);
   });
 });
+
+describe("分桶截断", () => {
+  it("空文本返回空串", async () => {
+    const { truncateToTokenBudget } = await import("./prompt-assembly.js");
+    expect(truncateToTokenBudget("", 10)).toBe("");
+    expect(truncateToTokenBudget(null, 10)).toBe("");
+  });
+});

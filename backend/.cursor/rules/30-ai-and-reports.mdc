@@ -4,7 +4,8 @@ globs: src/modules/ai*/**/*.ts,src/modules/knowledge/**/*.ts,src/modules/reports
 alwaysApply: false
 ---
 
-- 模型按场景读取数据库配置，禁止写死 DeepSeek、Base URL、模型 ID 或 API Key。C 端正式对话默认 `general_chat`，不要求用户选择 scene / prompt / quickPromptId；能力由 `resolveAiCapabilities` 按问题自动启用。
+- 模型按场景读取数据库配置，禁止写死 DeepSeek、Base URL、模型 ID 或 API Key。C 端正式对话默认 `general_chat`，不要求用户选择 scene / prompt / quickPromptId；`resolveAiCapabilities` 只选择允许的 Tool Set，不能代替 Agent Loop。
+- Agent 主模型必须 `capabilities.tools=true`（优先 `code=default_agent`）。不支持 Tools 的聊天模型回退单次生成，不得假装已具备完整 Agent 能力。热工数值必须调用现有确定性引擎。
 - 快捷提问使用独立表 `ai_quick_prompts`，不要复用 `prompts` / `prompt_versions`。点击后把 `content` 当作用户消息走现有 SSE。
 - 基础 System Instruction 由 Backend 自动附加（`PLATFORM_BASE_SYSTEM_PROMPT`），用户和管理员日常流程不选择系统指令。场景/提示词菜单对普通业务管理员隐藏，接口保留给技术管理员。
 - 知识库为「原文档导航 + 原始页面 + AI 检索索引」模型：ORIGINAL 展示原文件 / SEARCH_SOURCE 检索文本源（双源资产）；TOC=原文件目录（可信 PDF 书签或目录页解析，CAD 导航树拒绝，人工确认制，≠Section）；Page=物理页+印刷页码标签（pageLabel 非整数禁止 Number()，禁止物理页号冒充印刷页码）；转曲件 NO_TEXT_LAYER 走检索源映射（禁止物理页硬对齐与线性插值）；parsedText 一律称「机器提取文本」，原文=ORIGINAL 页面/预览图。

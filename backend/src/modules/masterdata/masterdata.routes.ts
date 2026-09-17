@@ -140,6 +140,10 @@ const workflowCtx = {
   newVersionBody: newVersionBodySchema
 } as const;
 
+/**
+ * Legacy / Deprecated：产品中心已退出普通业务。本路由保留兼容，普通菜单不再暴露。
+ * 新资料进入 Knowledge；确定性参数优先 VERIFIED knowledge_facts。
+ */
 export async function masterdataRoutes(app: FastifyInstance) {
   const route = app.withTypeProvider<ZodTypeProvider>();
 

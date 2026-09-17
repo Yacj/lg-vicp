@@ -3,6 +3,7 @@ import * as argon2 from "argon2";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { env } from "../config/env.js";
 import { createDatabase } from "./client.js";
+import { COLLECTION_PERMISSION_SEEDS } from "../shared/collection-permissions.js";
 import { KNOWLEDGE_PERMISSION_SEEDS } from "../shared/knowledge-permissions.js";
 import { MD_PERMISSION_SEEDS } from "../shared/md-permissions.js";
 import { CONSTRUCTION_PERMISSION_SEEDS } from "../shared/construction-permissions.js";
@@ -123,6 +124,7 @@ const permissionSeeds = [
   { code: "system:ai:filter:edit", name: "修改对话围栏词条", resource: "ai_filter", action: "edit" },
   { code: "system:ai:filter:remove", name: "删除对话围栏词条", resource: "ai_filter", action: "remove" },
   ...KNOWLEDGE_PERMISSION_SEEDS,
+  ...COLLECTION_PERMISSION_SEEDS,
   ...MD_PERMISSION_SEEDS,
   ...CONSTRUCTION_PERMISSION_SEEDS,
   ...THERMAL_PERMISSION_SEEDS,

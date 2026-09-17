@@ -139,6 +139,7 @@ const validateResponseSchema = z.object({
   requestId: z.string()
 });
 
+/** 图集热工计算/导入仍为正式能力；参考表维护入口为 Legacy（普通菜单已隐藏）。 */
 export async function thermalRoutes(app: FastifyInstance) {
   const route = app.withTypeProvider<ZodTypeProvider>();
 

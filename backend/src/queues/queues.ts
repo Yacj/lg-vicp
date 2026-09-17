@@ -6,7 +6,9 @@ export const QUEUE_NAMES = {
   REPORT_GENERATION: "report-generation",
   MAINTENANCE: "maintenance",
   AI_TITLE_GENERATION: "ai-title-generation",
-  THERMAL_IMPORT: "thermal-import"
+  AI_CONVERSATION_MAINTENANCE: "ai-conversation-maintenance",
+  THERMAL_IMPORT: "thermal-import",
+  COLLECTION_FETCH: "collection-fetch"
 } as const;
 
 export interface AppQueues {
@@ -14,7 +16,9 @@ export interface AppQueues {
   reportGeneration: Queue;
   maintenance: Queue;
   aiTitleGeneration: Queue;
+  aiConversationMaintenance: Queue;
   thermalImport: Queue;
+  collectionFetch: Queue;
 }
 
 export function createQueues(redis: Redis): AppQueues {
@@ -33,7 +37,9 @@ export function createQueues(redis: Redis): AppQueues {
     reportGeneration: new Queue(QUEUE_NAMES.REPORT_GENERATION, defaults),
     maintenance: new Queue(QUEUE_NAMES.MAINTENANCE, defaults),
     aiTitleGeneration: new Queue(QUEUE_NAMES.AI_TITLE_GENERATION, defaults),
-    thermalImport: new Queue(QUEUE_NAMES.THERMAL_IMPORT, defaults)
+    aiConversationMaintenance: new Queue(QUEUE_NAMES.AI_CONVERSATION_MAINTENANCE, defaults),
+    thermalImport: new Queue(QUEUE_NAMES.THERMAL_IMPORT, defaults),
+    collectionFetch: new Queue(QUEUE_NAMES.COLLECTION_FETCH, defaults)
   };
 }
 
@@ -43,6 +49,8 @@ export async function closeQueues(queues: AppQueues): Promise<void> {
     queues.reportGeneration.close(),
     queues.maintenance.close(),
     queues.aiTitleGeneration.close(),
-    queues.thermalImport.close()
+    queues.aiConversationMaintenance.close(),
+    queues.thermalImport.close(),
+    queues.collectionFetch.close()
   ]);
 }

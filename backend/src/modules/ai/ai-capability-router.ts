@@ -43,6 +43,45 @@ const EMPTY_CAPABILITIES: AiCapabilities = {
   needReportContext: false
 };
 
+export const AGENT_TOOL_NAMES = [
+  "search_knowledge",
+  "get_project_context",
+  "get_project_memory",
+  "thermal_calculate",
+  "compare_solutions",
+  "get_report_types",
+  "generate_report_draft"
+] as const;
+
+export type AgentToolName = (typeof AGENT_TOOL_NAMES)[number];
+
+export function selectAllowedToolNames(input: {
+  capabilities: AiCapabilities;
+  hasProject: boolean;
+  allowKnowledgeSearch: boolean;
+}): AgentToolName[] {
+  const tools = new Set<AgentToolName>();
+  if (input.allowKnowledgeSearch && input.capabilities.needKnowledgeSearch) {
+    tools.add("search_knowledge");
+  }
+  if (input.hasProject && input.capabilities.needProjectContext) {
+    tools.add("get_project_context");
+    tools.add("get_project_memory");
+  }
+  if (input.capabilities.needThermalTool) {
+    tools.add("thermal_calculate");
+    tools.add("compare_solutions");
+  }
+  if (input.capabilities.needComparisonTool) {
+    tools.add("compare_solutions");
+  }
+  if (input.capabilities.needReportContext) {
+    tools.add("get_report_types");
+    tools.add("generate_report_draft");
+  }
+  return AGENT_TOOL_NAMES.filter((name) => tools.has(name));
+}
+
 export function resolveAiCapabilities(input: ResolveAiCapabilitiesInput): AiCapabilities {
   const message = input.message.trim();
   if (!message || GREETING_PATTERN.test(message)) {

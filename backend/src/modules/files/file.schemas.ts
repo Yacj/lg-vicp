@@ -28,7 +28,7 @@ export const fileCenterListQuerySchema = z.object({
   keyword: z.string().trim().max(120, "关键词不能超过 120 个字符").optional(),
   mimeType: z.string().trim().max(160).optional(),
   extension: z.string().trim().max(12).optional(),
-  source: z.enum(["USER_UPLOAD", "BATCH_IMPORT", "CRAWLER", "INTERNAL_API", "THERMAL_IMPORT"], "文件来源不正确").optional(),
+  source: z.enum(["USER_UPLOAD", "BATCH_IMPORT", "CRAWLER", "INTERNAL_API", "THERMAL_IMPORT", "COLLECTION"], "文件来源不正确").optional(),
   status: z.enum(["UPLOADING", "UPLOADED", "QUEUED", "PARSING", "OCR_REQUIRED", "INDEXING", "READY", "FAILED", "RECYCLED"], "文件状态不正确").optional(),
   projectId: z.uuid("项目 ID 格式不正确").optional(),
   createdFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "日期格式应为 YYYY-MM-DD").optional(),

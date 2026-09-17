@@ -107,6 +107,7 @@ const single = (itemDto: z.ZodType) => z.object({
   requestId: z.string()
 });
 
+/** Legacy：材料对比配置普通菜单已隐藏，本路由与 AI 已发布读取保留兼容。 */
 export async function comparisonRoutes(app: FastifyInstance) {
   const route = app.withTypeProvider<ZodTypeProvider>();
 

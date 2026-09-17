@@ -91,6 +91,7 @@ export async function resolveModelById(db: Database, id: string): Promise<Resolv
 
 /** 默认视觉模型角色编码：capability=vision 且 code=default_vision 优先 */
 export const DEFAULT_VISION_MODEL_ROLE = "default_vision";
+export const DEFAULT_AGENT_MODEL_ROLE = "default_agent";
 
 export function pickDefaultVisionModelId(
   rows: Array<{ id: string; code: string | null; capabilities: Record<string, boolean> | null }>
@@ -98,6 +99,15 @@ export function pickDefaultVisionModelId(
   const vision = rows.filter((row) => row.capabilities?.vision === true);
   return vision.find((row) => row.code === DEFAULT_VISION_MODEL_ROLE)?.id
     ?? vision[0]?.id
+    ?? null;
+}
+
+export function pickDefaultAgentModelId(
+  rows: Array<{ id: string; code: string | null; capabilities: Record<string, boolean> | null }>
+): string | null {
+  const tools = rows.filter((row) => row.capabilities?.tools === true);
+  return tools.find((row) => row.code === DEFAULT_AGENT_MODEL_ROLE)?.id
+    ?? tools[0]?.id
     ?? null;
 }
 
@@ -122,6 +132,29 @@ export async function resolveDefaultVisionModel(db: Database): Promise<ResolvedM
   if (!preferredId) {
     throw new AiError("VISION_MODEL_NOT_CONFIGURED");
   }
+  return resolveModelById(db, preferredId);
+}
+
+/**
+ * 解析支持原生 Tool Calling 的 Agent 模型。
+ * 优先 code=default_agent 且 capabilities.tools=true，否则取 tools 能力中 priority 最高者。
+ * 未配置时返回 null，调用方回退到无工具的普通对话路径，不得假装已具备完整 Agent 能力。
+ */
+export async function resolveAgentModelOrNull(db: Database): Promise<ResolvedModelConfig | null> {
+  const candidates = await db.select({
+    modelRef: aiModels,
+    providerRef: aiProviders
+  }).from(aiModels)
+    .innerJoin(aiProviders, eq(aiProviders.id, aiModels.providerId))
+    .where(and(eq(aiModels.enabled, true), eq(aiProviders.enabled, true)))
+    .orderBy(desc(aiModels.priority));
+
+  const preferredId = pickDefaultAgentModelId(candidates.map((row) => ({
+    id: row.modelRef.id,
+    code: row.modelRef.code,
+    capabilities: row.modelRef.capabilities
+  })));
+  if (!preferredId) return null;
   return resolveModelById(db, preferredId);
 }
 

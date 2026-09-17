@@ -21,6 +21,12 @@
 | `AI_QUOTA_EXCEEDED` | 429 | true | 并发或每日配额超限 |
 | `AI_INSULATION_SYSTEM_REQUIRED` | 400 | false | 专业场景未选择保温体系 |
 | `VISION_MODEL_NOT_CONFIGURED` | 400 | false | 发送图片时没有启用的 vision 模型（`capabilities.vision`，优先 `code=default_vision`） |
+| `AGENT_MODEL_NOT_CONFIGURED` | 400 | false | 场景允许工具但没有 `capabilities.tools=true` 的 Agent 模型（优先 `code=default_agent`） |
+| `AGENT_LOOP_LIMIT` | 500 | false | 工具调用次数过多或相同 tool+input 连续重复 |
+| `AGENT_RUN_NOT_FOUND` | 404 | false | Agent 任务不存在 |
+| `AGENT_RUN_NOT_WAITING` | 409 | false | Agent 任务不在等待用户输入状态 |
+| `AGENT_TOOL_TIMEOUT` | 500 | true | 单个工具执行超时 |
+| `AGENT_CANCELLED` | 409 | false | Agent 任务已取消 |
 
 ## 底层错误映射（`toAiError`）
 

@@ -29,6 +29,18 @@ const envSchema = z.object({
   AI_DAILY_REQUEST_LIMIT: z.coerce.number().int().min(1).default(200),
   AI_CONTEXT_MAX_MESSAGES: z.coerce.number().int().min(2).max(100).default(20),
   AI_CONTEXT_OUTPUT_RESERVE_RATIO: z.coerce.number().min(0).max(0.5).default(0.1),
+  AI_SUMMARY_MESSAGE_THRESHOLD: z.coerce.number().int().min(4).max(200).default(12),
+  AI_SUMMARY_TOKEN_THRESHOLD: z.coerce.number().int().min(500).max(20000).default(4000),
+  AI_AGENT_MAX_STEPS: z.coerce.number().int().min(1).max(20).default(8),
+  AI_AGENT_MAX_TOOL_CALLS: z.coerce.number().int().min(1).max(40).default(12),
+  AI_AGENT_OVERALL_TIMEOUT_MS: z.coerce.number().int().min(10000).max(600000).default(120000),
+  AI_AGENT_DUPLICATE_TOOL_LIMIT: z.coerce.number().int().min(2).max(10).default(2),
+  AI_MEMORY_IDLE_MS: z.coerce.number().int().min(60000).max(24 * 60 * 60 * 1000).default(30 * 60 * 1000),
+  AI_CONTEXT_BUCKET_SUMMARY_TOKENS: z.coerce.number().int().min(100).max(4000).default(800),
+  AI_CONTEXT_BUCKET_MEMORY_TOKENS: z.coerce.number().int().min(100).max(4000).default(600),
+  AI_CONTEXT_BUCKET_ATTACHMENT_TOKENS: z.coerce.number().int().min(100).max(4000).default(600),
+  AI_CONTEXT_BUCKET_KNOWLEDGE_TOKENS: z.coerce.number().int().min(200).max(8000).default(2000),
+  AI_CONTEXT_BUCKET_TOOL_TOKENS: z.coerce.number().int().min(200).max(8000).default(1500),
   AI_CONFIG_ENCRYPTION_KEY: z.string().refine(
     (value) => Buffer.byteLength(value, "utf8") === 32,
     "必须恰好为 32 字节"

@@ -11,7 +11,7 @@ import {
 import { MdError } from "../../shared/md-errors.js";
 
 /**
- * 主数据已发布读取服务（供计算模块与受控读取接口复用）。
+ * 主数据已发布读取服务（Legacy fallback，供计算 resolver 在没有 VERIFIED Knowledge Fact 时使用）。
  * 只返回 PUBLISHED 且生效中（effective_at <= now <= expires_at）的数据；
  * 状态过滤在服务内强制，调用方无法传入状态参数绕过审核状态。
  */

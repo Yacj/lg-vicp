@@ -7,15 +7,15 @@
 import { randomUUID } from "node:crypto";
 import { streamText, type LanguageModelUsage, type ModelMessage } from "ai";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { and, count, desc, eq, inArray, isNull, notInArray } from "drizzle-orm";
+import { and, count, eq, inArray, isNull } from "drizzle-orm";
 import { env } from "../../config/env.js";
-import { aiConversations, aiMessageAttachments, aiMessages, projects } from "../../db/schema.js";
+import { aiAgentRuns, aiConversations, aiMessageAttachments, aiMessages, projects } from "../../db/schema.js";
 import { AI_SCENES, AUDIT_ACTIONS } from "../../shared/constants.js";
 import { AiError, toAiError } from "../../shared/ai-errors.js";
 import type { AuthUser } from "../../shared/auth-user.js";
 import { ConflictError, NotFoundError, TooManyRequestsError } from "../../shared/errors.js";
 import { canViewProject } from "../../shared/permissions.js";
-import { budgetHistory, buildSystemMessages, estimateTokens, formatInsulationSystemContext, formatThermalCapabilityContext, type ContextMessage } from "../../shared/prompt-assembly.js";
+import { formatInsulationSystemContext, formatThermalCapabilityContext } from "../../shared/prompt-assembly.js";
 import { isAbortError, startSseStream, writeProgress, writeSse } from "./ai-sse.js";
 import { checkContentFiltered } from "./ai-content-filter.service.js";
 import { writeAuditLog } from "../audit-logs/audit-log.service.js";
@@ -25,7 +25,19 @@ import { toAiSources } from "./ai-source.mapper.js";
 import { formatComparisonRuleContext, loadApprovedComparisonRules, logComparisonRuleUsage } from "../comparison/material-compare.service.js";
 import { createConcurrencyRelease, enforceAiQuota, resolveSceneRuntime, type SceneRuntime } from "./ai-runtime.service.js";
 import { loadKnowledgeForGeneration } from "./ai-knowledge-load.js";
-import { resolveAiCapabilities } from "./ai-capability-router.js";
+import { resolveAiCapabilities, selectAllowedToolNames } from "./ai-capability-router.js";
+import { resolveProjectContext } from "./ai-project-profile.js";
+import { buildAiContext } from "./ai-context-builder.js";
+import {
+  cancelAgentRun,
+  createAgentRun,
+  getActiveAgentRun,
+  prepareResumeState,
+  resolveAgentModel,
+  runAgentLoop
+} from "./ai-agent.service.js";
+import { scheduleConversationMaintenance, updateConversationSummary } from "./ai-conversation-state.service.js";
+import { refreshProjectMemoryFromConversation } from "./ai-project-memory.service.js";
 import {
   describeChatImages,
   formatVisionContext,
@@ -33,9 +45,6 @@ import {
   visionResultPayload,
   type VisionContext
 } from "./ai-vision.service.js";
-
-/** 模型 contextWindow 缺省时的保守预算 */
-export const DEFAULT_CONTEXT_WINDOW = 32_000;
 
 export type ActiveGeneration = {
   controller: AbortController;
@@ -214,7 +223,11 @@ export async function streamConversationReply(options: {
       vision = await describeChatImages(app, chatImages, content);
       await app.db.update(aiMessageAttachments).set({
         visionStatus: "SUCCEEDED",
-        visionResultJson: visionResultPayload(vision, chatImages.map((image) => image.fileId))
+        visionResultJson: visionResultPayload(vision, chatImages.map((image) => image.fileId)),
+        semanticSummary: vision.semanticSummary,
+        extractedText: vision.extractedText,
+        detectedObjectsJson: vision.detectedObjects,
+        visionModel: vision.modelId
       }).where(eq(aiMessageAttachments.messageId, userMessage.id));
     } catch (error) {
       await app.db.update(aiMessageAttachments).set({
@@ -247,8 +260,15 @@ export async function streamConversationReply(options: {
       scene: conversation.scene
     });
 
-  // 检索：外部注入优先（knowledge-qa / test-qa）；否则按能力路由自动检索已发布知识。
-  // 检索失败不得 500，降级为无资料继续生成，由模型给出可理解说明。
+  const allowedTools = selectAllowedToolNames({
+    capabilities,
+    hasProject: Boolean(conversation.projectId),
+    allowKnowledgeSearch: runtime.allowKnowledgeSearch
+  });
+  const agentModel = providedChunks !== undefined ? null : await resolveAgentModel(runtime, app.db);
+  const agentEnabled = Boolean(agentModel && allowedTools.length > 0);
+
+  // Agent 路径由工具按需检索；无工具模型或知识问答注入仍走预检索，避免假装已有 Agent 能力。
   const { chunks, retrievalFailed } = await loadKnowledgeForGeneration({
     app,
     log: request.log,
@@ -257,55 +277,38 @@ export async function streamConversationReply(options: {
     content,
     projectId: conversation.projectId,
     insulationSystemId: conversation.insulationSystemId ?? null,
-    needSearch: capabilities.needKnowledgeSearch,
+    needSearch: agentEnabled ? false : capabilities.needKnowledgeSearch,
     providedChunks
   });
 
   const projectContext = conversation.projectId
     ? await resolveProjectContext(app, conversation.projectId)
     : null;
-  const comparisonRules = conversation.scene === AI_SCENES.MATERIAL_COMPARE || capabilities.needComparisonTool
+  const comparisonRules = !agentEnabled && (conversation.scene === AI_SCENES.MATERIAL_COMPARE || capabilities.needComparisonTool)
     ? await loadApprovedComparisonRules(app, {})
     : [];
-  const shouldInjectKnowledge = providedChunks !== undefined
+  const shouldInjectKnowledge = !agentEnabled && (providedChunks !== undefined
     || chunks.length > 0
     || retrievalFailed
-    || (capabilities.needKnowledgeSearch && capabilities.explicitKnowledgeRequest);
+    || (capabilities.needKnowledgeSearch && capabilities.explicitKnowledgeRequest));
   const knowledgeContext = shouldInjectKnowledge ? formatKnowledgeContext(chunks, { retrievalFailed }) : null;
-  const systemMessages = buildSystemMessages({
-    scenePrompt: runtime.promptContent,
+  const built = await buildAiContext({
+    app,
+    conversation,
+    currentMessage: content,
+    runtime,
     projectContext,
     insulationSystemContext: insulationSystem
       ? formatInsulationSystemContext({ name: insulationSystem.name, code: insulationSystem.code, systemType: insulationSystem.systemType })
       : null,
     knowledgeContext,
     ruleContext: comparisonRules.length > 0 ? formatComparisonRuleContext(comparisonRules) : null,
-    thermalContext: capabilities.needThermalTool ? formatThermalCapabilityContext() : null,
-    visionContext
+    thermalContext: !agentEnabled && capabilities.needThermalTool ? formatThermalCapabilityContext() : null,
+    visionContext,
+    excludeMessageIds: [userMessage.id, assistantMessage.id]
   });
-  const system = systemMessages.map((message) => message.content).join("\n\n");
-
-  const historyRows = await app.db.select({ role: aiMessages.role, content: aiMessages.content, id: aiMessages.id })
-    .from(aiMessages).where(and(
-      eq(aiMessages.conversationId, conversation.id),
-      inArray(aiMessages.status, ["COMPLETED", "STOPPED"]),
-      notInArray(aiMessages.id, [userMessage.id, assistantMessage.id])
-    )).orderBy(desc(aiMessages.createdAt)).limit(200);
-  const historyMessages: ContextMessage[] = historyRows.reverse()
-    .filter((message) => (message.role === "USER" || message.role === "ASSISTANT")
-      && message.id !== userMessage.id && message.id !== assistantMessage.id)
-    .map((message) => ({
-      role: message.role === "USER" ? "user" as const : "assistant" as const,
-      content: message.content
-    }));
-  const budgeted = budgetHistory({
-    history: historyMessages,
-    systemTokens: estimateTokens(system),
-    userMessageTokens: estimateTokens(content),
-    contextWindow: runtime.primary.contextWindow ?? DEFAULT_CONTEXT_WINDOW,
-    maxOutputTokens: runtime.sceneMaxOutputTokens ?? runtime.primary.maxOutputTokens
-  });
-  const messages: ModelMessage[] = [...budgeted, { role: "user", content }];
+  const system = built.system;
+  const messages: ModelMessage[] = built.messages;
 
   const stopKey = `ai:message:${assistantMessage.id}:stop`;
   const generation: ActiveGeneration & { lockKey: string; lockToken: string; stopKey: string } = {
@@ -329,13 +332,13 @@ export async function streamConversationReply(options: {
 
   startSseStream(reply, request.id);
   writeSse(reply, "message", { messageId: assistantMessage.id, userMessageId: userMessage.id, conversationId: conversation.id, requestId });
+  writeSse(reply, "message_start", { messageId: assistantMessage.id, userMessageId: userMessage.id, conversationId: conversation.id, requestId });
   writeProgress(reply, "analyzing", chatImages.length > 0
     ? "正在识别图片并分析问题..."
     : conversation.projectId ? "正在分析项目资料..." : "正在分析问题...");
   request.raw.once("close", onClientClose);
   await app.db.update(aiMessages).set({ status: "STREAMING", startedAt: new Date() }).where(eq(aiMessages.id, assistantMessage.id));
-  // checking 阶段仅在真实执行知识检索时发送，不伪造“检索/计算”进度
-  if (providedChunks !== undefined || capabilities.needKnowledgeSearch) {
+  if (!agentEnabled && (providedChunks !== undefined || capabilities.needKnowledgeSearch)) {
     writeProgress(reply, "checking", "正在核对检索资料和计算结果...");
   }
   writeProgress(reply, "composing", "正在整理回答...");
@@ -344,6 +347,8 @@ export async function streamConversationReply(options: {
   let streamUsage: LanguageModelUsage | undefined;
   let usedFallback = false;
   let originalFailedModel: string | null = null;
+  let agentSources: unknown[] | null = null;
+  let finishReason: "COMPLETED" | "WAITING_USER_INPUT" = "COMPLETED";
 
   const streamBody = async (modelConfig: typeof runtime.primary) => {
     const result = streamText({
@@ -369,15 +374,76 @@ export async function streamConversationReply(options: {
       text += delta;
       fullText += delta;
       writeSse(reply, "delta", { text: delta });
+      writeSse(reply, "text_delta", { text: delta });
     }
     streamUsage = await result.usage;
     return text;
   };
 
   try {
-    await streamBody(runtime.primary);
+    const waitingRun = await getActiveAgentRun(app, conversation.id);
+    const resumeModel = agentModel ?? (runtime.primary.capabilities?.tools === true ? runtime.primary : null);
+    if (waitingRun?.status === "WAITING_USER_INPUT" && resumeModel) {
+      const resumeTools = (waitingRun.allowedToolsJson ?? allowedTools) as typeof allowedTools;
+      const resumeState = await prepareResumeState(waitingRun, content);
+      resumeState.system = system;
+      await app.db.update(aiAgentRuns).set({
+        status: "RUNNING",
+        assistantMessageId: assistantMessage.id,
+        triggerMessageId: userMessage.id,
+        stateJson: resumeState
+      }).where(eq(aiAgentRuns.id, waitingRun.id));
+      writeSse(reply, "agent_status", { message: "正在根据你的选择继续任务…", runId: waitingRun.id });
+      const agentResult = await runAgentLoop({
+        app, request, reply, user, conversation, runtime,
+        agentModel: resumeModel,
+        allowedTools: resumeTools,
+        assistantMessageId: assistantMessage.id,
+        agentRunId: waitingRun.id,
+        abortSignal: generation.controller.signal,
+        initialState: resumeState
+      });
+      fullText = agentResult.text;
+      streamUsage = agentResult.usage;
+      agentSources = agentResult.sources;
+      if (agentResult.finish === "WAITING_USER_INPUT") finishReason = "WAITING_USER_INPUT";
+      if (agentResult.finish === "FAILED" && agentResult.error) throw agentResult.error;
+      if (agentResult.finish === "CANCELLED") {
+        generation.stopRequested = true;
+        throw Object.assign(new Error("AI 回答已请求停止"), { name: "AbortError" });
+      }
+    } else if (agentEnabled && agentModel) {
+      const run = await createAgentRun(app, {
+        conversation,
+        user,
+        triggerMessageId: userMessage.id,
+        assistantMessageId: assistantMessage.id,
+        allowedTools,
+        model: agentModel.modelId,
+        state: { system, messages, recentToolHashes: [], fullText: "", sources: [] }
+      });
+      writeSse(reply, "agent_status", { message: "正在调用专业工具…", runId: run.id });
+      const agentResult = await runAgentLoop({
+        app, request, reply, user, conversation, runtime, agentModel, allowedTools,
+        assistantMessageId: assistantMessage.id,
+        agentRunId: run.id,
+        abortSignal: generation.controller.signal,
+        initialState: { system, messages, recentToolHashes: [], fullText: "", sources: [] }
+      });
+      fullText = agentResult.text;
+      streamUsage = agentResult.usage;
+      agentSources = agentResult.sources;
+      if (agentResult.finish === "WAITING_USER_INPUT") finishReason = "WAITING_USER_INPUT";
+      if (agentResult.finish === "FAILED" && agentResult.error) throw agentResult.error;
+      if (agentResult.finish === "CANCELLED") {
+        generation.stopRequested = true;
+        throw Object.assign(new Error("AI 回答已请求停止"), { name: "AbortError" });
+      }
+    } else {
+      await streamBody(runtime.primary);
+    }
   } catch (error) {
-    // 仅在未产出任何内容、非用户停止且配置了备用模型时重试一次
+    if (agentEnabled) throw error;
     if (isAbortError(error) || generation.stopRequested || fullText !== "" || !runtime.fallback) {
       throw error;
     }
@@ -387,7 +453,9 @@ export async function streamConversationReply(options: {
     usedFallback = true;
   }
 
-  const actualModelId = usedFallback ? runtime.fallback!.modelId : runtime.primary.modelId;
+  const actualModelId = usedFallback
+    ? runtime.fallback!.modelId
+    : (agentEnabled && agentModel ? agentModel.modelId : runtime.primary.modelId);
   try {
     if (chunks.length > 0 && !/\[资料\d+\]/.test(fullText)) {
       const citationNotice = `\n\n参考来源：${chunks.map((chunk, index) => {
@@ -405,10 +473,14 @@ export async function streamConversationReply(options: {
       throw stopError;
     }
 
+    const doneSources = agentSources ?? (mapSources ?? toAiSources)(chunks);
     const metadata = {
       reasoningMode: conversation.reasoningMode,
       reasoning: runtime.reasoning,
       capabilities,
+      allowedTools,
+      agentEnabled,
+      finishReason,
       ...(usedFallback ? { fallbackUsed: true, originalFailedModel, actualModel: actualModelId } : {})
     };
     await app.db.transaction(async (tx) => {
@@ -417,7 +489,7 @@ export async function streamConversationReply(options: {
         status: "COMPLETED",
         tokenInput: streamUsage?.inputTokens,
         tokenOutput: streamUsage?.outputTokens,
-        reasoningTokens: streamUsage?.outputTokenDetails.reasoningTokens,
+        reasoningTokens: streamUsage?.outputTokenDetails?.reasoningTokens,
         durationMs: Date.now() - startedAt,
         finishedAt: new Date(),
         metadata
@@ -453,25 +525,44 @@ export async function streamConversationReply(options: {
       }
     }
     streamFinished = true;
-    writeProgress(reply, "completed", "回答整理完成");
+    writeProgress(reply, "completed", finishReason === "WAITING_USER_INPUT" ? "需要你确认后继续" : "回答整理完成");
     writeSse(reply, "done", {
       messageId: assistantMessage.id,
       conversationId: conversation.id,
-      finishReason: "COMPLETED",
+      finishReason,
       usage: {
         inputTokens: streamUsage?.inputTokens,
         outputTokens: streamUsage?.outputTokens,
-        reasoningTokens: streamUsage?.outputTokenDetails.reasoningTokens
+        reasoningTokens: streamUsage?.outputTokenDetails?.reasoningTokens
       },
       model: { id: actualModelId },
       promptVersion: { id: runtime.promptVersionId, version: runtime.promptVersionNumber },
-      sources: (mapSources ?? toAiSources)(chunks),
+      sources: doneSources,
       latencyMs: Date.now() - startedAt
     });
+    writeSse(reply, "message_done", {
+      messageId: assistantMessage.id,
+      conversationId: conversation.id,
+      finishReason,
+      sources: doneSources
+    });
+    if (built.droppedEarlyMessages || finishReason === "COMPLETED") {
+      void updateConversationSummary(app, conversation.id, {
+        force: finishReason === "COMPLETED" && agentEnabled,
+        droppedEarlyMessages: built.droppedEarlyMessages
+      }).catch((error) => request.log.warn({ err: error }, "会话摘要更新失败"));
+    }
+    void scheduleConversationMaintenance(app, conversation.id);
+    if (conversation.projectId && finishReason === "COMPLETED") {
+      void refreshProjectMemoryFromConversation(app, conversation.id, user, request)
+        .catch((error) => request.log.warn({ err: error }, "项目记忆提取失败"));
+    }
   } catch (error) {
     const stopRequested = generation.stopRequested || (await app.redis.exists(stopKey).catch(() => 0)) === 1 || isAbortError(error);
     if (stopRequested) {
       request.log.info({ messageId: assistantMessage.id }, "AI 回答已停止");
+      const activeRun = await getActiveAgentRun(app, conversation.id);
+      if (activeRun) await cancelAgentRun(app, activeRun.id);
       await app.db.transaction(async (tx) => {
         await tx.update(aiMessages).set({
           content: fullText,
@@ -503,7 +594,7 @@ export async function streamConversationReply(options: {
         usage: streamUsage ? {
           inputTokens: streamUsage.inputTokens,
           outputTokens: streamUsage.outputTokens,
-          reasoningTokens: streamUsage.outputTokenDetails.reasoningTokens
+          reasoningTokens: streamUsage.outputTokenDetails?.reasoningTokens
         } : undefined
       });
     } else {
@@ -544,18 +635,4 @@ export async function streamConversationReply(options: {
   }
 }
 
-/** 项目上下文：仅在 conversation.projectId 有值时注入结构化字段；无项目则跳过，不阻断图片/检索/问答。 */
-export async function resolveProjectContext(app: FastifyInstance, projectId: string | null): Promise<string | null> {
-  if (!projectId) {
-    return null;
-  }
-  const [project] = await app.db.select().from(projects)
-    .where(and(eq(projects.id, projectId), isNull(projects.deletedAt))).limit(1);
-  if (!project) return null;
-  return [
-    `项目名称：${project.name}`,
-    project.description ? `项目描述：${project.description}` : null,
-    project.region ? `所在地区：${project.region}` : null,
-    project.buildingType ? `建筑类型：${project.buildingType}` : null
-  ].filter(Boolean).join("\n");
-}
+export { resolveProjectContext } from "./ai-project-profile.js";

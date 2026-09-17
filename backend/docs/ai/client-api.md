@@ -26,11 +26,15 @@
 
 | 接口 | 说明 |
 | --- | --- |
-| `POST /conversations/:id/messages` | 发消息（SSE，见 `sse-protocol.md`）；body `{ content, attachmentFileIds?: string[] }`，0 张图片走原文字流程，1~4 张走 Vision 看图后再进入现有编排。不要求 projectId / sceneId / promptId |
+| `POST /conversations/:id/messages` | 发消息（SSE，见 `sse-protocol.md`）；body `{ content, attachmentFileIds?: string[] }`，0 张图片走原文字流程，1~4 张走 Vision 看图后再进入现有编排。若会话有 WAITING_USER_INPUT 的 Agent Run，下一句自动 Resume。不要求 projectId / sceneId / promptId |
 | `POST /messages/:id/stop` | 停止生成 |
 | `POST /messages/:id/regenerate` | 重新生成（新建助手消息 + `ai_message_regenerations` 关系，不覆盖原回答） |
 | `PUT /messages/:id/feedback` | 点赞 / 反馈（upsert，`reasonCode` + 标签） |
 | `POST /conversations/:id/report-draft` | 报告草稿（场景 `report_generate` 门控）；会话无项目时 `report.projectId=null`，不强制先选项目 |
+| `POST /conversations/:id/end` | 结束会话并整理滚动摘要/项目记忆 |
+| `GET /conversations/:id/active-agent-run` | 当前 Agent Run（SSE 断线恢复） |
+| `GET /agent-runs/:id` | Agent Run 详情 |
+| `POST /agent-runs/:id/resume` | 恢复 WAITING_USER_INPUT（SSE，body `{ content }`） |
 | `GET /quota` | 查询当日已用 / 上限与并发占用 |
 | `GET /ai/knowledge/source-detail`（前缀 `/api/v1/ai/knowledge`） | AI 来源详情：`?documentId=&sectionId=&pageId=&blockId=&chunkId=&matchedText=` 任一定位入口 → 文档 + 章节路径 + 完整页（fullText+blocks）+ 命中高亮（blockId 优先，matchedText 兜底） |
 
@@ -45,6 +49,8 @@
 - 知识检索为 Wiki 层级检索；范围覆盖平台已发布文档，会话关联项目时再叠加该项目文档。`done.sources` 含 `title` / `tocPath` / `sectionTitle` / `pageLabel` / `quote` / `originalFileId` / `physicalPageNumber`。
 - 明确要求“根据图集/标准/系统资料”但无命中时，注入“未找到可靠资料”约束，禁止编造来源。
 - 检索仅在能力路由判定需要知识，或 B 端知识问答注入结果时执行；未执行检索不得发送“核对检索资料”阶段。
-- 历史窗口按 Token 预算裁剪（`AI_CONTEXT_MAX_MESSAGES` 默认 20 条，输出预留 + 10% 安全余量），超长从最早历史裁剪。
+- 历史窗口按 Token 分桶裁剪（系统规则 / 项目档案 / 项目记忆 / 会话摘要 / 近期消息 / 工具与知识 / 当前消息），超长从最早历史裁剪并触发滚动摘要。
+- 会话详情返回 `activeAgentRun`；图片附件带 `semanticSummary`，历史图片可继续追问，不必重新上传或整张 Vision。
+- 项目记忆：`GET/PUT /api/v1/projects/:id/ai-memories`，`POST .../confirm|reject`，`DELETE` 为软状态 REJECTED。`view=active|pending|history`。
 - 停止 / 重新生成 / 反馈均保留原始消息，可追踪。
 - 每条消息落库：实际 provider / model / `promptVersionId` / `reasoningMode` / usage / `errorCode` / `requestId`。

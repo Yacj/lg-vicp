@@ -82,6 +82,28 @@ export const aiFeedbackReactionEnum = pgEnum("ai_feedback_reaction", ["LIKE", "D
 /** 聊天附件类型：本轮仅图片；项目关系经 message → conversation → projectId 推导，不落 projectId */
 export const aiAttachmentTypeEnum = pgEnum("ai_attachment_type", ["IMAGE"]);
 export const aiVisionStatusEnum = pgEnum("ai_vision_status", ["PENDING", "SUCCEEDED", "FAILED", "SKIPPED"]);
+export const aiAgentRunStatusEnum = pgEnum("ai_agent_run_status", [
+  "RUNNING",
+  "WAITING_USER_INPUT",
+  "COMPLETED",
+  "FAILED",
+  "CANCELLED"
+]);
+export const projectAiMemoryTypeEnum = pgEnum("project_ai_memory_type", [
+  "FACT",
+  "CONSTRAINT",
+  "DECISION",
+  "PREFERENCE",
+  "TODO",
+  "ASSUMPTION"
+]);
+export const projectAiMemoryStatusEnum = pgEnum("project_ai_memory_status", [
+  "ACTIVE",
+  "PENDING",
+  "SUPERSEDED",
+  "REJECTED"
+]);
+export const projectAiMemoryCreatedByEnum = pgEnum("project_ai_memory_created_by", ["USER", "AI"]);
 /** 文件业务用途：CHAT_IMAGE 上传完成后直接 READY，不进入文档/知识解析 */
 export const filePurposeEnum = pgEnum("file_purpose", ["GENERAL", "CHAT_IMAGE"]);
 export const reportStatusEnum = pgEnum("report_status", [
@@ -199,7 +221,8 @@ export const knowledgeFileSourceEnum = pgEnum("knowledge_file_source", [
   "BATCH_IMPORT",
   "CRAWLER",
   "INTERNAL_API",
-  "THERMAL_IMPORT"
+  "THERMAL_IMPORT",
+  "COLLECTION"
 ]);
 // 版本处理管线状态：与 versions.status（受控审核 DRAFT/APPROVED/PUBLISHED/DISABLED）双轨
 export const knowledgePipelineStatusEnum = pgEnum("knowledge_pipeline_status", [
@@ -224,7 +247,31 @@ export const knowledgeChunkEditTypeEnum = pgEnum("knowledge_chunk_edit_type", [
   "SPLIT",
   "MERGE"
 ]);
+
+/** 内部 Structured Knowledge：从已审核知识资料抽出的确定性事实，不是 B 端产品中心 */
+export const knowledgeFactTypeEnum = pgEnum("knowledge_fact_type", [
+  "MATERIAL",
+  "PRODUCT_SPEC",
+  "CONSTRUCTION",
+  "THERMAL_PARAMETER",
+  "STANDARD_LIMIT",
+  "NODE_REFERENCE"
+]);
+export const knowledgeFactStatusEnum = pgEnum("knowledge_fact_status", ["DRAFT", "VERIFIED"]);
+
+/** 采集管理：仅 MANUAL / AUTO 两类，不做成复杂爬虫平台 */
+export const collectionModeEnum = pgEnum("collection_mode", ["MANUAL", "AUTO"]);
+export const collectionTaskStatusEnum = pgEnum("collection_task_status", [
+  "PENDING",
+  "RUNNING",
+  "WAITING_CONFIRM",
+  "COMPLETED",
+  "FAILED"
+]);
+
 // ---------------------------------------------------------------- 主数据（企业/产品/材料参数）
+// Legacy / Deprecated：产品中心已退出普通业务。表与审核 API 保留兼容，禁止新功能继续增加依赖。
+// 正式图集/标准/技术资料进入 Knowledge；确定性参数优先 VERIFIED knowledge_facts，缺省再 fallback 本域已发布数据。
 // 审核状态机：DRAFT -> PENDING_REVIEW -> APPROVED -> PUBLISHED -> DISABLED；PENDING_REVIEW 可驳回为 REJECTED。
 // 与知识库版本状态枚举差异：主数据需要"驳回"决议（甲方验收：参数冲突可见且有审核决议）。
 export const mdReviewStatusEnum = pgEnum("md_review_status", [
@@ -1075,7 +1122,7 @@ export const knowledgeRankingRules = pgTable(
   }
 );
 
-/** 爬虫抓取源（站点规则由甲方确认后配置；抓取结果默认待审核） */
+/** Legacy 知识库抓取源：普通菜单已迁到独立采集管理；本表与 /crawler-sources API 仅兼容保留 */
 export const knowledgeCrawlerSources = pgTable(
   "knowledge_crawler_sources",
   {
@@ -1118,6 +1165,78 @@ export const knowledgeSearchEvaluations = pgTable(
   },
   (table) => [
     index("knowledge_search_evaluations_judgement_idx").on(table.judgement, table.judgedAt)
+  ]
+);
+
+/**
+ * 内部 Structured Knowledge / Knowledge Facts。
+ * 不是新的 B 端产品中心：只给计算/AI/报告 resolver 消费已核验事实，必须保留 source 溯源。
+ */
+export const knowledgeFacts = pgTable(
+  "knowledge_facts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    factType: knowledgeFactTypeEnum("fact_type").notNull(),
+    subject: varchar("subject", { length: 255 }).notNull(),
+    data: jsonb("data").$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
+    sourceDocumentId: uuid("source_document_id").notNull().references(() => knowledgeDocuments.id, { onDelete: "cascade" }),
+    sourceVersionId: uuid("source_version_id").references(() => knowledgeDocumentVersions.id, { onDelete: "set null" }),
+    sourceSectionId: uuid("source_section_id").references(() => knowledgeSections.id, { onDelete: "set null" }),
+    sourcePageLabel: varchar("source_page_label", { length: 80 }),
+    sourcePhysicalPageNumber: integer("source_physical_page_number"),
+    status: knowledgeFactStatusEnum("status").notNull().default("DRAFT"),
+    ...timestamps
+  },
+  (table) => [
+    index("knowledge_facts_type_subject_status_idx").on(table.factType, table.subject, table.status),
+    index("knowledge_facts_source_document_idx").on(table.sourceDocumentId, table.status)
+  ]
+);
+
+/**
+ * 采集管理独立 Domain：只负责获取外部候选资料，确认后导入 Knowledge。
+ * 不做成 Knowledge 子模块；P0 仅 MANUAL / AUTO，不开放 XPath/Cookie/Proxy/Cron 配置。
+ */
+export const collectionSources = pgTable(
+  "collection_sources",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: varchar("name", { length: 160 }).notNull(),
+    sourceUrl: text("source_url").notNull(),
+    mode: collectionModeEnum("mode").notNull().default("AUTO"),
+    enabled: boolean("enabled").notNull().default(true),
+    lastCollectedAt: timestamp("last_collected_at", { withTimezone: true }),
+    createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    ...timestamps
+  },
+  (table) => [
+    index("collection_sources_enabled_idx").on(table.enabled),
+    index("collection_sources_updated_idx").on(table.updatedAt)
+  ]
+);
+
+export const collectionTasks = pgTable(
+  "collection_tasks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sourceId: uuid("source_id").references(() => collectionSources.id, { onDelete: "set null" }),
+    name: varchar("name", { length: 160 }).notNull(),
+    sourceUrl: text("source_url").notNull(),
+    mode: collectionModeEnum("mode").notNull(),
+    status: collectionTaskStatusEnum("status").notNull().default("PENDING"),
+    resultFileId: uuid("result_file_id").references(() => files.id, { onDelete: "set null" }),
+    resultMeta: jsonb("result_meta").$type<Record<string, unknown>>(),
+    errorMessage: text("error_message"),
+    createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+    importedKnowledgeDocumentId: uuid("imported_knowledge_document_id").references(() => knowledgeDocuments.id, { onDelete: "set null" }),
+    ...timestamps
+  },
+  (table) => [
+    index("collection_tasks_status_created_idx").on(table.status, table.createdAt),
+    index("collection_tasks_mode_status_idx").on(table.mode, table.status),
+    index("collection_tasks_source_idx").on(table.sourceId)
   ]
 );
 
@@ -1298,6 +1417,11 @@ export const aiMessageAttachments = pgTable(
     sortOrder: integer("sort_order").notNull().default(0),
     visionStatus: aiVisionStatusEnum("vision_status").notNull().default("PENDING"),
     visionResultJson: jsonb("vision_result_json").$type<Record<string, unknown>>(),
+    /** 可复用的图片语义摘要：后续轮次追问历史图片时注入，不必重新 Vision */
+    semanticSummary: text("semantic_summary"),
+    extractedText: text("extracted_text"),
+    detectedObjectsJson: jsonb("detected_objects_json").$type<string[]>(),
+    visionModel: varchar("vision_model", { length: 160 }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
   },
   (table) => [
@@ -1363,14 +1487,96 @@ export const aiToolCalls = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     conversationId: uuid("conversation_id").notNull().references(() => aiConversations.id, { onDelete: "cascade" }),
     messageId: uuid("message_id").references(() => aiMessages.id, { onDelete: "set null" }),
+    agentRunId: uuid("agent_run_id").references((): PgColumn => aiAgentRuns.id, { onDelete: "set null" }),
     toolName: varchar("tool_name", { length: 120 }).notNull(),
     inputJson: jsonb("input_json").$type<Record<string, unknown>>(),
     outputJson: jsonb("output_json").$type<Record<string, unknown>>(),
+    inputHash: varchar("input_hash", { length: 64 }),
     success: boolean("success").notNull().default(true),
     errorMessage: text("error_message"),
+    durationMs: integer("duration_ms"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
   },
-  (table) => [index("ai_tool_calls_conversation_idx").on(table.conversationId)]
+  (table) => [
+    index("ai_tool_calls_conversation_idx").on(table.conversationId),
+    index("ai_tool_calls_agent_run_idx").on(table.agentRunId)
+  ]
+);
+
+/**
+ * 会话滚动摘要 / 当前任务状态。不复制完整聊天记录，只保留压缩历史与已确认事实。
+ */
+export const aiConversationStates = pgTable(
+  "ai_conversation_states",
+  {
+    conversationId: uuid("conversation_id").primaryKey().references(() => aiConversations.id, { onDelete: "cascade" }),
+    summary: text("summary"),
+    activeGoal: text("active_goal"),
+    confirmedFactsJson: jsonb("confirmed_facts_json").$type<Array<Record<string, unknown>>>().notNull().default(sql`'[]'::jsonb`),
+    openQuestionsJson: jsonb("open_questions_json").$type<Array<Record<string, unknown>>>().notNull().default(sql`'[]'::jsonb`),
+    importantReferencesJson: jsonb("important_references_json").$type<Array<Record<string, unknown>>>().notNull().default(sql`'[]'::jsonb`),
+    lastSummarizedMessageId: uuid("last_summarized_message_id").references(() => aiMessages.id, { onDelete: "set null" }),
+    version: integer("version").notNull().default(1),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+  }
+);
+
+/**
+ * 项目级长期记忆：同一项目下多个 Conversation 共享。
+ * ASSUMPTION / 未 verified 记录不得当事实注入；冲突时旧记录 SUPERSEDED 并保留 supersededById。
+ */
+export const projectAiMemories = pgTable(
+  "project_ai_memories",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+    memoryType: projectAiMemoryTypeEnum("memory_type").notNull(),
+    title: varchar("title", { length: 160 }),
+    content: text("content").notNull(),
+    structuredDataJson: jsonb("structured_data_json").$type<Record<string, unknown>>(),
+    status: projectAiMemoryStatusEnum("status").notNull().default("PENDING"),
+    confidence: real("confidence").notNull().default(0.5),
+    verified: boolean("verified").notNull().default(false),
+    sourceConversationId: uuid("source_conversation_id").references(() => aiConversations.id, { onDelete: "set null" }),
+    sourceMessageIdsJson: jsonb("source_message_ids_json").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    createdBy: projectAiMemoryCreatedByEnum("created_by").notNull().default("AI"),
+    supersededById: uuid("superseded_by_id").references((): PgColumn => projectAiMemories.id, { onDelete: "set null" }),
+    createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => [
+    index("project_ai_memories_project_status_idx").on(table.projectId, table.status),
+    index("project_ai_memories_project_type_idx").on(table.projectId, table.memoryType)
+  ]
+);
+
+export const aiAgentRuns = pgTable(
+  "ai_agent_runs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    conversationId: uuid("conversation_id").notNull().references(() => aiConversations.id, { onDelete: "cascade" }),
+    triggerMessageId: uuid("trigger_message_id").references(() => aiMessages.id, { onDelete: "set null" }),
+    assistantMessageId: uuid("assistant_message_id").references(() => aiMessages.id, { onDelete: "set null" }),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
+    status: aiAgentRunStatusEnum("status").notNull().default("RUNNING"),
+    currentStep: integer("current_step").notNull().default(0),
+    allowedToolsJson: jsonb("allowed_tools_json").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    stateJson: jsonb("state_json").$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
+    model: varchar("model", { length: 160 }),
+    toolCallCount: integer("tool_call_count").notNull().default(0),
+    tokenUsageJson: jsonb("token_usage_json").$type<Record<string, unknown>>(),
+    errorMessage: text("error_message"),
+    errorCode: varchar("error_code", { length: 40 }),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+    finishedAt: timestamp("finished_at", { withTimezone: true })
+  },
+  (table) => [
+    index("ai_agent_runs_conversation_status_idx").on(table.conversationId, table.status),
+    index("ai_agent_runs_user_started_idx").on(table.userId, table.startedAt)
+  ]
 );
 
 export const aiRetrievalLogs = pgTable(
@@ -1671,7 +1877,7 @@ export const enterpriseCertificates = pgTable(
   ]
 );
 
-/** 产品系列：同 code 多版本行并存 */
+/** @deprecated Legacy 产品中心：普通菜单已隐藏，表保留兼容；新资料进入 Knowledge / knowledge_facts */
 export const productSeries = pgTable(
   "product_series",
   {
@@ -1691,7 +1897,7 @@ export const productSeries = pgTable(
   ]
 );
 
-/** 产品规格：同 (seriesId, specCode) 多版本行并存；尺寸/燃烧等级等属性以图集选用表为准 */
+/** @deprecated Legacy 产品规格：同 (seriesId, specCode) 多版本行并存；新功能禁止继续作为主数据入口 */
 export const productSpecs = pgTable(
   "product_specs",
   {
@@ -1719,7 +1925,7 @@ export const productSpecs = pgTable(
   ]
 );
 
-/** 产品性能参数：同 (specId, parameterCode, paramSource) 多版本并存，四来源可同屏展示冲突 */
+/** @deprecated Legacy 产品性能参数：计算优先 VERIFIED knowledge_facts，本表仅 fallback */
 export const productParameters = pgTable(
   "product_parameters",
   {
@@ -1767,7 +1973,7 @@ export const productAttachments = pgTable(
   ]
 );
 
-/** 材料：同 code 多版本行并存；类别值域待甲方确认 */
+/** @deprecated Legacy 材料库：普通菜单已隐藏，表保留兼容 */
 export const materials = pgTable(
   "materials",
   {
@@ -1789,7 +1995,7 @@ export const materials = pgTable(
   ]
 );
 
-/** 材料参数版本：确定性计算唯一参数来源（导热系数/修正系数/密度/强度/燃烧等级），同 materialId 版本递增 */
+/** @deprecated Legacy 材料参数版本：确定性计算优先 VERIFIED knowledge_facts，本表仅 fallback */
 export const materialParameterVersions = pgTable(
   "material_parameter_versions",
   {
@@ -1817,9 +2023,9 @@ export const materialParameterVersions = pgTable(
   ]
 );
 
-// ---------------------------------------------------------------- 保温系统 / 构造方案 / 构造层
-// 版本化主体：保温系统、构造方案（同逻辑键多版本行并存，发布后 new-version 派生新草稿，历史版本保留）。
-// 子表（构造层/产品选项/方案文档）随方案版本整组复制，无独立审核列，状态由父方案承载。
+// ---------------------------------------------------------------- 保温系统 / 构造方案 / 构造层（Legacy）
+// 普通产品中心菜单已隐藏；表与审核 API 保留兼容。AI 会话体系选择仍可读已发布保温系统。
+// 新资料进入 Knowledge；结构化参数优先 VERIFIED knowledge_facts。
 
 /** 保温系统：同 code 多版本行并存；systemType 值域待甲方确认 */
 export const insulationSystems = pgTable(
@@ -1931,9 +2137,8 @@ export const schemeDocuments = pgTable(
   ]
 );
 
-// ---------------------------------------------------------------- 节点图库（构造节点大样图）
-// 节点检索按 系统 + 部位 精确返回；节点关联构造方案（多对多，子表随版本复制）、图集页码、高清图/CAD 与说明。
-// 节点为版本化审核实体，数值/页码/证据随版本冻结；已发布读取只返回 PUBLISHED 且生效中的节点。
+// ---------------------------------------------------------------- 节点图库（Legacy）
+// 普通菜单已隐藏；表与审核 API 保留兼容。新节点资料进入 Knowledge，facts 类型 NODE_REFERENCE。
 
 /** 节点图：版本化审核实体，部位为自由文本（标准词汇表待甲方确认，后续可迁字典） */
 export const nodeDrawings = pgTable(
@@ -1983,9 +2188,9 @@ export const nodeSchemeLinks = pgTable(
   ]
 );
 
-// ---------------------------------------------------------------- 图集热工参考选用表
+// ---------------------------------------------------------------- 图集热工参考选用表（计算引擎仍用；产品中心维护入口为 Legacy）
 // 一期方案筛选的第一优先数据源：知识库负责条文检索/解释/页码，本模块保存图集节能计算参考选用表的
-// 精确可查询数据。核心关系：保温系统 -> 构造方案 -> 构造层 -> 产品规格 -> 图集热工结果 -> 地区限值。
+// 精确可查询数据。普通菜单已隐藏，API 保留。确定性参数优先 VERIFIED knowledge_facts，缺省 fallback 本表。
 // 参考集为版本化实体（导入产生 DRAFT，经 submit/approve/publish 发布）；参考行随集版本化，无独立审核列。
 // 关键约束：行必须同时保存 Excel 原始值（raw*）与标准化数值，禁止 AI/OCR 直接发布。
 
@@ -2565,7 +2770,7 @@ export const professionalReviews = pgTable(
   ]
 );
 
-// ---------------------------------------------------------------- 材料对比规则引擎
+// ---------------------------------------------------------------- 材料对比规则引擎（Legacy 维护入口；AI 仍消费已发布规则）
 // VICP 与 EPS/XPS/岩棉/聚氨酯/传统一体板的对比以"版本批次"为审核/发布单元：comparison_versions 为
 // 版本化实体（复用 masterdata 工作流工厂），材料/规则/证据为子表随版本同事务复制，历史版本不漂移；
 // AI 只消费 PUBLISHED 且生效（effectiveAt/expiresAt 窗口）的规则。五维（保温/防火/耐久/施工/报审）
@@ -2822,14 +3027,32 @@ export const projectsRelations = relations(projects, ({ one, many }) => ({
   files: many(files),
   conversations: many(aiConversations),
   reports: many(reports),
-  shareLinks: many(shareLinks)
+  shareLinks: many(shareLinks),
+  aiMemories: many(projectAiMemories)
 }));
 
 export const conversationsRelations = relations(aiConversations, ({ one, many }) => ({
   user: one(users, { fields: [aiConversations.userId], references: [users.id] }),
   project: one(projects, { fields: [aiConversations.projectId], references: [projects.id] }),
   messages: many(aiMessages),
-  feedbacks: many(aiMessageFeedbacks)
+  feedbacks: many(aiMessageFeedbacks),
+  conversationState: one(aiConversationStates, { fields: [aiConversations.id], references: [aiConversationStates.conversationId] }),
+  agentRuns: many(aiAgentRuns)
+}));
+
+export const aiConversationStatesRelations = relations(aiConversationStates, ({ one }) => ({
+  conversation: one(aiConversations, { fields: [aiConversationStates.conversationId], references: [aiConversations.id] })
+}));
+
+export const projectAiMemoriesRelations = relations(projectAiMemories, ({ one }) => ({
+  project: one(projects, { fields: [projectAiMemories.projectId], references: [projects.id] }),
+  sourceConversation: one(aiConversations, { fields: [projectAiMemories.sourceConversationId], references: [aiConversations.id] }),
+  supersededBy: one(projectAiMemories, { fields: [projectAiMemories.supersededById], references: [projectAiMemories.id] })
+}));
+
+export const aiAgentRunsRelations = relations(aiAgentRuns, ({ one, many }) => ({
+  conversation: one(aiConversations, { fields: [aiAgentRuns.conversationId], references: [aiConversations.id] }),
+  toolCalls: many(aiToolCalls)
 }));
 
 export const aiMessageAttachmentsRelations = relations(aiMessageAttachments, ({ one }) => ({
@@ -2849,6 +3072,9 @@ export type AiQuickPrompt = typeof aiQuickPrompts.$inferSelect;
 export type Report = typeof reports.$inferSelect;
 export type ReportSettings = typeof reportSettings.$inferSelect;
 export type AiMessageAttachment = typeof aiMessageAttachments.$inferSelect;
+export type AiConversationState = typeof aiConversationStates.$inferSelect;
+export type ProjectAiMemory = typeof projectAiMemories.$inferSelect;
+export type AiAgentRun = typeof aiAgentRuns.$inferSelect;
 export type ShareLink = typeof shareLinks.$inferSelect;
 export type KnowledgeDocument = typeof knowledgeDocuments.$inferSelect;
 export type KnowledgeDocumentVersion = typeof knowledgeDocumentVersions.$inferSelect;
@@ -2862,6 +3088,9 @@ export type KnowledgeSearchLog = typeof knowledgeSearchLogs.$inferSelect;
 export type ParsingJob = typeof parsingJobs.$inferSelect;
 export type KnowledgeRankingRule = typeof knowledgeRankingRules.$inferSelect;
 export type KnowledgeCrawlerSource = typeof knowledgeCrawlerSources.$inferSelect;
+export type KnowledgeFact = typeof knowledgeFacts.$inferSelect;
+export type CollectionSource = typeof collectionSources.$inferSelect;
+export type CollectionTask = typeof collectionTasks.$inferSelect;
 export type KnowledgeSearchEvaluation = typeof knowledgeSearchEvaluations.$inferSelect;
 export type EnterpriseProfile = typeof enterpriseProfiles.$inferSelect;
 export type EnterpriseCertificate = typeof enterpriseCertificates.$inferSelect;
