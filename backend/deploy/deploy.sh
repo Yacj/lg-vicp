@@ -198,7 +198,7 @@ if [[ "$DEPLOY_RUNTIME" == "pm2" ]]; then
 
   info "安装依赖并构建（pnpm install + pnpm build）..."
   pnpm install --frozen-lockfile --prod=false
-  pnpm build
+  NODE_OPTIONS=--max-old-space-size=640 pnpm build
 
   info "执行数据库迁移（node dist/db/migrate.js）..."
   if ! node dist/db/migrate.js; then
@@ -242,8 +242,12 @@ fi
 info "停止可能存在的 PM2 网关容器，避免与 compose nginx 抢 8080..."
 docker compose -f docker-compose.yml -f "$COMPOSE_PM2_FILE" stop gateway >/dev/null 2>&1 || true
 
-info "构建镜像并启动服务（首次构建需拉取依赖，可能需要数分钟）..."
-docker compose build api worker
+info "为编译腾出内存，暂停 api/worker/nginx..."
+docker compose stop api worker nginx >/dev/null 2>&1 || true
+
+info "构建镜像（先 api，worker 复用缓存，避免并行 tsc 撑爆内存）..."
+COMPOSE_PARALLEL_LIMIT=1 docker compose build api
+COMPOSE_PARALLEL_LIMIT=1 docker compose build worker
 
 # 迁移先行：先启动 postgres 并等待健康，再执行迁移，失败立即中止，
 # 避免 api 容器反复重启后才暴露问题。迁移容器不使用 --no-deps，
