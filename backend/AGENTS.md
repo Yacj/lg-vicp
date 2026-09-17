@@ -14,7 +14,7 @@
 - Redis、BullMQ。
 - AI SDK、OpenAI-compatible 模型服务商。
 - MinIO（开发）、阿里云 OSS（生产）。
-- Docker Compose、Nginx。
+- Docker Compose、Nginx；生产可选 PM2 托管 API/Worker。
 
 普通 CRUD 使用 Drizzle 查询构建器。全文检索、`pg_trgm`、未来 `pgvector` 及复杂排序可以使用参数化原生 SQL。禁止拼接用户输入生成 SQL。
 
@@ -30,6 +30,7 @@
 - 执行迁移：`pnpm db:migrate`
 - 初始化数据：`pnpm db:seed`
 - 启动完整环境：`docker compose up --build`
+- 生产 PM2（服务器）：`.env` 设 `DEPLOY_RUNTIME=pm2` 后执行 `bash deploy/deploy.sh`
 
 ## 架构约束
 

@@ -1,6 +1,6 @@
 # 后端架构
 
-技术栈：Fastify、TypeScript、Zod、PostgreSQL、Drizzle ORM、postgres.js、Redis、BullMQ、AI SDK、MinIO/阿里云 OSS、Docker Compose、Nginx。
+技术栈：Fastify、TypeScript、Zod、PostgreSQL、Drizzle ORM、postgres.js、Redis、BullMQ、AI SDK、MinIO/阿里云 OSS、Docker Compose、Nginx；生产可选 PM2 托管 API/Worker。
 
 目录职责：
 

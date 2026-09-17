@@ -35,7 +35,7 @@
 - 缓存与任务：Redis + BullMQ；API 创建任务，Worker 处理解析、报告和维护任务。
 - AI：AI SDK + OpenAI-compatible provider；服务商、模型从数据库读取。C 端默认 `general_chat`，不要求用户选择场景/系统指令；快捷提问独立配置；`resolveAiCapabilities` 选择允许的 Tool Set，支持 tools 的模型走 Agent Loop。
 - 存储：开发环境 MinIO，生产环境优先阿里云 OSS。
-- 部署：Docker Compose + Nginx。
+- 部署：Docker Compose + Nginx；可选 PM2 托管宿主机 API/Worker。
 
 ## 接口响应约定
 
@@ -126,7 +126,7 @@ docker compose up --build
 
 ## 部署到服务器
 
-前置条件：服务器安装 Docker、Docker Compose v2、Git，防火墙/安全组放行 `8080` 端口。
+前置条件：服务器安装 Docker、Docker Compose v2、Git，防火墙/安全组放行 `8080` 端口。使用 `DEPLOY_RUNTIME=pm2` 时还需 Node.js 22+（自带 corepack/pnpm）和全局 `pm2`（脚本会尝试 `npm i -g pm2`）。
 
 ### 首次部署
 
@@ -139,9 +139,25 @@ bash deploy/deploy.sh <git 仓库地址>
 脚本首次运行会生成随机 `JWT_SECRET`、`AI_CONFIG_ENCRYPTION_KEY`、`POSTGRES_PASSWORD` 和 MinIO 凭证，随后退出并提示你编辑 `.env`：
 
 - `BOOTSTRAP_ADMIN_PASSWORD`：管理员登录密码，至少 12 位。
+- `DEPLOY_RUNTIME`：`docker`（默认，全容器）或 `pm2`（宿主机 Node + PM2 跑 api/worker）。
 - 跨域对任意前端来源放行（含 `http://192.168.x.x:8871` 等局域网调试地址）。生产若有外层 Nginx/宝塔，请按 `deploy/host-nginx.example.conf` 让 OPTIONS 预检直接返回 204。
 
-修改完成后再次运行同一命令，脚本校验必填配置、构建镜像并启动 `postgres`、`redis`、`minio`、`api`、`worker`、`nginx` 六个服务，最后自动健康检查（最多 120 秒）。访问地址为 `http://<服务器IP>:8080`。
+修改完成后再次运行同一命令，脚本校验必填配置后按 `DEPLOY_RUNTIME` 启动：
+
+- `docker`（默认）：构建镜像并启动 `postgres`、`redis`、`minio`、`api`、`worker`、`nginx`。
+- `pm2`：Docker 只跑 `postgres`/`redis`/`minio` 和 `8080` 网关；本机构建后由 PM2 托管 `lg-vicp-api`、`lg-vicp-worker`。报告 PDF 导出需在服务器安装 Chromium，并配置 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`。
+
+最后自动健康检查（最多 120 秒）。访问地址为 `http://<服务器IP>:8080`。
+
+### 切换为 PM2
+
+在服务器 `backend/.env` 中设置：
+
+```
+DEPLOY_RUNTIME=pm2
+```
+
+然后重新执行 `bash deploy/deploy.sh`（或本地 `pnpm deploy`）。脚本会停掉 Docker 里的 api/worker/nginx，用 PM2 托管本机 `lg-vicp-api` / `lg-vicp-worker`，并保留 `8080` 网关。若宿主机已占用 `5432`/`6379`，请改 `deploy/docker-compose.pm2.yml` 的端口映射，并同步 `.env` 的 `DATABASE_URL` / `REDIS_URL`。改回 Docker 时把 `DEPLOY_RUNTIME` 设为 `docker` 再部署即可。
 
 ### 一键部署（本地执行）
 
@@ -160,7 +176,7 @@ DEPLOY_REMOTE_DIR=/opt/lg-vicp   # 服务器上仓库目录，默认 /opt/lg-vic
 pnpm deploy
 ```
 
-脚本流程：自动提交并推送 `backend/` 目录的改动（不波及 `app`/`admin-web`），然后 SSH 到服务器执行 `bash deploy/deploy.sh`（git pull + 构建镜像 + 先执行数据库迁移、失败立即中止 + 健康检查）。服务器首次部署时需先手动完成 `.env` 初始化（见上节），初始化后即可一键更新。
+脚本流程：自动提交并推送 `backend/` 目录的改动（不波及 `app`/`admin-web`），然后 SSH 到服务器执行 `bash deploy/deploy.sh`（git pull + 按服务器 `.env` 的 `DEPLOY_RUNTIME` 构建启动 + 先执行数据库迁移、失败立即中止 + 健康检查）。服务器首次部署时需先手动完成 `.env` 初始化（见上节），初始化后即可一键更新。
 
 类型检查与单元测试不在部署链路内：类型错误由服务器镜像构建时的 tsc 编译兜底（构建失败即中止，不会上线坏代码）；回归测试建议由 CI 承担，部署前需要的话可手动执行 `pnpm lint` / `pnpm test`。
 
@@ -172,7 +188,7 @@ pnpm deploy
 bash deploy/deploy.sh
 ```
 
-脚本会 `git pull`（fast-forward）、重新构建并滚动启动服务。`.env` 已被 git 忽略，不会被覆盖；如需修改环境变量直接编辑 `.env` 后重新运行脚本。
+脚本会 `git pull`（fast-forward）、重新构建并滚动启动服务。`.env` 已被 git 忽略，不会被覆盖；如需修改环境变量直接编辑 `.env` 后重新运行脚本。在 `docker` 与 `pm2` 之间切换时，脚本会先停掉另一侧的 api/worker，避免两个 Worker 同时消费队列。
 
 ### 修改管理员密码
 
@@ -183,8 +199,8 @@ bash deploy/deploy.sh
 
 ### 常见运维
 
-- 日志：`docker compose logs -f`（指定服务：`docker compose logs -f api`）。
-- 使用 80 端口：修改 `docker-compose.yml` 中 nginx 的端口映射 `8080:80` 为 `80:80`。
+- 日志：`docker compose logs -f`（指定服务：`docker compose logs -f api`）。PM2 运行时用 `pm2 logs`、`pm2 status`（进程名 `lg-vicp-api` / `lg-vicp-worker`）。
+- 使用 80 端口：修改 `docker-compose.yml` 中 nginx（或 PM2 的 `gateway`）的端口映射 `8080:80` 为 `80:80`。
 - 数据备份：数据保存在 Docker 卷 `postgres_data`、`redis_data`、`minio_data`，备份 `docker compose exec postgres pg_dump` 输出和 MinIO 对象即可。
 
 ## 常用命令
@@ -198,6 +214,8 @@ pnpm db:generate
 pnpm db:migrate
 pnpm db:verify  # 临时容器验证全部迁移（干净库 + 脏数据模拟两个场景）
 pnpm db:studio
+pnpm pm2:start  # 服务器：按 deploy/ecosystem.config.cjs 启动或重载 PM2
+pnpm pm2:logs   # 服务器：查看 PM2 日志
 ```
 
 ## 修改流程

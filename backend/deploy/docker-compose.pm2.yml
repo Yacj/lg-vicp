@@ -1,0 +1,21 @@
+# PM2 运行时覆盖：基础设施对宿主机环回地址暴露端口，供本机 Node 进程连接。
+# 另起 gateway 把 8080 反代到宿主机 API，避免与 compose 内 api 容器抢 Redis 队列。
+# 用法：docker compose -f docker-compose.yml -f deploy/docker-compose.pm2.yml up -d postgres redis minio gateway
+services:
+  postgres:
+    ports:
+      - "127.0.0.1:5432:5432"
+
+  redis:
+    ports:
+      - "127.0.0.1:6379:6379"
+
+  gateway:
+    image: nginx:1.27-alpine
+    ports:
+      - "8080:80"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./deploy/nginx.pm2.conf:/etc/nginx/conf.d/default.conf:ro
+    restart: unless-stopped

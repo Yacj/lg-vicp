@@ -3,7 +3,7 @@
 // 蓝格 VICP 后端一键部署（本地执行，跨平台：Windows/Linux/macOS）
 //
 // 流程：提交并推送 backend/ 改动
-//       -> SSH 登录服务器执行 deploy/deploy.sh（pull + compose up --build + 健康检查）
+//       -> SSH 登录服务器执行 deploy/deploy.sh（pull + 按 DEPLOY_RUNTIME 启动 + 健康检查）
 //
 // 说明：类型检查与单元测试不在此链路内。类型错误由服务器 Dockerfile 构建时的
 //       tsc 编译兜底（构建失败即部署中止，不会上线坏代码）；
@@ -111,7 +111,7 @@ ssh.stdout.on("data", (chunk) => {
 
 const sshExit = await new Promise((resolve) => ssh.on("close", (code) => resolve(code)));
 if (sshExit !== 0) {
-  fail("远程部署失败，请检查服务器日志（docker compose logs -f）");
+  fail("远程部署失败，请检查服务器日志（docker：docker compose logs -f；PM2：pm2 logs）");
 }
 
 // 首次部署时服务器 .env 未初始化，deploy.sh 会提示后退出（exit 0），此处检测成功标记
