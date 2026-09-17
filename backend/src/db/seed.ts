@@ -472,7 +472,7 @@ try {
         status: "PUBLISHED",
         changeNote: nextVersion === 1 ? "初始版本" : "seed 补齐已发布版本",
         publishedAt: new Date()
-      }).returning({ id: promptVersions.id });
+      }).onConflictDoNothing().returning({ id: promptVersions.id });
       if (!created) return;
       await tx.update(prompts).set({ activeVersionId: created.id, updatedAt: new Date() }).where(eq(prompts.id, promptId));
       await tx.update(aiScenes).set({ promptId, updatedAt: new Date() }).where(eq(aiScenes.id, scene.id));
