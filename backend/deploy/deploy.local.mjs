@@ -62,6 +62,10 @@ if (!host) fail("缺少 DEPLOY_SSH_HOST（服务器 IP 或域名），请写入 
 const sshUser = env.DEPLOY_SSH_USER || "root";
 const sshPort = env.DEPLOY_SSH_PORT || "22";
 const remoteDir = env.DEPLOY_REMOTE_DIR || "/opt/lg-vicp";
+const runtime = env.DEPLOY_RUNTIME || "pm2";
+if (runtime !== "docker" && runtime !== "pm2") {
+  fail(`DEPLOY_RUNTIME 只能是 docker 或 pm2，当前为：${runtime}`);
+}
 
 // ---------- 2. 提交并推送 backend/ 改动 ----------
 // 仓库根在 backend/ 的上级（monorepo），只提交 backend/ 目录，不波及 app/admin-web
@@ -96,8 +100,8 @@ info(`推送 ${currentBranch} 到 origin...`);
 git(["push", "origin", currentBranch]);
 
 // ---------- 3. SSH 远程部署 ----------
-const remoteCmd = `cd ${remoteDir} && bash deploy/deploy.sh`;
-info(`SSH ${sshUser}@${host}:${sshPort} 执行远程部署...`);
+const remoteCmd = `cd ${remoteDir} && DEPLOY_RUNTIME=${runtime} bash deploy/deploy.sh`;
+info(`SSH ${sshUser}@${host}:${sshPort} 执行远程部署（${runtime}）...`);
 info(`命令：${remoteCmd}`);
 
 // 实时透传服务器输出，同时收集内容用于检测部署结果

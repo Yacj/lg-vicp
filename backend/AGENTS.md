@@ -30,7 +30,7 @@
 - 执行迁移：`pnpm db:migrate`
 - 初始化数据：`pnpm db:seed`
 - 启动完整环境：`docker compose up --build`
-- 生产 PM2（服务器）：`.env` 设 `DEPLOY_RUNTIME=pm2` 后执行 `bash deploy/deploy.sh`
+- 生产部署默认 PM2：`pnpm deploy`（服务器 `.env` 可改 `DEPLOY_RUNTIME=docker`）
 
 ## 架构约束
 

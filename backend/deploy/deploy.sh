@@ -12,9 +12,9 @@
 # 支持 monorepo：仓库根含 backend/ 子目录时，从 backend/ 或仓库根运行均可；
 # 脚本自动向上查找 git 仓库根执行 pull，并在 backend/ 下执行后续步骤。
 #
-# 运行时（.env 中 DEPLOY_RUNTIME，默认 docker）：
-#   docker：compose 构建并启动 postgres/redis/minio/api/worker/nginx
+# 运行时（环境变量优先，其次 .env 的 DEPLOY_RUNTIME，默认 pm2）：
 #   pm2   ：compose 只跑基础设施 + 8080 网关，api/worker 由宿主机 PM2 托管
+#   docker：compose 构建并启动 postgres/redis/minio/api/worker/nginx
 #
 # 脚本会：检查依赖 -> 获取/更新代码 -> 初始化 .env（仅首次）
 #   -> 校验必填配置 -> 按运行时构建启动 -> 健康检查
@@ -93,7 +93,7 @@ if [[ ! -f .env ]]; then
 
   info "请打开 $(pwd)/.env 修改以下两项后重新运行本脚本："
   info "  BOOTSTRAP_ADMIN_PASSWORD：管理员登录密码（至少 5 位）"
-  info "  DEPLOY_RUNTIME：docker（默认，全容器）或 pm2（宿主机 Node + PM2）"
+  info "  DEPLOY_RUNTIME：pm2（默认，宿主机 Node）或 docker（全容器）"
   exit 0
 fi
 
@@ -104,8 +104,10 @@ JWT_SECRET="$(read_env JWT_SECRET)"
 AI_KEY="$(read_env AI_CONFIG_ENCRYPTION_KEY)"
 BOOTSTRAP_PWD="$(read_env BOOTSTRAP_ADMIN_PASSWORD)"
 POSTGRES_PWD="$(read_env POSTGRES_PASSWORD)"
-DEPLOY_RUNTIME="$(read_env DEPLOY_RUNTIME)"
-DEPLOY_RUNTIME="${DEPLOY_RUNTIME:-docker}"
+# 一键部署可传 DEPLOY_RUNTIME=pm2 bash deploy.sh，优先于文件里的旧值，并写回 .env
+REQUESTED_RUNTIME="${DEPLOY_RUNTIME:-}"
+FILE_RUNTIME="$(read_env DEPLOY_RUNTIME)"
+DEPLOY_RUNTIME="${REQUESTED_RUNTIME:-${FILE_RUNTIME:-pm2}}"
 
 [[ "$DEPLOY_RUNTIME" == "docker" || "$DEPLOY_RUNTIME" == "pm2" ]] \
   || fail ".env 中 DEPLOY_RUNTIME 只能是 docker 或 pm2，当前为：$DEPLOY_RUNTIME"
@@ -117,6 +119,15 @@ DEPLOY_RUNTIME="${DEPLOY_RUNTIME:-docker}"
   || fail ".env 中 BOOTSTRAP_ADMIN_PASSWORD 未设置或少于 5 位，请修改后重试"
 if [[ "$POSTGRES_PWD" == "postgres" ]]; then
   warn "POSTGRES_PASSWORD 仍为默认值 postgres，公网服务器请务必修改"
+fi
+
+if [[ -n "$REQUESTED_RUNTIME" ]]; then
+  if grep -q '^DEPLOY_RUNTIME=' .env; then
+    sed -i "s|^DEPLOY_RUNTIME=.*|DEPLOY_RUNTIME=${DEPLOY_RUNTIME}|" .env
+  else
+    printf "\nDEPLOY_RUNTIME=%s\n" "$DEPLOY_RUNTIME" >> .env
+  fi
+  info "已将服务器 .env 的 DEPLOY_RUNTIME 更新为 ${DEPLOY_RUNTIME}"
 fi
 
 print_success() {
