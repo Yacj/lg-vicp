@@ -13,7 +13,6 @@
 ```
 
 重新生成额外携带 `originalMessageId`；AI 调试的 `messageId` 为虚拟 ID（不落库）。
-同帧兼容发送 `message_start`，字段相同。
 
 ### `agent_status` / `progress`
 
@@ -34,15 +33,15 @@ Agent 进入 `WAITING_USER_INPUT`（多方案选择、缺少关键条件、覆�
 
 下一句用户消息或 `POST /agent-runs/:id/resume` 恢复原 Run，不重新创建任务。
 
-### `delta` / `text_delta`
+### `delta`
 
 ```json
 { "text": "增量文本" }
 ```
 
-`text_delta` 与 `delta` 同内容，便于新客户端迁移。
+只发送 `delta`。不再双发 `text_delta`，避免客户端把同一段正文拼接两次。
 
-### `done` / `message_done`
+### `done`
 
 ```json
 {
@@ -108,4 +107,4 @@ Agent 进入 `WAITING_USER_INPUT`（多方案选择、缺少关键条件、覆�
 - 停止通道：Redis `ai:message:{id}:stop` + `AbortController` 双通道；客户端断开（`close`）触发自动中止，标记 `CLIENT_DISCONNECTED`。停止必须同时取消 model stream、停止后续 Tool，Agent Run → `CANCELLED`；已完成 ToolCalls 保留。
 - 客户端断线不丢 Agent Run。用 `GET /conversations/:id/active-agent-run` 与 `GET /agent-runs/:id` 恢复 RUNNING / WAITING_USER_INPUT / COMPLETED。
 - 所有完成/停止/失败均落库 `errorCode` / `requestId` / `durationMs`，便于运营追踪。
-- 后向兼容：字段只增不改，存量客户端忽略未知字段即可。旧事件 `message` / `progress` / `delta` / `done` / `stopped` / `error` 继续发送。
+- 后向兼容：字段只增不改，存量客户端忽略未知字段即可。正文只发 `delta`，完成只发 `done`，不再双发 `text_delta` / `message_start` / `message_done`。

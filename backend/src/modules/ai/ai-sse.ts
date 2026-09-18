@@ -48,7 +48,6 @@ export function writeSse(reply: FastifyReply, event: string, data: unknown) {
 
 export function writeProgress(reply: FastifyReply, stage: ProgressStage, message: string) {
   writeSse(reply, "progress", { stage, message });
-  writeSse(reply, "agent_status", { stage, message });
 }
 
 export function isAbortError(error: unknown) {

@@ -332,7 +332,6 @@ export async function streamConversationReply(options: {
 
   startSseStream(reply, request.id);
   writeSse(reply, "message", { messageId: assistantMessage.id, userMessageId: userMessage.id, conversationId: conversation.id, requestId });
-  writeSse(reply, "message_start", { messageId: assistantMessage.id, userMessageId: userMessage.id, conversationId: conversation.id, requestId });
   writeProgress(reply, "analyzing", chatImages.length > 0
     ? "正在识别图片并分析问题..."
     : conversation.projectId ? "正在分析项目资料..." : "正在分析问题...");
@@ -374,7 +373,6 @@ export async function streamConversationReply(options: {
       text += delta;
       fullText += delta;
       writeSse(reply, "delta", { text: delta });
-      writeSse(reply, "text_delta", { text: delta });
     }
     streamUsage = await result.usage;
     return text;
@@ -539,12 +537,6 @@ export async function streamConversationReply(options: {
       promptVersion: { id: runtime.promptVersionId, version: runtime.promptVersionNumber },
       sources: doneSources,
       latencyMs: Date.now() - startedAt
-    });
-    writeSse(reply, "message_done", {
-      messageId: assistantMessage.id,
-      conversationId: conversation.id,
-      finishReason,
-      sources: doneSources
     });
     if (built.droppedEarlyMessages || finishReason === "COMPLETED") {
       void updateConversationSummary(app, conversation.id, {

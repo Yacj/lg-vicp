@@ -225,7 +225,6 @@ export async function runAgentLoop(options: {
         if (!delta) continue;
         fullText += delta;
         writeSse(reply, "delta", { text: delta });
-        writeSse(reply, "text_delta", { text: delta });
       }
       if (Date.now() - startedAt > env.AI_AGENT_OVERALL_TIMEOUT_MS) {
         throw new AiError("AI_MODEL_TIMEOUT");
