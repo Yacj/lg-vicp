@@ -23,6 +23,7 @@
 - API 不执行耗时解析或导出，只创建任务并返回任务 ID。
 - Worker 处理幂等、重试、进度和失败落库。
 - migration 必须提交到 `drizzle/`，生产只运行已提交 migration。
+- 日常发布用 `pnpm deploy`：本地构建后 SSH 上传 `dist` 与 `drizzle/`，不覆盖服务器 `.env`，迁移失败不重载 PM2。
 - 所有后台接口都必须先通过 JWT 和 `B_ADMIN` 客户端校验；系统管理类接口再执行具体权限码校验。C/AI 客户端不能访问 `/platform` 或 `/workspace`。当前账号可见范围内的只读项目统计（`GET /platform/projects/statistics`）不要求按钮权限码。
 - Fastify 请求上下文中的权限编码来自启用角色；禁用角色不会参与权限计算。
 - 跨域对任意 Origin 放行（`@fastify/cors` 回显请求 Origin）；鉴权不依赖浏览器同源。

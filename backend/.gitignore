@@ -8,4 +8,5 @@ coverage/
 .turbo/
 .cache/
 logs/
+.deploy-release.tgz
 *.log

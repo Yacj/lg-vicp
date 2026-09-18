@@ -126,63 +126,43 @@ docker compose up --build
 
 ## 部署到服务器
 
-前置条件：服务器安装 Docker、Docker Compose v2、Git，防火墙/安全组放行 `8080` 端口。使用 `DEPLOY_RUNTIME=pm2` 时还需 Node.js 22+（自带 corepack/pnpm）和全局 `pm2`（脚本会尝试 `npm i -g pm2`）。
+推荐在开发机执行 `pnpm deploy`：本地编译打包，经 SSH 上传到服务器，**不走 git、不拖拽文件、不在 2G 机器上跑 tsc**。
 
-### 首次部署
+### 日常一键发布（本地打包 + SSH）
 
-在服务器空目录执行（`deploy/deploy.sh` 会克隆代码并生成 `.env`）：
-
-```bash
-bash deploy/deploy.sh <git 仓库地址>
-```
-
-脚本首次运行会生成随机 `JWT_SECRET`、`AI_CONFIG_ENCRYPTION_KEY`、`POSTGRES_PASSWORD` 和 MinIO 凭证，随后退出并提示你编辑 `.env`：
-
-- `BOOTSTRAP_ADMIN_PASSWORD`：管理员登录密码，至少 12 位。
-- `DEPLOY_RUNTIME`：`pm2`（默认，宿主机 Node + PM2 跑 api/worker）或 `docker`（全容器）。
-- 跨域对任意前端来源放行（含 `http://192.168.x.x:8871` 等局域网调试地址）。生产若有外层 Nginx/宝塔，请按 `deploy/host-nginx.example.conf` 让 OPTIONS 预检直接返回 204。
-
-修改完成后再次运行同一命令，脚本校验必填配置后按 `DEPLOY_RUNTIME` 启动：
-
-- `pm2`（默认）：Docker 只跑 `postgres`/`redis`/`minio` 和 `8080` 网关；本机构建后由 PM2 托管 `lg-vicp-api`、`lg-vicp-worker`。报告 PDF 导出需在服务器安装 Chromium，并配置 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`。
-- `docker`：构建镜像并启动 `postgres`、`redis`、`minio`、`api`、`worker`、`nginx`。
-
-最后自动健康检查（最多 120 秒）。访问地址为 `http://<服务器IP>:8080`。
-
-### 切换运行时
-
-`pnpm deploy` 默认以 `DEPLOY_RUNTIME=pm2` 部署，并写回服务器 `.env`。改回全容器时在 `deploy/.env.deploy` 或服务器 `.env` 设 `DEPLOY_RUNTIME=docker` 后再部署。若宿主机已占用 `5432`/`6379`，请改 `deploy/docker-compose.pm2.yml` 的端口映射，并同步 `.env` 的 `DATABASE_URL` / `REDIS_URL`。
-
-### 一键部署（本地执行）
-
-配置好服务器 SSH 密钥免密登录，并在本地 `deploy/.env.deploy` 中填写（不会上传到服务器；未创建该文件时兼容读取 `backend/.env` 中的 `DEPLOY_SSH_*` 旧配置）：
+1. 复制 `deploy/.env.deploy.example` 为 `deploy/.env.deploy`（已 gitignore，不会上传）。
+2. 填写服务器地址、密码（或私钥）、存放路径：
 
 ```
 DEPLOY_SSH_HOST=服务器IP或域名
-DEPLOY_SSH_USER=root        # 默认 root
-DEPLOY_SSH_PORT=22          # 默认 22
-DEPLOY_REMOTE_DIR=/opt/lg-vicp   # 服务器上仓库目录，默认 /opt/lg-vicp
+DEPLOY_SSH_USER=root
+DEPLOY_SSH_PORT=22
+DEPLOY_SSH_PASSWORD=登录密码
+DEPLOY_REMOTE_DIR=/www/wwwroot/lgapi.zblack.cn
 ```
 
-然后执行（在 `backend/` 目录）：
+`DEPLOY_REMOTE_DIR` 必须与线上 PM2 运行目录一致（含 `package.json` 的那一层），不要填 `dist/`。
+
+3. 在 `backend/` 执行：
 
 ```powershell
 pnpm deploy
 ```
 
-脚本流程：自动提交并推送 `backend/` 目录的改动（不波及 `app`/`admin-web`），然后 SSH 到服务器执行 `DEPLOY_RUNTIME=pm2 bash deploy/deploy.sh`（git pull + PM2 托管 api/worker + 先执行数据库迁移、失败立即中止 + 健康检查）。服务器首次部署时需先手动完成 `.env` 初始化（见上节），初始化后即可一键更新。
+脚本会：本地 `pnpm build` → 打包 `dist` + `drizzle` + 锁文件 → SSH 上传 → 服务器安装依赖 → **迁移前备份数据库（有 pg_dump 时）** → 只执行已提交的 Drizzle migration → 成功后才重载 PM2。
 
-类型检查与单元测试不在部署链路内：类型错误由服务器镜像构建时的 tsc 编译兜底（构建失败即中止，不会上线坏代码）；回归测试建议由 CI 承担，部署前需要的话可手动执行 `pnpm lint` / `pnpm test`。
+SQL 约束：
 
-### 更新部署
+- 不上传、不覆盖服务器 `.env`（生产库连接以服务器为准）。
+- 不执行 `schema push`、不删库、不重置表。
+- 迁移失败则回滚 `dist` 且 **不重载 PM2**，当前进程继续跑旧代码。
+- `seed` 幂等：首次落地会跑一次，已存在管理员不会被覆盖。
 
-进入服务器上的项目目录后执行：
+首次在空目录部署时，服务器会生成 `.env` 并退出，请登录改好 `DATABASE_URL`、`BOOTSTRAP_ADMIN_PASSWORD` 等后再执行一次 `pnpm deploy`。
 
-```bash
-bash deploy/deploy.sh
-```
+宝塔 Nginx 反代到 `http://127.0.0.1:3000`。健康检查：`/health/live`，文档：`/docs`。
 
-脚本会 `git pull`（fast-forward）、重新构建并滚动启动服务。`.env` 已被 git 忽略，不会被覆盖；如需修改环境变量直接编辑 `.env` 后重新运行脚本。在 `docker` 与 `pm2` 之间切换时，脚本会先停掉另一侧的 api/worker，避免两个 Worker 同时消费队列。
+`bash deploy/deploy.sh` 已停用（不再 `git pull`）。生产只走上面的 `pnpm deploy`。
 
 ### 修改管理员密码
 
@@ -200,6 +180,7 @@ bash deploy/deploy.sh
 ## 常用命令
 
 ```powershell
+pnpm deploy     # 本地打包后 SSH 发布（不走 git）
 pnpm lint       # TypeScript 检查
 pnpm test       # Vitest 测试
 pnpm build      # 构建 API 和 Worker

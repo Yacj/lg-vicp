@@ -41,7 +41,14 @@ export const errorHandlerPlugin = fp(async (app) => {
     const message = statusCode >= 500 ? "服务器内部错误" : requestError.message ?? "请求处理失败";
 
     if (statusCode >= 500) {
-      request.log.error({ err: error }, "请求处理失败");
+      const err = error as Error;
+      request.log.error({
+        err,
+        method: request.method,
+        url: request.url,
+        errorName: err?.name,
+        errorMessage: err?.message ?? String(error)
+      }, "请求处理失败");
       return reply.status(statusCode).send(fail(request.id, statusCode, message));
     }
 
