@@ -10,7 +10,7 @@ export const supportedMimeTypes = [
   "application/dxf"
 ] as const;
 
-export const filePurposeSchema = z.enum(["GENERAL", "CHAT_IMAGE"]);
+export const filePurposeSchema = z.enum(["GENERAL", "CHAT_IMAGE", "KNOWLEDGE_SOURCE"]);
 
 export const createUploadIntentBodySchema = z.object({
   projectId: z.uuid("项目 ID 格式不正确").optional(),

@@ -11,6 +11,7 @@ import { aiConversations, aiMessages } from "../db/schema.js";
 import { AI_SCENES, AUDIT_ACTIONS } from "../shared/constants.js";
 import { writeAuditLog } from "../modules/audit-logs/audit-log.service.js";
 import { resolveSceneRuntime } from "../modules/ai/ai-runtime.service.js";
+import { languageModelCallOptions } from "../modules/ai-config/ai-task-runtime-policy.js";
 
 const MAX_TITLE_LENGTH = 120;
 
@@ -60,9 +61,7 @@ export function createConversationTitleProcessor(db: Database) {
       model: runtime.primary.languageModel,
       system: runtime.promptContent,
       prompt: `用户消息：${firstUserMessage.content.slice(0, 1000)}`,
-      maxOutputTokens: runtime.sceneMaxOutputTokens ?? runtime.primary.maxOutputTokens ?? 60,
-      temperature: runtime.sceneTemperature ?? runtime.primary.defaultTemperature ?? 0,
-      timeout: runtime.primary.timeoutMs
+      ...languageModelCallOptions("TITLE")
     });
     const title = normalizeTitle(result.text);
     if (!title) return { skipped: "empty_title" };

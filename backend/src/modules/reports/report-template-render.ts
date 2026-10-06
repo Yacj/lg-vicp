@@ -1,4 +1,4 @@
-import { Document, HeadingLevel, Packer, Paragraph, TextRun } from "docx";
+import { Document, HeadingLevel, ImageRun, Packer, Paragraph, TextRun } from "docx";
 import type { ReportTemplateSection } from "../../db/schema.js";
 
 /**
@@ -6,6 +6,7 @@ import type { ReportTemplateSection } from "../../db/schema.js";
  * - 渲染源为报告快照 dataJson（章节数据在生成时点已冻结，历史不随后台参数漂移）；
  * - 章节按模板 sections 配置的 enabled + order 输出；DATA 章节渲染快照数据，TEXT 章节渲染配置文案；
  * - 缺失数据不吞错：章节显式标注"待补充"，绝不编造数值。
+ * - HTML / PDF / Word 都只读同一份 dataJson.referencePages，禁止回读聊天或重算匹配。
  */
 
 export interface ReportSnapshotPayload {
@@ -28,6 +29,9 @@ export interface ReportSnapshotPayload {
 
 /** 缺失数据标注（渲染层不吞错） */
 export const MISSING_MARK = "本章节数据待补充（无已发布来源）";
+
+/** Word 内嵌参考页最大宽度（EMU 换算前的像素近似） */
+const WORD_IMAGE_MAX_WIDTH = 520;
 
 export function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (character) => ({
@@ -94,11 +98,165 @@ function renderSectionHtml(value: unknown): string {
   return `<p>${escapeHtml(String(value))}</p>`;
 }
 
+function formatParamBar(highlights: unknown): string {
+  if (!Array.isArray(highlights) || highlights.length === 0) return "";
+  return highlights.map((highlight) => {
+    if (!highlight || typeof highlight !== "object") return "";
+    const row = highlight as Record<string, unknown>;
+    const label = String(row.label ?? row.field ?? "");
+    const value = String(row.value ?? "");
+    if (!label && !value) return "";
+    return `${label} = ${value}`.trim();
+  }).filter(Boolean).join(" | ");
+}
+
+function referencePageTitle(page: Record<string, unknown>): string {
+  const summary = page.summary && typeof page.summary === "object"
+    ? page.summary as Record<string, unknown>
+    : {};
+  return String(
+    summary.constructionCode
+    ?? summary.productSpecName
+    ?? summary.productName
+    ?? summary.systemType
+    ?? "参考方案"
+  );
+}
+
+function referencePageMeta(page: Record<string, unknown>): string {
+  const title = typeof page.documentTitle === "string" ? page.documentTitle : "";
+  const pageLabel = typeof page.pageLabel === "string" && page.pageLabel
+    ? page.pageLabel
+    : page.pageNumber != null
+      ? String(page.pageNumber)
+      : page.physicalPageNumber != null
+        ? String(page.physicalPageNumber)
+        : "";
+  if (title && pageLabel) return `${title} · 第 ${pageLabel} 页`;
+  if (title) return title;
+  if (pageLabel) return `第 ${pageLabel} 页`;
+  return "";
+}
+
+function referenceMatchGroups(page: Record<string, unknown>): Array<{ title: string; bar: string }> {
+  const matches = Array.isArray(page.matches) ? page.matches : [];
+  if (matches.length > 0) {
+    return matches.map((match) => {
+      if (!match || typeof match !== "object") return { title: "参考方案", bar: "" };
+      const row = match as Record<string, unknown>;
+      const summary = row.summary && typeof row.summary === "object"
+        ? row.summary as Record<string, unknown>
+        : {};
+      return {
+        title: String(summary.constructionCode ?? summary.productSpecName ?? summary.productName ?? "参考方案"),
+        bar: formatParamBar(row.highlights)
+      };
+    }).filter((item) => item.bar || item.title);
+  }
+  return [{ title: referencePageTitle(page), bar: formatParamBar(page.highlights) }];
+}
+
+/** 参考页参数条和完整页图。没有图片时只输出参数条。优先 matches，兼容扁平 highlights。 */
+export function renderReferencePagesHtml(value: unknown): string {
+  if (!Array.isArray(value) || value.length === 0) return "";
+  return value.map((item) => {
+    if (!item || typeof item !== "object") return "";
+    const page = item as Record<string, unknown>;
+    const groups = referenceMatchGroups(page);
+    const groupHtml = groups.map((group) =>
+      `<h2>${escapeHtml(group.title)}</h2>${group.bar ? `<p class="param-bar">${escapeHtml(group.bar)}</p>` : ""}`
+    ).join("");
+    const image = typeof page.imageDataUrl === "string" && page.imageDataUrl
+      ? `<img class="reference-page" src="${escapeHtml(page.imageDataUrl)}" alt="完整参考页" />`
+      : "";
+    const meta = referencePageMeta(page);
+    return `<section>${groupHtml}${image}${meta ? `<p class="meta">${escapeHtml(meta)}</p>` : ""}</section>`;
+  }).join("");
+}
+
+export async function embedReferencePageImages(
+  pages: unknown,
+  loadObject: (objectKey: string) => Promise<Buffer | null>
+): Promise<unknown[]> {
+  if (!Array.isArray(pages)) return [];
+  return Promise.all(pages.map(async (item) => {
+    if (!item || typeof item !== "object") return item;
+    const page = item as Record<string, unknown>;
+    const objectKey = typeof page.pageImageObjectKey === "string" ? page.pageImageObjectKey : "";
+    if (!objectKey) return page;
+    const bytes = await loadObject(objectKey);
+    if (!bytes) return page;
+    const mime = objectKey.endsWith(".jpg") || objectKey.endsWith(".jpeg") ? "image/jpeg" : "image/png";
+    return {
+      ...page,
+      imageBytes: bytes,
+      imageMime: mime,
+      imageDataUrl: `data:${mime};base64,${bytes.toString("base64")}`
+    };
+  }));
+}
+
+function decodeDataUrl(dataUrl: string): { mime: string; bytes: Buffer } | null {
+  const match = /^data:([^;]+);base64,(.+)$/s.exec(dataUrl);
+  if (!match) return null;
+  return { mime: match[1]!, bytes: Buffer.from(match[2]!, "base64") };
+}
+
+function readPngSize(bytes: Buffer): { width: number; height: number } | null {
+  if (bytes.length < 24 || bytes.toString("ascii", 1, 4) !== "PNG") return null;
+  return { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) };
+}
+
+function readJpegSize(bytes: Buffer): { width: number; height: number } | null {
+  if (bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8) return null;
+  let offset = 2;
+  while (offset + 9 < bytes.length) {
+    if (bytes[offset] !== 0xff) break;
+    const marker = bytes[offset + 1]!;
+    const length = bytes.readUInt16BE(offset + 2);
+    if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
+      return {
+        height: bytes.readUInt16BE(offset + 5),
+        width: bytes.readUInt16BE(offset + 7)
+      };
+    }
+    offset += 2 + length;
+  }
+  return null;
+}
+
+function fitImageSize(bytes: Buffer, mime: string): { width: number; height: number; type: "png" | "jpg" } {
+  const isJpeg = mime === "image/jpeg" || mime === "image/jpg";
+  const size = isJpeg ? readJpegSize(bytes) : readPngSize(bytes);
+  const width = size?.width && size.width > 0 ? size.width : WORD_IMAGE_MAX_WIDTH;
+  const height = size?.height && size.height > 0 ? size.height : Math.round(WORD_IMAGE_MAX_WIDTH * 1.4);
+  const scale = Math.min(1, WORD_IMAGE_MAX_WIDTH / width);
+  return {
+    width: Math.max(1, Math.round(width * scale)),
+    height: Math.max(1, Math.round(height * scale)),
+    type: isJpeg ? "jpg" : "png"
+  };
+}
+
+function resolveReferenceImage(page: Record<string, unknown>): { bytes: Buffer; mime: string } | null {
+  if (Buffer.isBuffer(page.imageBytes)) {
+    return {
+      bytes: page.imageBytes,
+      mime: typeof page.imageMime === "string" ? page.imageMime : "image/png"
+    };
+  }
+  if (typeof page.imageDataUrl === "string" && page.imageDataUrl) {
+    return decodeDataUrl(page.imageDataUrl);
+  }
+  return null;
+}
+
 /** 模板报告 -> HTML 文档（Worker 渲染与 PDF/IMAGE 共用） */
 export function renderTemplateHtml(payload: ReportSnapshotPayload): string {
   const sections = (payload.template?.sections ?? [])
     .filter((section) => section.enabled)
     .sort((a, b) => a.order - b.order);
+  const referenceHtml = renderReferencePagesHtml(payload.referencePages);
   const body = sections.map((section) => {
     if (section.sourceType === "TEXT") {
       return `<section><h2>${escapeHtml(section.title)}</h2><p>${escapeHtml(section.content ?? "")}</p></section>`;
@@ -126,11 +284,49 @@ export function renderTemplateHtml(payload: ReportSnapshotPayload): string {
   .missing{color:#b45309}
   .meta,.header{color:#6b7280;font-size:12px}
   footer{margin-top:48px;color:#6b7280;font-size:12px;border-top:1px solid #e5e7eb;padding-top:12px}
-  </style></head><body>${header}<h1>${escapeHtml(title)}</h1>${meta}${body}
+  .param-bar{font-weight:700;color:#176b57;margin:8px 0}
+  img.reference-page{max-width:100%;height:auto;border:1px solid #e5e7eb}
+  </style></head><body>${header}<h1>${escapeHtml(title)}</h1>${meta}${body}${referenceHtml}
   <footer>${escapeHtml(footer)}</footer></body></html>`;
 }
 
-/** 模板报告 -> Word 文档 */
+function renderReferencePagesWord(value: unknown): Paragraph[] {
+  if (!Array.isArray(value) || value.length === 0) return [];
+  const paragraphs: Paragraph[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== "object") continue;
+    const page = item as Record<string, unknown>;
+    for (const group of referenceMatchGroups(page)) {
+      paragraphs.push(new Paragraph({ text: group.title, heading: HeadingLevel.HEADING_1 }));
+      if (group.bar) {
+        paragraphs.push(new Paragraph({
+          children: [new TextRun({ text: group.bar, bold: true, color: "176B57", size: 22 })]
+        }));
+      }
+    }
+    const image = resolveReferenceImage(page);
+    if (image) {
+      const fitted = fitImageSize(image.bytes, image.mime);
+      paragraphs.push(new Paragraph({
+        children: [new ImageRun({
+          type: fitted.type,
+          data: image.bytes,
+          transformation: { width: fitted.width, height: fitted.height },
+          altText: { title: "完整参考页", description: "报告快照中的完整参考页图片", name: "reference-page" }
+        })]
+      }));
+    }
+    const meta = referencePageMeta(page);
+    if (meta) {
+      paragraphs.push(new Paragraph({
+        children: [new TextRun({ text: meta, size: 18, color: "6B7280" })]
+      }));
+    }
+  }
+  return paragraphs;
+}
+
+/** 模板报告 -> Word 文档（与 HTML/PDF 同源 dataJson.referencePages） */
 export async function renderTemplateWord(payload: ReportSnapshotPayload): Promise<Buffer> {
   const sections = (payload.template?.sections ?? [])
     .filter((section) => section.enabled)
@@ -152,6 +348,7 @@ export async function renderTemplateWord(payload: ReportSnapshotPayload): Promis
         )]
       })
     ]),
+    ...renderReferencePagesWord(payload.referencePages),
     new Paragraph({ text: footer })
   ];
   return Packer.toBuffer(new Document({ sections: [{ children: paragraphs }] }));

@@ -8,7 +8,6 @@
 // biome-ignore lint: disable
 export {}
 declare global {
-  const AI_MODEL_CAPABILITY_META: typeof import('../composables/useAiModelManagement').AI_MODEL_CAPABILITY_META
   const EffectScope: typeof import('vue').EffectScope
   const acceptHMRUpdate: typeof import('pinia').acceptHMRUpdate
   const asyncComputed: typeof import('@vueuse/core').asyncComputed
@@ -142,6 +141,7 @@ declare global {
   const useAiPromptManagement: typeof import('../composables/useAiPromptManagement').useAiPromptManagement
   const useAiProviderManagement: typeof import('../composables/useAiProviderManagement').useAiProviderManagement
   const useAiQuickPrompts: typeof import('../composables/useAiQuickPrompts').useAiQuickPrompts
+  const useAiRunRecords: typeof import('../composables/useAiRunRecords').useAiRunRecords
   const useAiSceneBindings: typeof import('../composables/useAiSceneBindings').useAiSceneBindings
   const useAnimate: typeof import('@vueuse/core').useAnimate
   const useAppFeedback: typeof import('../composables/useAppFeedback').useAppFeedback
@@ -173,6 +173,7 @@ declare global {
   const useClipboardItems: typeof import('@vueuse/core').useClipboardItems
   const useCloned: typeof import('@vueuse/core').useCloned
   const useColorMode: typeof import('@vueuse/core').useColorMode
+  const useCompanyProfile: typeof import('../composables/useCompanyProfile').useCompanyProfile
   const useConfirmDialog: typeof import('@vueuse/core').useConfirmDialog
   const useConfirmedCrudAction: typeof import('../composables/useCrudActions').useConfirmedCrudAction
   const useCountdown: typeof import('@vueuse/core').useCountdown
@@ -273,6 +274,7 @@ declare global {
   const usePreferredReducedMotion: typeof import('@vueuse/core').usePreferredReducedMotion
   const usePreferredReducedTransparency: typeof import('@vueuse/core').usePreferredReducedTransparency
   const usePrevious: typeof import('@vueuse/core').usePrevious
+  const useProjectAiMemory: typeof import('../composables/useProjectAiMemory').useProjectAiMemory
   const useProjectCenter: typeof import('../composables/useProjectCenter').useProjectCenter
   const useProjectDetail: typeof import('../composables/useProjectDetail').useProjectDetail
   const useRafFn: typeof import('@vueuse/core').useRafFn
@@ -280,6 +282,9 @@ declare global {
   const useReportActions: typeof import('../composables/useReportActions').useReportActions
   const useReportCenter: typeof import('../composables/useReportCenter').useReportCenter
   const useReportDetail: typeof import('../composables/useReportDetail').useReportDetail
+  const useReportList: typeof import('../composables/useReportList').useReportList
+  const useReportSettings: typeof import('../composables/useReportSettings').useReportSettings
+  const useReportTypes: typeof import('../composables/useReportTypes').useReportTypes
   const useResizeObserver: typeof import('@vueuse/core').useResizeObserver
   const useResponsiveShell: typeof import('../composables/useResponsiveShell').useResponsiveShell
   const useRoleManagement: typeof import('../composables/useRoleManagement').useRoleManagement
@@ -390,6 +395,9 @@ declare global {
   export type { AiQuickPromptTableRow, AiQuickPromptForm, AiQuickPromptSearchQuery, QuickPromptUsageStats } from '../composables/useAiQuickPrompts'
   import('../composables/useAiQuickPrompts')
   // @ts-ignore
+  export type { AgentRunTableRow, AgentRunSearchQuery } from '../composables/useAiRunRecords'
+  import('../composables/useAiRunRecords')
+  // @ts-ignore
   export type { AiSceneBindingTableRow, AiSceneBindingForm } from '../composables/useAiSceneBindings'
   import('../composables/useAiSceneBindings')
   // @ts-ignore
@@ -401,6 +409,9 @@ declare global {
   // @ts-ignore
   export type { TaskPollingStatus, FileTrackedState, TaskFileState, UseAsyncTaskOptions } from '../composables/useAsyncTask'
   import('../composables/useAsyncTask')
+  // @ts-ignore
+  export type { CompanyProfileStatus } from '../composables/useCompanyProfile'
+  import('../composables/useCompanyProfile')
   // @ts-ignore
   export type { ConfirmedCrudActionResult, UseConfirmedCrudActionOptions, UseCrudDeleteOptions, UseCrudBatchActionOptions } from '../composables/useCrudActions'
   import('../composables/useCrudActions')
@@ -417,7 +428,7 @@ declare global {
   export type { DepartmentSearchQuery, DepartmentForm } from '../composables/useDepartmentManagement'
   import('../composables/useDepartmentManagement')
   // @ts-ignore
-  export type { DepartmentMemberSearchQuery } from '../composables/useDepartmentMembers'
+  export type { DepartmentMemberRow, DepartmentMemberCandidateRow, DepartmentMemberSearchQuery, DepartmentMemberCandidateQuery } from '../composables/useDepartmentMembers'
   import('../composables/useDepartmentMembers')
   // @ts-ignore
   export type { DictionaryItemSearchQuery, DictionaryItemForm } from '../composables/useDictionaryItems'
@@ -435,7 +446,10 @@ declare global {
   export type { PostSearchQuery, PostForm } from '../composables/usePostManagement'
   import('../composables/usePostManagement')
   // @ts-ignore
-  export type { ProjectForm, UseProjectCenterOptions } from '../composables/useProjectCenter'
+  export type { ProjectAiMemoryTableRow, ProjectAiMemorySearchQuery } from '../composables/useProjectAiMemory'
+  import('../composables/useProjectAiMemory')
+  // @ts-ignore
+  export type { ProjectCenterSearchQuery, UseProjectCenterOptions } from '../composables/useProjectCenter'
   import('../composables/useProjectCenter')
   // @ts-ignore
   export type { ProjectDetailStatus } from '../composables/useProjectDetail'
@@ -449,6 +463,15 @@ declare global {
   // @ts-ignore
   export type { ReportDetailStatus } from '../composables/useReportDetail'
   import('../composables/useReportDetail')
+  // @ts-ignore
+  export type { ReportListRow, ReportListQuery } from '../composables/useReportList'
+  import('../composables/useReportList')
+  // @ts-ignore
+  export type { ReportSettingsStatus, ReportSettingsForm } from '../composables/useReportSettings'
+  import('../composables/useReportSettings')
+  // @ts-ignore
+  export type { ReportTypesStatus } from '../composables/useReportTypes'
+  import('../composables/useReportTypes')
   // @ts-ignore
   export type { EffectiveLayout } from '../composables/useResponsiveShell'
   import('../composables/useResponsiveShell')

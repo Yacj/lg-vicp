@@ -15,6 +15,7 @@ import type {
   UserMutationResult,
 } from '@/types/system-management'
 import type { DepartmentTreeOption } from '@/utils/system-management'
+import type { UserAccessAppFilter } from '@/utils/system-user'
 import { reactive, ref } from 'vue'
 import { fetchRoles } from '@/api/modules/roles'
 import { fetchDepartmentTree, fetchPosts } from '@/api/modules/system-management'
@@ -32,7 +33,11 @@ import {
   updateUserStatus,
 } from '@/api/modules/users'
 import { toDepartmentTreeOptions, trimToNull } from '@/utils/system-management'
-import { isChannelUserRole, isNormalUserRole } from '@/utils/system-user'
+import {
+  USER_DISABLE_BOTH_ENDS_HINT,
+  accessAppToRoleFilter,
+  hasAdminAccess,
+} from '@/utils/system-user'
 import { buildUserExportFilename, buildUserImportTemplate, triggerBlobDownload, triggerTextDownload } from '@/utils/user-csv'
 import { useAppFeedback } from './useAppFeedback'
 import { useConfirmedCrudAction, useCrudDelete } from './useCrudActions'
@@ -43,21 +48,16 @@ import { useCrudList } from './useCrudList'
 export type UserTableRow = SystemDepartmentMember & TableRowData
 
 export interface UserSearchQuery extends Record<string, unknown> {
-  role: '' | SystemUserRole
   keyword: string
   departmentId: string
-  roleId: string
   status: 'all' | SystemUserStatus
+  accessApp: UserAccessAppFilter
   includeDeleted: boolean
 }
 
 /**
- * 用户分区表单：
- * - 基本信息（identifier/password/displayName/gender/email/remark）
- * - 业务身份（role 账号类型 + channelType 渠道类型 + adminLoginEnabled 后台登录开关）
- * - 组织信息（departmentIds/postIds，仅编辑模式后端支持分配接口）
- * - 权限角色（roleIds，动态角色独立于账号类型）
- * - 状态设置（status，创建时后端不接受该字段，默认启用）
+ * 用户分区表单仅维护超级管理员资料。
+ * 不在此分配部门、CLIENT 访问或登录方式。
  */
 export interface UserForm extends Record<string, unknown> {
   identifier: string
@@ -90,7 +90,7 @@ function createUserForm(): UserForm {
     phone: '',
     postIds: [],
     remark: '',
-    role: 'CHANNEL_USER',
+    role: 'SUPER_ADMIN',
     roleIds: [],
     status: 'ACTIVE',
   }
@@ -118,33 +118,25 @@ function editUserForm(user: SystemDepartmentMember, detail: SystemUserDetail | u
   }
 }
 
-function sameIds(left: readonly string[], right: readonly string[]): boolean {
-  if (left.length !== right.length) {
-    return false
-  }
-  const rightSet = new Set(right)
-  return left.every(id => rightSet.has(id))
+function optionalIds(ids: readonly string[]): string[] | undefined {
+  return ids.length > 0 ? [...ids] : undefined
 }
 
 function toCreateInput(data: UserForm): CreateSystemUserInput {
-  const common = {
+  const departmentIds = optionalIds(data.departmentIds)
+  const postIds = optionalIds(data.postIds)
+  return {
     displayName: data.displayName.trim(),
     gender: data.gender,
-    role: data.role,
+    role: 'SUPER_ADMIN',
     email: trimToNull(data.email) ?? undefined,
     remark: trimToNull(data.remark) ?? undefined,
-  }
-  return {
-    ...common,
     identifier: data.identifier.trim(),
     password: data.password,
-    channelType: isChannelUserRole(data.role) ? data.channelType : null,
-    adminLoginEnabled: isNormalUserRole(data.role) ? data.adminLoginEnabled : true,
-    ...(data.departmentIds.length > 0 ? { departmentIds: [...data.departmentIds] } : {}),
     phone: trimToNull(data.phone) ?? undefined,
-    ...(data.postIds.length > 0 ? { postIds: [...data.postIds] } : {}),
-    ...(data.roleIds.length > 0 ? { roleIds: [...data.roleIds] } : {}),
     status: data.status,
+    ...(departmentIds ? { departmentIds } : {}),
+    ...(postIds ? { postIds } : {}),
   }
 }
 
@@ -152,24 +144,17 @@ function toUpdateInput(data: UserForm): UpdateSystemUserInput {
   return {
     displayName: data.displayName.trim(),
     gender: data.gender,
-    role: data.role,
     email: trimToNull(data.email),
     remark: trimToNull(data.remark),
-    channelType: isChannelUserRole(data.role) ? data.channelType : null,
-    adminLoginEnabled: isNormalUserRole(data.role) ? data.adminLoginEnabled : true,
     phone: trimToNull(data.phone),
-    ...(data.departmentIds.length > 0 ? { departmentIds: [...data.departmentIds] } : {}),
-    ...(data.postIds.length > 0 ? { postIds: [...data.postIds] } : {}),
-    ...(data.roleIds.length > 0 ? { roleIds: [...data.roleIds] } : {}),
   }
 }
 
 function toUserQuery(query: UserSearchQuery, page: number, pageSize: number): SystemUserQuery {
   return {
-    role: query.role || undefined,
+    role: accessAppToRoleFilter(query.accessApp),
     keyword: query.keyword.trim() || undefined,
     departmentId: query.departmentId || undefined,
-    roleId: query.roleId || undefined,
     status: query.status === 'all' ? undefined : query.status,
     includeDeleted: query.includeDeleted || undefined,
     page,
@@ -178,23 +163,22 @@ function toUserQuery(query: UserSearchQuery, page: number, pageSize: number): Sy
 }
 
 /**
- * 用户管理：列表、分区表单（含组织/角色分配）、启停、删除、恢复、
- * 重置密码（独立确认弹窗）、导入（模板 + 结果明细）、导出。
+ * 统一用户管理：一个 User + 多端访问权限。
+ * 新增只创建 ADMIN / SUPER_ADMIN，默认不开通 CLIENT。
+ * 部门归属走部门管理 → 部门成员。
  */
 export function useUserManagement() {
   const feedback = useAppFeedback()
 
   const userList = useCrudList<UserTableRow, UserSearchQuery>({
     createQuery: () => ({
+      accessApp: 'all',
       departmentId: '',
       includeDeleted: false,
       keyword: '',
-      role: '',
-      roleId: '',
       status: 'all',
     }),
-    fetcher: ({ query, page, pageSize, signal }) =>
-      fetchUsers(toUserQuery(query, page, pageSize), signal),
+    fetcher: ({ query, page, pageSize, signal }) => fetchUsers(toUserQuery(query, page, pageSize), signal),
     immediate: true,
     rowKey: 'id',
   })
@@ -236,7 +220,13 @@ export function useUserManagement() {
   }
 
   const userDrawer = useCrudDrawer<UserForm, UserTableRow, UserMutationResult>({
-    createForm: createUserForm,
+    createForm: () => {
+      const form = createUserForm()
+      form.role = 'SUPER_ADMIN'
+      form.adminLoginEnabled = true
+      form.channelType = undefined
+      return form
+    },
     editForm: user => editUserForm(user, detailCache.get(user.id)),
     onError: error => void feedback.messageError(error),
     onSuccess: async (result) => {
@@ -252,15 +242,6 @@ export function useUserManagement() {
       const id = entity!.id
       const previous = detailCache.get(id)
       const input: UpdateSystemUserInput = toUpdateInput(form)
-      if (!previous || !sameIds(previous.departments.map(item => item.id), form.departmentIds)) {
-        input.departmentIds = [...form.departmentIds]
-      }
-      if (!previous || !sameIds(previous.posts.map(item => item.id), form.postIds)) {
-        input.postIds = [...form.postIds]
-      }
-      if (!previous || !sameIds(previous.roles.map(item => item.id), form.roleIds)) {
-        input.roleIds = [...form.roleIds]
-      }
       if (!previous || previous.user.status !== form.status) {
         input.status = form.status
       }
@@ -271,6 +252,9 @@ export function useUserManagement() {
   })
 
   async function openUserEdit(user: UserTableRow): Promise<void> {
+    if (!hasAdminAccess(user)) {
+      return
+    }
     editingDetailLoading.value = true
     try {
       const detail = await fetchUserDetail(user.id)
@@ -292,8 +276,8 @@ export function useUserManagement() {
     action: ({ user, status }) => updateUserStatus(user.id, status),
     confirm: ({ user, status }) => ({
       content: status === 'ACTIVE'
-        ? `确认恢复账号“${user.displayName}”的正常状态吗？`
-        : `确认禁用账号“${user.displayName}”吗？禁用后该用户将无法登录。`,
+        ? `确认启用账号“${user.displayName}”吗？启用后该用户可按已开通的访问权限登录。`
+        : `确认禁用账号“${user.displayName}”吗？${USER_DISABLE_BOTH_ENDS_HINT}`,
       confirmText: status === 'ACTIVE' ? '启用' : '禁用',
       danger: status === 'DISABLED',
       title: status === 'ACTIVE' ? '启用账号' : '禁用账号',
@@ -307,7 +291,7 @@ export function useUserManagement() {
   const deleteAction = useCrudDelete<UserTableRow, MutationMessage>({
     action: user => deleteUser(user.id),
     confirm: user => ({
-      content: `确认删除账号“${user.displayName}”吗？删除后该用户将无法登录，可稍后从“已删除”视图中恢复。`,
+      content: `确认删除账号“${user.displayName}”吗？删除后该用户将无法登录管理后台和客户端。`,
       confirmText: '删除',
       danger: true,
       title: '删除账号',

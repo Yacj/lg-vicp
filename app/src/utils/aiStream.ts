@@ -1,5 +1,5 @@
 import type { AiStreamEventPayload } from '@/api/types'
-import { normalizeAiSources } from '@/utils/aiSource'
+import { normalizeAiSources } from './aiSource.ts'
 
 function asText(value: unknown) {
   return typeof value === 'string' ? value : ''
@@ -43,14 +43,15 @@ export function parseStreamEvent(event: string, data: Record<string, unknown>): 
         return null
       }
       const message = asText(data.message)
-      if (!message) {
+      const toolName = asText(data.toolName)
+      if (!message && !toolName && !asText(data.runId)) {
         return null
       }
       return {
         event: 'agent_status',
         data: {
           message,
-          toolName: asText(data.toolName) || undefined,
+          toolName: toolName || undefined,
           runId: asText(data.runId) || undefined,
         },
       }
@@ -74,16 +75,128 @@ export function parseStreamEvent(event: string, data: Record<string, unknown>): 
         },
       }
     }
-    case 'need_user_input': {
+    case 'need_user_input':
+    case 'waiting_user_input': {
       if (typeof data.runId !== 'string') {
         return null
       }
+      const nested = data.request && typeof data.request === 'object'
+        ? data.request as Record<string, unknown>
+        : null
+      const rawType = asText(nested?.type) || asText(data.type)
+      const type = rawType === 'USER_SELECTION'
+        || rawType === 'COMPARISON_SELECTION'
+        || rawType === 'APPROVAL'
+        || rawType === 'CHOICE'
+        ? rawType
+        : undefined
+      const selectionKindRaw = asText(nested?.selectionKind) || asText(data.selectionKind)
+      const selectionKind = selectionKindRaw === 'KNOWLEDGE_SOURCE'
+        || selectionKindRaw === 'REPORT_TYPE'
+        || selectionKindRaw === 'PRODUCT'
+        || selectionKindRaw === 'GENERIC'
+        ? selectionKindRaw
+        : undefined
+      const confirmSource = nested?.confirmAction || data.confirmAction
+      const confirm = confirmSource && typeof confirmSource === 'object'
+        ? confirmSource as Record<string, unknown>
+        : null
+      const multiple = data.multiple === true
+        || nested?.multiple === true
+        || type === 'COMPARISON_SELECTION'
+        || selectionKind === 'KNOWLEDGE_SOURCE'
+        || selectionKind === 'PRODUCT'
+      const confirmType = confirm?.type === 'GENERATE_REPORT'
+        ? 'GENERATE_REPORT' as const
+        : (confirm?.type === 'CONTINUE' ? 'CONTINUE' as const : undefined)
       return {
         event: 'need_user_input',
         data: {
           runId: data.runId,
-          prompt: asText(data.prompt) || '请确认后继续',
-          options: Array.isArray(data.options) ? data.options : [],
+          type,
+          selectionKind,
+          title: asText(nested?.title) || asText(data.title) || undefined,
+          description: asText(nested?.description) || asText(data.description) || undefined,
+          prompt: asText(data.prompt) || asText(nested?.description) || '请确认后继续',
+          options: Array.isArray(nested?.options) ? nested.options : (Array.isArray(data.options) ? data.options : []),
+          multiple,
+          minSelections: typeof (nested?.minSelections ?? data.minSelections) === 'number'
+            ? Number(nested?.minSelections ?? data.minSelections)
+            : undefined,
+          maxSelections: typeof (nested?.maxSelections ?? data.maxSelections) === 'number'
+            ? Number(nested?.maxSelections ?? data.maxSelections)
+            : undefined,
+          autoSelectWhenSingle: (nested?.autoSelectWhenSingle ?? data.autoSelectWhenSingle) !== false,
+          confirmAction: confirmType
+            ? {
+                type: confirmType,
+                label: asText(confirm.label) || (confirmType === 'GENERATE_REPORT' ? '确认并生成报告' : '确认'),
+              }
+            : undefined,
+          comparisonResult: data.comparisonResult,
+          request: nested || (type === 'USER_SELECTION' ? data : undefined),
+        },
+      }
+    }
+    case 'comparison_ready': {
+      const comparisonResult = data.comparisonResult
+        ?? data.comparison
+        ?? (Array.isArray(data.products) && Array.isArray(data.dimensions) ? data : undefined)
+      return {
+        event: 'comparison_ready',
+        data: {
+          comparisonResult,
+          thermalStatus: asText(data.thermalStatus) || undefined,
+          missingNotes: Array.isArray(data.missingNotes) ? data.missingNotes.filter((item): item is string => typeof item === 'string') : undefined,
+        },
+      }
+    }
+    case 'product_cards': {
+      const products = Array.isArray(data.products) ? data.products : Array.isArray(data.items) ? data.items : []
+      return {
+        event: 'product_cards',
+        data: { products },
+      }
+    }
+    case 'report_started': {
+      return {
+        event: 'report_started',
+        data: {
+          conversationId: asText(data.conversationId) || undefined,
+        },
+      }
+    }
+    case 'report_queued': {
+      const reportId = asText(data.reportId)
+      if (!reportId) {
+        return null
+      }
+      return {
+        event: 'report_queued',
+        data: {
+          reportId,
+          taskId: asText(data.taskId) || undefined,
+          status: asText(data.status) || 'QUEUED',
+          selectedProductIds: Array.isArray(data.selectedProductIds)
+            ? data.selectedProductIds.filter((item): item is string => typeof item === 'string' && Boolean(item.trim()))
+            : undefined,
+          title: asText(data.title) || undefined,
+        },
+      }
+    }
+    case 'report_completed': {
+      const reportId = asText(data.reportId)
+      if (!reportId) {
+        return null
+      }
+      return {
+        event: 'report_completed',
+        data: {
+          reportId,
+          selectedProductIds: Array.isArray(data.selectedProductIds)
+            ? data.selectedProductIds.filter((item): item is string => typeof item === 'string' && Boolean(item.trim()))
+            : undefined,
+          title: asText(data.title) || undefined,
         },
       }
     }

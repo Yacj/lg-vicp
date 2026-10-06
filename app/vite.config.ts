@@ -13,8 +13,8 @@ import dayjs from 'dayjs'
 import UnoCSS from 'unocss/vite'
 import AutoImport from 'unplugin-auto-import/vite'
 import { defineConfig, loadEnv } from 'vite'
-import { mpNodeEnvPolyfill } from './vite/mp-node-env-polyfill'
 import { WotResolver } from './src/resolver'
+import { mpNodeEnvPolyfill } from './vite/mp-node-env-polyfill'
 // https://vitejs.dev/config/
 export default defineConfig(({ command, mode }) => {
   console.log('command, mode -> ', command, mode)
@@ -105,7 +105,14 @@ export default defineConfig(({ command, mode }) => {
       },
     },
     server: {
-      port: 8871
-    }
+      host: '0.0.0.0',
+      port: 8871,
+      proxy: {
+        '/api': {
+          target: (env.VITE_API_BASE_URL || 'https://lgapi.zblack.cn').replace(/\/+$/, ''),
+          changeOrigin: true,
+        },
+      },
+    },
   }
 })

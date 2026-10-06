@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import {
   flattenChapterTree,
+  isKnowledgePageRenderingInProgress,
   isKnowledgeParsingStatus,
   isKnowledgeReadyStatus,
   knowledgeDocTypeLabel,
   knowledgeFailureMessage,
   knowledgeFileKind,
   knowledgePageLabel,
+  knowledgePageRenderingMeta,
   knowledgeParsingStageLabel,
+  knowledgeTextParsingMeta,
   knowledgeTocSourceLabel,
   knowledgeUserMessage,
   knowledgeUserStatusMetaFor,
@@ -62,6 +65,35 @@ describe('knowledge-user helpers', () => {
     expect(isKnowledgeParsingStatus('READY')).toBe(false)
     expect(isKnowledgeReadyStatus('READY_TO_VERIFY')).toBe(true)
     expect(isKnowledgeReadyStatus('PARSE_FAILED')).toBe(false)
+  })
+
+  it('maps text / page rendering channel statuses separately', () => {
+    expect(knowledgeTextParsingMeta('READY')).toMatchObject({ label: '成功', status: 'success' })
+    expect(knowledgeTextParsingMeta('FAILED')).toMatchObject({ label: '失败', status: 'error' })
+    expect(knowledgePageRenderingMeta('READY', true)).toMatchObject({ label: '成功', status: 'success' })
+    expect(knowledgePageRenderingMeta('READY', false)).toMatchObject({ label: '部分失败', status: 'warning' })
+    expect(knowledgePageRenderingMeta('FAILED')).toMatchObject({ label: '失败', status: 'error' })
+    expect(knowledgePageRenderingMeta(null)).toMatchObject({ label: '生成中', status: 'processing' })
+  })
+
+  it('detects page rendering in progress without treating text-ready docs as fully failed', () => {
+    expect(isKnowledgePageRenderingInProgress({
+      document: { id: 'd1', title: 't', docType: 'DETAIL_ATLAS', currentVersionId: 'v1', publishedVersionId: null },
+      currentVersion: { id: 'v1', versionNo: 1, userStatus: 'READY', parseStatus: 'PARSED', status: 'DRAFT', pipelineStatus: 'REVIEW_PENDING' },
+      primaryFile: { id: 'f1', name: 'atlas.docx', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' },
+      parsing: { lastJob: null, textParsing: 'READY', pageRendering: null, pageRenderingComplete: null },
+      summary: { pageCount: 0, tocCount: 0, sectionCount: 0, canAskAi: false, canPublish: false, canRetry: false },
+      actions: { canRetry: false, canReplaceFile: true, canBindSearchSource: false, canRetryPageRender: true },
+    })).toBe(true)
+
+    expect(isKnowledgePageRenderingInProgress({
+      document: { id: 'd1', title: 't', docType: 'DETAIL_ATLAS', currentVersionId: 'v1', publishedVersionId: null },
+      currentVersion: { id: 'v1', versionNo: 1, userStatus: 'READY', parseStatus: 'PARSED', status: 'DRAFT', pipelineStatus: 'REVIEW_PENDING' },
+      primaryFile: { id: 'f1', name: 'atlas.docx', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' },
+      parsing: { lastJob: null, textParsing: 'READY', pageRendering: 'FAILED', pageRenderingComplete: false },
+      summary: { pageCount: 0, tocCount: 0, sectionCount: 0, canAskAi: false, canPublish: false, canRetry: false },
+      actions: { canRetry: false, canReplaceFile: true, canBindSearchSource: false, canRetryPageRender: true },
+    })).toBe(false)
   })
 
   it('prefers persisted user failure messages', () => {

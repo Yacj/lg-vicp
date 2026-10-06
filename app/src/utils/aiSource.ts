@@ -1,4 +1,5 @@
 import type { AiRetrievalRecord, AiSourceLocatorQuery, AiSourceRef } from '@/api/types'
+import { dedupeAiSources } from './aiAgentUi.ts'
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
@@ -69,7 +70,7 @@ export function normalizeAiSources(value: unknown): AiSourceRef[] {
   if (!Array.isArray(value)) {
     return []
   }
-  return value.map(normalizeAiSource).filter((item): item is AiSourceRef => Boolean(item))
+  return dedupeAiSources(value.map(normalizeAiSource).filter((item): item is AiSourceRef => Boolean(item)))
 }
 
 export function sourceFromRetrieval(record: AiRetrievalRecord): AiSourceRef | null {

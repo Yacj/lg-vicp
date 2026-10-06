@@ -19,6 +19,9 @@ interface AuthState {
   user: AuthUser | null
   clientType: AuthClient
   capabilities: ClientCapabilities | null
+  /** 来自登录结果。微信 loginCode / phoneCode 不进入本 store，也不持久化。 */
+  passwordSet: boolean | null
+  isFirstLogin: boolean
 }
 
 export const useAuthStore = defineStore('auth', {
@@ -29,6 +32,8 @@ export const useAuthStore = defineStore('auth', {
     user: null,
     clientType: 'C_APP',
     capabilities: null,
+    passwordSet: null,
+    isFirstLogin: false,
   }),
 
   getters: {
@@ -47,6 +52,16 @@ export const useAuthStore = defineStore('auth', {
       if ('capabilities' in session) {
         this.capabilities = session.capabilities || null
       }
+      if ('passwordSet' in session && typeof session.passwordSet === 'boolean') {
+        this.passwordSet = session.passwordSet
+      }
+      if ('isFirstLogin' in session && typeof session.isFirstLogin === 'boolean') {
+        this.isFirstLogin = session.isFirstLogin
+      }
+    },
+
+    markPasswordSet(value = true) {
+      this.passwordSet = value
     },
 
     setClientInfo(info: ClientInfo) {

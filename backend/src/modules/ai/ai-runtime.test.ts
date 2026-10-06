@@ -40,7 +40,7 @@ describe("reasoning 能力解析（resolveReasoningProviderOptions）", () => {
   it("OFF 模式遇到始终推理模型 → AI_REASONING_NOT_SUPPORTED", async () => {
     const { resolveReasoningProviderOptions } = await import("./ai-runtime.service.js");
     expect(() => resolveReasoningProviderOptions(
-      { modelId: "m", providerName: "deepseek", capabilities: { reasoningAlwaysOn: true } },
+      { modelId: "deepseek-reasoner", providerName: "DeepSeek", providerCode: "deepseek" },
       "OFF"
     )).toThrow("深度思考");
   }, 10_000);
@@ -48,34 +48,21 @@ describe("reasoning 能力解析（resolveReasoningProviderOptions）", () => {
   it("OFF 模式普通模型 → 无 providerOptions", async () => {
     const { resolveReasoningProviderOptions } = await import("./ai-runtime.service.js");
     expect(resolveReasoningProviderOptions(
-      { modelId: "m", providerName: "deepseek", capabilities: { text: true } },
+      { modelId: "deepseek-chat", providerName: "DeepSeek", providerCode: "deepseek", reasoningLevel: "HIGH" },
       "OFF"
     )).toBeUndefined();
   });
 
-  it("ON 模式不支持推理 → undefined（由调用方降级）", async () => {
+  it("ON 模式按模型 reasoningLevel 映射，不写死 high", async () => {
     const { resolveReasoningProviderOptions } = await import("./ai-runtime.service.js");
     expect(resolveReasoningProviderOptions(
-      { modelId: "m", providerName: "deepseek", capabilities: { text: true } },
+      { modelId: "deepseek-chat", providerName: "DeepSeek", providerCode: "deepseek", reasoningLevel: "LOW" },
       "ON"
-    )).toBeUndefined();
-  });
-
-  it("ON 模式支持推理与推理力度 → 按服务商驼峰键输出 reasoningEffort", async () => {
-    const { resolveReasoningProviderOptions } = await import("./ai-runtime.service.js");
-    const options = resolveReasoningProviderOptions(
-      { modelId: "m", providerName: "openai-compatible", capabilities: { reasoning: true, reasoningEffort: true } },
-      "ON"
-    );
-    expect(options).toEqual({ openaiCompatible: { reasoningEffort: "high" } });
-  });
-
-  it("ON 模式始终推理模型 → 无需额外参数", async () => {
-    const { resolveReasoningProviderOptions } = await import("./ai-runtime.service.js");
+    )).toEqual({ openaiCompatible: { reasoningEffort: "low" } });
     expect(resolveReasoningProviderOptions(
-      { modelId: "m", providerName: "deepseek", capabilities: { reasoningAlwaysOn: true } },
+      { modelId: "deepseek-chat", providerName: "DeepSeek", providerCode: "deepseek", reasoningLevel: "MAX" },
       "ON"
-    )).toBeUndefined();
+    )).toEqual({ openaiCompatible: { reasoningEffort: "max" } });
   });
 });
 

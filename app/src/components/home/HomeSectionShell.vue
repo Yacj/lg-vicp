@@ -39,9 +39,11 @@ const emit = defineEmits<{
     <view v-if="status === 'loading'" class="home-section__state px-4 pb-4 pt-2">
       <wd-skeleton :row-col="skeletonRowCol" animation="gradient" />
     </view>
-    <wd-empty icon="no-content" tip="暂无内容"       v-else-if="status === 'error'"/>
+    <wd-empty v-else-if="status === 'error'" icon="no-content" tip="暂无内容" />
     <view v-else-if="empty" class="home-section__state">
-      <wd-empty :icon="emptyIcon" :tip="emptyTip" />
+      <slot name="empty">
+        <wd-empty :icon="emptyIcon" :tip="emptyTip" />
+      </slot>
     </view>
 
     <slot v-else />

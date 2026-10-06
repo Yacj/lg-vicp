@@ -1,26 +1,17 @@
 <script setup lang="ts">
-import { MessagePlugin } from 'tdesign-vue-next'
+import type { KnowledgeHeaderAction } from '@/components/business/knowledge/KnowledgeWorkspaceHeader.vue'
+import type {
+  KnowledgeCategory,
+  KnowledgeChapterTreeNode,
+  KnowledgeDocument,
+  KnowledgeDocumentVersion,
+  KnowledgePage,
+  KnowledgeSelectedFile,
+  KnowledgeWorkspace,
+} from '@/types/knowledge'
+import { DialogPlugin, MessagePlugin } from 'tdesign-vue-next'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import AppFilePreview from '@/components/business/AppFilePreview.vue'
-import KnowledgeAdvancedDrawer from '@/components/business/knowledge/KnowledgeAdvancedDrawer.vue'
-import KnowledgeChapterTree from '@/components/business/knowledge/KnowledgeChapterTree.vue'
-import KnowledgeCreateDrawer from '@/components/business/knowledge/KnowledgeCreateDrawer.vue'
-import KnowledgeFailurePanel from '@/components/business/knowledge/KnowledgeFailurePanel.vue'
-import KnowledgeParsedContent from '@/components/business/knowledge/KnowledgeParsedContent.vue'
-import KnowledgeParseStatus from '@/components/business/knowledge/KnowledgeParseStatus.vue'
-import KnowledgeReplaceFileDrawer from '@/components/business/knowledge/KnowledgeReplaceFileDrawer.vue'
-import KnowledgeSearchablePanel from '@/components/business/knowledge/KnowledgeSearchablePanel.vue'
-import KnowledgeTestDrawer from '@/components/business/knowledge/KnowledgeTestDrawer.vue'
-import KnowledgeVersionDrawer from '@/components/business/knowledge/KnowledgeVersionDrawer.vue'
-import KnowledgeWorkspaceHeader from '@/components/business/knowledge/KnowledgeWorkspaceHeader.vue'
-import type { KnowledgeHeaderAction } from '@/components/business/knowledge/KnowledgeWorkspaceHeader.vue'
-import AppEmptyState from '@/components/ui/AppEmptyState.vue'
-import AppErrorState from '@/components/ui/AppErrorState.vue'
-import AppPage from '@/components/ui/AppPage.vue'
-import { normalizeFeedbackError } from '@/composables/useAppFeedback'
-import { useConfirmedCrudAction } from '@/composables/useCrudActions'
-import { usePermissionAccess } from '@/composables/usePermissionAccess'
 import {
   approveKnowledgeVersion,
   bindKnowledgeSearchSource,
@@ -30,22 +21,40 @@ import {
   fetchKnowledgeDocumentDetail,
   fetchKnowledgeWorkspace,
   fetchVersionChapterTree,
+  fetchVersionExtractedText,
   fetchVersionPageWindow,
   publishKnowledgeVersion,
   restartKnowledgeParse,
   updateVersionUsageMode,
 } from '@/api/modules/knowledge'
-import type {
-  KnowledgeCategory,
-  KnowledgeChapterTreeNode,
-  KnowledgeDocument,
-  KnowledgeDocumentVersion,
-  KnowledgePage,
-  KnowledgeSelectedFile,
-  KnowledgeUserTestSource,
-  KnowledgeWorkspace,
-} from '@/types/knowledge'
-import { isKnowledgeParsingStatus, isKnowledgeReadyStatus, knowledgeUserMessage } from '@/utils/knowledge-user'
+import AppFilePreview from '@/components/business/AppFilePreview.vue'
+import KnowledgeAdvancedDrawer from '@/components/business/knowledge/KnowledgeAdvancedDrawer.vue'
+import KnowledgeChapterTree from '@/components/business/knowledge/KnowledgeChapterTree.vue'
+import KnowledgeCreateDrawer from '@/components/business/knowledge/KnowledgeCreateDrawer.vue'
+import KnowledgeDocumentInfoPanel from '@/components/business/knowledge/KnowledgeDocumentInfoPanel.vue'
+import KnowledgeFailurePanel from '@/components/business/knowledge/KnowledgeFailurePanel.vue'
+import KnowledgePageGallery from '@/components/business/knowledge/KnowledgePageGallery.vue'
+import KnowledgePageStatusBar from '@/components/business/knowledge/KnowledgePageStatusBar.vue'
+import KnowledgeParsedContent from '@/components/business/knowledge/KnowledgeParsedContent.vue'
+import KnowledgeParseStatus from '@/components/business/knowledge/KnowledgeParseStatus.vue'
+import KnowledgeReplaceFileDrawer from '@/components/business/knowledge/KnowledgeReplaceFileDrawer.vue'
+import KnowledgeSearchablePanel from '@/components/business/knowledge/KnowledgeSearchablePanel.vue'
+import KnowledgeStructuredDataPanel from '@/components/business/knowledge/KnowledgeStructuredDataPanel.vue'
+import KnowledgeTestPanel from '@/components/business/knowledge/KnowledgeTestPanel.vue'
+import KnowledgeVersionDrawer from '@/components/business/knowledge/KnowledgeVersionDrawer.vue'
+import KnowledgeWorkspaceHeader from '@/components/business/knowledge/KnowledgeWorkspaceHeader.vue'
+import AppEmptyState from '@/components/ui/AppEmptyState.vue'
+import AppErrorState from '@/components/ui/AppErrorState.vue'
+import AppPage from '@/components/ui/AppPage.vue'
+import { normalizeFeedbackError } from '@/composables/useAppFeedback'
+import { useConfirmedCrudAction } from '@/composables/useCrudActions'
+import { usePermissionAccess } from '@/composables/usePermissionAccess'
+import {
+  isKnowledgePageRenderingInProgress,
+  isKnowledgeParsingStatus,
+  isKnowledgeReadyStatus,
+  knowledgeUserMessage,
+} from '@/utils/knowledge-user'
 
 const route = useRoute()
 const router = useRouter()
@@ -73,16 +82,24 @@ const readingLoading = ref(false)
 const error = ref<unknown>(null)
 const previewVisible = ref(false)
 const previewPage = ref<number | null>(null)
-const testVisible = ref(false)
 const versionVisible = ref(false)
 const advancedVisible = ref(false)
 const editVisible = ref(false)
 const replaceVisible = ref(false)
 const publishVisible = ref(false)
+const activeTab = ref<string>('gallery')
+const focusPhysicalPageNumber = ref<number | null>(null)
+const galleryKey = ref(0)
+const retryingPageRender = ref(false)
 let pollTimer: ReturnType<typeof setInterval> | null = null
 
 const userStatus = computed(() => workspace.value?.currentVersion?.userStatus ?? 'PENDING_PARSE')
 const versionId = computed(() => workspace.value?.currentVersion?.id ?? null)
+const hasPages = computed(() => (workspace.value?.summary.pageCount ?? 0) > 0)
+const pageRendering = computed(() => isKnowledgePageRenderingInProgress(workspace.value))
+const canRetryPageRender = computed(() => Boolean(
+  canParse.value && workspace.value?.actions.canRetryPageRender,
+))
 const categoryName = computed(() => {
   const id = workspace.value?.document.categoryId ?? documentMeta.value?.categoryId
   return categories.value.find(item => item.id === id)?.name ?? ''
@@ -90,27 +107,52 @@ const categoryName = computed(() => {
 const selectedChapter = computed(() => findChapter(chapters.value, selectedChapterId.value))
 const previewFile = computed(() => {
   const file = workspace.value?.primaryFile
-  if (!file) return null
+  if (!file) {
+    return null
+  }
   return { id: file.id, originalName: file.name, mimeType: file.mimeType || 'application/pdf' }
 })
 const moreActions = computed<KnowledgeHeaderAction[]>(() => {
   const actions: KnowledgeHeaderAction[] = []
-  if (canEdit.value) actions.push({ key: 'edit', label: '编辑基本信息' })
-  if (canUpload.value && workspace.value?.actions.canReplaceFile) actions.push({ key: 'replace', label: '更换文件' })
-  if (canParse.value && workspace.value?.actions.canRetry) actions.push({ key: 'reparse', label: '重新解析' })
+  if (canEdit.value) {
+    actions.push({ key: 'edit', label: '编辑基本信息' })
+  }
+  if (canUpload.value && workspace.value?.actions.canReplaceFile) {
+    actions.push({ key: 'replace', label: '更换文件' })
+  }
+  if (canParse.value && workspace.value?.actions.canRetry) {
+    actions.push({ key: 'reparse', label: '重新解析' })
+  }
   actions.push({ key: 'versions', label: '历史版本' })
-  if (canApprove.value || canPublish.value) actions.push({ key: 'publish', label: '发布设置' })
-  if (canDebug.value) actions.push({ key: 'advanced', label: '校正章节和页码' })
-  if (canRemove.value) actions.push({ key: 'delete', label: '删除知识库', theme: 'error' })
+  if (canApprove.value || canPublish.value) {
+    actions.push({ key: 'publish', label: '发布设置' })
+  }
+  if (canDebug.value) {
+    actions.push({ key: 'advanced', label: '校正章节和页码' })
+  }
+  if (canRemove.value) {
+    actions.push({ key: 'delete', label: '删除知识库', theme: 'error' })
+  }
   return actions
 })
+const showWorkspaceTabs = computed(() => isKnowledgeReadyStatus(userStatus.value)
+  || (userStatus.value !== 'PARSE_FAILED'
+    && userStatus.value !== 'SEARCHABLE_FILE_REQUIRED'
+    && !isKnowledgeParsingStatus(userStatus.value)
+    && Boolean(workspace.value)))
 
 function findChapter(items: KnowledgeChapterTreeNode[], id: string | null): KnowledgeChapterTreeNode | null {
-  if (!id) return null
+  if (!id) {
+    return null
+  }
   for (const item of items) {
-    if (item.id === id) return item
+    if (item.id === id) {
+      return item
+    }
     const child = findChapter(item.children ?? [], id)
-    if (child) return child
+    if (child) {
+      return child
+    }
   }
   return null
 }
@@ -129,19 +171,29 @@ function startPoll(): void {
   }, 3000)
 }
 
+function syncPoll(next: KnowledgeWorkspace): void {
+  if (isKnowledgeParsingStatus(next.currentVersion?.userStatus) || isKnowledgePageRenderingInProgress(next)) {
+    startPoll()
+  }
+  else {
+    stopPoll()
+  }
+}
+
 async function loadWorkspace(showLoading = true): Promise<void> {
-  if (showLoading) loading.value = true
+  if (showLoading) {
+    loading.value = true
+  }
   error.value = null
   try {
+    const previousPageCount = workspace.value?.summary.pageCount ?? 0
     workspace.value = await fetchKnowledgeWorkspace(documentId.value)
-    if (isKnowledgeParsingStatus(workspace.value.currentVersion?.userStatus)) {
-      startPoll()
+    syncPoll(workspace.value)
+    if (workspace.value.summary.pageCount !== previousPageCount) {
+      galleryKey.value += 1
     }
-    else {
-      stopPoll()
-      if (isKnowledgeReadyStatus(workspace.value.currentVersion?.userStatus) && workspace.value.currentVersion?.id) {
-        await loadChapters(workspace.value.currentVersion.id)
-      }
+    if (isKnowledgeReadyStatus(workspace.value.currentVersion?.userStatus) && workspace.value.currentVersion?.id) {
+      await loadChapters(workspace.value.currentVersion.id)
     }
   }
   catch (cause) {
@@ -162,7 +214,12 @@ async function loadChapters(id: string): Promise<void> {
     }
     else {
       selectedChapterId.value = null
-      await openPage(1)
+      if (hasPages.value) {
+        await openPage(1)
+      }
+      else {
+        await loadExtractedText()
+      }
     }
   }
   catch {
@@ -172,11 +229,52 @@ async function loadChapters(id: string): Promise<void> {
 
 async function openChapter(node: KnowledgeChapterTreeNode): Promise<void> {
   selectedChapterId.value = node.id
+  if (!hasPages.value) {
+    await loadExtractedText()
+    return
+  }
   await openPage(node.physicalPageNumber ?? 1)
 }
 
+async function loadExtractedText(): Promise<void> {
+  if (!versionId.value) {
+    return
+  }
+  readingLoading.value = true
+  try {
+    const result = await fetchVersionExtractedText(versionId.value)
+    currentPage.value = {
+      id: `extracted-${versionId.value}`,
+      documentId: documentId.value,
+      versionId: versionId.value,
+      pageNumber: 0,
+      physicalPageNumber: 0,
+      pageLabel: '机器提取文本',
+      pageTitle: '机器提取文本（非页面视觉）',
+      parsedText: result.text,
+      extractedText: result.text,
+      pageImageObjectKey: null,
+      pageImageUrl: null,
+      sectionPath: null,
+      blocks: result.blocks,
+      hasTables: result.blocks.some(block => block.contentType === 'TABLE'),
+      hasImages: false,
+      parseStatus: 'PARSED',
+      createdAt: new Date().toISOString(),
+    }
+  }
+  catch (cause) {
+    MessagePlugin.error(knowledgeUserMessage(normalizeFeedbackError(cause).message))
+  }
+  finally {
+    readingLoading.value = false
+  }
+}
+
 async function openPage(physicalPageNumber: number): Promise<void> {
-  if (!versionId.value) return
+  if (!versionId.value) {
+    return
+  }
   readingLoading.value = true
   try {
     const result = await fetchVersionPageWindow(versionId.value, physicalPageNumber, 1, 1)
@@ -229,20 +327,34 @@ async function loadCategories(): Promise<void> {
 }
 
 function onMore(key: string): void {
-  if (key === 'edit') editVisible.value = true
-  if (key === 'replace') replaceVisible.value = true
+  if (key === 'edit') {
+    editVisible.value = true
+  }
+  if (key === 'replace') {
+    replaceVisible.value = true
+  }
   if (key === 'versions') {
     void loadVersions()
     versionVisible.value = true
   }
-  if (key === 'advanced') advancedVisible.value = true
-  if (key === 'publish') publishVisible.value = true
-  if (key === 'reparse') void reparse()
-  if (key === 'delete') void deleteAction.run()
+  if (key === 'advanced') {
+    advancedVisible.value = true
+  }
+  if (key === 'publish') {
+    publishVisible.value = true
+  }
+  if (key === 'reparse') {
+    void reparse()
+  }
+  if (key === 'delete') {
+    void deleteAction.run()
+  }
 }
 
 async function reparse(): Promise<void> {
-  if (!versionId.value) return
+  if (!versionId.value) {
+    return
+  }
   try {
     await restartKnowledgeParse(versionId.value)
     MessagePlugin.success('已开始重新解析')
@@ -253,8 +365,36 @@ async function reparse(): Promise<void> {
   }
 }
 
+function retryPageRender(): void {
+  if (!versionId.value || retryingPageRender.value) {
+    return
+  }
+  const dialog = DialogPlugin.confirm({
+    header: '重新生成页面',
+    body: '将重新生成该版本的页面视觉资源。不会在前端转换 Word，由后端重新执行页面渲染。',
+    confirmBtn: '重新生成页面',
+    onConfirm: async () => {
+      retryingPageRender.value = true
+      try {
+        await restartKnowledgeParse(versionId.value!)
+        MessagePlugin.success('已开始重新生成页面')
+        dialog.hide()
+        await loadWorkspace()
+      }
+      catch (cause) {
+        MessagePlugin.error(knowledgeUserMessage(normalizeFeedbackError(cause).message))
+      }
+      finally {
+        retryingPageRender.value = false
+      }
+    },
+  })
+}
+
 async function bindSearchable(file: KnowledgeSelectedFile): Promise<void> {
-  if (!versionId.value) return
+  if (!versionId.value) {
+    return
+  }
   try {
     await bindKnowledgeSearchSource(versionId.value, file.fileId)
     MessagePlugin.success('已补充可搜索文字版本，正在重新解析')
@@ -266,7 +406,9 @@ async function bindSearchable(file: KnowledgeSelectedFile): Promise<void> {
 }
 
 async function browseOnly(): Promise<void> {
-  if (!versionId.value) return
+  if (!versionId.value) {
+    return
+  }
   try {
     await updateVersionUsageMode(versionId.value, 'BROWSE_ONLY')
     MessagePlugin.success('已设为只查看原文件')
@@ -282,14 +424,24 @@ function openOriginal(pageNumber?: number | null): void {
   previewVisible.value = true
 }
 
-function openTestSource(source: KnowledgeUserTestSource, original: boolean): void {
-  testVisible.value = false
-  if (original) {
-    openOriginal(source.physicalPageNumber)
+function openGalleryPage(physicalPageNumber: number | null | undefined, pageId?: string | null): void {
+  activeTab.value = 'gallery'
+  if (physicalPageNumber != null) {
+    focusPhysicalPageNumber.value = null
+    requestAnimationFrame(() => {
+      focusPhysicalPageNumber.value = physicalPageNumber
+    })
     return
   }
-  if (source.physicalPageNumber != null) {
-    void openPage(source.physicalPageNumber)
+  if (pageId) {
+    MessagePlugin.info('已切换到页面图库，请按页面卡片定位来源页')
+  }
+}
+
+function onTabChange(value: string | number): void {
+  activeTab.value = String(value)
+  if (activeTab.value === 'content' && versionId.value) {
+    void loadChapters(versionId.value)
   }
 }
 
@@ -305,7 +457,9 @@ const deleteAction = useConfirmedCrudAction<void, unknown>({
 })
 
 async function approve(): Promise<void> {
-  if (!versionId.value) return
+  if (!versionId.value) {
+    return
+  }
   try {
     await approveKnowledgeVersion(versionId.value)
     MessagePlugin.success('已审核通过')
@@ -318,7 +472,9 @@ async function approve(): Promise<void> {
 }
 
 async function publish(): Promise<void> {
-  if (!versionId.value) return
+  if (!versionId.value) {
+    return
+  }
   try {
     await publishKnowledgeVersion(versionId.value)
     MessagePlugin.success('已发布，可以用于提问')
@@ -331,7 +487,9 @@ async function publish(): Promise<void> {
 }
 
 async function disable(): Promise<void> {
-  if (!versionId.value) return
+  if (!versionId.value) {
+    return
+  }
   try {
     await disableKnowledgeVersion(versionId.value)
     MessagePlugin.success('已停用')
@@ -344,6 +502,8 @@ async function disable(): Promise<void> {
 }
 
 watch(documentId, () => {
+  activeTab.value = 'gallery'
+  focusPhysicalPageNumber.value = null
   void loadWorkspace()
   void loadVersions()
 })
@@ -375,7 +535,7 @@ onUnmounted(() => {
         @back="router.push({ path: '/knowledge/documents' })"
         @more="onMore"
         @preview="openOriginal(null)"
-        @test="testVisible = true"
+        @test="activeTab = 'test'"
       />
     </template>
 
@@ -415,21 +575,75 @@ onUnmounted(() => {
         @browse-only="browseOnly"
       />
 
-      <div v-else-if="isKnowledgeReadyStatus(userStatus)" class="knowledge-workspace__result">
-        <KnowledgeChapterTree
-          :items="chapters"
-          :loading="readingLoading && chapters.length === 0"
-          :selected-id="selectedChapterId"
-          @select="openChapter"
+      <template v-else-if="showWorkspaceTabs || isKnowledgeReadyStatus(userStatus)">
+        <KnowledgePageStatusBar
+          :workspace="workspace"
+          :can-retry-page-render="canRetryPageRender"
+          :retrying="retryingPageRender"
+          @retry-page-render="retryPageRender"
         />
-        <KnowledgeParsedContent
-          :can-preview="Boolean(previewFile)"
-          :loading="readingLoading"
-          :page="currentPage"
-          :title="selectedChapter?.title"
-          @preview-page="openOriginal(currentPage?.physicalPageNumber)"
-        />
-      </div>
+
+        <t-tabs
+          class="knowledge-workspace__tabs"
+          :value="activeTab"
+          @change="onTabChange"
+        >
+          <t-tab-panel label="页面图库" value="gallery">
+            <KnowledgePageGallery
+              :key="galleryKey"
+              :version-id="versionId"
+              :editable="canEdit"
+              :focus-physical-page-number="focusPhysicalPageNumber"
+              :rendering="pageRendering"
+              @changed="loadWorkspace(false)"
+            />
+          </t-tab-panel>
+
+          <t-tab-panel label="资料内容" value="content">
+            <div class="knowledge-workspace__result">
+              <KnowledgeChapterTree
+                :items="chapters"
+                :loading="readingLoading && chapters.length === 0"
+                :selected-id="selectedChapterId"
+                @select="openChapter"
+              />
+              <KnowledgeParsedContent
+                :can-preview="Boolean(previewFile) && hasPages"
+                :loading="readingLoading"
+                :machine-text="!hasPages || currentPage?.pageLabel === '机器提取文本'"
+                :page="currentPage"
+                :title="selectedChapter?.title"
+                @preview-page="openOriginal(currentPage?.physicalPageNumber)"
+                @open-gallery="openGalleryPage(currentPage?.physicalPageNumber)"
+              />
+            </div>
+          </t-tab-panel>
+
+          <t-tab-panel label="结构化数据" value="structured">
+            <KnowledgeStructuredDataPanel
+              :document-id="documentId"
+              :version-id="versionId"
+              @open-source-page="openGalleryPage($event.physicalPageNumber, $event.pageId)"
+            />
+          </t-tab-panel>
+
+          <t-tab-panel v-if="canTest" label="知识库测试" value="test">
+            <KnowledgeTestPanel
+              :version-id="versionId"
+              @open-gallery-page="openGalleryPage"
+            />
+          </t-tab-panel>
+
+          <t-tab-panel label="资料信息" value="info">
+            <KnowledgeDocumentInfoPanel
+              :category-name="categoryName"
+              :document="documentMeta"
+              :page-count="workspace?.summary.pageCount ?? documentMeta?.currentVersion?.pageCount"
+              :user-status="userStatus"
+            />
+          </t-tab-panel>
+        </t-tabs>
+      </template>
 
       <AppEmptyState
         v-else
@@ -443,12 +657,6 @@ onUnmounted(() => {
       :page-number="previewPage"
       :visible="previewVisible"
       @close="previewVisible = false"
-    />
-    <KnowledgeTestDrawer
-      v-model:visible="testVisible"
-      :version-id="versionId"
-      @open-content="openTestSource($event, false)"
-      @open-original="openTestSource($event, true)"
     />
     <KnowledgeVersionDrawer
       v-model:visible="versionVisible"

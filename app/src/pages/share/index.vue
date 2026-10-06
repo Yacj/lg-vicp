@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ApiEnvelope, PublicShareResult, ShareMessageSnapshot } from '@/api/types'
 import { shareApi } from '@/api/modules/shares'
-import { markdownStyle, renderMarkdown } from '@/utils/markdown'
+import { markdownTagStyle, renderMarkdown } from '@/utils/markdown'
 
 definePage({
   name: 'share',
@@ -123,8 +123,10 @@ function messageHtml(message: ShareMessageSnapshot) {
             <view v-else class="share-message__assistant flex-1 px-3.5 py-3">
               <mp-html
                 :content="messageHtml(message)"
-                :extern-style="markdownStyle"
-                container-style="font-size: 28rpx; line-height: 1.7; overflow-wrap: break-word;"
+                :tag-style="markdownTagStyle"
+                scroll-table
+                preview-img
+                container-style="font-size: 28rpx; line-height: 1.7; overflow-wrap: break-word; word-break: break-word;"
               />
             </view>
           </view>

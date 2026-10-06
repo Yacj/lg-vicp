@@ -16,8 +16,7 @@ import { usePermissionAccess } from '@/composables/usePermissionAccess'
 
 /**
  * 产品管理工作区：聚合 [产品系列] [产品规格] [产品参数] [产品附件] 四个 Tab。
- * 后端菜单保留四个叶子路径（products/series|specs|parameters|attachments），
- * 四条路径都渲染本工作区并通过 initialTab 定位，菜单项与旧链接均可达。
+ * 普通菜单已隐藏产品中心；四个叶子路径仍作为 hidden/兼容入口保留，不删除页面。
  */
 const props = defineProps<{
   initialTab?: ProductCatalogTabKey

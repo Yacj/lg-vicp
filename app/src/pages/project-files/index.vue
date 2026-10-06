@@ -222,15 +222,15 @@ async function removeFile(file: FileRecord) {
         <view class="flex items-start justify-between gap-3">
           <view class="min-w-0 flex-1">
             <view class="app-section-title">
-              上传项目资料
+              补充资料
             </view>
             <view class="app-muted mt-1 text-3 leading-5">
-              {{ projectName ? `归属项目：${projectName}` : '支持 PDF、DOCX、PNG、JPG' }}，上传后自动解析为可追溯的知识切片，供筑小格回答引用。
+              {{ projectName ? `${projectName} 的可选补充资料` : '可选补充资料' }}，支持 PDF、DOCX、PNG、JPG。不是创建项目的必要条件，上传后可供项目 AI 检索。
             </view>
           </view>
         </view>
         <wd-button type="primary" block custom-class="mt-4!" @click="openUploadSheet">
-          上传资料
+          补充资料
         </wd-button>
       </view>
 
@@ -290,7 +290,7 @@ async function removeFile(file: FileRecord) {
       </view>
 
       <view v-else-if="!files.length" class="app-panel-flat overflow-hidden px-4 py-8">
-        <wd-empty image="content" description="暂无项目资料，上传后自动解析" />
+        <wd-empty image="content" description="暂无补充资料，需要时再上传即可" />
       </view>
 
       <view v-else class="app-panel-flat overflow-hidden">

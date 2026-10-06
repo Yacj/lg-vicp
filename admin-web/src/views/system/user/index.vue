@@ -2,16 +2,11 @@
 import type { FormInstanceFunctions, FormRules, PrimaryTableCol, TableRowData, TreeProps } from 'tdesign-vue-next'
 import type { UserForm, UserTableRow } from '@/composables/useUserManagement'
 import type { AppTableAction } from '@/types/crud'
-import type {
-  SystemUserDetail,
-  SystemUserRole,
-  SystemUserStatus,
-} from '@/types/system-management'
-import type { DepartmentTreeOption } from '@/utils/system-management'
-import { AddIcon, ChevronDownIcon, DownloadIcon, SearchIcon, UploadIcon } from 'tdesign-icons-vue-next'
-import { computed, h, onMounted, reactive, ref, watch } from 'vue'
+import type { SystemUserStatus } from '@/types/system-management'
+import { AddIcon, ChevronDownIcon, DownloadIcon, SearchIcon } from 'tdesign-icons-vue-next'
+import { computed, h, onMounted, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import AppCrudFormDialog from '@/components/business/AppCrudFormDialog.vue'
-import AppImportUpload from '@/components/business/AppImportUpload.vue'
 import AppTableActions from '@/components/business/AppTableActions.vue'
 import AppDataTable from '@/components/ui/AppDataTable.vue'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
@@ -22,86 +17,51 @@ import AppStatusTag from '@/components/ui/AppStatusTag.vue'
 import { normalizeFeedbackError } from '@/composables/useAppFeedback'
 import { usePermissionAccess } from '@/composables/usePermissionAccess'
 import { useResponsiveShell } from '@/composables/useResponsiveShell'
-import {
-
-  useUserManagement,
-} from '@/composables/useUserManagement'
-import { useUserStore } from '@/stores/user'
+import { useUserManagement } from '@/composables/useUserManagement'
 import { formatDate } from '@/utils/day'
 import {
-  channelTypeLabels,
-  channelTypeOptions,
-  isChannelUserRole,
-  isNormalUserRole,
+  accessAppFilterOptions,
+  accessDetailRowsForUser,
+  accessTagsForUser,
+  canEditManagedUserProfile,
+  canResetManagedUserPassword,
+  hasAdminAccess,
+  projectLoginMethods,
   userGenderOptions,
-  userRoleLabels,
-  userRoleOptionsFor,
   userStatusLabels,
 } from '@/utils/system-user'
-import { buildUserImportTips } from '@/utils/user-csv'
 
 const {
   closeDetail,
-  closeImport,
   deleteAction,
   departmentOptions,
   detailState,
-  downloadImportTemplate,
   exportAction,
-  handleImportFile,
-  importState,
   loadReferenceOptions,
   openDetail,
-  openImport,
   openResetPassword,
-  openRoleAssign,
   openUserEdit,
   postOptions,
   referenceLoading,
   resetPassword,
   restoreAction,
-  roleAssign,
-  roleOptions,
   setResetPasswordVisible,
-  setRoleAssignVisible,
   statusAction,
   submitResetPassword,
-  submitRoleAssign,
   userDrawer,
   userList,
 } = useUserManagement()
 const { canAccess } = usePermissionAccess()
 const { isMobile } = useResponsiveShell()
-const userStore = useUserStore()
-
-/**
- * 账号类型下拉按操作者角色投影：非超级管理员不可分配超级管理员。
- * profile 未加载时按最保守（非超管）处理。
- */
-const actorRole = computed<SystemUserRole>(() => userStore.profile?.role ?? 'NORMAL_USER')
-
-/**
- * 编辑兜底：若被编辑用户恰为超级管理员而操作者非超管，
- * 保留原值作为禁用选项，避免下拉空白且保证提交不回改角色。
- */
-const accountRoleOptions = computed(() => {
-  const selectable = userRoleOptionsFor(actorRole.value)
-  const current = userDrawer.formData.role
-  return selectable.some(option => option.value === current)
-    ? selectable
-    : [...selectable, { label: userRoleLabels[current], value: current, disabled: true }]
-})
+const router = useRouter()
 
 const canList = computed(() => canAccess({ permissions: ['system:user:list'] }))
 const canAdd = computed(() => canAccess({ permissions: ['system:user:add'] }))
 const canEdit = computed(() => canAccess({ permissions: ['system:user:edit'] }))
 const canRemove = computed(() => canAccess({ permissions: ['system:user:remove'] }))
 const canResetPassword = computed(() => canAccess({ permissions: ['system:user:reset-password'] }))
-const canImport = computed(() => canAccess({ permissions: ['system:user:import'] }))
 const canExport = computed(() => canAccess({ permissions: ['system:user:export'] }))
-const canAssignRole = computed(() => canAccess({ permissions: ['system:user:role'] }))
-
-const searchExpanded = ref(false)
+const canViewDepartments = computed(() => canAccess({ permissions: ['system:dept:list'] }))
 
 // ---------- 左侧部门树 ----------
 
@@ -151,40 +111,26 @@ function onDepartmentClick(context: Parameters<NonNullable<TreeProps['onClick']>
 
 const dialogWidth = computed<string>(() => (isMobile.value ? '92vw' : 'min(720px, 92vw)'))
 const detailDrawerSize = computed<string>(() => (isMobile.value ? '100%' : '520px'))
-const importUploadRef = ref<InstanceType<typeof AppImportUpload> | null>(null)
-
-watch(isMobile, (mobile) => {
-  if (mobile) {
-    searchExpanded.value = false
-  }
-})
-
-watch(importState, (state) => {
-  if (!state.visible) {
-    importUploadRef.value?.clear()
-  }
-})
 
 // ---------- 列表列 ----------
 
-function renderLoginIdentifier(_h: unknown, { row }: { row: TableRowData }): string {
-  return row.loginIdentifier ?? '—'
+function renderUser(_h: unknown, { row }: { row: TableRowData }) {
+  const user = row as UserTableRow
+  return h('div', { class: 'vicp-user-cell' }, [
+    h('strong', { class: 'vicp-user-cell__name' }, user.displayName),
+  ])
 }
 
-function renderPhone(_h: unknown, { row }: { row: TableRowData }): string {
-  return row.phone ?? '—'
-}
-
-function renderRole(_h: unknown, { row }: { row: TableRowData }) {
-  const role = row.role as SystemUserRole
-  return h(AppStatusTag, {
-    label: userRoleLabels[role],
-    status: role === 'SUPER_ADMIN' ? 'processing' : role === 'CHANNEL_USER' ? 'info' : 'default',
-  })
-}
-
-function renderChannel(_h: unknown, { row }: { row: TableRowData }) {
-  return row.channelType ? channelTypeLabels[row.channelType as keyof typeof channelTypeLabels] : '—'
+function renderAccess(_h: unknown, { row }: { row: TableRowData }) {
+  const tags = accessTagsForUser(row as UserTableRow)
+  if (tags.length === 0) {
+    return '—'
+  }
+  return h('div', { class: 'vicp-user-access' }, tags.map(tag => h(AppStatusTag, {
+    key: tag.app,
+    label: tag.label,
+    status: tag.app === 'ADMIN' ? 'processing' : 'default',
+  })))
 }
 
 function renderStatus(_h: unknown, { row }: { row: TableRowData }) {
@@ -198,11 +144,14 @@ function renderStatus(_h: unknown, { row }: { row: TableRowData }) {
 }
 
 const columns: PrimaryTableCol<TableRowData>[] = [
-  { colKey: 'displayName', minWidth: 160, title: '用户姓名' },
-  { cell: renderLoginIdentifier, colKey: 'loginIdentifier', minWidth: 160, title: '登录账号' },
-  { cell: renderPhone, colKey: 'phone', minWidth: 160, title: '手机号码' },
-  { cell: renderRole, colKey: 'role', minWidth: 120, title: '账号类型' },
-  { cell: renderChannel, colKey: 'channelType', minWidth: 110, title: '渠道类型' },
+  { cell: renderUser, colKey: 'displayName', minWidth: 160, title: '用户' },
+  {
+    cell: (_h, { row }) => (row as UserTableRow).phone ?? '—',
+    colKey: 'phone',
+    minWidth: 140,
+    title: '手机号',
+  },
+  { cell: renderAccess, colKey: 'appAccess', minWidth: 180, title: '访问权限' },
   { cell: renderStatus, colKey: 'status', title: '状态', width: 110 },
   {
     cell: (_h, { row }) => formatDate(new Date(row.createdAt)),
@@ -228,33 +177,31 @@ function getActions(row: TableRowData): AppTableAction[] {
   const user = row as UserTableRow
   const deleted = Boolean(user.deletedAt)
   const actions: AppTableAction[] = []
+  const adminAccess = hasAdminAccess(user)
 
   if (canList.value) {
-    actions.push({ handler: () => void openDetail(user), key: 'detail', label: '详情' })
+    actions.push({ handler: () => void openDetail(user), key: 'detail', label: '查看' })
+  }
+  if (canEdit.value && !deleted && canEditManagedUserProfile(user)) {
+    actions.push({
+      handler: () => void openUserEdit(user),
+      key: 'edit',
+      label: '编辑',
+    })
   }
   if (canEdit.value && !deleted) {
-    actions.push(
-      {
-        handler: () => void openUserEdit(user),
-        key: 'edit',
-        label: '编辑',
-      },
-      {
-        handler: () => void statusAction.run({
-          status: user.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE',
-          user,
-        }),
-        key: 'status',
-        label: user.status === 'ACTIVE' ? '禁用' : '启用',
-        loading: statusAction.running.value,
-        theme: user.status === 'ACTIVE' ? 'warning' : 'success',
-      },
-    )
+    actions.push({
+      handler: () => void statusAction.run({
+        status: user.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE',
+        user,
+      }),
+      key: 'status',
+      label: user.status === 'ACTIVE' ? '禁用' : '启用',
+      loading: statusAction.running.value,
+      theme: user.status === 'ACTIVE' ? 'warning' : 'success',
+    })
   }
-  if (canAssignRole.value && !deleted) {
-    actions.push({ handler: () => void openRoleAssign(user), key: 'role', label: '分配角色' })
-  }
-  if (canResetPassword.value && !deleted) {
+  if (canResetPassword.value && !deleted && canResetManagedUserPassword(user)) {
     actions.push({ handler: () => openResetPassword(user), key: 'reset-password', label: '重置密码' })
   }
   if (canRemove.value && !deleted) {
@@ -266,7 +213,7 @@ function getActions(row: TableRowData): AppTableAction[] {
       theme: 'danger',
     })
   }
-  if (canEdit.value && deleted) {
+  if (canEdit.value && deleted && adminAccess) {
     actions.push({
       handler: () => void restoreAction.run(user),
       key: 'restore',
@@ -278,10 +225,36 @@ function getActions(row: TableRowData): AppTableAction[] {
   return actions
 }
 
+function goDepartmentManagement(): void {
+  void router.push('/system/dept')
+}
+
+function openCreateAdmin(): void {
+  void loadReferenceOptions()
+  userDrawer.openCreate()
+}
+
+const detailAccessRows = computed(() => {
+  const detail = detailState.data
+  return detail ? accessDetailRowsForUser(detail.user) : []
+})
+
+const detailLoginMethods = computed(() => {
+  const detail = detailState.data
+  if (!detail) {
+    return []
+  }
+  return projectLoginMethods({
+    identities: detail.identities ?? detail.user.identities,
+    loginIdentifier: detail.user.loginIdentifier,
+    phone: detail.user.phone,
+    role: detail.user.role,
+  })
+})
+
 // ---------- 分区表单 ----------
 
 const isCreate = computed(() => userDrawer.mode.value === 'create')
-const formRole = computed(() => userDrawer.formData.role)
 
 const rules = computed<FormRules<UserForm>>(() => ({
   ...(isCreate.value
@@ -292,15 +265,17 @@ const rules = computed<FormRules<UserForm>>(() => ({
           { message: '密码至少需要 5 个字符', min: 5 },
           { message: '密码不能超过 128 个字符', max: 128 },
         ],
+        phone: [
+          { message: '请输入手机号码', required: true },
+          { message: '手机号格式不正确', pattern: /^\+?\d{6,20}$/ },
+        ],
       }
-    : {}),
-  phone: [
-    { message: '请输入手机号码', required: true },
-    { message: '手机号格式不正确', pattern: /^\+?\d{6,20}$/ },
-  ],
-  channelType: isChannelUserRole(formRole.value)
-    ? [{ message: '请选择渠道类型', required: true }]
-    : [],
+    : {
+        phone: [
+          { message: '请输入手机号码', required: true },
+          { message: '手机号格式不正确', pattern: /^\+?\d{6,20}$/ },
+        ],
+      }),
   displayName: [
     { message: '请输入用户姓名', required: true },
     { message: '用户姓名不能超过 120 个字符', max: 120 },
@@ -342,53 +317,15 @@ async function submitResetPasswordForm(): Promise<void> {
   }
 }
 
-// ---------- 导入弹窗 ----------
-
-const importErrorColumns: PrimaryTableCol<TableRowData>[] = [
-  { colKey: 'row', title: '行号', width: 90 },
-  { colKey: 'message', title: '失败原因', minWidth: 260 },
-]
-
-// ---------- 详情抽屉 ----------
-
-function departmentLabelMap(): Map<string, string> {
-  const map = new Map<string, string>()
-  const visit = (options: readonly DepartmentTreeOption[]): void => {
-    for (const option of options) {
-      map.set(option.value, option.label)
-      if (option.children) {
-        visit(option.children)
-      }
-    }
-  }
-  visit(departmentOptions.value)
-  return map
-}
-
-function primaryDepartmentName(detail: SystemUserDetail): string {
-  const primary = detail.departments.find(item => item.isPrimary)
-  if (!primary) {
-    return '—'
-  }
-  return departmentLabelMap().get(primary.id) ?? '—'
-}
-
-function allDepartmentNames(detail: SystemUserDetail): string {
-  const names = detail.departments.map(item => departmentLabelMap().get(item.id) ?? item.id)
-  return names.length > 0 ? names.join('、') : '—'
-}
-
 onMounted(() => {
   void loadReferenceOptions()
 })
 </script>
 
 <template>
-  <AppPage>
+  <AppPage description="统一管理用户及其管理后台、客户端访问权限。新增仅创建超级管理员，客户端访问由用户首次进入 C 端自动开通。" title="用户管理">
     <template #search>
       <AppSearchPanel
-        v-model:expanded="searchExpanded"
-        collapsible
         :loading="userList.isLoading.value"
         @reset="userList.reset"
         @search="userList.search"
@@ -397,33 +334,15 @@ onMounted(() => {
           <t-input
             v-model="userList.query.keyword"
             clearable
-            placeholder="姓名、登录账号或联系方式"
+            placeholder="姓名或手机号"
           />
         </t-form-item>
-        <t-form-item label="账号类型">
-          <t-select
-            v-model="userList.query.role"
-            clearable
-            :options="accountRoleOptions"
-            placeholder="全部账号类型"
-          />
+        <t-form-item label="状态">
+          <t-select v-model="userList.query.status" :options="statusFilterOptions" />
         </t-form-item>
-        <t-form-item label="动态角色">
-          <t-select
-            v-model="userList.query.roleId"
-            clearable
-            :options="roleOptions"
-            placeholder="请选择动态角色"
-          />
+        <t-form-item label="访问端">
+          <t-select v-model="userList.query.accessApp" :options="accessAppFilterOptions" />
         </t-form-item>
-        <template #advanced>
-          <t-form-item label="状态">
-            <t-select v-model="userList.query.status" :options="statusFilterOptions" />
-          </t-form-item>
-          <!-- <t-form-item label="已删除">
-            <t-checkbox v-model="userList.query.includeDeleted">包含已删除账号</t-checkbox>
-          </t-form-item> -->
-        </template>
       </AppSearchPanel>
     </template>
 
@@ -479,7 +398,7 @@ onMounted(() => {
           :columns="columns"
           :current="userList.current.value"
           :data="userList.data.value"
-          empty-description="可新增第一个用户"
+          empty-description="当前筛选条件下暂无用户"
           empty-title="暂无用户"
           :error-description="errorDescription"
           :operations-width="260"
@@ -492,23 +411,23 @@ onMounted(() => {
           @retry="userList.retry"
         >
           <template #toolbar>
-            <t-button v-if="canAdd" theme="primary" @click="userDrawer.openCreate">
+            <t-button
+              v-if="canAdd"
+              theme="primary"
+              @click="openCreateAdmin"
+            >
               <template #icon>
                 <AddIcon />
               </template>
-              新增用户
+              新增超级管理员
             </t-button>
             <t-button
-              v-if="canImport"
-              :disabled="referenceLoading"
+              v-if="canViewDepartments"
               theme="default"
               variant="outline"
-              @click="openImport"
+              @click="goDepartmentManagement"
             >
-              <template #icon>
-                <UploadIcon />
-              </template>
-              导入
+              部门管理
             </t-button>
             <t-button
               v-if="canExport"
@@ -531,21 +450,22 @@ onMounted(() => {
         <!-- 移动端：卡片列表 -->
         <section v-else class="vicp-user-cards">
           <div class="vicp-user-cards__toolbar">
-            <t-button v-if="canAdd" size="small" theme="primary" @click="userDrawer.openCreate">
-              <template #icon>
-                <AddIcon />
-              </template>
-              新增用户
+            <t-button
+              v-if="canAdd"
+              size="small"
+              theme="primary"
+              @click="openCreateAdmin"
+            >
+              新增超级管理员
             </t-button>
             <t-button
-              v-if="canImport"
-              :disabled="referenceLoading"
+              v-if="canViewDepartments"
               size="small"
               theme="default"
               variant="outline"
-              @click="openImport"
+              @click="goDepartmentManagement"
             >
-              导入
+              部门管理
             </t-button>
             <t-button
               v-if="canExport"
@@ -568,7 +488,7 @@ onMounted(() => {
 
           <template v-else>
             <div v-if="userList.data.value.length === 0" class="vicp-user-cards__empty">
-              <AppEmptyState :description="userList.isLoading.value ? '' : '可新增第一个用户'" title="暂无用户" />
+              <AppEmptyState :description="userList.isLoading.value ? '' : '当前筛选条件下暂无用户'" title="暂无用户" />
             </div>
             <article v-for="user in userList.data.value" :key="user.id" class="vicp-user-card">
               <div class="vicp-user-card__head">
@@ -578,23 +498,18 @@ onMounted(() => {
                   :status="user.deletedAt ? 'error' : user.status === 'ACTIVE' ? 'success' : 'warning'"
                 />
               </div>
+              <div class="vicp-user-access">
+                <AppStatusTag
+                  v-for="tag in accessTagsForUser(user)"
+                  :key="tag.app"
+                  :label="tag.label"
+                  :status="tag.app === 'ADMIN' ? 'processing' : 'default'"
+                />
+              </div>
               <dl class="vicp-user-card__meta">
                 <div>
-                  <dt>登录账号</dt>
-                  <dd>{{ user.loginIdentifier ?? '—' }}</dd>
-                </div>
-                <div>
-                  <dt>手机号码</dt>
+                  <dt>手机号</dt>
                   <dd>{{ user.phone ?? '—' }}</dd>
-                </div>
-                <div>
-                  <dt>账号类型 / 渠道</dt>
-                  <dd>
-                    {{ userRoleLabels[user.role as SystemUserRole] }}
-                    <template v-if="user.channelType">
-                      / {{ channelTypeLabels[user.channelType as keyof typeof channelTypeLabels] }}
-                    </template>
-                  </dd>
                 </div>
                 <div>
                   <dt>创建时间</dt>
@@ -622,13 +537,13 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- 分区表单弹窗 -->
+    <!-- 分区表单弹窗：仅超级管理员可创建/编辑 -->
     <AppCrudFormDialog
       :form-data="userDrawer.formData"
       :mode="userDrawer.mode.value"
       :rules="rules"
       :submitting="userDrawer.isSubmitting.value"
-      :title="isCreate ? '新增用户' : '编辑用户'"
+      :title="isCreate ? '新增超级管理员' : '编辑超级管理员'"
       :visible="userDrawer.visible.value"
       :width="dialogWidth"
       :columns="2"
@@ -636,8 +551,10 @@ onMounted(() => {
       @submit="userDrawer.submit"
       @update:visible="userDrawer.setVisible"
     >
-      <p v-if="!isCreate" class="vicp-user-form__hint vicp-user-form__wide">
-        登录账号创建后不可修改，手机号码可调整。
+      <p class="vicp-user-form__hint vicp-user-form__wide">
+        {{ isCreate
+          ? '仅可创建超级管理员，默认开通管理后台，不会开通客户端。部门和岗位选填。客户端访问由用户首次进入 C 端自动开通。'
+          : '登录账号创建后不可修改。部门归属请到部门管理维护，不在此分配访问端。' }}
       </p>
       <t-form-item v-if="isCreate" label="登录账号" name="identifier">
         <t-input
@@ -684,63 +601,27 @@ onMounted(() => {
           placeholder="选填"
         />
       </t-form-item>
-      <t-form-item label="账号类型" name="role">
-        <t-select
-          v-model="userDrawer.formData.role"
-          :options="accountRoleOptions"
-          placeholder="请选择账号类型"
-        />
-      </t-form-item>
-      <t-form-item v-if="isChannelUserRole(formRole)" label="渠道类型" name="channelType">
-        <t-select
-          v-model="userDrawer.formData.channelType"
-          :options="channelTypeOptions"
-          placeholder="请选择渠道类型"
-        />
-      </t-form-item>
-      <t-form-item v-if="isNormalUserRole(formRole)" label="是否可以登录后台" name="adminLoginEnabled">
-        <t-radio-group
-          v-model="userDrawer.formData.adminLoginEnabled"
-          :options="[
-            { label: '是', value: true },
-            { label: '否', value: false },
-          ]"
-        />
-      </t-form-item>
-      <t-form-item label="所属部门" name="departmentIds">
+      <t-form-item v-if="isCreate" class="vicp-user-form__wide" label="部门" name="departmentIds">
         <t-tree-select
           v-model="userDrawer.formData.departmentIds"
+          clearable
           :data="departmentOptions"
+          filterable
           :loading="referenceLoading"
           multiple
-          placeholder="可多选，首个部门为主部门"
+          placeholder="选填，可多选"
+          :tree-props="{ checkStrictly: true }"
         />
       </t-form-item>
-      <t-form-item label="岗位" name="postIds">
+      <t-form-item v-if="isCreate" class="vicp-user-form__wide" label="岗位" name="postIds">
         <t-select
           v-model="userDrawer.formData.postIds"
+          clearable
+          filterable
           :loading="referenceLoading"
+          multiple
           :options="postOptions"
-          multiple
-          placeholder="可多选"
-        />
-      </t-form-item>
-      <t-form-item label="动态角色" name="roleIds">
-        <t-select
-          v-model="userDrawer.formData.roleIds"
-          :loading="referenceLoading"
-          :options="roleOptions"
-          multiple
-          placeholder="可多选，角色权限决定数据访问范围"
-        />
-      </t-form-item>
-      <t-form-item label="账号状态" name="status">
-        <t-radio-group
-          v-model="userDrawer.formData.status"
-          :options="[
-            { label: '正常', value: 'ACTIVE' },
-            { label: '已禁用', value: 'DISABLED' },
-          ]"
+          placeholder="选填，可多选"
         />
       </t-form-item>
       <t-form-item class="vicp-user-form__wide" label="备注" name="remark">
@@ -801,79 +682,7 @@ onMounted(() => {
       </p>
     </t-dialog>
 
-    <!-- 分配角色弹窗：独立入口，仅管理动态角色关联 -->
-    <t-dialog
-      :cancel-btn="{ content: '取消', disabled: roleAssign.submitting }"
-      :close-on-esc-keydown="!roleAssign.submitting"
-      :close-on-overlay-click="false"
-      :confirm-btn="{
-        content: '保存',
-        disabled: roleAssign.submitting,
-        loading: roleAssign.submitting,
-        theme: 'primary',
-      }"
-      destroy-on-close
-      :header="`分配角色 · ${roleAssign.displayName}`"
-      :visible="roleAssign.visible"
-      width="min(480px, 92vw)"
-      @close="setRoleAssignVisible(false)"
-      @confirm="submitRoleAssign"
-    >
-      <t-form-item label="动态角色">
-        <t-select
-          v-model="roleAssign.roleIds"
-          :loading="referenceLoading"
-          :options="roleOptions"
-          multiple
-          placeholder="可多选，角色权限决定数据访问范围"
-        />
-      </t-form-item>
-      <p class="vicp-user-form__hint">
-        保存后立即生效；角色与账号类型（超级管理员 / 渠道用户 / 普通用户）相互独立。
-      </p>
-    </t-dialog>
-
-    <!-- 导入弹窗：模板下载 + 上传 + 成功/失败明细 -->
-    <t-dialog
-      :footer="false"
-      header="导入用户"
-      :visible="importState.visible"
-      @close="closeImport"
-    >
-      <div class="vicp-user-import">
-        <div class="vicp-user-import__toolbar">
-          <t-button theme="default" variant="outline" @click="downloadImportTemplate">
-            下载导入模板
-          </t-button>
-        </div>
-        <AppImportUpload
-          ref="importUploadRef"
-          accept=".csv"
-          :handler="handleImportFile"
-          :max="1"
-          placeholder="选择 CSV 文件"
-          :tips="buildUserImportTips(actorRole)"
-        />
-        <template v-if="importState.result">
-          <t-alert
-            class="vicp-user-import__result"
-            theme="success"
-            :message="`导入完成：成功 ${importState.result.imported} 条${importState.result.errors.length > 0 ? `，失败 ${importState.result.errors.length} 条` : ''}`"
-          />
-          <div v-if="importState.result.errors.length > 0" class="vicp-user-import__errors">
-            <t-table
-              :columns="importErrorColumns"
-              :data="importState.result.errors"
-              :max-height="240"
-              row-key="row"
-              size="small"
-            />
-          </div>
-        </template>
-      </div>
-    </t-dialog>
-
-    <!-- 详情抽屉：角色 / 部门 / 岗位等关联由详情接口返回 -->
+    <!-- 详情抽屉：只读 -->
     <t-drawer
       :cancel-btn="{ content: '关闭' }"
       :header="`用户详情 · ${detailState.data?.user.displayName ?? ''}`"
@@ -883,60 +692,47 @@ onMounted(() => {
       @close="closeDetail"
     >
       <t-loading :loading="detailState.loading">
-        <dl v-if="detailState.data" class="vicp-user-detail">
-          <div>
-            <dt>用户姓名</dt>
-            <dd>{{ detailState.data.user.displayName }}</dd>
-          </div>
-          <div>
-            <dt>登录账号</dt>
-            <dd>{{ detailState.data.user.loginIdentifier ?? '—' }}</dd>
-          </div>
-          <div>
-            <dt>手机号码</dt>
-            <dd>{{ detailState.data.user.phone ?? '—' }}</dd>
-          </div>
-          <div>
-            <dt>账号类型</dt>
-            <dd>{{ userRoleLabels[detailState.data.user.role as SystemUserRole] }}</dd>
-          </div>
-          <div>
-            <dt>渠道类型</dt>
-            <dd>
-              {{ detailState.data.user.channelType
-                ? channelTypeLabels[detailState.data.user.channelType as keyof typeof channelTypeLabels]
-                : '—' }}
-            </dd>
-          </div>
-          <div v-if="detailState.data.user.role === 'NORMAL_USER'">
-            <dt>是否可以登录后台</dt>
-            <dd>{{ detailState.data.user.adminLoginEnabled ? '是' : '否' }}</dd>
-          </div>
-          <div>
-            <dt>状态</dt>
-            <dd>{{ userStatusLabels[detailState.data.user.status as SystemUserStatus] }}</dd>
-          </div>
-          <div>
-            <dt>主部门</dt>
-            <dd>{{ primaryDepartmentName(detailState.data) }}</dd>
-          </div>
-          <div>
-            <dt>所属部门</dt>
-            <dd>{{ allDepartmentNames(detailState.data) }}</dd>
-          </div>
-          <div>
-            <dt>岗位</dt>
-            <dd>{{ detailState.data.posts.map(item => item.name).join('、') || '—' }}</dd>
-          </div>
-          <div>
-            <dt>动态角色</dt>
-            <dd>{{ detailState.data.roles.map(item => item.name).join('、') || '—' }}</dd>
-          </div>
-          <div>
-            <dt>创建时间</dt>
-            <dd>{{ formatDate(new Date(detailState.data.user.createdAt)) }}</dd>
-          </div>
-        </dl>
+        <div v-if="detailState.data" class="vicp-user-detail">
+          <section class="vicp-user-detail__section">
+            <h3>基本信息</h3>
+            <dl>
+              <div>
+                <dt>姓名</dt>
+                <dd>{{ detailState.data.user.displayName }}</dd>
+              </div>
+              <div>
+                <dt>手机号</dt>
+                <dd>{{ detailState.data.user.phone ?? '—' }}</dd>
+              </div>
+              <div>
+                <dt>状态</dt>
+                <dd>{{ userStatusLabels[detailState.data.user.status as SystemUserStatus] }}</dd>
+              </div>
+              <div>
+                <dt>创建时间</dt>
+                <dd>{{ formatDate(new Date(detailState.data.user.createdAt)) }}</dd>
+              </div>
+            </dl>
+          </section>
+          <section class="vicp-user-detail__section">
+            <h3>访问权限</h3>
+            <dl>
+              <div v-for="row in detailAccessRows" :key="row.app">
+                <dt>{{ row.label }}</dt>
+                <dd>{{ row.roleLabel }} / {{ row.statusLabel }}</dd>
+              </div>
+            </dl>
+          </section>
+          <section class="vicp-user-detail__section">
+            <h3>登录方式</h3>
+            <dl>
+              <div v-for="method in detailLoginMethods" :key="method.key">
+                <dt>{{ method.label }}</dt>
+                <dd>{{ method.value }}</dd>
+              </div>
+            </dl>
+          </section>
+        </div>
       </t-loading>
     </t-drawer>
   </AppPage>
@@ -1110,6 +906,29 @@ onMounted(() => {
   justify-content: flex-end;
 }
 
+.vicp-user-cell {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.vicp-user-cell__name {
+  overflow: hidden;
+  color: var(--td-text-color-primary);
+  font-weight: var(--td-font-weight-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vicp-user-access {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--td-size-2);
+}
+
 .vicp-user-form__hint {
   margin: 0 0 var(--td-size-4);
   color: var(--td-text-color-secondary);
@@ -1129,25 +948,28 @@ onMounted(() => {
   line-height: var(--td-line-height-body-small);
 }
 
-.vicp-user-import {
+.vicp-user-detail {
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: var(--td-size-4);
+  gap: var(--td-size-7);
 }
 
-.vicp-user-import__toolbar {
+.vicp-user-detail__section {
   display: flex;
   min-width: 0;
+  flex-direction: column;
+  gap: var(--td-size-3);
 }
 
-.vicp-user-import__errors {
-  min-width: 0;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: var(--vicp-radius);
+.vicp-user-detail__section h3 {
+  margin: 0;
+  color: var(--td-text-color-primary);
+  font-size: var(--td-font-size-body-large);
+  font-weight: var(--td-font-weight-medium);
 }
 
-.vicp-user-detail {
+.vicp-user-detail dl {
   display: flex;
   min-width: 0;
   flex-direction: column;
@@ -1155,7 +977,7 @@ onMounted(() => {
   margin: 0;
 }
 
-.vicp-user-detail div {
+.vicp-user-detail dl div {
   display: flex;
   min-width: 0;
   flex-direction: column;

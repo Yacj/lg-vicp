@@ -7,6 +7,8 @@ import {
   deleteDictionaryItem,
   deleteMenu,
   fetchDepartmentMembers,
+  addDepartmentMember,
+  removeDepartmentMember,
   fetchDepartmentTree,
   fetchMenus,
   fetchPermissionResources,
@@ -65,16 +67,13 @@ describe('system management api contracts', () => {
     )
   })
 
-  it('passes only real pagination and department member query parameters', async () => {
+  it('reads department members from the dedicated department members route', async () => {
     const signal = new AbortController().signal
 
     await fetchPosts({ page: 2, pageSize: 50 }, signal)
-    await fetchDepartmentMembers({
-      departmentId: 'dept-1',
-      page: 1,
-      pageSize: 20,
-      status: 'ACTIVE',
-    }, signal)
+    await fetchDepartmentMembers('dept-1', signal)
+    await addDepartmentMember('dept-1', { userId: 'user-1' })
+    await removeDepartmentMember('dept-1', 'user-1')
 
     expect(mockedApi.get).toHaveBeenNthCalledWith(
       1,
@@ -83,16 +82,15 @@ describe('system management api contracts', () => {
     )
     expect(mockedApi.get).toHaveBeenNthCalledWith(
       2,
-      '/api/v1/platform/users',
-      {
-        params: {
-          departmentId: 'dept-1',
-          page: 1,
-          pageSize: 20,
-          status: 'ACTIVE',
-        },
-        signal,
-      },
+      '/api/v1/platform/departments/dept-1/members',
+      { signal },
+    )
+    expect(mockedApi.post).toHaveBeenCalledWith(
+      '/api/v1/platform/departments/dept-1/members',
+      { userId: 'user-1' },
+    )
+    expect(mockedApi.delete).toHaveBeenCalledWith(
+      '/api/v1/platform/departments/dept-1/members/user-1',
     )
   })
 

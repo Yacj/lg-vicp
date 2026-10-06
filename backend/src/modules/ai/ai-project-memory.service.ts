@@ -13,6 +13,9 @@ import { ForbiddenError, NotFoundError } from "../../shared/errors.js";
 import { canManageProject, canViewProject } from "../../shared/permissions.js";
 import { writeAuditLog } from "../audit-logs/audit-log.service.js";
 import { resolveSceneRuntime } from "./ai-runtime.service.js";
+import { languageModelCallOptions, languageModelSamplingOptions } from "../ai-config/ai-task-runtime-policy.js";
+import { wrapContextForReasoning } from "../../shared/ai-response-policy.js";
+import type { SelectedChoice } from "./agent-choice.js";
 
 export const MEMORY_TYPES = ["FACT", "CONSTRAINT", "DECISION", "PREFERENCE", "TODO", "ASSUMPTION"] as const;
 export type ProjectMemoryType = (typeof MEMORY_TYPES)[number];
@@ -54,6 +57,7 @@ export const MEMORY_EXTRACT_SYSTEM_PROMPT = `你是项目记忆抽取器。只�
 允许：项目明确条件、用户明确选择、已确认方案、约束、重要偏好、待确认事项。
 禁止：寒暄、普通知识问答、AI 随口建议、未证实数字、无长期价值的内容。
 用户明确说“就采用第二个方案”“目标K改成0.30”等，标记 explicitUserStatement=true，可作高置信 FACT/DECISION/CONSTRAINT。
+方案对比结果在用户真正选定之前，不得写成 DECISION 或已核实方案；recommendedOrder 不是最终选择。
 AI 推测（如“用户可能偏好 25mm”）只能是 ASSUMPTION，explicitUserStatement=false，不能当已核实事实。
 使用中文。没有值得保存的信息时返回空数组。`;
 
@@ -78,10 +82,10 @@ export function formatProjectMemoryContext(memories: InjectableMemory[]): string
     ...facts.map((item) => `- [${item.memoryType}] ${item.title ? `${item.title}：` : ""}${item.content}`),
     ...pending.map((item) => `- [待办] ${item.content}`)
   ];
-  return [
-    "【项目长期记忆（仅已确认项；假设不得当事实）】",
+  return wrapContextForReasoning("项目长期记忆", [
+    "仅已确认项可用于判断；未核实假设不得当事实。",
     ...lines
-  ].join("\n");
+  ].join("\n"));
 }
 
 export async function assertProjectMemoryAccess(
@@ -153,6 +157,9 @@ export function classifyMemoryCandidate(candidate: MemoryCandidate): {
   verified: boolean;
   memoryType: ProjectMemoryType;
 } {
+  if (candidate.memoryType === "DECISION" && !candidate.explicitUserStatement) {
+    return { status: "PENDING", verified: false, memoryType: "ASSUMPTION" };
+  }
   if (!candidate.explicitUserStatement || candidate.confidence < 0.7) {
     return {
       status: "PENDING",
@@ -238,6 +245,51 @@ export async function mergeProjectMemoryCandidates(
   return created;
 }
 
+export function buildSolutionChoiceDecision(choice: SelectedChoice): MemoryCandidate {
+  const data = choice.option.data ?? {};
+  const kValue = data.kValue;
+  const thickness = data.thickness;
+  return {
+    memoryType: "DECISION",
+    title: "已确认采用方案",
+    content: [
+      `用户选定方案：${choice.option.label}`,
+      kValue != null ? `K=${String(kValue)}` : null,
+      thickness != null ? `厚度 ${String(thickness)}mm` : null
+    ].filter(Boolean).join("，"),
+    structuredData: {
+      optionId: choice.optionId,
+      label: choice.option.label,
+      kValue: kValue ?? null,
+      thickness: thickness ?? null,
+      comparisonResult: choice.comparisonResult ?? null
+    },
+    confidence: 1,
+    sourceMessageIds: [],
+    explicitUserStatement: true
+  };
+}
+
+/** 仅在用户真正提交 CHOICE 后写入已核实 DECISION，未选择前禁止自动写成 verified decision。 */
+export async function recordSolutionChoiceDecision(
+  app: FastifyInstance,
+  input: {
+    projectId: string;
+    conversationId: string;
+    actor: AuthUser;
+    choice: SelectedChoice;
+    request?: FastifyRequest;
+  }
+) {
+  return mergeProjectMemoryCandidates(app, {
+    projectId: input.projectId,
+    conversationId: input.conversationId,
+    actor: input.actor,
+    candidates: [buildSolutionChoiceDecision(input.choice)],
+    request: input.request
+  });
+}
+
 export async function extractProjectMemoryCandidates(
   app: FastifyInstance,
   conversationId: string
@@ -267,9 +319,8 @@ export async function extractProjectMemoryCandidates(
     schema: candidateOutputSchema,
     system: MEMORY_EXTRACT_SYSTEM_PROMPT,
     prompt: `会话消息（括号内为 messageId，sourceMessageIds 必须来自这些 ID）：\n${transcript}`,
-    maxOutputTokens: 1200,
-    temperature: 0.1,
-    abortSignal: AbortSignal.timeout(runtime.primary.timeoutMs)
+    ...languageModelSamplingOptions("MEMORY_EXTRACTION"),
+    abortSignal: AbortSignal.timeout(languageModelCallOptions("MEMORY_EXTRACTION").timeout)
   });
 
   const allowedIds = new Set(messages.map((row) => row.id));

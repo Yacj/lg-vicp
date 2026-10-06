@@ -48,8 +48,8 @@ const REPORT_TYPE_CATALOG: readonly ReportTypeDefinition[] = [
   {
     code: "technical_scheme",
     name: "综合技术方案报告",
-    description: "覆盖封面、项目概况、方案、计算、对比、引用依据与免责声明的完整技术报告",
-    requiresProject: true,
+    description: "覆盖封面、项目概况、方案、计算、对比、引用依据与免责声明的完整技术报告，可不关联项目",
+    requiresProject: false,
     enabled: true,
     listed: true,
     renderer: "template",
@@ -60,8 +60,8 @@ const REPORT_TYPE_CATALOG: readonly ReportTypeDefinition[] = [
   {
     code: "project_brief",
     name: "项目方案简报",
-    description: "面向项目沟通的精简方案报告，不含完整计算过程",
-    requiresProject: true,
+    description: "面向项目沟通的精简方案报告，不含完整计算过程，可不关联项目",
+    requiresProject: false,
     enabled: true,
     listed: true,
     renderer: "template",
@@ -145,9 +145,16 @@ const REPORT_TYPE_CATALOG: readonly ReportTypeDefinition[] = [
 
 const REPORT_TYPE_BY_CODE = new Map(REPORT_TYPE_CATALOG.map((item) => [item.code, item]));
 
-export function resolveReportType(code: string): ReportTypeDefinition {
+export function tryResolveReportType(code: string | null | undefined): ReportTypeDefinition | null {
+  if (!code) return null;
   const found = REPORT_TYPE_BY_CODE.get(code as GeneratableReportTypeCode);
-  if (!found || !found.enabled) {
+  if (!found || !found.enabled) return null;
+  return found;
+}
+
+export function resolveReportType(code: string): ReportTypeDefinition {
+  const found = tryResolveReportType(code);
+  if (!found) {
     throw new ReportError("REPORT_TYPE_UNKNOWN");
   }
   return found;

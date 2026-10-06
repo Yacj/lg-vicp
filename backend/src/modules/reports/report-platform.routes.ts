@@ -60,7 +60,7 @@ const generateReportBodySchema = z.object({
 
 const templateReportListQuerySchema = paginationQuerySchema.extend({
   projectId: z.uuid("项目 ID 格式不正确"),
-  status: z.enum(["DRAFT", "QUEUED", "GENERATING", "READY", "FAILED", "PENDING_REVIEW", "APPROVED", "REJECTED"]).optional()
+  status: z.enum(["DRAFT", "QUEUED", "GENERATING", "READY", "FAILED", "CANCELLED", "PENDING_REVIEW", "APPROVED", "REJECTED"]).optional()
 });
 const reportCenterQuerySchema = z.object({ projectId: z.uuid("项目 ID 格式不正确") });
 

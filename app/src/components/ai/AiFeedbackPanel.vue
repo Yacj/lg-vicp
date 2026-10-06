@@ -7,7 +7,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
-  'confirm': [payload: { tags: string[]; content: string }]
+  'confirm': [payload: { tags: string[], content: string }]
 }>()
 
 const selectedTags = ref<string[]>([])
@@ -52,7 +52,7 @@ function close() {
     v-model="visible"
     position="bottom"
     :z-index="2000"
-    :close-on-click-modal="false"
+    :close-on-click-modal="true"
     custom-class="ai-feedback-panel"
     @close="close"
   >

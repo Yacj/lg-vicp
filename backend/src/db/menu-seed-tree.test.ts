@@ -18,10 +18,10 @@ const flattenSeedTree = (nodes: readonly MenuSeedNode[], parentRoutePath: string
 const flat = (nodes?: readonly MenuSeedNode[]) => flattenSeedTree(nodes ?? buildMenuSeedTree());
 
 describe("buildMenuSeedTree（B 端菜单信息架构 2026-09 瘦身）", () => {
-  it("顶层可见一级只保留 7 个（工作台由 Admin-Web 静态首页承担，不入库）", () => {
+  it("顶层可见一级含项目管理/产品中心/知识中心/采集/报告/AI 配置/AI 运营/系统（工作台不入库）", () => {
     const tree = buildMenuSeedTree();
     const topVisible = tree.filter((node) => node.visible !== false);
-    expect(topVisible.map((node) => node.name)).toEqual(["项目管理", "知识中心", "采集管理", "报告管理", "AI 配置", "AI 运营", "系统管理"]);
+    expect(topVisible.map((node) => node.name)).toEqual(["项目管理", "产品中心", "知识中心", "采集管理", "报告管理", "AI 配置", "AI 运营", "系统管理"]);
     // AI 对话保留为隐藏路由，不再是可见一级入口
     const aiEntry = tree.find((node) => node.routePath === "/ai");
     expect(aiEntry?.visible).toBe(false);
@@ -58,6 +58,9 @@ describe("buildMenuSeedTree（B 端菜单信息架构 2026-09 瘦身）", () => 
     const parentByRoutePath = new Map(flat().map((item) => [item.node.routePath, item.parentRoutePath]));
     // 产品中心六个二级目录
     expect(parentByRoutePath.get("/products/catalog")).toBe("/products");
+    expect(parentByRoutePath.get("/products/manage")).toBe("/products");
+    expect(parentByRoutePath.get("/thermal/calc")).toBe("/products");
+    expect(parentByRoutePath.get("/products/compare")).toBe("/products");
     expect(parentByRoutePath.get("/products/series")).toBe("/products/catalog");
     expect(parentByRoutePath.get("/products/specs")).toBe("/products/catalog");
     expect(parentByRoutePath.get("/products/parameters")).toBe("/products/catalog");
@@ -74,8 +77,11 @@ describe("buildMenuSeedTree（B 端菜单信息架构 2026-09 瘦身）", () => 
     // 采集管理独立一级
     expect(parentByRoutePath.get("/collection")).toBe(null);
     expect(parentByRoutePath.get("/collection/manual")).toBe("/collection");
+    expect(parentByRoutePath.get("/collection/dashboard")).toBe("/collection");
+    expect(parentByRoutePath.get("/collection/skills")).toBe("/collection");
     expect(parentByRoutePath.get("/collection/sources")).toBe("/collection");
     expect(parentByRoutePath.get("/collection/tasks")).toBe("/collection");
+    expect(parentByRoutePath.get("/collection/records")).toBe("/collection");
     // 标准政策并入知识中心/标准规范，热工标准限值一并归入
     expect(parentByRoutePath.get("/knowledge/standards")).toBe("/knowledge");
     expect(parentByRoutePath.get("/standard/documents")).toBe("/knowledge/standards");
@@ -99,6 +105,9 @@ describe("buildMenuSeedTree（B 端菜单信息架构 2026-09 瘦身）", () => 
     expect(parentByRoutePath.get("/ai-config/providers")).toBe("/ai-config");
     expect(parentByRoutePath.get("/ai-config/models")).toBe("/ai-config");
     expect(parentByRoutePath.get("/ai-config/quick-prompts")).toBe("/ai-config");
+    expect(parentByRoutePath.get("/ai-config/business-prompts")).toBe("/ai-config");
+    expect(parentByRoutePath.get("/ai-config/advanced")).toBe("/ai-config");
+    expect(parentByRoutePath.get("/ai-config/runs")).toBe("/ai-config");
     expect(parentByRoutePath.get("/ai-config/scenes")).toBe("/ai-config");
     expect(parentByRoutePath.get("/ai-config/prompts")).toBe("/ai-config");
     expect(parentByRoutePath.get("/ai-config/filters")).toBe("/ai-config");
@@ -127,8 +136,11 @@ describe("buildMenuSeedTree（B 端菜单信息架构 2026-09 瘦身）", () => 
       ["/knowledge/crawlers", "资料采集源"],
       ["/collection", "采集管理"],
       ["/collection/manual", "手动采集"],
+      ["/collection/dashboard", "采集看板"],
+      ["/collection/skills", "采集技能"],
       ["/collection/sources", "自动采集源"],
       ["/collection/tasks", "采集任务"],
+      ["/collection/records", "采集记录"],
       ["/knowledge/quality", "质量与调试"],
       ["/content/certificates", "企业资质"],
       ["/reports/center", "报告列表"],
@@ -136,7 +148,10 @@ describe("buildMenuSeedTree（B 端菜单信息架构 2026-09 瘦身）", () => 
       ["/monitor/audit", "操作日志"],
       ["/ai-config", "AI 配置"],
       ["/ai-config/providers", "服务商管理"],
+      ["/ai-config/advanced", "Agent设置"],
+      ["/ai-config/runs", "AI运行记录"],
       ["/ai-config/prompts", "提示词管理"],
+      ["/ai-config/business-prompts", "业务提示词"],
       ["/ai-ops", "AI 运营"],
       ["/ai-ops/conversations", "会话运营"],
       ["/ai-ops/debug", "运营调试"],
@@ -157,6 +172,12 @@ describe("buildMenuSeedTree（B 端菜单信息架构 2026-09 瘦身）", () => 
       // 项目管理
       ["/project", "project.create"],
       ["/thermal/calc-records", "system:thermal:list"],
+      ["/products/manage", "system:md:product:list"],
+      ["/products/manage/add", "system:md:product:add"],
+      ["/products/manage/edit", "system:md:product:edit"],
+      ["/products/manage/remove", "system:md:product:remove"],
+      ["/thermal/calc", "system:thermal:list"],
+      ["/products/compare", "system:md:product:list"],
       // 产品管理（system:md:product:*）
       ["/products/series", "system:md:product:list"],
       ["/products/specs", "system:md:product:list"],
@@ -207,6 +228,10 @@ describe("buildMenuSeedTree（B 端菜单信息架构 2026-09 瘦身）", () => 
       ...["add", "edit", "upload", "parse", "approve", "publish", "remove"].map((action) =>
         [`/knowledge/documents/${action}`, `system:knowledge:doc:${action}`] as const
       ),
+      ["/knowledge/documents/page-upload", "system:knowledge:page:upload"],
+      ["/knowledge/documents/page-recognize", "system:knowledge:page:recognize"],
+      ["/knowledge/documents/page-review", "system:knowledge:page:review"],
+      ["/knowledge/documents/page-confirm", "system:knowledge:page:confirm"],
       ["/knowledge/public-library", "system:knowledge:doc:list"],
       ["/knowledge/categories", "system:knowledge:category:list"],
       ...["add", "edit", "remove"].map((action) =>
@@ -217,6 +242,10 @@ describe("buildMenuSeedTree（B 端菜单信息架构 2026-09 瘦身）", () => 
         [`/knowledge/crawlers/${action}`, `system:knowledge:crawler:${action}`] as const
       ),
       ["/collection/manual", "system:collection:manual:create"],
+      ["/collection/dashboard", "system:collection:dashboard"],
+      ["/collection/skills", "system:collection:skill:list"],
+      ["/collection/skills/add", "system:collection:skill:create"],
+      ["/collection/skills/edit", "system:collection:skill:update"],
       ["/collection/sources", "system:collection:auto:list"],
       ["/collection/sources/add", "system:collection:auto:create"],
       ["/collection/sources/edit", "system:collection:auto:update"],
@@ -225,6 +254,7 @@ describe("buildMenuSeedTree（B 端菜单信息架构 2026-09 瘦身）", () => 
       ["/collection/tasks", "system:collection:list"],
       ["/collection/tasks/view", "system:collection:task:view"],
       ["/collection/tasks/import", "system:collection:task:import"],
+      ["/collection/records", "system:collection:record:list"],
       ["/knowledge/search-test", "system:knowledge:search:answer"],
       ["/knowledge/search-test/answer", "system:knowledge:search:answer"],
       ["/knowledge/search-test/eval-add", "system:knowledge:eval:add"],
@@ -277,7 +307,12 @@ describe("buildMenuSeedTree（B 端菜单信息架构 2026-09 瘦身）", () => 
       ["/ai-config/quick-prompts/add", "system:ai:quick-prompt:create"],
       ["/ai-config/quick-prompts/edit", "system:ai:quick-prompt:update"],
       ["/ai-config/quick-prompts/remove", "system:ai:quick-prompt:delete"],
+      ["/ai-config/advanced", "system:ai:model:edit"],
+      ["/ai-config/runs", "system:ai:conversation:list"],
       ["/ai-config/scenes", "system:ai:scene:list"],
+      ["/ai-config/business-prompts", "system:ai:prompt:list"],
+      ["/ai-config/business-prompts/edit", "system:ai:prompt:edit"],
+      ["/ai-config/business-prompts/reset", "system:ai:prompt:edit"],
       ["/ai-config/prompts", "system:ai:prompt:list"],
       ["/ai-config/prompts/publish", "system:ai:prompt:publish"],
       ["/ai-config/filters", "system:ai:filter:list"],

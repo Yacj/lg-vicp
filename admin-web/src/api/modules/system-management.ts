@@ -11,8 +11,9 @@ import type {
   MutationMessage,
   PermissionResourceListResult,
   PostMutationResult,
-  SystemDepartmentMember,
-  SystemDepartmentMemberQuery,
+  AddDepartmentMemberInput,
+  DepartmentMemberItem,
+  DepartmentMemberMutationResult,
   SystemDepartmentTreeNode,
   SystemDictionary,
   SystemDictionaryItem,
@@ -82,10 +83,32 @@ export function deleteDepartment(id: string): Promise<MutationMessage> {
 }
 
 export function fetchDepartmentMembers(
-  query: SystemDepartmentMemberQuery,
+  departmentId: string,
   signal?: AbortSignal,
-): Promise<PageResult<SystemDepartmentMember>> {
-  return api.get<PageResult<SystemDepartmentMember>>(`${PLATFORM_PREFIX}/users`, { params: query, signal })
+): Promise<ItemListResult<DepartmentMemberItem>> {
+  return api.get<ItemListResult<DepartmentMemberItem>>(
+    `${resourcePath('departments', departmentId)}/members`,
+    { signal },
+  )
+}
+
+export function addDepartmentMember(
+  departmentId: string,
+  input: AddDepartmentMemberInput,
+): Promise<DepartmentMemberMutationResult> {
+  return api.post<DepartmentMemberMutationResult>(
+    `${resourcePath('departments', departmentId)}/members`,
+    input,
+  )
+}
+
+export function removeDepartmentMember(
+  departmentId: string,
+  userId: string,
+): Promise<MutationMessage> {
+  return api.delete<MutationMessage>(
+    `${resourcePath('departments', departmentId)}/members/${encodeURIComponent(userId)}`,
+  )
 }
 
 export function fetchPosts(

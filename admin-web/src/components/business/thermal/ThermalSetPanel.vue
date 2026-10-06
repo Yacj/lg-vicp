@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import type { PrimaryTableCol, TableRowData } from 'tdesign-vue-next'
 import { AddIcon } from 'tdesign-icons-vue-next'
-import { computed, h, reactive } from 'vue'
+import { computed, h, reactive, ref } from 'vue'
 import AppCrudFormDialog from '@/components/business/AppCrudFormDialog.vue'
 import { createEvidenceColumn } from '@/components/business/evidence-column'
 import AppTableActions from '@/components/business/AppTableActions.vue'
 import AppVersionMeta from '@/components/business/AppVersionMeta.vue'
+import ThermalReferenceRowsPanel from '@/components/business/thermal/ThermalReferenceRowsPanel.vue'
 import AppDataTable from '@/components/ui/AppDataTable.vue'
 import AppSearchPanel from '@/components/ui/AppSearchPanel.vue'
 import AppStatusTag from '@/components/ui/AppStatusTag.vue'
@@ -39,6 +40,7 @@ const canRemove = computed(() => canAccess({ permissions: ['system:thermal:remov
 const canApprove = computed(() => canAccess({ permissions: ['system:thermal:approve'] }))
 const canPublish = computed(() => canAccess({ permissions: ['system:thermal:publish'] }))
 const canList = computed(() => canAccess({ permissions: ['system:thermal:list'] }))
+const referenceSet = ref<ThermalSet | null>(null)
 
 const feedback = useAppFeedback()
 
@@ -160,6 +162,9 @@ function getActions(row: TableRowData): AppTableAction[] {
   const actions: AppTableAction[] = []
   const available = workflowActionsForStatus(entity.status)
 
+  if (canList.value) {
+    actions.push({ key: 'rows', label: '参考方案', handler: () => { referenceSet.value = entity } })
+  }
   if (canEdit.value && (entity.status === 'DRAFT' || entity.status === 'REJECTED')) {
     actions.push({ key: 'edit', label: '编辑', handler: () => drawer.openEdit(entity) })
   }
@@ -347,6 +352,7 @@ function getActions(row: TableRowData): AppTableAction[] {
         <t-textarea v-model="workflow.rejectDialog.reason" :autosize="{ minRows: 2, maxRows: 4 }" maxlength="2000" placeholder="必填，将反馈给提交人" />
       </t-form-item>
     </t-dialog>
+    <ThermalReferenceRowsPanel v-if="referenceSet" :set="referenceSet" :editable="referenceSet.status === 'DRAFT' || referenceSet.status === 'REJECTED'" />
   </div>
 </template>
 

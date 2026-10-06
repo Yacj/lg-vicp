@@ -16,6 +16,19 @@ import {
   shouldDiscardAssistantState,
 } from '@/store/user-scoped-state'
 
+function normalizePersistedSessionReport(report: unknown) {
+  if (!report || typeof report !== 'object') {
+    return null
+  }
+  const record = report as { status?: string, id?: string, projectId?: string | null, title?: string, basedOn?: string[] }
+  const status = record.status === 'generating' || record.status === 'PROCESSING'
+    ? 'GENERATING'
+    : record.status === 'ready'
+      ? 'READY'
+      : record.status
+  return { ...record, status }
+}
+
 function persist({ store }: PiniaPluginContext, excludedIds: string[]) {
   // 检查当前store的id是否在排除列表中
   const isExcluded = excludedIds.includes(store.$id)
@@ -61,6 +74,16 @@ function persist({ store }: PiniaPluginContext, excludedIds: string[]) {
           feedbacks: {},
           loadState: 'idle',
           loadError: '',
+          pendingProjectId: null,
+          pendingProjectName: null,
+          showMemoryHint: false,
+          activeAgentRun: null,
+          pendingUserInput: null,
+          sessionReport: null,
+          comparisonView: null,
+          productCards: [],
+          selectionSelectedIds: [],
+          retryingReport: false,
         })
       })
     }
@@ -75,6 +98,21 @@ function persist({ store }: PiniaPluginContext, excludedIds: string[]) {
         creatingConversation: null,
         creatingConversationRevision: -1,
         activeAbort: null,
+        toolSteps: [],
+        reconnecting: false,
+        pendingCancel: false,
+        reportPageVisible: true,
+        retryingReport: false,
+        comparisonView: state.comparisonView ?? null,
+        productCards: Array.isArray(state.productCards) ? state.productCards : [],
+        selectionSelectedIds: Array.isArray((state as { selectionSelectedIds?: string[] }).selectionSelectedIds)
+          ? (state as { selectionSelectedIds: string[] }).selectionSelectedIds
+          : (
+              Array.isArray((state as { comparisonSelectedIds?: string[] }).comparisonSelectedIds)
+                ? (state as { comparisonSelectedIds: string[] }).comparisonSelectedIds
+                : []
+            ),
+        sessionReport: normalizePersistedSessionReport(state.sessionReport),
       })
     })
   }

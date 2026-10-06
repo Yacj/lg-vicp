@@ -7,7 +7,7 @@ import type {
   AiQuickPromptPosition,
   AiQuickPromptQuery,
 } from '@/types/ai'
-import { reactive } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import {
   createAiQuickPrompt,
   deleteAiQuickPrompt,
@@ -17,6 +17,16 @@ import {
   updateAiQuickPrompt,
 } from '@/api/modules/ai'
 import { toUserFacingAiMessage } from '@/utils/ai'
+import {
+  DEFAULT_QUICK_PROMPTS,
+  applyDragSortedOrders,
+  collectLegacySystemWordingQuickPrompts,
+  diffQuickPromptSortOrders,
+  findDefaultQuickPromptByTitle,
+  nextQuickPromptSortOrder,
+  type DefaultQuickPromptTemplate,
+} from '@/utils/ai-quick-prompt'
+import { confirmAndRun } from './useAppConfirm'
 import { normalizeFeedbackError, useAppFeedback } from './useAppFeedback'
 import { useConfirmedCrudAction } from './useCrudActions'
 import { useCrudDrawer } from './useCrudDrawer'
@@ -46,14 +56,14 @@ export interface QuickPromptUsageStats {
   projectCount: number
 }
 
-function createForm(): AiQuickPromptForm {
+function createForm(sortOrder = 10): AiQuickPromptForm {
   return {
     title: '',
     description: '',
     content: '',
     positions: ['AI_HOME'],
     icon: 'book',
-    sortOrder: 10,
+    sortOrder,
     enabled: true,
   }
 }
@@ -80,6 +90,19 @@ function toWriteInput(form: AiQuickPromptForm, position: AiQuickPromptPosition):
     sortOrder: form.sortOrder,
     enabled: form.enabled,
     actionType: 'AUTO',
+  }
+}
+
+function toWriteInputFromRow(row: AiQuickPrompt): AiQuickPromptInput {
+  return {
+    title: row.title,
+    description: row.description,
+    content: row.content,
+    position: row.position,
+    icon: row.icon,
+    sortOrder: row.sortOrder,
+    enabled: row.enabled,
+    actionType: row.actionType,
   }
 }
 
@@ -138,7 +161,7 @@ export function useAiQuickPrompts() {
   }
 
   const promptDrawer = useCrudDrawer<AiQuickPromptForm, AiQuickPromptTableRow, AiQuickPromptMutationResult>({
-    createForm: createForm,
+    createForm: () => createForm(nextQuickPromptSortOrder(promptList.data.value)),
     editForm: toForm,
     onError: cause => reportError(cause, '保存失败，请稍后重试。'),
     onSuccess: async (result) => {
@@ -201,13 +224,115 @@ export function useAiQuickPrompts() {
     successMessage: (_row, result) => result.message,
   })
 
+  const recommendedTemplates = DEFAULT_QUICK_PROMPTS
+  const applyingRecommended = ref(false)
+  const pageLegacyCount = computed(() => collectLegacySystemWordingQuickPrompts(promptList.data.value).length)
+
+  function applyTemplateToForm(template: DefaultQuickPromptTemplate): void {
+    promptDrawer.formData.title = template.title
+    promptDrawer.formData.description = template.description
+    promptDrawer.formData.content = template.content
+    promptDrawer.formData.icon = template.icon
+  }
+
+  const reordering = ref(false)
+
+  async function persistDragSort(nextOrder: readonly AiQuickPromptTableRow[]): Promise<void> {
+    if (reordering.value) {
+      return
+    }
+    const previous = [...promptList.data.value]
+    const next = applyDragSortedOrders(previous, nextOrder)
+    const changed = diffQuickPromptSortOrders(previous, next)
+    if (changed.length === 0) {
+      return
+    }
+    promptList.replaceItems(next)
+    reordering.value = true
+    try {
+      await Promise.all(changed.map(item => updateAiQuickPrompt(item.id, toWriteInputFromRow(item))))
+    }
+    catch (cause) {
+      promptList.replaceItems(previous)
+      reportError(cause, '排序保存失败，请稍后重试。')
+    }
+    finally {
+      reordering.value = false
+    }
+  }
+
+  async function applyRecommendedWording(): Promise<void> {
+    if (applyingRecommended.value) {
+      return
+    }
+    const result = await confirmAndRun({
+      title: '按推荐文案更新',
+      content: '将把仍像系统指令的 4 条预置提问改成自然用户问题。管理员已改写成其他问题的记录不会被覆盖。',
+      confirmText: '更新',
+    }, async () => {
+      applyingRecommended.value = true
+      try {
+        const targets: AiQuickPrompt[] = []
+        const seen = new Set<string>()
+        for (const template of DEFAULT_QUICK_PROMPTS) {
+          const listed = await fetchAiQuickPrompts({
+            keyword: template.title,
+            page: 1,
+            pageSize: 100,
+          })
+          for (const item of collectLegacySystemWordingQuickPrompts(listed.items)) {
+            if (seen.has(item.id)) {
+              continue
+            }
+            seen.add(item.id)
+            targets.push(item)
+          }
+        }
+        if (targets.length === 0) {
+          return { message: '当前没有需要更新的预置提问', updated: 0 }
+        }
+        for (const item of targets) {
+          const template = findDefaultQuickPromptByTitle(item.title)
+          if (!template) {
+            continue
+          }
+          await updateAiQuickPrompt(item.id, {
+            title: item.title,
+            description: template.description,
+            content: template.content,
+            position: item.position,
+            icon: item.icon,
+            sortOrder: item.sortOrder,
+            enabled: item.enabled,
+            actionType: item.actionType,
+          })
+        }
+        await refreshAll()
+        return { message: `已更新 ${targets.length} 条预置提问`, updated: targets.length }
+      }
+      finally {
+        applyingRecommended.value = false
+      }
+    })
+    if (result.confirmed) {
+      await feedback.message('success', result.value.message)
+    }
+  }
+
   void loadStats()
 
   return {
+    applyRecommendedWording,
+    applyTemplateToForm,
+    applyingRecommended,
     deleteAction,
     loadStats,
+    pageLegacyCount,
+    persistDragSort,
     promptDrawer,
     promptList,
+    recommendedTemplates,
+    reordering,
     stats,
     toggleEnabled,
   }

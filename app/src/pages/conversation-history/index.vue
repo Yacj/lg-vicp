@@ -18,12 +18,18 @@ type ConversationAction = 'rename' | 'pin' | 'delete'
 
 const PAGE_SIZE = 20
 
+const route = useRoute()
 const { goBack } = useBackNavigation()
 const { requireLogin } = useAuthGate()
 const { openAssistant } = useAssistantNavigation()
 const { success, error: showError } = useGlobalToast()
 const globalDialog = useGlobalDialog()
 const assistantStore = useAssistantStore()
+const filterProjectId = computed(() => String(route.query.projectId || route.params.projectId || ''))
+const pageTitle = computed(() => filterProjectId.value ? '项目对话' : '对话记录')
+const emptyTip = computed(() => filterProjectId.value
+  ? '该项目还没有对话，可以从项目详情发起'
+  : '暂无 AI 对话记录，开始一次新的分析吧')
 const items = ref<ConversationRecord[]>([])
 const status = ref<'idle' | 'loading' | 'success' | 'error'>('loading')
 const page = ref(1)
@@ -46,6 +52,12 @@ const actionItems = computed(() => {
 })
 
 onMounted(() => {
+  if (requireLogin({ showToast: false })) {
+    void reloadConversations()
+  }
+})
+
+watch(filterProjectId, () => {
   if (requireLogin({ showToast: false })) {
     void reloadConversations()
   }
@@ -76,6 +88,7 @@ async function requestConversations(targetPage: number) {
     clientApp: 'c_app',
     page: targetPage,
     pageSize: PAGE_SIZE,
+    projectId: filterProjectId.value || undefined,
   }).send() as ApiEnvelope<ApiPage<ConversationRecord>>
 }
 
@@ -297,11 +310,9 @@ function formatTime(value: string) {
 <template>
   <view class="app-page app-page--immersive min-h-screen">
     <wd-navbar
-      safe-area-inset-top
-      left-arrow
-      fixed
-      placeholder
-      title="对话记录"
+
+      safe-area-inset-top left-arrow placeholder fixed
+      :title="pageTitle"
       @click-left="goBack"
     />
 
@@ -317,7 +328,7 @@ function formatTime(value: string) {
       </view>
 
       <view v-else-if="status === 'success' && !items.length" class="conversation-history__empty app-panel-flat py-12">
-        <wd-empty icon="no-message" tip="暂无 AI 对话记录，开始一次新的分析吧" />
+        <wd-empty icon="no-message" :tip="emptyTip" />
       </view>
 
       <template v-else>

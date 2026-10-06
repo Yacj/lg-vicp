@@ -3,7 +3,7 @@ import type { TableRowData } from 'tdesign-vue-next'
 import { fetchFiles, fetchFileDownloadUrl, deleteFile, downloadUrlToBlob } from '@/api/modules/files'
 import { fetchProjectConversations } from '@/api/modules/ai'
 import { fetchProjectAuditLogs } from '@/api/modules/audit-logs'
-import { fetchProjectDetail } from '@/api/modules/projects'
+import { fetchPlatformProject, fetchProjectDetail } from '@/api/modules/projects'
 import type {
   ProjectAuditLog,
   ProjectConversation,
@@ -32,7 +32,13 @@ export function useProjectDetail(projectId: Ref<string | null>) {
   const detailError = shallowRef<unknown>(null)
 
   const canViewAuditLogs = computed(() => canAccess({ permissions: ['monitor:audit:list'] }))
-  const tabs = computed(() => projectDetailTabs(canViewAuditLogs.value))
+  const canViewAiMemory = computed(() => canAccess({ permissions: ['system:ai:conversation:detail'] }))
+  const canViewReports = computed(() => canAccess({ permissions: ['system:report:generate'] }))
+  const tabs = computed(() => projectDetailTabs({
+    canViewAiMemory: canViewAiMemory.value,
+    canViewAuditLogs: canViewAuditLogs.value,
+    canViewReports: canViewReports.value,
+  }))
 
   const filesList = useCrudList<FileCenterItem & TableRowData, Record<string, never>>({
     createQuery: () => ({}),
@@ -117,8 +123,22 @@ export function useProjectDetail(projectId: Ref<string | null>) {
     detailStatus.value = 'loading'
     detailError.value = null
     try {
-      const result = await fetchProjectDetail(id)
-      detail.value = result.project
+      const [platformResult, sharedResult] = await Promise.allSettled([
+        fetchPlatformProject(id),
+        fetchProjectDetail(id),
+      ])
+      const platform = platformResult.status === 'fulfilled' ? platformResult.value.project : null
+      const shared = sharedResult.status === 'fulfilled' ? sharedResult.value.project : null
+      if (!platform && !shared) {
+        throw platformResult.status === 'rejected' ? platformResult.reason : sharedResult.status === 'rejected' ? sharedResult.reason : new Error('项目不存在')
+      }
+      detail.value = {
+        ...(shared ?? platform!),
+        ...(platform ?? {}),
+        description: shared?.description ?? platform?.description ?? null,
+        region: shared?.region ?? platform?.region ?? null,
+        buildingType: shared?.buildingType ?? platform?.buildingType ?? null,
+      }
       detailStatus.value = 'ready'
     }
     catch (cause) {
@@ -153,7 +173,9 @@ export function useProjectDetail(projectId: Ref<string | null>) {
 
   return {
     auditList,
+    canViewAiMemory,
     canViewAuditLogs,
+    canViewReports,
     conversationsList,
     detail,
     detailError,

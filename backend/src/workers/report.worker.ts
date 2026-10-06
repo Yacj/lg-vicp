@@ -7,12 +7,14 @@ import type { Database } from "../db/client.js";
 import { asyncTasks, auditLogs, files, reportArtifacts, reportSnapshots, reports } from "../db/schema.js";
 import type { ObjectStorage } from "../storage/index.js";
 import {
+  embedReferencePageImages,
   renderTemplateHtml,
   renderTemplateWord,
   type ReportSnapshotPayload
 } from "../modules/reports/report-template-render.js";
 import { createNotification } from "../modules/notifications/notification.service.js";
 import { reportListTitle } from "../modules/reports/report-access.js";
+import { isTerminalReportAttempt } from "./report-job-state.js";
 
 interface ReportJobData {
   taskId: string;
@@ -66,6 +68,16 @@ export function createReportProcessor(db: Database, storage: ObjectStorage) {
     try {
       const [report] = await db.select().from(reports).where(eq(reports.id, reportId)).limit(1);
       if (!report) throw new Error("待生成报告不存在");
+      if (report.status === "CANCELLED") {
+        await db.update(asyncTasks).set({
+          status: "COMPLETED",
+          progress: 100,
+          result: { reportId, skipped: true, reason: "CANCELLED" },
+          finishedAt: new Date(),
+          updatedAt: new Date()
+        }).where(eq(asyncTasks.id, taskId));
+        return { reportId, status: "CANCELLED", skipped: true };
+      }
 
       // 有快照则走内部模板渲染（含历史 TEMPLATE 与预置 reportType）；否则走 AI 会话 contentJson。
       let html: string;
@@ -75,6 +87,13 @@ export function createReportProcessor(db: Database, storage: ObjectStorage) {
         .where(eq(reportSnapshots.reportId, reportId)).limit(1);
       if (snapshot) {
         const payload = snapshot.dataJson as ReportSnapshotPayload;
+        payload.referencePages = await embedReferencePageImages(payload.referencePages, async (objectKey) => {
+          try {
+            return await storage.getObject(objectKey);
+          } catch {
+            return null;
+          }
+        });
         title = payload.title ?? "VICP 项目报告";
         html = renderTemplateHtml(payload);
         word = await renderTemplateWord(payload);
@@ -155,6 +174,15 @@ export function createReportProcessor(db: Database, storage: ObjectStorage) {
       return { reportId: report.id, status: "READY" };
     } catch (error) {
       const message = error instanceof Error ? error.message : "报告生成失败";
+      const terminal = isTerminalReportAttempt(job);
+      if (!terminal) {
+        await db.update(asyncTasks).set({
+          attempts: job.attemptsMade + 1,
+          errorMessage: message,
+          updatedAt: new Date()
+        }).where(eq(asyncTasks.id, taskId));
+        throw error;
+      }
       await db.update(reports).set({ status: "FAILED", errorMessage: message, updatedAt: new Date() }).where(eq(reports.id, reportId));
       await db.update(asyncTasks).set({
         status: "FAILED", errorMessage: message, attempts: job.attemptsMade + 1,

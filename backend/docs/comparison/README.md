@@ -91,7 +91,7 @@ stateDiagram-v2
   - `loadApprovedComparisonRules(app, { competitorCategory?, dimensionCode?, limit? })`：只读已发布规则；
   - `formatComparisonRuleContext(rules)`：渲染中文上下文（维度/基准/数值/双方材料型号密度测试条件/优势口径/适用条件/必要披露/证据页码等级）；竞品数值缺失时输出"只陈述 VICP 自身已验证表现，不得生成对方负面结论"；`forbiddenWording` 不参与输出；
   - `logComparisonRuleUsage(app, actor, { conversationId, messageId, rules })`：批量写 `ai_rule_usage_logs`（含快照）。
-- `src/shared/prompt-assembly.ts`：`buildSystemMessages` 新增 `ruleContext` 可选参数，渲染为 `【已审核材料对比规则（必须遵守，禁止自由编造对比数据）】` 段（顺序：平台基础 → 场景 → 项目上下文 → 规则 → 知识检索 → 历史 → 当前消息）。
+- `src/shared/prompt-assembly.ts`：`buildSystemMessages` 可注入 `ruleContext`，渲染为已审核材料对比规则（仅供判断）。组装顺序为平台硬规则 → 执行规范 → 全局回答规则 → 业务 Prompt → 项目上下文 → 规则 → 知识检索 → 历史 → 当前消息。
 - `src/modules/ai/ai.routes.ts`：发送消息与 regenerate 两处，`conversation.scene === AI_SCENES.MATERIAL_COMPARE` 时加载规则注入 system；回答完成后写使用日志。
 - `src/db/seed.ts`：`material_compare` 场景已开启（enabled=true）；模型绑定由 B 端场景绑定接口配置。
 - 数据层兜底：publish 校验保证 `applicability` + `mandatoryDisclosure` 非空，场景提示词要求营销/技术两种模式均不得省略披露项，不依赖模型自觉。

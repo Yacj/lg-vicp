@@ -12,6 +12,10 @@ export interface AppTab {
   title: string
 }
 
+export function tabPathname(fullPath: string): string {
+  return fullPath.split(/[?#]/, 1)[0] || '/'
+}
+
 export function routeToTab(route: RouteLocationNormalizedLoaded): AppTab | null {
   if (route.meta.noTab || typeof route.name !== 'string') {
     return null
@@ -21,7 +25,7 @@ export function routeToTab(route: RouteLocationNormalizedLoaded): AppTab | null 
   return {
     affix,
     closable: !affix,
-    fullPath: route.fullPath,
+    fullPath: tabPathname(route.path),
     keepAlive: route.meta.keepAlive === true,
     name: route.name,
     pinned: false,
@@ -49,32 +53,41 @@ export const useTabsStore = defineStore('tabs', () => {
       .map(tab => tab.name),
   )])
 
+  function findTabIndex(path: string): number {
+    const pathname = tabPathname(path)
+    return tabs.value.findIndex(tab => tabPathname(tab.fullPath) === pathname)
+  }
+
   function open(tab: AppTab): void {
-    const index = tabs.value.findIndex(item => item.fullPath === tab.fullPath)
+    const next = {
+      ...tab,
+      fullPath: tabPathname(tab.fullPath),
+    }
+    const index = findTabIndex(next.fullPath)
     if (index === -1) {
-      tabs.value.push(tab)
+      tabs.value.push(next)
     }
     else {
       const currentTab = tabs.value[index]
       tabs.value[index] = {
-        ...tab,
-        affix: currentTab?.affix || tab.affix,
-        pinned: currentTab?.pinned ?? tab.pinned,
-        closable: currentTab?.affix || currentTab?.pinned ? false : tab.closable,
+        ...next,
+        affix: currentTab?.affix || next.affix,
+        pinned: currentTab?.pinned ?? next.pinned,
+        closable: currentTab?.affix || currentTab?.pinned ? false : next.closable,
       }
     }
-    activePath.value = tab.fullPath
+    activePath.value = next.fullPath
   }
 
   function close(path: string): string {
-    const index = tabs.value.findIndex(tab => tab.fullPath === path)
+    const index = findTabIndex(path)
     const target = tabs.value[index]
     if (index < 0 || !target || isProtected(target)) {
       return activePath.value
     }
 
     tabs.value.splice(index, 1)
-    if (activePath.value === path) {
+    if (tabPathname(activePath.value) === tabPathname(path)) {
       activePath.value = resolveAdjacentPath(tabs.value, index)
     }
     return activePath.value
@@ -92,37 +105,40 @@ export const useTabsStore = defineStore('tabs', () => {
   }
 
   function closeOthers(path: string): string {
-    const target = tabs.value.find(tab => tab.fullPath === path)
+    const target = tabs.value[findTabIndex(path)]
     if (!target) {
       return activePath.value
     }
-    tabs.value = tabs.value.filter(tab => isProtected(tab) || tab.fullPath === path)
-    activePath.value = path
+    const pathname = tabPathname(path)
+    tabs.value = tabs.value.filter(tab => isProtected(tab) || tabPathname(tab.fullPath) === pathname)
+    activePath.value = target.fullPath
     return activePath.value
   }
 
   function closeLeft(path: string): string {
-    const index = tabs.value.findIndex(tab => tab.fullPath === path)
-    if (index < 0) {
+    const index = findTabIndex(path)
+    const target = tabs.value[index]
+    if (index < 0 || !target) {
       return activePath.value
     }
     tabs.value = tabs.value.filter((tab, tabIndex) => isProtected(tab) || tabIndex >= index)
-    activePath.value = path
+    activePath.value = target.fullPath
     return activePath.value
   }
 
   function closeRight(path: string): string {
-    const index = tabs.value.findIndex(tab => tab.fullPath === path)
-    if (index < 0) {
+    const index = findTabIndex(path)
+    const target = tabs.value[index]
+    if (index < 0 || !target) {
       return activePath.value
     }
     tabs.value = tabs.value.filter((tab, tabIndex) => isProtected(tab) || tabIndex <= index)
-    activePath.value = path
+    activePath.value = target.fullPath
     return activePath.value
   }
 
   function pin(path: string): void {
-    const target = tabs.value.find(tab => tab.fullPath === path)
+    const target = tabs.value[findTabIndex(path)]
     if (target && !target.affix) {
       target.pinned = true
       target.closable = false
@@ -130,7 +146,7 @@ export const useTabsStore = defineStore('tabs', () => {
   }
 
   function unpin(path: string): void {
-    const target = tabs.value.find(tab => tab.fullPath === path)
+    const target = tabs.value[findTabIndex(path)]
     if (target && !target.affix) {
       target.pinned = false
       target.closable = true
@@ -138,7 +154,7 @@ export const useTabsStore = defineStore('tabs', () => {
   }
 
   function move(path: string, targetIndex: number): void {
-    const sourceIndex = tabs.value.findIndex(tab => tab.fullPath === path)
+    const sourceIndex = findTabIndex(path)
     const source = tabs.value[sourceIndex]
     if (sourceIndex < 0 || !source || source.affix) {
       return
@@ -153,18 +169,18 @@ export const useTabsStore = defineStore('tabs', () => {
   }
 
   function refresh(path = activePath.value): number {
-    const target = tabs.value.find(tab => tab.fullPath === path)
+    const target = tabs.value[findTabIndex(path)]
     if (!target) {
       return refreshVersion.value
     }
-    activePath.value = path
-    refreshingPath.value = path
+    activePath.value = target.fullPath
+    refreshingPath.value = target.fullPath
     refreshVersion.value += 1
     return refreshVersion.value
   }
 
   function completeRefresh(path: string): void {
-    if (refreshingPath.value === path) {
+    if (refreshingPath.value && tabPathname(refreshingPath.value) === tabPathname(path)) {
       refreshingPath.value = null
     }
   }
@@ -174,14 +190,13 @@ export const useTabsStore = defineStore('tabs', () => {
     validRoutePaths: ReadonlySet<string>,
   ): string {
     const previousTabs = tabs.value
-    const previousActiveIndex = previousTabs.findIndex(tab => tab.fullPath === activePath.value)
+    const previousActiveIndex = previousTabs.findIndex(tab => tabPathname(tab.fullPath) === tabPathname(activePath.value))
     const isAvailable = (tab: AppTab): boolean => {
-      const pathname = tab.fullPath.split(/[?#]/, 1)[0] || '/'
-      return validRouteNames.has(tab.name) && validRoutePaths.has(pathname)
+      return validRouteNames.has(tab.name) && validRoutePaths.has(tabPathname(tab.fullPath))
     }
     tabs.value = previousTabs.filter(isAvailable)
 
-    if (!tabs.value.some(tab => tab.fullPath === activePath.value)) {
+    if (!tabs.value.some(tab => tabPathname(tab.fullPath) === tabPathname(activePath.value))) {
       activePath.value = resolveAdjacentPath(
         tabs.value,
         Math.min(Math.max(previousActiveIndex, 0), tabs.value.length - 1),

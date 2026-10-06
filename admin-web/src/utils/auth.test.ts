@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { clearAuthSession, readAuthSession, writeAuthSession } from './auth'
+import { canEnterBAdmin, clearAuthSession, readAuthSession, writeAuthSession } from './auth'
 
 const validSession = {
   accessToken: 'access-token',
@@ -22,5 +22,14 @@ describe('管理后台会话存储', () => {
   it('读取未过期的管理后台会话', () => {
     writeAuthSession(validSession)
     expect(readAuthSession()).toEqual(validSession)
+  })
+})
+
+describe('B 端进入条件', () => {
+  it('only allows SUPER_ADMIN with B_ADMIN client type', () => {
+    expect(canEnterBAdmin({ clientType: 'B_ADMIN', role: 'SUPER_ADMIN' })).toBe(true)
+    expect(canEnterBAdmin({ clientType: 'B_ADMIN', role: 'NORMAL_USER' })).toBe(false)
+    expect(canEnterBAdmin({ clientType: 'B_ADMIN', role: 'CHANNEL_USER' })).toBe(false)
+    expect(canEnterBAdmin({ clientType: 'C_APP', role: 'SUPER_ADMIN' })).toBe(false)
   })
 })

@@ -24,7 +24,14 @@ if (!homeLoader) {
  */
 export const LEGACY_COMPONENT_ALIASES: Readonly<Record<string, string>> = Object.freeze({
   'ai/index': 'ai-ops/debug/index',
+  'system/admins/index': 'system/user/index',
   'project/index': 'projects/index',
+  'collection/manual/index': 'collection/index',
+  'collection/sources/index': 'collection/index',
+  'collection/tasks/index': 'collection/index',
+  'collection/dashboard/index': 'collection/index',
+  'collection/skills/index': 'collection/index',
+  'collection/records/index': 'collection/index',
 })
 
 function resolveLegacyAlias(key: string): string {

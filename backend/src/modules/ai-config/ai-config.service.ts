@@ -1,7 +1,5 @@
 import { and, desc, eq, ne, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
-import { generateText } from "ai";
-import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import type { Database } from "../../db/client.js";
 import {
   aiModels,
@@ -13,8 +11,19 @@ import {
 import { AiError } from "../../shared/ai-errors.js";
 import { ConflictError, NotFoundError } from "../../shared/errors.js";
 import { decryptSecret, maskSecret } from "./ai-config.crypto.js";
+import { createCompatibleLanguageModel } from "./ai-provider-adapter.js";
+import type { ReasoningLevel } from "./ai-reasoning.js";
+import {
+  invalidatedAdmissionPatch,
+  isAdmittedForRuntime,
+  pickDefaultRuntimeModelId,
+  validateModelForRuntime,
+  type ModelTestStatus
+} from "./ai-model-runtime.js";
+import { languageModelCallOptions } from "./ai-task-runtime-policy.js";
+import { generateText } from "ai";
 
-/** 模型能力键白名单：超出范围的能力键视为非法配置 */
+/** @deprecated 能力键不再由 B 端勾选，仅兼容历史数据读取 */
 export const MODEL_CAPABILITY_KEYS = [
   "text",
   "streaming",
@@ -23,6 +32,7 @@ export const MODEL_CAPABILITY_KEYS = [
   "reasoningEffort",
   "reasoningAlwaysOn",
   "tools",
+  "toolCalling",
   "vision",
   "files"
 ] as const;
@@ -30,31 +40,151 @@ export const MODEL_CAPABILITY_KEYS = [
 export interface ResolvedModelConfig {
   providerId: string;
   providerName: string;
+  providerCode: string | null;
   modelId: string;
   modelDisplayName: string;
+  supportsVision: boolean;
+  reasoningLevel: ReasoningLevel;
+  lastTestStatus: ModelTestStatus;
+  isDefault: boolean;
+  /** @deprecated 内部探测缓存，运行时不再按人工勾选 tools/agent 选模 */
   capabilities: Record<string, boolean>;
   baseUrl: string;
   apiKey: string;
   timeoutMs: number;
-  maxOutputTokens: number | null;
-  defaultTemperature: number | null;
   contextWindow: number | null;
-  languageModel: ReturnType<ReturnType<typeof createOpenAICompatible>["chatModel"]>;
+  languageModel: ReturnType<typeof createCompatibleLanguageModel>;
   modelRef: typeof aiModels.$inferSelect;
   providerRef: typeof aiProviders.$inferSelect;
 }
 
-function createLanguageModel(provider: typeof aiProviders.$inferSelect, apiKey: string) {
-  const compatible = createOpenAICompatible({
-    name: provider.name,
-    baseURL: provider.baseUrl.replace(/\/$/, ""),
+export type PublicAiModelConfig = {
+  id: string;
+  name: string;
+  displayName: string;
+  provider: string;
+  providerId: string;
+  providerName: string;
+  modelId: string;
+  baseUrl: string;
+  credentialId: string;
+  supportsVision: boolean;
+  reasoningLevel: ReasoningLevel;
+  enabled: boolean;
+  isDefault: boolean;
+  lastTestStatus: ModelTestStatus;
+  lastTestAt: Date | null;
+  lastTestError: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  code: string | null;
+  description: string | null;
+  /** @deprecated */
+  capabilities: Record<string, boolean>;
+  /** @deprecated */
+  contextWindow: number | null;
+  /** @deprecated */
+  maxOutputTokens: number | null;
+  /** @deprecated */
+  defaultTemperature: number | null;
+  /** @deprecated */
+  timeoutMs: number;
+  priority: number;
+};
+
+function toResolvedModelConfig(
+  model: { modelRef: typeof aiModels.$inferSelect; providerRef: typeof aiProviders.$inferSelect },
+  apiKey: string
+): ResolvedModelConfig {
+  return {
+    providerId: model.providerRef.id,
+    providerName: model.providerRef.name,
+    providerCode: model.providerRef.code,
+    modelId: model.modelRef.modelId,
+    modelDisplayName: model.modelRef.displayName,
+    supportsVision: model.modelRef.supportsVision,
+    reasoningLevel: model.modelRef.reasoningLevel,
+    lastTestStatus: model.modelRef.lastTestStatus,
+    isDefault: model.modelRef.isDefault,
+    capabilities: model.modelRef.capabilities ?? {},
+    baseUrl: model.providerRef.baseUrl,
     apiKey,
-    includeUsage: true
-  });
-  return compatible;
+    timeoutMs: model.providerRef.timeoutMs,
+    contextWindow: model.modelRef.contextWindow,
+    languageModel: createCompatibleLanguageModel({
+      provider: model.providerRef,
+      apiKey,
+      modelId: model.modelRef.modelId
+    }),
+    modelRef: model.modelRef,
+    providerRef: model.providerRef
+  };
 }
 
-export async function resolveModelById(db: Database, id: string): Promise<ResolvedModelConfig> {
+export function toPublicModelConfig(
+  model: typeof aiModels.$inferSelect,
+  provider: typeof aiProviders.$inferSelect
+): PublicAiModelConfig {
+  return {
+    id: model.id,
+    name: model.displayName,
+    displayName: model.displayName,
+    provider: provider.code ?? provider.name,
+    providerId: provider.id,
+    providerName: provider.name,
+    modelId: model.modelId,
+    baseUrl: provider.baseUrl,
+    credentialId: provider.id,
+    supportsVision: model.supportsVision,
+    reasoningLevel: model.reasoningLevel,
+    enabled: model.enabled,
+    isDefault: model.isDefault,
+    lastTestStatus: model.lastTestStatus,
+    lastTestAt: model.lastTestAt,
+    lastTestError: model.lastTestError,
+    createdAt: model.createdAt,
+    updatedAt: model.updatedAt,
+    code: model.code,
+    description: model.description,
+    capabilities: model.capabilities ?? {},
+    contextWindow: model.contextWindow,
+    maxOutputTokens: model.maxOutputTokens,
+    defaultTemperature: model.defaultTemperature,
+    timeoutMs: model.timeoutMs,
+    priority: model.priority
+  };
+}
+
+export function toPublicModelAudit(model: PublicAiModelConfig | typeof aiModels.$inferSelect) {
+  if ("provider" in model && "name" in model) {
+    const row = model as PublicAiModelConfig;
+    return {
+      id: row.id,
+      name: row.name,
+      provider: row.provider,
+      modelId: row.modelId,
+      supportsVision: row.supportsVision,
+      reasoningLevel: row.reasoningLevel,
+      enabled: row.enabled,
+      isDefault: row.isDefault,
+      lastTestStatus: row.lastTestStatus
+    };
+  }
+  const row = model as typeof aiModels.$inferSelect;
+  return {
+    id: row.id,
+    name: row.displayName,
+    providerId: row.providerId,
+    modelId: row.modelId,
+    supportsVision: row.supportsVision,
+    reasoningLevel: row.reasoningLevel,
+    enabled: row.enabled,
+    isDefault: row.isDefault,
+    lastTestStatus: row.lastTestStatus
+  };
+}
+
+async function loadModelRow(db: Database, id: string) {
   const [model] = await db.select({
     modelRef: aiModels,
     providerRef: aiProviders
@@ -62,58 +192,95 @@ export async function resolveModelById(db: Database, id: string): Promise<Resolv
     .innerJoin(aiProviders, eq(aiProviders.id, aiModels.providerId))
     .where(eq(aiModels.id, id))
     .limit(1);
-
-  if (!model || !model.modelRef.enabled || !model.providerRef.enabled) {
-    throw new AiError("AI_MODEL_UNAVAILABLE", "模型不存在、已停用或服务商不可用");
-  }
-  if (!model.providerRef.apiKeyCiphertext || !model.providerRef.apiKeyIv || !model.providerRef.apiKeyTag) {
-    throw new AiError("AI_CONFIG_INVALID", `模型服务商“${model.providerRef.name}”尚未配置 API Key`);
-  }
-  const apiKey = decryptSecret(model.providerRef.apiKeyCiphertext, model.providerRef.apiKeyIv, model.providerRef.apiKeyTag);
-  const compatible = createLanguageModel(model.providerRef, apiKey);
-  return {
-    providerId: model.providerRef.id,
-    providerName: model.providerRef.name,
-    modelId: model.modelRef.modelId,
-    modelDisplayName: model.modelRef.displayName,
-    capabilities: model.modelRef.capabilities ?? {},
-    baseUrl: model.providerRef.baseUrl,
-    apiKey,
-    timeoutMs: model.providerRef.timeoutMs,
-    maxOutputTokens: model.modelRef.maxOutputTokens,
-    defaultTemperature: model.modelRef.defaultTemperature,
-    contextWindow: model.modelRef.contextWindow,
-    languageModel: compatible.chatModel(model.modelRef.modelId),
-    modelRef: model.modelRef,
-    providerRef: model.providerRef
-  };
+  return model ?? null;
 }
 
-/** 默认视觉模型角色编码：capability=vision 且 code=default_vision 优先 */
+function decryptProviderKey(provider: typeof aiProviders.$inferSelect) {
+  if (!provider.apiKeyCiphertext || !provider.apiKeyIv || !provider.apiKeyTag) {
+    throw new AiError("AI_CONFIG_INVALID", `模型服务商“${provider.name}”尚未配置 API Key`);
+  }
+  return decryptSecret(provider.apiKeyCiphertext, provider.apiKeyIv, provider.apiKeyTag);
+}
+
+export async function resolveModelById(db: Database, id: string): Promise<ResolvedModelConfig> {
+  const model = await loadModelRow(db, id);
+  if (!model) throw new AiError("AI_MODEL_UNAVAILABLE", "模型不存在、已停用或服务商不可用");
+  if (!model.providerRef.enabled) {
+    throw new AiError("AI_MODEL_UNAVAILABLE", "模型不存在、已停用或服务商不可用");
+  }
+  validateModelForRuntime({
+    enabled: model.modelRef.enabled,
+    lastTestStatus: model.modelRef.lastTestStatus,
+    supportsVision: model.modelRef.supportsVision,
+    reasoningLevel: model.modelRef.reasoningLevel
+  });
+  const apiKey = decryptProviderKey(model.providerRef);
+  return toResolvedModelConfig(model, apiKey);
+}
+
+/** 管理端测试/预览：允许加载未启用、未准入模型，但仍要求服务商已配置密钥。 */
+export async function loadModelForAdmin(db: Database, id: string): Promise<ResolvedModelConfig> {
+  const model = await loadModelRow(db, id);
+  if (!model) throw new NotFoundError("AI 模型不存在");
+  const apiKey = decryptProviderKey(model.providerRef);
+  return toResolvedModelConfig(model, apiKey);
+}
+
+export async function invalidateModelsForProvider(db: Database, providerId: string) {
+  await db.update(aiModels).set({
+    ...invalidatedAdmissionPatch(),
+    updatedAt: new Date()
+  }).where(eq(aiModels.providerId, providerId));
+}
+
+export async function clearOtherDefaultModels(db: Database, keepId: string) {
+  await db.update(aiModels).set({
+    isDefault: false,
+    updatedAt: new Date()
+  }).where(and(eq(aiModels.isDefault, true), ne(aiModels.id, keepId)));
+}
+
+/** 默认视觉模型角色编码：兼容历史 code=default_vision */
 export const DEFAULT_VISION_MODEL_ROLE = "default_vision";
 export const DEFAULT_AGENT_MODEL_ROLE = "default_agent";
 
 export function pickDefaultVisionModelId(
-  rows: Array<{ id: string; code: string | null; capabilities: Record<string, boolean> | null }>
+  rows: Array<{
+    id: string;
+    code?: string | null;
+    isDefault?: boolean | null;
+    supportsVision?: boolean | null;
+    lastTestStatus?: string | null;
+    capabilities?: Record<string, boolean> | null;
+  }>
 ): string | null {
-  const vision = rows.filter((row) => row.capabilities?.vision === true);
-  return vision.find((row) => row.code === DEFAULT_VISION_MODEL_ROLE)?.id
-    ?? vision[0]?.id
-    ?? null;
+  return pickDefaultRuntimeModelId(rows.map((row) => ({
+    id: row.id,
+    code: row.code ?? null,
+    isDefault: row.isDefault ?? false,
+    supportsVision: row.supportsVision ?? row.capabilities?.vision === true,
+    lastTestStatus: row.lastTestStatus ?? "UNTESTED"
+  })), { requireVision: true });
 }
 
 export function pickDefaultAgentModelId(
-  rows: Array<{ id: string; code: string | null; capabilities: Record<string, boolean> | null }>
+  rows: Array<{
+    id: string;
+    code?: string | null;
+    isDefault?: boolean | null;
+    lastTestStatus?: string | null;
+  }>
 ): string | null {
-  const tools = rows.filter((row) => row.capabilities?.tools === true);
-  return tools.find((row) => row.code === DEFAULT_AGENT_MODEL_ROLE)?.id
-    ?? tools[0]?.id
-    ?? null;
+  return pickDefaultRuntimeModelId(rows.map((row) => ({
+    id: row.id,
+    code: row.code ?? null,
+    isDefault: row.isDefault ?? false,
+    lastTestStatus: row.lastTestStatus ?? "UNTESTED"
+  })));
 }
 
 /**
- * 从已配置模型中解析默认视觉模型，禁止业务代码写死 provider/model id。
- * 优先 code=default_vision 且 capabilities.vision=true 的启用模型，否则取 vision 能力中 priority 最高者。
+ * 从已准入模型中解析默认视觉模型。要求 enabled + PASSED + supportsVision。
  */
 export async function resolveDefaultVisionModel(db: Database): Promise<ResolvedModelConfig> {
   const candidates = await db.select({
@@ -122,12 +289,14 @@ export async function resolveDefaultVisionModel(db: Database): Promise<ResolvedM
   }).from(aiModels)
     .innerJoin(aiProviders, eq(aiProviders.id, aiModels.providerId))
     .where(and(eq(aiModels.enabled, true), eq(aiProviders.enabled, true)))
-    .orderBy(desc(aiModels.priority));
+    .orderBy(desc(aiModels.isDefault), desc(aiModels.priority));
 
   const preferredId = pickDefaultVisionModelId(candidates.map((row) => ({
     id: row.modelRef.id,
     code: row.modelRef.code,
-    capabilities: row.modelRef.capabilities
+    isDefault: row.modelRef.isDefault,
+    supportsVision: row.modelRef.supportsVision,
+    lastTestStatus: row.modelRef.lastTestStatus
   })));
   if (!preferredId) {
     throw new AiError("VISION_MODEL_NOT_CONFIGURED");
@@ -136,9 +305,8 @@ export async function resolveDefaultVisionModel(db: Database): Promise<ResolvedM
 }
 
 /**
- * 解析支持原生 Tool Calling 的 Agent 模型。
- * 优先 code=default_agent 且 capabilities.tools=true，否则取 tools 能力中 priority 最高者。
- * 未配置时返回 null，调用方回退到无工具的普通对话路径，不得假装已具备完整 Agent 能力。
+ * 解析已通过准入测试的默认 Agent 模型。
+ * 未配置时返回 null，调用方回退到无工具的普通对话路径。
  */
 export async function resolveAgentModelOrNull(db: Database): Promise<ResolvedModelConfig | null> {
   const candidates = await db.select({
@@ -147,21 +315,20 @@ export async function resolveAgentModelOrNull(db: Database): Promise<ResolvedMod
   }).from(aiModels)
     .innerJoin(aiProviders, eq(aiProviders.id, aiModels.providerId))
     .where(and(eq(aiModels.enabled, true), eq(aiProviders.enabled, true)))
-    .orderBy(desc(aiModels.priority));
+    .orderBy(desc(aiModels.isDefault), desc(aiModels.priority));
 
   const preferredId = pickDefaultAgentModelId(candidates.map((row) => ({
     id: row.modelRef.id,
     code: row.modelRef.code,
-    capabilities: row.modelRef.capabilities
+    isDefault: row.modelRef.isDefault,
+    lastTestStatus: row.modelRef.lastTestStatus
   })));
   if (!preferredId) return null;
   return resolveModelById(db, preferredId);
 }
 
 /**
- * 校验模型是否可被场景绑定：
- * - 模型与服务商必须存在且启用
- * - 作为推理模型绑定时必须支持 reasoning
+ * 校验模型是否可被场景绑定：必须启用且已通过准入测试。
  */
 export async function assertSceneModelUsable(db: Database, modelId: string | null | undefined, role: "default" | "reasoning" | "fallback") {
   if (!modelId) return;
@@ -172,11 +339,11 @@ export async function assertSceneModelUsable(db: Database, modelId: string | nul
     .innerJoin(aiProviders, eq(aiProviders.id, aiModels.providerId))
     .where(eq(aiModels.id, modelId))
     .limit(1);
-  if (!model || !model.modelRef.enabled || !model.providerEnabled) {
+  if (!model || !model.providerEnabled) {
     throw new AiError("AI_CONFIG_INVALID", `场景绑定的${role === "reasoning" ? "推理模型" : "模型"}不存在或已停用`);
   }
-  if (role === "reasoning" && model.modelRef.capabilities?.reasoning !== true) {
-    throw new AiError("AI_REASONING_NOT_SUPPORTED", "推理模型必须支持深度思考能力");
+  if (!isAdmittedForRuntime(model.modelRef)) {
+    throw new AiError("AI_CONFIG_INVALID", `场景绑定的${role === "reasoning" ? "推理模型" : "模型"}必须已启用且通过准入测试`);
   }
 }
 
@@ -386,13 +553,12 @@ export async function testProviderConnection(db: Database, providerId: string) {
     throw new ConflictError("该服务商下没有启用的模型，请先创建模型后再测试连接");
   }
 
-  const resolved = await resolveModelById(db, model.id);
+  const resolved = await loadModelForAdmin(db, model.id);
   try {
     const result = await generateText({
       model: resolved.languageModel,
       prompt: "这是一次连接测试。请只回复：连接成功。",
-      maxOutputTokens: 16,
-      temperature: 0
+      ...languageModelCallOptions("MODEL_TEST")
     });
     await db.update(aiProviders).set({
       lastTestStatus: "OK",

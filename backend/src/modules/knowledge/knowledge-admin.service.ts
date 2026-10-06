@@ -2,7 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import path from "node:path";
 import { fileTypeFromBuffer } from "file-type";
 import type { FastifyInstance, FastifyRequest } from "fastify";
-import { and, count, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, isNotNull, isNull, ne, sql } from "drizzle-orm";
 import type { DbExecutor } from "../../db/client.js";
 import type { AuthUser } from "../../shared/auth-user.js";
 import { AUDIT_ACTIONS } from "../../shared/constants.js";
@@ -297,7 +297,10 @@ export async function listDocuments(app: FastifyInstance, query: ListDocumentsQu
       : Promise.resolve([] as Array<{ versionId: string; role: string }>),
     versionIds.length > 0
       ? app.db.select({ versionId: knowledgePages.versionId })
-        .from(knowledgePages).where(inArray(knowledgePages.versionId, versionIds))
+        .from(knowledgePages).where(and(
+          inArray(knowledgePages.versionId, versionIds),
+          gte(knowledgePages.pageNumber, 1)
+        ))
       : Promise.resolve([] as Array<{ versionId: string }>),
     versionIds.length > 0
       ? app.db.select({ versionId: knowledgeChunks.versionId })
@@ -357,7 +360,32 @@ export async function listDocuments(app: FastifyInstance, query: ListDocumentsQu
       ...health
     };
   });
-  const filtered = projected.filter((item) => {
+  const coverRows = versionIds.length > 0
+    ? await app.db.select({
+      versionId: knowledgePages.versionId,
+      pageNumber: knowledgePages.pageNumber,
+      pageImageObjectKey: knowledgePages.pageImageObjectKey
+    }).from(knowledgePages).where(and(
+      inArray(knowledgePages.versionId, versionIds),
+      gte(knowledgePages.pageNumber, 1),
+      isNotNull(knowledgePages.pageImageObjectKey)
+    )).orderBy(knowledgePages.pageNumber)
+    : [];
+  const coverByVersion = new Map<string, string>();
+  for (const row of coverRows) {
+    if (row.pageImageObjectKey && !coverByVersion.has(row.versionId)) {
+      coverByVersion.set(row.versionId, row.pageImageObjectKey);
+    }
+  }
+  const itemsWithCover = await Promise.all(projected.map(async (item) => {
+    const objectKey = item.workingVersionId ? coverByVersion.get(item.workingVersionId) : undefined;
+    let coverImageUrl: string | null = null;
+    if (objectKey) {
+      coverImageUrl = await app.storage.createDownloadUrl(objectKey, "cover.png", 3600);
+    }
+    return { ...item, coverImageUrl };
+  }));
+  const filtered = itemsWithCover.filter((item) => {
     if (query.healthStatus && item.healthStatus !== query.healthStatus) return false;
     if (query.userStatus && item.userStatus !== query.userStatus) return false;
     return true;
@@ -601,6 +629,7 @@ export async function createVersionUploadIntent(
       mimeType,
       sizeBytes,
       sha256,
+      purpose: "KNOWLEDGE_SOURCE",
       status: "UPLOADING"
     }).returning();
     return created!;
@@ -666,8 +695,12 @@ export async function completeVersionUpload(
     };
   }
   await app.db.transaction(async (tx) => {
-    await tx.update(files).set({ status: "QUEUED", errorMessage: null, updatedAt: new Date() })
-      .where(eq(files.id, fileId));
+    await tx.update(files).set({
+      status: "READY",
+      purpose: "KNOWLEDGE_SOURCE",
+      errorMessage: null,
+      updatedAt: new Date()
+    }).where(eq(files.id, fileId));
     await tx.update(knowledgeDocumentVersions).set({
       fileId,
       parseStatus: "PENDING",
@@ -677,7 +710,7 @@ export async function completeVersionUpload(
     await writeAuditLog({
       db: tx, request, actor,
       action: AUDIT_ACTIONS.FILE_UPLOAD_COMPLETED, targetType: "knowledge_document_version", targetId: versionId,
-      afterJson: { fileId, fileName: file.originalName }
+      afterJson: { fileId, fileName: file.originalName, purpose: "KNOWLEDGE_SOURCE" }
     });
   });
   // 维护 ORIGINAL 资产行（原文导航模型：版本主文件 = ORIGINAL）
@@ -1120,15 +1153,27 @@ export async function listVersionPages(app: FastifyInstance, versionId: string, 
       pageLabelConfidence: knowledgePages.pageLabelConfidence,
       pageLabelVerified: knowledgePages.pageLabelVerified,
       pageTitle: knowledgePages.pageTitle,
+      pageImageObjectKey: knowledgePages.pageImageObjectKey,
       hasTables: knowledgePages.hasTables,
       hasImages: knowledgePages.hasImages,
       sectionPath: knowledgePages.sectionPath,
       parseStatus: knowledgePages.parseStatus
-    }).from(knowledgePages).where(eq(knowledgePages.versionId, versionId))
-      .orderBy(knowledgePages.pageNumber).offset(skip).limit(take),
-    app.db.select({ value: count() }).from(knowledgePages).where(eq(knowledgePages.versionId, versionId))
+    }).from(knowledgePages).where(and(
+      eq(knowledgePages.versionId, versionId),
+      gte(knowledgePages.pageNumber, 1)
+    )).orderBy(knowledgePages.pageNumber).offset(skip).limit(take),
+    app.db.select({ value: count() }).from(knowledgePages).where(and(
+      eq(knowledgePages.versionId, versionId),
+      gte(knowledgePages.pageNumber, 1)
+    ))
   ]);
-  return { items, total: totalRow?.value ?? 0, page, pageSize };
+  const signed = await Promise.all(items.map(async (item) => {
+    const pageImageUrl = item.pageImageObjectKey
+      ? await app.storage.createDownloadUrl(item.pageImageObjectKey, `page-${item.pageNumber}.png`, 3600)
+      : null;
+    return { ...item, pageImageUrl };
+  }));
+  return { items: signed, total: totalRow?.value ?? 0, page, pageSize };
 }
 
 export async function listVersionChunks(
@@ -1170,6 +1215,29 @@ export async function listVersionChunks(
     app.db.select({ value: count() }).from(knowledgeChunks).where(where)
   ]);
   return { items, total: totalRow?.value ?? 0, page, pageSize };
+}
+
+// 无页面文档（如 DOCX）的阅读视图：按分块顺序输出机器提取文本，不伪造页面概念
+export async function getVersionExtractedText(app: FastifyInstance, versionId: string) {
+  await requireVersion(app, versionId);
+  const items = await app.db.select({
+    id: knowledgeChunks.id,
+    chunkIndex: knowledgeChunks.chunkIndex,
+    content: knowledgeChunks.content,
+    contentType: knowledgeChunks.contentType
+  }).from(knowledgeChunks)
+    .where(eq(knowledgeChunks.versionId, versionId))
+    .orderBy(knowledgeChunks.chunkIndex);
+  return {
+    chunkCount: items.length,
+    blocks: items.map((item) => ({
+      id: item.id,
+      blockIndex: item.chunkIndex,
+      content: item.content,
+      contentType: item.contentType
+    })),
+    text: items.map((item) => item.content).join("\n\n")
+  };
 }
 
 export async function listParsingJobs(

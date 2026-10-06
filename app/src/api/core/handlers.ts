@@ -33,7 +33,34 @@ interface ApiResponse {
     // 也有字符串业务码（如 AI_CONFIG_INVALID），原始值经 getApiErrorCode 读取。
     code: number | string
     message: string
+    details?: {
+      errorCode?: string
+    }
   }
+}
+
+const SILENT_AUTH_ERROR_CODES = new Set(['PASSWORD_NOT_SET'])
+
+function readResponseAuthErrorCode(data: unknown) {
+  if (!data || typeof data !== 'object') {
+    return undefined
+  }
+  const errorCode = (data as ApiResponse).error?.details?.errorCode
+  return typeof errorCode === 'string' ? errorCode : undefined
+}
+
+export function getAuthErrorCode(error: unknown) {
+  if (!(error instanceof ApiError)) {
+    return undefined
+  }
+  return readResponseAuthErrorCode(error.data)
+}
+
+function shouldToastApiError(data: ApiResponse | undefined, authErrorCode?: string) {
+  if (authErrorCode && SILENT_AUTH_ERROR_CODES.has(authErrorCode)) {
+    return false
+  }
+  return data?.error?.code !== 'AI_CONFIG_INVALID'
 }
 
 /**
@@ -69,9 +96,11 @@ export async function handleAlovaResponse(
   const globalToast = useGlobalToast()
   // Extract status code and data from UniApp response
   const { data } = response as UniNamespace.RequestSuccessCallbackResult
-  const code = Number((data as ApiResponse).error?.code)
-  // 处理401/403错误（如果不是在handleAlovaResponse中处理的）
-  if ((code === 401 || code === 403)) {
+  const payload = data as ApiResponse
+  const code = Number(payload.error?.code)
+  const authErrorCode = readResponseAuthErrorCode(payload)
+  // 登录阶段的 USER_DISABLED 等业务码也是 403，不能改写成会话过期。
+  if ((code === 401 || code === 403) && !authErrorCode) {
     redirectAfterSessionExpiry()
     throw new ApiError('登录已过期，请重新登录！', code, data)
   }
@@ -79,8 +108,10 @@ export async function handleAlovaResponse(
   // Handle HTTP error status codes
   if (code >= 400) {
     console.log('[Alova Response]', data)
-    const message = (data as ApiResponse).error?.message || '请求失败'
-    globalToast.error(message)
+    const message = payload.error?.message || '请求失败'
+    if (shouldToastApiError(payload, authErrorCode)) {
+      globalToast.error(message)
+    }
     throw new ApiError(message, code, data)
   }
 
@@ -92,9 +123,10 @@ export async function handleAlovaResponse(
 
   if (!json.success) {
     const message = json.error?.message || '请求失败'
+    const failureCode = readResponseAuthErrorCode(json)
     // AI 场景配置是可降级错误，由 assistant store 立即回退到 general_chat；
     // 此处不提前提示，避免用户看到一次已被自动恢复的失败。
-    if (json.error?.code !== 'AI_CONFIG_INVALID') {
+    if (shouldToastApiError(json, failureCode)) {
       globalToast.error(message)
     }
     throw new ApiError(message, code || 400, json)
@@ -112,7 +144,7 @@ export function handleAlovaError(error: any, method: Method) {
   }
 
   // 处理401/403错误（如果不是在handleAlovaResponse中处理的）
-  if (error instanceof ApiError && (error.code === 401 || error.code === 403)) {
+  if (error instanceof ApiError && (error.code === 401 || error.code === 403) && !getAuthErrorCode(error)) {
     if (redirectAfterSessionExpiry()) {
       throw new ApiError('登录已过期，请重新登录！', error.code, error.data)
     }
@@ -128,7 +160,9 @@ export function handleAlovaError(error: any, method: Method) {
     globalToast.error('请求超时，请重试')
   }
   else if (error instanceof ApiError) {
-    globalToast.error(error.message || '请求失败')
+    if (getAuthErrorCode(error) !== 'PASSWORD_NOT_SET') {
+      globalToast.error(error.message || '请求失败')
+    }
   }
   else {
     globalToast.error('发生意外错误')

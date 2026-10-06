@@ -4,6 +4,7 @@ import { authApi } from '@/api/modules/auth'
 import { profileApi } from '@/api/modules/profile'
 import { useAuthGate } from '@/composables/useAuthGate'
 import { getPlatformInfo } from '@/services/platform'
+import { describePasswordStatus } from '@/utils/clientPassword'
 
 definePage({
   name: 'profile',
@@ -13,7 +14,7 @@ definePage({
   },
 })
 
-type ProfileEntry = 'projects' | 'conversations' | 'profile-info' | 'appearance' | 'agreement' | 'privacy' | 'ai-guide' | 'about'
+type ProfileEntry = 'projects' | 'conversations' | 'reports' | 'profile-info' | 'appearance' | 'agreement' | 'privacy' | 'ai-guide' | 'about'
 type LegalEntry = Extract<ProfileEntry, 'agreement' | 'privacy' | 'ai-guide'>
 type SummaryStatus = 'idle' | 'loading' | 'success' | 'error'
 
@@ -36,7 +37,7 @@ const summary = shallowRef<ProfileSummary>()
 const summaryStatus = ref<SummaryStatus>('idle')
 const isAuthenticated = computed(() => authStore.isAuthenticated)
 const user = computed(() => authStore.user)
-const profileName = computed(() => isAuthenticated.value ? user.value?.displayName || '已登录用户' : '欢迎使用蓝格智配')
+const profileName = computed(() => isAuthenticated.value ? user.value?.displayName || '已登录用户' : '欢迎使用筑小格')
 const avatarText = computed(() => profileName.value.slice(0, 1))
 const profileDescription = computed(() => {
   if (!isAuthenticated.value) {
@@ -44,6 +45,7 @@ const profileDescription = computed(() => {
   }
   return maskPhone(user.value?.phone) || (user.value?.email ? '邮箱已绑定' : '已登录工作空间')
 })
+const passwordStatus = computed(() => describePasswordStatus(authStore.passwordSet))
 const appearanceLabel = computed(() => {
   if (followSystem.value) {
     return '跟随系统'
@@ -73,6 +75,14 @@ const workspaceItems: ProfileMenuItem[] = [
     route: 'conversation-history',
     requiresAuth: true,
   },
+  {
+    key: 'reports',
+    label: '我的报告',
+    description: '查看全部 AI 对话报告',
+    icon: 'i-my-icons-ai-guide',
+    route: 'reports',
+    requiresAuth: true,
+  },
 ]
 
 const accountItems: ProfileMenuItem[] = [
@@ -90,7 +100,7 @@ const serviceItems: ProfileMenuItem[] = [
   { key: 'agreement', label: '用户协议', icon: 'i-my-icons-agreement' },
   { key: 'privacy', label: '隐私政策', icon: 'i-my-icons-privacy' },
   // { key: 'ai-guide', label: 'AI 使用说明', icon: 'i-my-icons-ai-guide' },
-  { key: 'about', label: '关于蓝格智配', icon: 'i-my-icons-about', route: 'about' },
+  // { key: 'about', label: '关于筑小格', icon: 'i-my-icons-about', route: 'about' },
 ]
 
 const legalContent: Record<LegalEntry, { title: string, message: string }> = {
@@ -142,10 +152,6 @@ function maskPhone(phone?: string | null) {
   return `${phone.slice(0, 3)} **** ${phone.slice(-4)}`
 }
 
-function statisticValue(value?: number) {
-  return summaryStatus.value === 'success' ? String(value ?? 0) : '—'
-}
-
 async function refreshClientInfo() {
   try {
     const response = await authApi.getClientInfo().send() as ApiEnvelope<ClientInfo>
@@ -173,6 +179,19 @@ async function loadSummary() {
 function resetSummary() {
   summary.value = undefined
   summaryStatus.value = 'idle'
+}
+
+function openPassword() {
+  if (!requireLogin({ showToast: false })) {
+    return
+  }
+  router.push({
+    path: '/pages/password/index',
+    query: {
+      mode: passwordStatus.value.mode,
+      phone: user.value?.phone || '',
+    },
+  })
 }
 
 function openProfileInfo() {
@@ -330,6 +349,25 @@ function openLegalContent(key: LegalEntry) {
                 <view class="profile-cell-icon relative top-0.5" :class="item.icon" />
               </template>
             </wd-cell>
+            <!-- <wd-cell
+              v-if="isAuthenticated"
+              title="登录密码"
+              :border="true"
+              is-link
+              @click="openPassword"
+            >
+              <template #prefix>
+                <view class="profile-cell-icon i-my-icons-privacy relative top-0.5" />
+              </template>
+              <view class="flex items-center justify-end">
+                <text class="app-tertiary mr-2">
+                  {{ passwordStatus.statusText }}
+                </text>
+                <text class="profile-password-action">
+                  {{ passwordStatus.actionText }}
+                </text>
+              </view>
+            </wd-cell> -->
           </wd-cell-group>
         </view>
       </view>
@@ -357,7 +395,7 @@ function openLegalContent(key: LegalEntry) {
       </view>
 
       <view class="app-tertiary mt-6 px-4 text-center text-22rpx leading-32rpx">
-        蓝格智配 · 建筑节能 AI 智配
+        筑小格 · 建筑节能 AI 智配
       </view>
     </view>
   </view>
@@ -410,6 +448,13 @@ function openLegalContent(key: LegalEntry) {
   border-top: 1px solid var(--app-border-default);
   border-bottom: 1px solid var(--app-border-default);
   background: var(--app-bg-surface);
+}
+
+.profile-password-action {
+  color: var(--app-action-primary);
+  font-size: 26rpx;
+  font-weight: 600;
+  line-height: 36rpx;
 }
 
 .profile-cell-icon {

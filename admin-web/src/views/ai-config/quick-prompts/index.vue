@@ -11,6 +11,7 @@ import { computed, h } from 'vue'
 import AppCrudFormDrawer from '@/components/business/AppCrudFormDrawer.vue'
 import AppTableActions from '@/components/business/AppTableActions.vue'
 import AppDataTable from '@/components/ui/AppDataTable.vue'
+import type { AppTableDragSortContext } from '@/components/ui/AppDataTable.vue'
 import AppPage from '@/components/ui/AppPage.vue'
 import AppSearchPanel from '@/components/ui/AppSearchPanel.vue'
 import AppStatusTag from '@/components/ui/AppStatusTag.vue'
@@ -18,13 +19,30 @@ import { useAiQuickPrompts } from '@/composables/useAiQuickPrompts'
 import { normalizeFeedbackError } from '@/composables/useAppFeedback'
 import { usePermissionAccess } from '@/composables/usePermissionAccess'
 import {
-  AI_QUICK_PROMPT_ICONS,
-  getQuickPromptIconLabel,
   getQuickPromptIconMark,
   getQuickPromptPositionLabel,
 } from '@/utils/ai'
+import {
+  QUICK_PROMPT_STOCK_UPDATE_HINT,
+  QUICK_PROMPT_SYSTEM_WORDING_HINT,
+  QUICK_PROMPT_USER_START_HINT,
+  isSystemWordingQuickPrompt,
+  systemWordingQuickPromptMessage,
+} from '@/utils/ai-quick-prompt'
 
-const { deleteAction, promptDrawer, promptList, stats, toggleEnabled } = useAiQuickPrompts()
+const {
+  applyRecommendedWording,
+  applyTemplateToForm,
+  applyingRecommended,
+  deleteAction,
+  pageLegacyCount,
+  persistDragSort,
+  promptDrawer,
+  promptList,
+  recommendedTemplates,
+  stats,
+  toggleEnabled,
+} = useAiQuickPrompts()
 const { canAccess } = usePermissionAccess()
 
 const rows = promptList.data
@@ -53,31 +71,22 @@ const enabledFilterOptions = [
   { label: '停用', value: 'false' },
 ]
 
-const iconOptions = AI_QUICK_PROMPT_ICONS.map(value => ({
-  label: getQuickPromptIconLabel(value),
-  value,
-}))
-
 const rules: FormRules<AiQuickPromptForm> = {
   title: [
-    { message: '请输入快捷提问名称', required: true },
-    { max: 80, message: '名称不能超过 80 个字符' },
+    { message: '请输入标题', required: true },
+    { max: 80, message: '标题不能超过 80 个字符' },
   ],
-  description: [{
-    message: '辅助说明不能超过 200 个字符',
-    validator: value => value === undefined || value === null || String(value).length <= 200,
-  }],
   content: [
-    { message: '请输入实际发送内容', required: true },
-    { max: 2000, message: '发送内容不能超过 2000 个字符' },
+    { message: '请输入提问内容', required: true },
+    { max: 2000, message: '提问内容不能超过 2000 个字符' },
+    {
+      message: '请改成用户会说的自然问题，不要写成系统指令。',
+      validator: value => !systemWordingQuickPromptMessage(String(value ?? '')),
+    },
   ],
   positions: [{
     message: '请选择显示位置',
     validator: value => Array.isArray(value) && value.length > 0,
-  }],
-  sortOrder: [{
-    message: '排序应为 0 到 9999 的整数',
-    validator: value => Number.isInteger(Number(value)) && Number(value) >= 0 && Number(value) <= 9999,
   }],
 }
 
@@ -92,22 +101,25 @@ const columns: PrimaryTableCol<TableRowData>[] = [
   {
     cell: (_h, { row }) => {
       const item = row as AiQuickPromptTableRow
-      return h('div', { class: 'ai-quick-prompt-page__title-cell' }, [
-        h('span', { class: 'ai-quick-prompt-page__title' }, item.title),
-        item.description
-          ? h('span', { class: 'ai-quick-prompt-page__desc' }, item.description)
-          : null,
+      return h('div', { class: 'ai-quick-prompt-page__prompt-cell' }, [
+        h('span', { class: 'ai-quick-prompt-page__title' }, [
+          item.title,
+          isSystemWordingQuickPrompt(item.content)
+            ? h(AppStatusTag, { label: '需改成用户问题', status: 'warning' })
+            : null,
+        ]),
+        h('span', { class: 'ai-quick-prompt-page__summary' }, item.content),
+        h('div', { class: 'ai-quick-prompt-page__tags' }, [
+          h(AppStatusTag, {
+            label: getQuickPromptPositionLabel(item.position),
+            status: 'default',
+          }),
+        ]),
       ])
     },
-    colKey: 'title',
-    minWidth: 220,
-    title: '标题',
-  },
-  {
-    cell: (_h, { row }) => getQuickPromptPositionLabel((row as AiQuickPromptTableRow).position),
-    colKey: 'position',
-    minWidth: 120,
-    title: '显示位置',
+    colKey: 'prompt',
+    minWidth: 280,
+    title: '快捷提问',
   },
   {
     cell: (_h, { row }) => h(AppStatusTag, {
@@ -115,13 +127,8 @@ const columns: PrimaryTableCol<TableRowData>[] = [
       status: (row as AiQuickPromptTableRow).enabled ? 'success' : 'disabled',
     }),
     colKey: 'enabled',
-    minWidth: 90,
+    width: 88,
     title: '状态',
-  },
-  {
-    colKey: 'sortOrder',
-    minWidth: 80,
-    title: '排序',
   },
 ]
 
@@ -129,7 +136,7 @@ function getActions(row: TableRowData): AppTableAction[] {
   const item = row as AiQuickPromptTableRow
   const actions: AppTableAction[] = []
   if (canEdit.value) {
-    actions.push({ key: 'edit', label: '编辑', handler: () => promptDrawer.openEdit(item) })
+    actions.push({ key: 'config', label: '配置', handler: () => promptDrawer.openEdit(item) })
     actions.push({
       key: 'toggle',
       label: item.enabled ? '停用' : '启用',
@@ -147,11 +154,18 @@ function getActions(row: TableRowData): AppTableAction[] {
   }
   return actions
 }
+
+function onDragSort(context: AppTableDragSortContext): void {
+  if (context.sort !== 'row' || context.currentIndex === context.targetIndex) {
+    return
+  }
+  void persistDragSort(context.newData as AiQuickPromptTableRow[])
+}
 </script>
 
 <template>
   <AppPage
-    description="快捷提问会展示在筑小格 AI 输入区域上方，用户点击后会将配置内容作为问题发送给 AI。用户仍然可以自由输入任何问题。"
+    :description="`${QUICK_PROMPT_USER_START_HINT} 用户仍然可以自由输入任何问题。`"
     title="快捷提问"
   >
     <template #search>
@@ -168,6 +182,18 @@ function getActions(row: TableRowData): AppTableAction[] {
       </AppSearchPanel>
     </template>
 
+    <t-alert
+      class="ai-quick-prompt-page__alert"
+      theme="info"
+      :message="QUICK_PROMPT_SYSTEM_WORDING_HINT"
+    />
+    <t-alert
+      v-if="pageLegacyCount > 0"
+      class="ai-quick-prompt-page__alert"
+      theme="warning"
+      :message="QUICK_PROMPT_STOCK_UPDATE_HINT"
+    />
+
     <p class="ai-quick-prompt-page__usage">
       {{ usageSummary }}
     </p>
@@ -176,28 +202,41 @@ function getActions(row: TableRowData): AppTableAction[] {
       :columns="columns"
       :current="current"
       :data="rows"
+      :drag-sort="canEdit ? 'row-handler' : undefined"
       empty-description="添加快捷提问后，用户可以在筑小格中一键发起常用问题，同时仍可自由输入任何内容。"
       empty-title="还没有快捷提问"
       :error-description="errorDescription"
-      :operations-width="180"
+      :operations-width="96"
       :page-size="pageSize"
       row-key="id"
       :status="tableStatus"
       :total="total"
+      @drag-sort="onDragSort"
       @page-change="promptList.changePage"
       @refresh="promptList.refresh"
       @retry="promptList.retry"
     >
       <template #toolbar>
-        <t-button v-if="canAdd" theme="primary" @click="promptDrawer.openCreate">
-          <template #icon>
-            <AddIcon />
-          </template>
-          新增快捷提问
-        </t-button>
+        <t-space>
+          <t-button
+            v-if="canEdit && pageLegacyCount > 0"
+            :loading="applyingRecommended"
+            theme="default"
+            variant="outline"
+            @click="applyRecommendedWording"
+          >
+            按推荐文案更新
+          </t-button>
+          <t-button v-if="canAdd" theme="primary" @click="promptDrawer.openCreate">
+            <template #icon>
+              <AddIcon />
+            </template>
+            新增快捷提问
+          </t-button>
+        </t-space>
       </template>
       <template #operations="{ row }">
-        <AppTableActions :actions="getActions(row)" :max-visible="2" />
+        <AppTableActions :actions="getActions(row)" :max-visible="1" />
       </template>
     </AppDataTable>
 
@@ -207,32 +246,45 @@ function getActions(row: TableRowData): AppTableAction[] {
       :rules="rules"
       size="min(520px, 92vw)"
       :submitting="drawerSubmitting"
-      :title="drawerMode === 'create' ? '新增快捷提问' : '编辑快捷提问'"
+      :title="drawerMode === 'create' ? '新增快捷提问' : '配置快捷提问'"
       :visible="drawerVisible"
       @cancel="promptDrawer.close"
       @submit="promptDrawer.submit"
       @update:visible="promptDrawer.setVisible"
     >
-      <t-form-item label="快捷提问名称" name="title" required-mark>
+      <t-form-item label="推荐用户问题">
+        <div class="ai-quick-prompt-page__templates">
+          <t-space break-line>
+            <t-button
+              v-for="item in recommendedTemplates"
+              :key="item.title"
+              size="small"
+              theme="default"
+              variant="outline"
+              @click="applyTemplateToForm(item)"
+            >
+              {{ item.title }}
+            </t-button>
+          </t-space>
+          <p class="ai-quick-prompt-page__templates-hint">
+            套用后仍可再改。点击发送的是用户问题，不是系统指令。
+          </p>
+        </div>
+      </t-form-item>
+      <t-form-item label="标题" name="title" required-mark>
         <t-input
           v-model="promptDrawer.formData.title"
           maxlength="80"
           placeholder="例如：查询图集"
         />
       </t-form-item>
-      <t-form-item label="辅助说明" name="description">
-        <t-input
-          v-model="promptDrawer.formData.description"
-          maxlength="200"
-          placeholder="例如：查询图集章节、构造和节点做法"
-        />
-      </t-form-item>
-      <t-form-item label="实际发送内容" name="content" required-mark>
+      <t-form-item label="提问内容" name="content" required-mark>
         <t-textarea
           v-model="promptDrawer.formData.content"
           :autosize="{ minRows: 4, maxRows: 8 }"
           maxlength="2000"
-          placeholder="用户点击后真正发给 AI 的问题"
+          placeholder="例如：帮我查一下和当前问题相关的图集做法，并告诉我出处。"
+          :tips="QUICK_PROMPT_SYSTEM_WORDING_HINT"
         />
       </t-form-item>
       <t-form-item label="显示位置" name="positions" required-mark>
@@ -244,19 +296,6 @@ function getActions(row: TableRowData): AppTableAction[] {
             项目AI
           </t-checkbox>
         </t-checkbox-group>
-      </t-form-item>
-      <t-form-item label="图标" name="icon">
-        <t-select v-model="promptDrawer.formData.icon" :options="iconOptions" />
-      </t-form-item>
-      <t-form-item label="排序" name="sortOrder">
-        <t-input-number
-          v-model="promptDrawer.formData.sortOrder"
-          class="ai-quick-prompt-page__sort"
-          :max="9999"
-          :min="0"
-          placeholder="例如 10"
-          theme="column"
-        />
       </t-form-item>
       <t-form-item label="状态" name="enabled">
         <t-radio-group v-model="promptDrawer.formData.enabled" variant="default-filled">
@@ -277,8 +316,8 @@ function getActions(row: TableRowData): AppTableAction[] {
             {{ getQuickPromptIconMark(promptDrawer.formData.icon) }}
           </span>
           <div class="ai-quick-prompt-page__preview-copy">
-            <strong>{{ promptDrawer.formData.title.trim() || '快捷提问名称' }}</strong>
-            <span>{{ promptDrawer.formData.description.trim() || '辅助说明会显示在标题下方' }}</span>
+            <strong>{{ promptDrawer.formData.title.trim() || '标题' }}</strong>
+            <span>{{ promptDrawer.formData.content.trim() || '提问内容会显示在标题下方' }}</span>
           </div>
         </div>
       </div>
@@ -287,30 +326,61 @@ function getActions(row: TableRowData): AppTableAction[] {
 </template>
 
 <style scoped>
+.ai-quick-prompt-page__alert {
+  margin-bottom: 0;
+}
+
 .ai-quick-prompt-page__usage {
   margin: 0;
   color: var(--td-text-color-secondary);
   font-size: var(--td-font-size-body-small);
 }
 
-.ai-quick-prompt-page__title-cell {
+.ai-quick-prompt-page__prompt-cell {
   display: flex;
   min-width: 0;
   flex-direction: column;
   gap: var(--td-size-1);
+  padding: var(--td-size-1) 0;
 }
 
 .ai-quick-prompt-page__title {
+  display: inline-flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--td-size-2);
   font-weight: 500;
 }
 
-.ai-quick-prompt-page__desc {
+.ai-quick-prompt-page__summary {
+  display: -webkit-box;
+  overflow: hidden;
   color: var(--td-text-color-secondary);
   font-size: var(--td-font-size-body-small);
+  line-height: var(--td-line-height-body-small);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
-.ai-quick-prompt-page__sort {
-  width: 100%;
+.ai-quick-prompt-page__tags {
+  display: inline-flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: var(--td-size-1);
+}
+
+.ai-quick-prompt-page__templates {
+  display: flex;
+  flex-direction: column;
+  gap: var(--td-size-2);
+}
+
+.ai-quick-prompt-page__templates-hint {
+  margin: 0;
+  color: var(--td-text-color-secondary);
+  font-size: var(--td-font-size-body-small);
+  line-height: var(--td-line-height-body-small);
 }
 
 .ai-quick-prompt-page__preview {

@@ -20,15 +20,25 @@ function handleTabbarChange({ value }: { value: string }) {
   router.pushTab({ name: value })
 }
 
+function syncActiveTab() {
+  if (route.name && route.name !== activeTabbar.value.name) {
+    setTabbarItemActive(route.name)
+  }
+}
+
 onMounted(() => {
   // #ifdef APP
   uni.hideTabBar()
   // #endif
-  nextTick(() => {
-    if (route.name && route.name !== activeTabbar.value.name) {
-      setTabbarItemActive(route.name)
-    }
-  })
+  nextTick(syncActiveTab)
+})
+
+onShow(() => {
+  syncActiveTab()
+})
+
+watch(() => route.name, () => {
+  syncActiveTab()
 })
 </script>
 

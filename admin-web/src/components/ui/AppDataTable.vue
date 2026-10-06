@@ -15,6 +15,15 @@ import AppErrorState from './AppErrorState.vue'
 import AppPageToolbar from './AppPageToolbar.vue'
 
 export type AppDataTableStatus = 'ready' | 'loading' | 'error'
+export type AppTableRowDragSort = 'row' | 'row-handler'
+
+export interface AppTableDragSortContext {
+  currentIndex: number
+  targetIndex: number
+  data: TableRowData[]
+  newData: TableRowData[]
+  sort: 'row' | 'col'
+}
 
 const props = withDefaults(defineProps<{
   rowKey: string
@@ -51,6 +60,7 @@ const props = withDefaults(defineProps<{
   stripe?: boolean
   tree?: TableTreeConfig
   expandedTreeNodes?: Array<string | number>
+  dragSort?: AppTableRowDragSort
 }>(), {
   data: () => [],
   status: 'ready',
@@ -83,6 +93,7 @@ const props = withDefaults(defineProps<{
   stripe: true,
   tree: undefined,
   expandedTreeNodes: undefined,
+  dragSort: undefined,
 })
 
 const emit = defineEmits<{
@@ -92,6 +103,7 @@ const emit = defineEmits<{
   'selection-change': [selectedRowKeys: Array<string | number>, options: SelectOptions<TableRowData>]
   'expanded-tree-nodes-change': [expandedTreeNodes: Array<string | number>, options: TableTreeNodeExpandOptions<TableRowData>]
   'display-columns-change': [columns: Array<string | number>]
+  'drag-sort': [context: AppTableDragSortContext]
 }>()
 
 const slots = useSlots()
@@ -127,6 +139,14 @@ watch(
 const size = computed(() => settingsStore.settings.density === 'compact' ? 'small' : 'medium')
 const resolvedData = computed<TableRowData[]>(() => [...props.data])
 const hasOperations = computed(() => Boolean(slots.operations))
+const dragColumn = computed<PrimaryTableCol<TableRowData>[]>(() => props.dragSort === 'row-handler'
+  ? [{
+      align: 'center',
+      colKey: 'drag',
+      title: '',
+      width: 46,
+    }]
+  : [])
 const resolvedColumns = computed<PrimaryTableCol<TableRowData>[]>(() => [
   ...(props.rowSelectionType
     ? [{
@@ -139,6 +159,7 @@ const resolvedColumns = computed<PrimaryTableCol<TableRowData>[]>(() => [
           : {}),
       }]
     : []),
+  ...dragColumn.value,
   ...props.columns,
   ...(hasOperations.value
     ? [{
@@ -168,6 +189,9 @@ const controlledTableProps = computed(() => ({
         selectOnRowClick: props.selectOnRowClick,
         selectedRowKeys: props.selectedRowKeys,
       }
+    : {}),
+  ...(props.dragSort
+    ? { dragSort: props.dragSort }
     : {}),
 }))
 const resolvedMaxHeight = computed(() => props.maxHeight)
@@ -210,6 +234,10 @@ function handleDisplayColumnsChange(value: CheckboxGroupValue): void {
 
 function handleColumnControllerVisibleChange(visible: boolean): void {
   columnControllerVisible.value = visible
+}
+
+function handleDragSort(context: AppTableDragSortContext): void {
+  emit('drag-sort', context)
 }
 </script>
 
@@ -268,6 +296,7 @@ function handleColumnControllerVisibleChange(visible: boolean): void {
         :table-content-width="tableContentWidth"
         @column-controller-visible-change="handleColumnControllerVisibleChange"
         @display-columns-change="handleDisplayColumnsChange"
+        @drag-sort="handleDragSort"
         @expanded-tree-nodes-change="handleExpandedTreeNodesChange"
         @select-change="handleSelectionChange"
       >
@@ -336,6 +365,11 @@ function handleColumnControllerVisibleChange(visible: boolean): void {
   display: inline-flex;
   min-width: 0;
   align-items: center;
+}
+
+.app-data-table :deep(.t-table__handle-draggable) {
+  color: var(--td-text-color-placeholder);
+  cursor: grab;
 }
 
 .app-data-table__pagination {

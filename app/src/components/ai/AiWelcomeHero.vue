@@ -6,7 +6,7 @@ defineProps<{
 
 <template>
   <view v-if="visible" class="ai-welcome flex flex-col items-center justify-center px-1 pb-6 pt-4 text-center">
-    <view class="ai-hero-art mb-4 flex items-center justify-center" aria-label="蓝格智配">
+    <view class="ai-hero-art mb-4 flex items-center justify-center" aria-label="筑小格">
       <view class="ai-hero-art__glow" />
       <image class="ai-hero-art__cover" src="/static/cover.png" mode="aspectFit" />
     </view>

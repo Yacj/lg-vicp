@@ -4,11 +4,12 @@ import { useBreakpoints } from '@vueuse/core'
 import { DeleteIcon, SendIcon } from 'tdesign-icons-vue-next'
 import { computed, nextTick, ref, watch } from 'vue'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
+import AppMarkdown from '@/components/ui/AppMarkdown.vue'
 import AppPage from '@/components/ui/AppPage.vue'
 import AppStatusTag from '@/components/ui/AppStatusTag.vue'
 import { useAiDebugger } from '@/composables/useAiDebugger'
 import { normalizeFeedbackError } from '@/composables/useAppFeedback'
-import { AI_SCENE_OPTIONS, getAiSceneLabel, renderMarkdown } from '@/utils/ai'
+import { AI_SCENE_OPTIONS, getAiSceneLabel } from '@/utils/ai'
 import { formatDate } from '@/utils/day'
 
 const {
@@ -69,7 +70,6 @@ const hasProviders = computed(() => providers.value.length > 0)
 const hasModels = computed(() => modelOptions.value.length > 0)
 
 const displayText = computed(() => streamedText.value)
-const answerHtml = computed(() => renderMarkdown(displayText.value))
 
 const firstTokenDelayMs = computed(() => {
   if (!run.value.firstTokenAt || !run.value.startedAt) {
@@ -353,11 +353,7 @@ function handleClear(): void {
                 <p v-if="message.role === 'user'" class="ai-debug-workspace__bubble-text">
                   {{ message.content }}
                 </p>
-                <div
-                  v-else
-                  class="ai-debug-workspace__bubble-markdown"
-                  v-html="renderMarkdown(message.content)"
-                />
+                <AppMarkdown v-else :content="message.content" />
               </div>
             </div>
 
@@ -366,11 +362,7 @@ function handleClear(): void {
               class="ai-debug-workspace__bubble-row ai-debug-workspace__bubble-row--assistant"
             >
               <div class="ai-debug-workspace__bubble ai-debug-workspace__bubble--assistant">
-                <div
-                  v-if="displayText"
-                  class="ai-debug-workspace__bubble-markdown"
-                  v-html="answerHtml"
-                />
+                <AppMarkdown v-if="displayText" :content="displayText" />
                 <p v-else-if="running" class="ai-debug-workspace__muted-text">
                   {{ run.error ? run.error.message : '正在等待模型响应…' }}
                 </p>
@@ -654,38 +646,6 @@ function handleClear(): void {
 .ai-debug-workspace__bubble-text {
   margin: 0;
   white-space: pre-wrap;
-}
-
-.ai-debug-workspace__bubble-markdown {
-  font-size: var(--td-font-size-body-medium);
-  line-height: var(--td-line-height-body-medium);
-}
-
-.ai-debug-workspace__bubble-markdown :deep(p) {
-  margin: 0 0 var(--td-comp-margin-s);
-}
-
-.ai-debug-workspace__bubble-markdown :deep(p:last-child) {
-  margin-bottom: 0;
-}
-
-.ai-debug-workspace__bubble-markdown :deep(pre) {
-  padding: var(--td-comp-paddingTB-s) var(--td-comp-paddingLR-s);
-  overflow: auto;
-  background: var(--td-bg-color-container);
-  border-radius: var(--td-radius-small);
-  font-family: var(--td-font-family-mono);
-  font-size: var(--td-font-size-body-small);
-}
-
-.ai-debug-workspace__bubble-markdown :deep(code) {
-  font-family: var(--td-font-family-mono);
-  font-size: var(--td-font-size-body-small);
-}
-
-.ai-debug-workspace__bubble-markdown :deep(ul),
-.ai-debug-workspace__bubble-markdown :deep(ol) {
-  padding-left: var(--td-comp-paddingLR-l);
 }
 
 .ai-debug-workspace__chat-input {

@@ -29,6 +29,10 @@ export const channelTypeEnum = pgEnum("channel_type", ["DEALER", "SALESPERSON"])
 export const userStatusEnum = pgEnum("user_status", ["ACTIVE", "DISABLED"]);
 export const userGenderEnum = pgEnum("user_gender", ["UNKNOWN", "MALE", "FEMALE"]);
 export const authClientEnum = pgEnum("auth_client", ["B_ADMIN", "C_APP", "PC_AI"]);
+/** 端访问：ADMIN=B 端后台，CLIENT=C 端 / PC AI 端。与 auth_client 正交。 */
+export const appCodeEnum = pgEnum("app_code", ["ADMIN", "CLIENT"]);
+export const appRoleEnum = pgEnum("app_role", ["SUPER_ADMIN", "NORMAL_USER"]);
+export const appAccessStatusEnum = pgEnum("app_access_status", ["ACTIVE", "DISABLED"]);
 export const identityTypeEnum = pgEnum("identity_type", [
   "USERNAME",
   "PHONE",
@@ -36,7 +40,7 @@ export const identityTypeEnum = pgEnum("identity_type", [
   "WECHAT_OPENID",
   "WECHAT_UNIONID"
 ]);
-export const projectVisibilityEnum = pgEnum("project_visibility", ["PRIVATE", "PUBLIC"]);
+export const projectVisibilityEnum = pgEnum("project_visibility", ["PRIVATE", "PUBLIC", "DEPARTMENT"]);
 export const visibilityPolicyEnum = pgEnum("visibility_policy", ["LOGGED_IN_USERS"]);
 export const projectMemberRoleEnum = pgEnum("project_member_role", ["OWNER", "EDITOR", "VIEWER"]);
 export const fileStatusEnum = pgEnum("file_status", [
@@ -62,6 +66,8 @@ export const cronJobStatusEnum = pgEnum("cron_job_status", ["PAUSED", "RUNNING",
 export const cronExecutionStatusEnum = pgEnum("cron_execution_status", ["QUEUED", "RUNNING", "SUCCESS", "FAILED", "CANCELLED"]);
 export const loginResultEnum = pgEnum("login_result", ["SUCCESS", "FAILED"]);
 export const aiProviderTypeEnum = pgEnum("ai_provider_type", ["OPENAI_COMPATIBLE"]);
+export const aiReasoningLevelEnum = pgEnum("ai_reasoning_level", ["LOW", "HIGH", "MAX"]);
+export const aiModelTestStatusEnum = pgEnum("ai_model_test_status", ["UNTESTED", "PASSED", "FAILED"]);
 export const aiPromptVersionStatusEnum = pgEnum("ai_prompt_version_status", ["DRAFT", "PUBLISHED", "DISABLED"]);
 export const menuTypeEnum = pgEnum("menu_type", ["DIRECTORY", "MENU", "BUTTON"]);
 /** 数据范围：ALL 全量；DEPT/DEPT_AND_CHILDREN 部门；SELF 本人；PROJECT_OWNER 项目创建者；CUSTOM 自定义 */
@@ -105,13 +111,14 @@ export const projectAiMemoryStatusEnum = pgEnum("project_ai_memory_status", [
 ]);
 export const projectAiMemoryCreatedByEnum = pgEnum("project_ai_memory_created_by", ["USER", "AI"]);
 /** 文件业务用途：CHAT_IMAGE 上传完成后直接 READY，不进入文档/知识解析 */
-export const filePurposeEnum = pgEnum("file_purpose", ["GENERAL", "CHAT_IMAGE"]);
+export const filePurposeEnum = pgEnum("file_purpose", ["GENERAL", "CHAT_IMAGE", "KNOWLEDGE_SOURCE"]);
 export const reportStatusEnum = pgEnum("report_status", [
   "DRAFT",
   "QUEUED",
   "GENERATING",
   "READY",
   "FAILED",
+  "CANCELLED",
   // 模板报告审核状态：READY -> PENDING_REVIEW -> APPROVED（可发布）/ REJECTED（可重新提交）
   "PENDING_REVIEW",
   "APPROVED",
@@ -268,9 +275,17 @@ export const collectionTaskStatusEnum = pgEnum("collection_task_status", [
   "COMPLETED",
   "FAILED"
 ]);
+export const collectionRunStatusEnum = pgEnum("collection_run_status", [
+  "RUNNING",
+  "COMPLETED",
+  "FAILED",
+  "CANCELLED"
+]);
+export const catalogProductStatusEnum = pgEnum("catalog_product_status", ["ACTIVE", "DISABLED"]);
+export const aiAgentRunTypeEnum = pgEnum("ai_agent_run_type", ["CHAT", "COLLECTION"]);
 
 // ---------------------------------------------------------------- 主数据（企业/产品/材料参数）
-// Legacy / Deprecated：产品中心已退出普通业务。表与审核 API 保留兼容，禁止新功能继续增加依赖。
+// Legacy 参数体系：普通 API 走 catalog_products 最小骨架；本域表与审核 API 保留兼容，完整参数字段待客户确认后再扩展。
 // 正式图集/标准/技术资料进入 Knowledge；确定性参数优先 VERIFIED knowledge_facts，缺省再 fallback 本域已发布数据。
 // 审核状态机：DRAFT -> PENDING_REVIEW -> APPROVED -> PUBLISHED -> DISABLED；PENDING_REVIEW 可驳回为 REJECTED。
 // 与知识库版本状态枚举差异：主数据需要"驳回"决议（甲方验收：参数冲突可见且有审核决议）。
@@ -402,10 +417,11 @@ export const users = pgTable(
     displayName: varchar("display_name", { length: 120 }).notNull(),
     gender: userGenderEnum("gender").notNull().default("UNKNOWN"),
     remark: text("remark"),
+    /** 账号类型兼容字段；分端访问真源是 user_app_access。 */
     role: userRoleEnum("role").notNull().default("NORMAL_USER"),
     channelType: channelTypeEnum("channel_type"),
-    /** 是否允许登录 B 端管理后台：仅普通用户可关闭；渠道用户/超级管理员恒可登录。 */
-    adminLoginEnabled: boolean("admin_login_enabled").notNull().default(true),
+    /** 是否允许登录 B 端管理后台。P0：普通用户注册默认 false；B 端登录只接受 SUPER_ADMIN。 */
+    adminLoginEnabled: boolean("admin_login_enabled").notNull().default(false),
     status: userStatusEnum("status").notNull().default("ACTIVE"),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
     ...timestamps
@@ -425,6 +441,8 @@ export const userIdentities = pgTable(
     type: identityTypeEnum("type").notNull(),
     identifier: varchar("identifier", { length: 255 }).notNull(),
     passwordHash: text("password_hash"),
+    /** 微信身份可存 { unionid }；密码只写 password_hash，不重复落用户表 */
+    metadata: jsonb("metadata").$type<{ unionid?: string }>(),
     verifiedAt: timestamp("verified_at", { withTimezone: true }),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
     ...timestamps
@@ -453,6 +471,25 @@ export const refreshTokens = pgTable(
   (table) => [
     uniqueIndex("refresh_tokens_hash_unique").on(table.tokenHash),
     index("refresh_tokens_user_expires_idx").on(table.userId, table.expiresAt)
+  ]
+);
+
+/**
+ * 同一 User 的分端访问身份。UNIQUE(user_id, app)。
+ * users.role 暂时保留兼容，登录与路由守卫优先读本表。
+ */
+export const userAppAccess = pgTable(
+  "user_app_access",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    app: appCodeEnum("app").notNull(),
+    role: appRoleEnum("role").notNull(),
+    status: appAccessStatusEnum("status").notNull().default("ACTIVE"),
+    ...timestamps
+  },
+  (table) => [
+    uniqueIndex("user_app_access_user_app_unique").on(table.userId, table.app)
   ]
 );
 
@@ -594,6 +631,9 @@ export const projects = pgTable(
     buildingType: varchar("building_type", { length: 80 }),
     visibility: projectVisibilityEnum("visibility").notNull().default("PRIVATE"),
     visibilityPolicy: visibilityPolicyEnum("visibility_policy").notNull().default("LOGGED_IN_USERS"),
+    /** DEPARTMENT 可见时的根部门；PRIVATE 为空。PUBLIC 为历史全员可见，P0 不再新建。 */
+    visibleDepartmentId: uuid("visible_department_id").references((): PgColumn => departments.id, { onDelete: "set null" }),
+    includeChildDepartments: boolean("include_child_departments").notNull().default(true),
     status: varchar("status", { length: 32 }).notNull().default("active"),
     metadata: jsonb("metadata").$type<Record<string, unknown>>(),
     createdById: uuid("created_by_id").notNull().references(() => users.id),
@@ -602,7 +642,8 @@ export const projects = pgTable(
   },
   (table) => [
     index("projects_creator_idx").on(table.createdById),
-    index("projects_visibility_status_idx").on(table.visibility, table.status)
+    index("projects_visibility_status_idx").on(table.visibility, table.status),
+    index("projects_visible_department_idx").on(table.visibleDepartmentId, table.visibility)
   ]
 );
 
@@ -832,6 +873,11 @@ export const knowledgePages = pgTable(
     hasTables: boolean("has_tables").notNull().default(false),
     hasImages: boolean("has_images").notNull().default(false),
     parseStatus: knowledgeParseStatusEnum("parse_status").notNull().default("PARSED"),
+    /**
+     * 页面扩展元数据（离线页图上传 / 视觉识别候选 / 人工确认快照等）。
+     * recognitionStatus 等字段见 src/shared/page-recognition.ts，不另造 page 表。
+     */
+    metadata: jsonb("metadata").$type<Record<string, unknown>>(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
   },
   (table) => [
@@ -1196,7 +1242,25 @@ export const knowledgeFacts = pgTable(
 /**
  * 采集管理独立 Domain：只负责获取外部候选资料，确认后导入 Knowledge。
  * 不做成 Knowledge 子模块；P0 仅 MANUAL / AUTO，不开放 XPath/Cookie/Proxy/Cron 配置。
+ * 自动采集 = Source URL + Collection Skill（关键词 + instruction）+ Agent Loop。
  */
+export const collectionSkills = pgTable(
+  "collection_skills",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: varchar("name", { length: 160 }).notNull(),
+    keywordsJson: jsonb("keywords_json").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    instruction: text("instruction"),
+    enabled: boolean("enabled").notNull().default(true),
+    createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    ...timestamps
+  },
+  (table) => [
+    index("collection_skills_enabled_idx").on(table.enabled),
+    index("collection_skills_updated_idx").on(table.updatedAt)
+  ]
+);
+
 export const collectionSources = pgTable(
   "collection_sources",
   {
@@ -1205,12 +1269,15 @@ export const collectionSources = pgTable(
     sourceUrl: text("source_url").notNull(),
     mode: collectionModeEnum("mode").notNull().default("AUTO"),
     enabled: boolean("enabled").notNull().default(true),
+    skillId: uuid("skill_id").references((): PgColumn => collectionSkills.id, { onDelete: "set null" }),
     lastCollectedAt: timestamp("last_collected_at", { withTimezone: true }),
+    lastRunAt: timestamp("last_run_at", { withTimezone: true }),
     createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
     ...timestamps
   },
   (table) => [
     index("collection_sources_enabled_idx").on(table.enabled),
+    index("collection_sources_skill_idx").on(table.skillId),
     index("collection_sources_updated_idx").on(table.updatedAt)
   ]
 );
@@ -1237,6 +1304,105 @@ export const collectionTasks = pgTable(
     index("collection_tasks_status_created_idx").on(table.status, table.createdAt),
     index("collection_tasks_mode_status_idx").on(table.mode, table.status),
     index("collection_tasks_source_idx").on(table.sourceId)
+  ]
+);
+
+export const collectionRuns = pgTable(
+  "collection_runs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sourceId: uuid("source_id").references(() => collectionSources.id, { onDelete: "set null" }),
+    skillId: uuid("skill_id").references(() => collectionSkills.id, { onDelete: "set null" }),
+    taskId: uuid("task_id").references(() => collectionTasks.id, { onDelete: "set null" }),
+    runType: aiAgentRunTypeEnum("run_type").notNull().default("COLLECTION"),
+    status: collectionRunStatusEnum("status").notNull().default("RUNNING"),
+    currentStep: integer("current_step").notNull().default(0),
+    maxSteps: integer("max_steps").notNull().default(12),
+    maxPages: integer("max_pages").notNull().default(8),
+    visitedUrlsJson: jsonb("visited_urls_json").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    storedCount: integer("stored_count").notNull().default(0),
+    duplicateCount: integer("duplicate_count").notNull().default(0),
+    errorMessage: text("error_message"),
+    createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+    ...timestamps
+  },
+  (table) => [
+    index("collection_runs_source_started_idx").on(table.sourceId, table.startedAt),
+    index("collection_runs_status_idx").on(table.status, table.startedAt)
+  ]
+);
+
+export const collectionRecords = pgTable(
+  "collection_records",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sourceId: uuid("source_id").references(() => collectionSources.id, { onDelete: "set null" }),
+    skillId: uuid("skill_id").references(() => collectionSkills.id, { onDelete: "set null" }),
+    taskId: uuid("task_id").references(() => collectionTasks.id, { onDelete: "set null" }),
+    runId: uuid("run_id").references(() => collectionRuns.id, { onDelete: "set null" }),
+    title: varchar("title", { length: 255 }).notNull(),
+    url: text("url").notNull(),
+    publishedAt: timestamp("published_at", { withTimezone: true }),
+    collectedAt: timestamp("collected_at", { withTimezone: true }).notNull().defaultNow(),
+    keywordsJson: jsonb("keywords_json").$type<string[]>(),
+    summary: text("summary"),
+    rawDataJson: jsonb("raw_data_json").$type<Record<string, unknown>>(),
+    fingerprint: varchar("fingerprint", { length: 64 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => [
+    uniqueIndex("collection_records_fingerprint_unique").on(table.fingerprint),
+    index("collection_records_collected_idx").on(table.collectedAt),
+    index("collection_records_source_collected_idx").on(table.sourceId, table.collectedAt),
+    index("collection_records_url_idx").on(table.url)
+  ]
+);
+
+/**
+ * P0 产品管理最小骨架。Legacy product_series/specs/parameters 保留兼容，普通 API 只开放已确认字段。
+ * 完整产品参数体系待客户确认后再扩展。
+ */
+export const catalogProducts = pgTable(
+  "catalog_products",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: varchar("name", { length: 160 }).notNull(),
+    categoryId: uuid("category_id"),
+    summary: text("summary"),
+    /** 产品类型，如复合保温板；不是传热系数 */
+    productType: varchar("product_type", { length: 80 }),
+    /** 规格型号 I/II/III，可空。客户热工表未确认型号时不填 */
+    specClass: mdSpecClassEnum("spec_class"),
+    /** 导热系数 λ，W/(m·K)。K 与总热阻不放在产品上 */
+    thermalConductivity: numeric("thermal_conductivity", { precision: 12, scale: 6, mode: "number" }),
+    /** 修正系数 α */
+    correctionFactor: numeric("correction_factor", { precision: 12, scale: 6, mode: "number" }),
+    /** 可选厚度 mm */
+    thicknessOptionsMm: jsonb("thickness_options_mm").$type<number[]>().notNull().default(sql`'[]'::jsonb`),
+    status: catalogProductStatusEnum("status").notNull().default("ACTIVE"),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    ...timestamps
+  },
+  (table) => [
+    index("catalog_products_status_sort_idx").on(table.status, table.sortOrder),
+    index("catalog_products_name_idx").on(table.name)
+  ]
+);
+
+export const productKnowledgeLinks = pgTable(
+  "product_knowledge_links",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    productId: uuid("product_id").notNull().references(() => catalogProducts.id, { onDelete: "cascade" }),
+    knowledgeDocumentId: uuid("knowledge_document_id").notNull().references(() => knowledgeDocuments.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => [
+    uniqueIndex("product_knowledge_links_unique").on(table.productId, table.knowledgeDocumentId),
+    index("product_knowledge_links_document_idx").on(table.knowledgeDocumentId)
   ]
 );
 
@@ -1270,13 +1436,24 @@ export const aiModels = pgTable(
     displayName: varchar("display_name", { length: 120 }).notNull(),
     modelId: varchar("model_id", { length: 160 }).notNull(),
     description: text("description"),
+    /** @deprecated 内部探测/测试结果缓存，禁止作为 B 端勾选能力来源 */
     capabilities: jsonb("capabilities").$type<Record<string, boolean>>().notNull().default(sql`'{}'::jsonb`),
+    /** @deprecated 上下文窗口仅供内部预算，不再作为普通模型编辑项 */
     contextWindow: integer("context_window"),
+    /** @deprecated 输出上限改由 AiTaskRuntimePolicy 决定 */
     maxOutputTokens: integer("max_output_tokens"),
+    /** @deprecated 采样温度改由 Provider 默认或内部 TaskPolicy 决定 */
     defaultTemperature: real("default_temperature"),
+    /** @deprecated 超时改由 AiTaskRuntimePolicy 决定 */
     timeoutMs: integer("timeout_ms").notNull().default(60000),
     priority: integer("priority").notNull().default(0),
-    enabled: boolean("enabled").notNull().default(true),
+    supportsVision: boolean("supports_vision").notNull().default(false),
+    reasoningLevel: aiReasoningLevelEnum("reasoning_level").notNull().default("HIGH"),
+    isDefault: boolean("is_default").notNull().default(false),
+    lastTestStatus: aiModelTestStatusEnum("last_test_status").notNull().default("UNTESTED"),
+    lastTestAt: timestamp("last_test_at", { withTimezone: true }),
+    lastTestError: text("last_test_error"),
+    enabled: boolean("enabled").notNull().default(false),
     ...timestamps
   },
   (table) => [uniqueIndex("ai_models_provider_model_unique").on(table.providerId, table.modelId)]
@@ -1517,6 +1694,8 @@ export const aiConversationStates = pgTable(
     importantReferencesJson: jsonb("important_references_json").$type<Array<Record<string, unknown>>>().notNull().default(sql`'[]'::jsonb`),
     lastSummarizedMessageId: uuid("last_summarized_message_id").references(() => aiMessages.id, { onDelete: "set null" }),
     version: integer("version").notNull().default(1),
+    /** Conversation Runtime 任务状态：不是 C 端 Scene / Agent 类型选择器 */
+    taskStateJson: jsonb("task_state_json").$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
   }
@@ -1561,6 +1740,7 @@ export const aiAgentRuns = pgTable(
     assistantMessageId: uuid("assistant_message_id").references(() => aiMessages.id, { onDelete: "set null" }),
     userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
     projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
+    runType: aiAgentRunTypeEnum("run_type").notNull().default("CHAT"),
     status: aiAgentRunStatusEnum("status").notNull().default("RUNNING"),
     currentStep: integer("current_step").notNull().default(0),
     allowedToolsJson: jsonb("allowed_tools_json").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
@@ -1692,6 +1872,52 @@ export const reportSources = pgTable(
   (table) => [
     uniqueIndex("report_sources_report_message_unique").on(table.reportId, table.messageId),
     uniqueIndex("report_sources_report_sort_unique").on(table.reportId, table.sortOrder)
+  ]
+);
+
+/**
+ * 对话侧报告上下文快照：用户确认多选后立即固化，报告生成不得再把整段聊天扔给模型。
+ * 与模板渲染用的 report_snapshots.dataJson 职责不同。
+ */
+export const reportContextSnapshots = pgTable(
+  "report_context_snapshots",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    conversationId: uuid("conversation_id").notNull().references(() => aiConversations.id, { onDelete: "cascade" }),
+    projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
+    reportId: uuid("report_id").references(() => reports.id, { onDelete: "set null" }),
+    reportType: varchar("report_type", { length: 80 }).notNull().default("PRODUCT_COMPARISON"),
+    selectedProductIdsJson: jsonb("selected_product_ids_json").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    selectedKnowledgeSourceIdsJson: jsonb("selected_knowledge_source_ids_json").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    userGoal: text("user_goal"),
+    confirmedRequirementsJson: jsonb("confirmed_requirements_json").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    comparisonContextJson: jsonb("comparison_context_json").$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
+    comparisonResultJson: jsonb("comparison_result_json").$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
+    sourceRefsJson: jsonb("source_refs_json").$type<unknown[]>().notNull().default(sql`'[]'::jsonb`),
+    thermalResultsJson: jsonb("thermal_results_json").$type<unknown[]>().notNull().default(sql`'[]'::jsonb`),
+    /** 用户确认或本轮使用过的参考页。只存 objectKey，不存会过期的签名 URL */
+    referencePagesJson: jsonb("reference_pages_json").$type<Array<{
+      documentId: string;
+      pageId: string;
+      documentTitle?: string | null;
+      pageLabel?: string | null;
+      pageNumber?: number | null;
+      physicalPageNumber?: number | null;
+      pageImageObjectKey?: string | null;
+      summary?: Record<string, unknown>;
+      highlights?: Array<{ field: string; label: string; value: string }>;
+      matches?: Array<{
+        candidateId?: string;
+        summary?: Record<string, unknown>;
+        highlights: Array<{ field: string; label: string; value: string }>;
+      }>;
+    }>>().notNull().default(sql`'[]'::jsonb`),
+    createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => [
+    index("report_context_snapshots_conversation_idx").on(table.conversationId),
+    index("report_context_snapshots_project_idx").on(table.projectId)
   ]
 );
 
@@ -1877,7 +2103,7 @@ export const enterpriseCertificates = pgTable(
   ]
 );
 
-/** @deprecated Legacy 产品中心：普通菜单已隐藏，表保留兼容；新资料进入 Knowledge / knowledge_facts */
+/** Legacy 产品系列：完整参数体系待确认；P0 普通 API 走 catalog_products 最小骨架，本表保留兼容 */
 export const productSeries = pgTable(
   "product_series",
   {
@@ -1903,9 +2129,12 @@ export const productSpecs = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     seriesId: uuid("series_id").notNull().references(() => productSeries.id, { onDelete: "cascade" }),
+    /** 关联产品中心目录。计算在 Fact 之后可读取目录上的 λ/α */
+    catalogProductId: uuid("catalog_product_id").references(() => catalogProducts.id, { onDelete: "set null" }),
     specCode: varchar("spec_code", { length: 80 }).notNull(),
     version: integer("version").notNull().default(1),
-    specClass: mdSpecClassEnum("spec_class").notNull(),
+    /** 可空：客户 XLS 计算样例等无 I/II/III 型号语义时必须为 null，禁止写死 "I" */
+    specClass: mdSpecClassEnum("spec_class"),
     thicknessMm: numeric("thickness_mm", { precision: 10, scale: 2, mode: "number" }).notNull(),
     lengthMm: numeric("length_mm", { precision: 10, scale: 2, mode: "number" }),
     widthMm: numeric("width_mm", { precision: 10, scale: 2, mode: "number" }),
@@ -2231,6 +2460,13 @@ export const thermalReferenceRows = pgTable(
     productThermalResistance: numeric("product_thermal_resistance", { precision: 10, scale: 4, mode: "number" }).notNull(),
     totalThermalResistance: numeric("total_thermal_resistance", { precision: 10, scale: 4, mode: "number" }).notNull(),
     kValue: numeric("k_value", { precision: 10, scale: 4, mode: "number" }).notNull(),
+    /** 产品中心目录，可空。参考方案不从产品字段反推 K/R */
+    catalogProductId: uuid("catalog_product_id").references(() => catalogProducts.id, { onDelete: "set null" }),
+    /** 人工绑定的知识文档与页面。空值表示尚未关联原始页 */
+    sourceDocumentId: uuid("source_document_id").references(() => knowledgeDocuments.id, { onDelete: "set null" }),
+    sourcePageId: uuid("source_page_id").references(() => knowledgePages.id, { onDelete: "set null" }),
+    sourcePageLabel: varchar("source_page_label", { length: 32 }),
+    sortOrder: integer("sort_order").notNull().default(0),
     rawThickness: text("raw_thickness").notNull(),
     rawProductResistance: text("raw_product_resistance").notNull(),
     rawTotalResistance: text("raw_total_resistance").notNull(),
@@ -3016,10 +3252,15 @@ export const dictionaryItems = pgTable(
 
 export const usersRelations = relations(users, ({ many }) => ({
   identities: many(userIdentities),
+  appAccess: many(userAppAccess),
   createdProjects: many(projects, { relationName: "projectCreator" }),
   conversations: many(aiConversations),
   reports: many(reports),
   aiMessageFeedbacks: many(aiMessageFeedbacks)
+}));
+
+export const userAppAccessRelations = relations(userAppAccess, ({ one }) => ({
+  user: one(users, { fields: [userAppAccess.userId], references: [users.id] })
 }));
 
 export const projectsRelations = relations(projects, ({ one, many }) => ({
@@ -3037,11 +3278,18 @@ export const conversationsRelations = relations(aiConversations, ({ one, many })
   messages: many(aiMessages),
   feedbacks: many(aiMessageFeedbacks),
   conversationState: one(aiConversationStates, { fields: [aiConversations.id], references: [aiConversationStates.conversationId] }),
-  agentRuns: many(aiAgentRuns)
+  agentRuns: many(aiAgentRuns),
+  reportContextSnapshots: many(reportContextSnapshots)
 }));
 
 export const aiConversationStatesRelations = relations(aiConversationStates, ({ one }) => ({
   conversation: one(aiConversations, { fields: [aiConversationStates.conversationId], references: [aiConversations.id] })
+}));
+
+export const reportContextSnapshotsRelations = relations(reportContextSnapshots, ({ one }) => ({
+  conversation: one(aiConversations, { fields: [reportContextSnapshots.conversationId], references: [aiConversations.id] }),
+  project: one(projects, { fields: [reportContextSnapshots.projectId], references: [projects.id] }),
+  report: one(reports, { fields: [reportContextSnapshots.reportId], references: [reports.id] })
 }));
 
 export const projectAiMemoriesRelations = relations(projectAiMemories, ({ one }) => ({
@@ -3070,6 +3318,7 @@ export type Prompt = typeof prompts.$inferSelect;
 export type PromptVersion = typeof promptVersions.$inferSelect;
 export type AiQuickPrompt = typeof aiQuickPrompts.$inferSelect;
 export type Report = typeof reports.$inferSelect;
+export type ReportContextSnapshot = typeof reportContextSnapshots.$inferSelect;
 export type ReportSettings = typeof reportSettings.$inferSelect;
 export type AiMessageAttachment = typeof aiMessageAttachments.$inferSelect;
 export type AiConversationState = typeof aiConversationStates.$inferSelect;
@@ -3089,8 +3338,12 @@ export type ParsingJob = typeof parsingJobs.$inferSelect;
 export type KnowledgeRankingRule = typeof knowledgeRankingRules.$inferSelect;
 export type KnowledgeCrawlerSource = typeof knowledgeCrawlerSources.$inferSelect;
 export type KnowledgeFact = typeof knowledgeFacts.$inferSelect;
+export type CollectionSkill = typeof collectionSkills.$inferSelect;
 export type CollectionSource = typeof collectionSources.$inferSelect;
 export type CollectionTask = typeof collectionTasks.$inferSelect;
+export type CollectionRun = typeof collectionRuns.$inferSelect;
+export type CollectionRecord = typeof collectionRecords.$inferSelect;
+export type CatalogProduct = typeof catalogProducts.$inferSelect;
 export type KnowledgeSearchEvaluation = typeof knowledgeSearchEvaluations.$inferSelect;
 export type EnterpriseProfile = typeof enterpriseProfiles.$inferSelect;
 export type EnterpriseCertificate = typeof enterpriseCertificates.$inferSelect;

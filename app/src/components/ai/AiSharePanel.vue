@@ -80,7 +80,7 @@ function copyLink() {
   const url = `${location.origin}${location.pathname}#/pages/share/index?token=${share.value.share.token}`
   uni.setClipboardData({
     data: url,
-    success: () => toastInfo('链接已复制'),
+    // success: () => toastInfo('链接已复制'),
   })
   // #endif
 }

@@ -5,13 +5,19 @@ import type {
   CreateShareInput,
   CreateShareResult,
   DisableShareResult,
+  MyReportItem,
+  MyReportQuery,
+  PublicReportType,
   PublishReportResult,
   RegenerateReportResult,
   ReportArtifactType,
   ReportCenterRow,
   ReportDetailResult,
   ReportDownloadUrlResult,
+  ReportSettings,
+  ReportSettingsUpdate,
 } from '@/types/report'
+import type { PageResult } from '@/types/api'
 import { api } from '@/api/http/client'
 
 const REPORTS_PREFIX = '/api/v1/reports'
@@ -37,7 +43,39 @@ function reportPath(id: string): string {
   return `${REPORTS_PREFIX}/${encodeURIComponent(id)}`
 }
 
-/** 创建并排队生成报告（POST /api/v1/reports，需项目可管理权限）。 */
+const PLATFORM_REPORTS_PREFIX = '/api/v1/platform/reports'
+
+/** 系统预置报告类型（GET /api/v1/reports/types，不含模板版本与渲染细节）。 */
+export function fetchReportTypes(signal?: AbortSignal): Promise<{ items: PublicReportType[] }> {
+  return api.get<{ items: PublicReportType[] }>(`${REPORTS_PREFIX}/types`, { signal })
+}
+
+/** 读取全局报告设置（GET /api/v1/platform/reports/settings，企业 Logo 复用企业信息）。 */
+export function fetchReportSettings(signal?: AbortSignal): Promise<ReportSettings> {
+  return api.get<ReportSettings>(`${PLATFORM_REPORTS_PREFIX}/settings`, { signal })
+}
+
+/** 更新全局报告设置（PUT /api/v1/platform/reports/settings）。 */
+export function updateReportSettings(input: ReportSettingsUpdate): Promise<ReportSettings> {
+  return api.put<ReportSettings>(`${PLATFORM_REPORTS_PREFIX}/settings`, input)
+}
+
+/** 当前用户报告列表（GET /api/v1/reports/my，可按项目筛选；无项目时 project 为 null）。 */
+export function fetchMyReports(
+  query: MyReportQuery = {},
+  signal?: AbortSignal,
+): Promise<PageResult<MyReportItem>> {
+  return api.get<PageResult<MyReportItem>>(`${REPORTS_PREFIX}/my`, {
+    params: {
+      page: query.page,
+      pageSize: query.pageSize,
+      ...(query.projectId ? { projectId: query.projectId } : {}),
+    },
+    signal,
+  })
+}
+
+/** 创建并排队生成报告（POST /api/v1/reports；projectId 可省略）。 */
 export function createReport(input: CreateReportInput): Promise<CreateReportResult> {
   return api.post<CreateReportResult>(REPORTS_PREFIX, input)
 }
@@ -84,7 +122,7 @@ export function disableShare(id: string): Promise<DisableShareResult> {
 
 /**
  * 获取会话关联的报告与分享记录（GET /api/v1/ai/conversations/:id）。
- * 后端无报告列表接口，报告列表以「项目 → 会话 → 会话详情」聚合获得，本函数只提取所需字段。
+ * 成果列表以 GET /reports/my 为准；本函数仅提取会话详情中的报告文件与分享。
  */
 export async function fetchConversationAssets(
   conversationId: string,

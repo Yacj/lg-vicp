@@ -3,8 +3,8 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { fetchCurrentUserInfo } from '@/api/modules/auth'
 import { hasAllPermissions, hasAnyPermission, hasPermission } from '@/permissions/rbac'
-import { B_ADMIN_CLIENT } from '@/types/auth'
 import { HttpRequestError } from '@/types/error'
+import { canEnterBAdmin } from '@/utils/auth'
 
 export const useUserStore = defineStore('user', () => {
   const profile = ref<CurrentUserInfo['user'] | null>(null)
@@ -17,8 +17,8 @@ export const useUserStore = defineStore('user', () => {
   const permissionSet = computed(() => new Set(permissions.value))
 
   function applyUserInfo(info: CurrentUserInfo): void {
-    if (info.user.clientType !== B_ADMIN_CLIENT || (info.user.role === 'NORMAL_USER' && !info.user.adminLoginEnabled)) {
-      throw new HttpRequestError('当前账号不能进入管理后台', { status: 403 })
+    if (!canEnterBAdmin(info.user)) {
+      throw new HttpRequestError('仅超级管理员可进入管理后台', { status: 403 })
     }
     profile.value = info.user
     departments.value = info.departments

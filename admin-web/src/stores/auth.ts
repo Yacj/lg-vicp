@@ -4,7 +4,7 @@ import { computed, ref } from 'vue'
 import { loginBAdmin, logoutBAdmin } from '@/api/modules/auth'
 import { B_ADMIN_CLIENT } from '@/types/auth'
 import { HttpRequestError } from '@/types/error'
-import { clearAuthSession, readAuthSession, writeAuthSession } from '@/utils/auth'
+import { canEnterBAdmin, clearAuthSession, readAuthSession, writeAuthSession } from '@/utils/auth'
 
 export type AuthStatus = 'anonymous' | 'authenticated' | 'authenticating' | 'restoring'
 
@@ -36,8 +36,8 @@ export const useAuthStore = defineStore('auth', () => {
     status.value = 'authenticating'
     try {
       const result = await loginBAdmin(credentials)
-      if (result.user.clientType !== B_ADMIN_CLIENT || (result.user.role === 'NORMAL_USER' && !result.user.adminLoginEnabled)) {
-        throw new HttpRequestError('当前账号不能进入 B 端管理后台', { status: 403 })
+      if (!canEnterBAdmin(result.user)) {
+        throw new HttpRequestError('仅超级管理员可进入 B 端管理后台', { status: 403 })
       }
       replaceSession({
         accessToken: result.accessToken,

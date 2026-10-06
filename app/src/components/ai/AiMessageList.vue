@@ -1,8 +1,14 @@
 <script setup lang="ts">
-import type { AiFeedbackReaction, AiMessageFeedback, AiSourceRef } from '@/api/types'
+import type { AiFeedbackReaction, AiMessageFeedback, AiSourceRef, ApiEnvelope, DownloadUrlResult, MessageAttachment } from '@/api/types'
 import type { LocalMessage } from '@/store/assistant'
+import { fileApi } from '@/api/modules/files'
+import AiAgentStatus from '@/components/ai/AiAgentStatus.vue'
+import AiComparisonCard from '@/components/ai/AiComparisonCard.vue'
+import AiProductCard from '@/components/ai/AiProductCard.vue'
 import AiSourceCard from '@/components/ai/AiSourceCard.vue'
-import { markdownStyle, markdownToPlainText, renderMarkdown } from '@/utils/markdown'
+import { CHAT_IMAGE_ONLY_CONTENT, VISION_FAILURE_MESSAGE } from '@/constants/chatImage'
+import { isSourceInquiry, previousUserText, splitAnswerLayers } from '@/utils/aiAnswerUx'
+import { markdownTagStyle, markdownToPlainText, renderMarkdown } from '@/utils/markdown'
 
 const props = defineProps<{
   messages: LocalMessage[]
@@ -16,6 +22,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   regenerate: [messageId: string]
+  resend: [messageId: string]
   feedback: [messageId: string, reaction: 'LIKE' | 'DISLIKE' | null]
   share: []
   toggleSelect: [messageId: string]
@@ -30,18 +37,40 @@ const htmlCache = reactive<Record<string, string>>({})
 const streamingHtml = ref('')
 let streamingTimer: ReturnType<typeof setTimeout> | null = null
 
+const visibleMessages = computed(() => props.messages.filter(item => item.role !== 'SYSTEM'))
+const expandedDetails = reactive<Record<string, boolean>>({})
+
 const streamingContent = computed(() => {
   if (!props.isStreaming) {
     return ''
   }
-  const message = props.messages.find(item => item.id === props.streamingMessageId)
+  const message = visibleMessages.value.find(item => item.id === props.streamingMessageId)
   return message?.content ?? ''
 })
+
+watch(
+  () => props.isStreaming,
+  (streaming) => {
+    if (streamingTimer) {
+      clearTimeout(streamingTimer)
+      streamingTimer = null
+    }
+    streamingHtml.value = ''
+    if (streaming && streamingContent.value) {
+      streamingHtml.value = renderMarkdown(streamingContent.value)
+    }
+  },
+)
 
 // 流式期间节流渲染，避免每个 delta 都触发 mp-html 全量解析
 watch(streamingContent, (content) => {
   if (streamingTimer) {
     clearTimeout(streamingTimer)
+    streamingTimer = null
+  }
+  if (!content) {
+    streamingHtml.value = ''
+    return
   }
   streamingTimer = setTimeout(() => {
     streamingHtml.value = renderMarkdown(content)
@@ -54,14 +83,46 @@ onUnmounted(() => {
   }
 })
 
-function getHtml(message: LocalMessage) {
+function getHtml(message: LocalMessage, part?: 'summary' | 'details') {
   if (props.isStreaming && message.id === props.streamingMessageId) {
     return streamingHtml.value
   }
-  if (!htmlCache[message.id]) {
-    htmlCache[message.id] = renderMarkdown(message.content)
+  const layers = messageLayers(message)
+  const source = part === 'details' ? layers.details : (part === 'summary' ? layers.summary : message.content)
+  const cacheKey = `${message.id}:${part || 'full'}:${(source || '').length}`
+  if (!htmlCache[cacheKey]) {
+    htmlCache[cacheKey] = renderMarkdown(source)
   }
-  return htmlCache[message.id]
+  return htmlCache[cacheKey]
+}
+
+function messageLayers(message: LocalMessage) {
+  if (props.isStreaming && message.id === props.streamingMessageId) {
+    return { summary: message.content, details: '', collapsible: false }
+  }
+  const index = visibleMessages.value.findIndex(item => item.id === message.id)
+  return splitAnswerLayers(message.content || '', {
+    forceExpand: isSourceInquiry(previousUserText(visibleMessages.value, index)),
+  })
+}
+
+function expandDetails(messageId: string) {
+  expandedDetails[messageId] = true
+}
+
+function hasStructuredContent(message: LocalMessage) {
+  return Boolean(message.comparison || message.products?.length)
+}
+
+/** 思考中且尚无正文时不渲染空气泡，只保留下方「正在思考」 */
+function hasAnswerBubble(message: LocalMessage) {
+  if (hasStructuredContent(message)) {
+    return true
+  }
+  if (props.isStreaming && message.id === props.streamingMessageId) {
+    return Boolean(streamingHtml.value.trim())
+  }
+  return Boolean(message.content?.trim())
 }
 
 function currentReaction(messageId: string): AiFeedbackReaction | null {
@@ -75,7 +136,7 @@ function handleFeedback(messageId: string, reaction: 'LIKE' | 'DISLIKE' | null) 
 function copyMessage(message: LocalMessage) {
   uni.setClipboardData({
     data: markdownToPlainText(message.content),
-    success: () => toastInfo('已复制'),
+    // success: () => toastInfo('已复制'),
   })
 }
 
@@ -97,12 +158,85 @@ function handleToggleSelect(message: LocalMessage) {
   }
   emit('toggleSelect', message.id)
 }
+
+function messageAttachments(message: LocalMessage) {
+  return message.attachments?.filter(item => item.attachmentType === 'IMAGE' || item.file?.mimeType?.startsWith('image/')) || []
+}
+
+function userText(message: LocalMessage) {
+  const content = message.content?.trim() || ''
+  if (content === CHAT_IMAGE_ONLY_CONTENT && messageAttachments(message).length) {
+    return ''
+  }
+  return message.content
+}
+
+function attachmentPreview(item: MessageAttachment) {
+  return item.previewUrl || ''
+}
+
+async function previewAttachments(message: LocalMessage, current: MessageAttachment) {
+  const images = messageAttachments(message)
+  await Promise.all(images.filter(item => item.fileId && !item.previewUrl).map(async (item) => {
+    try {
+      const response = await fileApi.getDownloadUrl(item.fileId).send() as ApiEnvelope<DownloadUrlResult>
+      if (response.data?.url) {
+        item.previewUrl = response.data.url
+      }
+    }
+    catch {
+      // 单张预览失败不阻断其余图片
+    }
+  }))
+  const urls = images.map(item => item.previewUrl).filter((url): url is string => Boolean(url))
+  if (!urls.length) {
+    toastInfo('图片暂无法预览')
+    return
+  }
+  uni.previewImage({
+    urls,
+    current: current.previewUrl || urls[0],
+  })
+}
+
+function isVisionFailure(message: LocalMessage) {
+  if (message.status !== 'FAILED') {
+    return false
+  }
+  const text = message.errorMessage || ''
+  return text.includes('图片识别') || text.includes('视觉') || text === VISION_FAILURE_MESSAGE
+}
+
+function failureText(message: LocalMessage) {
+  if (isVisionFailure(message)) {
+    return VISION_FAILURE_MESSAGE
+  }
+  return message.errorMessage || '生成失败'
+}
+
+function messageSources(message: LocalMessage) {
+  if (!message.comparison) {
+    return message.sources || []
+  }
+  const extra = message.comparison.sources
+    .filter(item => !item.source)
+    .map(item => ({ title: item.label, sectionTitle: item.typeLabel }))
+  const fromComparison = message.comparison.sources
+    .map(item => item.source)
+    .filter((item): item is AiSourceRef => Boolean(item))
+  return [...(message.sources || []), ...fromComparison, ...extra]
+}
+
+function expandSources(message: LocalMessage) {
+  const index = visibleMessages.value.findIndex(item => item.id === message.id)
+  return isSourceInquiry(previousUserText(visibleMessages.value, index))
+}
 </script>
 
 <template>
   <view class="pb-5 pt-4 space-y-5">
     <view
-      v-for="message in messages"
+      v-for="message in visibleMessages"
       :key="message.id"
       class="flex gap-2.5"
       :class="isUser(message) ? 'items-center justify-end' : 'items-start'"
@@ -127,37 +261,74 @@ function handleToggleSelect(message: LocalMessage) {
         class="min-w-0"
         :class="isUser(message) ? 'max-w-[82%]' : 'ai-message__assistant flex-1'"
       >
-        <!-- 用户消息：纯文本气泡 -->
+        <!-- 用户消息：图片缩略图 + 文字 -->
         <view
           v-if="isUser(message)"
           class="ai-message__user inline-block max-w-full rounded-3 px-3.5 py-3 text-3.5 leading-5"
         >
-          <text class="whitespace-pre-wrap break-words">
-            {{ message.content }}
+          <view v-if="messageAttachments(message).length" class="ai-message__thumbs">
+            <image
+              v-for="item in messageAttachments(message)"
+              :key="item.fileId || item.id"
+              class="ai-message__thumb"
+              :src="attachmentPreview(item)"
+              mode="aspectFill"
+              @click.stop="previewAttachments(message, item)"
+            />
+          </view>
+          <text v-if="userText(message)" class="whitespace-pre-wrap break-words" :class="messageAttachments(message).length ? 'mt-2 block' : ''">
+            {{ userText(message) }}
           </text>
         </view>
 
-        <!-- AI 消息：Markdown 气泡 -->
-        <view v-else class="ai-message__answer app-panel-flat px-3.5 py-3">
-          <mp-html
-            :content="getHtml(message)"
-            :extern-style="markdownStyle"
-            container-style="font-size: 28rpx; line-height: 1.7; overflow-wrap: break-word;"
+        <!-- AI 消息：思考中无正文时隐藏气泡，避免空对话框 -->
+        <view
+          v-else-if="hasAnswerBubble(message)"
+          class="ai-message__answer app-panel-flat px-3.5 py-3"
+        >
+          <AiProductCard
+            v-if="message.products?.length && !message.comparison"
+            :products="message.products"
           />
+          <AiComparisonCard
+            v-if="message.comparison"
+            :comparison="message.comparison"
+            :explanation="message.content"
+          />
+          <template v-else-if="getHtml(message, 'summary')">
+            <mp-html
+              :content="getHtml(message, 'summary')"
+              :tag-style="markdownTagStyle"
+              scroll-table
+              preview-img
+              container-style="font-size: 28rpx; line-height: 1.7; overflow-wrap: break-word; word-break: break-word;"
+            />
+            <view
+              v-if="messageLayers(message).collapsible && !expandedDetails[message.id]"
+              class="app-primary-text mt-1.5 text-2.5"
+              @click="expandDetails(message.id)"
+            >
+              查看详细说明
+            </view>
+            <mp-html
+              v-else-if="expandedDetails[message.id] && getHtml(message, 'details')"
+              class="mt-2"
+              :content="getHtml(message, 'details')"
+              :tag-style="markdownTagStyle"
+              scroll-table
+              preview-img
+              container-style="font-size: 28rpx; line-height: 1.7; overflow-wrap: break-word; word-break: break-word;"
+            />
+          </template>
         </view>
 
         <!-- AI 回答的辅助信息区 -->
         <template v-if="!isUser(message)">
-          <!-- 流式进度 -->
-          <view
+          <AiAgentStatus
             v-if="message.id === streamingMessageId && isStreaming"
-            class="app-muted mt-1.5 flex items-center gap-1.5 text-2.5"
-          >
-            <view class="ai-streaming-dot" />
-            <text>
-              {{ progressMessage || '正在思考' }}
-            </text>
-          </view>
+            :current-message="progressMessage || '正在整理结果…'"
+            :class="hasAnswerBubble(message) ? 'mt-1.5' : ''"
+          />
 
           <view v-else-if="message.status === 'STOPPED'" class="app-tertiary mt-1.5 text-2.5">
             已停止生成
@@ -166,18 +337,18 @@ function handleToggleSelect(message: LocalMessage) {
           <view
             v-else-if="message.status === 'FAILED'"
             class="app-danger-text mt-1.5 flex items-center gap-1 text-2.5"
-            @click="emit('regenerate', message.id)"
+            @click="isVisionFailure(message) ? emit('resend', message.id) : emit('regenerate', message.id)"
           >
             <wd-icon name="warning" size="26rpx" />
             <text>
-              {{ message.errorMessage || '生成失败' }}，点击重试
+              {{ failureText(message) }}{{ isVisionFailure(message) ? ' 点击重新发送' : '，点击重试' }}
             </text>
           </view>
 
-          <!-- 来源引用：只展示用户可理解字段，空来源不渲染 -->
           <AiSourceCard
-            v-if="message.status === 'COMPLETED' && message.sources?.length"
-            :sources="message.sources"
+            v-if="message.status === 'COMPLETED' && messageSources(message).length"
+            :sources="messageSources(message)"
+            :default-expanded="expandSources(message)"
             @open="emit('openSource', $event)"
           />
 
@@ -244,6 +415,19 @@ function handleToggleSelect(message: LocalMessage) {
   color: var(--app-text-inverse);
   background: var(--app-action-primary);
   border-bottom-right-radius: 8rpx;
+}
+
+.ai-message__thumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+}
+
+.ai-message__thumb {
+  width: 144rpx;
+  height: 144rpx;
+  border-radius: 12rpx;
+  background: rgb(255 255 255 / 18%);
 }
 
 .ai-message__answer {

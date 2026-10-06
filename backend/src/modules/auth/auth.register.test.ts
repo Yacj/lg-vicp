@@ -9,8 +9,9 @@ Object.assign(process.env, {
   BOOTSTRAP_ADMIN_PASSWORD: "test-admin-password"
 });
 
-const { clientRegisterBodySchema } = await import("./auth.routes.js");
+const { clientRegisterBodySchema, clientWechatPhoneLoginBodySchema, clientPasswordSmsBodySchema } = await import("./auth.routes.js");
 const { getAccessTokenExpiresIn } = await import("./auth.service.js");
+const { AUTH_ERROR_CODES } = await import("../../shared/auth-errors.js");
 
 describe("客户端手机号密码注册", () => {
   it("按客户端返回不同的访问令牌有效期", () => {
@@ -51,5 +52,45 @@ describe("客户端手机号密码注册", () => {
       phone: "13800138000",
       password: "1234"
     }).success).toBe(false);
+  });
+
+  it("前端传入 role 不会覆盖为超级管理员", () => {
+    const parsed = clientRegisterBodySchema.parse({
+      clientType: "C_APP",
+      phone: "13800138000",
+      password: "correct-horse-123",
+      role: "SUPER_ADMIN"
+    });
+    expect(parsed).not.toHaveProperty("role");
+  });
+});
+
+describe("微信手机号快捷登录入参", () => {
+  it("只接受 loginCode 与 phoneCode，忽略前端传入的 role 和手机号", () => {
+    const parsed = clientWechatPhoneLoginBodySchema.parse({
+      loginCode: "wx-login-code",
+      phoneCode: "wx-phone-code",
+      role: "SUPER_ADMIN",
+      phone: "13800138000",
+      adminLoginEnabled: true
+    });
+    expect(parsed).toEqual({ loginCode: "wx-login-code", phoneCode: "wx-phone-code" });
+    expect(parsed).not.toHaveProperty("role");
+    expect(parsed).not.toHaveProperty("phone");
+  });
+
+  it("设置/重置密码必须带短信验证码且不能指定角色", () => {
+    const parsed = clientPasswordSmsBodySchema.parse({
+      clientType: "C_APP",
+      phone: "13800138000",
+      code: "123456",
+      password: "new-pass-123",
+      role: "SUPER_ADMIN"
+    });
+    expect(parsed).not.toHaveProperty("role");
+    expect(AUTH_ERROR_CODES.PASSWORD_NOT_SET).toBe("PASSWORD_NOT_SET");
+    expect(AUTH_ERROR_CODES.PHONE_IDENTITY_CONFLICT).toBe("PHONE_IDENTITY_CONFLICT");
+    expect(AUTH_ERROR_CODES.WECHAT_IDENTITY_CONFLICT).toBe("WECHAT_IDENTITY_CONFLICT");
+    expect(AUTH_ERROR_CODES.APP_ACCESS_DISABLED).toBe("APP_ACCESS_DISABLED");
   });
 });

@@ -56,12 +56,12 @@ export default defineManifestConfig({
     optimization: {
       subPackages: true,
     },
-    appid: '',
+    appid: 'wx63420ca2e324ec1a',
     setting: {
       urlCheck: false,
     },
     usingComponents: true,
-    darkmode: true,
+    darkmode: false,
     themeLocation: 'theme.json',
     permission: {
       'scope.record': {

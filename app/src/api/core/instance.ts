@@ -3,6 +3,7 @@ import { createAlova } from 'alova'
 import vueHook from 'alova/vue'
 import { useAuthStore } from '@/store/auth'
 import mockAdapter from '../mock/mockAdapter'
+import { resolveApiBaseURL } from './base-url'
 import { handleAlovaError, handleAlovaResponse } from './handlers'
 
 const publicAuthPaths = [
@@ -10,6 +11,10 @@ const publicAuthPaths = [
   '/auth/client/login/password',
   '/auth/client/login/sms',
   '/auth/client/login/wechat',
+  '/auth/client/wechat-phone-login',
+  '/auth/client/password/set',
+  '/auth/client/password/reset',
+  '/auth/client/register/password',
   '/auth/refresh',
   '/auth/dev-token',
 ]
@@ -18,15 +23,12 @@ function isPublicAuthRequest(url: string) {
   return publicAuthPaths.some(path => url.includes(path))
 }
 
-const defaultBaseURL = 'http://localhost:3000'
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 export const alovaInstance = createAlova({
-  // 剥离尾部斜杠：避免与 /api/v1 拼接产生 //api/v1 双斜杠路径
-  baseURL: (import.meta.env.VITE_API_BASE_URL || defaultBaseURL).replace(/\/+$/, ''),
+  baseURL: resolveApiBaseURL(),
   ...AdapterUniapp({
     mockRequest: mockAdapter,
   }),

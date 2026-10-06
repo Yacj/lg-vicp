@@ -15,6 +15,8 @@ export function uniqueViolationMessage(error: unknown, fallback = "数据已存�
       return "手机号已存在";
     case "users_email_unique":
       return "邮箱已存在";
+    case "user_app_access_user_app_unique":
+      return "该端访问身份已存在";
     default:
       return fallback;
   }

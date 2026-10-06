@@ -4,6 +4,7 @@ import { resolveAiCapabilities } from "./ai-capability-router.js";
 describe("resolveAiCapabilities", () => {
   it("寒暄不触发任何能力", () => {
     expect(resolveAiCapabilities({ message: "你好" })).toMatchObject({
+      idle: true,
       needKnowledgeSearch: false,
       needProjectContext: false,
       needThermalTool: false
@@ -40,9 +41,31 @@ describe("resolveAiCapabilities", () => {
     expect(resolveAiCapabilities({ message: "分析当前项目的保温方案" }).needProjectContext).toBe(false);
   });
 
-  it("热工 / 对比 / 报告关键词分别触发对应能力", () => {
-    expect(resolveAiCapabilities({ message: "帮我算一下传热系数 K 值" }).needThermalTool).toBe(true);
+  it("没有热工关键字的方案请求仍不是 idle", () => {
+    const result = resolveAiCapabilities({
+      message: "帮我找一个这个项目合适的方案",
+      projectId: "proj-1"
+    });
+    expect(result.idle).toBe(false);
+    expect(result.needProjectContext).toBe(true);
+  });
+
+  it("查已有方案标记 needReferenceLookup，正式计算才标记 needThermalTool", () => {
+    expect(resolveAiCapabilities({ message: "保温薄抹灰系统传热系数0.3的方案有么" })).toMatchObject({
+      needReferenceLookup: true,
+      needThermalTool: false
+    });
+    expect(resolveAiCapabilities({ message: "帮我算一下传热系数 K 值" })).toMatchObject({
+      needThermalTool: true
+    });
+  });
+
+  it("热工 / 对比 / 报告关键词仍标记对应能力，供非 Agent 回退路径使用", () => {
     expect(resolveAiCapabilities({ message: "VICP 和岩棉怎么对比" }).needComparisonTool).toBe(true);
     expect(resolveAiCapabilities({ message: "帮我生成报告" }).needReportContext).toBe(true);
+  });
+
+  it("提到区别时标记产品对比能力", () => {
+    expect(resolveAiCapabilities({ message: "VICP 和岩棉有什么区别？" }).needComparisonTool).toBe(true);
   });
 });

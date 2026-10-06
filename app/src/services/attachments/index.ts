@@ -1,3 +1,5 @@
+import { CHAT_IMAGE_MAX_COUNT } from '@/constants/chatImage'
+import { ensureMediaPermission } from '@/services/app/mediaPermission'
 import { getPlatformInfo } from '@/services/platform'
 
 export type AttachmentPickType = 'album' | 'camera' | 'file'
@@ -66,10 +68,10 @@ interface ImageFileMeta {
   size?: number
 }
 
-function pickImage(sourceType: 'album' | 'camera') {
+function pickImage(sourceType: 'album' | 'camera', count = 9) {
   return new Promise<AttachmentAsset[]>((resolve, reject) => {
     uni.chooseImage({
-      count: 9,
+      count: Math.max(1, count),
       sizeType: ['original', 'compressed'],
       sourceType: [sourceType],
       success(result) {
@@ -82,7 +84,7 @@ function pickImage(sourceType: 'album' | 'camera') {
 
         resolve(tempFilePaths.map((path, index) => ({
           kind: 'image',
-          name: tempFiles[index]?.name || `image-${index + 1}`,
+          name: tempFiles[index]?.name || `image-${index + 1}.jpg`,
           path,
           mime: tempFiles[index]?.type,
           size: tempFiles[index]?.size,
@@ -213,19 +215,11 @@ function pickWechatFiles() {
   })
 }
 
-export function pickAttachment(type: AttachmentPickType) {
+export function pickAttachment(type: AttachmentPickType, count = 9) {
   const platform = getPlatformInfo().platform
 
-  if (type === 'album') {
-    if (platform === 'h5' || platform === 'mp-weixin') {
-      return pickImage('album')
-    }
-  }
-
-  if (type === 'camera') {
-    if (platform === 'h5' || platform === 'mp-weixin') {
-      return pickImage('camera')
-    }
+  if (type === 'album' || type === 'camera') {
+    return pickImage(type, count)
   }
 
   if (type === 'file') {
@@ -238,6 +232,19 @@ export function pickAttachment(type: AttachmentPickType) {
   }
 
   return Promise.reject(new AttachmentPickerError('App 附件能力暂未适配', 'unsupported'))
+}
+
+/** AI 对话只选图片：拍照 / 相册，受剩余张数限制。 */
+export async function pickChatImages(type: Exclude<AttachmentPickType, 'file'>, remaining = CHAT_IMAGE_MAX_COUNT) {
+  const count = Math.min(CHAT_IMAGE_MAX_COUNT, Math.max(0, remaining))
+  if (count <= 0) {
+    throw new AttachmentPickerError(`最多选择 ${CHAT_IMAGE_MAX_COUNT} 张图片`, 'invalid-file')
+  }
+  const granted = await ensureMediaPermission(type === 'camera' ? 'camera' : 'album')
+  if (!granted) {
+    throw new AttachmentPickerError('未获得拍照或相册权限', 'failed')
+  }
+  return pickImage(type, count)
 }
 
 function previewH5Document(asset: AttachmentAsset) {

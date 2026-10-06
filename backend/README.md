@@ -11,19 +11,20 @@
 ## 业务边界
 
 - 不使用租户模型，平台数据统一存储，以项目作为业务权限边界。
-- `SUPER_ADMIN`、`CHANNEL_USER`、`NORMAL_USER` 是固定业务角色；经销商和业务员通过 `channelType` 区分。
-- 渠道用户和超级管理员可以创建项目，普通用户第一期不能创建项目。
-- 私有项目仅创建者和超级管理员可访问；公开项目允许登录用户只读查看。
+- `SUPER_ADMIN`、`CHANNEL_USER`、`NORMAL_USER` 是固定业务角色，保留在 `users.role`。分端访问真源是 `user_app_access`（`ADMIN` / `CLIENT`）。B 端 Token `aud=admin` 且需 ACTIVE ADMIN access；C / PC AI 端 Token `aud=client` 且有效身份为 `NORMAL_USER`。同一手机号只对应一个 User；超级管理员第一次进 C 端会自动开通 CLIENT，不新建第二个账号，也不能用该令牌进入后台。渠道账号不能登录 B 端。
+- 普通用户可在 C 端用手机号密码注册，或通过微信手机号快捷登录首次自动注册；可创建/编辑/删除自己的项目。B 端超级管理员可查看/删除全平台项目，不能新增。
+- B 端用户为统一 `/api/v1/platform/users` 列表；后台只能新建超级管理员，普通用户资料不能通过编辑接口改，部门成员走 `/platform/departments/:id/members`。C 端可选部门：`GET /api/v1/client/me/departments`。
+- 项目可见范围 P0 为 `PRIVATE` 与 `DEPARTMENT`（含子部门）；历史 `PUBLIC` 只读兼容。私有项目仅创建者可访问；B 端超级管理员可查看但不能用 C 端令牌绕过归属。
 - 公开项目不公开源文件、知识库原文、原始 AI 会话和未发布报告，只允许查看已发布报告。
 - 项目成员关系只保留数据结构，第一期不开放邀请和协作接口。
 
 ## 客户端与权限
 
-- `/api/v1/platform/*` 和 `/api/v1/workspace/*` 必须使用 `B_ADMIN` 令牌。
-- `/api/v1/client/*` 为 C 端/PC AI 端只读内容接口（企业介绍兼容入口、公开文库），要求 JWT 且客户端为 `C_APP`/`PC_AI`，不依赖后台 RBAC。普通企业介绍请用 `GET /api/v1/company/about`。
+- `/api/v1/platform/*` 和 `/api/v1/workspace/*` 必须使用 `aud=admin` 的 `B_ADMIN` 令牌，并具备 ACTIVE ADMIN access。
+- `/api/v1/client/*` 为 C 端/PC AI 端只读内容接口（企业介绍兼容入口、公开文库），要求 JWT、`aud=client` 且客户端为 `C_APP`/`PC_AI`，不依赖后台 RBAC。普通企业介绍请用 `GET /api/v1/company/about`。ADMIN Token 不得冒充 C 端 Token。
 - 客户端访问令牌按客户端类型分别配置：`B_ADMIN` 默认 `24h`，`C_APP` 默认 `30d`，`PC_AI` 默认 `30d`；refresh token 统一默认有效 `30` 天。
 - B 端后台接口必须先通过 JWT 和客户端校验，再通过具体按钮权限码校验；超级管理员直通。例外：当前账号可见范围内的只读项目统计（`GET /platform/projects/statistics`）不要求按钮权限码。
-- 知识库采用“原文档导航 + 原始页面 + AI 检索索引”：平台管理路径 `/api/v1/platform/knowledge/*` 要求 `B_ADMIN` 与精确 `system:knowledge:*` 权限；C_APP/PC_AI 公开读取仅使用 `/api/v1/client/knowledge/*`。普通 B 端新建走 `POST /documents/create-with-file`（只收 fileId，自动解析），草稿验证走 `POST /versions/:versionId/test-qa`（只检索当前版本）。生产 AI 只检索当前、已发布、未过期且 `AI_ENABLED` 的版本；`BROWSE_ONLY` 仅可浏览原文件。
+- 知识库采用“原文档导航 + 原始页面 + AI 检索索引”：平台管理路径 `/api/v1/platform/knowledge/*` 要求 `B_ADMIN` 与精确 `system:knowledge:*` 权限；C_APP/PC_AI 公开读取仅使用 `/api/v1/client/knowledge/*`。普通 B 端新建走 `POST /documents/create-with-file`（只收 fileId，自动解析），草稿验证走 `POST /versions/:versionId/test-qa`（只检索当前版本）。生产 AI 只检索当前、已发布、未过期且 `AI_ENABLED` 的版本；`BROWSE_ONLY` 仅可浏览原文件。DOCX：Mammoth 负责文本/RAG，LibreOffice Headless（宿主机）转临时 PDF 后复用 PDF 页图链路；渲染失败不阻断文本。热工参考行通过 `sourcePageId` 绑定页面，有页图时 AI 返回 `reference_pages`。
 - 不允许使用任意 `system:*` 作为模块级通行证；查看、新增、修改、删除、导出、分配和测试使用独立权限码。
 - C 端和 PC AI 端不能访问后台管理接口，但可以访问明确开放的 AI、公开项目、本人项目、受控文件、报告和分享业务接口。
 - 项目权限独立于后台 RBAC，必须继续执行 `canViewProject`、`canManageProject`、会话归属和文件归属校验。
@@ -33,7 +34,7 @@
 - API：Fastify + TypeScript + Zod + Swagger。
 - 数据库：PostgreSQL + Drizzle ORM + `postgres.js`。
 - 缓存与任务：Redis + BullMQ；API 创建任务，Worker 处理解析、报告和维护任务。
-- AI：AI SDK + OpenAI-compatible provider；服务商、模型从数据库读取。C 端默认 `general_chat`，不要求用户选择场景/系统指令；快捷提问独立配置；`resolveAiCapabilities` 选择允许的 Tool Set，支持 tools 的模型走 Agent Loop。
+- AI：AI SDK + OpenAI-compatible provider；服务商、模型从数据库读取。C 端默认 `general_chat`，不要求用户选择场景/系统指令；快捷提问独立配置；Chat Agent 核心 Tools 为知识/项目状态/热工/对比/报告 5 个；`resolveAiCapabilities` 只做预路由，支持 tools 的模型走 `streamText` Agent Loop。
 - 存储：开发环境 MinIO，生产环境优先阿里云 OSS。
 - 部署：Docker Compose + Nginx；可选 PM2 托管宿主机 API/Worker。
 
@@ -85,7 +86,7 @@ schema: {
 - 流式对话支持停止，停止后保存已生成内容并标记为 `STOPPED`，会话仍可继续。
 - 用户端详情只展示本人消息、处理阶段、检索摘要、反馈、报告和分享；不展示模型原始思考链。
 - B 端 AI 运营详情是独立后台接口，需要 `system:ai:conversation:*` 权限，可查看工具调用、任务、分享访问和审计摘要。
-- AI 配置（服务商/模型/快捷提问/场景/提示词版本化）、SSE 协议、错误码、配额与安全细则见 `docs/ai/`。
+- AI 配置（服务商/模型准入测试/快捷提问/场景/提示词版本化）、SSE 协议、错误码、配额与安全细则见 `docs/ai/`。正式模型必须通过文本/工具/推理准入测试后才能启用。
 - 主数据/企业信息/构造方案/图集热工/标准采集/材料对比/节点图库/报告与审核中心细则见 `docs/masterdata|company|construction|thermal|standard|comparison|nodes|reports/README.md`；采集管理见 `docs/collection/README.md`；B 端菜单信息架构见 `docs/menus/README.md`。
 - API Key 使用 AES-256-GCM 加密，任何接口都不能返回密钥明文或完整密文。
 - 报告来源通过 `report_sources` 保存回答快照和顺序，报告由 Worker 导出 HTML、PDF、图片和 Word。

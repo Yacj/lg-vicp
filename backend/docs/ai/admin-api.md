@@ -19,10 +19,11 @@
 | 接口 | 权限码 |
 | --- | --- |
 | `GET /api/v1/platform/ai/models` | `system:ai:model:list` |
-| `POST /api/v1/platform/ai/models` | `system:ai:model:add` |
-| `PATCH /api/v1/platform/ai/models/:id` | `system:ai:model:edit` |
-| `DELETE /api/v1/platform/ai/models/:id` | `system:ai:model:remove` |
-| `POST /api/v1/platform/ai/models/:id/test-connection` | `system:ai:model:test` |
+| `POST /api/v1/platform/ai/models` | `system:ai:model:add`（仅超级管理员） |
+| `PATCH /api/v1/platform/ai/models/:id` | `system:ai:model:edit`（仅超级管理员） |
+| `DELETE /api/v1/platform/ai/models/:id` | `system:ai:model:remove`（仅超级管理员） |
+| `POST /api/v1/platform/ai/models/:id/test` | `system:ai:model:test`（仅超级管理员，真实 Agent 准入） |
+| `POST /api/v1/platform/ai/models/:id/test-connection` | 同上兼容旧路径 |
 
 ### 快捷提问
 

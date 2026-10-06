@@ -1,9 +1,9 @@
 import type { TableRowData } from 'tdesign-vue-next'
 import type {
-  AiConnectionTestResult,
   AiModel,
   AiModelInput,
   AiModelMutationResult,
+  AiModelTestResult,
   AiProvider,
 } from '@/types/ai'
 import { computed, ref } from 'vue'
@@ -12,14 +12,25 @@ import {
   deleteAiModel,
   fetchAiModels,
   fetchAiProviders,
-  testAiModelConnection,
+  testAiModel,
   updateAiModel,
   updateAiModelStatus,
 } from '@/api/modules/ai'
+import { planAgentModelAssignment, planVisionModelAssignment } from '@/utils/ai'
+import {
+  assertNoLegacyModelInputFields,
+  createAiModelForm,
+  editAiModelForm,
+  isModelIdentityChanged,
+  toAiModelInput,
+  type AiModelForm,
+} from '@/utils/ai-model'
 import { useAppFeedback } from './useAppFeedback'
 import { useConfirmedCrudAction } from './useCrudActions'
 import { useCrudDrawer } from './useCrudDrawer'
 import { useCrudList } from './useCrudList'
+
+export type { AiModelForm }
 
 export type AiModelTableRow = AiModel & TableRowData
 
@@ -28,115 +39,16 @@ export interface AiModelSearchQuery extends Record<string, unknown> {
   status: 'all' | 'enabled' | 'disabled'
 }
 
-/** 表单中的能力开关，与 capabilities jsonb 一一对应（text 恒真，不提供开关）。 */
-export interface AiModelForm extends Record<string, unknown> {
-  providerId: string
-  displayName: string
-  modelId: string
-  description: string
-  /** 空串表示未填写（t-input-number 不接受 null）。 */
-  contextWindow: number | ''
-  maxOutputTokens: number | ''
-  defaultTemperature: number | ''
-  timeoutMs: number
-  priority: number | ''
-  enabled: boolean
-  capabilityStreaming: boolean
-  capabilityReasoning: boolean
-  capabilityReasoningAlwaysOn: boolean
-  capabilityReasoningEffort: boolean
-  capabilityStructuredOutput: boolean
-  capabilityTools: boolean
-  capabilityVision: boolean
-  capabilityFiles: boolean
-}
-
-export const AI_MODEL_CAPABILITY_META = [
-  { key: 'capabilityStreaming', label: '支持流式输出', name: 'streaming' },
-  { key: 'capabilityReasoning', label: '支持推理', name: 'reasoning' },
-  { key: 'capabilityReasoningAlwaysOn', label: '推理常开', name: 'reasoningAlwaysOn' },
-  { key: 'capabilityReasoningEffort', label: '推理强度（high）', name: 'reasoningEffort' },
-  { key: 'capabilityStructuredOutput', label: '结构化输出', name: 'structuredOutput' },
-  { key: 'capabilityTools', label: '工具调用', name: 'tools' },
-  { key: 'capabilityVision', label: '视觉输入', name: 'vision' },
-  { key: 'capabilityFiles', label: '文件输入', name: 'files' },
-] as const
-
-function createModelForm(): AiModelForm {
-  return {
-    providerId: '',
-    displayName: '',
-    modelId: '',
-    description: '',
-    contextWindow: '',
-    maxOutputTokens: '',
-    defaultTemperature: '',
-    timeoutMs: 60000,
-    priority: '',
-    enabled: true,
-    capabilityStreaming: true,
-    capabilityReasoning: false,
-    capabilityReasoningAlwaysOn: false,
-    capabilityReasoningEffort: false,
-    capabilityStructuredOutput: false,
-    capabilityTools: false,
-    capabilityVision: false,
-    capabilityFiles: false,
+function buildModelInput(
+  form: AiModelForm,
+  options: { mode: 'create' | 'edit', identityChanged?: boolean },
+): AiModelInput {
+  const input = toAiModelInput(form, options)
+  const leaked = assertNoLegacyModelInputFields(input)
+  if (leaked.length > 0) {
+    throw new Error(`模型提交包含已停用字段：${leaked.join(', ')}`)
   }
-}
-
-function editModelForm(model: AiModel): AiModelForm {
-  const capabilities = model.capabilities ?? {}
-  return {
-    providerId: model.providerId,
-    displayName: model.displayName,
-    modelId: model.modelId,
-    description: model.description ?? '',
-    contextWindow: model.contextWindow ?? '',
-    maxOutputTokens: model.maxOutputTokens ?? '',
-    defaultTemperature: model.defaultTemperature ?? '',
-    timeoutMs: model.timeoutMs ?? 60000,
-    priority: model.priority ?? '',
-    enabled: model.enabled,
-    capabilityStreaming: capabilities.streaming !== false,
-    capabilityReasoning: capabilities.reasoning === true,
-    capabilityReasoningAlwaysOn: capabilities.reasoningAlwaysOn === true,
-    capabilityReasoningEffort: capabilities.reasoningEffort === true,
-    capabilityStructuredOutput: capabilities.structuredOutput === true,
-    capabilityTools: capabilities.tools === true,
-    capabilityVision: capabilities.vision === true,
-    capabilityFiles: capabilities.files === true,
-  }
-}
-
-function toCapabilities(form: AiModelForm): Record<string, boolean> {
-  return {
-    text: true,
-    streaming: form.capabilityStreaming,
-    reasoning: form.capabilityReasoning,
-    reasoningAlwaysOn: form.capabilityReasoningAlwaysOn,
-    reasoningEffort: form.capabilityReasoningEffort,
-    structuredOutput: form.capabilityStructuredOutput,
-    tools: form.capabilityTools,
-    vision: form.capabilityVision,
-    files: form.capabilityFiles,
-  }
-}
-
-function toModelInput(form: AiModelForm): AiModelInput {
-  return {
-    providerId: form.providerId,
-    displayName: form.displayName.trim(),
-    modelId: form.modelId.trim(),
-    description: form.description.trim() || undefined,
-    capabilities: toCapabilities(form),
-    contextWindow: form.contextWindow || undefined,
-    maxOutputTokens: form.maxOutputTokens || undefined,
-    defaultTemperature: form.defaultTemperature || undefined,
-    timeoutMs: form.timeoutMs,
-    priority: form.priority || undefined,
-    enabled: form.enabled,
-  }
+  return input
 }
 
 /** 模型列表为全量返回，服务商名称在前端 join；筛选在客户端完成。 */
@@ -182,6 +94,7 @@ export function useAiModelManagement() {
         const matchesKeyword = !keyword
           || model.displayName.toLocaleLowerCase().includes(keyword)
           || model.modelId.toLocaleLowerCase().includes(keyword)
+          || (model.providerName ?? '').toLocaleLowerCase().includes(keyword)
         const matchesStatus = query.status === 'all'
           || (query.status === 'enabled' ? model.enabled : !model.enabled)
         return matchesKeyword && matchesStatus
@@ -193,15 +106,18 @@ export function useAiModelManagement() {
   })
 
   const modelDrawer = useCrudDrawer<AiModelForm, AiModel, AiModelMutationResult>({
-    createForm: createModelForm,
-    editForm: editModelForm,
+    createForm: createAiModelForm,
+    editForm: editAiModelForm,
     onError: error => void feedback.messageError(error),
     onSuccess: async (result) => {
       await feedback.message('success', result.message)
       await modelList.refresh()
     },
     submit: async ({ data, entity, mode }) => {
-      const input = toModelInput(data)
+      const identityChanged = mode === 'edit' && entity
+        ? isModelIdentityChanged(entity, data)
+        : false
+      const input = buildModelInput(data, { identityChanged, mode })
       if (mode === 'create') {
         return createAiModel(input)
       }
@@ -226,6 +142,19 @@ export function useAiModelManagement() {
     successMessage: (_payload, result) => result.message,
   })
 
+  const modelDefaultAction = useConfirmedCrudAction<AiModel, AiModelMutationResult>({
+    action: model => updateAiModel(model.id, { isDefault: true }),
+    confirm: model => ({
+      content: `确认将“${model.displayName}”设为默认模型吗？其他默认标记将被取消。`,
+      confirmText: '设为默认',
+      title: '设为默认模型',
+    }),
+    onSuccess: async () => {
+      await modelList.refresh()
+    },
+    successMessage: (_model, result) => result.message,
+  })
+
   const modelDeleteAction = useConfirmedCrudAction<AiModel, { message: string }>({
     action: model => deleteAiModel(model.id),
     confirm: model => ({
@@ -240,16 +169,69 @@ export function useAiModelManagement() {
     successMessage: (_model, result) => result.message,
   })
 
-  /** 连通性测试：非确认型动作，行内 loading 由页面管理；成功结果由页面展示。 */
+  const assigningVision = ref(false)
+  const assigningAgent = ref(false)
+
+  async function assignVisionModel(modelId: string): Promise<void> {
+    if (assigningVision.value) {
+      return
+    }
+    const updates = planVisionModelAssignment(modelList.data.value, modelId)
+    if (updates.length === 0) {
+      return
+    }
+    assigningVision.value = true
+    try {
+      for (const update of updates) {
+        await updateAiModel(update.id, update.input)
+      }
+      await feedback.message('success', '视觉模型已更新')
+      await modelList.refresh()
+    }
+    catch (error) {
+      await feedback.messageError(error)
+    }
+    finally {
+      assigningVision.value = false
+    }
+  }
+
+  async function assignAgentModel(modelId: string): Promise<void> {
+    if (assigningAgent.value) {
+      return
+    }
+    const updates = planAgentModelAssignment(modelList.data.value, modelId)
+    if (updates.length === 0) {
+      await feedback.message('warning', '只能将已开启工具调用能力的模型设为 Agent 主模型')
+      return
+    }
+    assigningAgent.value = true
+    try {
+      for (const update of updates) {
+        await updateAiModel(update.id, update.input)
+      }
+      await feedback.message('success', 'Agent 主模型已更新')
+      await modelList.refresh()
+    }
+    catch (error) {
+      await feedback.messageError(error)
+    }
+    finally {
+      assigningAgent.value = false
+    }
+  }
+
   const testingModelId = ref<string | null>(null)
 
-  async function testConnection(model: AiModel): Promise<AiConnectionTestResult> {
+  async function testModel(model: AiModel): Promise<AiModelTestResult> {
     if (testingModelId.value) {
-      throw new Error('已有连接测试正在进行')
+      throw new Error('已有模型检测正在进行')
     }
     testingModelId.value = model.id
     try {
-      return await testAiModelConnection(model.id)
+      const result = await testAiModel(model.id)
+      await modelList.refresh()
+      return result
     }
     finally {
       testingModelId.value = null
@@ -257,7 +239,12 @@ export function useAiModelManagement() {
   }
 
   return {
+    assigningAgent,
+    assigningVision,
+    assignAgentModel,
+    assignVisionModel,
     loadProviders,
+    modelDefaultAction,
     modelDeleteAction,
     modelDrawer,
     modelList,
@@ -267,7 +254,7 @@ export function useAiModelManagement() {
     providers,
     providersLoadError,
     providersLoading,
-    testConnection,
+    testModel,
     testingModelId,
   }
 }

@@ -159,7 +159,7 @@ export function runProductSpecWorkflow(id: string, action: WorkflowActionInput):
   return versionedWorkflow<ProductSpec>('product-specs', id, action)
 }
 
-export function fetchPublishedProductSpecs(query: { seriesId?: string; specClass?: string; keyword?: string }, signal?: AbortSignal): Promise<PageResult<ProductSpec>> {
+export function fetchPublishedProductSpecs(query: { page?: number; pageSize?: number; seriesId?: string; specClass?: string; keyword?: string }, signal?: AbortSignal): Promise<PageResult<ProductSpec>> {
   return api.get<PageResult<ProductSpec>>(`${MASTERDATA_PREFIX}/published/product-specs`, { params: query, signal })
 }
 

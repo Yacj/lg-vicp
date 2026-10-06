@@ -9,7 +9,10 @@ import { z } from "zod";
 import { env } from "../../config/env.js";
 import { aiConversationStates, aiConversations, aiMessages } from "../../db/schema.js";
 import { estimateTokens } from "../../shared/prompt-assembly.js";
+import { wrapContextForReasoning } from "../../shared/ai-response-policy.js";
+import { formatConversationTaskContext, parseConversationTaskState, type ConversationTaskState } from "./conversation-task.js";
 import { resolveSceneRuntime } from "./ai-runtime.service.js";
+import { languageModelCallOptions, languageModelSamplingOptions } from "../ai-config/ai-task-runtime-policy.js";
 
 export type ConversationStateSnapshot = {
   summary: string;
@@ -63,6 +66,7 @@ export function formatConversationStateContext(
     confirmedFactsJson?: Array<Record<string, unknown>> | null;
     openQuestionsJson?: Array<Record<string, unknown>> | null;
     importantReferencesJson?: Array<Record<string, unknown>> | null;
+    taskStateJson?: Record<string, unknown> | null;
   } | null
 ): string | null {
   if (!state) return null;
@@ -80,7 +84,9 @@ export function formatConversationStateContext(
     const kind = typeof item.kind === "string" ? item.kind : "OTHER";
     return `- [${kind}] ${title}`;
   });
+  const taskContext = formatConversationTaskContext(parseConversationTaskState(state.taskStateJson));
   const body = [
+    taskContext,
     state.activeGoal ? `当前任务：${state.activeGoal}` : null,
     state.summary ? `压缩历史：\n${state.summary}` : null,
     facts.length > 0 ? `已确认事实：\n${facts.join("\n")}` : null,
@@ -88,7 +94,7 @@ export function formatConversationStateContext(
     refs.length > 0 ? `重要引用：\n${refs.join("\n")}` : null
   ].filter(Boolean);
   if (body.length === 0) return null;
-  return ["【会话状态（滚动摘要，不是完整记录）】", ...body].join("\n");
+  return wrapContextForReasoning("会话滚动摘要", body.join("\n"));
 }
 
 function formatMessagesForSummary(rows: Array<{ role: string; content: string }>): string {
@@ -160,9 +166,8 @@ export async function updateConversationSummary(
       "新增消息：",
       formatMessagesForSummary(unsummarized)
     ].filter(Boolean).join("\n"),
-    maxOutputTokens: 1200,
-    temperature: 0.2,
-    abortSignal: AbortSignal.timeout(runtime.primary.timeoutMs)
+    ...languageModelSamplingOptions("SUMMARY"),
+    abortSignal: AbortSignal.timeout(languageModelCallOptions("SUMMARY").timeout)
   });
 
   const lastMessage = unsummarized[unsummarized.length - 1]!;
@@ -197,6 +202,41 @@ export async function updateConversationSummary(
     lastSummarizedMessageId: lastMessage.id,
     version: nextVersion
   };
+}
+
+export async function getConversationTaskState(
+  app: FastifyInstance,
+  conversationId: string
+): Promise<ConversationTaskState> {
+  const [existing] = await app.db.select({ taskStateJson: aiConversationStates.taskStateJson })
+    .from(aiConversationStates)
+    .where(eq(aiConversationStates.conversationId, conversationId))
+    .limit(1);
+  return parseConversationTaskState(existing?.taskStateJson);
+}
+
+export async function saveConversationTaskState(
+  app: FastifyInstance,
+  conversationId: string,
+  state: ConversationTaskState
+): Promise<void> {
+  const [existing] = await app.db.select({ conversationId: aiConversationStates.conversationId })
+    .from(aiConversationStates)
+    .where(eq(aiConversationStates.conversationId, conversationId))
+    .limit(1);
+  const payload = {
+    taskStateJson: state as unknown as Record<string, unknown>,
+    updatedAt: new Date()
+  };
+  if (existing) {
+    await app.db.update(aiConversationStates).set(payload)
+      .where(eq(aiConversationStates.conversationId, conversationId));
+    return;
+  }
+  await app.db.insert(aiConversationStates).values({
+    conversationId,
+    ...payload
+  });
 }
 
 export async function scheduleConversationMaintenance(

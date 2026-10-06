@@ -1,16 +1,20 @@
 import type { PageResult } from './api'
 import type { ProjectItem } from './project'
+import type { ReportWithAssets, ShareLink } from './report'
 
 /** AI 场景枚举，与后端 shared/constants.ts AI_SCENES 对齐。 */
 export type AiScene
   = | 'general_chat'
     | 'project_design'
     | 'material_compare'
+    | 'product_consultation'
     | 'standard_qa'
     | 'report_generate'
     | 'information_extract'
     | 'conversation_title'
     | 'knowledge_qa'
+    | 'thermal_calculation'
+    | 'vision_understanding'
 
 /** 客户端类型，与后端 CLIENT_APPS 对齐。 */
 export type AiClientApp = 'pc_ai' | 'b_admin' | 'c_app'
@@ -93,39 +97,84 @@ export interface AiProviderTestResult {
   provider: AiProvider
 }
 
+/** 业务层推理强度，与后端 ai_reasoning_level 对齐。 */
+export type AiReasoningLevel = 'LOW' | 'HIGH' | 'MAX'
+
+/** 模型准入检测状态，与后端 ai_model_test_status 对齐。 */
+export type AiModelTestStatus = 'UNTESTED' | 'PASSED' | 'FAILED'
+
 /** AI 模型。 */
 export interface AiModel {
   id: string
   providerId: string
+  /** 服务商编码或名称，列表展示用。 */
+  provider?: string
+  providerName?: string
   code: string | null
+  /** 与 displayName 同源，兼容后端 name 字段。 */
+  name?: string
   displayName: string
   modelId: string
   description: string | null
-  capabilities: Record<string, boolean>
-  contextWindow: number | null
-  maxOutputTokens: number | null
-  defaultTemperature: number | null
-  timeoutMs: number | null
-  priority: number | null
+  /** 来自关联服务商，只读。 */
+  baseUrl?: string
+  /** 凭证归属服务商 ID，只读。 */
+  credentialId?: string
+  supportsVision: boolean
+  reasoningLevel: AiReasoningLevel
   enabled: boolean
+  isDefault: boolean
+  lastTestStatus: AiModelTestStatus
+  lastTestAt: string | null
+  lastTestError: string | null
   createdAt: string
   updatedAt: string
+  /** @deprecated 内部探测缓存，B 端不再展示或提交。 */
+  capabilities?: Record<string, boolean>
+  /** @deprecated 不再作为普通编辑项。 */
+  contextWindow?: number | null
+  /** @deprecated 不再作为普通编辑项。 */
+  maxOutputTokens?: number | null
+  /** @deprecated 采样温度已迁出模型配置，B 端不再展示或提交。 */
+  defaultTemperature?: number | null
+  /**
+   * @deprecated 回答风格已迁出模型配置，改由提示词配置中的 GLOBAL_RESPONSE_POLICY 负责。
+   * B 端不再展示或提交，也不再复用该字段。
+   */
+  answerStyle?: string | null
+  /**
+   * @deprecated 回答风格已迁出模型配置，改由提示词配置中的 GLOBAL_RESPONSE_POLICY 负责。
+   * B 端不再展示或提交，也不再复用该字段。
+   */
+  responseStyle?: string | null
+  /** @deprecated 不再作为普通编辑项。 */
+  timeoutMs?: number | null
+  priority?: number | null
 }
 
-/** 创建/修改模型请求体。 */
+/** 创建/修改模型请求体。旧采样/能力字段即使后端仍返回，普通编辑页也不再提交。 */
 export interface AiModelInput {
   providerId: string
-  code?: string
+  name?: string
   displayName: string
   modelId: string
   description?: string
-  capabilities?: Record<string, boolean>
-  contextWindow?: number
-  maxOutputTokens?: number
-  defaultTemperature?: number
-  timeoutMs?: number
-  priority?: number
+  supportsVision?: boolean
+  reasoningLevel?: AiReasoningLevel
   enabled?: boolean
+  isDefault?: boolean
+  /** @deprecated 仅 Agent 角色迁移兼容，普通编辑页不提交。 */
+  code?: string
+  /** @deprecated 普通编辑页不提交。 */
+  capabilities?: Record<string, boolean>
+  /**
+   * @deprecated 回答风格已迁出模型配置。普通编辑页不展示、不提交、不复用。
+   */
+  answerStyle?: string
+  /**
+   * @deprecated 回答风格已迁出模型配置。普通编辑页不展示、不提交、不复用。
+   */
+  responseStyle?: string
 }
 
 /** 模型变更响应。 */
@@ -134,11 +183,27 @@ export interface AiModelMutationResult {
   model?: AiModel
 }
 
-/** 模型连通性测试响应。 */
-export interface AiConnectionTestResult {
+/** 模型准入检测单项结果。 */
+export interface AiAdmissionCheckResult {
+  ok: boolean
   message: string
-  response: string
 }
+
+/** 模型准入检测报告（POST /models/:id/test）。 */
+export interface AiModelTestResult {
+  ok: boolean
+  message: string
+  checks: {
+    connection: AiAdmissionCheckResult
+    text: AiAdmissionCheckResult
+    toolCalling: AiAdmissionCheckResult
+    reasoning: AiAdmissionCheckResult
+    vision?: AiAdmissionCheckResult
+  }
+}
+
+/** @deprecated 旧连通性测试已升级为准入检测，请使用 AiModelTestResult。 */
+export type AiConnectionTestResult = AiModelTestResult
 
 /** 快捷提问展示位置，与后端 AI_QUICK_PROMPT_POSITIONS 对齐。 */
 export type AiQuickPromptPosition = 'AI_HOME' | 'PROJECT_AI'
@@ -440,11 +505,13 @@ export interface AiToolCall {
   id: string
   conversationId: string
   messageId: string | null
+  agentRunId?: string | null
   toolName: string
   inputJson: Record<string, unknown> | null
   outputJson: Record<string, unknown> | null
   success: boolean
   errorMessage: string | null
+  durationMs?: number | null
   createdAt: string
 }
 
@@ -478,6 +545,58 @@ export interface AiMessageRegeneration {
   createdAt: string
 }
 
+/** 会话消息附件（GET /ai/conversations/:id 的 messages[].attachments）。 */
+export interface ConversationMessageAttachment {
+  id: string
+  fileId: string
+  attachmentType: string
+  sortOrder: number
+  visionStatus: string | null
+  file: {
+    id: string
+    originalName: string
+    mimeType: string
+    sizeBytes: number
+    status: string
+  }
+}
+
+/** 用户侧会话消息（GET /ai/conversations/:id 投影，不含运营字段）。 */
+export interface ConversationDetailMessage {
+  id: string
+  conversationId: string
+  userId: string | null
+  role: AiMessageRole
+  status: AiMessageStatus
+  content: string
+  reasoningMode: AiReasoningMode
+  model: string | null
+  durationMs: number | null
+  startedAt: string | null
+  finishedAt: string | null
+  stopReason: string | null
+  createdAt: string
+  attachments: ConversationMessageAttachment[]
+}
+
+/** 会话处理阶段说明（后端固定文案，不展示模型思考链）。 */
+export interface ConversationProcessingSummary {
+  stages: Array<{ stage: string, message: string }>
+  note: string
+}
+
+/** 我的会话详情响应（GET /api/v1/ai/conversations/:id，仅所有者或超级管理员）。 */
+export interface ConversationDetail {
+  conversation: AiConversation
+  messages: ConversationDetailMessage[]
+  processingSummary: ConversationProcessingSummary
+  retrievals: AiRetrievalLog[]
+  feedbacks: AiMessageFeedback[]
+  regenerations: AiMessageRegeneration[]
+  reports: ReportWithAssets[]
+  shareLinks: ShareLink[]
+}
+
 /** 审计日志（audit_logs）。 */
 export interface AiAuditLog {
   id: string
@@ -497,7 +616,7 @@ export interface AiAuditLog {
 /** 报告（reports，运营详情嵌套返回）。 */
 export interface AiReport {
   id: string
-  projectId: string
+  projectId: string | null
   conversationId: string | null
   reportType: string
   status: 'DRAFT' | 'QUEUED' | 'GENERATING' | 'READY' | 'FAILED'
@@ -675,4 +794,81 @@ export interface AiContentFilterInput {
 export interface AiContentFilterMutationResult {
   message: string
   filter?: AiContentFilter
+}
+
+/** Agent Run 状态，与后端 ai_agent_run_status 对齐。 */
+export type AiAgentRunStatus
+  = | 'RUNNING'
+    | 'WAITING_USER_INPUT'
+    | 'COMPLETED'
+    | 'FAILED'
+    | 'CANCELLED'
+
+/** C 端 Agent Run 详情（GET /api/v1/ai/agent-runs/:id，所有者或超级管理员）。 */
+export interface AiAgentRun {
+  id: string
+  conversationId: string
+  status: AiAgentRunStatus
+  currentStep: number
+  allowedTools: string[]
+  waitingPrompt: string | null
+  waitingOptions: unknown[] | null
+  model: string | null
+  toolCallCount: number
+  tokenUsage: Record<string, unknown> | null
+  errorMessage: string | null
+  errorCode: string | null
+  startedAt: string
+  finishedAt: string | null
+}
+
+/** 项目记忆类型，与后端 project_ai_memory_type 对齐。 */
+export type ProjectAiMemoryType
+  = | 'FACT'
+    | 'CONSTRAINT'
+    | 'DECISION'
+    | 'PREFERENCE'
+    | 'TODO'
+    | 'ASSUMPTION'
+
+/** 项目记忆状态，与后端 project_ai_memory_status 对齐。 */
+export type ProjectAiMemoryStatus = 'ACTIVE' | 'PENDING' | 'SUPERSEDED' | 'REJECTED'
+
+/** 项目记忆视图，与 GET /projects/:id/ai-memories?view= 对齐。 */
+export type ProjectAiMemoryView = 'active' | 'pending' | 'history'
+
+/** 项目 AI 长期记忆（GET /api/v1/projects/:id/ai-memories）。 */
+export interface ProjectAiMemory {
+  id: string
+  projectId: string
+  memoryType: ProjectAiMemoryType
+  title: string | null
+  content: string
+  structuredDataJson: Record<string, unknown> | null
+  status: ProjectAiMemoryStatus
+  confidence: number
+  verified: boolean
+  sourceConversationId: string | null
+  sourceMessageIdsJson: string[]
+  createdBy: 'USER' | 'AI'
+  supersededById: string | null
+  createdById: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ProjectAiMemoryListResult {
+  items: ProjectAiMemory[]
+  view: ProjectAiMemoryView
+}
+
+export interface ProjectAiMemoryMutationResult {
+  message: string
+  memory?: ProjectAiMemory
+}
+
+export interface ProjectAiMemoryUpdateInput {
+  title?: string | null
+  content?: string
+  memoryType?: ProjectAiMemoryType
 }

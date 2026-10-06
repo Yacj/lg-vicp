@@ -7,6 +7,7 @@ import {
   createManualCollectionTask,
   getCollectionTask,
   importCollectionTaskToKnowledge,
+  nextCollectionScanAt,
   scanEnabledCollectionSources,
   COLLECTION_AUTO_INTERVAL_MS
 } from "./collection.service.js";
@@ -113,6 +114,20 @@ describe("自动采集源任务", () => {
     expect(result.enqueued).toBe(0);
     expect(add).not.toHaveBeenCalled();
     expect(COLLECTION_AUTO_INTERVAL_MS).toBe(24 * 60 * 60 * 1000);
+  });
+
+  it("启用来源返回下次扫描时间，停用则为空", () => {
+    const last = new Date("2026-09-22T00:00:00.000Z");
+    expect(nextCollectionScanAt({
+      enabled: true,
+      lastCollectedAt: last,
+      lastRunAt: last
+    })).toBe("2026-09-23T00:00:00.000Z");
+    expect(nextCollectionScanAt({
+      enabled: false,
+      lastCollectedAt: last,
+      lastRunAt: last
+    })).toBeNull();
   });
 });
 

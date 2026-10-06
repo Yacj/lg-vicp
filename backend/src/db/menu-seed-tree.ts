@@ -1,8 +1,8 @@
 /**
- * B 端菜单种子纯数据（信息架构 2026-09：产品中心退出普通菜单 + 采集管理独立）。
+ * B 端菜单种子纯数据（信息架构 2026-09：产品中心最小骨架 + 采集管理独立）。
  *
- * 目标一级菜单：工作台（Admin-Web 静态首页 `/`，不入库）+ 项目管理 / 知识中心 / 采集管理 / 报告管理 / AI 配置 / AI 运营 / 系统管理。
- * 产品中心（产品/材料/构造/热工/节点/对比）整棵子树保留 routePath，visible=false，Backend Route 不删。
+ * 目标一级菜单：工作台（Admin-Web 静态首页 `/`，不入库）+ 项目管理 / 产品中心 / 知识中心 / 采集管理 / 报告管理 / AI 配置 / AI 运营 / 系统管理。
+ * 产品中心 P0 开放：产品管理、热工计算、产品对比；旧系列/规格/参数等子树 visible=false，Backend Route 不删。
  *
  * 迁移安全约定：
  * - 叶子 routePath 全部保留（seed 按 routePath upsert，menuId 不变），菜单可见性由 permissionCode 经角色权限关联决定，
@@ -62,7 +62,7 @@ export const HIDDEN_MENU_ROUTE_PATHS = [
   "/monitor/online",
   "/monitor/job",
   "/monitor/cache",
-  // 场景/提示词对普通业务管理员隐藏，仅 SUPER_ADMIN / 持有对应权限的技术管理员走接口或隐藏路由
+  // 场景/旧版本化提示词对普通业务管理员隐藏；业务提示词走 /ai-config/business-prompts
   "/ai-config/scenes",
   "/ai-config/prompts",
   // 报告模板对普通业务管理员隐藏，仅 SUPER_ADMIN / 持有模板权限的技术管理员走接口或隐藏路由
@@ -70,8 +70,13 @@ export const HIDDEN_MENU_ROUTE_PATHS = [
   // 企业信息审核/发布仅兼容旧主数据工作流，普通 B 端不展示
   "/content/approve",
   "/content/publish",
-  // 产品中心退出普通业务：整棵目录隐藏，Backend Route 保留兼容
-  "/products",
+  // 旧产品参数体系子树隐藏，P0 只开放产品列表 / 热工计算 / 产品对比
+  "/products/catalog",
+  "/products/materials",
+  "/products/construction",
+  "/products/thermal",
+  "/products/nodes",
+  "/products/comparison",
   // 知识库旧抓取源菜单迁出：普通入口改为独立采集管理
   "/knowledge/crawlers"
 ] as const;
@@ -147,12 +152,21 @@ const MENU_SEED_TREE: MenuSeedNode[] = [
     ]
   },
 
-  // ===== 产品中心（Legacy：普通菜单隐藏，routePath / Backend API 保留兼容）=====
+  // ===== 产品中心（P0 开放最小产品/热工/对比；旧参数体系子树隐藏）=====
   directory("产品中心", "/products", 30, {
     icon: "tdesign:app",
-    visible: false,
     children: [
-      directory("产品管理", "/products/catalog", 10, {
+      leaf("产品管理", "/products/manage", 5, "system:md:product:list", {
+        children: actionButtons("/products/manage", [
+          { suffix: "add", name: "产品新增", permissionCode: "system:md:product:add" },
+          { suffix: "edit", name: "产品编辑", permissionCode: "system:md:product:edit" },
+          { suffix: "remove", name: "产品删除", permissionCode: "system:md:product:remove" }
+        ])
+      }),
+      leaf("热工计算", "/thermal/calc", 6, "system:thermal:list"),
+      leaf("产品对比", "/products/compare", 7, "system:md:product:list"),
+      directory("产品参数（兼容）", "/products/catalog", 10, {
+        visible: false,
         children: [
           leaf("产品系列", "/products/series", 10, "system:md:product:list", { children: crudButtons("/products/series", "system:md:product", "产品数据") }),
           leaf("产品规格", "/products/specs", 20, "system:md:product:list", { children: crudButtons("/products/specs", "system:md:product", "产品数据") }),
@@ -161,18 +175,21 @@ const MENU_SEED_TREE: MenuSeedNode[] = [
         ]
       }),
       directory("材料与参数", "/products/materials", 20, {
+        visible: false,
         children: [
           leaf("保温材料库", "/masterdata/materials", 10, "system:md:material:list", { children: crudButtons("/masterdata/materials", "system:md:material", "材料数据") }),
           leaf("材料性能参数", "/masterdata/parameter-versions", 20, "system:md:material:list", { children: crudButtons("/masterdata/parameter-versions", "system:md:material", "材料数据") })
         ]
       }),
       directory("构造体系", "/products/construction", 30, {
+        visible: false,
         children: [
           leaf("保温系统", "/construction/systems", 10, "system:construction:list", { children: crudButtons("/construction/systems", "system:construction", "构造数据") }),
           leaf("构造方案", "/construction/schemes", 20, "system:construction:list", { children: crudButtons("/construction/schemes", "system:construction", "构造数据") })
         ]
       }),
       directory("热工数据", "/products/thermal", 40, {
+        visible: false,
         children: [
           leaf("图集热工参考表", "/thermal/sets", 10, "system:thermal:list", {
             children: actionButtons("/thermal/sets", [
@@ -188,11 +205,13 @@ const MENU_SEED_TREE: MenuSeedNode[] = [
         ]
       }),
       directory("节点图", "/products/nodes", 50, {
+        visible: false,
         children: [
           leaf("节点大样图", "/nodes/drawings", 10, "system:node:list", { children: crudButtons("/nodes/drawings", "system:node", "节点图") })
         ]
       }),
       directory("材料对比", "/products/comparison", 60, {
+        visible: false,
         children: [
           leaf("对比规则", "/comparison/versions", 10, "system:comparison:list", { children: crudButtons("/comparison/versions", "system:comparison", "对比规则") })
         ]
@@ -210,6 +229,10 @@ const MENU_SEED_TREE: MenuSeedNode[] = [
           { suffix: "edit", name: "知识资料编辑", permissionCode: "system:knowledge:doc:edit" },
           { suffix: "upload", name: "知识资料上传", permissionCode: "system:knowledge:doc:upload" },
           { suffix: "parse", name: "知识资料解析", permissionCode: "system:knowledge:doc:parse" },
+          { suffix: "page-upload", name: "知识页面图片上传", permissionCode: "system:knowledge:page:upload" },
+          { suffix: "page-recognize", name: "知识页面视觉识别", permissionCode: "system:knowledge:page:recognize" },
+          { suffix: "page-review", name: "知识页面识别审核", permissionCode: "system:knowledge:page:review" },
+          { suffix: "page-confirm", name: "知识页面识别确认", permissionCode: "system:knowledge:page:confirm" },
           { suffix: "approve", name: "知识资料审核", permissionCode: "system:knowledge:doc:approve" },
           { suffix: "publish", name: "知识资料发布", permissionCode: "system:knowledge:doc:publish" },
           { suffix: "remove", name: "知识资料删除", permissionCode: "system:knowledge:doc:remove" }
@@ -286,6 +309,13 @@ const MENU_SEED_TREE: MenuSeedNode[] = [
     icon: "tdesign:cloud-download",
     children: [
       leaf("手动采集", "/collection/manual", 10, "system:collection:manual:create"),
+      leaf("采集看板", "/collection/dashboard", 15, "system:collection:dashboard"),
+      leaf("采集技能", "/collection/skills", 18, "system:collection:skill:list", {
+        children: actionButtons("/collection/skills", [
+          { suffix: "add", name: "采集技能新增", permissionCode: "system:collection:skill:create" },
+          { suffix: "edit", name: "采集技能编辑", permissionCode: "system:collection:skill:update" }
+        ])
+      }),
       leaf("自动采集源", "/collection/sources", 20, "system:collection:auto:list", {
         children: actionButtons("/collection/sources", [
           { suffix: "add", name: "自动采集源新增", permissionCode: "system:collection:auto:create" },
@@ -299,7 +329,8 @@ const MENU_SEED_TREE: MenuSeedNode[] = [
           { suffix: "view", name: "查看采集任务", permissionCode: "system:collection:task:view" },
           { suffix: "import", name: "确认入库知识库", permissionCode: "system:collection:task:import" }
         ])
-      })
+      }),
+      leaf("采集记录", "/collection/records", 40, "system:collection:record:list")
     ]
   }),
 
@@ -340,6 +371,14 @@ const MENU_SEED_TREE: MenuSeedNode[] = [
           { suffix: "add", name: "新增快捷提问", permissionCode: "system:ai:quick-prompt:create" },
           { suffix: "edit", name: "编辑快捷提问", permissionCode: "system:ai:quick-prompt:update" },
           { suffix: "remove", name: "删除快捷提问", permissionCode: "system:ai:quick-prompt:delete" }
+        ])
+      }),
+      leaf("Agent设置", "/ai-config/advanced", 27, "system:ai:model:edit"),
+      leaf("AI运行记录", "/ai-config/runs", 28, "system:ai:conversation:list"),
+      leaf("业务提示词", "/ai-config/business-prompts", 35, "system:ai:prompt:list", {
+        children: actionButtons("/ai-config/business-prompts", [
+          { suffix: "edit", name: "保存业务提示词", permissionCode: "system:ai:prompt:edit" },
+          { suffix: "reset", name: "恢复默认提示词", permissionCode: "system:ai:prompt:edit" }
         ])
       }),
       leaf("场景配置", "/ai-config/scenes", 30, "system:ai:scene:list", { visible: false }),

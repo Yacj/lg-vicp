@@ -10,6 +10,27 @@ export const AUTH_CLIENTS = {
   PC_AI: "PC_AI"
 } as const;
 
+/** 端访问身份：与 AUTH_CLIENTS 正交。B_ADMIN→ADMIN，C_APP/PC_AI→CLIENT。 */
+export const APP_CODES = {
+  ADMIN: "ADMIN",
+  CLIENT: "CLIENT"
+} as const;
+
+export const APP_ROLES = {
+  SUPER_ADMIN: "SUPER_ADMIN",
+  NORMAL_USER: "NORMAL_USER"
+} as const;
+
+export const APP_ACCESS_STATUSES = {
+  ACTIVE: "ACTIVE",
+  DISABLED: "DISABLED"
+} as const;
+
+export const TOKEN_AUDIENCES = {
+  ADMIN: "admin",
+  CLIENT: "client"
+} as const;
+
 export const CHANNEL_TYPES = {
   DEALER: "DEALER",
   SALESPERSON: "SALESPERSON"
@@ -17,7 +38,8 @@ export const CHANNEL_TYPES = {
 
 export const PROJECT_VISIBILITY = {
   PRIVATE: "PRIVATE",
-  PUBLIC: "PUBLIC"
+  PUBLIC: "PUBLIC",
+  DEPARTMENT: "DEPARTMENT"
 } as const;
 
 export const VISIBILITY_POLICY = {
@@ -61,6 +83,9 @@ export const AUDIT_ACTIONS = {
   AUTH_LOGIN: "auth.login",
   AUTH_REGISTER: "auth.register",
   AUTH_LOGOUT: "auth.logout",
+  AUTH_PASSWORD_SET: "auth.password_set",
+  AUTH_PASSWORD_RESET: "auth.password_reset",
+  AUTH_C_ACCESS_OPENED: "auth.c_access_opened",
   PROJECT_CREATED: "project.created",
   PROJECT_UPDATED: "project.updated",
   PROJECT_DELETED: "project.deleted",
@@ -154,6 +179,16 @@ export const AUDIT_ACTIONS = {
   COLLECTION_SOURCE_TOGGLED: "collection.source_toggled",
   COLLECTION_TASK_CREATED: "collection.task_created",
   COLLECTION_TASK_IMPORTED: "collection.task_imported",
+  COLLECTION_SKILL_CREATED: "collection.skill_created",
+  COLLECTION_SKILL_UPDATED: "collection.skill_updated",
+  COLLECTION_RUN_STARTED: "collection.run_started",
+  COLLECTION_RUN_COMPLETED: "collection.run_completed",
+  AI_BUSINESS_PROMPT_UPDATED: "ai.business_prompt_updated",
+  AI_BUSINESS_PROMPT_RESET: "ai.business_prompt_reset",
+  PRODUCT_CREATED: "product.created",
+  PRODUCT_UPDATED: "product.updated",
+  PRODUCT_DELETED: "product.deleted",
+  PRODUCT_COMPARED: "product.compared",
   KNOWLEDGE_RANKING_UPDATED: "knowledge.ranking_updated",
   KNOWLEDGE_EVALUATION_CREATED: "knowledge.evaluation_created",
   KNOWLEDGE_EVALUATION_JUDGED: "knowledge.evaluation_judged",
@@ -224,11 +259,26 @@ export const AI_SCENES = {
   GENERAL_CHAT: "general_chat",
   PROJECT_DESIGN: "project_design",
   MATERIAL_COMPARE: "material_compare",
+  PRODUCT_CONSULTATION: "product_consultation",
   STANDARD_QA: "standard_qa",
   REPORT_GENERATE: "report_generate",
   INFORMATION_EXTRACT: "information_extract",
   CONVERSATION_TITLE: "conversation_title",
-  KNOWLEDGE_QA: "knowledge_qa"
+  KNOWLEDGE_QA: "knowledge_qa",
+  THERMAL_CALCULATION: "thermal_calculation",
+  VISION_UNDERSTANDING: "vision_understanding",
+  COLLECTION_AGENT: "collection_agent"
+} as const;
+
+export const AI_BUSINESS_PROMPT_CODES = {
+  BASE_CHAT: "BASE_CHAT",
+  KNOWLEDGE_SEARCH: "KNOWLEDGE_SEARCH",
+  PROJECT_ANALYSIS: "PROJECT_ANALYSIS",
+  THERMAL_CALCULATION: "THERMAL_CALCULATION",
+  PRODUCT_CONSULTATION: "PRODUCT_CONSULTATION",
+  PRODUCT_COMPARE: "PRODUCT_COMPARE",
+  REPORT_GENERATION: "REPORT_GENERATION",
+  VISION_UNDERSTANDING: "VISION_UNDERSTANDING"
 } as const;
 
 export const CLIENT_APPS = {

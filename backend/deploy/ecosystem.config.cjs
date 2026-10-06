@@ -21,6 +21,8 @@ const fileEnv = loadDotEnv(path.join(APP_ROOT, ".env"));
 const parsedHeap = Number(fileEnv.WORKER_MAX_OLD_SPACE_MB || process.env.WORKER_MAX_OLD_SPACE_MB || 768);
 const workerHeapMb = Number.isFinite(parsedHeap) && parsedHeap > 0 ? parsedHeap : 768;
 
+// DOCX_RENDER_* / SOFFICE_* 由进程内 dotenv 读取项目根 .env；
+// 修改后：pm2 restart deploy/ecosystem.config.cjs --update-env && pm2 save
 module.exports = {
   apps: [
     {
@@ -58,7 +60,7 @@ module.exports = {
       max_restarts: 20,
       min_uptime: 10000,
       exp_backoff_restart_delay: 200,
-      // 与 docker-compose worker.stop_grace_period 对齐，等待 PDF 解析等长任务自行结束
+      // 等待 PDF/DOCX 长任务自行结束（LibreOffice + 页图渲染）
       kill_timeout: 21 * 60 * 1000,
       max_memory_restart: "1500M",
       env: {

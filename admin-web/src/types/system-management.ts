@@ -146,6 +146,25 @@ export type SystemUserStatus = 'ACTIVE' | 'DISABLED'
 export type SystemUserRole = 'SUPER_ADMIN' | 'CHANNEL_USER' | 'NORMAL_USER'
 export type SystemUserGender = 'UNKNOWN' | 'MALE' | 'FEMALE'
 export type SystemChannelType = 'DEALER' | 'SALESPERSON'
+/** 端访问身份，对齐后端 APP_CODES。与登录端 AUTH_CLIENTS 正交。 */
+export type SystemAppCode = 'ADMIN' | 'CLIENT'
+export type SystemAppRole = 'SUPER_ADMIN' | 'NORMAL_USER'
+export type SystemAppAccessStatus = 'ACTIVE' | 'DISABLED'
+export type SystemIdentityType = 'USERNAME' | 'PHONE' | 'WECHAT' | 'WECHAT_OPENID' | 'WECHAT_UNIONID'
+
+/** GET /platform/users 与详情返回的分端访问；同一 User 可同时拥有 ADMIN 与 CLIENT。 */
+export interface UserAppAccessPublic {
+  app: SystemAppCode
+  role: SystemAppRole
+  status: SystemAppAccessStatus
+}
+
+/** 登录身份公开投影。详情接口未返回时按手机号等字段回退，不把身份类型当成账号类型。 */
+export interface SystemUserIdentityPublic {
+  type: SystemIdentityType
+  identifier?: string | null
+  hasPassword?: boolean
+}
 
 /**
  * 角色数据范围枚举，严格对齐后端 data_scope 枚举
@@ -212,10 +231,40 @@ export interface SystemDepartmentMember extends SystemRecord {
   remark: string | null
   role: SystemUserRole
   channelType: SystemChannelType | null
-  /** 是否允许登录 B 端管理后台；仅普通用户可能为 false。 */
+  /** 是否允许登录 B 端管理后台；仅普通用户可能为 false。兼容字段，分端真源是 appAccess。 */
   adminLoginEnabled: boolean
   status: SystemUserStatus
   deletedAt: string | null
+  /** 最近登录时间；后端未返回时不展示。 */
+  lastLoginAt?: string | null
+  /** 分端访问；列表与详情接口均返回。缺省时按 users.role 回退。 */
+  appAccess?: UserAppAccessPublic[]
+  /** 登录身份；详情接口未返回时不展示微信/密码细节。 */
+  identities?: SystemUserIdentityPublic[]
+}
+
+/** GET /platform/departments/:id/members 单项，与用户列表结构不同。 */
+export interface DepartmentMemberItem {
+  userId: string
+  displayName: string
+  phone: string | null
+  role: SystemUserRole
+  status: SystemUserStatus
+  isPrimary: boolean
+  joinedAt: string
+}
+
+export interface AddDepartmentMemberInput {
+  userId: string
+  isPrimary?: boolean
+}
+
+export interface DepartmentMemberMutationResult extends MutationMessage {
+  member: {
+    userId: string
+    departmentId: string
+    isPrimary: boolean
+  }
 }
 
 export interface SystemDepartmentMemberQuery extends PageQuery {
@@ -227,7 +276,7 @@ export interface SystemDepartmentMemberQuery extends PageQuery {
 
 /**
  * 平台用户分页查询，对齐后端 /platform/users 的 listQuerySchema。
- * 后端不支持账号类型（role）与渠道类型（channelType）筛选参数。
+ * 访问端筛选映射到已有 role 参数，不另造 app 查询字段。
  */
 export interface SystemUserQuery extends PageQuery {
   keyword?: string
@@ -249,6 +298,10 @@ export interface SystemUserDetail {
   departments: Array<{ id: string; isPrimary: boolean }>
   posts: SystemUserRoleBrief[]
   roles: SystemUserRoleBrief[]
+  /** 登录身份；与 GET /users/:id 现有字段并列，后端未返回时按 user 字段回退。 */
+  identities?: SystemUserIdentityPublic[]
+  /** 名下项目数量；后端未返回时不展示。 */
+  projectCount?: number
 }
 
 /** 创建用户及其组织/动态角色配置；后端在同一事务中保存。 */

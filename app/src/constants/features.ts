@@ -13,12 +13,12 @@ export const appFeatures = {
   projectListPublic: true,
 
   // AI
-  aiAttachments: false, // 消息接口暂不接收附件 ID
+  aiAttachments: true, // POST /ai/conversations/:id/messages 接收 attachmentFileIds
   aiSources: true, // SSE done 事件携带 sources
   aiModelPicker: false, // 无 C 端模型列表接口
 
   // 报告 / 收藏
-  reportsList: false, // 无报告列表接口
+  reportsList: true, // GET /reports/my 已可用
   nodeFavorites: false, // 无收藏接口
 
   // 专业工具场景（后端未接入，仅作为对话开场）

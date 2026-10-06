@@ -142,7 +142,7 @@ export function useVoiceInput(options: {
       uni.getFileSystemManager().readFile({
         filePath,
         encoding: 'base64',
-        success: (result) => resolve(result.data as string),
+        success: result => resolve(result.data as string),
         fail: () => reject(new Error('读取录音文件失败')),
       })
     })

@@ -29,8 +29,8 @@ const hit: WikiHit = {
 describe("formatKnowledgeContext", () => {
   it("检索失败时给出可理解的降级说明，不抛错", () => {
     const text = formatKnowledgeContext([], { retrievalFailed: true });
-    expect(text).toContain("知识资料检索暂时不可用");
-    expect(text).toContain("不得编造");
+    expect(text).toContain("现有资料还不足以确定这一点");
+    expect(text).not.toContain("不得编造");
   });
 
   it("headingPath 不是数组时不 500，仍能组装上下文", () => {

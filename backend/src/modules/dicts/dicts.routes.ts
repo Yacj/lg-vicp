@@ -14,12 +14,14 @@ export async function dictRoutes(app: FastifyInstance) {
       ok(request, {
         projectVisibility: [
           { value: "PRIVATE", label: "私有" },
-          { value: "PUBLIC", label: "公开" }
+          { value: "DEPARTMENT", label: "部门及子部门" },
+          { value: "PUBLIC", label: "历史全员可见" }
         ],
         userRoles: [
-          { value: "SUPER_ADMIN", label: "超级管理员" },
-          { value: "CHANNEL_USER", label: "渠道用户" },
-          { value: "NORMAL_USER", label: "普通用户" }
+          { value: "SUPER_ADMIN", label: "超级管理员" }
+        ],
+        adminUserTypes: [
+          { value: "SUPER_ADMIN", label: "超级管理员" }
         ],
         channelTypes: [
           { value: "DEALER", label: "经销商" },
@@ -30,7 +32,8 @@ export async function dictRoutes(app: FastifyInstance) {
           { value: "QUEUED", label: "排队中" },
           { value: "GENERATING", label: "生成中" },
           { value: "READY", label: "已完成" },
-          { value: "FAILED", label: "生成失败" }
+          { value: "FAILED", label: "生成失败" },
+          { value: "CANCELLED", label: "已取消" }
         ],
         fileStatuses: [
           { value: "UPLOADING", label: "上传中" },

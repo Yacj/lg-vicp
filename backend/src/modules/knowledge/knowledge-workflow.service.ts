@@ -122,6 +122,38 @@ export async function createKnowledgeWithFile(
     ? await requireUsableFile(app, input.searchSourceFileId)
     : null;
 
+  // 同一 fileId 只允许一份正式知识文档（禁止 legacy 文档与 create-with-file 并存）
+  const existingBindings = await app.db.select({
+    documentId: knowledgeDocumentAssets.documentId,
+    deletedAt: knowledgeDocuments.deletedAt
+  }).from(knowledgeDocumentAssets)
+    .innerJoin(knowledgeDocuments, eq(knowledgeDocuments.id, knowledgeDocumentAssets.documentId))
+    .where(and(
+      eq(knowledgeDocumentAssets.fileId, original.id),
+      eq(knowledgeDocumentAssets.role, "ORIGINAL"),
+      isNull(knowledgeDocuments.deletedAt)
+    ))
+    .limit(1);
+  if (existingBindings.length > 0) {
+    throw new ConflictError("该文件已绑定知识文档，请勿重复创建；如需重解析请打开已有资料");
+  }
+  // 兼容历史：文档表 fileId 直连（legacy parse 产物）
+  const [legacyDoc] = await app.db.select({ id: knowledgeDocuments.id }).from(knowledgeDocuments)
+    .where(and(
+      eq(knowledgeDocuments.fileId, original.id),
+      isNull(knowledgeDocuments.deletedAt)
+    ))
+    .limit(1);
+  if (legacyDoc) {
+    throw new ConflictError("该文件已由自动解析创建过知识文档，请打开已有资料或改用重新解析");
+  }
+
+  // 知识源文件标记：后续即使走 /files/:id/complete 也不会再 enqueue legacy
+  if (original.purpose !== "KNOWLEDGE_SOURCE") {
+    await app.db.update(files).set({ purpose: "KNOWLEDGE_SOURCE", updatedAt: new Date() })
+      .where(eq(files.id, original.id));
+  }
+
   const created = await app.db.transaction(async (tx) => {
     const [document] = await tx.insert(knowledgeDocuments).values({
       title: input.title,
@@ -403,6 +435,7 @@ export async function getDocumentWorkspace(
   const lastJobView = lastJob
     ? presentLastJob(lastJob, version.parseStatus, version.parser, includeTechnical)
     : null;
+  const processingDetail = extractProcessingDetail(lastJob);
 
   return {
     document: {
@@ -435,7 +468,15 @@ export async function getDocumentWorkspace(
     searchableFile: searchAsset
       ? { id: searchAsset.fileId, name: searchAsset.fileName }
       : undefined,
-    parsing: { lastJob: lastJobView },
+    parsing: {
+      lastJob: lastJobView,
+      textParsing: processingDetail.textParsing,
+      pageRendering: processingDetail.pageRendering,
+      pageRenderingComplete: processingDetail.pageRenderingComplete,
+      pageRenderingError: processingDetail.pageRenderingError,
+      previewRendered: processingDetail.previewRendered,
+      previewFailed: processingDetail.previewFailed
+    },
     summary: {
       pageCount,
       tocCount: tocCountRow.length,
@@ -447,8 +488,59 @@ export async function getDocumentWorkspace(
     actions: {
       canRetry,
       canReplaceFile: version.status !== "DISABLED",
-      canBindSearchSource: userStatus === "SEARCHABLE_FILE_REQUIRED"
+      canBindSearchSource: userStatus === "SEARCHABLE_FILE_REQUIRED",
+      canRetryPageRender: processingDetail.pageRendering === "FAILED"
+        || processingDetail.pageRenderingComplete === false
+        || (pageCount === 0 && Boolean(originalAsset?.mimeType?.includes("wordprocessingml")))
     }
+  };
+}
+
+function extractProcessingDetail(job: typeof parsingJobs.$inferSelect | null): {
+  textParsing: "READY" | "FAILED" | null;
+  pageRendering: "READY" | "FAILED" | "SKIPPED" | null;
+  pageRenderingComplete: boolean | null;
+  pageRenderingError: { code: string; message: string } | null;
+  previewRendered: number | null;
+  previewFailed: number | null;
+} {
+  const result = job?.result;
+  if (!result || typeof result !== "object") {
+    return {
+      textParsing: null,
+      pageRendering: null,
+      pageRenderingComplete: null,
+      pageRenderingError: null,
+      previewRendered: null,
+      previewFailed: null
+    };
+  }
+  const textParsing = result.textParsing === "READY" || result.textParsing === "FAILED"
+    ? result.textParsing
+    : null;
+  const pageRendering = result.pageRendering === "READY"
+    || result.pageRendering === "FAILED"
+    || result.pageRendering === "SKIPPED"
+    ? result.pageRendering
+    : null;
+  const pageRenderingComplete = typeof result.pageRenderingComplete === "boolean"
+    ? result.pageRenderingComplete
+    : null;
+  const previewRendered = typeof result.previewRendered === "number" ? result.previewRendered : null;
+  const previewFailed = typeof result.previewFailed === "number" ? result.previewFailed : null;
+  const rawError = result.pageRenderingError;
+  const pageRenderingError = rawError && typeof rawError === "object"
+    && typeof (rawError as { code?: unknown }).code === "string"
+    && typeof (rawError as { message?: unknown }).message === "string"
+    ? { code: (rawError as { code: string }).code, message: (rawError as { message: string }).message }
+    : null;
+  return {
+    textParsing,
+    pageRendering,
+    pageRenderingComplete,
+    pageRenderingError,
+    previewRendered,
+    previewFailed
   };
 }
 
@@ -658,4 +750,86 @@ export async function streamVersionTestQa(
     knowledgeChunks: chunks,
     mapSources: hasDebugPermission(actor) ? toAiSources : toUserTestSources
   });
+}
+
+/**
+ * B 端调试用非流式测试：返回命中 chunk、页图与绑定热工行，不暴露给 C 端。
+ */
+export async function inspectVersionTestQa(
+  app: FastifyInstance,
+  versionId: string,
+  body: { query: string; limit?: number }
+) {
+  await assertVersionTestable(app, versionId);
+  const limit = Math.min(20, Math.max(1, body.limit ?? 8));
+  const hits = await searchWikiHierarchy(app, body.query, { versionId, limit });
+
+  const pageIds = [...new Set(
+    hits.map((hit) => hit.pageId).filter((id): id is string => Boolean(id))
+  )];
+
+  const pages = pageIds.length === 0
+    ? []
+    : (await app.db.select().from(knowledgePages).where(eq(knowledgePages.versionId, versionId)))
+      .filter((row) => pageIds.includes(row.id));
+
+  const pageById = new Map(pages.map((page) => [page.id, page]));
+  const referencePages = [];
+  for (const page of pages) {
+    if (!page.pageImageObjectKey) continue;
+    referencePages.push({
+      pageId: page.id,
+      physicalPageNumber: page.physicalPageNumber,
+      pageLabel: page.pageLabel,
+      pageTitle: page.pageTitle,
+      pageImageObjectKey: page.pageImageObjectKey,
+      pageImageUrl: await app.storage.createDownloadUrl(
+        page.pageImageObjectKey,
+        `page-${page.physicalPageNumber}.png`,
+        3600
+      )
+    });
+  }
+
+  const { thermalReferenceRows } = await import("../../db/schema.js");
+  const matchedReferenceRows = [];
+  for (const id of pageIds) {
+    const rows = await app.db.select({
+      id: thermalReferenceRows.id,
+      setId: thermalReferenceRows.setId,
+      thicknessMm: thermalReferenceRows.thicknessMm,
+      productThermalResistance: thermalReferenceRows.productThermalResistance,
+      kValue: thermalReferenceRows.kValue,
+      sourcePageId: thermalReferenceRows.sourcePageId,
+      sourcePageLabel: thermalReferenceRows.sourcePageLabel
+    }).from(thermalReferenceRows).where(eq(thermalReferenceRows.sourcePageId, id));
+    matchedReferenceRows.push(...rows);
+  }
+
+  return {
+    answer: null,
+    taskType: "KNOWLEDGE_TEST_INSPECT",
+    sources: hits.map((hit) => ({
+      title: hit.sourceTitle,
+      pageLabel: hit.pageLabel,
+      physicalPageNumber: hit.physicalPageNumber,
+      quote: hit.snippet ?? hit.content.slice(0, 240),
+      pageId: hit.pageId ?? null
+    })),
+    referencePages,
+    matchedReferenceRows,
+    retrievedChunks: hits.map((hit) => {
+      const page = hit.pageId ? pageById.get(hit.pageId) : undefined;
+      return {
+        chunkId: hit.chunkId ?? hit.sourceId,
+        content: hit.content,
+        pageId: hit.pageId ?? null,
+        physicalPageNumber: hit.physicalPageNumber ?? page?.physicalPageNumber ?? null,
+        pageLabel: hit.pageLabel ?? page?.pageLabel ?? null,
+        documentId: hit.documentId,
+        versionId: hit.versionId,
+        score: hit.score
+      };
+    })
+  };
 }

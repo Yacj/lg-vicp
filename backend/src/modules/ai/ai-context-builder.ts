@@ -1,8 +1,8 @@
 /**
  * 统一 AI 上下文组装：所有正式生成入口共用。
- * 组装顺序：系统规则 → 权限范围 → 项目档案 → 项目记忆 → 会话摘要 → 近期消息 →
- * 历史附件语义 → Agent 工具结果 → 检索资料 → 当前用户消息。
- * Token 按桶控制，优先保留当前消息、系统规则、已确认事实、记忆、摘要和最近消息。
+ * 组装顺序：平台硬规则 → 执行规范 → 全局回答规则 → Answer Contract → 业务 Prompt → 权限范围 →
+ * 项目档案 / 项目记忆 / 会话摘要（仅供判断）→ 近期消息 → 工具 / 知识 / 产品上下文 → 当前用户消息。
+ * Token 按桶控制。上下文继续完整参与判断，不靠删上下文换精炼回答。
  */
 import { and, desc, eq, inArray, notInArray } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
@@ -26,7 +26,11 @@ import {
 } from "../../shared/prompt-assembly.js";
 import { formatProjectMemoryContext, listInjectableProjectMemories } from "./ai-project-memory.service.js";
 import { formatConversationStateContext } from "./ai-conversation-state.service.js";
+import { formatConversationTaskContext, parseConversationTaskState } from "./conversation-task.js";
+import { wrapContextForReasoning } from "../../shared/ai-response-policy.js";
+import type { AnswerContract } from "../../shared/ai-answer-contract.js";
 import type { SceneRuntime } from "./ai-runtime.service.js";
+import { getAiTaskRuntimePolicy } from "../ai-config/ai-task-runtime-policy.js";
 
 export type ConversationRow = typeof aiConversations.$inferSelect;
 
@@ -52,7 +56,9 @@ export interface BuildAiContextInput {
   thermalContext?: string | null;
   visionContext?: string | null;
   agentToolContext?: string | null;
+  taskContext?: string | null;
   excludeMessageIds?: string[];
+  answerContract?: AnswerContract | null;
 }
 
 export interface BuiltAiContext {
@@ -84,11 +90,10 @@ export function formatAttachmentContext(items: HistoricalAttachmentContext[]): s
       objects
     ].filter(Boolean).join("\n");
   });
-  return [
-    "【历史附件语义（已识别，不必要求用户重新上传，也不必重新整张看图）】",
-    "用户提到“刚才那张图/第二个节点”时，优先依据下列摘要定位，不要假装没有看过。",
+  return wrapContextForReasoning("历史附件语义", [
+    "用户提到“刚才那张图/第二个节点”时，优先依据下列摘要定位。",
     ...lines
-  ].join("\n");
+  ].join("\n"));
 }
 
 export async function loadHistoricalAttachmentContext(
@@ -175,13 +180,15 @@ export async function buildAiContext(input: BuildAiContextInput): Promise<BuiltA
     projectContext: input.projectContext,
     projectMemoryContext: memoryContext || null,
     conversationSummaryContext: summaryContext || null,
+    taskContext: input.taskContext ?? formatConversationTaskContext(parseConversationTaskState(stateRow?.taskStateJson)),
     insulationSystemContext: input.insulationSystemContext,
     attachmentContext: attachmentContext || null,
     agentToolContext: agentToolContext || null,
     knowledgeContext: knowledgeContext || null,
     ruleContext: input.ruleContext,
     thermalContext: input.thermalContext,
-    visionContext: input.visionContext
+    visionContext: input.visionContext,
+    answerContract: input.answerContract
   });
   const system = systemMessages.map((message) => message.content).join("\n\n");
 
@@ -210,7 +217,7 @@ export async function buildAiContext(input: BuildAiContextInput): Promise<BuiltA
     systemTokens,
     userMessageTokens: currentMessageTokens,
     contextWindow,
-    maxOutputTokens: input.runtime.sceneMaxOutputTokens ?? input.runtime.primary.maxOutputTokens
+    maxOutputTokens: getAiTaskRuntimePolicy("CHAT").maxOutputTokens
   });
   const droppedEarlyMessages = budgeted.length < historyMessages.length;
 

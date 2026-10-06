@@ -2,8 +2,10 @@ import type { PageResult } from '@/types/api'
 import type { WorkflowActionInput } from '@/types/professional'
 import type {
   MutationMessageResponse,
+  ThermalCalcExecution,
   ThermalCalcRecord,
   ThermalCalcRecordQuery,
+  ThermalCalcRequest,
   ThermalCalcRule,
   ThermalCalcRuleInput,
   ThermalCalcRuleQuery,
@@ -12,6 +14,7 @@ import type {
   ThermalImportJob,
   ThermalImportJobQuery,
   ThermalRow,
+  ThermalRowInput,
   ThermalRowQuery,
   ThermalSet,
   ThermalSetInput,
@@ -74,6 +77,17 @@ export function fetchThermalSetRows(
   return api.get<PageResult<ThermalRow>>(`${resourcePath('sets', setId)}/rows`, { params: query, signal })
 }
 
+export function createThermalRow(setId: string, input: ThermalRowInput): Promise<ThermalRow> {
+  return api.post<ThermalRow>(`${resourcePath('sets', setId)}/rows`, input)
+}
+
+export function updateThermalRow(id: string, input: Partial<ThermalRowInput>): Promise<ThermalRow> {
+  return api.patch<ThermalRow>(resourcePath('rows', id), input)
+}
+
+export function deleteThermalRow(id: string): Promise<MutationMessageResponse> {
+  return api.delete<MutationMessageResponse>(resourcePath('rows', id))
+}
 export function fetchPublishedThermalSets(
   query: { schemeId?: string, productSpecId?: string, keyword?: string },
   signal?: AbortSignal,
@@ -156,6 +170,10 @@ export function fetchThermalCalcRecords(
 
 export function fetchThermalCalcRecord(id: string): Promise<ThermalCalcRecord> {
   return api.get<ThermalCalcRecord>(resourcePath('calc-records', id))
+}
+
+export function executeThermalCalc(input: ThermalCalcRequest): Promise<ThermalCalcExecution> {
+  return api.post<ThermalCalcExecution>(`${THERMAL_PREFIX}/calc`, input)
 }
 
 // ===== 导入任务 =====

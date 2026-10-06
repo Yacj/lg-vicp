@@ -49,13 +49,34 @@ export interface PasswordLoginBody {
   password: string
 }
 
+/** C 端密码注册。role / adminLoginEnabled 由 Backend 固定为 NORMAL_USER / false，前端不得传。 */
+export interface PasswordRegisterBody {
+  clientType: AuthClient
+  phone: string
+  password: string
+}
+
 export interface SmsSendBody {
   clientType: AuthClient
   phone: string
+  purpose?: 'LOGIN' | 'PASSWORD'
 }
 
 export interface SmsLoginBody extends SmsSendBody {
   code: string
+}
+
+/** 微信手机号快捷登录只提交一次性 code，不提交明文手机号。 */
+export interface WechatPhoneLoginBody {
+  loginCode: string
+  phoneCode: string
+}
+
+export interface PasswordSmsBody {
+  clientType: AuthClient
+  phone: string
+  code: string
+  password: string
 }
 
 export interface LoginResult {
@@ -64,6 +85,23 @@ export interface LoginResult {
   refreshToken: string
   refreshTokenId: string
   refreshTokenExpiresAt: string
+  isFirstLogin?: boolean
+  passwordSet?: boolean
+}
+
+export interface WechatPhoneLoginResult extends LoginResult {
+  isFirstLogin: boolean
+  passwordSet: boolean
+}
+
+export interface PasswordMutationResult {
+  message: string
+  passwordSet: boolean
+  userId: string
+}
+
+export interface RegisterResult extends LoginResult {
+  message?: string
 }
 
 export interface RefreshResult {
@@ -95,10 +133,19 @@ export interface ProfileSummary {
   }
 }
 
-export type ProjectVisibility = 'PRIVATE' | 'PUBLIC'
+/** 新建/修改可见范围只允许这两种；PUBLIC 仅为历史数据展示兼容。 */
+export type ProjectVisibility = 'PRIVATE' | 'DEPARTMENT'
+export type StoredProjectVisibility = ProjectVisibility | 'PUBLIC'
+
+export interface ClientSelectableDepartment {
+  id: string
+  name: string
+  pathName: string
+  hasChildren: boolean
+}
 
 export interface ProjectListQuery extends PageQuery {
-  visibility?: ProjectVisibility
+  visibility?: StoredProjectVisibility
   keyword?: string
 }
 
@@ -108,9 +155,11 @@ export interface CreateProjectBody {
   region?: string
   buildingType?: string
   visibility?: ProjectVisibility
+  visibleDepartmentId?: string
+  includeChildDepartments?: boolean
 }
 
-export interface UpdateProjectBody extends Partial<Omit<CreateProjectBody, 'visibility'>> {
+export interface UpdateProjectBody {
   name?: string
   description?: string
   region?: string
@@ -119,6 +168,8 @@ export interface UpdateProjectBody extends Partial<Omit<CreateProjectBody, 'visi
 
 export interface UpdateProjectVisibilityBody {
   visibility: ProjectVisibility
+  visibleDepartmentId?: string
+  includeChildDepartments?: boolean
 }
 
 export interface ProjectRecord {
@@ -127,8 +178,12 @@ export interface ProjectRecord {
   description: string | null
   region: string | null
   buildingType: string | null
-  visibility: ProjectVisibility
+  visibility: StoredProjectVisibility
   visibilityPolicy: 'LOGGED_IN_USERS'
+  visibleDepartmentId?: string | null
+  includeChildDepartments?: boolean
+  /** 若 Backend 附带部门名则优先展示，APP 不回传 departmentId */
+  visibleDepartmentName?: string | null
   status: string
   metadata: Record<string, unknown> | null
   createdById: string
@@ -137,6 +192,8 @@ export interface ProjectRecord {
   updatedAt: string
   /** 后端 projectResponse 附带：是否为创建者或超管（可管理项目） */
   canManage: boolean
+  canEdit?: boolean
+  canDelete?: boolean
 }
 
 export type AiScene = 'general_chat' | 'project_design' | 'material_compare' | 'standard_qa' | 'report_generate' | 'information_extract'
@@ -208,8 +265,24 @@ export interface ConversationSettingsBody {
   reasoningMode: 'OFF' | 'ON'
 }
 
+export type UserSelectionKind = 'KNOWLEDGE_SOURCE' | 'REPORT_TYPE' | 'PRODUCT' | 'GENERIC'
+export type UserSelectionConfirmActionType = 'CONTINUE' | 'GENERATE_REPORT'
+export type ConversationUiAction = 'SELECT_PRODUCTS' | 'GENERATE_REPORT' | 'SELECT_KNOWLEDGE_SOURCES'
+
 export interface SendMessageBody {
-  content: string
+  content?: string
+  attachmentFileIds?: string[]
+  optionId?: string
+  optionIds?: string[]
+  selectedIds?: string[]
+  selectedProductIds?: string[]
+  selectionKind?: UserSelectionKind
+  action?: ConversationUiAction
+  confirmAction?: UserSelectionConfirmActionType
+}
+
+export interface RegenerateMessageBody {
+  reason?: string
 }
 
 export interface TranscribeVoiceBody {
@@ -446,6 +519,92 @@ export type AiStreamEventPayload
     }
   }
   | {
+    event: 'agent_status'
+    data: {
+      message: string
+      toolName?: string
+      runId?: string
+    }
+  }
+  | {
+    event: 'tool_start'
+    data: {
+      message?: string
+      toolName?: string
+    }
+  }
+  | {
+    event: 'tool_result'
+    data: {
+      toolName?: string
+      success: boolean
+      error?: string
+    }
+  }
+  | {
+    event: 'need_user_input'
+    data: {
+      runId: string
+      type?: 'USER_SELECTION' | 'CHOICE' | 'APPROVAL' | 'COMPARISON_SELECTION'
+      selectionKind?: UserSelectionKind
+      title?: string
+      description?: string
+      prompt: string
+      options: unknown[]
+      multiple?: boolean
+      minSelections?: number
+      maxSelections?: number
+      autoSelectWhenSingle?: boolean
+      confirmAction?: { type: UserSelectionConfirmActionType, label: string }
+      comparisonResult?: unknown
+      request?: unknown
+    }
+  }
+  | {
+    event: 'comparison_ready'
+    data: {
+      comparisonResult?: unknown
+      thermalStatus?: string
+      missingNotes?: string[]
+    }
+  }
+  | {
+    event: 'product_cards'
+    data: {
+      products: unknown[]
+    }
+  }
+  | {
+    event: 'report_started'
+    data: {
+      conversationId?: string
+    }
+  }
+  | {
+    event: 'report_queued'
+    data: {
+      reportId: string
+      taskId?: string
+      status?: string
+      selectedProductIds?: string[]
+      title?: string
+    }
+  }
+  | {
+    event: 'report_completed'
+    data: {
+      reportId: string
+      selectedProductIds?: string[]
+      title?: string
+    }
+  }
+  | {
+    event: 'sources'
+    data: {
+      sources: AiSourceRef[]
+    }
+  }
+  | {
     event: 'delta'
     data: { text: string }
   }
@@ -477,6 +636,28 @@ export type AiStreamEventPayload
     }
   }
 
+export type FilePurpose = 'GENERAL' | 'CHAT_IMAGE'
+export type MessageAttachmentType = 'IMAGE'
+export type MessageVisionStatus = 'PENDING' | 'SUCCEEDED' | 'FAILED'
+
+export interface MessageAttachment {
+  id: string
+  fileId: string
+  attachmentType: MessageAttachmentType
+  sortOrder: number
+  visionStatus?: MessageVisionStatus | null
+  semanticSummary?: string | null
+  file?: {
+    id: string
+    originalName: string
+    mimeType: string
+    sizeBytes: number
+    status: string
+  }
+  /** 本地乐观消息或已解析的预览地址，不落库 */
+  previewUrl?: string
+}
+
 export interface ConversationMessage {
   id: string
   conversationId: string
@@ -491,6 +672,7 @@ export interface ConversationMessage {
   finishedAt?: string | null
   stopReason?: string | null
   createdAt: string
+  attachments?: MessageAttachment[]
 }
 
 export interface AiMessageFeedback {
@@ -504,9 +686,80 @@ export interface AiMessageFeedback {
   createdAt: string
 }
 
+export type AgentRunStatus = 'RUNNING' | 'WAITING_USER_INPUT' | 'COMPLETED' | 'FAILED' | 'CANCELLED'
+
+export interface AgentRunWaitingDto {
+  type?: 'USER_SELECTION' | 'CHOICE' | 'APPROVAL' | 'COMPARISON_SELECTION'
+  selectionKind?: UserSelectionKind
+  title?: string
+  description?: string
+  prompt: string
+  options?: unknown[]
+  multiple?: boolean
+  minSelections?: number
+  maxSelections?: number
+  autoSelectWhenSingle?: boolean
+  confirmAction?: { type: UserSelectionConfirmActionType, label: string }
+  comparisonResult?: unknown
+  request?: unknown
+}
+
+export interface AgentRunDto {
+  id: string
+  conversationId: string
+  status: AgentRunStatus
+  currentStep?: number
+  waitingPrompt?: string | null
+  waitingOptions?: unknown[] | null
+  waiting?: AgentRunWaitingDto | null
+  selectedComparison?: { optionIds: string[], labels: string[] } | null
+  errorMessage?: string | null
+  errorCode?: string | null
+  assistantMessageId?: string | null
+  startedAt?: string
+  finishedAt?: string | null
+}
+
+export interface ResumeAgentRunBody {
+  content?: string
+  optionId?: string
+  optionIds?: string[]
+  selectedIds?: string[]
+  selectedProductIds?: string[]
+  selectionKind?: UserSelectionKind
+  action?: ConversationUiAction
+  confirmAction?: UserSelectionConfirmActionType
+}
+
+export type ProjectMemoryType = 'FACT' | 'CONSTRAINT' | 'DECISION' | 'PREFERENCE' | 'TODO' | 'ASSUMPTION'
+export type ProjectMemoryStatus = 'ACTIVE' | 'PENDING' | 'SUPERSEDED' | 'REJECTED'
+export type ProjectMemoryView = 'active' | 'pending' | 'history'
+
+export interface ProjectMemoryItem {
+  id: string
+  projectId: string
+  memoryType: ProjectMemoryType
+  title: string | null
+  content: string
+  status: ProjectMemoryStatus
+  verified: boolean
+  sourceConversationId: string | null
+  createdBy: 'AI' | 'USER' | string
+  supersededById: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface UpdateProjectMemoryBody {
+  title?: string | null
+  content?: string
+  memoryType?: ProjectMemoryType
+}
+
 export interface ConversationDetail {
   conversation: ConversationRecord
   messages: ConversationMessage[]
+  activeAgentRun?: AgentRunDto | null
   processingSummary?: {
     stages: Array<{ stage: string, message: string }>
     note?: string
@@ -520,6 +773,7 @@ export interface ConversationDetail {
 
 export interface UploadIntentBody {
   projectId?: string
+  purpose?: FilePurpose
   fileName: string
   mimeType: 'application/pdf' | 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' | 'image/png' | 'image/jpeg'
   sizeBytes: number
@@ -529,15 +783,25 @@ export interface UploadIntentBody {
 export interface UploadIntentResult {
   message: string
   fileId: string
-  uploadUrl: string
-  headers: Record<string, string>
-  expiresAt: string
+  mode?: 'UPLOAD' | 'REUSE'
+  uploadUrl?: string
+  headers?: Record<string, string>
+  expiresAt?: string
+  file?: {
+    id: string
+    originalName: string
+    mimeType: string
+    sizeBytes: number
+    sha256: string | null
+  }
 }
 
 export interface UploadCompleteResult {
   message: string
   fileId: string
-  taskId: string
+  taskId?: string
+  status?: string
+  duplicateOfFileId?: string
 }
 
 export interface FileRecord {
@@ -547,6 +811,7 @@ export interface FileRecord {
   mimeType: string
   sizeBytes: number
   sha256: string | null
+  purpose?: FilePurpose
   status: 'UPLOADING' | 'UPLOADED' | 'QUEUED' | 'PARSING' | 'OCR_REQUIRED' | 'INDEXING' | 'READY' | 'FAILED' | 'DELETED'
   errorMessage: string | null
   version: number
@@ -572,24 +837,52 @@ export interface AsyncTaskRecord {
   updatedAt: string
 }
 
-export type ReportType = 'energy_design' | 'design_note' | 'marketing_copy'
+export type ReportType = string
 export type ReportArtifactType = 'HTML' | 'IMAGE' | 'WORD' | 'PDF'
+export type ReportTaskStatus = 'QUEUED' | 'GENERATING' | 'READY' | 'FAILED' | 'CANCELLED'
+export type ReportRecordStatus = 'DRAFT' | 'QUEUED' | 'PROCESSING' | 'GENERATING' | 'READY' | 'FAILED' | 'CANCELLED' | 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED'
+
+export interface PublicReportType {
+  code: string
+  name: string
+  description: string
+  requiresProject: boolean
+  enabled: boolean
+}
 
 export interface CreateReportBody {
-  projectId: string
+  projectId?: string
   conversationId?: string
   reportType: ReportType
   contentJson?: Record<string, unknown>
   sourceMessageIds?: string[]
 }
 
+export interface ReportProjectRef {
+  id: string
+  name: string
+}
+
+export interface ReportListQuery extends PageQuery {
+  projectId?: string
+}
+
+export interface MyReportItem {
+  id: string
+  title: string
+  reportType: ReportType | string
+  status: ReportRecord['status'] | string
+  createdAt: string
+  project: ReportProjectRef | null
+}
+
 export interface ReportRecord {
   id: string
-  projectId: string
+  projectId: string | null
   conversationId: string | null
   reportType: ReportType
   contentJson: Record<string, unknown>
-  status: 'DRAFT' | 'QUEUED' | 'PROCESSING' | 'READY' | 'FAILED'
+  status: ReportRecordStatus | string
   errorMessage: string | null
   publishedAt: string | null
   templateVersion: string
@@ -600,8 +893,19 @@ export interface ReportRecord {
 
 export interface ReportDetail {
   report: ReportRecord
+  project?: ReportProjectRef | null
   sources: unknown[]
   availableFormats: ReportArtifactType[]
+}
+
+export interface LinkReportProjectBody {
+  projectId: string
+}
+
+export interface ReportDraftResult {
+  message: string
+  report: ReportRecord
+  draft?: Record<string, unknown>
 }
 
 export interface CreateReportResult {

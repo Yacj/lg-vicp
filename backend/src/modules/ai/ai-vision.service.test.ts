@@ -117,21 +117,25 @@ describe("默认视觉模型解析", () => {
     await expect(resolveDefaultVisionModel(db as never)).rejects.toBeInstanceOf(AiError);
   });
 
-  it("优先 code=default_vision 的 vision 模型", async () => {
+  it("优先 isDefault 且已准入的视觉模型", async () => {
     const { pickDefaultVisionModelId } = await import("../ai-config/ai-config.service.js");
     expect(pickDefaultVisionModelId([
-      { id: "m-high", code: "other", capabilities: { vision: true } },
-      { id: "m-default", code: "default_vision", capabilities: { vision: true } }
+      { id: "m-high", code: "other", isDefault: false, supportsVision: true, lastTestStatus: "PASSED" },
+      { id: "m-default", code: "default_vision", isDefault: true, supportsVision: true, lastTestStatus: "PASSED" }
     ])).toBe("m-default");
     expect(pickDefaultVisionModelId([
-      { id: "m-text", code: "chat", capabilities: { text: true } }
+      { id: "m-text", code: "chat", supportsVision: false, lastTestStatus: "PASSED" }
+    ])).toBeNull();
+    expect(pickDefaultVisionModelId([
+      { id: "m-untested", code: "default_vision", isDefault: true, supportsVision: true, lastTestStatus: "UNTESTED" }
     ])).toBeNull();
   });
 });
 
-describe("CHAT_IMAGE 不进入解析", () => {
-  it("CHAT_IMAGE 跳过文档解析，其他用途仍解析", () => {
+describe("CHAT_IMAGE / KNOWLEDGE_SOURCE 不进入 legacy 解析", () => {
+  it("CHAT_IMAGE 与 KNOWLEDGE_SOURCE 跳过文档解析，GENERAL 仍解析", () => {
     expect(shouldEnqueueDocumentParse("CHAT_IMAGE")).toBe(false);
+    expect(shouldEnqueueDocumentParse("KNOWLEDGE_SOURCE")).toBe(false);
     expect(shouldEnqueueDocumentParse("GENERAL")).toBe(true);
     expect(shouldEnqueueDocumentParse(undefined)).toBe(true);
   });

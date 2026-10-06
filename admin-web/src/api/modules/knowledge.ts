@@ -22,6 +22,7 @@ import type {
   KnowledgeReplaceFileInput,
   KnowledgeParsingJobQuery,
   KnowledgeDocumentVersion,
+  KnowledgeExtractedTextResult,
   KnowledgePage,
   KnowledgePageMappingsResult,
   KnowledgePageWindow,
@@ -257,7 +258,7 @@ export function verifyVersionPageMappings(
 export function updateVersionPage(
   versionId: string,
   physicalPageNumber: number,
-  input: { pageLabel?: string | null, pageTitle?: string | null },
+  input: { pageLabel?: string | null, pageTitle?: string | null, pageNumber?: number, parsedText?: string | null, imageFileId?: string | null },
 ): Promise<{ page: KnowledgePage }> {
   return api.patch<{ page: KnowledgePage }>(
     `${KNOWLEDGE_PREFIX}/versions/${encodeURIComponent(versionId)}/pages/${physicalPageNumber}`,
@@ -329,6 +330,51 @@ export function fetchVersionPageWindow(
     params: { center, before, after },
     signal,
   })
+}
+
+/** 无页面文档（如 DOCX）的阅读视图：按分块顺序获取机器提取文本。 */
+export function fetchVersionExtractedText(
+  versionId: string,
+  signal?: AbortSignal,
+): Promise<KnowledgeExtractedTextResult> {
+  return api.get<KnowledgeExtractedTextResult>(
+    `${KNOWLEDGE_PREFIX}/versions/${encodeURIComponent(versionId)}/extracted-text`,
+    { signal },
+  )
+}
+
+export interface KnowledgeManualPageInput {
+  pageNumber: number
+  pageLabel?: string | null
+  pageTitle?: string | null
+  parsedText?: string | null
+  imageFileId?: string | null
+}
+
+export function createVersionPage(
+  versionId: string,
+  input: KnowledgeManualPageInput,
+): Promise<{ page: KnowledgePage }> {
+  return api.post<{ page: KnowledgePage }>(`${KNOWLEDGE_PREFIX}/versions/${encodeURIComponent(versionId)}/pages`, input)
+}
+
+export function reorderVersionPages(
+  versionId: string,
+  pageNumbers: Array<{ physicalPageNumber: number, pageNumber: number }>,
+): Promise<MutationMessageResponse> {
+  return api.post<MutationMessageResponse>(`${KNOWLEDGE_PREFIX}/versions/${encodeURIComponent(versionId)}/pages/reorder`, { pageNumbers })
+}
+
+export function deleteVersionPage(versionId: string, physicalPageNumber: number): Promise<MutationMessageResponse> {
+  return api.delete<MutationMessageResponse>(`${KNOWLEDGE_PREFIX}/versions/${encodeURIComponent(versionId)}/pages/${physicalPageNumber}`)
+}
+
+export function fetchPageReferenceRows(
+  versionId: string,
+  physicalPageNumber: number,
+  signal?: AbortSignal,
+): Promise<{ pageId: string, items: Array<{ id: string, setId: string, thicknessMm: number, productThermalResistance: number, totalThermalResistance: number, kValue: number, sourcePageLabel: string | null }> }> {
+  return api.get(`${KNOWLEDGE_PREFIX}/versions/${encodeURIComponent(versionId)}/pages/${physicalPageNumber}/reference-rows`, { signal })
 }
 
 export function fetchVersionPages(
@@ -404,7 +450,7 @@ export function judgeKnowledgeEvaluation(
 // ===== 检索 + AI 回答（SSE） =====
 
 const KNOWLEDGE_QA_URL = `${AI_PREFIX}/knowledge-qa`
-const KNOWN_QA_SSE_EVENTS = new Set(['message', 'progress', 'delta', 'done', 'stopped', 'error'])
+const KNOWN_QA_SSE_EVENTS = new Set(['message', 'progress', 'delta', 'reference_pages', 'sources', 'done', 'stopped', 'error'])
 const TERMINAL_QA_SSE_EVENTS = new Set(['done', 'stopped', 'error'])
 
 function joinApiUrl(base: string, path: string): string {

@@ -108,6 +108,23 @@ export function toAiSources(hits: readonly WikiHit[]): AiSourceRef[] {
   });
 }
 
+/** 用户可见来源标签：书名 + 章节/条款 + 印刷页码。 */
+export function formatSourceForUser(source: {
+  title: string;
+  citationAnchor?: string | null;
+  sectionTitle?: string | null;
+  pageLabel?: string | null;
+}): string {
+  const book = `《${source.title}》`;
+  const section = source.citationAnchor?.trim() || source.sectionTitle?.trim() || "";
+  const page = source.pageLabel?.trim();
+  const sectionPart = section
+    ? (/[节条款]$/.test(section) ? section : `${section}节`)
+    : "";
+  const pagePart = page ? `${page}页` : "";
+  return [book + sectionPart, pagePart].filter(Boolean).join("，");
+}
+
 /** B 端当前版本 AI 测试普通视图：只保留章节/页码/引用文字，不含 chunk/score/retrievalUnit。 */
 export interface UserTestSource {
   documentId?: string;

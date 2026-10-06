@@ -15,10 +15,12 @@ import { createConversationTitleProcessor } from "./workers/conversation-title.w
 import { createConversationMaintenanceProcessor } from "./workers/ai-conversation-maintenance.worker.js";
 import { createThermalImportProcessor } from "./workers/thermal-import.worker.js";
 import { createCollectionFetchProcessor } from "./workers/collection-fetch.worker.js";
-import { COLLECTION_AUTO_INTERVAL_MS } from "./modules/collection/collection.service.js";
+import { createPageRecognitionProcessor } from "./workers/page-recognition.worker.js";
+import { ensureCollectionAutoScanScheduler } from "./modules/collection/collection.service.js";
 import { runCrawlerSource } from "./modules/knowledge/knowledge-ingest.service.js";
 import { runStandardCrawl } from "./modules/standard/standard-crawl.service.js";
 import { configureConsoleEncoding } from "./shared/console-encoding.js";
+import { logDocxRendererAvailability } from "./workers/docx-to-pdf.js";
 
 configureConsoleEncoding();
 
@@ -35,11 +37,11 @@ try {
   console.warn("对象存储启动自检失败，Worker 继续启动", error);
 }
 
+// LibreOffice 探测：不可用不阻断 Worker 启动；真正解析 DOCX 时再记清晰错误
+await logDocxRendererAvailability();
+
 try {
-  await queues.collectionFetch.add("scan_sources", {}, {
-    repeat: { every: COLLECTION_AUTO_INTERVAL_MS },
-    jobId: "collection-auto-scan"
-  });
+  await ensureCollectionAutoScanScheduler(queues.collectionFetch);
 } catch (error) {
   console.warn("注册自动采集扫描任务失败，Worker 继续启动", error);
 }
@@ -57,6 +59,11 @@ const workers = [
   new Worker(QUEUE_NAMES.AI_CONVERSATION_MAINTENANCE, createConversationMaintenanceProcessor({ db } as never), { connection: redis, concurrency: 2, lockDuration: 5 * 60 * 1000 }),
   new Worker(QUEUE_NAMES.THERMAL_IMPORT, createThermalImportProcessor(db, storage), { connection: redis, concurrency: 2, lockDuration: 5 * 60 * 1000 }),
   new Worker(QUEUE_NAMES.COLLECTION_FETCH, createCollectionFetchProcessor(db, storage, queues), { connection: redis, concurrency: 2, lockDuration: 5 * 60 * 1000 }),
+  new Worker(
+    QUEUE_NAMES.PAGE_RECOGNITION,
+    createPageRecognitionProcessor({ db, storage, log: console as never }),
+    { connection: redis, concurrency: 2, lockDuration: 5 * 60 * 1000 }
+  ),
   new Worker(QUEUE_NAMES.MAINTENANCE, async (job) => {
     const executionId = typeof job.data?.executionId === "string" ? job.data.executionId : undefined;
     if (executionId) await db.update(cronExecutions).set({ status: "RUNNING", startedAt: new Date() }).where(eq(cronExecutions.id, executionId));

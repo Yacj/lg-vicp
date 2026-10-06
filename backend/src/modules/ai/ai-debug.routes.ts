@@ -19,6 +19,7 @@ import { buildSystemMessages } from "../../shared/prompt-assembly.js";
 import { ok } from "../../shared/response.js";
 import { writeAuditLog } from "../audit-logs/audit-log.service.js";
 import { resolveModelById, type ResolvedModelConfig } from "../ai-config/ai-config.service.js";
+import { languageModelCallOptions } from "../ai-config/ai-task-runtime-policy.js";
 import { resolveReasoningProviderOptions, type ProviderOptionsMap, type ReasoningMode } from "./ai-runtime.service.js";
 import { isAbortError, startSseStream, writeProgress, writeSse } from "./ai-sse.js";
 
@@ -135,7 +136,7 @@ export async function aiDebugRoutes(app: FastifyInstance) {
         model: runtime.model.languageModel,
         system,
         messages: body.messages,
-        timeout: runtime.model.timeoutMs,
+        ...languageModelCallOptions("CHAT"),
         abortSignal: generation.controller.signal,
         providerOptions: runtime.providerOptions
       });

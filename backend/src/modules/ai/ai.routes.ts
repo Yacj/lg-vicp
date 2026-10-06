@@ -28,6 +28,8 @@ import { ConflictError, ForbiddenError, NotFoundError } from "../../shared/error
 import { canManageProject, canViewProject } from "../../shared/permissions.js";
 import { getPagination, paginationQuerySchema } from "../../shared/pagination.js";
 import { DEFAULT_CONTEXT_WINDOW, estimateTokens, buildSystemMessages, budgetHistory, formatInsulationSystemContext, formatThermalCapabilityContext, type ContextMessage } from "../../shared/prompt-assembly.js";
+import { resolveAnswerContract } from "../../shared/ai-answer-contract.js";
+import { getAiTaskRuntimePolicy, languageModelCallOptions, languageModelSamplingOptions } from "../ai-config/ai-task-runtime-policy.js";
 import { getPublishedInsulationSystem, listPublishedInsulationSystems } from "../construction/construction-read.service.js";
 import { createNotification } from "../notifications/notification.service.js";
 import { toAiSources } from "./ai-source.mapper.js";
@@ -40,13 +42,14 @@ import {
   enforceAiRateLimit,
   failPendingGenerationMessage,
   releaseGenerationLock,
+  requestStopGeneration,
   resolveProjectContext,
   streamConversationReply,
   type ActiveGeneration
 } from "./ai-generation.service.js";
-import { updateConversationSummary } from "./ai-conversation-state.service.js";
+import { updateConversationSummary, getConversationTaskState } from "./ai-conversation-state.service.js";
 import { refreshProjectMemoryFromConversation } from "./ai-project-memory.service.js";
-import { assertAgentRunAccess, getActiveAgentRun, getAgentRunById, toAgentRunDto } from "./ai-agent.service.js";
+import { assertAgentRunAccess, cancelAgentRunsForAssistantMessage, cancelRunningAgentRuns, getActiveAgentRun, getAgentRunById, toAgentRunDto } from "./ai-agent.service.js";
 import { loadKnowledgeForGeneration } from "./ai-knowledge-load.js";
 import { formatKnowledgeContext, runSearch, searchProjectKnowledge } from "../knowledge/knowledge.service.js";
 import { KNOWLEDGE_PERMISSIONS } from "../../shared/knowledge-permissions.js";
@@ -62,6 +65,7 @@ import {
 } from "./ai-runtime.service.js";
 import { listClientQuickPrompts } from "./ai-quick-prompt.service.js";
 import { resolveAiCapabilities } from "./ai-capability-router.js";
+import { formatConversationTaskContext } from "./conversation-task.js";
 
 const sceneValues = [
   AI_SCENES.GENERAL_CHAT,
@@ -101,9 +105,24 @@ const conversationUpdateBodySchema = z.object({
 const pinBodySchema = z.object({ pinned: z.boolean() });
 const moveProjectBodySchema = z.object({ projectId: z.uuid("项目 ID 格式不正确").nullable() });
 const sendMessageBodySchema = z.object({
-  content: z.string().trim().min(1, "请输入消息内容").max(20_000, "单条消息不能超过 20000 个字符"),
-  attachmentFileIds: z.array(z.uuid("图片文件 ID 格式不正确")).max(4, "单次最多发送 4 张图片").optional()
-});
+  content: z.string().trim().max(20_000, "单条消息不能超过 20000 个字符").optional(),
+  attachmentFileIds: z.array(z.uuid("图片文件 ID 格式不正确")).max(4, "单次最多发送 4 张图片").optional(),
+  optionId: z.string().trim().min(1).max(120).optional(),
+  optionIds: z.array(z.string().trim().min(1).max(120)).min(1).max(20).optional(),
+  selectedIds: z.array(z.string().trim().min(1).max(120)).min(1).max(20).optional(),
+  selectedProductIds: z.array(z.string().trim().min(1).max(120)).min(1).max(20).optional(),
+  selectionKind: z.enum(["KNOWLEDGE_SOURCE", "REPORT_TYPE", "PRODUCT", "GENERIC"]).optional(),
+  action: z.enum(["SELECT_PRODUCTS", "GENERATE_REPORT", "SELECT_KNOWLEDGE_SOURCES"]).optional(),
+  confirmAction: z.enum(["CONTINUE", "GENERATE_REPORT"]).optional()
+}).refine((value) => Boolean(
+  value.content?.trim()
+  || value.optionId
+  || (value.optionIds && value.optionIds.length > 0)
+  || (value.selectedIds && value.selectedIds.length > 0)
+  || (value.selectedProductIds && value.selectedProductIds.length > 0)
+  || value.action
+  || value.confirmAction
+), "请输入消息、勾选选项或确认继续");
 const messageParamsSchema = z.object({ id: z.uuid("AI 消息 ID 格式不正确") });
 const feedbackBodySchema = z.object({
   reaction: z.enum([AI_FEEDBACK_REACTIONS.LIKE, AI_FEEDBACK_REACTIONS.DISLIKE]).nullable().optional(),
@@ -823,7 +842,23 @@ export async function aiRoutes(app: FastifyInstance) {
       tags: ["共用 / AI对话"],
       summary: "恢复等待用户输入的 Agent Run（SSE）",
       params: z.object({ id: z.uuid("任务 ID 格式不正确") }),
-      body: z.object({ content: z.string().trim().min(1).max(8000) })
+      body: z.object({
+        content: z.string().trim().max(8000).optional(),
+        optionId: z.string().trim().min(1).max(120).optional(),
+        optionIds: z.array(z.string().trim().min(1).max(120)).min(1).max(20).optional(),
+        selectedIds: z.array(z.string().trim().min(1).max(120)).min(1).max(20).optional(),
+        selectedProductIds: z.array(z.string().trim().min(1).max(120)).min(1).max(20).optional(),
+        selectionKind: z.enum(["KNOWLEDGE_SOURCE", "REPORT_TYPE", "PRODUCT", "GENERIC"]).optional(),
+        action: z.enum(["SELECT_PRODUCTS", "GENERATE_REPORT", "SELECT_KNOWLEDGE_SOURCES"]).optional(),
+        confirmAction: z.enum(["CONTINUE", "GENERATE_REPORT"]).optional()
+      }).refine((value) => Boolean(
+        value.content?.trim()
+        || value.optionId
+        || (value.optionIds && value.optionIds.length > 0)
+        || (value.selectedIds && value.selectedIds.length > 0)
+        || value.action
+        || value.confirmAction
+      ), "请选择选项或输入说明")
     }
   }, async (request, reply) => {
     const user = getCurrentUser(request);
@@ -835,7 +870,18 @@ export async function aiRoutes(app: FastifyInstance) {
     }
     assertInsulationSystemForScene(conversation.scene, conversation.insulationSystemId);
     await streamConversationReply({
-      app, request, reply, user, conversation, content: request.body.content
+      app, request, reply, user, conversation,
+      content: request.body.content?.trim()
+        || (request.body.confirmAction === "GENERATE_REPORT" || request.body.action === "GENERATE_REPORT"
+          ? "确认并生成报告"
+          : request.body.selectedIds?.join(",") || request.body.optionIds?.join(",") || request.body.optionId || "确认选择"),
+      optionId: request.body.optionId,
+      optionIds: request.body.optionIds ?? request.body.selectedProductIds ?? request.body.selectedIds,
+      selectedIds: request.body.selectedIds ?? request.body.optionIds ?? request.body.selectedProductIds,
+      selectedProductIds: request.body.selectedProductIds ?? request.body.optionIds,
+      selectionKind: request.body.selectionKind,
+      action: request.body.action,
+      confirmAction: request.body.confirmAction ?? (request.body.action === "GENERATE_REPORT" ? "GENERATE_REPORT" : undefined)
     });
   });
 
@@ -860,8 +906,18 @@ export async function aiRoutes(app: FastifyInstance) {
       reply,
       user,
       conversation,
-      content: request.body.content,
-      attachmentFileIds: request.body.attachmentFileIds
+      content: request.body.content?.trim()
+        || (request.body.confirmAction === "GENERATE_REPORT" || request.body.action === "GENERATE_REPORT"
+          ? "确认并生成报告"
+          : request.body.selectedIds?.join(",") || request.body.optionIds?.join(",") || request.body.selectedProductIds?.join(",") || request.body.optionId || "确认选择"),
+      attachmentFileIds: request.body.attachmentFileIds,
+      optionId: request.body.optionId,
+      optionIds: request.body.optionIds ?? request.body.selectedProductIds ?? request.body.selectedIds,
+      selectedIds: request.body.selectedIds ?? request.body.optionIds ?? request.body.selectedProductIds,
+      selectedProductIds: request.body.selectedProductIds ?? request.body.optionIds,
+      selectionKind: request.body.selectionKind,
+      action: request.body.action,
+      confirmAction: request.body.confirmAction ?? (request.body.action === "GENERATE_REPORT" ? "GENERATE_REPORT" : undefined)
     });
   });
 
@@ -878,17 +934,10 @@ export async function aiRoutes(app: FastifyInstance) {
     if (!row) throw new NotFoundError("AI 回答不存在");
     ensureConversationOwner(user, row.conversation);
     if (row.message.status !== "PENDING" && row.message.status !== "STREAMING") {
+      await cancelAgentRunsForAssistantMessage(app, row.message.id, "用户取消");
       throw new ConflictError("当前 AI 回答不在生成中");
     }
-
-    const stopKey = `ai:message:${row.message.id}:stop`;
-    await app.redis.set(stopKey, "USER", "EX", 900);
-    const generation = activeGenerations.get(row.message.id);
-    if (generation) {
-      generation.stopRequested = true;
-      generation.stopReason = "USER";
-      generation.controller.abort();
-    }
+    await requestStopGeneration(app, row.message.id, row.conversation.id);
     return ok(request, { message: "已请求停止 AI 回答", messageId: row.message.id, status: "STOPPING" });
   });
 
@@ -1062,6 +1111,7 @@ export async function aiRoutes(app: FastifyInstance) {
     if (await app.redis.set(lockKey, lockToken, "EX", 900, "NX") !== "OK") {
       throw new ConflictError("当前会话已有正在生成的 AI 回答");
     }
+    await cancelRunningAgentRuns(app, row.conversation.id, "被重新生成中止");
 
     const lastUserMessage = await findUserQuestionForAssistant(app, row.conversation.id, row.message);
     if (!lastUserMessage) {
@@ -1141,6 +1191,7 @@ export async function aiRoutes(app: FastifyInstance) {
     const shouldInjectKnowledge = chunks.length > 0
       || retrievalFailed
       || (capabilities.needKnowledgeSearch && capabilities.explicitKnowledgeRequest);
+    const taskState = await getConversationTaskState(app, row.conversation.id);
     const systemMessages = buildSystemMessages({
       scenePrompt: runtime.promptContent,
       projectContext,
@@ -1150,7 +1201,13 @@ export async function aiRoutes(app: FastifyInstance) {
       knowledgeContext: shouldInjectKnowledge ? formatKnowledgeContext(chunks, { retrievalFailed }) : null,
       ruleContext: comparisonRules.length > 0 ? formatComparisonRuleContext(comparisonRules) : null,
       thermalContext: capabilities.needThermalTool ? formatThermalCapabilityContext() : null,
-      visionContext
+      visionContext,
+      taskContext: formatConversationTaskContext(taskState),
+      answerContract: resolveAnswerContract({
+        capabilities,
+        message: lastUserMessage.content,
+        lastReferenceLookup: taskState.lastReferenceLookup
+      })
     });
     const system = systemMessages.map((message) => message.content).join("\n\n");
 
@@ -1172,7 +1229,7 @@ export async function aiRoutes(app: FastifyInstance) {
       systemTokens: estimateTokens(system),
       userMessageTokens: estimateTokens(lastUserMessage.content),
       contextWindow: runtime.primary.contextWindow ?? DEFAULT_CONTEXT_WINDOW,
-      maxOutputTokens: runtime.sceneMaxOutputTokens ?? runtime.primary.maxOutputTokens
+      maxOutputTokens: getAiTaskRuntimePolicy("CHAT").maxOutputTokens
     });
     const messages: ModelMessage[] = [...budgeted, { role: "user", content: lastUserMessage.content }];
 
@@ -1221,9 +1278,7 @@ export async function aiRoutes(app: FastifyInstance) {
         model: modelConfig.languageModel,
         system,
         messages,
-        maxOutputTokens: runtime.sceneMaxOutputTokens ?? runtime.primary.maxOutputTokens ?? undefined,
-        temperature: runtime.sceneTemperature ?? runtime.primary.defaultTemperature ?? undefined,
-        timeout: modelConfig.timeoutMs,
+        ...languageModelCallOptions("CHAT"),
         abortSignal: generation.controller.signal,
         providerOptions: runtime.providerOptions
       });
@@ -1259,14 +1314,6 @@ export async function aiRoutes(app: FastifyInstance) {
 
     const actualModelId = usedFallback ? runtime.fallback!.modelId : runtime.primary.modelId;
     try {
-      if (chunks.length > 0 && !/\[资料\d+\]/.test(fullText)) {
-        const citationNotice = `\n\n参考来源：${chunks.map((chunk, index) => {
-          const pageText = chunk.pageLabel ?? (chunk.sourcePage != null ? String(chunk.sourcePage) : null);
-          return `[资料${index + 1}] ${chunk.sourceTitle}${pageText ? ` ${pageText} 页` : ""}`;
-        }).join("；")}`;
-        fullText += citationNotice;
-        writeSse(reply, "delta", { text: citationNotice });
-      }
       if (await app.redis.exists(stopKey) === 1) {
         generation.stopRequested = true;
         generation.stopReason = "USER";
@@ -1475,9 +1522,8 @@ export async function aiRoutes(app: FastifyInstance) {
         ? `项目：${project.name}\n地区：${project.region ?? "未填写"}\n建筑类型：${project.buildingType ?? "未填写"}`
         : "当前会话未关联项目，projectOverview.name 使用会话主题或“未关联项目”，不要编造项目参数。"
       }\n报告类型：${request.body.reportType}\n补充要求：${request.body.requirements ?? "无"}\n\n会话摘要材料：\n${history.reverse().map((item) => `${item.role}：${item.content}`).join("\n").slice(0, 12000)}\n\n${context}`,
-      maxOutputTokens: runtime.sceneMaxOutputTokens ?? runtime.primary.maxOutputTokens ?? 4000,
-      temperature: runtime.sceneTemperature ?? runtime.primary.defaultTemperature ?? 0.2,
-      abortSignal: AbortSignal.timeout(runtime.primary.timeoutMs)
+      ...languageModelSamplingOptions("REPORT"),
+      abortSignal: AbortSignal.timeout(languageModelCallOptions("REPORT").timeout)
     });
     const usage = result.usage;
 

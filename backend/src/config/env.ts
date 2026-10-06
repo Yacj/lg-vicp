@@ -25,6 +25,11 @@ const envSchema = z.object({
   PDF_PREVIEW_FORMAT: z.enum(["png", "webp"]).default("png"),
   // PDF 文本层判定阈值：全文提取字符数低于该值视为 NO_TEXT_LAYER（转曲/扫描件），不是解析失败
   PDF_TEXT_LAYER_MIN_CHARS: z.coerce.number().int().min(0).default(20),
+  // DOCX→LibreOffice→PDF 页图：正式知识入库默认关闭，改为离线高保真 PNG 上传；保留代码作 fallback
+  DOCX_RENDER_ENABLED: z.stringbool().default(false),
+  /** soffice 可执行文件路径；未配置时尝试 PATH 中的 soffice */
+  SOFFICE_PATH: optionalString,
+  DOCX_RENDER_TIMEOUT_MS: z.coerce.number().int().min(5000).max(600000).default(180000),
   AI_MAX_CONCURRENT_GENERATIONS: z.coerce.number().int().min(1).default(2),
   AI_DAILY_REQUEST_LIMIT: z.coerce.number().int().min(1).default(200),
   AI_CONTEXT_MAX_MESSAGES: z.coerce.number().int().min(2).max(100).default(20),
@@ -69,7 +74,11 @@ const envSchema = z.object({
   /** 百度短语音识别极速版：API Key（未配置时语音识别接口返回 503） */
   BAIDU_ASR_API_KEY: optionalString,
   /** 百度短语音识别极速版：Secret Key */
-  BAIDU_ASR_SECRET_KEY: optionalString
+  BAIDU_ASR_SECRET_KEY: optionalString,
+  /** 微信小程序 AppID；与 AppSecret 同时配置后才开放微信手机号登录 */
+  WECHAT_MINI_APP_ID: optionalString,
+  /** 微信小程序 AppSecret，仅服务端使用，禁止返回前端 */
+  WECHAT_MINI_APP_SECRET: optionalString
 });
 
 export type Env = z.infer<typeof envSchema>;

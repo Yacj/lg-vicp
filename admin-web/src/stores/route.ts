@@ -8,8 +8,10 @@ import {
   findMenuGroup,
   firstNavigableTarget,
   projectDynamicMenus,
+  withStaticSidebarExtras,
 } from '@/router/dynamic-routes'
 import { useTabsStore } from './tabs'
+import { useUserStore } from './user'
 
 export interface RouteStoreRefreshResult {
   currentRouteRemoved: boolean
@@ -62,6 +64,7 @@ export const useRouteStore = defineStore('route', () => {
     result: { routers: BackendMenuNode[], permissions: string[] },
   ): void {
     const projection = projectDynamicMenus(result.routers)
+    const userStore = useUserStore()
 
     removeRegisteredRoutes()
     for (const route of projection.routes) {
@@ -70,7 +73,11 @@ export const useRouteStore = defineStore('route', () => {
 
     rawMenus.value = result.routers
     dynamicRoutes.value = projection.routes
-    sidebarMenus.value = projection.sidebarMenus
+    sidebarMenus.value = withStaticSidebarExtras(
+      projection.sidebarMenus,
+      userStore.permissions,
+      userStore.isSuperAdmin,
+    )
     buttonPermissions.value = [...new Set([...result.permissions, ...projection.buttonPermissions])]
     projectionIssues.value = projection.issues
     dynamicRoutesReady.value = true

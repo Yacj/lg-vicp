@@ -1,5 +1,6 @@
+import type { BusinessPromptItem, BusinessPromptMutationResult } from '@/types/business-prompt'
 import type {
-  AiConnectionTestResult,
+  AiAgentRun,
   AiContentFilter,
   AiContentFilterInput,
   AiContentFilterMutationResult,
@@ -9,6 +10,7 @@ import type {
   AiModel,
   AiModelInput,
   AiModelMutationResult,
+  AiModelTestResult,
   AiPromptDraftInput,
   AiPromptTemplate,
   AiPromptTemplateInput,
@@ -26,9 +28,14 @@ import type {
   AiSceneBinding,
   AiSceneBindingInput,
   AiSceneBindingMutationResult,
+  ConversationDetail,
   ConversationOpsDetail,
   PlatformConversationPageResult,
   PlatformConversationQuery,
+  ProjectAiMemoryListResult,
+  ProjectAiMemoryMutationResult,
+  ProjectAiMemoryUpdateInput,
+  ProjectAiMemoryView,
 } from '@/types/ai'
 import type { PageResult } from '@/types/api'
 import type { ProjectConversationPageResult } from '@/types/project'
@@ -53,6 +60,20 @@ export function fetchProjectConversations(
     params: { ...query, projectId },
     signal,
   })
+}
+
+/**
+ * 获取我的 AI 会话详情（GET /api/v1/ai/conversations/:id）。
+ * 仅会话所有者或超级管理员可访问；返回消息、检索、反馈、报告与分享。
+ */
+export function fetchConversationDetail(
+  conversationId: string,
+  signal?: AbortSignal,
+): Promise<ConversationDetail> {
+  return api.get<ConversationDetail>(
+    `/api/v1/ai/conversations/${encodeURIComponent(conversationId)}`,
+    { signal },
+  )
 }
 
 /** 服务商列表（无分页，返回 { items }）。 */
@@ -102,8 +123,13 @@ export function deleteAiModel(id: string): Promise<{ message: string }> {
   return api.delete<{ message: string }>(aiResourcePath('models', id))
 }
 
-export function testAiModelConnection(id: string): Promise<AiConnectionTestResult> {
-  return api.post<AiConnectionTestResult>(`${aiResourcePath('models', id)}/test-connection`)
+export function testAiModel(id: string): Promise<AiModelTestResult> {
+  return api.post<AiModelTestResult>(`${aiResourcePath('models', id)}/test`)
+}
+
+/** @deprecated 旧路径仍可用，请优先使用 testAiModel。 */
+export function testAiModelConnection(id: string): Promise<AiModelTestResult> {
+  return testAiModel(id)
 }
 
 /** 快捷提问分页列表（GET /quick-prompts）。 */
@@ -245,4 +271,74 @@ export function updateAiContentFilterStatus(id: string, enabled: boolean): Promi
 
 export function deleteAiContentFilter(id: string): Promise<{ message: string }> {
   return api.delete<{ message: string }>(`${PLATFORM_AI_PREFIX}/filters/${encodeURIComponent(id)}`)
+}
+
+/** C 端 Agent Run 详情（GET /api/v1/ai/agent-runs/:id；会话所有者或超级管理员）。 */
+export function fetchAgentRun(id: string, signal?: AbortSignal): Promise<{ run: AiAgentRun }> {
+  return api.get<{ run: AiAgentRun }>(`/api/v1/ai/agent-runs/${encodeURIComponent(id)}`, { signal })
+}
+
+/** 项目 AI 记忆列表（GET /api/v1/projects/:id/ai-memories）。 */
+export function fetchProjectAiMemories(
+  projectId: string,
+  view: ProjectAiMemoryView = 'active',
+  signal?: AbortSignal,
+): Promise<ProjectAiMemoryListResult> {
+  return api.get<ProjectAiMemoryListResult>(
+    `/api/v1/projects/${encodeURIComponent(projectId)}/ai-memories`,
+    { params: { view }, signal },
+  )
+}
+
+export function updateProjectAiMemory(
+  projectId: string,
+  memoryId: string,
+  input: ProjectAiMemoryUpdateInput,
+): Promise<ProjectAiMemoryMutationResult> {
+  return api.put<ProjectAiMemoryMutationResult>(
+    `/api/v1/projects/${encodeURIComponent(projectId)}/ai-memories/${encodeURIComponent(memoryId)}`,
+    input,
+  )
+}
+
+export function confirmProjectAiMemory(
+  projectId: string,
+  memoryId: string,
+): Promise<ProjectAiMemoryMutationResult> {
+  return api.post<ProjectAiMemoryMutationResult>(
+    `/api/v1/projects/${encodeURIComponent(projectId)}/ai-memories/${encodeURIComponent(memoryId)}/confirm`,
+  )
+}
+
+export function rejectProjectAiMemory(
+  projectId: string,
+  memoryId: string,
+): Promise<ProjectAiMemoryMutationResult> {
+  return api.post<ProjectAiMemoryMutationResult>(
+    `/api/v1/projects/${encodeURIComponent(projectId)}/ai-memories/${encodeURIComponent(memoryId)}/reject`,
+  )
+}
+
+export function fetchBusinessPrompts(signal?: AbortSignal): Promise<{ items: BusinessPromptItem[] }> {
+  return api.get<{ items: BusinessPromptItem[] }>(`${PLATFORM_AI_PREFIX}/business-prompts`, { signal })
+}
+
+export function fetchBusinessPrompt(code: string, signal?: AbortSignal): Promise<BusinessPromptItem> {
+  return api.get<BusinessPromptItem>(`${PLATFORM_AI_PREFIX}/business-prompts/${encodeURIComponent(code)}`, { signal })
+}
+
+export function updateBusinessPrompt(
+  code: string,
+  input: { content: string, enabled?: boolean },
+): Promise<BusinessPromptMutationResult> {
+  return api.put<BusinessPromptMutationResult>(
+    `${PLATFORM_AI_PREFIX}/business-prompts/${encodeURIComponent(code)}`,
+    input,
+  )
+}
+
+export function resetBusinessPrompt(code: string): Promise<BusinessPromptMutationResult> {
+  return api.post<BusinessPromptMutationResult>(
+    `${PLATFORM_AI_PREFIX}/business-prompts/${encodeURIComponent(code)}/reset-default`,
+  )
 }

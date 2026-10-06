@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { toAiSources, type AiSourceRef } from "./ai-source.mapper.js";
+import { toAiSources, formatSourceForUser, type AiSourceRef } from "./ai-source.mapper.js";
 import type { WikiHit } from "../knowledge/knowledge.service.js";
 
 /**
@@ -149,5 +149,15 @@ describe("toAiSources：原文导航字段（二次优化增量）", () => {
       quote: "外保温系统应采用不燃材料封堵",
       originalFileId: "file-original-atlas"
     });
+  });
+});
+
+describe("formatSourceForUser", () => {
+  it("用户只看到书名、章节和印刷页码", () => {
+    expect(formatSourceForUser({
+      title: "资料名称",
+      citationAnchor: "5.2",
+      pageLabel: "A7"
+    })).toBe("《资料名称》5.2节，A7页");
   });
 });

@@ -21,6 +21,7 @@ import {
   assertReportProjectRequirement
 } from "./report-access.js";
 import { generateTemplateReport } from "./report-snapshot.service.js";
+import { retryReport } from "./report-generation.service.js";
 import {
   generatableReportTypeSchema,
   isTemplateBackedReportType,
@@ -357,6 +358,17 @@ export async function reportRoutes(app: FastifyInstance) {
       throw error;
     }
     return ok(request, { message: "报告已进入生成队列", reportId: row.report.id, taskId: task.id });
+  });
+
+  route.post("/reports/:id/retry", {
+    preHandler: [app.authenticate],
+    schema: { tags: ["共用 / 报告"], summary: "失败报告按原快照重新入队生成", params: reportParamsSchema }
+  }, async (request) => {
+    const user = getCurrentUser(request);
+    const row = await getReportWithProject(app, request.params.id);
+    if (!row || !canManageReport(user, row.report, row.project)) throw new NotFoundError("报告不存在或无权重新生成");
+    const result = await retryReport(app, request, user, row.report.id);
+    return ok(request, { message: "报告已重新进入生成队列", reportId: result.reportId, taskId: result.taskId, status: result.status });
   });
 
   route.post("/reports/:id/publish", {

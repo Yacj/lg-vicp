@@ -4,6 +4,7 @@ import type { AiFeedbackItem } from '@/types/ai'
 import { computed, h, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import AppDataTable from '@/components/ui/AppDataTable.vue'
+import AppMarkdown from '@/components/ui/AppMarkdown.vue'
 import AppPage from '@/components/ui/AppPage.vue'
 import AppSearchPanel from '@/components/ui/AppSearchPanel.vue'
 import AppStatusTag from '@/components/ui/AppStatusTag.vue'
@@ -306,7 +307,9 @@ function formatDuration(durationMs: number | null): string {
         <h4 class="ai-feedback-page__view-title">
           消息内容
         </h4>
-        <pre class="ai-feedback-page__view-content">{{ viewItem.message.content }}</pre>
+        <div class="ai-feedback-page__view-content">
+          <AppMarkdown :content="viewItem.message.content" />
+        </div>
       </template>
     </t-dialog>
 
@@ -397,13 +400,8 @@ function formatDuration(durationMs: number | null): string {
   padding: var(--td-size-4);
   overflow: auto;
   max-height: min(420px, 60vh);
-  white-space: pre-wrap;
-  word-break: break-word;
   background: var(--td-bg-color-container);
   border: 1px solid var(--td-component-border);
   border-radius: var(--td-radius-medium);
-  font-family: inherit;
-  font-size: var(--td-font-size-body-small);
-  line-height: var(--td-line-height-body-medium);
 }
 </style>

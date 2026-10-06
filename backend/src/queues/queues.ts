@@ -8,7 +8,8 @@ export const QUEUE_NAMES = {
   AI_TITLE_GENERATION: "ai-title-generation",
   AI_CONVERSATION_MAINTENANCE: "ai-conversation-maintenance",
   THERMAL_IMPORT: "thermal-import",
-  COLLECTION_FETCH: "collection-fetch"
+  COLLECTION_FETCH: "collection-fetch",
+  PAGE_RECOGNITION: "page-recognition"
 } as const;
 
 export interface AppQueues {
@@ -19,6 +20,7 @@ export interface AppQueues {
   aiConversationMaintenance: Queue;
   thermalImport: Queue;
   collectionFetch: Queue;
+  pageRecognition: Queue;
 }
 
 export function createQueues(redis: Redis): AppQueues {
@@ -39,7 +41,8 @@ export function createQueues(redis: Redis): AppQueues {
     aiTitleGeneration: new Queue(QUEUE_NAMES.AI_TITLE_GENERATION, defaults),
     aiConversationMaintenance: new Queue(QUEUE_NAMES.AI_CONVERSATION_MAINTENANCE, defaults),
     thermalImport: new Queue(QUEUE_NAMES.THERMAL_IMPORT, defaults),
-    collectionFetch: new Queue(QUEUE_NAMES.COLLECTION_FETCH, defaults)
+    collectionFetch: new Queue(QUEUE_NAMES.COLLECTION_FETCH, defaults),
+    pageRecognition: new Queue(QUEUE_NAMES.PAGE_RECOGNITION, defaults)
   };
 }
 
@@ -51,6 +54,7 @@ export async function closeQueues(queues: AppQueues): Promise<void> {
     queues.aiTitleGeneration.close(),
     queues.aiConversationMaintenance.close(),
     queues.thermalImport.close(),
-    queues.collectionFetch.close()
+    queues.collectionFetch.close(),
+    queues.pageRecognition.close()
   ]);
 }

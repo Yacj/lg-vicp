@@ -35,6 +35,10 @@
   --app-energy-soft: #EAF7F0;
   --app-ai: #47C4FF;
   --app-ai-soft: #EFFAFF;
+  --app-warning: #b7791f;
+  --app-warning-soft: #FFF6DF;
+  --app-danger: #c05640;
+  --app-danger-soft: #FFF0EC;
   --app-overlay: rgba(0, 0, 0, 0.45);
   --app-on-brand-strong: rgba(255, 255, 255, 0.92);
   --app-on-brand-medium: rgba(255, 255, 255, 0.78);
@@ -241,14 +245,14 @@
 
 .app-panel,
 .app-panel-flat {
-  border: 1px solid var(--app-border-default);
+  border: 0.5px solid var(--app-border-default);
   border-radius: var(--app-radius-md);
   background: var(--app-bg-surface);
   transition: border-color var(--app-transition-base) ease, background-color var(--app-transition-base) ease, box-shadow var(--app-transition-base) ease;
 }
 
 .app-panel {
-  box-shadow: var(--app-shadow-card);
+  // box-shadow: var(--app-shadow-card);
 }
 
 .app-panel-flat {
@@ -342,6 +346,39 @@
 .app-ai-soft {
   color: var(--app-ai);
   background: var(--app-ai-soft);
+}
+
+/* 语义色调（图标底色/标签等场景共用，替代各页面重复的 is-* 色值映射） */
+.app-tone {
+  &.is-primary {
+    color: var(--app-action-primary);
+    background: var(--app-action-primary-soft);
+  }
+
+  &.is-energy {
+    color: var(--app-energy);
+    background: var(--app-energy-soft);
+  }
+
+  &.is-ai {
+    color: var(--app-ai);
+    background: var(--app-ai-soft);
+  }
+
+  &.is-warning {
+    color: var(--app-warning);
+    background: var(--app-warning-soft);
+  }
+
+  &.is-danger {
+    color: var(--app-danger);
+    background: var(--app-danger-soft);
+  }
+
+  &.is-neutral {
+    color: var(--app-text-tertiary);
+    background: var(--app-bg-soft);
+  }
 }
 
 .app-safe-bottom {

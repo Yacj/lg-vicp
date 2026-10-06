@@ -140,4 +140,26 @@ describe('crud list state', () => {
     list.clearSelection()
     expect(list.hasSelection.value).toBe(false)
   })
+
+  it('replaces current page items for optimistic drag-sort', async () => {
+    const list = useCrudList<ListItem, ListQuery>({
+      createQuery: () => ({ keyword: '' }),
+      fetcher: async () => ({
+        items: [
+          { id: 'a', name: 'A' },
+          { id: 'b', name: 'B' },
+        ],
+        page: 1,
+        pageSize: 20,
+        total: 2,
+      }),
+      rowKey: 'id',
+    })
+
+    await list.load()
+    list.replaceItems([{ id: 'b', name: 'B' }, { id: 'a', name: 'A' }])
+
+    expect(list.data.value.map(item => item.id)).toEqual(['b', 'a'])
+    expect(list.total.value).toBe(2)
+  })
 })

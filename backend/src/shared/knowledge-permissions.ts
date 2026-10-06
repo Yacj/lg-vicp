@@ -36,7 +36,15 @@ export const KNOWLEDGE_PERMISSIONS = {
   CHUNK_SPLIT: "system:knowledge:chunk:split",
   CHUNK_MERGE: "system:knowledge:chunk:merge",
   SEARCH_ANSWER: "system:knowledge:search:answer",
-  DEBUG: "system:knowledge:debug"
+  DEBUG: "system:knowledge:debug",
+  /** 离线页图批量/ZIP 上传 */
+  PAGE_UPLOAD: "system:knowledge:page:upload",
+  /** 触发/重试页面视觉识别 */
+  PAGE_RECOGNIZE: "system:knowledge:page:recognize",
+  /** 编辑识别候选草稿 */
+  PAGE_REVIEW: "system:knowledge:page:review",
+  /** 确认识别结果并同步正式热工行 / page-aware chunks */
+  PAGE_CONFIRM: "system:knowledge:page:confirm"
 } as const;
 
 export type KnowledgePermission = (typeof KNOWLEDGE_PERMISSIONS)[keyof typeof KNOWLEDGE_PERMISSIONS];
@@ -80,5 +88,9 @@ export const KNOWLEDGE_PERMISSION_SEEDS: ReadonlyArray<{
   { code: KNOWLEDGE_PERMISSIONS.CHUNK_SPLIT, name: "拆分知识分块", resource: "knowledge_chunk", action: "split" },
   { code: KNOWLEDGE_PERMISSIONS.CHUNK_MERGE, name: "合并知识分块", resource: "knowledge_chunk", action: "merge" },
   { code: KNOWLEDGE_PERMISSIONS.SEARCH_ANSWER, name: "知识检索问答", resource: "knowledge_search", action: "answer" },
-  { code: KNOWLEDGE_PERMISSIONS.DEBUG, name: "知识高级调试", resource: "knowledge_debug", action: "debug" }
+  { code: KNOWLEDGE_PERMISSIONS.DEBUG, name: "知识高级调试", resource: "knowledge_debug", action: "debug" },
+  { code: KNOWLEDGE_PERMISSIONS.PAGE_UPLOAD, name: "上传知识页面图片", resource: "knowledge_page", action: "upload" },
+  { code: KNOWLEDGE_PERMISSIONS.PAGE_RECOGNIZE, name: "触发知识页面视觉识别", resource: "knowledge_page", action: "recognize" },
+  { code: KNOWLEDGE_PERMISSIONS.PAGE_REVIEW, name: "编辑知识页面识别草稿", resource: "knowledge_page", action: "review" },
+  { code: KNOWLEDGE_PERMISSIONS.PAGE_CONFIRM, name: "确认知识页面识别结果", resource: "knowledge_page", action: "confirm" }
 ];

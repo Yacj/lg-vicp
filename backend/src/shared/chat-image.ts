@@ -21,9 +21,14 @@ export function chatImageMaxBytes(): number {
   return Math.min(CHAT_IMAGE_SUGGESTED_MAX_BYTES, env.MAX_UPLOAD_BYTES);
 }
 
-/** CHAT_IMAGE 上传完成后直接 READY，不得进入文档/知识/PDF 解析 */
+/**
+ * 上传完成后是否自动 enqueue legacy document-processing。
+ * - CHAT_IMAGE：直接 READY，不解析
+ * - KNOWLEDGE_SOURCE：直接 READY，只由 create-with-file / 知识 parsingJob 解析
+ * - GENERAL（及其它）：保持既有自动解析
+ */
 export function shouldEnqueueDocumentParse(purpose: string | null | undefined): boolean {
-  return purpose !== "CHAT_IMAGE";
+  return purpose !== "CHAT_IMAGE" && purpose !== "KNOWLEDGE_SOURCE";
 }
 
 export function isReusableChatImage(file: { status: string; mimeType: string }): boolean {

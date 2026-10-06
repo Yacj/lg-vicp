@@ -178,8 +178,8 @@ flowchart LR
 4. 重复导入语义：added/changed 应用、removed 仅提示不删除是否可接受。
 5. 证据等级口径：导入行默认 `A`（图集原文）是否可接受。
 6. 集 `code` 命名规范（如 `ATLAS-2026-VICP`）由谁定义。
-7. 《VICP热工计算表格公式》公式原文未提供——EQUIVALENT/LAYERED 按通用口径（GB 50176 体系：`R=δ/(λ×修正系数)`、`K=1/总热阻`）实现（`formula_version=VICP-CALC-1`），待资料核对。
-8. 内外表面换热阻默认取值（如 R_i=0.11、R_e=0.04 m²·K/W）是否按 GB 50176（当前由已发布规则配置）。
+7. 《VICP热工计算表格公式》已核对：`R = 0.001 * 厚度mm / (λ * a)`，`R0 = Ri + ΣR + Re`，`K = 1 / R0`。公式族仍是 `VICP-CALC-1`。客户 XLS 不自动解析，默认数据由 seed 写入同一套表。**XLS seed 是 CALC_EXAMPLE**：`product_specs.specClass` 可空且默认样例必须为 `null`，`sourcePageId` 为空；正式 I/II/III 图集参考方案来自客户 Word 图集 / B 端人工维护，禁止把 XLS 样例写成 `specClass="I"`。
+8. 内外表面换热阻已确认 Ri=0.11、Re=0.04，写入已发布 `thermal_calc_rules`，不写死在计算函数里。
 9. 修正系数用法（乘在导热系数上 `λc=λ×a`）确认。
 10. `product_parameters` 多来源优先级 `paramSourcePriority` 值域（当前配置数组，空=取最新版本）。
 11. 标准限值 `regionCode` 编码规范（行政区划码或自定义）。

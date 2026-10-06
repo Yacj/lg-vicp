@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getClientProfileSummary } from "./client-profile.service.js";
+import { getClientProfileSummary, listClientSelectableDepartments } from "./client-profile.service.js";
 
 function makeCountDb(rows: number[]) {
   let index = 0;
@@ -37,5 +37,39 @@ describe("C 端个人中心统计", () => {
       projects: { total: 0, public: 0 },
       conversations: { total: 0 }
     });
+  });
+});
+
+describe("C 端可选部门", () => {
+  it("无部门时返回空列表", async () => {
+    await expect(listClientSelectableDepartments({
+      db: {} as never,
+      user: { departmentIds: [] }
+    })).resolves.toEqual([]);
+  });
+
+  it("只返回本人所属部门，并带路径与是否有下级", async () => {
+    const rows = [
+      { id: "root", parentId: null, name: "集团" },
+      { id: "east", parentId: "root", name: "华东" },
+      { id: "east-a", parentId: "east", name: "上海" },
+      { id: "west", parentId: "root", name: "华西" }
+    ];
+    const db = {
+      select: () => ({
+        from: () => ({
+          where: async () => rows
+        })
+      })
+    };
+    await expect(listClientSelectableDepartments({
+      db: db as never,
+      user: { departmentIds: ["east-a"] }
+    })).resolves.toEqual([{
+      id: "east-a",
+      name: "上海",
+      pathName: "集团 / 华东 / 上海",
+      hasChildren: false
+    }]);
   });
 });

@@ -1,6 +1,7 @@
 export * from './ai'
 export * from './audit-logs'
 export * from './auth'
+export * from './collection'
 export * from './comparison'
 export * from './construction'
 export * from './files'

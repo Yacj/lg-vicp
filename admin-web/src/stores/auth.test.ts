@@ -69,14 +69,14 @@ describe('b_ADMIN auth store', () => {
     expect(store.hasSession).toBe(false)
   })
 
-  it('rejects a NORMAL_USER without backend login permission even if a token pair is returned', async () => {
+  it('rejects a NORMAL_USER even if a token pair is returned', async () => {
     mockedLogin.mockResolvedValue({
       accessToken: 'access-token',
       refreshToken: 'refresh-token',
       refreshTokenExpiresAt: futureExpiration,
       refreshTokenId: 'refresh-id',
       user: {
-        adminLoginEnabled: false,
+        adminLoginEnabled: true,
         channelType: null,
         clientType: 'B_ADMIN',
         displayName: '普通用户',
@@ -95,7 +95,7 @@ describe('b_ADMIN auth store', () => {
     expect(store.hasSession).toBe(false)
   })
 
-  it('accepts a NORMAL_USER with backend login permission and persists the session', async () => {
+  it('rejects a CHANNEL_USER even if a token pair is returned', async () => {
     mockedLogin.mockResolvedValue({
       accessToken: 'access-token',
       refreshToken: 'refresh-token',
@@ -103,24 +103,22 @@ describe('b_ADMIN auth store', () => {
       refreshTokenId: 'refresh-id',
       user: {
         adminLoginEnabled: true,
-        channelType: null,
+        channelType: 'DEALER',
         clientType: 'B_ADMIN',
-        displayName: '普通用户',
+        displayName: '渠道用户',
         id: 'user-id',
-        role: 'NORMAL_USER',
+        role: 'CHANNEL_USER',
       },
     })
     const store = useAuthStore()
 
-    await store.login({
+    await expect(store.login({
       captchaCode: 'ABCD',
       captchaUuid: 'captcha-id',
-      identifier: 'normal',
+      identifier: 'channel',
       password: 'password',
-    })
-
-    expect(store.status).toBe('authenticated')
-    expect(store.hasSession).toBe(true)
+    })).rejects.toBeInstanceOf(HttpRequestError)
+    expect(store.hasSession).toBe(false)
   })
 
   it('always clears local tokens when server logout fails', async () => {

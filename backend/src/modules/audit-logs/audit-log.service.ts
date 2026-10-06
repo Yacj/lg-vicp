@@ -26,7 +26,7 @@ export async function writeAuditLog(input: WriteAuditLogInput) {
     beforeJson: input.beforeJson,
     afterJson: input.afterJson,
     ip: input.request?.ip,
-    userAgent: input.request?.headers["user-agent"],
+    userAgent: input.request?.headers?.["user-agent"],
     requestId: input.request?.id
   });
 }

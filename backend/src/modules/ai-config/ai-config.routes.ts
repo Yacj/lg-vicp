@@ -1,5 +1,4 @@
 import { and, count, desc, eq, or } from "drizzle-orm";
-import { generateText } from "ai";
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
@@ -13,18 +12,23 @@ import { writeAuditLog } from "../audit-logs/audit-log.service.js";
 import { decryptSecret, encryptSecret, maskSecret } from "./ai-config.crypto.js";
 import {
   assertSceneModelUsable,
+  clearOtherDefaultModels,
   createPromptDraft,
   deletePromptDraftVersion,
   deletePromptIfUnpublished,
   disablePrompt,
+  invalidateModelsForProvider,
   listScenes,
-  MODEL_CAPABILITY_KEYS,
   publishPromptVersion,
-  resolveModelById,
   rollbackPromptVersion,
   testProviderConnection,
+  toPublicModelAudit,
+  toPublicModelConfig,
   updatePromptDraft
 } from "./ai-config.service.js";
+import { testModelAdmission } from "./ai-model-test.service.js";
+import { assertCanEnableOrDefault, shouldInvalidateAdmission, invalidatedAdmissionPatch } from "./ai-model-runtime.js";
+import { REASONING_LEVELS } from "./ai-reasoning.js";
 
 const optionalString = z.preprocess((value) => (value === "" ? undefined : value), z.string().optional());
 
@@ -43,23 +47,30 @@ const modelParamsSchema = z.object({ id: z.uuid("模型 ID 格式不正确") });
 
 const modelBodySchema = z.object({
   providerId: z.uuid("服务商 ID 格式不正确"),
-  code: z.string().trim().min(1, "请输入模型编码").max(80).optional(),
-  displayName: z.string().trim().min(1, "请输入模型显示名称").max(120),
+  name: z.string().trim().min(1, "请输入模型名称").max(120).optional(),
+  displayName: z.string().trim().min(1, "请输入模型显示名称").max(120).optional(),
   modelId: z.string().trim().min(1, "请输入模型标识").max(160),
   description: z.string().trim().max(500).optional(),
-  capabilities: z.record(z.string(), z.boolean())
-    .default({ text: true, streaming: true })
-    .refine(
-      (value) => Object.keys(value).every((key) => MODEL_CAPABILITY_KEYS.includes(key as (typeof MODEL_CAPABILITY_KEYS)[number])),
-      "包含不支持的能力键"
-    ),
-  contextWindow: z.number().int().positive().optional(),
-  maxOutputTokens: z.number().int().positive().optional(),
-  defaultTemperature: z.number().min(0).max(2).optional(),
-  timeoutMs: z.number().int().min(1000).max(300000).optional(),
-  priority: z.number().int().min(0).max(9999).optional(),
-  enabled: z.boolean().default(true)
+  supportsVision: z.boolean().default(false),
+  reasoningLevel: z.enum(REASONING_LEVELS).default("HIGH"),
+  enabled: z.boolean().default(false),
+  isDefault: z.boolean().default(false)
+}).superRefine((value, ctx) => {
+  if (!value.name && !value.displayName) {
+    ctx.addIssue({ code: "custom", message: "请输入模型名称", path: ["name"] });
+  }
 });
+const modelPatchBodySchema = z.object({
+  providerId: z.uuid("服务商 ID 格式不正确").optional(),
+  name: z.string().trim().min(1, "请输入模型名称").max(120).optional(),
+  displayName: z.string().trim().min(1, "请输入模型显示名称").max(120).optional(),
+  modelId: z.string().trim().min(1, "请输入模型标识").max(160).optional(),
+  description: z.string().trim().max(500).optional(),
+  supportsVision: z.boolean().optional(),
+  reasoningLevel: z.enum(REASONING_LEVELS).optional(),
+  enabled: z.boolean().optional(),
+  isDefault: z.boolean().optional()
+}).refine((value) => Object.keys(value).length > 0, "至少需要修改一个字段");
 
 const sceneBodySchema = z.object({
   scene: z.string().trim().min(1, "请输入场景编码").max(80),
@@ -74,8 +85,6 @@ const sceneBodySchema = z.object({
   allowFileUpload: z.boolean().optional(),
   allowKnowledgeSearch: z.boolean().optional(),
   allowTools: z.boolean().optional(),
-  temperature: z.number().min(0).max(2).nullable().optional(),
-  maxOutputTokens: z.number().int().positive().nullable().optional(),
   sort: z.number().int().min(0).max(9999).optional(),
   visibility: z.enum(["USER", "INTERNAL", "ADMIN"]).optional(),
   settings: z.record(z.string(), z.unknown()).optional(),
@@ -106,6 +115,14 @@ function requireAdmin(request: Parameters<typeof getCurrentUser>[0], permissionC
   const user = getCurrentUser(request);
   if (user.role !== "SUPER_ADMIN" && (user.permissionCodes ?? []).includes(permissionCode)) return user;
   if (user.role !== "SUPER_ADMIN") throw new ForbiddenError("当前账号没有 AI 配置权限");
+  return user;
+}
+
+function requireModelAdmin(request: Parameters<typeof getCurrentUser>[0], permissionCode: string) {
+  const user = requireAdmin(request, permissionCode);
+  if (user.role !== "SUPER_ADMIN") {
+    throw new ForbiddenError("仅超级管理员可以新增、编辑、测试、启停或设默认 AI 模型");
+  }
   return user;
 }
 
@@ -208,6 +225,10 @@ export async function aiConfigRoutes(app: FastifyInstance) {
     const [before] = await app.db.select().from(aiProviders).where(eq(aiProviders.id, request.params.id)).limit(1);
     if (!before) throw new NotFoundError("AI 服务商不存在");
     const encrypted = request.body.apiKey ? encryptSecret(request.body.apiKey) : undefined;
+    const identityChanged = Boolean(
+      (request.body.baseUrl && request.body.baseUrl !== before.baseUrl)
+      || encrypted
+    );
     const updated = await app.db.transaction(async (tx) => {
       const [row] = await tx.update(aiProviders).set({
         code: request.body.code ?? before.code,
@@ -223,6 +244,9 @@ export async function aiConfigRoutes(app: FastifyInstance) {
         updatedById: actor.id,
         updatedAt: new Date()
       }).where(eq(aiProviders.id, before.id)).returning();
+      if (identityChanged) {
+        await invalidateModelsForProvider(tx, before.id);
+      }
       await writeAuditLog({
         db: tx, request, actor, action: AUDIT_ACTIONS.AI_PROVIDER_UPDATED,
         targetType: "ai_provider", targetId: before.id,
@@ -279,40 +303,46 @@ export async function aiConfigRoutes(app: FastifyInstance) {
     schema: { tags: ["B端 / 平台 / AI配置"], summary: "获取 AI 模型列表" }
   }, async (request) => {
     requireAdmin(request, AI_PERMISSIONS.MODEL_LIST);
-    const items = await app.db.select().from(aiModels).orderBy(desc(aiModels.priority), desc(aiModels.createdAt));
-    return ok(request, { items });
+    const items = await app.db.select({
+      model: aiModels,
+      provider: aiProviders
+    }).from(aiModels)
+      .innerJoin(aiProviders, eq(aiProviders.id, aiModels.providerId))
+      .orderBy(desc(aiModels.isDefault), desc(aiModels.priority), desc(aiModels.createdAt));
+    return ok(request, { items: items.map((row) => toPublicModelConfig(row.model, row.provider)) });
   });
 
   route.post("/ai/models", {
     preHandler: [app.authenticate],
     schema: { tags: ["B端 / 平台 / AI配置"], summary: "创建 AI 模型", body: modelBodySchema }
   }, async (request) => {
-    const actor = requireAdmin(request, AI_PERMISSIONS.MODEL_CREATE);
+    const actor = requireModelAdmin(request, AI_PERMISSIONS.MODEL_CREATE);
+    if (request.body.enabled || request.body.isDefault) {
+      throw new ConflictError("新建模型必须先通过准入测试后才能启用或设为默认");
+    }
     const [provider] = await app.db.select().from(aiProviders).where(eq(aiProviders.id, request.body.providerId)).limit(1);
     if (!provider) throw new NotFoundError("关联的 AI 服务商不存在");
     if (!provider.enabled) throw new ConflictError("关联的 AI 服务商已停用，不能添加模型");
+    const displayName = request.body.name ?? request.body.displayName!;
     const model = await app.db.transaction(async (tx) => {
       const [created] = await tx.insert(aiModels).values({
         providerId: request.body.providerId,
-        code: request.body.code,
-        displayName: request.body.displayName,
+        displayName,
         modelId: request.body.modelId,
         description: request.body.description,
-        capabilities: request.body.capabilities,
-        contextWindow: request.body.contextWindow,
-        maxOutputTokens: request.body.maxOutputTokens,
-        defaultTemperature: request.body.defaultTemperature,
-        timeoutMs: request.body.timeoutMs ?? 60000,
-        priority: request.body.priority,
-        enabled: request.body.enabled
+        supportsVision: request.body.supportsVision,
+        reasoningLevel: request.body.reasoningLevel,
+        enabled: false,
+        isDefault: false,
+        lastTestStatus: "UNTESTED"
       }).returning();
       await writeAuditLog({
         db: tx, request, actor, action: AUDIT_ACTIONS.AI_MODEL_CREATED,
-        targetType: "ai_model", targetId: created!.id, afterJson: created
+        targetType: "ai_model", targetId: created!.id, afterJson: toPublicModelAudit(toPublicModelConfig(created!, provider))
       });
       return created!;
     });
-    return ok(request, { message: "AI 模型创建成功", model });
+    return ok(request, { message: "AI 模型创建成功", model: toPublicModelConfig(model, provider) });
   });
 
   route.patch("/ai/models/:id", {
@@ -321,10 +351,10 @@ export async function aiConfigRoutes(app: FastifyInstance) {
       tags: ["B端 / 平台 / AI配置"],
       summary: "修改 AI 模型",
       params: modelParamsSchema,
-      body: modelBodySchema.partial().refine((value) => Object.keys(value).length > 0, "至少需要修改一个字段")
+      body: modelPatchBodySchema
     }
   }, async (request) => {
-    const actor = requireAdmin(request, AI_PERMISSIONS.MODEL_UPDATE);
+    const actor = requireModelAdmin(request, AI_PERMISSIONS.MODEL_UPDATE);
     const [before] = await app.db.select().from(aiModels).where(eq(aiModels.id, request.params.id)).limit(1);
     if (!before) throw new NotFoundError("AI 模型不存在");
     if (request.body.providerId && request.body.providerId !== before.providerId) {
@@ -333,26 +363,54 @@ export async function aiConfigRoutes(app: FastifyInstance) {
       if (!provider) throw new NotFoundError("关联的 AI 服务商不存在");
       if (!provider.enabled) throw new ConflictError("关联的 AI 服务商已停用，不能迁移模型");
     }
+    const identityChanged = shouldInvalidateAdmission(before, {
+      providerId: request.body.providerId,
+      modelId: request.body.modelId,
+      supportsVision: request.body.supportsVision,
+      reasoningLevel: request.body.reasoningLevel
+    });
+    const nextStatus = identityChanged ? "UNTESTED" as const : before.lastTestStatus;
+    const wantsEnable = request.body.enabled === true;
+    const wantsDefault = request.body.isDefault === true;
+    if ((wantsEnable || wantsDefault) && nextStatus !== "PASSED") {
+      throw new ConflictError(wantsDefault ? "设为默认模型前必须通过准入测试" : "启用模型前必须通过准入测试");
+    }
+    if (wantsDefault) assertCanEnableOrDefault({ lastTestStatus: nextStatus }, "default");
+
     const updated = await app.db.transaction(async (tx) => {
+      const displayName = request.body.name ?? request.body.displayName;
       const [row] = await tx.update(aiModels).set({
-        ...request.body,
-        timeoutMs: request.body.timeoutMs ?? before.timeoutMs,
+        providerId: request.body.providerId ?? before.providerId,
+        displayName: displayName ?? before.displayName,
+        modelId: request.body.modelId ?? before.modelId,
+        description: request.body.description ?? before.description,
+        supportsVision: request.body.supportsVision ?? before.supportsVision,
+        reasoningLevel: request.body.reasoningLevel ?? before.reasoningLevel,
+        enabled: identityChanged ? false : (request.body.enabled ?? before.enabled),
+        isDefault: identityChanged ? false : (request.body.isDefault ?? before.isDefault),
+        ...(identityChanged ? invalidatedAdmissionPatch() : {}),
         updatedAt: new Date()
       }).where(eq(aiModels.id, before.id)).returning();
+      if (row!.isDefault) {
+        await clearOtherDefaultModels(tx, row!.id);
+      }
+      const [provider] = await tx.select().from(aiProviders).where(eq(aiProviders.id, row!.providerId)).limit(1);
       await writeAuditLog({
         db: tx, request, actor, action: AUDIT_ACTIONS.AI_MODEL_UPDATED,
-        targetType: "ai_model", targetId: before.id, beforeJson: before, afterJson: row
+        targetType: "ai_model", targetId: before.id,
+        beforeJson: toPublicModelAudit(before),
+        afterJson: toPublicModelAudit(toPublicModelConfig(row!, provider!))
       });
-      return row!;
+      return { row: row!, provider: provider! };
     });
-    return ok(request, { message: "AI 模型修改成功", model: updated });
+    return ok(request, { message: "AI 模型修改成功", model: toPublicModelConfig(updated.row, updated.provider) });
   });
 
   route.delete("/ai/models/:id", {
     preHandler: [app.authenticate],
     schema: { tags: ["B端 / 平台 / AI配置"], summary: "删除 AI 模型", params: modelParamsSchema }
   }, async (request) => {
-    const actor = requireAdmin(request, AI_PERMISSIONS.MODEL_DELETE);
+    const actor = requireModelAdmin(request, AI_PERMISSIONS.MODEL_DELETE);
     const [model] = await app.db.select().from(aiModels).where(eq(aiModels.id, request.params.id)).limit(1);
     if (!model) throw new NotFoundError("AI 模型不存在");
     const [sceneBinding] = await app.db.select({ id: aiScenes.id }).from(aiScenes)
@@ -363,38 +421,51 @@ export async function aiConfigRoutes(app: FastifyInstance) {
       )).limit(1);
     if (sceneBinding) throw new ConflictError("该模型仍被场景绑定，请先调整场景配置后再删除");
     await app.db.delete(aiModels).where(eq(aiModels.id, model.id));
-    await writeAuditLog({ db: app.db, request, actor, action: "ai.model_deleted", targetType: "ai_model", targetId: model.id, beforeJson: model });
+    await writeAuditLog({
+      db: app.db, request, actor, action: "ai.model_deleted",
+      targetType: "ai_model", targetId: model.id, beforeJson: toPublicModelAudit(model)
+    });
     return ok(request, { message: "AI 模型删除成功" });
   });
 
-  route.post("/ai/models/:id/test-connection", {
-    preHandler: [app.authenticate],
-    schema: { tags: ["B端 / 平台 / AI配置"], summary: "测试 AI 模型连接", params: modelParamsSchema }
-  }, async (request) => {
-    const actor = requireAdmin(request, AI_PERMISSIONS.MODEL_TEST);
+  const testModelHandler = async (request: Parameters<typeof getCurrentUser>[0] & { params: { id: string } }, app: FastifyInstance) => {
+    const actor = requireModelAdmin(request, AI_PERMISSIONS.MODEL_TEST);
     const [model] = await app.db.select().from(aiModels).where(eq(aiModels.id, request.params.id)).limit(1);
     if (!model) throw new NotFoundError("AI 模型不存在");
-    try {
-      const resolved = await resolveModelById(app.db, model.id);
-      const result = await generateText({
-        model: resolved.languageModel,
-        prompt: "这是一次连接测试。请只回复：连接成功。",
-        maxOutputTokens: 16,
-        temperature: 0
-      });
-      await writeAuditLog({
-        db: app.db, request, actor, action: AUDIT_ACTIONS.AI_CONNECTION_TESTED,
-        targetType: "ai_model", targetId: model.id, afterJson: { success: true }
-      });
-      return ok(request, { message: "模型连接测试成功", response: result.text });
-    } catch (error) {
-      await writeAuditLog({
-        db: app.db, request, actor, action: AUDIT_ACTIONS.AI_CONNECTION_TESTED,
-        targetType: "ai_model", targetId: model.id, afterJson: { success: false }
-      });
-      throw error;
-    }
-  });
+    const report = await testModelAdmission(app.db, model.id);
+    await writeAuditLog({
+      db: app.db, request, actor, action: AUDIT_ACTIONS.AI_CONNECTION_TESTED,
+      targetType: "ai_model", targetId: model.id,
+      afterJson: {
+        ok: report.ok,
+        modelId: model.modelId,
+        supportsVision: model.supportsVision,
+        reasoningLevel: model.reasoningLevel,
+        checks: {
+          connection: report.checks.connection.ok,
+          text: report.checks.text.ok,
+          toolCalling: report.checks.toolCalling.ok,
+          reasoning: report.checks.reasoning.ok,
+          vision: report.checks.vision?.ok ?? null
+        }
+      }
+    });
+    return ok(request, {
+      ok: report.ok,
+      message: report.ok ? "模型准入测试通过" : "模型准入测试未通过",
+      checks: report.checks
+    });
+  };
+
+  route.post("/ai/models/:id/test", {
+    preHandler: [app.authenticate],
+    schema: { tags: ["B端 / 平台 / AI配置"], summary: "测试 AI 模型准入（文本/工具/推理/视觉）", params: modelParamsSchema }
+  }, async (request) => testModelHandler(request, app));
+
+  route.post("/ai/models/:id/test-connection", {
+    preHandler: [app.authenticate],
+    schema: { tags: ["B端 / 平台 / AI配置"], summary: "测试 AI 模型准入（兼容旧路径）", params: modelParamsSchema }
+  }, async (request) => testModelHandler(request, app));
 
   // ============ Scene ============
 
@@ -445,8 +516,6 @@ export async function aiConfigRoutes(app: FastifyInstance) {
         allowFileUpload: request.body.allowFileUpload ?? scene.allowFileUpload,
         allowKnowledgeSearch: request.body.allowKnowledgeSearch ?? scene.allowKnowledgeSearch,
         allowTools: request.body.allowTools ?? scene.allowTools,
-        temperature: request.body.temperature !== undefined ? request.body.temperature : scene.temperature,
-        maxOutputTokens: request.body.maxOutputTokens !== undefined ? request.body.maxOutputTokens : scene.maxOutputTokens,
         sort: request.body.sort ?? scene.sort,
         visibility: request.body.visibility ?? scene.visibility,
         enabled: request.body.enabled ?? scene.enabled,

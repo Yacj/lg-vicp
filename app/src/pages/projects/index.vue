@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import type { ApiEnvelope, ApiPage, ProjectRecord, ProjectVisibility } from '@/api/types'
 import { projectApi } from '@/api/modules/projects'
+import ProjectVisibilityBadge from '@/components/project/ProjectVisibilityBadge.vue'
 import { useAuthGate } from '@/composables/useAuthGate'
+import { useSelectableDepartments } from '@/composables/useSelectableDepartments'
 import { getPlatformInfo } from '@/services/platform'
 import { useAuthStore } from '@/store/auth'
+import { resolveProjectListKind } from '@/utils/projectVisibility'
 
 definePage({
   name: 'projects',
@@ -29,8 +32,8 @@ interface ProjectPagingRef {
 
 const filters: ProjectFilterOption[] = [
   { value: 'ALL', label: '全部' },
-  { value: 'PUBLIC', label: '公开' },
   { value: 'PRIVATE', label: '私有' },
+  { value: 'DEPARTMENT', label: '部门可见' },
 ]
 
 const router = useRouter()
@@ -38,14 +41,19 @@ const route = useRoute()
 const { requireLogin, isAuthenticated } = useAuthGate()
 const authStore = useAuthStore()
 const { warning: showWarning } = useGlobalToast()
+const { load: loadDepartments, nameOf } = useSelectableDepartments()
 
 // capabilities 未加载或未登录时保持展示；明确无创建权限时隐藏新建入口。
 const canShowCreate = computed(() => !isAuthenticated.value || authStore.capabilities?.canCreateProject !== false)
 
-const initialScope = route.query.scope
-const activeFilter = ref<ProjectFilter>(
-  initialScope === 'public' ? 'PUBLIC' : initialScope === 'private' ? 'PRIVATE' : 'ALL',
-)
+function routeScope() {
+  const value = route.query.scope ?? route.params.scope
+  return Array.isArray(value) ? String(value[0] || '') : String(value || '')
+}
+
+const isPublicEntry = computed(() => resolveProjectListKind(routeScope()) === 'public')
+const initialScope = routeScope()
+const activeFilter = ref<ProjectFilter>(initialScope === 'private' ? 'PRIVATE' : initialScope === 'department' ? 'DEPARTMENT' : 'ALL')
 const keyword = ref('')
 const queryKeyword = ref('')
 const projects = ref<ProjectRecord[]>([])
@@ -103,8 +111,8 @@ const emptyTitle = computed(() => {
   if (keyword.value.trim()) {
     return '没有找到匹配项目'
   }
-  if (activeFilter.value === 'PUBLIC') {
-    return '暂无公开项目'
+  if (activeFilter.value === 'DEPARTMENT') {
+    return '暂无部门可见项目'
   }
   if (activeFilter.value === 'PRIVATE') {
     return '暂无私有项目'
@@ -132,7 +140,14 @@ watch(keyword, (value) => {
 })
 
 onMounted(() => {
+  if (isPublicEntry.value) {
+    router.replace({ name: 'public-projects' })
+    return
+  }
   pageMounted.value = true
+  if (isAuthenticated.value) {
+    void loadDepartments()
+  }
 })
 
 onUnmounted(() => {
@@ -150,6 +165,11 @@ onShow(() => {
 })
 
 async function queryProjects(pageNo: number, pageSize: number) {
+  if (isPublicEntry.value) {
+    await paging.value?.complete([])
+    return
+  }
+
   if (!isAuthenticated.value) {
     total.value = 0
     await paging.value?.complete([])
@@ -211,6 +231,10 @@ function openProject(id: string) {
     return
   }
   router.push({ name: 'project-detail', params: { id } })
+}
+
+function departmentNameOf(project: ProjectRecord) {
+  return nameOf(project.visibleDepartmentId, project.visibleDepartmentName)
 }
 
 function formatTime(value: string) {
@@ -285,18 +309,14 @@ function formatTime(value: string) {
                 <text class="project-row__name truncate">
                   {{ project.name }}
                 </text>
-                <text
-                  class="project-visibility shrink-0"
-                  :class="project.visibility === 'PUBLIC' ? 'project-visibility--public' : 'project-visibility--private'"
-                >
-                  {{ project.visibility === 'PUBLIC' ? '公开' : '私有' }}
-                </text>
+                <ProjectVisibilityBadge
+                  class="shrink-0"
+                  :visibility="project.visibility"
+                  :department-name="departmentNameOf(project)"
+                  :include-child-departments="project.includeChildDepartments"
+                />
               </view>
               <view class="project-row__meta mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
-                <!-- <text>{{ [project.region, project.buildingType].filter(Boolean).join(' · ') || '未填写地区与建筑类型' }}</text> -->
-                <text class="project-row__divider">
-                  ·
-                </text>
                 <text>更新于 {{ formatTime(project.updatedAt) }}</text>
               </view>
             </view>
@@ -444,30 +464,6 @@ function formatTime(value: string) {
   color: var(--app-text-tertiary);
   font-size: 23rpx;
   line-height: 34rpx;
-}
-
-.project-row__divider {
-  color: var(--app-text-disabled);
-}
-
-.project-visibility {
-  padding: 4rpx 10rpx;
-  border: 1px solid transparent;
-  border-radius: 6rpx;
-  font-size: 20rpx;
-  line-height: 28rpx;
-}
-
-.project-visibility--public {
-  border-color: var(--app-action-primary-soft);
-  color: var(--app-action-primary);
-  background: var(--app-action-primary-soft);
-}
-
-.project-visibility--private {
-  border-color: var(--app-border-default);
-  color: var(--app-text-tertiary);
-  background: var(--app-bg-drawer);
 }
 
 .projects-empty {

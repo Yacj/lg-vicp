@@ -6,9 +6,9 @@
 
 # AI 与报告
 
-AI 模型按场景从数据库解析。服务商、Base URL、模型 ID、参数和提示词不能写死在业务代码中。DeepSeek 使用 OpenAI-compatible 适配器。
+AI 模型按场景从数据库解析。服务商、Base URL、模型 ID 和提示词不能写死在业务代码中。DeepSeek 使用 OpenAI-compatible 适配器。
 
-模型 `capabilities` 使用 `reasoning` 和 `reasoningEffort` 声明深度思考能力；用户开关只保存在会话的 `reasoningMode`，默认 `OFF`，每条消息保存实际模式。
+模型配置只负责身份、连接、是否参与图片输入、默认推理强度（`LOW`/`HIGH`/`MAX`）、启停、是否默认，以及准入测试状态。temperature / topP / maxTokens / 回答风格 / supportsTools / supportsAgent 不再由 B 端维护。正式 Runtime 只选择 `enabled=true` 且 `lastTestStatus=PASSED` 的模型。会话 `reasoningMode` 仍是 C 端 OFF/ON 开关；ON 时按模型 `reasoningLevel` 经 Adapter 映射，禁止静默降级，禁止把 `reasoning_content` 展示给用户。
 
 密钥规则：
 
@@ -51,13 +51,14 @@ AI 回答是可复用资产。点赞、反馈和重新生成不得覆盖原始�
 ## 场景与提示词版本化（第一期）
 
 - 场景建模：`ai_scenes`（能力门控 + 模型绑定 + `enabled`），提示词建模：`prompts` + `prompt_versions`（DRAFT/PUBLISHED/DISABLED，同 prompt 下 PUBLISHED 全局唯一）。旧 `ai_scene_bindings` / `prompt_templates` 已随迁移 0010 废弃。
-- 仅 `general_chat` 作为 C 端默认入口（`visibility=USER`）；用户不选择场景/系统指令。知识检索、项目上下文、热工/对比能力由 `resolveAiCapabilities` 按问题自动启用。其余场景保留为 `INTERNAL`（Worker / B 端测试），接口与 Prompt 版本化继续兼容。
-- 快捷提问独立表 `ai_quick_prompts`，不复用 Prompt / Scene。C 端只读 `GET /api/v1/ai/quick-prompts`；B 端 `/api/v1/platform/ai/quick-prompts`。
+- 普通管理员维护业务提示词 `GET/PUT /api/v1/platform/ai/business-prompts/:code`（BASE_CHAT / KNOWLEDGE_SEARCH / PROJECT_ANALYSIS / PRODUCT_CONSULTATION / THERMAL_CALCULATION / PRODUCT_COMPARE / REPORT_GENERATION / VISION_UNDERSTANDING），内部仍写对应场景的 `prompt_versions`；不要求理解 version/diff。业务 Prompt 只写该场景关注点。怎么说由 `GLOBAL_RESPONSE_POLICY`（约 11 条）和 Answer Contract 统一负责，怎么做由 `EXECUTION_POLICY` 负责。Prompt 不能覆盖知识检索权限、data scope、热工确定性引擎、Project Memory 隔离、Tool 权限、报告归属，也不能覆盖“不得暴露内部 Tool/Agent、不得暴露思考链、不得伪造来源”。不保留独立 Comparison/Thermal/Report Agent Prompt。 seed 不覆盖已发布业务 Prompt；新默认模板通过「恢复默认」写入。
+- 仅 `general_chat` 作为 C 端默认入口（`visibility=USER`）；用户不选择场景/系统指令/Agent 类型。统一 Conversation Runtime：UI 动作优先于 ConversationTaskState，再才是 intent。`resolveAiCapabilities` 只做预路由、寒暄优化与非 Agent 回退注入；非寒暄时开放领域 Tool 集合（`search_knowledge` / `get_project_state` / `get_product_data` / `thermal`（`LOOKUP_CANDIDATES` / `CALCULATE`） / `compare_products` / `compare_solutions` / `generate_report`）。产品对比走 `compareProducts()` 动态维度，热工为 optional；查已有图集/参考方案走 `REFERENCE_LOOKUP`（先查已发布选用表，未命中再检索知识库图集原文），不得仅因「传热系数 / K值」进入 `THERMAL`。统一 `USER_SELECTION`（`KNOWLEDGE_SOURCE` / `REPORT_TYPE` / `PRODUCT`）确认后固化 `report_context_snapshots` 再排队生成报告。其余场景保留为 `INTERNAL`。
+- 快捷提问独立表 `ai_quick_prompts`，不复用 Prompt / Scene。C 端只读 `GET /api/v1/ai/quick-prompts`；B 端 `/api/v1/platform/ai/quick-prompts`。`content` 必须是用户自然问题；`pnpm db:seed` 只覆盖仍带系统味的预置 4 条。
 - 生产知识检索只覆盖 PUBLISHED + AI_ENABLED + 当前受控版本；无项目时只搜平台文档，有项目时平台 + 当前项目。草稿与无权限项目文档不得进入正式聊天。
-- 运行时解析链路：场景（须启用）→ 当前 PUBLISHED 提示词版本 → 按 `reasoningMode` 解析模型 → 校验 provider/model 启用 → 构造语言模型。禁止在业务代码写死模型 ID。
+- 运行时解析链路：场景（须启用）→ 当前 PUBLISHED 提示词版本 → 按 `reasoningMode` 解析已准入模型（`enabled` + `lastTestStatus=PASSED`）→ 构造语言模型。禁止在业务代码写死模型 ID。采样与输出上限由 `getAiTaskRuntimePolicy` 决定，不读模型表 temperature/maxTokens。
 - reasoningMode=ON：`allowReasoning=false` 抛 `AI_REASONING_NOT_SUPPORTED`；`reasoningModelId` 不可用降级默认模型并写入 `metadata.downgradeNote`；fallback 仅在主模型未产出任何 token 时重试一次。
-- 上下文预算：`estimateTokens`（CJK/1.5 + ASCII/4）分桶裁剪（系统 / 项目档案 / 项目记忆 / 会话摘要 / 近期消息 / 工具与知识 / 当前消息）；即将裁剪时增量更新 `ai_conversation_states`。
-- Agent：`ai_agent_runs` + 现有 `ai_tool_calls` 真实写入；maxSteps / 重复 tool+input / timeout / cancel；WAITING_USER_INPUT 可 Resume。
+- 上下文预算：`estimateTokens`（CJK/1.5 + ASCII/4）分桶裁剪（系统 / 项目档案 / 项目记忆 / 会话摘要 / 近期消息 / 工具与知识 / 当前消息）。项目/记忆/摘要继续完整参与判断，默认不复述到回答正文。即将裁剪时增量更新 `ai_conversation_states`。
+- Agent：`ai_agent_runs` + 现有 `ai_tool_calls` 真实写入；`streamText`/`generateText` + `tool()` + `stepCountIs`；maxSteps / 重复 tool+input / timeout / cancel。`fullStream` 按 Step 缓冲，只有无 Tool Call 的最终 Step 进入 `userVisibleText`。WAITING_USER_INPUT 必须持久化 AI SDK `responseMessages`（assistant tool-call / tool result / assistant text），Resume 把用户选择追加到完整消息链，不得只追加 `fullText`。Tool `inputSchema` 必须是单一 `z.object`（可用 `enum` + `superRefine`），禁止 `z.discriminatedUnion` / JSON Schema `oneOf`/`anyOf`，避免 OpenAI 兼容网关卡住不吐流。停止接口必须立刻 `CANCELLED` 对应 Agent Run 并释放会话生成锁，不能只写 Redis 等模型流结束；`RUNNING` 超过 `AI_AGENT_OVERALL_TIMEOUT_MS` 在 GET 时标失败，避免 C 端无限轮询。
 - 项目记忆：`project_ai_memories`，查询必须校验 projectId 与项目权限。
 - 配额：Redis 并发（`ai:active:{userId}`，默认 2）+ 每日（`ai:quota:{userId}:{yyyy-mm-dd}`，默认 200），`SUPER_ADMIN` 豁免；`GET /api/v1/ai/quota` 查询额度。
 - 错误码：统一 `AI_*` 常量（`src/shared/ai-errors.ts`），SSE error 事件、消息 `errorCode` 落库、运营查询三处共用；底层错误经 `toAiError` 映射。

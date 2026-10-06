@@ -1,5 +1,10 @@
-import type { StoredAuthSession } from '@/types/auth'
+import type { AuthPrincipal, StoredAuthSession } from '@/types/auth'
 import { B_ADMIN_CLIENT } from '@/types/auth'
+
+/** B 端管理后台仅超级管理员可进入，与账号类型切换无关。 */
+export function canEnterBAdmin(user: Pick<AuthPrincipal, 'clientType' | 'role'>): boolean {
+  return user.clientType === B_ADMIN_CLIENT && user.role === 'SUPER_ADMIN'
+}
 
 const AUTH_SESSION_KEY = 'vicp_admin_auth_session'
 

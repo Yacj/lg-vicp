@@ -200,3 +200,61 @@ describe("确定性（验收：相同输入与版本产生稳定相同结果）"
     expect(JSON.stringify(calculateThermal(input))).toBe(JSON.stringify(calculateThermal(input)));
   });
 });
+
+describe("客户热工表回归", () => {
+  const sheetRules: ResolvedRules = {
+    ...rules,
+    interiorSurfaceResistance: 0.11,
+    exteriorSurfaceResistance: 0.04,
+    precision: 8,
+    roundingMode: "NONE"
+  };
+  const fixed = (name: string, order: number, thicknessMm: number, lambda: number, correctionFactor: number, type: CalcLayer["layerType"] = "FIXING_LAYER"): CalcLayer => ({
+    layerOrder: order,
+    layerType: type,
+    layerName: name,
+    materialId: name,
+    thicknessM: thicknessMm / 1000,
+    lambda,
+    correctionFactor
+  });
+
+  it("整体计算复现 K 与总热阻", () => {
+    const outcome = calculateThermal({
+      mode: "EQUIVALENT",
+      rules: sheetRules,
+      layers: [
+        fixed("混合砂浆", 1, 20, 0.87, 1),
+        fixed("钢筋混凝土", 2, 200, 1.87, 1, "BASE_LAYER"),
+        fixed("找平层", 3, 15, 0.93, 1),
+        fixed("粘结砂浆", 4, 5, 0.93, 1),
+        fixed("VICP复合保温板", 5, 25, 0.005, 1.25, "PRODUCT_LAYER"),
+        fixed("抹面胶浆", 6, 5, 0.93, 1)
+      ],
+      equivalentParams: { conductivity: 0.005, correctionFactor: 1.25 }
+    });
+    expect(outcome.valid).toBe(true);
+    expect(outcome.totalResistance).toBeCloseTo(4.306822098, 6);
+    expect(outcome.kValue).toBeCloseTo(0.2321897625, 6);
+  });
+
+  it("分层计算复现 K 与总热阻", () => {
+    const outcome = calculateThermal({
+      mode: "LAYERED",
+      rules: sheetRules,
+      layers: [
+        fixed("混合砂浆", 1, 20, 0.87, 1),
+        fixed("钢筋混凝土", 2, 200, 1.87, 1, "BASE_LAYER"),
+        fixed("找平层", 3, 15, 0.93, 1),
+        fixed("粘结砂浆", 4, 5, 0.93, 1),
+        fixed("包裹浆料", 5, 10, 0.08, 1.25),
+        fixed("真空绝热板", 6, 15, 0.0025, 1.25, "PRODUCT_LAYER"),
+        fixed("包裹浆料", 7, 10, 0.08, 1.25),
+        fixed("抹面胶浆", 8, 5, 0.93, 1)
+      ]
+    });
+    expect(outcome.valid).toBe(true);
+    expect(outcome.totalResistance).toBeCloseTo(5.306822098, 6);
+    expect(outcome.kValue).toBeCloseTo(0.1884366918, 6);
+  });
+});

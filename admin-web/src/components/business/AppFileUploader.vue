@@ -28,6 +28,8 @@ const props = withDefaults(defineProps<{
   /** 关联项目（可选，用户级文件可不传）。 */
   projectId?: string
   accept?: string
+  allowedMimeTypes?: readonly string[]
+  unsupportedTypeMessage?: string
   disabled?: boolean
   draggable?: boolean
   /** 最大文件数量（multiple 时生效）。 */
@@ -39,6 +41,8 @@ const props = withDefaults(defineProps<{
   placeholder?: string
 }>(), {
   accept: '.pdf,.docx,.png,.jpg,.jpeg',
+  allowedMimeTypes: () => [...SUPPORTED_FILE_MIME_TYPES],
+  unsupportedTypeMessage: '暂不支持该文件类型，仅支持 PDF、Word（.docx）、PNG、JPG、SVG',
   disabled: false,
   draggable: true,
   max: 10,
@@ -68,8 +72,8 @@ const sizeLimit = computed<SizeLimitObj>(() => ({
   unit: 'MB',
 }))
 
-function isSupportedMimeType(type: string): boolean {
-  return (SUPPORTED_FILE_MIME_TYPES as readonly string[]).includes(type)
+function isAllowedMimeType(type: string): boolean {
+  return props.allowedMimeTypes.includes(type)
 }
 
 function beforeUpload(file: UploadFile): boolean {
@@ -77,8 +81,8 @@ function beforeUpload(file: UploadFile): boolean {
   if (!raw) {
     return false
   }
-  if (!isSupportedMimeType(raw.type)) {
-    const reason = `暂不支持该文件类型，仅支持 PDF、Word（.docx）、PNG、JPG`
+  if (!isAllowedMimeType(raw.type)) {
+    const reason = props.unsupportedTypeMessage
     MessagePlugin.warning(`${raw.name}：${reason}`)
     emit('rejected', raw, reason)
     return false

@@ -183,7 +183,7 @@ flowchart TD
 | 共用 | `POST /projects` | B 端需 `project.create`；仍按项目创建规则 |
 | 共用 | `GET /projects/public` | 登录用户 |
 | 共用 | `GET /projects/:id` | `canViewProject` |
-| 平台 | `GET /platform/projects/statistics` | `system:project:list` |
+| 平台 | `GET /platform/projects/statistics` | 登录 B 端用户（可见范围，无按钮权限码） |
 | 平台 | `GET /platform/projects` | `system:project:list` |
 
 ### 6.3 AI 配置和 AI 运营

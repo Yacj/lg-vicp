@@ -122,7 +122,7 @@ function maskPhone(phone?: string | null) {
           {{ roleText }}
         </view>
         <view class="app-tertiary mt-2 text-24rpx leading-34rpx">
-          蓝格智配工作空间
+          筑小格工作空间
         </view>
       </view>
 

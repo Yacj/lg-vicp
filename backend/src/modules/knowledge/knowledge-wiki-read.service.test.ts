@@ -128,14 +128,17 @@ describe("来源读取口径（published-only / 公开文库 / 项目越权）",
     ).toThrow(NotFoundError);
   });
 
-  it("项目创建者与超级管理员可读项目内文档", () => {
+  it("项目创建者可读；超级管理员仅 B 端令牌可跨项目阅读", () => {
     const project = { createdById: "owner-1", visibility: "PRIVATE" as const };
     expect(() =>
       assertReadableKnowledgeDocument({ projectId: "p1" } as never, { id: "owner-1", role: "NORMAL_USER" } as never, project)
     ).not.toThrow();
     expect(() =>
-      assertReadableKnowledgeDocument({ projectId: "p1" } as never, { id: "admin-1", role: "SUPER_ADMIN" } as never, project)
+      assertReadableKnowledgeDocument({ projectId: "p1" } as never, { id: "admin-1", role: "SUPER_ADMIN", clientType: "B_ADMIN" } as never, project)
     ).not.toThrow();
+    expect(() =>
+      assertReadableKnowledgeDocument({ projectId: "p1" } as never, { id: "admin-1", role: "SUPER_ADMIN", clientType: "C_APP" } as never, project)
+    ).toThrow(NotFoundError);
   });
 });
 

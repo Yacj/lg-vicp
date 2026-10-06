@@ -22,10 +22,12 @@ describe("产品规格 schema", () => {
     }).success).toBe(true);
   });
 
-  it("specClass 仅允许 I/II/III", () => {
+  it("specClass 仅允许 I/II/III 或 null", () => {
     const base = { seriesId: UUID, specCode: "A-01", thicknessMm: 30 };
     expect(productSpecCreateSchema.safeParse({ ...base, specClass: "IV" }).success).toBe(false);
     expect(productSpecCreateSchema.safeParse({ ...base, specClass: "II" }).success).toBe(true);
+    expect(productSpecCreateSchema.safeParse({ ...base, specClass: null }).success).toBe(true);
+    expect(productSpecCreateSchema.safeParse(base).success).toBe(true);
   });
 
   it("supplyRegions 必须为字符串数组", () => {

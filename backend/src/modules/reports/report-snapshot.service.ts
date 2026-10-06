@@ -55,6 +55,8 @@ export interface TemplateReportInput {
   /** 数据生效时点（默认当前时间），用于已发布数据生效窗判定 */
   asOfDate?: Date;
   settings?: ReportSettingsValues;
+  /** 对话确认快照覆盖：无项目时仍可生成，Worker 只读冻结数据 */
+  contextOverlay?: Record<string, unknown>;
 }
 
 async function resolvePublishedTemplate(
@@ -106,13 +108,11 @@ export async function assembleReportSnapshot(app: FastifyInstance, input: Templa
   if (selection && projectId && selection.projectId !== projectId) {
     throw new ReportError("REPORT_SELECTION_PROJECT_MISMATCH");
   }
-  if (!selection && typeDef?.needsSelection) {
-    if (!projectId) throw new ReportError("REPORT_PROJECT_REQUIRED");
+  if (!selection && typeDef?.needsSelection && projectId) {
     const [latest] = await app.db.select().from(thermalCandidateSelections)
       .where(eq(thermalCandidateSelections.projectId, projectId))
       .orderBy(desc(thermalCandidateSelections.createdAt)).limit(1);
-    if (!latest) throw new ReportError("REPORT_SELECTION_NOT_FOUND", "请先确认候选方案后再生成该报告类型");
-    selection = latest;
+    selection = latest ?? null;
   }
 
   const template = await resolvePublishedTemplate(app, {
@@ -121,7 +121,10 @@ export async function assembleReportSnapshot(app: FastifyInstance, input: Templa
     asOfDate
   });
   if (!template) throw new ReportError("REPORT_TEMPLATE_NOT_PUBLISHED");
-  if ((typeDef?.requiresProject || template.requiresProject) && !projectId) {
+  if (typeDef?.requiresProject && !projectId) {
+    throw new ReportError("REPORT_PROJECT_REQUIRED");
+  }
+  if (!typeDef && template.requiresProject && !projectId) {
     throw new ReportError("REPORT_PROJECT_REQUIRED");
   }
 
@@ -306,7 +309,9 @@ export async function assembleReportSnapshot(app: FastifyInstance, input: Templa
     nodes,
     acceptance,
     sources,
-    disclaimerText
+    disclaimerText,
+    conversationContext: input.contextOverlay ?? null,
+    referencePages: Array.isArray(input.contextOverlay?.referencePages) ? input.contextOverlay.referencePages : []
   };
 
   return { dataJson, template, asOfDate };
@@ -326,7 +331,7 @@ export async function generateTemplateReport(
       conversationId: input.conversationId ?? null,
       reportType: storedType,
       contentJson: null,
-      status: "DRAFT",
+      status: "QUEUED",
       templateVersion: String(template.version),
       createdById: actor.id
     }).returning();

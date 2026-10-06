@@ -417,6 +417,9 @@ export interface AiReadinessContext {
   verifiedMappingCount: number;
   tocItemCount: number;
   confirmedTocCount: number;
+  /** 有页图但未确认视觉识别的页面数（离线页图正式链路） */
+  unconfirmedRecognitionPageCount: number;
+  pagesMissingImageCount: number;
 }
 
 export interface AiReadinessResult {
@@ -459,6 +462,15 @@ export function evaluateVersionAiReadiness(
   if (context.mappingCount > context.reliableMappingCount) {
     warnings.push(`有 ${context.mappingCount - context.reliableMappingCount} 条低置信映射不能用于正式 AI 引用`);
   }
+  if (context.pageCount === 0) {
+    warnings.push("尚未上传任何页面图片；正式 DOCX 资料应走离线页图上传");
+  }
+  if (context.pagesMissingImageCount > 0) {
+    warnings.push(`有 ${context.pagesMissingImageCount} 页缺少页面图片`);
+  }
+  if (context.unconfirmedRecognitionPageCount > 0) {
+    warnings.push(`有 ${context.unconfirmedRecognitionPageCount} 页视觉识别尚未确认（CONFIRMED），发布后热工引用可能不完整`);
+  }
   return { eligible: blockers.length === 0, blockers, warnings };
 }
 
@@ -474,9 +486,22 @@ export async function collectAiReadinessContext(
       .where(eq(knowledgePageMappings.versionId, versionId)),
     app.db.select({ status: knowledgeTocItems.status }).from(knowledgeTocItems)
       .where(eq(knowledgeTocItems.versionId, versionId)),
-    app.db.select({ pageLabelSource: knowledgePages.pageLabelSource }).from(knowledgePages)
+    app.db.select({
+      pageLabelSource: knowledgePages.pageLabelSource,
+      pageImageObjectKey: knowledgePages.pageImageObjectKey,
+      metadata: knowledgePages.metadata
+    }).from(knowledgePages)
       .where(eq(knowledgePages.versionId, versionId))
   ]);
+  const unconfirmedRecognitionPageCount = pageRows.filter((row) => {
+    if (!row.pageImageObjectKey) return false;
+    const meta = row.metadata && typeof row.metadata === "object"
+      ? (row.metadata as Record<string, unknown>)
+      : null;
+    // 仅统计进入离线识别管线的页（有 recognitionStatus）；LibreOffice/PDF 旧页无此字段不计入
+    if (!meta || typeof meta.recognitionStatus !== "string") return false;
+    return meta.recognitionStatus !== "CONFIRMED";
+  }).length;
   return {
     hasOriginalAsset: assetRows.some((row) => row.role === "ORIGINAL"),
     hasSearchSourceAsset: assetRows.some((row) => row.role === "SEARCH_SOURCE"),
@@ -486,7 +511,9 @@ export async function collectAiReadinessContext(
     reliableMappingCount: mappingRows.filter((row) => row.verified || (row.confidence != null && row.confidence >= env.KNOWLEDGE_MAPPING_MIN_AI_CONFIDENCE)).length,
     verifiedMappingCount: mappingRows.filter((row) => row.verified).length,
     tocItemCount: tocRows.length,
-    confirmedTocCount: tocRows.filter((row) => row.status === "CONFIRMED").length
+    confirmedTocCount: tocRows.filter((row) => row.status === "CONFIRMED").length,
+    unconfirmedRecognitionPageCount,
+    pagesMissingImageCount: pageRows.filter((row) => !row.pageImageObjectKey).length
   };
 }
 

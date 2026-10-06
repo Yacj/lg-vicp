@@ -37,9 +37,14 @@ describe('dynamic component whitelist', () => {
   it('maps legacy backend component keys onto current views without adding whitelist entries', () => {
     expect(normalizeDynamicComponentKey('project/index')).toBe('projects/index')
     expect(normalizeDynamicComponentKey('ai/index')).toBe('ai-ops/debug/index')
+    expect(normalizeDynamicComponentKey('system/admins/index')).toBe('system/user/index')
+    expect(normalizeDynamicComponentKey('collection/manual/index')).toBe('collection/index')
+    expect(normalizeDynamicComponentKey('collection/sources/index')).toBe('collection/index')
+    expect(normalizeDynamicComponentKey('collection/tasks/index')).toBe('collection/index')
     expect(resolveDynamicComponent('project/index')).toBeTypeOf('function')
     expect(resolveDynamicComponent('ai/index')).toBeTypeOf('function')
     expect(dynamicComponentOptions.find(option => option.value === 'project/index')).toBeUndefined()
+    expect(dynamicComponentOptions.find(option => option.value === 'collection/manual/index')).toBeUndefined()
   })
 
   it('resolves only registered loaders', () => {

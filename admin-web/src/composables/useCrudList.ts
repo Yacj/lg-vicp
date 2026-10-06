@@ -183,6 +183,11 @@ export function useCrudList<
     status.value = data.value.length > 0 ? 'ready' : 'idle'
   }
 
+  function replaceItems(items: TItem[]): void {
+    data.value = [...items]
+    syncSelectionWithPage(items)
+  }
+
   if (getCurrentScope()) {
     onScopeDispose(cancel)
   }
@@ -204,6 +209,7 @@ export function useCrudList<
     pageSize: readonly(pageSize),
     query,
     refresh: load,
+    replaceItems,
     reset,
     retry: load,
     search,

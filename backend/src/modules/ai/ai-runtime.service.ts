@@ -10,6 +10,8 @@ import { aiScenes, prompts, promptVersions } from "../../db/schema.js";
 import { AiError } from "../../shared/ai-errors.js";
 import type { AuthUser } from "../../shared/auth-user.js";
 import type { ResolvedModelConfig } from "../ai-config/ai-config.service.js";
+import { resolveProviderAdapter } from "../ai-config/ai-provider-adapter.js";
+import { resolveReasoningConfig, type ReasoningLevel } from "../ai-config/ai-reasoning.js";
 
 export type ReasoningMode = "OFF" | "ON";
 
@@ -33,8 +35,6 @@ export interface SceneRuntime {
   allowFileUpload: boolean;
   allowKnowledgeSearch: boolean;
   allowTools: boolean;
-  sceneTemperature: number | null;
-  sceneMaxOutputTokens: number | null;
   promptVersionId: string;
   promptVersionNumber: number;
   promptContent: string;
@@ -51,29 +51,38 @@ export interface SceneRuntime {
 }
 
 /**
- * 按模型能力计算 reasoning 相关 providerOptions。
- * OFF：模型始终推理（reasoningAlwaysOn）时报错；ON：模型不支持推理时返回 undefined（由调用方决定降级策略）。
+ * 按模型默认推理强度计算 providerOptions。
+ * 业务层只使用 LOW/HIGH/MAX；C 端会话 reasoningMode=OFF 时不传推理参数。
  */
 export function resolveReasoningProviderOptions(
-  config: Pick<ResolvedModelConfig, "modelId" | "providerName" | "capabilities">,
+  config: {
+    modelId: string;
+    providerName: string;
+    providerCode?: string | null;
+    baseUrl?: string | null;
+    reasoningLevel?: ReasoningLevel;
+    capabilities?: Record<string, boolean>;
+  },
   mode: ReasoningMode
 ): ProviderOptionsMap | undefined {
-  const capabilities = config.capabilities ?? {};
+  const identity = {
+    code: config.providerCode,
+    name: config.providerName,
+    baseUrl: config.baseUrl ?? ""
+  };
+  const adapter = resolveProviderAdapter(identity);
+  const alwaysOn = adapter.isReasoningAlwaysOn(config.modelId) || config.capabilities?.reasoningAlwaysOn === true;
   if (mode === "OFF") {
-    if (capabilities.reasoningAlwaysOn === true) {
+    if (alwaysOn) {
       throw new AiError("AI_REASONING_NOT_SUPPORTED", "当前模型始终开启深度思考，请切换到普通对话模型");
     }
     return undefined;
   }
-  // ON
-  if (capabilities.reasoning !== true && capabilities.reasoningAlwaysOn !== true) {
-    return undefined;
-  }
-  if (capabilities.reasoningAlwaysOn === true || capabilities.reasoningEffort !== true) {
-    return undefined;
-  }
-  const providerKey = config.providerName.replace(/[-_]+([a-z])/g, (_, letter: string) => letter.toUpperCase());
-  return { [providerKey]: { reasoningEffort: "high" } };
+  return resolveReasoningConfig({
+    provider: identity,
+    modelId: config.modelId,
+    level: config.reasoningLevel ?? "HIGH"
+  }).providerOptions;
 }
 
 /**
@@ -153,8 +162,6 @@ export async function resolveSceneRuntime(
     allowFileUpload: scene.allowFileUpload,
     allowKnowledgeSearch: scene.allowKnowledgeSearch,
     allowTools: scene.allowTools,
-    sceneTemperature: scene.temperature,
-    sceneMaxOutputTokens: scene.maxOutputTokens,
     promptVersionId: promptRow.version.id,
     promptVersionNumber: promptRow.version.version,
     promptContent: promptRow.version.content,

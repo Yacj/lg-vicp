@@ -55,13 +55,17 @@ export interface CandidateRow {
   productSpecId: string;
   specCode: string;
   specVersion: number;
-  specClass: SpecClass;
+  /** null = 未指定型号（客户 XLS 计算样例）；查询 I/II/III 时不得命中 */
+  specClass: SpecClass | null;
   thicknessMm: number;
   productThermalResistance: number;
   totalThermalResistance: number;
   kValue: number;
   evidenceSource: string;
   evidenceRef: string;
+  sourceDocumentId?: string | null;
+  sourcePageId?: string | null;
+  sourcePageLabel?: string | null;
 }
 
 export interface CandidateResult {
@@ -83,10 +87,13 @@ export interface CandidateResult {
     atlasPage: string | null;
   };
   system: { id: string; code: string | null; name: string | null };
-  productSpec: { id: string; specCode: string; specVersion: number; specClass: SpecClass };
+  productSpec: { id: string; specCode: string; specVersion: number; specClass: SpecClass | null };
   set: { id: string; code: string; version: number; priority: number; buildingTypes: string[] };
   result: { thicknessMm: number; productThermalResistance: number; totalThermalResistance: number; kValue: number };
   evidence: { source: string; ref: string };
+  sourceDocumentId?: string | null;
+  sourcePageId?: string | null;
+  sourcePageLabel?: string | null;
 }
 
 export interface MatchOutcome {
@@ -143,7 +150,10 @@ export function evaluateConditions(row: CandidateRow, q: CandidateQueryCondition
     row.systemId === q.systemId ? matched.push("system") : unmatched.push("system");
   }
   if (q.specClass !== undefined) {
-    row.specClass === q.specClass ? matched.push("specClass") : unmatched.push("specClass");
+    // 未指定型号（null）不得被 I/II/III 查询命中
+    row.specClass != null && row.specClass === q.specClass
+      ? matched.push("specClass")
+      : unmatched.push("specClass");
   }
   if (hasThicknessCondition(q)) {
     thicknessMatches(row, q) ? matched.push("thickness") : unmatched.push("thickness");
@@ -196,7 +206,10 @@ function toCandidateResult(row: CandidateRow, matchType: MatchType, state: Condi
       totalThermalResistance: row.totalThermalResistance,
       kValue: row.kValue
     },
-    evidence: { source: row.evidenceSource, ref: row.evidenceRef }
+    evidence: { source: row.evidenceSource, ref: row.evidenceRef },
+    sourceDocumentId: row.sourceDocumentId ?? null,
+    sourcePageId: row.sourcePageId ?? null,
+    sourcePageLabel: row.sourcePageLabel ?? null
   };
 }
 

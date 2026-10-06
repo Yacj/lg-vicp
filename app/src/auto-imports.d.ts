@@ -6,23 +6,61 @@
 export {}
 declare global {
   const $$userConfigMap: typeof import('./api/index')['$$userConfigMap']
+  const AGREEMENT_REQUIRED_MESSAGE: typeof import('./utils/wechatPhoneLogin')['AGREEMENT_REQUIRED_MESSAGE']
   const ASSISTANT_STORE_ID: typeof import('./store/user-scoped-state')['ASSISTANT_STORE_ID']
   const AUTH_STORE_ID: typeof import('./store/user-scoped-state')['AUTH_STORE_ID']
   const Apis: typeof import('./api/index')['Apis']
+  const COMPARISON_CONFIRM_LABEL: typeof import('./utils/aiComparison')['COMPARISON_CONFIRM_LABEL']
+  const COMPARISON_INTRO: typeof import('./utils/aiComparison')['COMPARISON_INTRO']
+  const COMPARISON_MISSING_VALUE: typeof import('./utils/aiComparison')['COMPARISON_MISSING_VALUE']
+  const COMPARISON_THERMAL_NOTE: typeof import('./utils/aiComparison')['COMPARISON_THERMAL_NOTE']
+  const CONFIRMED_MEMORY_ORDER: typeof import('./utils/aiAgentUi')['CONFIRMED_MEMORY_ORDER']
   const CommonUtil: typeof import('@wot-ui/ui')['CommonUtil']
+  const DEFAULT_STATUS_COPY: typeof import('./utils/aiAnswerUx')['DEFAULT_STATUS_COPY']
+  const EPHEMERAL_WECHAT_CODE_FIELDS: typeof import('./utils/wechatPhoneLogin')['EPHEMERAL_WECHAT_CODE_FIELDS']
   const EffectScope: typeof import('vue')['EffectScope']
+  const MEMORY_TYPE_LABELS: typeof import('./utils/aiAgentUi')['MEMORY_TYPE_LABELS']
+  const NO_DEPARTMENT_HINT: typeof import('./utils/projectVisibility')['NO_DEPARTMENT_HINT']
+  const PASSWORD_NOT_SET_MESSAGE: typeof import('./utils/wechatPhoneLogin')['PASSWORD_NOT_SET_MESSAGE']
+  const PROJECT_WRITE_VISIBILITIES: typeof import('./utils/projectVisibility')['PROJECT_WRITE_VISIBILITIES']
+  const REPORT_COMPLETED_MESSAGE: typeof import('./utils/aiReportTask')['REPORT_COMPLETED_MESSAGE']
+  const REPORT_STATUS_COPY: typeof import('./utils/aiAnswerUx')['REPORT_STATUS_COPY']
+  const REPORT_TASK_COPY: typeof import('./utils/aiReportTask')['REPORT_TASK_COPY']
+  const REPORT_TASK_STATUSES: typeof import('./utils/aiReportTask')['REPORT_TASK_STATUSES']
   const UPLOAD_PHASE_LABELS: typeof import('./composables/useFileUpload')['UPLOAD_PHASE_LABELS']
+  const USER_SELECTION_KINDS: typeof import('./utils/aiUserSelection')['USER_SELECTION_KINDS']
+  const WECHAT_LOGIN_FAILED_MESSAGE: typeof import('./utils/wechatPhoneLogin')['WECHAT_LOGIN_FAILED_MESSAGE']
+  const WECHAT_PHONE_AUTH_DENIED_MESSAGE: typeof import('./utils/wechatPhoneLogin')['WECHAT_PHONE_AUTH_DENIED_MESSAGE']
+  const WECHAT_UNSUPPORTED_MESSAGE: typeof import('./utils/wechatPhoneLogin')['WECHAT_UNSUPPORTED_MESSAGE']
   const acceptHMRUpdate: typeof import('pinia')['acceptHMRUpdate']
+  const agentActiveLabel: typeof import('./utils/aiAgentUi')['agentActiveLabel']
+  const agentDoneLabel: typeof import('./utils/aiAgentUi')['agentDoneLabel']
   const aiApi: typeof import('./api/index')['aiApi']
   const alovaInstance: typeof import('./api/index')['alovaInstance']
   const api: typeof import('./api/index')['default']
   const apiDefinitions: typeof import('./api/apiDefinitions')['default']
+  const appendAssistantDelta: typeof import('./utils/aiAnswerUx')['appendAssistantDelta']
+  const applyAuthRedirect: typeof import('./utils/authRedirect')['applyAuthRedirect']
+  const applyToolResult: typeof import('./utils/aiAgentUi')['applyToolResult']
+  const applyToolStart: typeof import('./utils/aiAgentUi')['applyToolStart']
   const asyncComputed: typeof import('@vueuse/core')['asyncComputed']
   const authApi: typeof import('./api/index')['authApi']
   const autoResetRef: typeof import('@vueuse/core')['autoResetRef']
+  const autoSelectDepartmentId: typeof import('./utils/projectVisibility')['autoSelectDepartmentId']
+  const autoSelectWhenSingleOption: typeof import('./utils/aiUserSelection')['autoSelectWhenSingleOption']
+  const buildAuthPageLocation: typeof import('./utils/authRedirect')['buildAuthPageLocation']
+  const buildClientPasswordSmsBody: typeof import('./utils/clientPassword')['buildClientPasswordSmsBody']
+  const buildProjectVisibilityPayload: typeof import('./utils/projectVisibility')['buildProjectVisibilityPayload']
+  const buildRegisterPasswordBody: typeof import('./utils/clientRegister')['buildRegisterPasswordBody']
+  const buildSendPasswordSmsBody: typeof import('./utils/clientPassword')['buildSendPasswordSmsBody']
+  const canConfirmComparison: typeof import('./utils/aiComparison')['canConfirmComparison']
+  const canConfirmSelection: typeof import('./utils/aiUserSelection')['canConfirmSelection']
   const canOpenOriginal: typeof import('./utils/aiSource')['canOpenOriginal']
+  const canSelectDepartmentVisibility: typeof import('./utils/projectVisibility')['canSelectDepartmentVisibility']
+  const clearLoginRedirect: typeof import('./utils/authRedirect')['clearLoginRedirect']
   const clearQuickPromptCache: typeof import('./composables/useQuickPrompts')['clearQuickPromptCache']
   const compactQuery: typeof import('./utils/aiSource')['compactQuery']
+  const comparisonIdentity: typeof import('./utils/aiComparison')['comparisonIdentity']
   const computed: typeof import('vue')['computed']
   const computedAsync: typeof import('@vueuse/core')['computedAsync']
   const computedEager: typeof import('@vueuse/core')['computedEager']
@@ -45,37 +83,68 @@ declare global {
   const customRef: typeof import('vue')['customRef']
   const debouncedRef: typeof import('@vueuse/core')['debouncedRef']
   const debouncedWatch: typeof import('@vueuse/core')['debouncedWatch']
+  const dedupeAiSources: typeof import('./utils/aiAgentUi')['dedupeAiSources']
+  const defaultConfirmAction: typeof import('./utils/aiUserSelection')['defaultConfirmAction']
+  const defaultSelectionTitle: typeof import('./utils/aiUserSelection')['defaultSelectionTitle']
   const defineAsyncComponent: typeof import('vue')['defineAsyncComponent']
   const defineComponent: typeof import('vue')['defineComponent']
   const defineStore: typeof import('pinia')['defineStore']
+  const describeAuthFailure: typeof import('./utils/wechatPhoneLogin')['describeAuthFailure']
+  const describePasswordStatus: typeof import('./utils/clientPassword')['describePasswordStatus']
   const discardUserScopedClientState: typeof import('./store/user-scoped-state')['discardUserScopedClientState']
   const eagerComputed: typeof import('@vueuse/core')['eagerComputed']
   const effectScope: typeof import('vue')['effectScope']
   const extendRef: typeof import('@vueuse/core')['extendRef']
   const fileApi: typeof import('./api/index')['fileApi']
+  const formatComparisonCell: typeof import('./utils/aiComparison')['formatComparisonCell']
+  const formatConfirmedCount: typeof import('./utils/aiComparison')['formatConfirmedCount']
+  const formatDepartmentVisibilityDetails: typeof import('./utils/projectVisibility')['formatDepartmentVisibilityDetails']
+  const formatRelativeTime: typeof import('./utils/index')['formatRelativeTime']
+  const formatReportCompletedMessage: typeof import('./utils/aiAnswerUx')['formatReportCompletedMessage']
+  const formatScheme: typeof import('./utils/aiAgentUi')['formatScheme']
+  const formatSelectedCount: typeof import('./utils/aiComparison')['formatSelectedCount']
+  const fromParsedWaiting: typeof import('./utils/aiUserSelection')['fromParsedWaiting']
   const getActivePinia: typeof import('pinia')['getActivePinia']
   const getCurrentInstance: typeof import('vue')['getCurrentInstance']
   const getCurrentPath: typeof import('./utils/index')['getCurrentPath']
   const getCurrentScope: typeof import('vue')['getCurrentScope']
+  const getLoginRedirect: typeof import('./utils/authRedirect')['getLoginRedirect']
   const h: typeof import('vue')['h']
   const ignorableWatch: typeof import('@vueuse/core')['ignorableWatch']
   const inject: typeof import('vue')['inject']
   const injectLocal: typeof import('@vueuse/core')['injectLocal']
   const isDefined: typeof import('@vueuse/core')['isDefined']
+  const isForbiddenCompareDimensionKey: typeof import('./utils/aiComparison')['isForbiddenCompareDimensionKey']
+  const isInProgressReportStatus: typeof import('./utils/aiReportTask')['isInProgressReportStatus']
+  const isLegacyPublicVisibility: typeof import('./utils/projectVisibility')['isLegacyPublicVisibility']
+  const isProductSelection: typeof import('./utils/aiAgentUi')['isProductSelection']
   const isProxy: typeof import('vue')['isProxy']
   const isReactive: typeof import('vue')['isReactive']
   const isReadonly: typeof import('vue')['isReadonly']
   const isRef: typeof import('vue')['isRef']
+  const isReportDump: typeof import('./utils/aiAnswerUx')['isReportDump']
+  const isReportTool: typeof import('./utils/aiAgentUi')['isReportTool']
+  const isSourceInquiry: typeof import('./utils/aiAnswerUx')['isSourceInquiry']
+  const isTabBarPath: typeof import('./utils/authRedirect')['isTabBarPath']
+  const isTerminalReportStatus: typeof import('./utils/aiReportTask')['isTerminalReportStatus']
+  const isUserFacingStatusText: typeof import('./utils/aiAgentUi')['isUserFacingStatusText']
+  const isUserSelectionKind: typeof import('./utils/aiUserSelection')['isUserSelectionKind']
+  const isVisibleSelection: typeof import('./utils/aiAgentUi')['isVisibleSelection']
+  const isVisionFailure: typeof import('./utils/aiVision')['isVisionFailure']
+  const isWriteVisibility: typeof import('./utils/projectVisibility')['isWriteVisibility']
   const makeDestructurable: typeof import('@vueuse/core')['makeDestructurable']
   const mapActions: typeof import('pinia')['mapActions']
   const mapGetters: typeof import('pinia')['mapGetters']
+  const mapReportTaskStatus: typeof import('./utils/aiReportTask')['mapReportTaskStatus']
   const mapState: typeof import('pinia')['mapState']
   const mapStores: typeof import('pinia')['mapStores']
   const mapWritableState: typeof import('pinia')['mapWritableState']
   const markRaw: typeof import('vue')['markRaw']
-  const markdownStyle: typeof import('./utils/markdown')['markdownStyle']
+  const markdownTagStyle: typeof import('./utils/markdown')['markdownTagStyle']
   const markdownToPlainText: typeof import('./utils/markdown')['markdownToPlainText']
+  const memoryStatusLabel: typeof import('./utils/aiAgentUi')['memoryStatusLabel']
   const mountApis: typeof import('./api/createApis')['mountApis']
+  const nextSelectedIds: typeof import('./utils/aiUserSelection')['nextSelectedIds']
   const nextTick: typeof import('vue')['nextTick']
   const normalizeAiSource: typeof import('./utils/aiSource')['normalizeAiSource']
   const normalizeAiSources: typeof import('./utils/aiSource')['normalizeAiSources']
@@ -120,9 +189,26 @@ declare global {
   const onUnload: typeof import('@dcloudio/uni-app')['onUnload']
   const onUnmounted: typeof import('vue')['onUnmounted']
   const onUpdated: typeof import('vue')['onUpdated']
+  const optionMetaLines: typeof import('./utils/aiUserSelection')['optionMetaLines']
+  const parseConfirmAction: typeof import('./utils/aiUserSelection')['parseConfirmAction']
+  const parseNeedUserInput: typeof import('./utils/aiAgentUi')['parseNeedUserInput']
+  const parseProductCards: typeof import('./utils/aiComparison')['parseProductCards']
+  const parseProductComparison: typeof import('./utils/aiComparison')['parseProductComparison']
+  const parseRedirectTarget: typeof import('./utils/authRedirect')['parseRedirectTarget']
+  const parseSelectionOptions: typeof import('./utils/aiUserSelection')['parseSelectionOptions']
+  const parseStreamEvent: typeof import('./utils/aiStream')['parseStreamEvent']
+  const parseThermalRows: typeof import('./utils/aiComparison')['parseThermalRows']
+  const parseUserSelectionRequest: typeof import('./utils/aiUserSelection')['parseUserSelectionRequest']
   const pausableWatch: typeof import('@vueuse/core')['pausableWatch']
   const persistPlugin: typeof import('./store/persist')['persistPlugin']
+  const planWechatPhoneLogin: typeof import('./utils/wechatPhoneLogin')['planWechatPhoneLogin']
+  const postLoginRoute: typeof import('./utils/wechatPhoneLogin')['postLoginRoute']
+  const previousUserText: typeof import('./utils/aiAnswerUx')['previousUserText']
+  const profileApi: typeof import('./api/index')['profileApi']
   const projectApi: typeof import('./api/index')['projectApi']
+  const projectListApiName: typeof import('./utils/projectVisibility')['projectListApiName']
+  const projectVisibilityLabel: typeof import('./utils/projectVisibility')['projectVisibilityLabel']
+  const projectVisibilityTone: typeof import('./utils/projectVisibility')['projectVisibilityTone']
   const provide: typeof import('vue')['provide']
   const provideLocal: typeof import('@vueuse/core')['provideLocal']
   const reactify: typeof import('@vueuse/core')['reactify']
@@ -139,24 +225,41 @@ declare global {
   const refDefault: typeof import('@vueuse/core')['refDefault']
   const refThrottled: typeof import('@vueuse/core')['refThrottled']
   const refWithControl: typeof import('@vueuse/core')['refWithControl']
+  const rememberLoginRedirect: typeof import('./utils/authRedirect')['rememberLoginRedirect']
   const renderMarkdown: typeof import('./utils/markdown')['renderMarkdown']
   const reportApi: typeof import('./api/index')['reportApi']
+  const reportTaskTitle: typeof import('./utils/aiReportTask')['reportTaskTitle']
+  const reportTitleFromUnknown: typeof import('./utils/aiAgentUi')['reportTitleFromUnknown']
   const request: typeof import('./api/request')['request']
   const resolveAiSourceLocator: typeof import('./utils/aiSource')['resolveAiSourceLocator']
+  const resolveComparisonAttachAction: typeof import('./utils/aiAnswerUx')['resolveComparisonAttachAction']
   const resolveComponent: typeof import('vue')['resolveComponent']
+  const resolveDepartmentName: typeof import('./utils/projectVisibility')['resolveDepartmentName']
+  const resolveProjectListKind: typeof import('./utils/projectVisibility')['resolveProjectListKind']
   const resolveRef: typeof import('@vueuse/core')['resolveRef']
   const resolveUnref: typeof import('@vueuse/core')['resolveUnref']
+  const restoreAssistantContent: typeof import('./utils/aiAnswerUx')['restoreAssistantContent']
+  const sameProductCards: typeof import('./utils/aiAnswerUx')['sameProductCards']
+  const sanitizeRedirect: typeof import('./utils/authRedirect')['sanitizeRedirect']
+  const selectedProductNames: typeof import('./utils/aiComparison')['selectedProductNames']
+  const selectionResumeAction: typeof import('./utils/aiUserSelection')['selectionResumeAction']
+  const sessionStoresWechatCodes: typeof import('./utils/wechatPhoneLogin')['sessionStoresWechatCodes']
   const setActivePinia: typeof import('pinia')['setActivePinia']
   const setMapStoreSuffix: typeof import('pinia')['setMapStoreSuffix']
   const shallowReactive: typeof import('vue')['shallowReactive']
   const shallowReadonly: typeof import('vue')['shallowReadonly']
   const shallowRef: typeof import('vue')['shallowRef']
   const shareApi: typeof import('./api/index')['shareApi']
+  const shouldAttachProductCards: typeof import('./utils/aiAnswerUx')['shouldAttachProductCards']
+  const shouldAutoSelectWhenSingle: typeof import('./utils/aiUserSelection')['shouldAutoSelectWhenSingle']
   const shouldDiscardAssistantState: typeof import('./store/user-scoped-state')['shouldDiscardAssistantState']
+  const shouldExposeWechatQuickLogin: typeof import('./utils/wechatPhoneLogin')['shouldExposeWechatQuickLogin']
+  const shouldPollReportStatus: typeof import('./utils/aiReportTask')['shouldPollReportStatus']
   const sourceChapterPath: typeof import('./utils/aiSource')['sourceChapterPath']
   const sourceFromRetrieval: typeof import('./utils/aiSource')['sourceFromRetrieval']
   const sourcePageLabel: typeof import('./utils/aiSource')['sourcePageLabel']
   const sourceQuote: typeof import('./utils/aiSource')['sourceQuote']
+  const splitAnswerLayers: typeof import('./utils/aiAnswerUx')['splitAnswerLayers']
   const storeToRefs: typeof import('pinia')['storeToRefs']
   const syncRef: typeof import('@vueuse/core')['syncRef']
   const syncRefs: typeof import('@vueuse/core')['syncRefs']
@@ -175,6 +278,7 @@ declare global {
   const tryOnMounted: typeof import('@vueuse/core')['tryOnMounted']
   const tryOnScopeDispose: typeof import('@vueuse/core')['tryOnScopeDispose']
   const tryOnUnmounted: typeof import('@vueuse/core')['tryOnUnmounted']
+  const uniqueSelectedIds: typeof import('./utils/aiUserSelection')['uniqueSelectedIds']
   const unref: typeof import('vue')['unref']
   const unrefElement: typeof import('@vueuse/core')['unrefElement']
   const until: typeof import('@vueuse/core')['until']
@@ -211,6 +315,8 @@ declare global {
   const useBroadcastChannel: typeof import('@vueuse/core')['useBroadcastChannel']
   const useBrowserLocation: typeof import('@vueuse/core')['useBrowserLocation']
   const useCached: typeof import('@vueuse/core')['useCached']
+  const useChatImageUpload: typeof import('./composables/useChatImageUpload')['useChatImageUpload']
+  const useClientAuthSession: typeof import('./composables/useClientAuthSession')['useClientAuthSession']
   const useClipboard: typeof import('@vueuse/core')['useClipboard']
   const useClipboardItems: typeof import('@vueuse/core')['useClipboardItems']
   const useCloned: typeof import('@vueuse/core')['useCloned']
@@ -307,6 +413,7 @@ declare global {
   const useQuickPrompts: typeof import('./composables/useQuickPrompts')['useQuickPrompts']
   const useRafFn: typeof import('@vueuse/core')['useRafFn']
   const useRefHistory: typeof import('@vueuse/core')['useRefHistory']
+  const useReportTypeStore: typeof import('./store/reportTypes')['useReportTypeStore']
   const useRequest: typeof import('alova/client')['useRequest']
   const useResizeObserver: typeof import('@vueuse/core')['useResizeObserver']
   const useRoute: typeof import('@wot-ui/router')['useRoute']
@@ -316,6 +423,7 @@ declare global {
   const useScriptTag: typeof import('@vueuse/core')['useScriptTag']
   const useScroll: typeof import('@vueuse/core')['useScroll']
   const useScrollLock: typeof import('@vueuse/core')['useScrollLock']
+  const useSelectableDepartments: typeof import('./composables/useSelectableDepartments')['useSelectableDepartments']
   const useSessionStorage: typeof import('@vueuse/core')['useSessionStorage']
   const useShare: typeof import('@vueuse/core')['useShare']
   const useSlots: typeof import('vue')['useSlots']
@@ -365,6 +473,7 @@ declare global {
   const useWindowFocus: typeof import('@vueuse/core')['useWindowFocus']
   const useWindowScroll: typeof import('@vueuse/core')['useWindowScroll']
   const useWindowSize: typeof import('@vueuse/core')['useWindowSize']
+  const visionFailureMessage: typeof import('./utils/aiVision')['visionFailureMessage']
   const watch: typeof import('vue')['watch']
   const watchArray: typeof import('@vueuse/core')['watchArray']
   const watchAtMost: typeof import('@vueuse/core')['watchAtMost']
@@ -380,6 +489,7 @@ declare global {
   const watchThrottled: typeof import('@vueuse/core')['watchThrottled']
   const watchTriggerable: typeof import('@vueuse/core')['watchTriggerable']
   const watchWithFilter: typeof import('@vueuse/core')['watchWithFilter']
+  const wechatLoginRequiresDepartment: typeof import('./utils/wechatPhoneLogin')['wechatLoginRequiresDepartment']
   const whenever: typeof import('@vueuse/core')['whenever']
   const withConfigType: typeof import('./api/createApis')['withConfigType']
 }
@@ -395,23 +505,61 @@ declare module 'vue' {
   interface GlobalComponents {}
   interface ComponentCustomProperties {
     readonly $$userConfigMap: UnwrapRef<typeof import('./api/index')['$$userConfigMap']>
+    readonly AGREEMENT_REQUIRED_MESSAGE: UnwrapRef<typeof import('./utils/wechatPhoneLogin')['AGREEMENT_REQUIRED_MESSAGE']>
     readonly ASSISTANT_STORE_ID: UnwrapRef<typeof import('./store/user-scoped-state')['ASSISTANT_STORE_ID']>
     readonly AUTH_STORE_ID: UnwrapRef<typeof import('./store/user-scoped-state')['AUTH_STORE_ID']>
     readonly Apis: UnwrapRef<typeof import('./api/index')['Apis']>
+    readonly COMPARISON_CONFIRM_LABEL: UnwrapRef<typeof import('./utils/aiComparison')['COMPARISON_CONFIRM_LABEL']>
+    readonly COMPARISON_INTRO: UnwrapRef<typeof import('./utils/aiComparison')['COMPARISON_INTRO']>
+    readonly COMPARISON_MISSING_VALUE: UnwrapRef<typeof import('./utils/aiComparison')['COMPARISON_MISSING_VALUE']>
+    readonly COMPARISON_THERMAL_NOTE: UnwrapRef<typeof import('./utils/aiComparison')['COMPARISON_THERMAL_NOTE']>
+    readonly CONFIRMED_MEMORY_ORDER: UnwrapRef<typeof import('./utils/aiAgentUi')['CONFIRMED_MEMORY_ORDER']>
     readonly CommonUtil: UnwrapRef<typeof import('@wot-ui/ui')['CommonUtil']>
+    readonly DEFAULT_STATUS_COPY: UnwrapRef<typeof import('./utils/aiAnswerUx')['DEFAULT_STATUS_COPY']>
+    readonly EPHEMERAL_WECHAT_CODE_FIELDS: UnwrapRef<typeof import('./utils/wechatPhoneLogin')['EPHEMERAL_WECHAT_CODE_FIELDS']>
     readonly EffectScope: UnwrapRef<typeof import('vue')['EffectScope']>
+    readonly MEMORY_TYPE_LABELS: UnwrapRef<typeof import('./utils/aiAgentUi')['MEMORY_TYPE_LABELS']>
+    readonly NO_DEPARTMENT_HINT: UnwrapRef<typeof import('./utils/projectVisibility')['NO_DEPARTMENT_HINT']>
+    readonly PASSWORD_NOT_SET_MESSAGE: UnwrapRef<typeof import('./utils/wechatPhoneLogin')['PASSWORD_NOT_SET_MESSAGE']>
+    readonly PROJECT_WRITE_VISIBILITIES: UnwrapRef<typeof import('./utils/projectVisibility')['PROJECT_WRITE_VISIBILITIES']>
+    readonly REPORT_COMPLETED_MESSAGE: UnwrapRef<typeof import('./utils/aiReportTask')['REPORT_COMPLETED_MESSAGE']>
+    readonly REPORT_STATUS_COPY: UnwrapRef<typeof import('./utils/aiAnswerUx')['REPORT_STATUS_COPY']>
+    readonly REPORT_TASK_COPY: UnwrapRef<typeof import('./utils/aiReportTask')['REPORT_TASK_COPY']>
+    readonly REPORT_TASK_STATUSES: UnwrapRef<typeof import('./utils/aiReportTask')['REPORT_TASK_STATUSES']>
     readonly UPLOAD_PHASE_LABELS: UnwrapRef<typeof import('./composables/useFileUpload')['UPLOAD_PHASE_LABELS']>
+    readonly USER_SELECTION_KINDS: UnwrapRef<typeof import('./utils/aiUserSelection')['USER_SELECTION_KINDS']>
+    readonly WECHAT_LOGIN_FAILED_MESSAGE: UnwrapRef<typeof import('./utils/wechatPhoneLogin')['WECHAT_LOGIN_FAILED_MESSAGE']>
+    readonly WECHAT_PHONE_AUTH_DENIED_MESSAGE: UnwrapRef<typeof import('./utils/wechatPhoneLogin')['WECHAT_PHONE_AUTH_DENIED_MESSAGE']>
+    readonly WECHAT_UNSUPPORTED_MESSAGE: UnwrapRef<typeof import('./utils/wechatPhoneLogin')['WECHAT_UNSUPPORTED_MESSAGE']>
     readonly acceptHMRUpdate: UnwrapRef<typeof import('pinia')['acceptHMRUpdate']>
+    readonly agentActiveLabel: UnwrapRef<typeof import('./utils/aiAgentUi')['agentActiveLabel']>
+    readonly agentDoneLabel: UnwrapRef<typeof import('./utils/aiAgentUi')['agentDoneLabel']>
     readonly aiApi: UnwrapRef<typeof import('./api/index')['aiApi']>
     readonly alovaInstance: UnwrapRef<typeof import('./api/index')['alovaInstance']>
     readonly api: UnwrapRef<typeof import('./api/index')['default']>
     readonly apiDefinitions: UnwrapRef<typeof import('./api/apiDefinitions')['default']>
+    readonly appendAssistantDelta: UnwrapRef<typeof import('./utils/aiAnswerUx')['appendAssistantDelta']>
+    readonly applyAuthRedirect: UnwrapRef<typeof import('./utils/authRedirect')['applyAuthRedirect']>
+    readonly applyToolResult: UnwrapRef<typeof import('./utils/aiAgentUi')['applyToolResult']>
+    readonly applyToolStart: UnwrapRef<typeof import('./utils/aiAgentUi')['applyToolStart']>
     readonly asyncComputed: UnwrapRef<typeof import('@vueuse/core')['asyncComputed']>
     readonly authApi: UnwrapRef<typeof import('./api/index')['authApi']>
     readonly autoResetRef: UnwrapRef<typeof import('@vueuse/core')['autoResetRef']>
+    readonly autoSelectDepartmentId: UnwrapRef<typeof import('./utils/projectVisibility')['autoSelectDepartmentId']>
+    readonly autoSelectWhenSingleOption: UnwrapRef<typeof import('./utils/aiUserSelection')['autoSelectWhenSingleOption']>
+    readonly buildAuthPageLocation: UnwrapRef<typeof import('./utils/authRedirect')['buildAuthPageLocation']>
+    readonly buildClientPasswordSmsBody: UnwrapRef<typeof import('./utils/clientPassword')['buildClientPasswordSmsBody']>
+    readonly buildProjectVisibilityPayload: UnwrapRef<typeof import('./utils/projectVisibility')['buildProjectVisibilityPayload']>
+    readonly buildRegisterPasswordBody: UnwrapRef<typeof import('./utils/clientRegister')['buildRegisterPasswordBody']>
+    readonly buildSendPasswordSmsBody: UnwrapRef<typeof import('./utils/clientPassword')['buildSendPasswordSmsBody']>
+    readonly canConfirmComparison: UnwrapRef<typeof import('./utils/aiComparison')['canConfirmComparison']>
+    readonly canConfirmSelection: UnwrapRef<typeof import('./utils/aiUserSelection')['canConfirmSelection']>
     readonly canOpenOriginal: UnwrapRef<typeof import('./utils/aiSource')['canOpenOriginal']>
+    readonly canSelectDepartmentVisibility: UnwrapRef<typeof import('./utils/projectVisibility')['canSelectDepartmentVisibility']>
+    readonly clearLoginRedirect: UnwrapRef<typeof import('./utils/authRedirect')['clearLoginRedirect']>
     readonly clearQuickPromptCache: UnwrapRef<typeof import('./composables/useQuickPrompts')['clearQuickPromptCache']>
     readonly compactQuery: UnwrapRef<typeof import('./utils/aiSource')['compactQuery']>
+    readonly comparisonIdentity: UnwrapRef<typeof import('./utils/aiComparison')['comparisonIdentity']>
     readonly computed: UnwrapRef<typeof import('vue')['computed']>
     readonly computedAsync: UnwrapRef<typeof import('@vueuse/core')['computedAsync']>
     readonly computedEager: UnwrapRef<typeof import('@vueuse/core')['computedEager']>
@@ -434,37 +582,68 @@ declare module 'vue' {
     readonly customRef: UnwrapRef<typeof import('vue')['customRef']>
     readonly debouncedRef: UnwrapRef<typeof import('@vueuse/core')['debouncedRef']>
     readonly debouncedWatch: UnwrapRef<typeof import('@vueuse/core')['debouncedWatch']>
+    readonly dedupeAiSources: UnwrapRef<typeof import('./utils/aiAgentUi')['dedupeAiSources']>
+    readonly defaultConfirmAction: UnwrapRef<typeof import('./utils/aiUserSelection')['defaultConfirmAction']>
+    readonly defaultSelectionTitle: UnwrapRef<typeof import('./utils/aiUserSelection')['defaultSelectionTitle']>
     readonly defineAsyncComponent: UnwrapRef<typeof import('vue')['defineAsyncComponent']>
     readonly defineComponent: UnwrapRef<typeof import('vue')['defineComponent']>
     readonly defineStore: UnwrapRef<typeof import('pinia')['defineStore']>
+    readonly describeAuthFailure: UnwrapRef<typeof import('./utils/wechatPhoneLogin')['describeAuthFailure']>
+    readonly describePasswordStatus: UnwrapRef<typeof import('./utils/clientPassword')['describePasswordStatus']>
     readonly discardUserScopedClientState: UnwrapRef<typeof import('./store/user-scoped-state')['discardUserScopedClientState']>
     readonly eagerComputed: UnwrapRef<typeof import('@vueuse/core')['eagerComputed']>
     readonly effectScope: UnwrapRef<typeof import('vue')['effectScope']>
     readonly extendRef: UnwrapRef<typeof import('@vueuse/core')['extendRef']>
     readonly fileApi: UnwrapRef<typeof import('./api/index')['fileApi']>
+    readonly formatComparisonCell: UnwrapRef<typeof import('./utils/aiComparison')['formatComparisonCell']>
+    readonly formatConfirmedCount: UnwrapRef<typeof import('./utils/aiComparison')['formatConfirmedCount']>
+    readonly formatDepartmentVisibilityDetails: UnwrapRef<typeof import('./utils/projectVisibility')['formatDepartmentVisibilityDetails']>
+    readonly formatRelativeTime: UnwrapRef<typeof import('./utils/index')['formatRelativeTime']>
+    readonly formatReportCompletedMessage: UnwrapRef<typeof import('./utils/aiAnswerUx')['formatReportCompletedMessage']>
+    readonly formatScheme: UnwrapRef<typeof import('./utils/aiAgentUi')['formatScheme']>
+    readonly formatSelectedCount: UnwrapRef<typeof import('./utils/aiComparison')['formatSelectedCount']>
+    readonly fromParsedWaiting: UnwrapRef<typeof import('./utils/aiUserSelection')['fromParsedWaiting']>
     readonly getActivePinia: UnwrapRef<typeof import('pinia')['getActivePinia']>
     readonly getCurrentInstance: UnwrapRef<typeof import('vue')['getCurrentInstance']>
     readonly getCurrentPath: UnwrapRef<typeof import('./utils/index')['getCurrentPath']>
     readonly getCurrentScope: UnwrapRef<typeof import('vue')['getCurrentScope']>
+    readonly getLoginRedirect: UnwrapRef<typeof import('./utils/authRedirect')['getLoginRedirect']>
     readonly h: UnwrapRef<typeof import('vue')['h']>
     readonly ignorableWatch: UnwrapRef<typeof import('@vueuse/core')['ignorableWatch']>
     readonly inject: UnwrapRef<typeof import('vue')['inject']>
     readonly injectLocal: UnwrapRef<typeof import('@vueuse/core')['injectLocal']>
     readonly isDefined: UnwrapRef<typeof import('@vueuse/core')['isDefined']>
+    readonly isForbiddenCompareDimensionKey: UnwrapRef<typeof import('./utils/aiComparison')['isForbiddenCompareDimensionKey']>
+    readonly isInProgressReportStatus: UnwrapRef<typeof import('./utils/aiReportTask')['isInProgressReportStatus']>
+    readonly isLegacyPublicVisibility: UnwrapRef<typeof import('./utils/projectVisibility')['isLegacyPublicVisibility']>
+    readonly isProductSelection: UnwrapRef<typeof import('./utils/aiAgentUi')['isProductSelection']>
     readonly isProxy: UnwrapRef<typeof import('vue')['isProxy']>
     readonly isReactive: UnwrapRef<typeof import('vue')['isReactive']>
     readonly isReadonly: UnwrapRef<typeof import('vue')['isReadonly']>
     readonly isRef: UnwrapRef<typeof import('vue')['isRef']>
+    readonly isReportDump: UnwrapRef<typeof import('./utils/aiAnswerUx')['isReportDump']>
+    readonly isReportTool: UnwrapRef<typeof import('./utils/aiAgentUi')['isReportTool']>
+    readonly isSourceInquiry: UnwrapRef<typeof import('./utils/aiAnswerUx')['isSourceInquiry']>
+    readonly isTabBarPath: UnwrapRef<typeof import('./utils/authRedirect')['isTabBarPath']>
+    readonly isTerminalReportStatus: UnwrapRef<typeof import('./utils/aiReportTask')['isTerminalReportStatus']>
+    readonly isUserFacingStatusText: UnwrapRef<typeof import('./utils/aiAgentUi')['isUserFacingStatusText']>
+    readonly isUserSelectionKind: UnwrapRef<typeof import('./utils/aiUserSelection')['isUserSelectionKind']>
+    readonly isVisibleSelection: UnwrapRef<typeof import('./utils/aiAgentUi')['isVisibleSelection']>
+    readonly isVisionFailure: UnwrapRef<typeof import('./utils/aiVision')['isVisionFailure']>
+    readonly isWriteVisibility: UnwrapRef<typeof import('./utils/projectVisibility')['isWriteVisibility']>
     readonly makeDestructurable: UnwrapRef<typeof import('@vueuse/core')['makeDestructurable']>
     readonly mapActions: UnwrapRef<typeof import('pinia')['mapActions']>
     readonly mapGetters: UnwrapRef<typeof import('pinia')['mapGetters']>
+    readonly mapReportTaskStatus: UnwrapRef<typeof import('./utils/aiReportTask')['mapReportTaskStatus']>
     readonly mapState: UnwrapRef<typeof import('pinia')['mapState']>
     readonly mapStores: UnwrapRef<typeof import('pinia')['mapStores']>
     readonly mapWritableState: UnwrapRef<typeof import('pinia')['mapWritableState']>
     readonly markRaw: UnwrapRef<typeof import('vue')['markRaw']>
-    readonly markdownStyle: UnwrapRef<typeof import('./utils/markdown')['markdownStyle']>
+    readonly markdownTagStyle: UnwrapRef<typeof import('./utils/markdown')['markdownTagStyle']>
     readonly markdownToPlainText: UnwrapRef<typeof import('./utils/markdown')['markdownToPlainText']>
+    readonly memoryStatusLabel: UnwrapRef<typeof import('./utils/aiAgentUi')['memoryStatusLabel']>
     readonly mountApis: UnwrapRef<typeof import('./api/createApis')['mountApis']>
+    readonly nextSelectedIds: UnwrapRef<typeof import('./utils/aiUserSelection')['nextSelectedIds']>
     readonly nextTick: UnwrapRef<typeof import('vue')['nextTick']>
     readonly normalizeAiSource: UnwrapRef<typeof import('./utils/aiSource')['normalizeAiSource']>
     readonly normalizeAiSources: UnwrapRef<typeof import('./utils/aiSource')['normalizeAiSources']>
@@ -509,9 +688,26 @@ declare module 'vue' {
     readonly onUnload: UnwrapRef<typeof import('@dcloudio/uni-app')['onUnload']>
     readonly onUnmounted: UnwrapRef<typeof import('vue')['onUnmounted']>
     readonly onUpdated: UnwrapRef<typeof import('vue')['onUpdated']>
+    readonly optionMetaLines: UnwrapRef<typeof import('./utils/aiUserSelection')['optionMetaLines']>
+    readonly parseConfirmAction: UnwrapRef<typeof import('./utils/aiUserSelection')['parseConfirmAction']>
+    readonly parseNeedUserInput: UnwrapRef<typeof import('./utils/aiAgentUi')['parseNeedUserInput']>
+    readonly parseProductCards: UnwrapRef<typeof import('./utils/aiComparison')['parseProductCards']>
+    readonly parseProductComparison: UnwrapRef<typeof import('./utils/aiComparison')['parseProductComparison']>
+    readonly parseRedirectTarget: UnwrapRef<typeof import('./utils/authRedirect')['parseRedirectTarget']>
+    readonly parseSelectionOptions: UnwrapRef<typeof import('./utils/aiUserSelection')['parseSelectionOptions']>
+    readonly parseStreamEvent: UnwrapRef<typeof import('./utils/aiStream')['parseStreamEvent']>
+    readonly parseThermalRows: UnwrapRef<typeof import('./utils/aiComparison')['parseThermalRows']>
+    readonly parseUserSelectionRequest: UnwrapRef<typeof import('./utils/aiUserSelection')['parseUserSelectionRequest']>
     readonly pausableWatch: UnwrapRef<typeof import('@vueuse/core')['pausableWatch']>
     readonly persistPlugin: UnwrapRef<typeof import('./store/persist')['persistPlugin']>
+    readonly planWechatPhoneLogin: UnwrapRef<typeof import('./utils/wechatPhoneLogin')['planWechatPhoneLogin']>
+    readonly postLoginRoute: UnwrapRef<typeof import('./utils/wechatPhoneLogin')['postLoginRoute']>
+    readonly previousUserText: UnwrapRef<typeof import('./utils/aiAnswerUx')['previousUserText']>
+    readonly profileApi: UnwrapRef<typeof import('./api/index')['profileApi']>
     readonly projectApi: UnwrapRef<typeof import('./api/index')['projectApi']>
+    readonly projectListApiName: UnwrapRef<typeof import('./utils/projectVisibility')['projectListApiName']>
+    readonly projectVisibilityLabel: UnwrapRef<typeof import('./utils/projectVisibility')['projectVisibilityLabel']>
+    readonly projectVisibilityTone: UnwrapRef<typeof import('./utils/projectVisibility')['projectVisibilityTone']>
     readonly provide: UnwrapRef<typeof import('vue')['provide']>
     readonly provideLocal: UnwrapRef<typeof import('@vueuse/core')['provideLocal']>
     readonly reactify: UnwrapRef<typeof import('@vueuse/core')['reactify']>
@@ -528,24 +724,41 @@ declare module 'vue' {
     readonly refDefault: UnwrapRef<typeof import('@vueuse/core')['refDefault']>
     readonly refThrottled: UnwrapRef<typeof import('@vueuse/core')['refThrottled']>
     readonly refWithControl: UnwrapRef<typeof import('@vueuse/core')['refWithControl']>
+    readonly rememberLoginRedirect: UnwrapRef<typeof import('./utils/authRedirect')['rememberLoginRedirect']>
     readonly renderMarkdown: UnwrapRef<typeof import('./utils/markdown')['renderMarkdown']>
     readonly reportApi: UnwrapRef<typeof import('./api/index')['reportApi']>
+    readonly reportTaskTitle: UnwrapRef<typeof import('./utils/aiReportTask')['reportTaskTitle']>
+    readonly reportTitleFromUnknown: UnwrapRef<typeof import('./utils/aiAgentUi')['reportTitleFromUnknown']>
     readonly request: UnwrapRef<typeof import('./api/request')['request']>
     readonly resolveAiSourceLocator: UnwrapRef<typeof import('./utils/aiSource')['resolveAiSourceLocator']>
+    readonly resolveComparisonAttachAction: UnwrapRef<typeof import('./utils/aiAnswerUx')['resolveComparisonAttachAction']>
     readonly resolveComponent: UnwrapRef<typeof import('vue')['resolveComponent']>
+    readonly resolveDepartmentName: UnwrapRef<typeof import('./utils/projectVisibility')['resolveDepartmentName']>
+    readonly resolveProjectListKind: UnwrapRef<typeof import('./utils/projectVisibility')['resolveProjectListKind']>
     readonly resolveRef: UnwrapRef<typeof import('@vueuse/core')['resolveRef']>
     readonly resolveUnref: UnwrapRef<typeof import('@vueuse/core')['resolveUnref']>
+    readonly restoreAssistantContent: UnwrapRef<typeof import('./utils/aiAnswerUx')['restoreAssistantContent']>
+    readonly sameProductCards: UnwrapRef<typeof import('./utils/aiAnswerUx')['sameProductCards']>
+    readonly sanitizeRedirect: UnwrapRef<typeof import('./utils/authRedirect')['sanitizeRedirect']>
+    readonly selectedProductNames: UnwrapRef<typeof import('./utils/aiComparison')['selectedProductNames']>
+    readonly selectionResumeAction: UnwrapRef<typeof import('./utils/aiUserSelection')['selectionResumeAction']>
+    readonly sessionStoresWechatCodes: UnwrapRef<typeof import('./utils/wechatPhoneLogin')['sessionStoresWechatCodes']>
     readonly setActivePinia: UnwrapRef<typeof import('pinia')['setActivePinia']>
     readonly setMapStoreSuffix: UnwrapRef<typeof import('pinia')['setMapStoreSuffix']>
     readonly shallowReactive: UnwrapRef<typeof import('vue')['shallowReactive']>
     readonly shallowReadonly: UnwrapRef<typeof import('vue')['shallowReadonly']>
     readonly shallowRef: UnwrapRef<typeof import('vue')['shallowRef']>
     readonly shareApi: UnwrapRef<typeof import('./api/index')['shareApi']>
+    readonly shouldAttachProductCards: UnwrapRef<typeof import('./utils/aiAnswerUx')['shouldAttachProductCards']>
+    readonly shouldAutoSelectWhenSingle: UnwrapRef<typeof import('./utils/aiUserSelection')['shouldAutoSelectWhenSingle']>
     readonly shouldDiscardAssistantState: UnwrapRef<typeof import('./store/user-scoped-state')['shouldDiscardAssistantState']>
+    readonly shouldExposeWechatQuickLogin: UnwrapRef<typeof import('./utils/wechatPhoneLogin')['shouldExposeWechatQuickLogin']>
+    readonly shouldPollReportStatus: UnwrapRef<typeof import('./utils/aiReportTask')['shouldPollReportStatus']>
     readonly sourceChapterPath: UnwrapRef<typeof import('./utils/aiSource')['sourceChapterPath']>
     readonly sourceFromRetrieval: UnwrapRef<typeof import('./utils/aiSource')['sourceFromRetrieval']>
     readonly sourcePageLabel: UnwrapRef<typeof import('./utils/aiSource')['sourcePageLabel']>
     readonly sourceQuote: UnwrapRef<typeof import('./utils/aiSource')['sourceQuote']>
+    readonly splitAnswerLayers: UnwrapRef<typeof import('./utils/aiAnswerUx')['splitAnswerLayers']>
     readonly storeToRefs: UnwrapRef<typeof import('pinia')['storeToRefs']>
     readonly syncRef: UnwrapRef<typeof import('@vueuse/core')['syncRef']>
     readonly syncRefs: UnwrapRef<typeof import('@vueuse/core')['syncRefs']>
@@ -564,6 +777,7 @@ declare module 'vue' {
     readonly tryOnMounted: UnwrapRef<typeof import('@vueuse/core')['tryOnMounted']>
     readonly tryOnScopeDispose: UnwrapRef<typeof import('@vueuse/core')['tryOnScopeDispose']>
     readonly tryOnUnmounted: UnwrapRef<typeof import('@vueuse/core')['tryOnUnmounted']>
+    readonly uniqueSelectedIds: UnwrapRef<typeof import('./utils/aiUserSelection')['uniqueSelectedIds']>
     readonly unref: UnwrapRef<typeof import('vue')['unref']>
     readonly unrefElement: UnwrapRef<typeof import('@vueuse/core')['unrefElement']>
     readonly until: UnwrapRef<typeof import('@vueuse/core')['until']>
@@ -600,6 +814,8 @@ declare module 'vue' {
     readonly useBroadcastChannel: UnwrapRef<typeof import('@vueuse/core')['useBroadcastChannel']>
     readonly useBrowserLocation: UnwrapRef<typeof import('@vueuse/core')['useBrowserLocation']>
     readonly useCached: UnwrapRef<typeof import('@vueuse/core')['useCached']>
+    readonly useChatImageUpload: UnwrapRef<typeof import('./composables/useChatImageUpload')['useChatImageUpload']>
+    readonly useClientAuthSession: UnwrapRef<typeof import('./composables/useClientAuthSession')['useClientAuthSession']>
     readonly useClipboard: UnwrapRef<typeof import('@vueuse/core')['useClipboard']>
     readonly useClipboardItems: UnwrapRef<typeof import('@vueuse/core')['useClipboardItems']>
     readonly useCloned: UnwrapRef<typeof import('@vueuse/core')['useCloned']>
@@ -696,6 +912,7 @@ declare module 'vue' {
     readonly useQuickPrompts: UnwrapRef<typeof import('./composables/useQuickPrompts')['useQuickPrompts']>
     readonly useRafFn: UnwrapRef<typeof import('@vueuse/core')['useRafFn']>
     readonly useRefHistory: UnwrapRef<typeof import('@vueuse/core')['useRefHistory']>
+    readonly useReportTypeStore: UnwrapRef<typeof import('./store/reportTypes')['useReportTypeStore']>
     readonly useRequest: UnwrapRef<typeof import('alova/client')['useRequest']>
     readonly useResizeObserver: UnwrapRef<typeof import('@vueuse/core')['useResizeObserver']>
     readonly useRoute: UnwrapRef<typeof import('@wot-ui/router')['useRoute']>
@@ -705,6 +922,7 @@ declare module 'vue' {
     readonly useScriptTag: UnwrapRef<typeof import('@vueuse/core')['useScriptTag']>
     readonly useScroll: UnwrapRef<typeof import('@vueuse/core')['useScroll']>
     readonly useScrollLock: UnwrapRef<typeof import('@vueuse/core')['useScrollLock']>
+    readonly useSelectableDepartments: UnwrapRef<typeof import('./composables/useSelectableDepartments')['useSelectableDepartments']>
     readonly useSessionStorage: UnwrapRef<typeof import('@vueuse/core')['useSessionStorage']>
     readonly useShare: UnwrapRef<typeof import('@vueuse/core')['useShare']>
     readonly useSlots: UnwrapRef<typeof import('vue')['useSlots']>
@@ -754,6 +972,7 @@ declare module 'vue' {
     readonly useWindowFocus: UnwrapRef<typeof import('@vueuse/core')['useWindowFocus']>
     readonly useWindowScroll: UnwrapRef<typeof import('@vueuse/core')['useWindowScroll']>
     readonly useWindowSize: UnwrapRef<typeof import('@vueuse/core')['useWindowSize']>
+    readonly visionFailureMessage: UnwrapRef<typeof import('./utils/aiVision')['visionFailureMessage']>
     readonly watch: UnwrapRef<typeof import('vue')['watch']>
     readonly watchArray: UnwrapRef<typeof import('@vueuse/core')['watchArray']>
     readonly watchAtMost: UnwrapRef<typeof import('@vueuse/core')['watchAtMost']>
@@ -769,6 +988,7 @@ declare module 'vue' {
     readonly watchThrottled: UnwrapRef<typeof import('@vueuse/core')['watchThrottled']>
     readonly watchTriggerable: UnwrapRef<typeof import('@vueuse/core')['watchTriggerable']>
     readonly watchWithFilter: UnwrapRef<typeof import('@vueuse/core')['watchWithFilter']>
+    readonly wechatLoginRequiresDepartment: UnwrapRef<typeof import('./utils/wechatPhoneLogin')['wechatLoginRequiresDepartment']>
     readonly whenever: UnwrapRef<typeof import('@vueuse/core')['whenever']>
     readonly withConfigType: UnwrapRef<typeof import('./api/createApis')['withConfigType']>
   }

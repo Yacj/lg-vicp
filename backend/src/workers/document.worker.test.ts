@@ -10,7 +10,7 @@ vi.hoisted(() => {
   process.env.STORAGE_SECRET_KEY = "test-secret";
   process.env.BOOTSTRAP_ADMIN_PASSWORD = "test-admin-password";
 });
-import { splitText, worksheetToSheetData } from "./document.worker.js";
+import { partitionParsedPages, splitText, worksheetToSheetData } from "./document.worker.js";
 
 describe("知识文本切片", () => {
   it("保留全部文本并限制单片长度", () => {
@@ -80,5 +80,20 @@ describe("exceljs 工作表转纯数据", () => {
       model: { merges: [] }
     } as any;
     expect(worksheetToSheetData(worksheet).rows).toEqual([]);
+  });
+});
+
+describe("DOCX 文本与知识页分离", () => {
+  it("page 为空时不生成第 0 页，全文留给检索", () => {
+    const result = partitionParsedPages([{ page: null, text: "保温构造说明" }]);
+    expect(result.originalPages).toEqual([]);
+    expect(result.contentPages).toEqual([]);
+    expect(result.documentText).toBe("保温构造说明");
+  });
+
+  it("稳定页码仍作为知识页", () => {
+    const result = partitionParsedPages([{ page: 2, text: "第二页" }]);
+    expect(result.originalPages.map((page) => page.physical)).toEqual([2]);
+    expect(result.documentText).toBeUndefined();
   });
 });

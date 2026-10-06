@@ -1,3 +1,4 @@
+import { resolveApiBaseURL } from '@/api/core/base-url'
 import { redirectAfterSessionExpiry } from '@/api/core/handlers'
 
 export type ClientPlatform = 'h5' | 'mp-weixin' | 'app' | 'other'
@@ -51,7 +52,7 @@ export function isApp() {
   return getPlatformInfo().platform === 'app'
 }
 
-export type AiStreamKind = 'send' | 'regenerate'
+export type AiStreamKind = 'send' | 'regenerate' | 'resume'
 
 export interface AiStreamOptions {
   kind: AiStreamKind
@@ -59,8 +60,20 @@ export interface AiStreamOptions {
   conversationId?: string
   /** kind = 'regenerate' 时必填 */
   messageId?: string
-  /** kind = 'send' 时必填 */
+  /** kind = 'resume' 时必填 */
+  agentRunId?: string
+  /** kind = 'send' | 'resume' 时必填 */
   content?: string
+  attachmentFileIds?: string[]
+  optionId?: string
+  optionIds?: string[]
+  selectedIds?: string[]
+  selectedProductIds?: string[]
+  selectionKind?: string
+  action?: 'SELECT_PRODUCTS' | 'GENERATE_REPORT' | 'SELECT_KNOWLEDGE_SOURCES'
+  confirmAction?: 'CONTINUE' | 'GENERATE_REPORT'
+  /** kind = 'regenerate' 时可选，写入重新生成原因 */
+  reason?: string
   accessToken: string
   onEvent: (event: AiStreamEvent) => void
 }
@@ -71,8 +84,7 @@ export interface AiStreamEvent {
 }
 
 function getApiOrigin() {
-  // 剥离尾部斜杠：VITE_API_BASE_URL 可能以 / 结尾，直接拼接会产生 //api/v1 导致 404
-  return (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000').replace(/\/+$/, '')
+  return resolveApiBaseURL()
 }
 
 function parseEventData(raw: string) {
@@ -281,17 +293,44 @@ interface ChunkCapableRequestTask {
 
 export function createAiStreamRequest(options: AiStreamOptions) {
   const isSend = options.kind === 'send'
+  const isResume = options.kind === 'resume'
   const endpoint = isSend
     ? `/ai/conversations/${encodeURIComponent(options.conversationId || '')}/messages`
-    : `/ai/messages/${encodeURIComponent(options.messageId || '')}/regenerate`
+    : isResume
+      ? `/ai/agent-runs/${encodeURIComponent(options.agentRunId || '')}/resume`
+      : `/ai/messages/${encodeURIComponent(options.messageId || '')}/regenerate`
   const url = `${getApiOrigin()}/api/v1${endpoint}`
   const headers = {
     'Accept': 'text/event-stream',
     'Authorization': `Bearer ${options.accessToken}`,
     'Content-Type': 'application/json',
   }
-  // 声明了 application/json 就必须有 body，空 body 会被后端 400 拒绝；regenerate 无参数时发 {}
-  const body = JSON.stringify(isSend ? { content: options.content } : {})
+  // 声明了 application/json 就必须有 body；send 带问答内容，resume 带确认内容，regenerate 带原因
+  const sendBody = {
+    content: options.content,
+    ...(options.attachmentFileIds?.length ? { attachmentFileIds: options.attachmentFileIds } : {}),
+    ...(options.optionId ? { optionId: options.optionId } : {}),
+    ...(options.optionIds?.length ? { optionIds: options.optionIds } : {}),
+    ...(options.selectedIds?.length ? { selectedIds: options.selectedIds } : {}),
+    ...(options.selectedProductIds?.length ? { selectedProductIds: options.selectedProductIds } : {}),
+    ...(options.selectionKind ? { selectionKind: options.selectionKind } : {}),
+    ...(options.action ? { action: options.action } : {}),
+    ...(options.confirmAction ? { confirmAction: options.confirmAction } : {}),
+  }
+  const resumeBody = {
+    content: options.content,
+    ...(options.optionId ? { optionId: options.optionId } : {}),
+    ...(options.optionIds?.length ? { optionIds: options.optionIds } : {}),
+    ...(options.selectedIds?.length ? { selectedIds: options.selectedIds } : {}),
+    ...(options.selectedProductIds?.length ? { selectedProductIds: options.selectedProductIds } : {}),
+    ...(options.selectionKind ? { selectionKind: options.selectionKind } : {}),
+    ...(options.action ? { action: options.action } : {}),
+    ...(options.confirmAction ? { confirmAction: options.confirmAction } : {}),
+  }
+  const regenerateBody = {
+    reason: options.reason?.trim() || '重新生成',
+  }
+  const body = JSON.stringify(isSend ? sendBody : isResume ? resumeBody : regenerateBody)
   const platform = getPlatformInfo().platform
   const mode: AiStreamMode = platform === 'app' ? 'buffered' : 'stream'
   let abort: (() => void) | undefined

@@ -6,6 +6,7 @@ export const SUPPORTED_FILE_MIME_TYPES = [
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   'image/png',
   'image/jpeg',
+  'image/svg+xml',
 ] as const
 
 export type SupportedFileMimeType = (typeof SUPPORTED_FILE_MIME_TYPES)[number]

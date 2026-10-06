@@ -11,9 +11,11 @@ export type AssistantNavOptions = AssistantNavContext
 export function useAssistantNavigation() {
   const router = useRouter()
   const assistantStore = useAssistantStore()
+  const { setTabbarItemActive } = useTabbar()
 
   function openAssistant(options: AssistantNavOptions = {}) {
     assistantStore.setNavContext(options)
+    setTabbarItemActive('assistant')
     router.pushTab({ name: 'assistant' })
   }
 

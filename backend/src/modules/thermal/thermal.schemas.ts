@@ -103,7 +103,12 @@ export const thermalRowCreateSchema = z.object({
   rawKValue: z.string().trim().min(1).max(80),
   evidenceSource: z.string().trim().min(1).max(500),
   evidenceRef: z.string().trim().min(1).max(120),
-  evidenceLevel: thermalEvidenceLevelSchema.default("A")
+  evidenceLevel: thermalEvidenceLevelSchema.default("A"),
+  catalogProductId: z.uuid().nullable().optional(),
+  sourceDocumentId: z.uuid().nullable().optional(),
+  sourcePageId: z.uuid().nullable().optional(),
+  sourcePageLabel: z.string().trim().max(32).nullable().optional(),
+  sortOrder: z.number().int().min(0).max(99999).optional()
 });
 export const thermalRowUpdateSchema = thermalRowCreateSchema.partial();
 
@@ -123,6 +128,11 @@ export const thermalRowDto = z.object({
   evidenceSource: z.string(),
   evidenceRef: z.string(),
   evidenceLevel: thermalEvidenceLevelSchema,
+  catalogProductId: z.string().uuid().nullable(),
+  sourceDocumentId: z.string().uuid().nullable(),
+  sourcePageId: z.string().uuid().nullable(),
+  sourcePageLabel: z.string().nullable(),
+  sortOrder: z.number(),
   createdById: z.string().uuid().nullable(),
   updatedById: z.string().uuid().nullable(),
   createdAt: z.date(),

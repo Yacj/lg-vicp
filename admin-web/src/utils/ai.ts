@@ -19,11 +19,14 @@ export const AI_SCENE_META: Record<AiScene, { label: string, description: string
   general_chat: { description: '用于普通 AI 对话', label: '通用问答' },
   project_design: { description: '用于结合项目资料分析方案', label: '项目分析' },
   material_compare: { description: '用于材料与设备对比选型', label: '材料对比' },
+  product_consultation: { description: '用于单产品性能、适用场景和优势咨询', label: '产品咨询' },
   standard_qa: { description: '用于查询节能规范和技术要求', label: '规范查询' },
   report_generate: { description: '用于生成节能设计报告与文档', label: '报告生成' },
   information_extract: { description: '用于从资料中抽取结构化信息', label: '信息抽取' },
   conversation_title: { description: '根据会话首条消息自动生成简短标题（内部能力）', label: '会话标题生成' },
   knowledge_qa: { description: '用于查询图集、规范和标准', label: '知识查询' },
+  thermal_calculation: { description: '用于解释热工引擎计算结果', label: '热工计算' },
+  vision_understanding: { description: '用于看图观察与描述', label: '图片理解' },
 }
 
 export const AI_SCENE_OPTIONS = (Object.keys(AI_SCENE_META) as AiScene[]).map(value => ({
@@ -69,6 +72,19 @@ export const AI_MESSAGE_STATUS_META: Record<AiMessageStatus, string> = {
 
 export function getAiMessageStatusLabel(status: AiMessageStatus | string): string {
   return AI_MESSAGE_STATUS_META[status as AiMessageStatus] ?? status
+}
+
+/** 会话运营审计动作标签，对齐后端 AUDIT_ACTIONS 中与会话/消息相关的取值。 */
+export const AI_AUDIT_ACTION_LABELS: Record<string, string> = {
+  'ai.message_blocked': '内容拦截',
+  'ai.message_feedback_upserted': '提交反馈',
+  'ai.message_regenerated': '重新生成',
+  'ai.message_sent': '发送消息',
+  'ai.message_stopped': '停止生成',
+}
+
+export function getAiAuditActionLabel(action: string): string {
+  return AI_AUDIT_ACTION_LABELS[action] ?? action
 }
 
 /** 反馈反应标签，对齐后端 AI_FEEDBACK_REACTIONS。 */
@@ -178,14 +194,41 @@ export const AI_MODEL_CAPABILITY_LABELS: Record<AiCapabilityKey, string> = {
   vision: '视觉',
 }
 
+/** B 端需要明确展示的主能力，顺序固定为 text / vision / tools / reasoning。 */
+export const PRIMARY_MODEL_CAPABILITY_KEYS = ['text', 'vision', 'tools', 'reasoning'] as const
+
+export type PrimaryModelCapabilityKey = (typeof PRIMARY_MODEL_CAPABILITY_KEYS)[number]
+
+export interface PrimaryModelCapabilityState {
+  key: PrimaryModelCapabilityKey
+  label: string
+  enabled: boolean
+}
+
+/** 主能力状态（四个键始终返回，便于模型配置页明确开关）。 */
+export function getPrimaryModelCapabilityStates(
+  capabilities: Record<string, boolean> | undefined | null,
+): PrimaryModelCapabilityState[] {
+  return PRIMARY_MODEL_CAPABILITY_KEYS.map(key => ({
+    enabled: capabilities?.[key] === true,
+    key,
+    label: AI_MODEL_CAPABILITY_LABELS[key],
+  }))
+}
+
 /** 模型能力标签（按固定顺序，仅返回开启项）。 */
 export function getAiModelCapabilityLabels(capabilities: Record<string, boolean> | undefined | null): string[] {
   if (!capabilities) {
     return []
   }
-  return (Object.keys(AI_MODEL_CAPABILITY_LABELS) as AiCapabilityKey[])
+  const primary = getPrimaryModelCapabilityStates(capabilities)
+    .filter(item => item.enabled)
+    .map(item => item.label)
+  const rest = (Object.keys(AI_MODEL_CAPABILITY_LABELS) as AiCapabilityKey[])
+    .filter(key => !PRIMARY_MODEL_CAPABILITY_KEYS.includes(key as PrimaryModelCapabilityKey))
     .filter(key => capabilities[key] === true)
     .map(key => AI_MODEL_CAPABILITY_LABELS[key])
+  return [...primary, ...rest]
 }
 
 /** 提示词版本状态标签，对齐后端 DRAFT/PUBLISHED/DISABLED。 */
@@ -267,7 +310,18 @@ export function summarizeQuickPromptStats(items: readonly Pick<AiQuickPrompt, 'e
 
 export type RuntimeModelHealth = 'ok' | 'disabled' | 'unset'
 
+/** 与后端 DEFAULT_VISION_MODEL_ROLE 对齐：capability=vision 且 code=default_vision 优先。 */
+export const DEFAULT_VISION_MODEL_ROLE = 'default_vision'
+
+/** 与后端 DEFAULT_AGENT_MODEL_ROLE 对齐：capability=tools 且 code=default_agent 优先。 */
+export const DEFAULT_AGENT_MODEL_ROLE = 'default_agent'
+
+export const VISION_MODEL_UNSET_HINT = '尚未配置视觉模型。请先在高级配置中为模型开启「视觉输入」，再在此处指定用于识别对话图片的模型。'
+
+export const AGENT_MODEL_UNSET_HINT = '尚未配置支持工具调用的 Agent 主模型。不支持 Tools 的模型不能被设置为 Agent 主模型。'
+
 export interface RuntimeModelSlot {
+  id: string | null
   label: string
   name: string | null
   status: RuntimeModelHealth
@@ -283,23 +337,132 @@ export function getRuntimeModelHealthLabel(status: RuntimeModelHealth): string {
   return '未设置'
 }
 
+export function pickDefaultVisionModelId(
+  rows: readonly { id: string, code: string | null, capabilities: Record<string, boolean> | null }[],
+): string | null {
+  const vision = rows.filter(row => row.capabilities?.vision === true)
+  return vision.find(row => row.code === DEFAULT_VISION_MODEL_ROLE)?.id
+    ?? vision[0]?.id
+    ?? null
+}
+
+export function planVisionModelAssignment(
+  models: readonly Pick<AiModel, 'id' | 'code' | 'modelId' | 'capabilities'>[],
+  selectedId: string,
+): Array<{ id: string, input: { code: string, capabilities?: Record<string, boolean> } }> {
+  const selected = models.find(model => model.id === selectedId)
+  if (!selected) {
+    return []
+  }
+  const alreadyAssigned = selected.code === DEFAULT_VISION_MODEL_ROLE
+    && !models.some(model => model.id !== selected.id && model.code === DEFAULT_VISION_MODEL_ROLE)
+  if (alreadyAssigned) {
+    return []
+  }
+  const updates: Array<{ id: string, input: { code: string, capabilities?: Record<string, boolean> } }> = []
+  models.forEach((model) => {
+    if (model.id !== selected.id && model.code === DEFAULT_VISION_MODEL_ROLE) {
+      updates.push({ id: model.id, input: { code: model.modelId } })
+    }
+  })
+  updates.push({
+    id: selected.id,
+    input: {
+      capabilities: { ...selected.capabilities, text: true, vision: true },
+      code: DEFAULT_VISION_MODEL_ROLE,
+    },
+  })
+  return updates
+}
+
+export function pickDefaultAgentModelId(
+  rows: readonly { id: string, code: string | null, capabilities: Record<string, boolean> | null }[],
+): string | null {
+  const tools = rows.filter(row => row.capabilities?.tools === true)
+  return tools.find(row => row.code === DEFAULT_AGENT_MODEL_ROLE)?.id
+    ?? tools[0]?.id
+    ?? null
+}
+
+export function canAssignAgentModel(
+  model: Pick<AiModel, 'capabilities'> | undefined,
+): boolean {
+  return model?.capabilities?.tools === true
+}
+
+/** 将 default_agent 角色挪到选定模型；不支持 tools 的模型返回空更新。 */
+export function planAgentModelAssignment(
+  models: readonly Pick<AiModel, 'id' | 'code' | 'modelId' | 'capabilities'>[],
+  selectedId: string,
+): Array<{ id: string, input: { code: string, capabilities?: Record<string, boolean> } }> {
+  const selected = models.find(model => model.id === selectedId)
+  if (!selected || !canAssignAgentModel(selected)) {
+    return []
+  }
+  const alreadyAssigned = selected.code === DEFAULT_AGENT_MODEL_ROLE
+    && !models.some(model => model.id !== selected.id && model.code === DEFAULT_AGENT_MODEL_ROLE)
+  if (alreadyAssigned) {
+    return []
+  }
+  const updates: Array<{ id: string, input: { code: string, capabilities?: Record<string, boolean> } }> = []
+  models.forEach((model) => {
+    if (model.id !== selected.id && model.code === DEFAULT_AGENT_MODEL_ROLE) {
+      updates.push({ id: model.id, input: { code: model.modelId } })
+    }
+  })
+  updates.push({
+    id: selected.id,
+    input: {
+      capabilities: { ...selected.capabilities, text: true, tools: true },
+      code: DEFAULT_AGENT_MODEL_ROLE,
+    },
+  })
+  return updates
+}
+
+export function resolveAgentModelSlot(
+  models: readonly AiModel[],
+): RuntimeModelSlot {
+  const assigned = models.find(model =>
+    model.code === DEFAULT_AGENT_MODEL_ROLE && model.capabilities?.tools === true)
+  const fallback = assigned
+    ? undefined
+    : models.find(model => model.enabled && model.capabilities?.tools === true)
+  const model = assigned ?? fallback
+  if (!model) {
+    return { id: null, label: 'Agent 主模型', name: null, status: 'unset' }
+  }
+  return {
+    id: model.id,
+    label: 'Agent 主模型',
+    name: model.displayName,
+    status: model.enabled ? 'ok' : 'disabled',
+  }
+}
+
 export function resolveRuntimeModelSlots(
   models: readonly AiModel[],
   binding: { primaryModelId: string | null, reasoningModelId: string | null } | null,
-): { defaultModel: RuntimeModelSlot, reasoningModel: RuntimeModelSlot } {
+): { defaultModel: RuntimeModelSlot, reasoningModel: RuntimeModelSlot, visionModel: RuntimeModelSlot } {
   const byId = new Map(models.map(model => [model.id, model]))
   const enabled = models.filter(model => model.enabled)
   const fallbackDefault = binding ? undefined : enabled[0]
   const fallbackReasoning = binding
     ? undefined
     : enabled.find(model => model.capabilities?.reasoning === true)
+  const assignedVision = models.find(model =>
+    model.code === DEFAULT_VISION_MODEL_ROLE && model.capabilities?.vision === true)
+  const fallbackVision = assignedVision
+    ? undefined
+    : enabled.find(model => model.capabilities?.vision === true)
 
   function toSlot(label: string, modelId: string | null, fallback?: AiModel): RuntimeModelSlot {
     const model = (modelId ? byId.get(modelId) : undefined) ?? fallback
     if (!model) {
-      return { label, name: null, status: 'unset' }
+      return { id: null, label, name: null, status: 'unset' }
     }
     return {
+      id: model.id,
       label,
       name: model.displayName,
       status: model.enabled ? 'ok' : 'disabled',
@@ -308,7 +471,8 @@ export function resolveRuntimeModelSlots(
 
   return {
     defaultModel: toSlot('默认模型', binding?.primaryModelId ?? null, fallbackDefault),
-    reasoningModel: toSlot('深度思考', binding?.reasoningModelId ?? null, fallbackReasoning),
+    reasoningModel: toSlot('深度思考模型', binding?.reasoningModelId ?? null, fallbackReasoning),
+    visionModel: toSlot('视觉模型', assignedVision?.id ?? null, fallbackVision),
   }
 }
 

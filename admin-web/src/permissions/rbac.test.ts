@@ -16,6 +16,13 @@ describe('rBAC 精确权限匹配', () => {
     expect(permissionMatches('system:user:list', 'system:user:edit')).toBe(false)
   })
 
+  it('keeps ordinary AI admins away from advanced agent pages', () => {
+    const ordinary = ['system:ai:quick-prompt:list', 'system:ai:model:list']
+    expect(hasAnyPermission(ordinary, ['system:ai:model:edit', 'system:ai:debug:use'])).toBe(false)
+    expect(hasAnyPermission(ordinary, ['system:ai:conversation:list'])).toBe(false)
+    expect(hasAnyPermission(ordinary, ['system:ai:conversation:detail'])).toBe(false)
+  })
+
   it('evaluates page and button permission collections', () => {
     expect(hasPermission(granted, 'system:user:list')).toBe(true)
     expect(hasAnyPermission(granted, ['system:user:edit', 'system:user:list'])).toBe(true)

@@ -1,7 +1,9 @@
 import { and, count, eq, isNull } from "drizzle-orm";
 import type { DbExecutor } from "../../db/client.js";
-import { aiConversations, projects } from "../../db/schema.js";
+import { aiConversations, departments, projects } from "../../db/schema.js";
 import { CLIENT_APPS, PROJECT_VISIBILITY } from "../../shared/constants.js";
+import { buildDepartmentAncestorMap, departmentPathName } from "../../shared/department-tree.js";
+import type { AuthUser } from "../../shared/auth-user.js";
 
 export type ClientProfileSummary = {
   projects: {
@@ -11,6 +13,13 @@ export type ClientProfileSummary = {
   conversations: {
     total: number;
   };
+};
+
+export type ClientSelectableDepartment = {
+  id: string;
+  name: string;
+  pathName: string;
+  hasChildren: boolean;
 };
 
 export async function getClientProfileSummary(input: {
@@ -46,4 +55,34 @@ export async function getClientProfileSummary(input: {
       total: conversationTotalRow?.value ?? 0
     }
   };
+}
+
+/** 仅返回当前用户所属、可用于项目 DEPARTMENT 可见范围的部门，不暴露整棵组织树。 */
+export async function listClientSelectableDepartments(input: {
+  db: DbExecutor;
+  user: Pick<AuthUser, "departmentIds">;
+}): Promise<ClientSelectableDepartment[]> {
+  const userDepartmentIds = [...new Set(input.user.departmentIds ?? [])];
+  if (userDepartmentIds.length === 0) return [];
+
+  const rows = await input.db.select({
+    id: departments.id,
+    parentId: departments.parentId,
+    name: departments.name
+  }).from(departments).where(isNull(departments.deletedAt));
+
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  const ancestorMap = buildDepartmentAncestorMap(rows);
+  const childIds = new Set(rows.map((row) => row.parentId).filter((id): id is string => Boolean(id)));
+
+  return userDepartmentIds.flatMap((id) => {
+    const row = byId.get(id);
+    if (!row) return [];
+    return [{
+      id: row.id,
+      name: row.name,
+      pathName: departmentPathName(row.id, byId, ancestorMap),
+      hasChildren: childIds.has(row.id)
+    }];
+  });
 }

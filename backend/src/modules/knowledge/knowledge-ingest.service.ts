@@ -148,6 +148,7 @@ export async function createBatchImportIntents(
         sizeBytes: item.sizeBytes,
         sha256: item.sha256,
         source: "BATCH_IMPORT",
+        purpose: "KNOWLEDGE_SOURCE",
         status: "UPLOADING"
       });
       await writeAuditLog({
@@ -252,6 +253,7 @@ export async function ingestServerSideFile(
       sizeBytes: input.sizeBytes,
       sha256: actualSha256,
       source: input.source,
+      purpose: "KNOWLEDGE_SOURCE",
       status: "QUEUED"
     }).returning();
     const [job] = await tx.insert(parsingJobs).values({

@@ -24,6 +24,7 @@ import {
   enqueueChunkRebuild,
   enqueueParsing,
   getDocumentDetail,
+  getVersionExtractedText,
   listAliases,
   listCategories,
   listChunkTerms,
@@ -57,6 +58,24 @@ import {
   updateVersionUsageMode,
   verifyVersionPageMappings
 } from "./knowledge-original.service.js";
+import {
+  createManualPage,
+  deleteManualPage,
+  listPageReferenceRows,
+  reorderManualPages,
+  updateManualPage
+} from "./knowledge-page-gallery.service.js";
+import {
+  batchUploadVersionPages,
+  importVersionPagesFromZip
+} from "./knowledge-page-upload.service.js";
+import {
+  confirmPageRecognition,
+  enqueuePageRecognition,
+  getPageRecognition,
+  savePageRecognitionDraft
+} from "./knowledge-page-recognition.service.js";
+import { pageRecognitionResultSchema } from "../../shared/page-recognition.js";
 import { createEvaluation, judgeEvaluation, listEvaluations } from "./knowledge-evaluation.service.js";
 import { getPublicDocumentDetail, getPublicDocumentPage, getPublicDocumentToc, getVersionPageWindow, listDocumentSections, listPublicDocuments } from "./knowledge-wiki-read.service.js";
 import {
@@ -73,6 +92,7 @@ import {
 import {
   createKnowledgeWithFile,
   getDocumentWorkspace,
+  inspectVersionTestQa,
   listVersionChapterTree,
   replaceDocumentFile,
   streamVersionTestQa
@@ -416,6 +436,22 @@ export async function knowledgeRoutes(app: FastifyInstance) {
     await streamVersionTestQa(app, request, reply, actor, request.params.versionId, request.body);
   });
 
+  route.post("/versions/:versionId/test-inspect", {
+    preHandler: [app.authenticate, requireClient(AUTH_CLIENTS.B_ADMIN)],
+    schema: {
+      tags: ["B端 / 平台 / 知识库"],
+      summary: "当前版本检索调试（非流式）：返回 chunks / 页图 / 热工行命中",
+      params: versionParams,
+      body: z.object({
+        query: z.string().trim().min(1, "请输入问题").max(500, "问题不能超过 500 个字符"),
+        limit: z.coerce.number().int().min(1).max(20).default(8)
+      })
+    }
+  }, async (request) => {
+    requirePermission(request, KNOWLEDGE_PERMISSIONS.DOC_TEST);
+    return ok(request, await inspectVersionTestQa(app, request.params.versionId, request.body));
+  });
+
   route.post("/versions/:versionId/chunks/rebuild", {
     preHandler: [app.authenticate, requireClient(AUTH_CLIENTS.B_ADMIN)],
     schema: {
@@ -527,6 +563,19 @@ export async function knowledgeRoutes(app: FastifyInstance) {
       request.query.before,
       request.query.after
     ));
+  });
+
+  // 无页面文档（如 DOCX 不做分页）的阅读视图：按分块顺序返回机器提取文本
+  route.get("/versions/:versionId/extracted-text", {
+    preHandler: [app.authenticate, requireClient(AUTH_CLIENTS.B_ADMIN)],
+    schema: {
+      tags: ["B端 / 平台 / 知识库"],
+      summary: "查看版本机器提取文本（无页面文档的阅读视图）",
+      params: versionParams
+    }
+  }, async (request) => {
+    requirePermission(request, KNOWLEDGE_PERMISSIONS.DOC_LIST);
+    return ok(request, await getVersionExtractedText(app, request.params.versionId));
   });
 
   // 版本 Wiki 章节树（扁平有序，前端按 parentId/level 组树）：按版本读取，
@@ -1195,6 +1244,180 @@ export async function knowledgeRoutes(app: FastifyInstance) {
     return ok(request, await verifyVersionPageMappings(app, request, actor, request.params.versionId, request.body));
   });
 
+  route.post("/versions/:versionId/pages", {
+    preHandler: [app.authenticate, requireClient(AUTH_CLIENTS.B_ADMIN)],
+    schema: {
+      tags: ["B端 / 平台 / 知识库"],
+      summary: "新增人工维护页面并绑定页面图片",
+      params: versionParams,
+      body: z.object({
+        pageNumber: z.number().int().min(1, "页码从 1 开始"),
+        pageLabel: z.string().trim().max(32).nullable().optional(),
+        pageTitle: z.string().trim().max(255).nullable().optional(),
+        parsedText: z.string().max(20000).nullable().optional(),
+        imageFileId: z.uuid("图片文件 ID 格式不正确").nullable().optional()
+      })
+    }
+  }, async (request) => {
+    const actor = requirePermission(request, KNOWLEDGE_PERMISSIONS.PAGE_UPLOAD);
+    return ok(request, { page: await createManualPage(app, request, actor, request.params.versionId, request.body) });
+  });
+
+  route.post("/versions/:versionId/pages/batch-upload", {
+    preHandler: [app.authenticate, requireClient(AUTH_CLIENTS.B_ADMIN)],
+    schema: {
+      tags: ["B端 / 平台 / 知识库"],
+      summary: "批量上传离线页面 PNG/JPG（幂等 upsert，默认排队视觉识别）",
+      params: versionParams,
+      body: z.object({
+        items: z.array(z.object({
+          fileId: z.uuid("图片文件 ID 格式不正确"),
+          physicalPageNumber: z.number().int().min(1).optional(),
+          pageLabel: z.string().trim().max(32).nullable().optional(),
+          pageTitle: z.string().trim().max(255).nullable().optional()
+        })).min(1).max(200),
+        enqueueRecognition: z.boolean().optional()
+      })
+    }
+  }, async (request) => {
+    const actor = requirePermission(request, KNOWLEDGE_PERMISSIONS.PAGE_UPLOAD);
+    return ok(request, await batchUploadVersionPages(
+      app, request, actor, request.params.versionId, request.body.items,
+      { enqueueRecognition: request.body.enqueueRecognition }
+    ));
+  });
+
+  route.post("/versions/:versionId/pages/import-zip", {
+    preHandler: [app.authenticate, requireClient(AUTH_CLIENTS.B_ADMIN)],
+    schema: {
+      tags: ["B端 / 平台 / 知识库"],
+      summary: "ZIP 批量导入页面图片（可选 manifest.json）",
+      params: versionParams,
+      body: z.object({
+        zipFileId: z.uuid("ZIP 文件 ID 格式不正确"),
+        enqueueRecognition: z.boolean().optional()
+      })
+    }
+  }, async (request) => {
+    const actor = requirePermission(request, KNOWLEDGE_PERMISSIONS.PAGE_UPLOAD);
+    return ok(request, await importVersionPagesFromZip(
+      app, request, actor, request.params.versionId, request.body.zipFileId,
+      { enqueueRecognition: request.body.enqueueRecognition }
+    ));
+  });
+
+  route.post("/pages/:pageId/recognize", {
+    preHandler: [app.authenticate, requireClient(AUTH_CLIENTS.B_ADMIN)],
+    schema: {
+      tags: ["B端 / 平台 / 知识库"],
+      summary: "触发页面视觉识别（结果进入候选，不写正式热工行）",
+      params: z.object({ pageId: z.uuid() })
+    }
+  }, async (request) => {
+    const actor = requirePermission(request, KNOWLEDGE_PERMISSIONS.PAGE_RECOGNIZE);
+    return ok(request, await enqueuePageRecognition(app, request, actor, request.params.pageId));
+  });
+
+  route.post("/pages/:pageId/re-recognize", {
+    preHandler: [app.authenticate, requireClient(AUTH_CLIENTS.B_ADMIN)],
+    schema: {
+      tags: ["B端 / 平台 / 知识库"],
+      summary: "重新识别页面（保留已确认快照，新结果进候选）",
+      params: z.object({ pageId: z.uuid() })
+    }
+  }, async (request) => {
+    const actor = requirePermission(request, KNOWLEDGE_PERMISSIONS.PAGE_RECOGNIZE);
+    return ok(request, await enqueuePageRecognition(app, request, actor, request.params.pageId, { reRecognize: true }));
+  });
+
+  route.get("/pages/:pageId/recognition", {
+    preHandler: [app.authenticate, requireClient(AUTH_CLIENTS.B_ADMIN)],
+    schema: {
+      tags: ["B端 / 平台 / 知识库"],
+      summary: "查看页面识别状态与候选/已确认结构化数据",
+      params: z.object({ pageId: z.uuid() })
+    }
+  }, async (request) => {
+    requirePermission(request, KNOWLEDGE_PERMISSIONS.DOC_LIST);
+    return ok(request, await getPageRecognition(app, request.params.pageId));
+  });
+
+  route.put("/pages/:pageId/recognition-draft", {
+    preHandler: [app.authenticate, requireClient(AUTH_CLIENTS.B_ADMIN)],
+    schema: {
+      tags: ["B端 / 平台 / 知识库"],
+      summary: "保存页面识别候选草稿（不写正式热工行）",
+      params: z.object({ pageId: z.uuid() }),
+      body: z.object({
+        structuredData: pageRecognitionResultSchema.optional(),
+        pageLabel: z.string().trim().max(32).nullable().optional(),
+        pageTitle: z.string().trim().max(255).nullable().optional(),
+        parsedText: z.string().max(100000).nullable().optional()
+      })
+    }
+  }, async (request) => {
+    const actor = requirePermission(request, KNOWLEDGE_PERMISSIONS.PAGE_REVIEW);
+    return ok(request, await savePageRecognitionDraft(app, request, actor, request.params.pageId, request.body));
+  });
+
+  route.post("/pages/:pageId/confirm-recognition", {
+    preHandler: [app.authenticate, requireClient(AUTH_CLIENTS.B_ADMIN)],
+    schema: {
+      tags: ["B端 / 平台 / 知识库"],
+      summary: "确认页面识别：生成 page-aware chunks，可选同步 thermal_reference_rows",
+      params: z.object({ pageId: z.uuid() }),
+      body: z.object({
+        thermalSetId: z.uuid().nullable().optional(),
+        structuredData: pageRecognitionResultSchema.optional()
+      }).optional()
+    }
+  }, async (request) => {
+    const actor = requirePermission(request, KNOWLEDGE_PERMISSIONS.PAGE_CONFIRM);
+    return ok(request, await confirmPageRecognition(app, request, actor, request.params.pageId, request.body ?? {}));
+  });
+
+  route.post("/versions/:versionId/pages/reorder", {
+    preHandler: [app.authenticate, requireClient(AUTH_CLIENTS.B_ADMIN)],
+    schema: {
+      tags: ["B端 / 平台 / 知识库"],
+      summary: "调整页面图库顺序",
+      params: versionParams,
+      body: z.object({
+        pageNumbers: z.array(z.object({
+          physicalPageNumber: z.number().int().min(1),
+          pageNumber: z.number().int().min(1)
+        })).min(1).max(2000)
+      })
+    }
+  }, async (request) => {
+    const actor = requirePermission(request, KNOWLEDGE_PERMISSIONS.DOC_UPDATE);
+    return ok(request, await reorderManualPages(app, request, actor, request.params.versionId, request.body.pageNumbers));
+  });
+
+  route.get("/versions/:versionId/pages/:physicalPageNumber/reference-rows", {
+    preHandler: [app.authenticate, requireClient(AUTH_CLIENTS.B_ADMIN)],
+    schema: {
+      tags: ["B端 / 平台 / 知识库"],
+      summary: "查看页面已绑定的热工参考方案",
+      params: versionParams.extend({ physicalPageNumber: z.coerce.number().int().min(1) })
+    }
+  }, async (request) => {
+    requirePermission(request, KNOWLEDGE_PERMISSIONS.DOC_LIST);
+    return ok(request, await listPageReferenceRows(app, request.params.versionId, request.params.physicalPageNumber));
+  });
+
+  route.delete("/versions/:versionId/pages/:physicalPageNumber", {
+    preHandler: [app.authenticate, requireClient(AUTH_CLIENTS.B_ADMIN)],
+    schema: {
+      tags: ["B端 / 平台 / 知识库"],
+      summary: "删除人工维护页面",
+      params: versionParams.extend({ physicalPageNumber: z.coerce.number().int().min(1) })
+    }
+  }, async (request) => {
+    const actor = requirePermission(request, KNOWLEDGE_PERMISSIONS.DOC_UPDATE);
+    return ok(request, await deleteManualPage(app, request, actor, request.params.versionId, request.params.physicalPageNumber));
+  });
+
   route.patch("/versions/:versionId/pages/:physicalPageNumber", {
     preHandler: [app.authenticate, requireClient(AUTH_CLIENTS.B_ADMIN)],
     schema: {
@@ -1203,12 +1426,19 @@ export async function knowledgeRoutes(app: FastifyInstance) {
       params: versionParams.extend({ physicalPageNumber: z.coerce.number().int().min(1, "物理页序号从 1 开始") }),
       body: z.object({
         pageLabel: z.string().trim().max(32, "页码标签不能超过 32 个字符").nullable().optional(),
-        pageTitle: z.string().trim().max(255, "页面标题不能超过 255 个字符").nullable().optional()
+        pageTitle: z.string().trim().max(255, "页面标题不能超过 255 个字符").nullable().optional(),
+        pageNumber: z.number().int().min(1).optional(),
+        parsedText: z.string().max(20000).nullable().optional(),
+        imageFileId: z.uuid("图片文件 ID 格式不正确").nullable().optional()
       })
     }
   }, async (request) => {
     const actor = requirePermission(request, KNOWLEDGE_PERMISSIONS.DOC_UPDATE);
-    return ok(request, { page: await updateVersionPage(app, request, actor, request.params.versionId, request.params.physicalPageNumber, request.body) });
+    const body = request.body;
+    if (body.pageNumber !== undefined || body.parsedText !== undefined || body.imageFileId !== undefined) {
+      return ok(request, { page: await updateManualPage(app, request, actor, request.params.versionId, request.params.physicalPageNumber, body) });
+    }
+    return ok(request, { page: await updateVersionPage(app, request, actor, request.params.versionId, request.params.physicalPageNumber, body) });
   });
 
   route.patch("/versions/:versionId/usage-mode", {

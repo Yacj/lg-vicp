@@ -2,6 +2,8 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import { and, count, desc, eq, inArray, or, ilike, isNull } from "drizzle-orm";
 import type { DbExecutor } from "../../db/client.js";
 import {
+  catalogProducts,
+  productSpecs,
   projects as projectsTable,
   thermalCalcRecords,
   thermalCalcRules,
@@ -25,6 +27,7 @@ import { resolveMaterialFacts, resolveStandardLimit, resolveThermalParameter, ty
 import { getPublishedConstructionSchemeDetail } from "../construction/construction-read.service.js";
 import { effectiveRangeConditions, publishedReferenceConditions } from "../construction/construction-structure.service.js";
 import { listPublishedThermalSets } from "./thermal-read.service.js";
+import { chooseEquivalentParams } from "./thermal-param-source.js";
 import {
   calculateThermal,
   judgeCompliance,
@@ -624,23 +627,54 @@ export async function executeThermalCalc(
         parameterCode: rule.parameterCodes.correctionFactor,
         usage: rule.usage ?? undefined
       });
-      const conductivity = pickParameter(conductivityRows, rule.paramSourcePriority);
-      const correction = pickParameter(correctionRows, rule.paramSourcePriority);
-      if (!conductivity || !correction) {
+      const [specLink] = await app.db.select({ catalogProductId: productSpecs.catalogProductId })
+        .from(productSpecs).where(eq(productSpecs.id, input.productSpecId)).limit(1);
+      const catalog = specLink?.catalogProductId
+        ? (await app.db.select({
+          id: catalogProducts.id,
+          thermalConductivity: catalogProducts.thermalConductivity,
+          correctionFactor: catalogProducts.correctionFactor
+        }).from(catalogProducts).where(eq(catalogProducts.id, specLink.catalogProductId)).limit(1))[0] ?? null
+        : null;
+      const factConductivity = conductivityRows.find((row) => row.resolverSource === "KNOWLEDGE_FACT");
+      const factCorrection = correctionRows.find((row) => row.resolverSource === "KNOWLEDGE_FACT");
+      const parameterConductivity = pickParameter(
+        conductivityRows.filter((row) => row.resolverSource !== "KNOWLEDGE_FACT"),
+        rule.paramSourcePriority
+      );
+      const parameterCorrection = pickParameter(
+        correctionRows.filter((row) => row.resolverSource !== "KNOWLEDGE_FACT"),
+        rule.paramSourcePriority
+      );
+      const chosen = chooseEquivalentParams({
+        factConductivity: factConductivity?.value,
+        factCorrection: factCorrection?.value,
+        catalogConductivity: catalog?.thermalConductivity,
+        catalogCorrection: catalog?.correctionFactor,
+        parameterConductivity: parameterConductivity?.value,
+        parameterCorrection: parameterCorrection?.value
+      });
+      if (!chosen) {
         errors.push({
           field: "equivalentParams",
           code: "CALC_PARAM_MISSING",
           message: `产品规格 ${input.productSpecId} 缺少已发布且用途允许的当量导热系数（${rule.parameterCodes.equivalentConductivity}）或修正系数（${rule.parameterCodes.correctionFactor}）参数，请先在后台配置并发布`
         });
       } else {
+        const snapshots = chosen.source === "CATALOG"
+          ? [{
+            id: catalog?.id, source: "CATALOG",
+            thermalConductivity: chosen.conductivity, correctionFactor: chosen.correctionFactor
+          }]
+          : [factConductivity ?? parameterConductivity, factCorrection ?? parameterCorrection].filter(Boolean).map((p) => ({
+            id: p!.id, version: p!.version, parameterCode: p!.parameterCode, parameterName: p!.parameterName,
+            paramSource: p!.paramSource, value: p!.value, unit: p!.unit,
+            evidenceSource: p!.evidenceSource, evidenceRef: p!.evidenceRef, evidenceLevel: p!.evidenceLevel
+          }));
         equivalentParams = {
-          conductivity: conductivity.value,
-          correctionFactor: correction.value,
-          snapshots: [conductivity, correction].map((p) => ({
-            id: p.id, version: p.version, parameterCode: p.parameterCode, parameterName: p.parameterName,
-            paramSource: p.paramSource, value: p.value, unit: p.unit,
-            evidenceSource: p.evidenceSource, evidenceRef: p.evidenceRef, evidenceLevel: p.evidenceLevel
-          }))
+          conductivity: chosen.conductivity,
+          correctionFactor: chosen.correctionFactor,
+          snapshots
         };
       }
     }

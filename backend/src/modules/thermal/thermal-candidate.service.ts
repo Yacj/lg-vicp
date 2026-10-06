@@ -134,13 +134,16 @@ function toCandidateRow(row: Record<string, unknown>): CandidateRow {
     productSpecId: String(row.productSpecId),
     specCode: String(row.specCode),
     specVersion: Number(row.specVersion),
-    specClass: row.specClass as "I" | "II" | "III",
+    specClass: row.specClass == null ? null : (row.specClass as "I" | "II" | "III"),
     thicknessMm: Number(row.thicknessMm),
     productThermalResistance: Number(row.productThermalResistance),
     totalThermalResistance: Number(row.totalThermalResistance),
     kValue: Number(row.kValue),
     evidenceSource: String(row.evidenceSource),
-    evidenceRef: String(row.evidenceRef)
+    evidenceRef: String(row.evidenceRef),
+    sourceDocumentId: row.sourceDocumentId == null ? null : String(row.sourceDocumentId),
+    sourcePageId: row.sourcePageId == null ? null : String(row.sourcePageId),
+    sourcePageLabel: row.sourcePageLabel == null ? null : String(row.sourcePageLabel)
   };
 }
 
@@ -213,6 +216,9 @@ export async function queryThermalCandidates(
       kValue: thermalReferenceRows.kValue,
       evidenceSource: thermalReferenceRows.evidenceSource,
       evidenceRef: thermalReferenceRows.evidenceRef,
+      sourceDocumentId: thermalReferenceRows.sourceDocumentId,
+      sourcePageId: thermalReferenceRows.sourcePageId,
+      sourcePageLabel: thermalReferenceRows.sourcePageLabel,
       schemeId: constructionSchemes.id,
       schemeCode: constructionSchemes.schemeCode,
       schemeVersion: constructionSchemes.version,

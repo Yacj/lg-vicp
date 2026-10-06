@@ -13,7 +13,7 @@ import {
 import { ConflictError, NotFoundError } from "../../shared/errors.js";
 import { getPagination } from "../../shared/pagination.js";
 
-export const QUICK_PROMPT_CACHE_KEY = "ai:quick-prompts:client";
+export const QUICK_PROMPT_CACHE_KEY = "ai:quick-prompts:client:v2";
 export const QUICK_PROMPT_CACHE_TTL_SECONDS = 600;
 
 export type QuickPromptPosition = (typeof AI_QUICK_PROMPT_POSITIONS)[keyof typeof AI_QUICK_PROMPT_POSITIONS];

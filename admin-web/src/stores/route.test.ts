@@ -6,6 +6,7 @@ import { fetchDynamicRouters } from '@/api/modules/menus'
 import { projectDynamicMenus } from '@/router/dynamic-routes'
 import { useRouteStore } from './route'
 import { useTabsStore } from './tabs'
+import { useUserStore } from './user'
 
 vi.mock('@/api/modules/menus', () => ({
   fetchDynamicRouters: vi.fn(),
@@ -154,6 +155,56 @@ describe('route store refresh', () => {
     expect(routeStore.dynamicRoutesReady).toBe(false)
     expect(router.hasRoute('Dynamic_stale')).toBe(false)
   })
+  it('shows 提示词配置 and 高级设置 in the sidebar before backend seed is re-run', async () => {
+    const userStore = useUserStore()
+    userStore.applyUserInfo({
+      dataScopes: [],
+      departments: [],
+      permissions: [],
+      roles: ['SUPER_ADMIN'],
+      user: {
+        adminLoginEnabled: true,
+        channelType: null,
+        clientType: 'B_ADMIN',
+        displayName: '平台管理员',
+        email: null,
+        id: 'admin-id',
+        phone: null,
+        role: 'SUPER_ADMIN',
+        status: 'ACTIVE',
+      },
+    })
+    const router = createTestRouter()
+    mockedFetchDynamicRouters.mockResolvedValueOnce(result([
+      menu({
+        children: [
+          menu({
+            component: 'ai-config/models/index',
+            id: 'models',
+            name: '模型管理',
+            parentId: 'ai-config',
+            permissionCode: 'system:ai:model:list',
+            routePath: '/ai-config/models',
+          }),
+        ],
+        component: null,
+        id: 'ai-config',
+        menuType: 'DIRECTORY',
+        name: 'AI 配置',
+        routePath: '/ai-config',
+      }),
+    ]))
+
+    const routeStore = useRouteStore()
+    await routeStore.initialize(router)
+
+    expect(routeStore.sidebarMenus[0]?.children.map(item => item.title)).toEqual([
+      '模型配置',
+      '提示词配置',
+      '高级设置',
+    ])
+  })
+
   it('keeps external menus out of the route registry while retaining projection metadata', () => {
     const projection = projectDynamicMenus([
       menu({

@@ -17,6 +17,7 @@ import type { AuthUser } from "../../shared/auth-user.js";
 import { ForbiddenError, NotFoundError } from "../../shared/errors.js";
 import { canViewProject } from "../../shared/permissions.js";
 import { resolveDefaultVisionModel } from "../ai-config/ai-config.service.js";
+import { languageModelCallOptions } from "../ai-config/ai-task-runtime-policy.js";
 import { canAccessSourceFile, canReadProjectFile } from "../files/file-access.js";
 
 export type ChatImageAttachment = {
@@ -168,10 +169,8 @@ export async function describeChatImages(
         ...signedUrls.map((url) => ({ type: "image" as const, image: new URL(url) }))
       ]
     }],
-    maxOutputTokens: vision.maxOutputTokens ?? 1200,
-    temperature: 0.2,
-    timeout: vision.timeoutMs,
-    abortSignal: AbortSignal.timeout(vision.timeoutMs)
+    ...languageModelCallOptions("VISION"),
+    abortSignal: AbortSignal.timeout(languageModelCallOptions("VISION").timeout)
   });
 
   const text = result.text.trim();

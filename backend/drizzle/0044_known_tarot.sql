@@ -1,0 +1,2 @@
+ALTER TYPE "public"."report_status" ADD VALUE 'CANCELLED' BEFORE 'PENDING_REVIEW';--> statement-breakpoint
+ALTER TABLE "report_context_snapshots" ADD COLUMN "selected_knowledge_source_ids_json" jsonb DEFAULT '[]'::jsonb NOT NULL;

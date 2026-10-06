@@ -96,9 +96,14 @@ describe("报告快照组装（数值冻结，历史不漂移）", () => {
     expect(dataJson.template).toMatchObject({ code: "standard_report" });
   });
 
-  it("requiresProject 的类型在无项目时拒绝", async () => {
-    await expect(assembleReportSnapshot(app(makeDb([]).db), { reportType: "technical_scheme" }))
-      .rejects.toThrow("该报告类型需要关联项目后才能生成");
+  it("技术方案/简报无项目时仍可组装，不强制 requiresProject", async () => {
+    const { db } = makeDb([
+      [{ ...templateRow, code: "standard_report", requiresProject: true }],
+      [profileRow]
+    ]);
+    const { dataJson } = await assembleReportSnapshot(app(db), { reportType: "technical_scheme" });
+    expect(dataJson.project).toBeNull();
+    expect(dataJson.reportType).toBe("technical_scheme");
   });
 
   it("无项目报告类型可以不传 projectId/templateId", async () => {
@@ -145,5 +150,36 @@ describe("报告快照组装（数值冻结，历史不漂移）", () => {
     const sources = dataJson.sources as Array<Record<string, unknown>>;
     expect(sources[0]).toMatchObject({ type: "candidate" });
     expect(sources[1]).toMatchObject({ type: "calc", ruleRef: "4.2.1" });
+  });
+
+  it("contextOverlay.referencePages 原样进入 report_snapshots.dataJson", async () => {
+    const referencePages = [{
+      documentId: "doc-1",
+      pageId: "page-1",
+      pageLabel: "A5",
+      pageNumber: 103,
+      pageImageObjectKey: "knowledge/previews/p1.png",
+      summary: { constructionCode: "A1-1", kValue: 0.303, rValue: 3.297, thicknessMm: 18 },
+      highlights: [
+        { field: "kValue", label: "传热系数 K", value: "0.303" },
+        { field: "rValue", label: "总热阻 R", value: "3.297" },
+        { field: "thicknessMm", label: "厚度", value: "18 mm" }
+      ],
+      matches: [{
+        summary: { constructionCode: "A1-1", kValue: 0.303 },
+        highlights: [{ field: "kValue", label: "传热系数 K", value: "0.303" }]
+      }]
+    }];
+    const { db } = makeDb([
+      [{ ...templateRow, code: "material_compare", requiresProject: false }],
+      [profileRow]
+    ]);
+    const { dataJson } = await assembleReportSnapshot(app(db), {
+      reportType: "material_compare",
+      contextOverlay: { snapshotId: "snap-1", referencePages }
+    });
+    expect(dataJson.referencePages).toEqual(referencePages);
+    expect(JSON.stringify(dataJson.referencePages)).toContain("pageImageObjectKey");
+    expect(JSON.stringify(dataJson.referencePages)).not.toContain("https://");
   });
 });

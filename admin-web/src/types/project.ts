@@ -2,7 +2,7 @@ import type { PageResult } from './api'
 import type { AsyncTaskRecord, FileRecord } from './file'
 
 /** 项目可见性，与后端 PROJECT_VISIBILITY 对齐。 */
-export type ProjectVisibility = 'PRIVATE' | 'PUBLIC'
+export type ProjectVisibility = 'PRIVATE' | 'PUBLIC' | 'DEPARTMENT'
 
 /** 项目状态，与后端 projects.status 对齐。 */
 export type ProjectStatus = 'active' | 'deleted'
@@ -20,14 +20,21 @@ export interface ProjectItem {
   metadata: Record<string, unknown> | null
   /** 后端按当前操作者投影的项目管理权限。 */
   canManage?: boolean
+  canEdit?: boolean
+  canDelete?: boolean
+  visibleDepartmentId?: string | null
+  includeChildDepartments?: boolean
+  createdByName?: string | null
+  ownerDepartmentId?: string | null
+  ownerDepartmentName?: string | null
   createdById: string
   deletedAt: string | null
   createdAt: string
   updatedAt: string
 }
 
-/** 项目中心视图切换。 */
-export type ProjectViewKey = 'my' | 'public' | 'all'
+/** 项目中心视图切换。B 端仅保留全平台查看。 */
+export type ProjectViewKey = 'all'
 
 /** GET /workspace/projects/my、/projects/public、/platform/projects 查询参数。 */
 export interface ProjectPageQuery {
@@ -35,7 +42,7 @@ export interface ProjectPageQuery {
   pageSize?: number
   /** 仅平台全部项目列表支持。 */
   visibility?: ProjectVisibility
-  [key: string]: unknown
+  keyword?: string
 }
 
 /** 项目分页列表响应。 */
@@ -46,6 +53,7 @@ export interface ProjectStatistics {
   total: number
   public: number
   private: number
+  department?: number
 }
 
 /** 客户资料由用户管理维护，项目不再绑定客户。 */

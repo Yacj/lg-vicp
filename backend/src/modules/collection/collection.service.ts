@@ -1,8 +1,10 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
-import { and, count, desc, eq, ilike, inArray, or } from "drizzle-orm";
+import { and, count, desc, eq, gte, ilike, inArray, or, sql } from "drizzle-orm";
 import type { AppQueues } from "../../queues/queues.js";
 import type { Database } from "../../db/client.js";
 import {
+  collectionRecords,
+  collectionSkills,
   collectionSources,
   collectionTasks,
   files,
@@ -23,6 +25,30 @@ import { addParsingJobToQueue, nextVersionNumber } from "../knowledge/knowledge-
 
 /** P0 自动采集固定间隔：24 小时，不向业务管理员暴露 Cron */
 export const COLLECTION_AUTO_INTERVAL_MS = 24 * 60 * 60 * 1000;
+export const COLLECTION_AUTO_SCAN_JOB_ID = "collection-auto-scan";
+
+export function nextCollectionScanAt(input: {
+  enabled: boolean;
+  lastCollectedAt: Date | string | null | undefined;
+  lastRunAt: Date | string | null | undefined;
+  now?: Date;
+}): string | null {
+  if (!input.enabled) return null;
+  const last = input.lastCollectedAt ?? input.lastRunAt;
+  if (!last) return (input.now ?? new Date()).toISOString();
+  const lastTime = last instanceof Date ? last.getTime() : new Date(last).getTime();
+  return new Date(lastTime + COLLECTION_AUTO_INTERVAL_MS).toISOString();
+}
+
+export async function ensureCollectionAutoScanScheduler(
+  queue: Pick<AppQueues["collectionFetch"], "upsertJobScheduler">
+) {
+  await queue.upsertJobScheduler(
+    COLLECTION_AUTO_SCAN_JOB_ID,
+    { every: COLLECTION_AUTO_INTERVAL_MS },
+    { name: "scan_sources", data: {} }
+  );
+}
 
 export interface CollectionDeps {
   db: Database;
@@ -44,7 +70,10 @@ export function toCollectionSourceDto(row: typeof collectionSources.$inferSelect
     sourceUrl: row.sourceUrl,
     mode: "AUTO" as const,
     enabled: row.enabled,
+    skillId: row.skillId,
     lastCollectedAt: toIso(row.lastCollectedAt),
+    lastRunAt: toIso(row.lastRunAt),
+    nextScanAt: nextCollectionScanAt(row),
     createdById: row.createdById,
     createdAt: toIso(row.createdAt)!,
     updatedAt: toIso(row.updatedAt)!
@@ -123,19 +152,20 @@ export async function createCollectionSource(
   deps: CollectionDeps,
   request: FastifyRequest,
   actor: AuthUser,
-  input: { name: string; sourceUrl: string; enabled?: boolean }
+  input: { name: string; sourceUrl: string; enabled?: boolean; skillId?: string | null }
 ) {
   const [created] = await deps.db.insert(collectionSources).values({
     name: input.name,
     sourceUrl: input.sourceUrl,
     mode: "AUTO",
     enabled: input.enabled ?? true,
+    skillId: input.skillId ?? null,
     createdById: actor.id
   }).returning();
   await writeAuditLog({
     db: deps.db, request, actor,
     action: AUDIT_ACTIONS.COLLECTION_SOURCE_CREATED, targetType: "collection_source", targetId: created!.id,
-    afterJson: { name: created!.name, sourceUrl: created!.sourceUrl, enabled: created!.enabled }
+    afterJson: { name: created!.name, sourceUrl: created!.sourceUrl, enabled: created!.enabled, skillId: created!.skillId }
   });
   if (created!.enabled) {
     await enqueueAutoTaskIfIdle(deps, created!, actor.id);
@@ -148,20 +178,21 @@ export async function updateCollectionSource(
   request: FastifyRequest,
   actor: AuthUser,
   id: string,
-  input: { name?: string; sourceUrl?: string }
+  input: { name?: string; sourceUrl?: string; skillId?: string | null }
 ) {
   const [existing] = await deps.db.select().from(collectionSources).where(eq(collectionSources.id, id)).limit(1);
   if (!existing) throw new NotFoundError("采集源不存在");
   const [updated] = await deps.db.update(collectionSources).set({
     name: input.name ?? existing.name,
     sourceUrl: input.sourceUrl ?? existing.sourceUrl,
+    skillId: input.skillId === undefined ? existing.skillId : input.skillId,
     updatedAt: new Date()
   }).where(eq(collectionSources.id, id)).returning();
   await writeAuditLog({
     db: deps.db, request, actor,
     action: AUDIT_ACTIONS.COLLECTION_SOURCE_UPDATED, targetType: "collection_source", targetId: id,
-    beforeJson: { name: existing.name, sourceUrl: existing.sourceUrl },
-    afterJson: { name: updated!.name, sourceUrl: updated!.sourceUrl }
+    beforeJson: { name: existing.name, sourceUrl: existing.sourceUrl, skillId: existing.skillId },
+    afterJson: { name: updated!.name, sourceUrl: updated!.sourceUrl, skillId: updated!.skillId }
   });
   return toCollectionSourceDto(updated!);
 }
@@ -365,4 +396,152 @@ export async function scanEnabledCollectionSources(deps: CollectionDeps) {
     created.push(task.id);
   }
   return { scanned: sources.length, enqueued: created.length, taskIds: created };
+}
+
+function toSkillDto(row: typeof collectionSkills.$inferSelect) {
+  return {
+    id: row.id,
+    name: row.name,
+    keywordsJson: row.keywordsJson ?? [],
+    instruction: row.instruction,
+    enabled: row.enabled,
+    createdAt: toIso(row.createdAt)!,
+    updatedAt: toIso(row.updatedAt)!
+  };
+}
+
+export async function listCollectionSkills(deps: CollectionDeps) {
+  const rows = await deps.db.select().from(collectionSkills).orderBy(desc(collectionSkills.updatedAt));
+  return rows.map(toSkillDto);
+}
+
+export async function createCollectionSkill(
+  deps: CollectionDeps,
+  request: FastifyRequest,
+  actor: AuthUser,
+  input: { name: string; keywordsJson?: string[]; instruction?: string; enabled?: boolean }
+) {
+  const [created] = await deps.db.insert(collectionSkills).values({
+    name: input.name,
+    keywordsJson: input.keywordsJson ?? [],
+    instruction: input.instruction ?? null,
+    enabled: input.enabled ?? true,
+    createdById: actor.id
+  }).returning();
+  await writeAuditLog({
+    db: deps.db, request, actor,
+    action: AUDIT_ACTIONS.COLLECTION_SKILL_CREATED, targetType: "collection_skill", targetId: created!.id,
+    afterJson: { name: created!.name, keywordsJson: created!.keywordsJson }
+  });
+  return toSkillDto(created!);
+}
+
+export async function updateCollectionSkill(
+  deps: CollectionDeps,
+  request: FastifyRequest,
+  actor: AuthUser,
+  id: string,
+  input: { name?: string; keywordsJson?: string[]; instruction?: string; enabled?: boolean }
+) {
+  const [existing] = await deps.db.select().from(collectionSkills).where(eq(collectionSkills.id, id)).limit(1);
+  if (!existing) throw new NotFoundError("采集技能不存在");
+  const [updated] = await deps.db.update(collectionSkills).set({
+    name: input.name ?? existing.name,
+    keywordsJson: input.keywordsJson ?? existing.keywordsJson,
+    instruction: input.instruction === undefined ? existing.instruction : input.instruction,
+    enabled: input.enabled ?? existing.enabled,
+    updatedAt: new Date()
+  }).where(eq(collectionSkills.id, id)).returning();
+  await writeAuditLog({
+    db: deps.db, request, actor,
+    action: AUDIT_ACTIONS.COLLECTION_SKILL_UPDATED, targetType: "collection_skill", targetId: id,
+    beforeJson: existing, afterJson: updated
+  });
+  return toSkillDto(updated!);
+}
+
+export async function listCollectionRecords(
+  deps: CollectionDeps,
+  query: { page: number; pageSize: number; sourceId?: string; keyword?: string }
+) {
+  const { skip, take } = getPagination(query.page, query.pageSize);
+  const where = and(
+    query.sourceId ? eq(collectionRecords.sourceId, query.sourceId) : undefined,
+    query.keyword ? or(ilike(collectionRecords.title, `%${query.keyword}%`), ilike(collectionRecords.url, `%${query.keyword}%`)) : undefined
+  );
+  const [items, [totalRow]] = await Promise.all([
+    deps.db.select({
+      id: collectionRecords.id,
+      sourceId: collectionRecords.sourceId,
+      sourceName: collectionSources.name,
+      skillId: collectionRecords.skillId,
+      taskId: collectionRecords.taskId,
+      title: collectionRecords.title,
+      url: collectionRecords.url,
+      publishedAt: collectionRecords.publishedAt,
+      collectedAt: collectionRecords.collectedAt,
+      keywords: collectionRecords.keywordsJson,
+      summary: collectionRecords.summary,
+      createdAt: collectionRecords.createdAt
+    }).from(collectionRecords)
+      .leftJoin(collectionSources, eq(collectionSources.id, collectionRecords.sourceId))
+      .where(where)
+      .orderBy(desc(collectionRecords.collectedAt))
+      .offset(skip)
+      .limit(take),
+    deps.db.select({ value: count() }).from(collectionRecords).where(where)
+  ]);
+  return {
+    items: items.map((row) => ({
+      id: row.id,
+      sourceId: row.sourceId,
+      sourceName: row.sourceName,
+      title: row.title,
+      url: row.url,
+      keywords: row.keywords ?? [],
+      publishedAt: toIso(row.publishedAt),
+      collectedAt: toIso(row.collectedAt)!,
+      summary: row.summary,
+      status: "COLLECTED" as const,
+      createdAt: toIso(row.createdAt)!
+    })),
+    total: totalRow?.value ?? 0,
+    page: query.page,
+    pageSize: query.pageSize
+  };
+}
+
+async function countSince(deps: CollectionDeps, since: Date) {
+  const [row] = await deps.db.select({ value: count() }).from(collectionRecords).where(gte(collectionRecords.collectedAt, since));
+  return row?.value ?? 0;
+}
+
+export async function getCollectionDashboard(deps: CollectionDeps) {
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const startOfYear = new Date(now.getFullYear(), 0, 1);
+  const [totalRow] = await deps.db.select({ value: count() }).from(collectionRecords);
+  return {
+    total: totalRow?.value ?? 0,
+    today: await countSince(deps, startOfToday),
+    thisMonth: await countSince(deps, startOfMonth),
+    thisYear: await countSince(deps, startOfYear)
+  };
+}
+
+export async function getCollectionTrends(deps: CollectionDeps, granularity: "day" | "month" | "year") {
+  const bucket = granularity === "day"
+    ? sql<string>`to_char(${collectionRecords.collectedAt}, 'YYYY-MM-DD')`
+    : granularity === "month"
+      ? sql<string>`to_char(${collectionRecords.collectedAt}, 'YYYY-MM')`
+      : sql<string>`to_char(${collectionRecords.collectedAt}, 'YYYY')`;
+  const rows = await deps.db.select({
+    bucket,
+    count: count()
+  }).from(collectionRecords).groupBy(bucket).orderBy(bucket);
+  return {
+    granularity,
+    items: rows.map((row) => ({ period: row.bucket, count: Number(row.count) }))
+  };
 }

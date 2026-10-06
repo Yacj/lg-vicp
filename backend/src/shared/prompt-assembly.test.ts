@@ -13,34 +13,43 @@ beforeAll(() => {
 });
 
 describe("提示词组装", () => {
-  it("按平台基础 → 场景 → 项目上下文 → 检索结果的顺序组装", async () => {
-    const { buildSystemMessages, PLATFORM_BASE_SYSTEM_PROMPT } = await import("./prompt-assembly.js");
+  it("按平台硬规则 → 执行规范 → 回答规则 → 业务 Prompt → 项目上下文 → 参考资料的顺序组装", async () => {
+    const {
+      buildSystemMessages,
+      PLATFORM_BASE_SYSTEM_PROMPT
+    } = await import("./prompt-assembly.js");
+    const { EXECUTION_POLICY } = await import("./ai-execution-policy.js");
+    const { GLOBAL_RESPONSE_POLICY, HARD_RESPONSE_CONSTRAINTS } = await import("./ai-response-policy.js");
     const messages = buildSystemMessages({
       scenePrompt: "场景提示词",
       projectContext: "项目A",
       knowledgeContext: "资料B"
     });
-    expect(messages).toHaveLength(4);
     expect(messages[0]!.content).toBe(PLATFORM_BASE_SYSTEM_PROMPT);
-    expect(messages[1]!.content).toBe("场景提示词");
-    expect(messages[2]!.content).toContain("项目A");
-    expect(messages[3]!.content).toContain("资料B");
+    expect(messages[1]!.content).toBe(EXECUTION_POLICY);
+    expect(messages[2]!.content).toBe(GLOBAL_RESPONSE_POLICY);
+    expect(messages[3]!.content).toContain("【最终答案形态】");
+    expect(messages[4]!.content).toBe("场景提示词");
+    expect(messages.some((item) => item.content.includes("项目A"))).toBe(true);
+    expect(messages.some((item) => item.content.includes("资料B"))).toBe(true);
+    expect(messages[messages.length - 1]!.content).toBe(HARD_RESPONSE_CONSTRAINTS);
   });
 
-  it("未提供项目/检索上下文时不注入对应段落", async () => {
+  it("未提供项目/检索上下文时仍注入全局规则与不可覆盖约束", async () => {
     const { buildSystemMessages } = await import("./prompt-assembly.js");
     const messages = buildSystemMessages({ scenePrompt: "场景提示词" });
-    expect(messages).toHaveLength(2);
+    expect(messages.map((item) => item.content)).toContain("场景提示词");
+    expect(messages.length).toBeGreaterThanOrEqual(6);
   });
 
-  it("热工能力约束作为独立系统消息注入", async () => {
+  it("热工能力约束作为独立系统消息注入，且要求静默使用", async () => {
     const { buildSystemMessages, formatThermalCapabilityContext } = await import("./prompt-assembly.js");
     const messages = buildSystemMessages({
       scenePrompt: "场景提示词",
       thermalContext: formatThermalCapabilityContext()
     });
-    expect(messages).toHaveLength(3);
-    expect(messages[2]!.content).toContain("热工计算约束");
+    expect(messages.some((item) => item.content.includes("热工计算"))).toBe(true);
+    expect(messages.some((item) => item.content.includes("仅供判断"))).toBe(true);
   });
 });
 

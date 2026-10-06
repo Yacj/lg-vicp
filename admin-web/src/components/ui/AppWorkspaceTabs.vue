@@ -12,7 +12,7 @@ const active = defineModel<string>({ required: true })
 </script>
 
 <template>
-  <t-tabs v-model="active" class="app-workspace-tabs" theme="normal">
+  <t-tabs v-model="active" class="app-workspace-tabs !bg-transparent" theme="normal">
     <t-tab-panel
       v-for="tab in tabs"
       :key="tab.key"

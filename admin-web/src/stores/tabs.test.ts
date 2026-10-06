@@ -1,7 +1,8 @@
 import type { AppTab } from './tabs'
+import type { RouteLocationNormalizedLoaded } from 'vue-router'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { useTabsStore } from './tabs'
+import { routeToTab, tabPathname, useTabsStore } from './tabs'
 
 const home: AppTab = {
   affix: true,
@@ -114,5 +115,47 @@ describe('tabs store', () => {
 
     expect(store.closeAll()).toBe('/')
     expect(store.tabs.map(item => item.fullPath)).toEqual(['/'])
+  })
+
+  it('reuses a single layout tab when only the query string changes', () => {
+    const store = useTabsStore()
+    const collection: AppTab = {
+      affix: false,
+      closable: true,
+      fullPath: '/collection?tab=manual',
+      keepAlive: true,
+      name: 'CollectionCenter',
+      pinned: false,
+      title: '采集管理',
+    }
+
+    store.open(collection)
+    store.open({ ...collection, fullPath: '/collection?tab=auto' })
+    store.open({ ...collection, fullPath: '/collection?tab=dashboard' })
+
+    expect(store.tabs.map(item => item.fullPath)).toEqual(['/collection'])
+    expect(store.activePath).toBe('/collection')
+  })
+
+  it('opens layout tabs by pathname so query does not spawn duplicates', () => {
+    const tab = routeToTab({
+      fullPath: '/collection?tab=auto',
+      hash: '',
+      matched: [],
+      meta: { keepAlive: true, title: '采集管理' },
+      name: 'CollectionCenter',
+      params: {},
+      path: '/collection',
+      query: { tab: 'auto' },
+      redirectedFrom: undefined,
+    } as RouteLocationNormalizedLoaded)
+
+    expect(tabPathname('/collection?tab=auto')).toBe('/collection')
+    expect(tab).toMatchObject({
+      fullPath: '/collection',
+      keepAlive: true,
+      name: 'CollectionCenter',
+      title: '采集管理',
+    })
   })
 })

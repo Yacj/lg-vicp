@@ -29,7 +29,7 @@ function buildThemeVars(color: ThemeColorOption, mode: ThemeMode = 'light') {
     dividerLight: isDark ? '#1C3150' : '#F0F4FA',
     filledBottom: canvas,
     filledContent: surface,
-    filledStrong: elevated,
+    // filledStrong: elevated,
     filledDrawer: drawer,
     filledZero: 'transparent',
     iconMain: textMain,
@@ -101,6 +101,8 @@ function buildThemeVars(color: ThemeColorOption, mode: ThemeMode = 'light') {
     inputInnerFontSize: '30rpx',
     inputInnerPlaceholderColor: textAuxiliary,
     inputPadding: '0 8rpx',
+    // Switch 非激活态轨道色：elevated 在浅色下为白色，会导致开关在白色面板上不可见
+    // switchColorInactiveBg: borderStrong,
     // navbarBg: canvas,
     // navbarColor: textMain,
     // navbarDescColor: textSecondary,

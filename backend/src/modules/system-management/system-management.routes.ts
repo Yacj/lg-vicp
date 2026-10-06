@@ -20,6 +20,7 @@ import { ForbiddenError, NotFoundError } from "../../shared/errors.js";
 import { ok } from "../../shared/response.js";
 import { assertCanModifyRoleDefinition, assertDataScopeWithinActor, assertDepartmentInActorScope, getDepartmentIdsWithinActor, assertPermissionCodesWithinActor, assertPermissionIdsWithinActor, assertRoleIdsAssignable } from "../../shared/rbac-guard.js";
 import { writeAuditLog } from "../audit-logs/audit-log.service.js";
+import { addDepartmentMember, listDepartmentMembers, removeDepartmentMember } from "./department-members.service.js";
 
 const idParamsSchema = z.object({ id: z.uuid("ID 格式不正确") });
 const roleBodySchema = z.object({
@@ -300,6 +301,60 @@ export async function systemManagementRoutes(app: FastifyInstance) {
       return [created] as const;
     });
     return ok(request, { message: "部门创建成功", department });
+  });
+
+  route.get("/departments/:id/members", {
+    preHandler: [app.authenticate],
+    schema: { tags: ["B端 / 平台 / 部门管理"], summary: "查看部门成员", params: idParamsSchema }
+  }, async (request) => {
+    const actor = await requireAdmin(request, "system:dept:list");
+    await assertDepartmentInActorScope(app, actor, request.params.id);
+    return ok(request, { items: await listDepartmentMembers(app.db, request.params.id) });
+  });
+
+  route.post("/departments/:id/members", {
+    preHandler: [app.authenticate],
+    schema: {
+      tags: ["B端 / 平台 / 部门管理"],
+      summary: "添加部门成员",
+      params: idParamsSchema,
+      body: z.object({
+        userId: z.uuid("用户 ID 格式不正确"),
+        isPrimary: z.boolean().optional()
+      })
+    }
+  }, async (request) => {
+    const actor = await requireAdmin(request, "system:user:dept");
+    await assertDepartmentInActorScope(app, actor, request.params.id);
+    const member = await addDepartmentMember({
+      db: app.db,
+      request,
+      actor,
+      departmentId: request.params.id,
+      userId: request.body.userId,
+      isPrimary: request.body.isPrimary
+    });
+    return ok(request, { message: "部门成员已添加", member });
+  });
+
+  route.delete("/departments/:id/members/:userId", {
+    preHandler: [app.authenticate],
+    schema: {
+      tags: ["B端 / 平台 / 部门管理"],
+      summary: "移除部门成员",
+      params: z.object({ id: z.uuid("部门 ID 格式不正确"), userId: z.uuid("用户 ID 格式不正确") })
+    }
+  }, async (request) => {
+    const actor = await requireAdmin(request, "system:user:dept");
+    await assertDepartmentInActorScope(app, actor, request.params.id);
+    await removeDepartmentMember({
+      db: app.db,
+      request,
+      actor,
+      departmentId: request.params.id,
+      userId: request.params.userId
+    });
+    return ok(request, { message: "部门成员已移除" });
   });
 
   route.get("/dictionaries", {

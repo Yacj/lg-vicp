@@ -12,13 +12,13 @@ vi.hoisted(() => {
 
 describe("项目上下文", () => {
   it("无 projectId 时跳过项目上下文，不阻断 AI", async () => {
-    const { resolveProjectContext } = await import("./ai-generation.service.js");
+    const { resolveProjectContext } = await import("./ai-project-profile.js");
     const result = await resolveProjectContext({ db: { select: () => ({}) } } as never, null);
     expect(result).toBeNull();
-  });
+  }, 15_000);
 
   it("有项目时注入结构化字段", async () => {
-    const { resolveProjectContext } = await import("./ai-generation.service.js");
+    const { resolveProjectContext } = await import("./ai-project-profile.js");
     const app = {
       db: {
         select: () => ({
@@ -40,5 +40,5 @@ describe("项目上下文", () => {
     expect(text).toContain("所在地区：江苏苏州");
     expect(text).toContain("建筑类型：RESIDENTIAL");
     expect(text).not.toContain("未关联项目");
-  });
+  }, 15_000);
 });

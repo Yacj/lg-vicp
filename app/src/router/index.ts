@@ -24,7 +24,7 @@ const router = createRouter({
 router.beforeEach((to, _from, next) => {
   const authStore = useAuthStore()
 
-  if (to.name === 'login' && authStore.isAuthenticated) {
+  if ((to.name === 'login' || to.name === 'register') && authStore.isAuthenticated) {
     next(false)
     setTimeout(() => {
       router.replaceAll({ name: 'home' }).catch(() => {})

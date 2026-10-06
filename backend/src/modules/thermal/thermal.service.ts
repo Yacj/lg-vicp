@@ -7,6 +7,7 @@ import { env } from "../../config/env.js";
 import {
   constructionSchemes,
   files,
+  knowledgePages,
   productSpecs,
   schemeProductOptions,
   thermalImportErrors,
@@ -18,6 +19,7 @@ import type { AuthUser } from "../../shared/auth-user.js";
 import { AUDIT_ACTIONS } from "../../shared/constants.js";
 import { ForbiddenError, ServiceUnavailableError } from "../../shared/errors.js";
 import { ThermalError } from "../../shared/thermal-errors.js";
+import { assertPagesBelongToDocument } from "../knowledge/knowledge-page-gallery.service.js";
 import { getPagination } from "../../shared/pagination.js";
 import { writeAuditLog } from "../audit-logs/audit-log.service.js";
 import {
@@ -200,6 +202,11 @@ export interface ThermalRowInput {
   evidenceSource: string;
   evidenceRef: string;
   evidenceLevel?: "A" | "B" | "C";
+  catalogProductId?: string | null;
+  sourceDocumentId?: string | null;
+  sourcePageId?: string | null;
+  sourcePageLabel?: string | null;
+  sortOrder?: number;
 }
 
 /** 引用的构造方案/产品规格必须已发布且生效（禁止引用草稿/已停用/失效数据） */
@@ -214,6 +221,28 @@ async function assertRowReferencesPublished(app: FastifyInstance, schemeId: stri
     .where(and(eq(productSpecs.id, productSpecId), ...publishedReferenceConditions(productSpecs)))
     .limit(1);
   if (!spec) throw new ThermalError("THERMAL_REFERENCE_NOT_PUBLISHED", "产品规格未发布或已失效，不能引用");
+}
+
+async function resolveRowSource(
+  app: FastifyInstance,
+  input: { sourceDocumentId?: string | null; sourcePageId?: string | null; sourcePageLabel?: string | null }
+) {
+  const sourceDocumentId = input.sourceDocumentId ?? null;
+  const sourcePageId = input.sourcePageId ?? null;
+  if (!sourceDocumentId && !sourcePageId) {
+    return { sourceDocumentId: null, sourcePageId: null, sourcePageLabel: input.sourcePageLabel ?? null };
+  }
+  if (!sourceDocumentId || !sourcePageId) {
+    throw new ThermalError("THERMAL_STRUCTURE_INVALID", "绑定原始页面时必须同时选择知识资料和页面");
+  }
+  await assertPagesBelongToDocument(app, sourceDocumentId, [sourcePageId]);
+  const [page] = await app.db.select({ pageLabel: knowledgePages.pageLabel }).from(knowledgePages)
+    .where(eq(knowledgePages.id, sourcePageId)).limit(1);
+  return {
+    sourceDocumentId,
+    sourcePageId,
+    sourcePageLabel: input.sourcePageLabel ?? page?.pageLabel ?? null
+  };
 }
 
 /** 集可编辑守卫（行级操作前置）：集不存在抛 404，状态不允许抛 409 */
@@ -248,6 +277,7 @@ export async function createThermalRow(
 ) {
   await requireEditableSet(app, setId);
   await assertRowReferencesPublished(app, input.schemeId, input.productSpecId);
+  const source = await resolveRowSource(app, input);
   return app.db.transaction(async (tx) => {
     const [created] = await tx.insert(thermalReferenceRows).values({
       setId,
@@ -257,6 +287,11 @@ export async function createThermalRow(
       productThermalResistance: input.productThermalResistance,
       totalThermalResistance: input.totalThermalResistance,
       kValue: input.kValue,
+      catalogProductId: input.catalogProductId ?? null,
+      sourceDocumentId: source.sourceDocumentId,
+      sourcePageId: source.sourcePageId,
+      sourcePageLabel: source.sourcePageLabel,
+      sortOrder: input.sortOrder ?? 0,
       rawThickness: input.rawThickness,
       rawProductResistance: input.rawProductResistance,
       rawTotalResistance: input.rawTotalResistance,
@@ -286,6 +321,13 @@ export async function updateThermalRow(
   const schemeId = input.schemeId ?? existing.schemeId;
   const productSpecId = input.productSpecId ?? existing.productSpecId;
   await assertRowReferencesPublished(app, schemeId, productSpecId);
+  const source = input.sourceDocumentId !== undefined || input.sourcePageId !== undefined
+    ? await resolveRowSource(app, {
+      sourceDocumentId: input.sourceDocumentId === undefined ? existing.sourceDocumentId : input.sourceDocumentId,
+      sourcePageId: input.sourcePageId === undefined ? existing.sourcePageId : input.sourcePageId,
+      sourcePageLabel: input.sourcePageLabel
+    })
+    : null;
   return app.db.transaction(async (tx) => {
     const [updated] = await tx.update(thermalReferenceRows).set({
       schemeId,
@@ -301,6 +343,13 @@ export async function updateThermalRow(
       evidenceSource: input.evidenceSource ?? existing.evidenceSource,
       evidenceRef: input.evidenceRef ?? existing.evidenceRef,
       evidenceLevel: input.evidenceLevel ?? existing.evidenceLevel,
+      ...(input.catalogProductId !== undefined ? { catalogProductId: input.catalogProductId } : {}),
+      ...(source ? {
+        sourceDocumentId: source.sourceDocumentId,
+        sourcePageId: source.sourcePageId,
+        sourcePageLabel: source.sourcePageLabel
+      } : input.sourcePageLabel !== undefined ? { sourcePageLabel: input.sourcePageLabel } : {}),
+      ...(input.sortOrder !== undefined ? { sortOrder: input.sortOrder } : {}),
       updatedById: actor.id,
       updatedAt: new Date()
     }).where(eq(thermalReferenceRows.id, id)).returning();

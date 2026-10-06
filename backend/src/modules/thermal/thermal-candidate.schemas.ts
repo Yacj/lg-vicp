@@ -86,7 +86,7 @@ export const thermalCandidateDto = z.object({
     atlasPage: z.string().nullable()
   }),
   system: z.object({ id: z.uuid(), code: z.string().nullable(), name: z.string().nullable() }),
-  productSpec: z.object({ id: z.uuid(), specCode: z.string(), specVersion: z.number(), specClass: z.enum(["I", "II", "III"]) }),
+  productSpec: z.object({ id: z.uuid(), specCode: z.string(), specVersion: z.number(), specClass: z.enum(["I", "II", "III"]).nullable() }),
   set: z.object({ id: z.uuid(), code: z.string(), version: z.number(), priority: z.number(), buildingTypes: z.array(z.string()) }),
   result: z.object({
     thicknessMm: z.number(),

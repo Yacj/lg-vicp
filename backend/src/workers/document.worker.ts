@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import type { Job } from "bullmq";
-import { and, eq, ne, sql } from "drizzle-orm";
+import { and, eq, inArray, ne, notInArray, sql } from "drizzle-orm";
 import ExcelJS from "exceljs";
 import { fileTypeFromBuffer } from "file-type";
 import mammoth from "mammoth";
@@ -22,11 +23,14 @@ import {
   knowledgePages,
   knowledgeSections,
   knowledgeTocItems,
-  parsingJobs
+  parsingJobs,
+  thermalReferenceRows
 } from "../db/schema.js";
 import type { ObjectStorage } from "../storage/index.js";
+import { isDocxRenderError, isPageRenderingComplete } from "../shared/docx-render-errors.js";
 import type { DocumentJobData } from "./document-job-state.js";
 import { reconcileDocumentJobFailure } from "./document-job-state.js";
+import { convertDocxToPdf, cleanupTempDir } from "./docx-to-pdf.js";
 import {
   extractPdfDocumentInWorker,
   type PdfExtractedPage,
@@ -235,6 +239,37 @@ interface WriteContentInput {
   sheets?: Array<{ data: SheetData; pageNumber: number }> | null;
   /** 双源场景标记：内容来自检索源时，chunk.metadata 记录 searchPageNumber */
   contentFromSearchSource?: boolean;
+  /**
+   * Mammoth 等全文文本：只进检索块。有 LibreOffice 视觉页时仍可并存；
+   * 禁止把 page=null 落成 physicalPageNumber=0。
+   */
+  documentText?: string;
+}
+
+/** 有稳定页码的页面才是知识页。page 为空或小于 1 的文本只作检索，不伪造第 0 页。 */
+export function partitionParsedPages(pages: ParsedPage[]): {
+  originalPages: OriginalPageInput[];
+  contentPages: ContentPageInput[];
+  documentText?: string;
+} {
+  const visual = pages.filter((page) => page.page != null && page.page >= 1);
+  const loose = pages.filter((page) => page.page == null || page.page < 1);
+  const documentText = loose.map((page) => page.text).join("\n").trim();
+  return {
+    originalPages: visual.map((page) => ({
+      physical: page.page!,
+      label: page.label ?? null,
+      labelSource: page.labelSource ?? "FALLBACK",
+      labelConfidence: page.labelConfidence ?? null,
+      text: page.text
+    })),
+    contentPages: visual.map((page) => ({
+      physical: page.page!,
+      text: page.text,
+      targetPhysical: page.page!
+    })),
+    ...(documentText ? { documentText } : {})
+  };
 }
 
 interface WriteContentResult {
@@ -465,7 +500,8 @@ async function writeKnowledgeContent(tx: DbExecutor, input: WriteContentInput): 
   for (const block of blocks) {
     if (block.sourcePage != null && !firstBlockByPage.has(block.sourcePage)) firstBlockByPage.set(block.sourcePage, block);
   }
-  const pageValues = input.originalPages.map((page) => {
+  const visualOriginalPages = input.originalPages.filter((page) => page.physical >= 1);
+  const pageValues = visualOriginalPages.map((page) => {
     const id = existingPageIdByPhysical.get(page.physical) ?? stableUuid(versionId, "page", String(page.physical));
     pageIdByPhysical.set(page.physical, id);
     const firstBlock = firstBlockByPage.get(page.physical);
@@ -514,7 +550,7 @@ async function writeKnowledgeContent(tx: DbExecutor, input: WriteContentInput): 
   }
 
   // 4) 内容块解析为落库行（Block 级 sectionId；页内序号按目标物理页递增）
-  const fallbackPageId = pageIdByPhysical.get(input.originalPages[0]?.physical ?? 0)
+  const fallbackPageId = pageIdByPhysical.get(visualOriginalPages[0]?.physical ?? 0)
     ?? pageIdByPhysical.values().next().value
     ?? "";
   const blockIndexByPage = new Map<number, number>();
@@ -525,7 +561,7 @@ async function writeKnowledgeContent(tx: DbExecutor, input: WriteContentInput): 
     evidenceLevel: input.evidenceLevel
   });
   for (const block of blocks) {
-    const targetPage = block.sourcePage ?? input.originalPages[0]?.physical ?? 0;
+    const targetPage = block.sourcePage ?? visualOriginalPages[0]?.physical ?? 0;
     const pageId = pageIdByPhysical.get(targetPage) ?? fallbackPageId;
     const blockIndex = blockIndexByPage.get(targetPage) ?? 0;
     blockIndexByPage.set(targetPage, blockIndex + 1);
@@ -542,11 +578,41 @@ async function writeKnowledgeContent(tx: DbExecutor, input: WriteContentInput): 
     }
   }
   const written = await writer.finish();
+  let looseChunkCount = 0;
+  const looseText = input.documentText?.trim();
+  if (looseText) {
+    const pieces = splitText(looseText);
+    let chunkIndex = written.chunkCount;
+    for (const content of pieces) {
+      await tx.insert(knowledgeChunks).values({
+        documentId,
+        versionId,
+        sectionId: rootSectionId,
+        pageBlockId: null,
+        projectId: input.projectId,
+        chunkIndex,
+        content,
+        sourcePage: null,
+        pageEnd: null,
+        sourceSection: versionTitle.slice(0, 255) || null,
+        headingLevel: 0,
+        contentType: "PARAGRAPH",
+        searchText: content,
+        keywords: [],
+        aliasTerms: [],
+        citationAnchor: null,
+        metadata: { source: "DOCUMENT_TEXT", visualPage: false },
+        sortWeight: 0
+      });
+      chunkIndex += 1;
+      looseChunkCount += 1;
+    }
+  }
   return {
-    pageCount: input.originalPages.length,
+    pageCount: visualOriginalPages.length,
     sectionCount: sectionDrafts.length,
     blockCount: written.blockCount,
-    chunkCount: written.chunkCount
+    chunkCount: written.chunkCount + looseChunkCount
   };
 }
 
@@ -695,8 +761,65 @@ async function writePageMappings(
 }
 
 /**
- * 页面预览派生（P0-4）：ORIGINAL PDF 逐页渲染 → OSS → 回写 pageImageObjectKey。
- * 逐页处理、并发 1、跳过已渲染页（幂等）；尽力而为：渲染失败不影响解析主流程。
+ * 页面预览派生（P0-4）：PDF 逐页渲染 → OSS → 回写 pageImageObjectKey。
+ * 逐页处理、并发 1；尽力而为：渲染失败不影响文本解析主流程。
+ * DOCX 临时 PDF 强制 PNG；正式 PDF 可按 PDF_PREVIEW_FORMAT。
+ */
+async function renderPagePreviewsFromPdfBuffer(
+  db: Database,
+  storage: ObjectStorage,
+  input: {
+    versionId: string;
+    pdfBuffer: Buffer;
+    /** 已有页图是否跳过；DOCX 重建应传 false 强制重渲 */
+    skipExisting?: boolean;
+    /** 强制图片格式；DOCX 本轮固定 png */
+    format?: "png" | "webp";
+  }
+): Promise<{ rendered: number; failed: number; totalPages: number }> {
+  if (!env.PDF_PREVIEW_ENABLED) return { rendered: 0, failed: 0, totalPages: 0 };
+  const format = input.format ?? env.PDF_PREVIEW_FORMAT;
+  const rows = await db.select({
+    physicalPageNumber: knowledgePages.physicalPageNumber,
+    pageImageObjectKey: knowledgePages.pageImageObjectKey
+  }).from(knowledgePages).where(eq(knowledgePages.versionId, input.versionId));
+  if (rows.length === 0) return { rendered: 0, failed: 0, totalPages: 0 };
+  const skip = input.skipExisting === false
+    ? new Set<number>()
+    : new Set(rows.filter((row) => row.pageImageObjectKey).map((row) => row.physicalPageNumber));
+  const outcome = await renderPdfPagesInWorker(input.pdfBuffer, {
+    dpi: env.PDF_PREVIEW_DPI,
+    format,
+    shouldSkip: (pageNumber) => skip.has(pageNumber),
+    onPageRendered: async ({ pageNumber, data: image }) => {
+      const objectKey = `knowledge/previews/${input.versionId}/p${pageNumber}.${format}`;
+      await storage.putObject(objectKey, image, format === "webp" ? "image/webp" : "image/png");
+      await db.update(knowledgePages).set({ pageImageObjectKey: objectKey })
+        .where(and(
+          eq(knowledgePages.versionId, input.versionId),
+          eq(knowledgePages.physicalPageNumber, pageNumber)
+        ));
+    }
+  });
+  console.info("PDF 页面预览渲染完成", {
+    versionId: input.versionId,
+    totalPages: outcome.totalPages,
+    rendered: outcome.rendered.length,
+    failed: outcome.failed.length,
+    ...(outcome.failed.length > 0
+      ? { sampleFailures: outcome.failed.slice(0, 3) }
+      : {})
+  });
+  return {
+    rendered: outcome.rendered.length,
+    failed: outcome.failed.length,
+    totalPages: outcome.totalPages
+  };
+}
+
+/**
+ * 页面预览派生（P0-4）：ORIGINAL PDF 从对象存储读取后渲染。
+ * 尽力而为：渲染失败不影响解析主流程。
  */
 async function renderOriginalPreviews(
   db: Database,
@@ -705,33 +828,11 @@ async function renderOriginalPreviews(
 ): Promise<void> {
   if (!env.PDF_PREVIEW_ENABLED) return;
   try {
-    const rows = await db.select({
-      physicalPageNumber: knowledgePages.physicalPageNumber,
-      pageImageObjectKey: knowledgePages.pageImageObjectKey
-    }).from(knowledgePages).where(eq(knowledgePages.versionId, input.versionId));
-    if (rows.length === 0) return;
-    const skip = new Set(rows.filter((row) => row.pageImageObjectKey).map((row) => row.physicalPageNumber));
-    // 渲染需要独立的可转移 Buffer（提取线程会接管所有权），重新读一次对象存储
     const data = await storage.getObject(input.objectKey);
-    const outcome = await renderPdfPagesInWorker(data, {
-      dpi: env.PDF_PREVIEW_DPI,
-      format: env.PDF_PREVIEW_FORMAT,
-      shouldSkip: (pageNumber) => skip.has(pageNumber),
-      onPageRendered: async ({ pageNumber, data: image }) => {
-        const objectKey = `knowledge/previews/${input.versionId}/p${pageNumber}.${env.PDF_PREVIEW_FORMAT}`;
-        await storage.putObject(objectKey, image, env.PDF_PREVIEW_FORMAT === "webp" ? "image/webp" : "image/png");
-        await db.update(knowledgePages).set({ pageImageObjectKey: objectKey })
-          .where(and(
-            eq(knowledgePages.versionId, input.versionId),
-            eq(knowledgePages.physicalPageNumber, pageNumber)
-          ));
-      }
-    });
-    console.info("PDF 页面预览渲染完成", {
+    await renderPagePreviewsFromPdfBuffer(db, storage, {
       versionId: input.versionId,
-      totalPages: outcome.totalPages,
-      rendered: outcome.rendered.length,
-      failed: outcome.failed.length
+      pdfBuffer: data,
+      skipExisting: true
     });
   } catch (error) {
     console.warn("PDF 页面预览渲染失败（不影响解析结果）", {
@@ -739,6 +840,179 @@ async function renderOriginalPreviews(
       error: error instanceof Error ? error.message : String(error)
     });
   }
+}
+
+export type PageRenderingStatus = "READY" | "FAILED" | "SKIPPED";
+export type TextParsingStatus = "READY" | "FAILED";
+
+interface DocxPageRenderOutcome {
+  pageRendering: PageRenderingStatus;
+  originalPages: OriginalPageInput[];
+  outline: PdfOutlineItem[];
+  /** 临时 PDF 路径；编排层二次 readFile 给页图 Worker，finally 清理 tempDir */
+  pdfPath: string | null;
+  tempDir: string | null;
+  errorCode?: string;
+  errorMessage?: string;
+}
+
+/**
+ * LibreOffice → 临时 PDF → 第一次 readFile → 文本提取 Worker（transfer）。
+ * 不持有可复用的 pdfBuffer；页图渲染由编排层第二次 readFile(pdfPath)。
+ */
+async function tryBuildDocxVisualPages(input: {
+  docxBuffer: Buffer;
+  jobId: string;
+  documentId: string;
+  versionId: string;
+}): Promise<DocxPageRenderOutcome> {
+  if (!env.DOCX_RENDER_ENABLED) {
+    return {
+      pageRendering: "SKIPPED",
+      originalPages: [],
+      outline: [],
+      pdfPath: null,
+      tempDir: null,
+      errorCode: "DOCX_RENDER_DISABLED",
+      errorMessage: "DOCX 页面渲染已关闭"
+    };
+  }
+
+  let tempDir: string | null = null;
+  try {
+    console.info("DOCX render start", {
+      documentId: input.documentId,
+      versionId: input.versionId,
+      jobId: input.jobId
+    });
+    const converted = await convertDocxToPdf({
+      buffer: input.docxBuffer,
+      jobId: input.jobId,
+      documentId: input.documentId,
+      versionId: input.versionId
+    });
+    tempDir = converted.tempDir;
+
+    // 第一次独立读盘 → 文本 Worker transfer（调用后本 Buffer 不可再用于渲染）
+    const textPdfBuffer = await readFile(converted.pdfPath);
+    console.info("PDF parse (from DOCX temp)", {
+      documentId: input.documentId,
+      versionId: input.versionId,
+      jobId: input.jobId,
+      pdfPath: converted.pdfPath,
+      pdfBytes: textPdfBuffer.byteLength
+    });
+    let extraction;
+    try {
+      extraction = await extractPdfDocumentInWorker(textPdfBuffer);
+    } catch (error) {
+      await cleanupTempDir(converted.tempDir);
+      return {
+        pageRendering: "FAILED",
+        originalPages: [],
+        outline: [],
+        pdfPath: null,
+        tempDir: null,
+        errorCode: "PDF_TEXT_PARSE_FAILED",
+        errorMessage: error instanceof Error ? error.message : String(error)
+      };
+    }
+
+    const originalPages: OriginalPageInput[] = extraction.pageDetails.map((page) => ({
+      physical: page.pageNumber,
+      label: page.pageLabel ?? null,
+      labelSource: page.pageLabelSource ?? "FALLBACK",
+      labelConfidence: page.pageLabelConfidence ?? null,
+      text: page.text
+    }));
+
+    if (originalPages.length === 0) {
+      await cleanupTempDir(converted.tempDir);
+      return {
+        pageRendering: "FAILED",
+        originalPages: [],
+        outline: extraction.outline,
+        pdfPath: null,
+        tempDir: null,
+        errorCode: "DOCX_RENDER_OUTPUT_MISSING",
+        errorMessage: "临时 PDF 未解析出页面"
+      };
+    }
+
+    return {
+      pageRendering: "READY",
+      originalPages,
+      outline: extraction.outline,
+      pdfPath: converted.pdfPath,
+      tempDir: converted.tempDir
+    };
+  } catch (error) {
+    if (tempDir) await cleanupTempDir(tempDir);
+    if (isDocxRenderError(error)) {
+      return {
+        pageRendering: error.code === "DOCX_RENDER_DISABLED" ? "SKIPPED" : "FAILED",
+        originalPages: [],
+        outline: [],
+        pdfPath: null,
+        tempDir: null,
+        errorCode: error.code,
+        errorMessage: error.message
+      };
+    }
+    return {
+      pageRendering: "FAILED",
+      originalPages: [],
+      outline: [],
+      pdfPath: null,
+      tempDir: null,
+      errorCode: "DOCX_RENDER_FAILED",
+      errorMessage: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+/**
+ * 重建 DOCX 视觉页后：删除不在新物理页集合中的旧页。
+ * thermal_reference_rows.source_page_id 为 ON DELETE SET NULL，不会静默错绑。
+ */
+async function pruneOrphanPagesAfterDocxRender(
+  tx: DbExecutor,
+  versionId: string,
+  keepPhysicalPages: number[]
+): Promise<{ removedPageIds: string[]; clearedThermalRefs: number }> {
+  if (keepPhysicalPages.length === 0) {
+    const existing = await tx.select({ id: knowledgePages.id }).from(knowledgePages)
+      .where(eq(knowledgePages.versionId, versionId));
+    if (existing.length === 0) return { removedPageIds: [], clearedThermalRefs: 0 };
+    const ids = existing.map((row) => row.id);
+    // 先显式清空引用并记日志，再删页（FK 也会 set null，这里便于审计）
+    const cleared = await tx.update(thermalReferenceRows).set({ sourcePageId: null })
+      .where(inArray(thermalReferenceRows.sourcePageId, ids)).returning({ id: thermalReferenceRows.id });
+    await tx.delete(knowledgePages).where(eq(knowledgePages.versionId, versionId));
+    console.info("DOCX 页面重建：清空全部旧页", {
+      versionId,
+      removed: ids.length,
+      clearedThermalRefs: cleared.length
+    });
+    return { removedPageIds: ids, clearedThermalRefs: cleared.length };
+  }
+  const orphans = await tx.select({ id: knowledgePages.id, physicalPageNumber: knowledgePages.physicalPageNumber })
+    .from(knowledgePages)
+    .where(and(
+      eq(knowledgePages.versionId, versionId),
+      notInArray(knowledgePages.physicalPageNumber, keepPhysicalPages)
+    ));
+  if (orphans.length === 0) return { removedPageIds: [], clearedThermalRefs: 0 };
+  const ids = orphans.map((row) => row.id);
+  const cleared = await tx.update(thermalReferenceRows).set({ sourcePageId: null })
+    .where(inArray(thermalReferenceRows.sourcePageId, ids)).returning({ id: thermalReferenceRows.id });
+  await tx.delete(knowledgePages).where(inArray(knowledgePages.id, ids));
+  console.info("DOCX 页面重建：移除多余旧页并解除热工引用", {
+    versionId,
+    removedPhysical: orphans.map((row) => row.physicalPageNumber),
+    clearedThermalRefs: cleared.length
+  });
+  return { removedPageIds: ids, clearedThermalRefs: cleared.length };
 }
 
 // ---------------------------------------------------------------- 解析任务处理
@@ -766,7 +1040,253 @@ interface ParseContext {
   preservePublishedStatus?: boolean;
 }
 
-/** 单源解析（有文本层的 Original / DOCX / XLSX）：parsed/outline 由调用方解析一次后传入 */
+/**
+ * DOCX 双通道：
+ * - Mammoth → documentText / chunks / RAG（textParsing）
+ * - LibreOffice → 临时 PDF → knowledge_pages + pageImage（pageRendering，失败不阻断文本）
+ * ORIGINAL 对象仍是 .docx，临时 PDF 不入库、不暴露。
+ */
+async function parseDocxDualChannel(
+  context: ParseContext,
+  docxBuffer: Buffer,
+  version: typeof knowledgeDocumentVersions.$inferSelect,
+  documentRow: { projectId: string | null }
+): Promise<Record<string, unknown>> {
+  const { db, storage, job } = context;
+  const aliases = await loadActiveAliases(db);
+
+  await db.update(knowledgeDocumentVersions).set({ pipelineStatus: "CHUNKING", updatedAt: new Date() })
+    .where(eq(knowledgeDocumentVersions.id, context.versionId));
+  await job.updateProgress(40);
+
+  const mammothResult = await mammoth.extractRawText({ buffer: docxBuffer });
+  const documentText = mammothResult.value.trim();
+  if (documentText.length < 20) {
+    const reason = "文件缺少可提取文本，需要 OCR 处理";
+    await db.update(files).set({ status: "OCR_REQUIRED", errorMessage: reason, updatedAt: new Date() })
+      .where(eq(files.id, context.fileId));
+    await db.update(knowledgeDocumentVersions).set({
+      parseStatus: "OCR_REQUIRED",
+      pipelineStatus: "FAILED",
+      updatedAt: new Date()
+    }).where(eq(knowledgeDocumentVersions.id, context.versionId));
+    await db.update(parsingJobs).set({
+      status: "OCR_REQUIRED",
+      progress: 100,
+      result: {
+        status: "OCR_REQUIRED",
+        message: reason,
+        textParsing: "FAILED",
+        pageRendering: "SKIPPED"
+      },
+      finishedAt: new Date(),
+      updatedAt: new Date()
+    }).where(eq(parsingJobs.id, context.parsingJobId));
+    return { status: "OCR_REQUIRED" };
+  }
+  const textParsing: TextParsingStatus = "READY";
+
+  await job.updateProgress(55);
+  const visual = await tryBuildDocxVisualPages({
+    docxBuffer,
+    jobId: context.parsingJobId,
+    documentId: version.documentId,
+    versionId: context.versionId
+  });
+
+  try {
+  // 页面渲染失败/跳过时保留已有 knowledge_pages（避免 REPARSE 因 soffice 抖动把页图库清空）
+  let originalPagesForWrite = visual.pageRendering === "READY" ? visual.originalPages : [];
+  if (visual.pageRendering !== "READY") {
+    const existing = await db.select({
+      physicalPageNumber: knowledgePages.physicalPageNumber,
+      pageLabel: knowledgePages.pageLabel,
+      pageLabelSource: knowledgePages.pageLabelSource,
+      pageLabelConfidence: knowledgePages.pageLabelConfidence,
+      parsedText: knowledgePages.parsedText
+    }).from(knowledgePages).where(eq(knowledgePages.versionId, context.versionId));
+    originalPagesForWrite = existing
+      .filter((page) => page.physicalPageNumber >= 1)
+      .map((page) => ({
+        physical: page.physicalPageNumber,
+        label: page.pageLabel,
+        labelSource: page.pageLabelSource ?? "FALLBACK",
+        labelConfidence: page.pageLabelConfidence,
+        text: page.parsedText
+      }));
+  }
+
+  const tocDraft = buildKnowledgeTocDraft({
+    outline: visual.outline,
+    pages: (visual.pageRendering === "READY" ? visual.originalPages : originalPagesForWrite).map((page) => ({
+      physical: page.physical,
+      text: page.text ?? "",
+      label: page.label,
+      labelSource: page.labelSource ?? "FALLBACK",
+      labelConfidence: page.labelConfidence ?? null
+    }))
+  });
+
+  await job.updateProgress(70);
+  const result = await db.transaction(async (tx) => {
+    if (visual.pageRendering === "READY") {
+      await pruneOrphanPagesAfterDocxRender(
+        tx,
+        context.versionId,
+        visual.originalPages.map((page) => page.physical)
+      );
+    }
+    const written = await writeKnowledgeContent(tx, {
+      documentId: version.documentId,
+      versionId: context.versionId,
+      versionTitle: version.title,
+      projectId: documentRow.projectId,
+      aliases,
+      evidenceLevel: version.evidenceLevel,
+      originalPages: originalPagesForWrite,
+      // RAG 不走临时 PDF 页文本，避免与 Mammoth 重复索引
+      contentPages: [],
+      documentText: documentText || undefined,
+      sheets: null
+    });
+    const tocItemCount = originalPagesForWrite.length > 0
+      ? await replaceAutoToc(tx, {
+        documentId: version.documentId,
+        versionId: context.versionId,
+        items: tocDraft.items,
+        maxPage: originalPagesForWrite.length
+      })
+      : 0;
+    const pageCount = written.pageCount;
+    await tx.update(knowledgeDocumentVersions).set({
+      parseStatus: "PARSED",
+      pageCount,
+      parser: "mammoth",
+      ...(context.preservePublishedStatus && version.status === "PUBLISHED"
+        ? {}
+        : { pipelineStatus: "REVIEW_PENDING" as const }),
+      updatedAt: new Date()
+    }).where(eq(knowledgeDocumentVersions.id, context.versionId));
+    await tx.update(knowledgeDocuments).set({
+      pageCount,
+      parser: "mammoth",
+      updatedAt: new Date()
+    }).where(eq(knowledgeDocuments.id, version.documentId));
+    await tx.update(files).set({ status: "READY", errorMessage: null, updatedAt: new Date() })
+      .where(eq(files.id, context.fileId));
+    return { ...written, tocItemCount, pageCount };
+  });
+
+  let pageRendering: PageRenderingStatus = visual.pageRendering;
+  let pageRenderErrorCode = visual.errorCode;
+  let pageRenderErrorMessage = visual.errorMessage;
+  let previewRendered = 0;
+  let previewFailed = 0;
+  let pageRenderingComplete = false;
+
+  if (visual.pageRendering === "READY" && visual.pdfPath && env.PDF_PREVIEW_ENABLED) {
+    try {
+      // 第二次独立读盘 → 页图 Worker transfer（与文本 Worker 的 Buffer 完全隔离）
+      const renderPdfBuffer = await readFile(visual.pdfPath);
+      console.info("page render (DOCX temp PDF)", {
+        versionId: context.versionId,
+        pdfPath: visual.pdfPath,
+        pdfBytes: renderPdfBuffer.byteLength
+      });
+      const preview = await renderPagePreviewsFromPdfBuffer(db, storage, {
+        versionId: context.versionId,
+        pdfBuffer: renderPdfBuffer,
+        skipExisting: false,
+        format: "png"
+      });
+      previewRendered = preview.rendered;
+      previewFailed = preview.failed;
+      const expectedPages = result.pageCount;
+      pageRenderingComplete = isPageRenderingComplete({
+        pageCount: expectedPages,
+        previewRendered,
+        previewFailed
+      });
+      if (!pageRenderingComplete) {
+        if (preview.rendered === 0 && expectedPages > 0) {
+          pageRendering = "FAILED";
+          pageRenderErrorCode = "PDF_PAGE_RENDER_FAILED";
+          pageRenderErrorMessage = "临时 PDF 页面图片全部渲染失败";
+        } else {
+          pageRenderErrorCode = "PDF_PAGE_RENDER_FAILED";
+          pageRenderErrorMessage = `页面图片部分生成失败：${previewRendered}/${expectedPages} 成功，${previewFailed} 页失败`;
+        }
+      }
+      console.info("DOCX render complete", {
+        versionId: context.versionId,
+        pageCount: result.pageCount,
+        previewRendered,
+        previewFailed,
+        pageRenderingComplete
+      });
+    } catch (error) {
+      pageRendering = "FAILED";
+      pageRenderingComplete = false;
+      pageRenderErrorCode = "PDF_PAGE_RENDER_FAILED";
+      pageRenderErrorMessage = error instanceof Error ? error.message : String(error);
+      console.warn("DOCX 页面图片渲染失败（文本解析已成功）", {
+        versionId: context.versionId,
+        error: pageRenderErrorMessage
+      });
+    }
+  } else if (visual.pageRendering === "READY" && !env.PDF_PREVIEW_ENABLED) {
+    pageRenderingComplete = false;
+  } else if (visual.pageRendering === "READY") {
+    pageRenderingComplete = result.pageCount > 0;
+  }
+
+  await db.update(parsingJobs).set({
+    status: "COMPLETED",
+    progress: 100,
+    result: {
+      status: "READY",
+      versionId: context.versionId,
+      pageCount: result.pageCount,
+      chunkCount: result.chunkCount,
+      parser: "mammoth",
+      textParsing,
+      pageRendering,
+      pageRenderingComplete,
+      ...(pageRenderErrorCode ? {
+        pageRenderingError: {
+          code: pageRenderErrorCode,
+          message: pageRenderErrorMessage
+        }
+      } : {}),
+      previewRendered,
+      previewFailed,
+      tocItemCount: result.tocItemCount,
+      tocSource: tocDraft.source,
+      outlineAccepted: tocDraft.outlineQuality.valid
+    },
+    errorMessage: null,
+    finishedAt: new Date(),
+    updatedAt: new Date()
+  }).where(eq(parsingJobs.id, context.parsingJobId));
+  await job.updateProgress(100);
+
+  return {
+    status: "READY",
+    textParsing,
+    pageRendering,
+    pageRenderingComplete,
+    pageCount: result.pageCount,
+    previewRendered,
+    previewFailed
+  };
+  } finally {
+    if (visual.tempDir) {
+      await cleanupTempDir(visual.tempDir);
+    }
+  }
+}
+
+/** 单源解析（有文本层的 Original / PDF / XLSX）：parsed/outline 由调用方解析一次后传入 */
 async function parseSingleSource(
   context: ParseContext,
   parsed: ParsedDocument,
@@ -782,6 +1302,7 @@ async function parseSingleSource(
   await job.updateProgress(60);
 
   const pages = applyRepeatedTemplateFilter(parsed.pages);
+  const partitioned = partitionParsedPages(pages);
   const tocDraft = buildKnowledgeTocDraft({
     outline,
     pages: pages.flatMap((page) => page.page == null ? [] : [{
@@ -801,16 +1322,9 @@ async function parseSingleSource(
       projectId: documentRow.projectId,
       aliases,
       evidenceLevel: version.evidenceLevel,
-      originalPages: pages.map((page) => ({
-        physical: page.page ?? 0,
-        label: page.label ?? null,
-        labelSource: page.labelSource ?? "FALLBACK",
-        labelConfidence: page.labelConfidence ?? null,
-        text: page.text
-      })),
-      contentPages: pages
-        .filter((page) => page.page != null)
-        .map((page) => ({ physical: page.page!, text: page.text, targetPhysical: page.page! })),
+      originalPages: partitioned.originalPages,
+      contentPages: partitioned.contentPages,
+      documentText: partitioned.documentText,
       sheets: parsed.sheets ?? null
     });
     const tocItemCount = await replaceAutoToc(tx, {
@@ -1216,7 +1730,12 @@ async function handleParseJob(
       return await parseSingleSource(context, parsed, extraction.outline, version, { projectId: documentRow?.projectId ?? null });
     }
 
-    // 非 PDF（DOCX/XLSX/不支持）：维持既有判定
+    // DOCX：Mammoth 文本 + LibreOffice 页面视觉（失败不阻断文本）
+    if (mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
+      return await parseDocxDualChannel(context, data, version, { projectId: documentRow?.projectId ?? null });
+    }
+
+    // 非 PDF / 非 DOCX（XLSX/不支持）：维持既有判定
     const parsed = await parseDocument(data, mimeType, logPdfProgress(file.id));
     const totalTextLength = parsed.pages.reduce((sum, page) => sum + page.text.trim().length, 0);
     const needsOcr = parsed.parser === "ocr_required" || parsed.parser === "unsupported_doc"
@@ -1413,7 +1932,7 @@ async function handleLegacyJob(
         status: "DRAFT",
         pipelineStatus: "REVIEW_PENDING",
         parseStatus: "PARSED",
-        pageCount: parsed.pages.length,
+        pageCount: partitionParsedPages(parsed.pages).originalPages.length,
         parser: parsed.parser
       }).returning();
       await tx.insert(knowledgeDocumentAssets).values({
@@ -1430,16 +1949,7 @@ async function handleLegacyJob(
         projectId: file.projectId,
         aliases,
         evidenceLevel: null,
-        originalPages: parsed.pages.map((page) => ({
-          physical: page.page ?? 0,
-          label: page.label ?? null,
-          labelSource: page.labelSource ?? "FALLBACK",
-          labelConfidence: page.labelConfidence ?? null,
-          text: page.text
-        })),
-        contentPages: parsed.pages
-          .filter((page) => page.page != null)
-          .map((page) => ({ physical: page.page!, text: page.text, targetPhysical: page.page! })),
+        ...partitionParsedPages(parsed.pages),
         sheets: parsed.sheets ?? null
       });
       await tx.update(files).set({ status: "READY", errorMessage: null, updatedAt: new Date() }).where(eq(files.id, file.id));

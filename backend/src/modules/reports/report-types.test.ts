@@ -4,6 +4,7 @@ import {
   isTemplateBackedReportType,
   listPublicReportTypes,
   reportTypeRequiresReview,
+  tryResolveReportType,
   resolveReportType
 } from "./report-types.js";
 import { applyReportSettingsToSections, DEFAULT_REPORT_SETTINGS } from "./report-settings.service.js";
@@ -26,15 +27,19 @@ describe("系统预置报告类型", () => {
     }
   });
 
-  it("requiresProject：技术方案/简报需要项目，对话整理与材料对比不强制", () => {
-    expect(resolveReportType("technical_scheme").requiresProject).toBe(true);
-    expect(resolveReportType("project_brief").requiresProject).toBe(true);
+  it("requiresProject：预置业务类型默认不强制项目，历史 TEMPLATE 仍可要求项目", () => {
+    expect(resolveReportType("technical_scheme").requiresProject).toBe(false);
+    expect(resolveReportType("project_brief").requiresProject).toBe(false);
     expect(resolveReportType("material_compare").requiresProject).toBe(false);
     expect(resolveReportType("ai_conversation").requiresProject).toBe(false);
+    expect(resolveReportType("TEMPLATE").requiresProject).toBe(true);
   });
 
   it("未知类型拒绝", () => {
     expect(() => resolveReportType("not_a_type")).toThrow(ReportError);
+    expect(tryResolveReportType("not_a_type")).toBeNull();
+    expect(tryResolveReportType(undefined)).toBeNull();
+    expect(tryResolveReportType("project_brief")?.requiresProject).toBe(false);
   });
 
   it("历史 TEMPLATE 仍走模板渲染与审核；AI 旧类型不审核", () => {

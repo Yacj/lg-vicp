@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { MessagePlugin } from 'tdesign-vue-next'
 import { postKnowledgeVersionTestQa } from '@/api/modules/knowledge'
+import AppMarkdown from '@/components/ui/AppMarkdown.vue'
 import { normalizeFeedbackError } from '@/composables/useAppFeedback'
 import type { KnowledgeQaSource, KnowledgeQaSseEvent, KnowledgeUserTestSource } from '@/types/knowledge'
 import { knowledgePageLabel, knowledgeUserMessage } from '@/utils/knowledge-user'
@@ -143,7 +144,13 @@ watch(
       <div class="knowledge-test__thread">
         <article v-for="(message, index) in messages" :key="index" class="knowledge-test__message" :class="`is-${message.role}`">
           <strong>{{ message.role === 'user' ? '你' : '筑小格' }}</strong>
-          <p>{{ message.content || (sending && index === messages.length - 1 ? '正在生成…' : '') }}</p>
+          <p v-if="message.role === 'user'">
+            {{ message.content }}
+          </p>
+          <p v-else-if="!message.content">
+            {{ sending && index === messages.length - 1 ? '正在生成…' : '' }}
+          </p>
+          <AppMarkdown v-else :content="message.content" />
           <div v-if="message.sources?.length" class="knowledge-test__sources">
             <div v-for="(source, sourceIndex) in message.sources" :key="`${source.documentId}-${sourceIndex}`" class="knowledge-test__source">
               <header>
@@ -216,11 +223,15 @@ watch(
   color: var(--td-text-color-primary);
 }
 
-.knowledge-test__message p {
+.knowledge-test__message p,
+.knowledge-test__message :deep(.app-markdown) {
   margin: var(--td-size-2) 0 0;
-  white-space: pre-wrap;
   color: var(--td-text-color-primary);
   line-height: 1.7;
+}
+
+.knowledge-test__message p {
+  white-space: pre-wrap;
 }
 
 .knowledge-test__message.is-user p {

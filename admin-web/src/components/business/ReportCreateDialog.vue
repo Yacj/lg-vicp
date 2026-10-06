@@ -1,22 +1,24 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import type { ReportType } from '@/types/report'
-import { createReport, fetchConversationMessages } from '@/api/modules/reports'
-import type { ConversationMessageSource } from '@/api/modules/reports'
-import { fetchProjectConversations } from '@/api/modules/ai'
-import type { ProjectConversation } from '@/types/project'
+import { fetchMyProjects } from '@/api/modules/projects'
+import { createReport } from '@/api/modules/reports'
 import { useAppFeedback } from '@/composables/useAppFeedback'
-import { formatDate } from '@/utils/day'
-import { REPORT_TYPE_META } from '@/utils/report'
+import { useReportTypes } from '@/composables/useReportTypes'
+import type { ProjectItem } from '@/types/project'
+import type { PublicReportType } from '@/types/report'
+import {
+  buildCreateReportInput,
+  REPORT_PROJECT_REQUIRED_MESSAGE,
+} from '@/utils/report'
 
 /**
- * 创建报告对话框。
- * 流程：选择项目下的 AI 会话 → 选择报告类型 → 选择来源回答（可选，最多 20 条）→ 提交。
- * 数据全部来自真实接口：会话列表 / 会话消息 / 创建报告。
+ * 生成报告：普通业务只选择报告类型；有项目则带上，无项目且 requiresProject 时拦截。
+ * 不选择模板、模板版本或变量。
  */
 const props = defineProps<{
   visible: boolean
-  projectId: string
+  projectId?: string
+  projectName?: string
 }>()
 
 const emit = defineEmits<{
@@ -25,88 +27,72 @@ const emit = defineEmits<{
 }>()
 
 const feedback = useAppFeedback()
+const { error: typesError, load: loadTypes, types } = useReportTypes()
 
-const conversations = ref<ProjectConversation[]>([])
-const conversationsLoading = ref(false)
-const selectedConversationId = ref('')
-const messages = ref<ConversationMessageSource[]>([])
-const messagesLoading = ref(false)
-const reportType = ref<ReportType>('energy_design')
-const selectedMessageIds = ref<string[]>([])
+const reportType = ref('')
+const selectedProjectId = ref('')
+const projects = ref<ProjectItem[]>([])
+const projectsLoading = ref(false)
 const submitting = ref(false)
 
-const reportTypeOptions = (Object.keys(REPORT_TYPE_META) as ReportType[]).map(type => ({
-  description: REPORT_TYPE_META[type].description,
-  label: REPORT_TYPE_META[type].label,
-  value: type,
-}))
+const scopedProject = computed(() => Boolean(props.projectId))
 
-const selectableMessages = computed(() =>
-  messages.value.filter(message =>
-    message.role === 'ASSISTANT'
-    && message.status === 'COMPLETED'
-    && message.content.trim().length > 0,
-  ))
+const selectedType = computed<PublicReportType | undefined>(() =>
+  types.value.find(item => item.code === reportType.value))
 
-const conversationOptions = computed(() =>
-  conversations.value.map(conversation => ({
-    label: conversation.title || '未命名会话',
-    value: conversation.id,
-  })))
+const requiresProject = computed(() => selectedType.value?.requiresProject === true)
 
-function resetForm(): void {
-  conversations.value = []
-  selectedConversationId.value = ''
-  messages.value = []
-  selectedMessageIds.value = []
-  reportType.value = 'energy_design'
-}
+const projectHint = computed(() => {
+  if (!requiresProject.value) {
+    return ''
+  }
+  if (props.projectId || selectedProjectId.value) {
+    return ''
+  }
+  return REPORT_PROJECT_REQUIRED_MESSAGE
+})
 
-async function loadConversations(): Promise<void> {
-  conversationsLoading.value = true
+const typeOptions = computed(() => types.value.map(item => ({
+  label: item.name,
+  value: item.code,
+})))
+
+const projectOptions = computed(() => projects.value.map(item => ({
+  label: item.name,
+  value: item.id,
+})))
+
+async function loadProjects(): Promise<void> {
+  if (scopedProject.value) {
+    return
+  }
+  projectsLoading.value = true
   try {
-    const result = await fetchProjectConversations(props.projectId, { page: 1, pageSize: 100 })
-    conversations.value = result.items
+    const result = await fetchMyProjects({ page: 1, pageSize: 100 })
+    projects.value = result.items
   }
   catch (cause) {
     feedback.messageError(cause)
   }
   finally {
-    conversationsLoading.value = false
+    projectsLoading.value = false
   }
 }
 
-async function loadMessages(conversationId: string): Promise<void> {
-  messagesLoading.value = true
-  selectedMessageIds.value = []
-  try {
-    messages.value = await fetchConversationMessages(conversationId)
+watch(() => props.visible, async (visible) => {
+  if (!visible) {
+    return
   }
-  catch (cause) {
-    feedback.messageError(cause)
+  selectedProjectId.value = props.projectId ?? ''
+  const catalog = await loadTypes()
+  reportType.value = catalog[0]?.code ?? ''
+  if (typesError.value) {
+    feedback.messageError(typesError.value)
   }
-  finally {
-    messagesLoading.value = false
+  else if (catalog.length === 0) {
+    feedback.message('warning', '暂无可用报告类型')
   }
-}
-
-function handleConversationChange(value: unknown): void {
-  const conversationId = String(value ?? '')
-  selectedConversationId.value = conversationId
-  if (conversationId) {
-    void loadMessages(conversationId)
-  }
-  else {
-    messages.value = []
-    selectedMessageIds.value = []
-  }
-}
-
-watch(() => props.visible, (visible) => {
-  if (visible) {
-    resetForm()
-    void loadConversations()
-  }
+  await loadProjects()
 })
 
 function close(): void {
@@ -117,18 +103,18 @@ async function submit(): Promise<void> {
   if (submitting.value) {
     return
   }
-  if (!selectedConversationId.value) {
-    await feedback.message('warning', '请选择来源 AI 会话')
+  const payload = buildCreateReportInput({
+    projectId: props.projectId || selectedProjectId.value,
+    reportType: reportType.value,
+    requiresProject: requiresProject.value,
+  })
+  if (!payload.ok) {
+    await feedback.message('warning', payload.message)
     return
   }
   submitting.value = true
   try {
-    const result = await createReport({
-      projectId: props.projectId,
-      conversationId: selectedConversationId.value,
-      reportType: reportType.value,
-      sourceMessageIds: selectedMessageIds.value,
-    })
+    const result = await createReport(payload.input)
     feedback.message('success', result.message)
     close()
     emit('success')
@@ -140,77 +126,53 @@ async function submit(): Promise<void> {
     submitting.value = false
   }
 }
+
+watch(() => props.projectId, (id) => {
+  selectedProjectId.value = id ?? ''
+})
 </script>
 
 <template>
   <t-dialog
     cancel-btn="取消"
-    :confirm-btn="{ content: '创建报告', loading: submitting }"
-    header="创建报告"
+    :confirm-btn="{ content: '生成报告', loading: submitting }"
+    header="生成报告"
     :visible="visible"
-    width="640px"
+    width="520px"
     @cancel="close"
     @close="close"
     @confirm="submit"
     @update:visible="emit('update:visible', $event)"
   >
     <t-form label-align="top">
-      <t-form-item label="来源 AI 会话">
+      <t-form-item label="报告类型" required-mark>
         <t-select
-          v-model="selectedConversationId"
-          :loading="conversationsLoading"
-          :options="conversationOptions"
-          placeholder="请选择生成报告所基于的 AI 会话"
-          @change="handleConversationChange"
+          v-model="reportType"
+          :options="typeOptions"
+          placeholder="请选择报告类型"
         />
-      </t-form-item>
-
-      <t-form-item label="报告类型">
-        <t-radio-group v-model="reportType" variant="default-filled">
-          <t-radio-button
-            v-for="option in reportTypeOptions"
-            :key="option.value"
-            :value="option.value"
-          >
-            {{ option.label }}
-          </t-radio-button>
-        </t-radio-group>
-        <p class="report-create-dialog__hint">
-          {{ REPORT_TYPE_META[reportType].description }}
+        <p v-if="selectedType" class="report-create-dialog__hint">
+          {{ selectedType.description }}
         </p>
       </t-form-item>
 
-      <t-form-item v-if="selectedConversationId" label="来源回答">
-        <template v-if="messagesLoading">
-          <t-loading text="正在加载回答..." />
-        </template>
-        <template v-else>
-          <t-checkbox-group v-model="selectedMessageIds">
-            <div v-if="selectableMessages.length === 0" class="report-create-dialog__empty">
-              该会话暂无已完成的 AI 回答，可提交空来源生成空白报告草稿。
-            </div>
-            <label
-              v-for="message in selectableMessages"
-              :key="message.id"
-              class="report-create-dialog__message"
-            >
-              <t-checkbox :value="message.id" />
-              <span class="report-create-dialog__message-meta">
-                {{ formatDate(new Date(message.createdAt)) }}
-                <template v-if="message.model">
-                  · {{ message.model }}
-                </template>
-              </span>
-              <span class="report-create-dialog__message-preview">
-                {{ message.content.slice(0, 120) }}
-              </span>
-            </label>
-          </t-checkbox-group>
-          <p class="report-create-dialog__hint">
-            最多选择 20 条回答作为报告素材；不选择时生成空白报告草稿。
-          </p>
-        </template>
+      <t-form-item v-if="scopedProject" label="项目">
+        <t-input :model-value="projectName || '当前项目'" disabled />
       </t-form-item>
+
+      <t-form-item v-else :label="requiresProject ? '项目' : '项目（可选）'">
+        <t-select
+          v-model="selectedProjectId"
+          clearable
+          :loading="projectsLoading"
+          :options="projectOptions"
+          placeholder="选择关联项目"
+        />
+      </t-form-item>
+
+      <t-alert v-if="projectHint" class="report-create-dialog__alert" theme="warning">
+        {{ projectHint }}
+      </t-alert>
     </t-form>
   </t-dialog>
 </template>
@@ -223,32 +185,7 @@ async function submit(): Promise<void> {
   font-size: var(--td-font-size-body-small);
 }
 
-.report-create-dialog__empty {
-  padding: var(--td-size-3);
-  color: var(--td-text-color-secondary);
-  font-size: var(--td-font-size-body-small);
-}
-
-.report-create-dialog__message {
-  display: flex;
-  width: 100%;
-  align-items: flex-start;
-  gap: var(--td-size-2);
-  padding: var(--td-size-2) 0;
-}
-
-.report-create-dialog__message-meta {
-  flex: 0 0 auto;
-  color: var(--td-text-color-secondary);
-  font-size: var(--td-font-size-body-small);
-}
-
-.report-create-dialog__message-preview {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--td-text-color-primary);
-  font-size: var(--td-font-size-body-small);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.report-create-dialog__alert {
+  margin-top: var(--td-size-2);
 }
 </style>

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '@/api/http/client'
 import {
   createAiModel,
+  testAiModel,
   createAiPrompt,
   createAiProvider,
   createAiQuickPrompt,
@@ -18,13 +19,19 @@ import {
   fetchAiPromptVersions,
   fetchAiProviders,
   fetchAiQuickPrompts,
+  fetchAgentRun,
+  fetchProjectAiMemories,
   fetchAiSceneBindings,
+  fetchBusinessPrompts,
+  fetchConversationDetail,
   fetchPlatformConversationDetail,
   fetchPlatformConversations,
   fetchPlatformFeedbacks,
   fetchProjectConversations,
   handleAiFeedback,
   publishAiPrompt,
+  rejectProjectAiMemory,
+  resetBusinessPrompt,
   rollbackAiPromptVersion,
   stopAiDebugChat,
   testAiModelConnection,
@@ -35,6 +42,8 @@ import {
   updateAiProvider,
   updateAiProviderStatus,
   updateAiQuickPrompt,
+  updateBusinessPrompt,
+  updateProjectAiMemory,
   upsertAiSceneBinding,
 } from './ai'
 
@@ -63,6 +72,13 @@ describe('ai conversation api contracts', () => {
       params: { page: 1, pageSize: 20, projectId: 'project-1' },
       signal,
     })
+  })
+
+  it('fetches conversation detail by id', async () => {
+    const signal = new AbortController().signal
+    await fetchConversationDetail('conversation-1', signal)
+
+    expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/ai/conversations/conversation-1', { signal })
   })
 })
 
@@ -123,30 +139,37 @@ describe('ai model api contracts', () => {
     expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/platform/ai/models', { signal })
   })
 
-  it('creates a model with capabilities', async () => {
+  it('creates a model with the simplified B-end payload', async () => {
     await createAiModel({
       providerId: 'provider-1',
-      displayName: 'DeepSeek R1',
-      modelId: 'deepseek-reasoner',
-      capabilities: { text: true, streaming: true, reasoning: true },
-      timeoutMs: 60000,
-      enabled: true,
+      displayName: 'DeepSeek Chat',
+      modelId: 'deepseek-chat',
+      supportsVision: false,
+      reasoningLevel: 'HIGH',
+      enabled: false,
+      isDefault: false,
     })
 
     expect(mockedApi.post).toHaveBeenCalledWith('/api/v1/platform/ai/models', {
       providerId: 'provider-1',
-      displayName: 'DeepSeek R1',
-      modelId: 'deepseek-reasoner',
-      capabilities: { text: true, streaming: true, reasoning: true },
-      timeoutMs: 60000,
-      enabled: true,
+      displayName: 'DeepSeek Chat',
+      modelId: 'deepseek-chat',
+      supportsVision: false,
+      reasoningLevel: 'HIGH',
+      enabled: false,
+      isDefault: false,
     })
+    expect(mockedApi.post.mock.calls[0]?.[1]).not.toHaveProperty('temperature')
+    expect(mockedApi.post.mock.calls[0]?.[1]).not.toHaveProperty('answerStyle')
+    expect(mockedApi.post.mock.calls[0]?.[1]).not.toHaveProperty('responseStyle')
+    expect(mockedApi.post.mock.calls[0]?.[1]).not.toHaveProperty('capabilities')
   })
 
   it('updates model and status', async () => {
-    await updateAiModel('model-1', { contextWindow: 65536 })
+    await updateAiModel('model-1', { supportsVision: true, reasoningLevel: 'MAX' })
     expect(mockedApi.patch).toHaveBeenCalledWith('/api/v1/platform/ai/models/model-1', {
-      contextWindow: 65536,
+      supportsVision: true,
+      reasoningLevel: 'MAX',
     })
 
     await updateAiModelStatus('model-1', false)
@@ -161,10 +184,12 @@ describe('ai model api contracts', () => {
     expect(mockedApi.delete).toHaveBeenCalledWith('/api/v1/platform/ai/models/model-1')
   })
 
-  it('tests model connection', async () => {
-    await testAiModelConnection('model-1')
+  it('tests a model via the admission endpoint', async () => {
+    await testAiModel('model-1')
+    expect(mockedApi.post).toHaveBeenCalledWith('/api/v1/platform/ai/models/model-1/test')
 
-    expect(mockedApi.post).toHaveBeenCalledWith('/api/v1/platform/ai/models/model-1/test-connection')
+    await testAiModelConnection('model-1')
+    expect(mockedApi.post).toHaveBeenCalledWith('/api/v1/platform/ai/models/model-1/test')
   })
 })
 
@@ -344,6 +369,8 @@ describe('platform conversation api contracts', () => {
       clientApp: 'pc_ai',
       scene: 'project_design',
       status: 'active',
+      userId: 'user-1',
+      projectId: 'project-1',
     }, signal)
 
     expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/platform/ai/conversations', {
@@ -354,6 +381,8 @@ describe('platform conversation api contracts', () => {
         clientApp: 'pc_ai',
         scene: 'project_design',
         status: 'active',
+        userId: 'user-1',
+        projectId: 'project-1',
       },
       signal,
     })
@@ -397,10 +426,63 @@ describe('platform feedback api contracts', () => {
   })
 })
 
+describe('ai business prompt api contracts', () => {
+  it('lists, updates and restores business prompts including GLOBAL_RESPONSE_POLICY', async () => {
+    const signal = new AbortController().signal
+    await fetchBusinessPrompts(signal)
+    expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/platform/ai/business-prompts', { signal })
+
+    await updateBusinessPrompt('GLOBAL_RESPONSE_POLICY', { content: '直接回答用户当前问题，结论优先。不重复上一轮内容。' })
+    expect(mockedApi.put).toHaveBeenCalledWith(
+      '/api/v1/platform/ai/business-prompts/GLOBAL_RESPONSE_POLICY',
+      { content: '直接回答用户当前问题，结论优先。不重复上一轮内容。' },
+    )
+    expect(mockedApi.put.mock.calls[0]?.[1]).not.toHaveProperty('answerStyle')
+    expect(mockedApi.put.mock.calls[0]?.[1]).not.toHaveProperty('responseStyle')
+
+    await resetBusinessPrompt('GLOBAL_RESPONSE_POLICY')
+    expect(mockedApi.post).toHaveBeenCalledWith(
+      '/api/v1/platform/ai/business-prompts/GLOBAL_RESPONSE_POLICY/reset-default',
+    )
+
+    await updateBusinessPrompt('PRODUCT_COMPARE', { content: '只解释 ComparisonResult 中的差异。' })
+    expect(mockedApi.put).toHaveBeenCalledWith(
+      '/api/v1/platform/ai/business-prompts/PRODUCT_COMPARE',
+      { content: '只解释 ComparisonResult 中的差异。' },
+    )
+  })
+})
+
 describe('ai debug api contracts', () => {
   it('stops a debug generation', async () => {
     await stopAiDebugChat('debug-1')
 
     expect(mockedApi.post).toHaveBeenCalledWith('/api/v1/platform/ai/debug/debug-1/stop')
+  })
+})
+
+describe('agent run and project memory api contracts', () => {
+  it('fetches an agent run by id', async () => {
+    const signal = new AbortController().signal
+    await fetchAgentRun('run-1', signal)
+
+    expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/ai/agent-runs/run-1', { signal })
+  })
+
+  it('lists project memories by view and can reject or update them', async () => {
+    const signal = new AbortController().signal
+    await fetchProjectAiMemories('project-1', 'pending', signal)
+    expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/projects/project-1/ai-memories', {
+      params: { view: 'pending' },
+      signal,
+    })
+
+    await rejectProjectAiMemory('project-1', 'memory-1')
+    expect(mockedApi.post).toHaveBeenCalledWith('/api/v1/projects/project-1/ai-memories/memory-1/reject')
+
+    await updateProjectAiMemory('project-1', 'memory-1', { content: '目标 K 改为 0.30' })
+    expect(mockedApi.put).toHaveBeenCalledWith('/api/v1/projects/project-1/ai-memories/memory-1', {
+      content: '目标 K 改为 0.30',
+    })
   })
 })

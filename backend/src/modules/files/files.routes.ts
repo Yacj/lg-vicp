@@ -262,7 +262,10 @@ export async function fileRoutes(app: FastifyInstance) {
           afterJson: { status: "READY", purpose: file.purpose }
         });
       });
-      return ok(request, { message: "聊天图片上传完成", fileId: file.id, status: "READY" });
+      const message = file.purpose === "KNOWLEDGE_SOURCE"
+        ? "知识源文件上传完成，请通过知识库创建并解析"
+        : "聊天图片上传完成";
+      return ok(request, { message, fileId: file.id, status: "READY" });
     }
 
     const task = await app.db.transaction(async (tx) => {

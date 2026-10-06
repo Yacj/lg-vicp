@@ -2,12 +2,16 @@ import "dotenv/config";
 import { buildApp } from "./app.js";
 import { env } from "./config/env.js";
 import { configureConsoleEncoding } from "./shared/console-encoding.js";
+import { logDocxRendererAvailability } from "./workers/docx-to-pdf.js";
 
 configureConsoleEncoding();
 
 const app = await buildApp();
 
 try {
+  // LibreOffice 探测：不可用不阻断 API 启动
+  await logDocxRendererAvailability();
+
   const listenAddress = await app.listen({
     host: env.HOST,
     port: env.PORT

@@ -277,6 +277,7 @@ describe("executeThermalCalc EQUIVALENT 整体当量法", () => {
         { id: "p-a-lab", specId: "spec-1", parameterCode: "a_eq", parameterName: "修正系数", paramSource: "LAB", version: 3, value: 1.1, unit: null, evidenceSource: "检测报告", evidenceRef: "R2", evidenceLevel: "B" },
         { id: "p-a-test", specId: "spec-1", parameterCode: "a_eq", parameterName: "修正系数", paramSource: "TEST", version: 1, value: 1.2, unit: null, evidenceSource: "企业实测", evidenceRef: "T2", evidenceLevel: "C" }
       ],
+      [],   // 规格未关联目录产品
       [recordRow({ mode: "EQUIVALENT", standardLimitId: null, limitVersion: null })],
       []
     ]);

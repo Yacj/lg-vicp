@@ -14,7 +14,7 @@ beforeEach(() => {
 })
 
 describe('permission router guard', () => {
-  it('falls back to 403 when the current user lacks page permission', async () => {
+  it('lets super admin pass page permission checks', async () => {
     const authStore = useAuthStore()
     const userStore = useUserStore()
     const routeStore = useRouteStore()
@@ -29,16 +29,16 @@ describe('permission router guard', () => {
       dataScopes: [],
       departments: [],
       permissions: ['system:user:list'],
-      roles: ['channel_operator'],
+      roles: ['SUPER_ADMIN'],
       user: {
         adminLoginEnabled: true,
-        channelType: 'DEALER',
+        channelType: null,
         clientType: 'B_ADMIN',
-        displayName: '渠道用户',
+        displayName: '超级管理员',
         email: null,
         id: 'user-id',
         phone: null,
-        role: 'CHANNEL_USER',
+        role: 'SUPER_ADMIN',
         status: 'ACTIVE',
       },
     })
@@ -58,7 +58,6 @@ describe('permission router guard', () => {
     await router.push('/secret')
     await router.isReady()
 
-    expect(router.currentRoute.value.name).toBe('Forbidden')
-    expect(router.currentRoute.value.query.from).toBe('/secret')
+    expect(router.currentRoute.value.name).toBe('Secret')
   })
 })

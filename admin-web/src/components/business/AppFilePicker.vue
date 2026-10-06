@@ -6,9 +6,12 @@ import AppFilePreview from '@/components/business/AppFilePreview.vue'
 import AppDataTable from '@/components/ui/AppDataTable.vue'
 import { normalizeFeedbackError } from '@/composables/useAppFeedback'
 import type { FileCenterItem } from '@/types/file'
+import { isCompanyLogoMime, isCompanyQualificationMime } from '@/utils/company'
 import { formatDate } from '@/utils/day'
 import { knowledgeFileKind } from '@/utils/knowledge-user'
 import { formatFileSize } from '@/utils/report'
+
+export type FilePickerAccept = 'knowledge' | 'image' | 'image-or-pdf'
 
 const KNOWLEDGE_MIME_FILTERS = [
   { label: 'PDF / Word', value: 'knowledge' },
@@ -20,9 +23,11 @@ const props = withDefaults(defineProps<{
   visible: boolean
   title?: string
   confirmText?: string
+  accept?: FilePickerAccept
 }>(), {
   title: '从文件中心选择',
   confirmText: '使用此文件',
+  accept: 'knowledge',
 })
 
 const emit = defineEmits<{
@@ -87,6 +92,28 @@ function matchesKnowledgeFile(file: FileCenterItem): boolean {
   return kind === 'PDF' || kind === 'Word'
 }
 
+function matchesAccept(file: FileCenterItem): boolean {
+  if (props.accept === 'image') {
+    return isCompanyLogoMime(file.mimeType)
+  }
+  if (props.accept === 'image-or-pdf') {
+    return isCompanyQualificationMime(file.mimeType)
+  }
+  return matchesKnowledgeFile(file)
+}
+
+const emptyTitle = computed(() => {
+  if (props.accept === 'image') {
+    return '没有可选择的图片'
+  }
+  if (props.accept === 'image-or-pdf') {
+    return '没有可选择的图片或 PDF'
+  }
+  return '没有可选择的知识文件'
+})
+
+const showKindFilter = computed(() => props.accept === 'knowledge')
+
 async function load(): Promise<void> {
   loading.value = true
   error.value = null
@@ -97,7 +124,7 @@ async function load(): Promise<void> {
         if (item.status !== 'READY') {
           return false
         }
-        if (!matchesKnowledgeFile(item)) {
+        if (!matchesAccept(item)) {
           return false
         }
         if (kindFilter.value === 'pdf') {
@@ -121,10 +148,8 @@ async function load(): Promise<void> {
         ...(keyword.value.trim() ? { keyword: keyword.value.trim() } : {}),
         ...mimeQuery(),
       })
-      items.value = kindFilter.value === 'knowledge'
-        ? result.items.filter(matchesKnowledgeFile)
-        : result.items
-      total.value = result.total
+      items.value = result.items.filter(matchesAccept)
+      total.value = props.accept === 'knowledge' ? result.total : items.value.length
     }
     if (selectedId.value && !items.value.some(item => item.id === selectedId.value)) {
       selectedId.value = null
@@ -212,6 +237,7 @@ watch(
           @enter="search"
         />
         <t-select
+          v-if="showKindFilter"
           v-model="kindFilter"
           :options="[...KNOWLEDGE_MIME_FILTERS]"
           style="width: 140px"
@@ -227,7 +253,7 @@ watch(
         :current="query.page"
         :data="items"
         empty-description="可上传新文件，或切换到全部文件再搜索"
-        empty-title="没有可选择的知识文件"
+        :empty-title="emptyTitle"
         :error-description="errorDescription"
         :operations-width="88"
         :page-size="query.pageSize"

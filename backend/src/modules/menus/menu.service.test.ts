@@ -119,11 +119,13 @@ describe("buildMenuTreeForPermissions（瘦身菜单 × 三类角色）", () => 
   // NORMAL_USER：seed 中 normal_user 角色显式绑定的权限码
   const normalUserCodes = new Set(["project.read_public", "ai.chat"]);
 
-  it("SUPER_ADMIN（全量权限）：产品中心已隐藏，采集管理可见且无空壳目录", () => {
+  it("SUPER_ADMIN（全量权限）：产品中心与采集管理可见，无空壳目录", () => {
     const tree = buildMenuTreeForPermissions(rows, allPermissionCodes);
-    expect(tree.map((item) => item.name)).toEqual(["项目管理", "知识中心", "采集管理", "报告管理", "AI 配置", "AI 运营", "系统管理"]);
+    expect(tree.map((item) => item.name)).toEqual(["项目管理", "产品中心", "知识中心", "采集管理", "报告管理", "AI 配置", "AI 运营", "系统管理"]);
+    const products = tree.find((item) => item.routePath === "/products");
+    expect(products?.children.map((child) => child.name)).toEqual(["产品管理", "热工计算", "产品对比"]);
     const collection = tree.find((item) => item.routePath === "/collection");
-    expect(collection?.children.map((child) => child.name)).toEqual(["手动采集", "自动采集源", "采集任务"]);
+    expect(collection?.children.map((child) => child.name)).toEqual(["手动采集", "采集看板", "采集技能", "自动采集源", "采集任务", "采集记录"]);
     const reports = tree.find((item) => item.routePath === "/reports");
     expect(reports?.children.map((child) => child.name)).toEqual(["报告列表", "报告设置"]);
     // 隐藏路由不出现在任何角色菜单树中
@@ -133,7 +135,8 @@ describe("buildMenuTreeForPermissions（瘦身菜单 × 三类角色）", () => 
     expect(allIds).not.toContain("/review-center/queue");
     expect(allIds).not.toContain("/monitor/audit");
     expect(allIds).not.toContain("/reports/templates");
-    expect(allIds).not.toContain("/products");
+    expect(allIds).toContain("/products");
+    expect(allIds).not.toContain("/products/catalog");
     expect(allIds).not.toContain("/knowledge/crawlers");
   });
 

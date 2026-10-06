@@ -1,6 +1,11 @@
 import type { ReportArtifactType, ReportItem } from '@/types/report'
 import type { CreateShareInput } from '@/types/report'
 import {
+  approveTemplateReport,
+  rejectTemplateReport,
+  submitTemplateReportForReview,
+} from '@/api/modules/report-center'
+import {
   createShare,
   deleteReport,
   disableShare,
@@ -53,7 +58,7 @@ export function useReportActions(options: UseReportActionsOptions = {}) {
     successMessage: (_report, result) => result.message,
   })
 
-  const deleteAction = useCrudDelete<ReportItem, { message: string }>({
+  const deleteAction = useCrudDelete<Pick<ReportItem, 'id'>, { message: string }>({
     action: report => deleteReport(report.id),
     confirm: () => ({
       content: '删除后报告及其发布状态将被移除，无法恢复，确认删除吗？',
@@ -95,6 +100,30 @@ export function useReportActions(options: UseReportActionsOptions = {}) {
     }
   }
 
+  const submitReviewAction = useConfirmedCrudAction<Pick<ReportItem, 'id'>, unknown>({
+    action: report => submitTemplateReportForReview(report.id),
+    confirm: () => ({
+      content: '提交后进入审核队列，通过后才可发布。确认提交审核吗？',
+      confirmText: '提交审核',
+      danger: false,
+      title: '提交报告审核',
+    }),
+    onSuccess: notifyChanged,
+    successMessage: '已提交审核',
+  })
+
+  const approveAction = useConfirmedCrudAction<Pick<ReportItem, 'id'>, unknown>({
+    action: report => approveTemplateReport(report.id),
+    confirm: () => ({
+      content: '通过后该报告可以发布。确认审核通过吗？',
+      confirmText: '通过',
+      danger: false,
+      title: '审核通过',
+    }),
+    onSuccess: notifyChanged,
+    successMessage: '已审核通过',
+  })
+
   const disableShareAction = useConfirmedCrudAction<{ shareId: string, title: string }, { message: string }>({
     action: ({ shareId }) => disableShare(shareId),
     confirm: ({ title }) => ({
@@ -107,12 +136,28 @@ export function useReportActions(options: UseReportActionsOptions = {}) {
     successMessage: (_share, result) => result.message,
   })
 
+  async function rejectReport(id: string, rejectReason: string): Promise<boolean> {
+    try {
+      await rejectTemplateReport(id, rejectReason)
+      feedback.message('success', '已驳回')
+      notifyChanged()
+      return true
+    }
+    catch (cause) {
+      feedback.messageError(cause)
+      return false
+    }
+  }
+
   return {
+    approveAction,
     deleteAction,
     disableShareAction,
     downloadArtifact,
     publishAction,
+    rejectReport,
     retryAction,
     runShareAction,
+    submitReviewAction,
   }
 }

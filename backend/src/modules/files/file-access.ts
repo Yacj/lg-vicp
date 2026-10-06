@@ -10,13 +10,13 @@ export function canAccessSourceFile(user: AuthUser, file: Pick<FileRecord, "owne
 export function canReadProjectFile(
   user: AuthUser,
   file: Pick<FileRecord, "ownerUserId" | "projectId">,
-  project?: { id: string; createdById: string; visibility: "PUBLIC" | "PRIVATE" },
+  project?: { id: string; createdById: string; visibility: "PUBLIC" | "PRIVATE" | "DEPARTMENT" },
 ): boolean {
   if (!file.projectId || !project || project.id !== file.projectId) return false;
   return canViewProject(user, project);
 }
 
-export function canDeleteProjectFile(user: AuthUser, file: Pick<FileRecord, "ownerUserId" | "projectId">, project?: { id: string; createdById: string; visibility: "PUBLIC" | "PRIVATE" }): boolean {
+export function canDeleteProjectFile(user: AuthUser, file: Pick<FileRecord, "ownerUserId" | "projectId">, project?: { id: string; createdById: string; visibility: "PUBLIC" | "PRIVATE" | "DEPARTMENT" }): boolean {
   if (!file.projectId) return canAccessSourceFile(user, file);
   return Boolean(project && file.projectId === project.id && canManageProject(user, project));
 }

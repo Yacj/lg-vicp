@@ -97,6 +97,8 @@ export interface KnowledgeDocument {
   aiAvailabilityStatus: KnowledgeAiAvailabilityStatus
   healthBlockers: string[]
   healthWarnings: string[]
+  /** 第一张已维护页面的预签名缩略图；列表卡片只展示业务封面。 */
+  coverImageUrl?: string | null
   currentVersion: {
     id?: string
     version: number
@@ -370,6 +372,18 @@ export interface KnowledgeWorkspaceLastJob {
   technical?: KnowledgeParseFailureTechnical
 }
 
+/** DOCX/PDF 页面视觉渲染状态（workspace.parsing，与文本解析解耦）。 */
+export const knowledgePageRenderingStatuses = ['READY', 'FAILED', 'SKIPPED'] as const
+export type KnowledgePageRenderingStatus = (typeof knowledgePageRenderingStatuses)[number]
+
+export const knowledgeTextParsingStatuses = ['READY', 'FAILED'] as const
+export type KnowledgeTextParsingStatus = (typeof knowledgeTextParsingStatuses)[number]
+
+export interface KnowledgePageRenderingError {
+  code: string
+  message: string
+}
+
 export interface KnowledgeWorkspace {
   document: {
     id: string
@@ -390,7 +404,17 @@ export interface KnowledgeWorkspace {
   } | null
   primaryFile: KnowledgeWorkspaceFile | null
   searchableFile?: { id: string, name: string } | null
-  parsing: { lastJob: KnowledgeWorkspaceLastJob | null }
+  parsing: {
+    lastJob: KnowledgeWorkspaceLastJob | null
+    /** Mammoth/文本通道；成功时资料可检索，不因页面失败整份标失败。 */
+    textParsing?: KnowledgeTextParsingStatus | null
+    /** LibreOffice/PDF 页图通道。 */
+    pageRendering?: KnowledgePageRenderingStatus | null
+    pageRenderingComplete?: boolean | null
+    pageRenderingError?: KnowledgePageRenderingError | null
+    previewRendered?: number | null
+    previewFailed?: number | null
+  }
   summary: {
     pageCount: number
     tocCount: number
@@ -403,6 +427,8 @@ export interface KnowledgeWorkspace {
     canRetry: boolean
     canReplaceFile: boolean
     canBindSearchSource: boolean
+    /** 页面视觉失败或 DOCX 尚无页时，重试走 POST .../reparse。 */
+    canRetryPageRender?: boolean
   }
 }
 
@@ -443,6 +469,45 @@ export interface KnowledgeUserTestSource {
   pageLabel?: string | null
   physicalPageNumber?: number | null
   matchedText?: string | null
+  pageId?: string | null
+  pageImageUrl?: string | null
+}
+
+/** REFERENCE_LOOKUP 命中页块（SSE reference_pages / done.referencePages）。 */
+export interface KnowledgeReferencePageHighlight {
+  field: string
+  label: string
+  value: string
+}
+
+export interface KnowledgeReferencePageMatch {
+  candidateId?: string
+  summary: {
+    systemType?: string
+    constructionCode?: string
+    productName?: string
+    productSpecName?: string
+    thicknessMm?: number
+    rValue?: number
+    kValue?: number
+  }
+  highlights: KnowledgeReferencePageHighlight[]
+}
+
+export interface KnowledgeReferencePageBlock {
+  type?: 'REFERENCE_PAGE'
+  summary: KnowledgeReferencePageMatch['summary']
+  page: {
+    documentId: string
+    pageId: string
+    documentTitle: string
+    pageNumber: number
+    physicalPageNumber?: number
+    pageLabel?: string | null
+    imageUrl: string | null
+  }
+  matches?: KnowledgeReferencePageMatch[]
+  highlights?: KnowledgeReferencePageHighlight[]
 }
 
 export interface KnowledgeDocumentAsset {
@@ -574,6 +639,13 @@ export interface KnowledgePageWindow {
     pageImageUrl: string | null
   }
   items: KnowledgePageWindowItem[]
+}
+
+/** 无页面文档（如 DOCX 不做分页）的机器提取文本阅读视图。 */
+export interface KnowledgeExtractedTextResult {
+  chunkCount: number
+  blocks: KnowledgePageBlock[]
+  text: string
 }
 
 /** 页面与分块 */
@@ -816,6 +888,8 @@ export type KnowledgeQaSseEvent
   = | { type: 'message', data: { messageId: string, conversationId: string, requestId: string } }
     | { type: 'progress', data: { stage: string, message: string } }
     | { type: 'delta', data: { text: string } }
+    | { type: 'reference_pages', data: { referencePages?: KnowledgeReferencePageBlock[], stored?: unknown[] } }
+    | { type: 'sources', data: { sources?: Array<KnowledgeQaSource | KnowledgeUserTestSource> } }
     | {
       type: 'done'
       data: {
@@ -825,6 +899,7 @@ export type KnowledgeQaSseEvent
         model: { id: string }
         promptVersion: { id: string, version: number }
         sources: Array<KnowledgeQaSource | KnowledgeUserTestSource>
+        referencePages?: KnowledgeReferencePageBlock[]
         latencyMs: number
         usage?: { inputTokens?: number | null, outputTokens?: number | null, reasoningTokens?: number | null }
       }

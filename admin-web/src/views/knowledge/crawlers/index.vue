@@ -26,6 +26,8 @@ import {
 } from '@/types/knowledge'
 import { formatDate } from '@/utils/day'
 
+/** Legacy：普通入口已迁至独立采集管理，本页仅 hidden/兼容保留。 */
+
 const { canAccess } = usePermissionAccess()
 const canAdd = computed(() => canAccess({ permissions: ['system:knowledge:crawler:add'] }))
 const canEdit = computed(() => canAccess({ permissions: ['system:knowledge:crawler:edit'] }))

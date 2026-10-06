@@ -225,4 +225,17 @@ describe('app data table', () => {
       expect.objectContaining({ selectedRowData: [expect.objectContaining({ id: 'row-1' })] }),
     )
   })
+
+  it('adds a drag handle column for row-handler sorting', async () => {
+    const container = mountDataTable({
+      data: [{ id: 'row-1', name: '协议夹具', status: 'READY' }],
+      dragSort: 'row-handler',
+      total: 1,
+    })
+    await nextTick()
+    await nextTick()
+
+    expect(container.querySelector('.t-table--row-handler-draggable')).not.toBeNull()
+    expect(container.querySelector('.t-table__handle-draggable')).not.toBeNull()
+  })
 })

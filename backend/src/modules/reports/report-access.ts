@@ -19,7 +19,9 @@ export type ProjectSummary = {
   id: string;
   name: string;
   createdById: string;
-  visibility: "PUBLIC" | "PRIVATE";
+  visibility: "PUBLIC" | "PRIVATE" | "DEPARTMENT";
+  visibleDepartmentId?: string | null;
+  includeChildDepartments?: boolean | null;
 };
 
 /** 会话有项目则继承；无项目则为 null。不要求用户再次选择项目。 */

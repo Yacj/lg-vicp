@@ -55,5 +55,6 @@ describe("会话状态注入", () => {
     expect(text).toContain("0.30");
     expect(text).toContain("否决了岩棉");
     expect(text).toContain("基层厚度");
+    expect(text).toContain("仅供判断");
   });
 });

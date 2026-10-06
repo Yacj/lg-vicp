@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type {
-  AiAuditLog,
   AiMessage,
   AiMessageFeedback,
   AiMessageRegeneration,
@@ -10,11 +9,12 @@ import type {
 } from '@/types/ai'
 import type { AiSourceLocatorQuery } from '@/types/ai-source'
 import { ArrowLeftIcon } from 'tdesign-icons-vue-next'
-import { computed, h, onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { fetchPlatformConversationDetail } from '@/api/modules/ai'
 import KnowledgeSourceReader from '@/components/business/KnowledgeSourceReader.vue'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
+import AppMarkdown from '@/components/ui/AppMarkdown.vue'
 import AppPage from '@/components/ui/AppPage.vue'
 import AppStatusTag from '@/components/ui/AppStatusTag.vue'
 import { normalizeFeedbackError } from '@/composables/useAppFeedback'
@@ -22,14 +22,21 @@ import { normalizeAiSource, resolveAiSourceLocator } from '@/types/ai-source'
 import {
   getAiClientAppLabel,
   getAiFeedbackReactionLabel,
+  getAiMessageRoleLabel,
   getAiReasoningModeLabel,
   getAiSceneLabel,
 } from '@/utils/ai'
 import { formatDate } from '@/utils/day'
+import {
+  messageMetricsText,
+  projectConversationThread,
+  speechAlign,
+} from './conversation-thread'
 
 defineOptions({ name: 'AiOpsConversationDetail' })
 
 const route = useRoute()
+const router = useRouter()
 const conversationId = String(route.params.id)
 const titleFromQuery = String(route.query.title ?? '')
 
@@ -70,40 +77,15 @@ function goBack(): void {
   //   console.log('goBack')
   //   void router.push('/ai-ops/conversations')
   // }
+  void router.push('/ai-ops/conversations')
 }
 
-function messageStatusTag(message: AiMessage): ReturnType<typeof h> {
-  const statusMap = {
-    COMPLETED: { label: '已完成', status: 'success' as const },
-    FAILED: { label: '失败', status: 'error' as const },
-    PENDING: { label: '等待中', status: 'default' as const },
-    STOPPED: { label: '已停止', status: 'warning' as const },
-    STREAMING: { label: '生成中', status: 'processing' as const },
+const threadItems = computed(() => {
+  if (!detail.value) {
+    return []
   }
-  const meta = statusMap[message.status as keyof typeof statusMap] ?? { label: message.status, status: 'default' as const }
-  return h(AppStatusTag, { label: meta.label, status: meta.status })
-}
-
-function messageRoleTag(message: AiMessage): ReturnType<typeof h> {
-  const roleMap = {
-    ASSISTANT: { label: '助手', theme: 'primary' as const },
-    USER: { label: '用户', theme: 'warning' as const },
-    SYSTEM: { label: '系统', theme: 'info' as const },
-    TOOL: { label: '工具', theme: 'default' as const },
-  }
-  const meta = roleMap[message.role as keyof typeof roleMap] ?? { label: message.role, theme: 'default' as const }
-  return h('span', { class: `ai-ops-detail__role ai-ops-detail__role--${meta.theme}` }, meta.label)
-}
-
-function formatDuration(durationMs: number | null): string {
-  if (durationMs === null || durationMs === undefined) {
-    return '-'
-  }
-  if (durationMs < 1000) {
-    return `${durationMs}ms`
-  }
-  return `${(durationMs / 1000).toFixed(1)}s`
-}
+  return projectConversationThread(detail.value.messages, detail.value.auditLogs)
+})
 
 /** 检索记录去重键（消息 + 来源标题 + 页码）。 */
 function retrievalKey(item: AiRetrievalLog): string {
@@ -153,8 +135,12 @@ function regenerationsForMessage(messageId: string): AiMessageRegeneration[] {
   return detail.value?.regenerations.filter(item => item.originalMessageId === messageId) ?? []
 }
 
-function auditLogsForMessage(messageId: string): AiAuditLog[] {
-  return detail.value?.auditLogs.filter(item => item.targetId === messageId) ?? []
+function hasOpsRail(message: AiMessage): boolean {
+  return Boolean(messageMetricsText(message))
+    || retrievalsForMessage(message.id).length > 0
+    || toolCallsForMessage(message.id).length > 0
+    || feedbackForMessage(message.id).length > 0
+    || regenerationsForMessage(message.id).length > 0
 }
 </script>
 
@@ -224,179 +210,141 @@ function auditLogsForMessage(messageId: string): AiAuditLog[] {
       </t-card>
 
       <t-card class="ai-ops-detail__card" title="消息记录" :bordered="false">
-        <p class="ai-ops-detail__note">
-          {{ detail.processingSummary.note }}
-        </p>
         <div v-if="detail.messages.length === 0" class="ai-ops-detail__empty-block">
           <AppEmptyState description="该会话暂无消息" title="暂无消息" />
         </div>
-        <div v-else class="ai-ops-detail__messages">
-          <div
-            v-for="message in detail.messages"
-            :key="message.id"
-            class="ai-ops-detail__message"
-          >
-            <div class="ai-ops-detail__message-head">
-              {{ messageRoleTag(message) }}
-              <span class="ai-ops-detail__message-meta">
-                {{ messageStatusTag(message) }}
-              </span>
-              <span v-if="message.model" class="ai-ops-detail__message-meta">
-                {{ message.provider }} / {{ message.model }}
-              </span>
-              <span class="ai-ops-detail__message-meta">
-                {{ formatDate(new Date(message.createdAt)) }}
-              </span>
-            </div>
-
-            <div class="ai-ops-detail__message-body">
-              <pre class="ai-ops-detail__content">{{ message.content || ' ' }}</pre>
-            </div>
-
-            <div v-if="message.status === 'FAILED' && message.errorMessage" class="ai-ops-detail__exception">
-              <t-alert theme="error" title="生成异常">
-                {{ message.errorMessage }}
-              </t-alert>
-            </div>
-
-            <div v-if="message.stopReason" class="ai-ops-detail__meta-row">
-              停止原因：{{ message.stopReason }}
-            </div>
-            <div class="ai-ops-detail__meta-row">
-              耗时 {{ formatDuration(message.durationMs) }}
-              <template v-if="message.tokenInput !== null || message.tokenOutput !== null">
-                · 输入 {{ message.tokenInput ?? '-' }} / 输出 {{ message.tokenOutput ?? '-' }}
-                <template v-if="message.reasoningTokens !== null">
-                  / 推理 {{ message.reasoningTokens }}
-                </template>
-              </template>
-              <template v-if="message.promptTemplateVersion !== null">
-                · 提示词版本 v{{ message.promptTemplateVersion }}
-              </template>
-              <template v-if="message.requestId">
-                · requestId {{ message.requestId }}
-              </template>
-            </div>
-
-            <template v-if="retrievalsForMessage(message.id).length">
-              <div class="ai-ops-detail__sub-block">
-                <h4 class="ai-ops-detail__sub-title">
-                  知识检索
-                </h4>
-                <div class="ai-ops-detail__sub-list">
-                  <div
-                    v-for="retrieval in retrievalsForMessage(message.id)"
-                    :key="retrievalKey(retrieval)"
-                    class="ai-ops-detail__sub-item"
+        <div v-else class="ai-ops-detail__thread">
+          <template v-for="item in threadItems" :key="item.id">
+            <div
+              v-if="item.kind === 'speech'"
+              class="ai-ops-detail__row"
+              :class="`ai-ops-detail__row--${speechAlign(item.message.role)}`"
+            >
+              <div class="ai-ops-detail__stack">
+                <div
+                  class="ai-ops-detail__bubble"
+                  :class="`ai-ops-detail__bubble--${speechAlign(item.message.role)}`"
+                >
+                  <AppMarkdown
+                    v-if="item.message.role === 'ASSISTANT' && item.message.content"
+                    :content="item.message.content"
+                  />
+                  <p
+                    v-else-if="item.message.role === 'ASSISTANT'"
+                    class="ai-ops-detail__placeholder"
                   >
-                    <span>{{ retrieval.sourceTitle ?? '未知来源' }}</span>
-                    <template v-if="retrieval.sourcePage !== null">
-                      <span class="ai-ops-detail__muted">第 {{ retrieval.sourcePage }} 页</span>
-                    </template>
-                    <template v-if="retrieval.score !== null">
-                      <span class="ai-ops-detail__muted">相似度 {{ retrieval.score.toFixed(2) }}</span>
-                    </template>
-                    <span
-                      v-if="retrievalLocator(retrieval)"
-                      class="ai-ops-detail__reader-link"
-                      role="button"
-                      tabindex="0"
-                      @click="openRetrievalReader(retrieval)"
-                      @keydown.enter="openRetrievalReader(retrieval)"
+                    （无回复内容）
+                  </p>
+                  <pre v-else class="ai-ops-detail__content">{{ item.message.content || ' ' }}</pre>
+                </div>
+
+                <div class="ai-ops-detail__time">
+                  <span v-if="item.message.model">
+                    {{ item.message.provider }} / {{ item.message.model }}
+                  </span>
+                  <span>{{ formatDate(new Date(item.message.createdAt)) }}</span>
+                </div>
+
+                <div v-if="item.message.role === 'ASSISTANT' && hasOpsRail(item.message)" class="ai-ops-detail__rail">
+                  <div v-if="messageMetricsText(item.message)" class="ai-ops-detail__rail-metrics">
+                    {{ messageMetricsText(item.message) }}
+                  </div>
+
+                  <div v-if="retrievalsForMessage(item.message.id).length" class="ai-ops-detail__rail-block">
+                    <span class="ai-ops-detail__rail-label">知识检索</span>
+                    <div
+                      v-for="retrieval in retrievalsForMessage(item.message.id)"
+                      :key="retrievalKey(retrieval)"
+                      class="ai-ops-detail__rail-item"
                     >
-                      查看原文
-                    </span>
+                      <span>{{ retrieval.sourceTitle ?? '未知来源' }}</span>
+                      <span v-if="retrieval.sourcePage !== null" class="ai-ops-detail__muted">
+                        第 {{ retrieval.sourcePage }} 页
+                      </span>
+                      <span v-if="retrieval.score !== null" class="ai-ops-detail__muted">
+                        相似度 {{ retrieval.score.toFixed(2) }}
+                      </span>
+                      <span
+                        v-if="retrievalLocator(retrieval)"
+                        class="ai-ops-detail__reader-link"
+                        role="button"
+                        tabindex="0"
+                        @click="openRetrievalReader(retrieval)"
+                        @keydown.enter="openRetrievalReader(retrieval)"
+                      >
+                        查看原文
+                      </span>
+                    </div>
                   </div>
-                </div>
-              </div>
-            </template>
 
-            <template v-if="toolCallsForMessage(message.id).length">
-              <div class="ai-ops-detail__sub-block">
-                <h4 class="ai-ops-detail__sub-title">
-                  工具调用
-                </h4>
-                <div class="ai-ops-detail__sub-list">
-                  <div
-                    v-for="tool in toolCallsForMessage(message.id)"
-                    :key="tool.id"
-                    class="ai-ops-detail__sub-item"
-                  >
-                    <span class="ai-ops-detail__tool-name">{{ tool.toolName }}</span>
-                    <AppStatusTag
-                      :label="tool.success ? '成功' : '失败'"
-                      :status="tool.success ? 'success' : 'error'"
-                    />
-                    <span v-if="tool.errorMessage" class="ai-ops-detail__muted">
-                      {{ tool.errorMessage }}
-                    </span>
+                  <div v-if="toolCallsForMessage(item.message.id).length" class="ai-ops-detail__rail-block">
+                    <span class="ai-ops-detail__rail-label">工具调用</span>
+                    <div
+                      v-for="tool in toolCallsForMessage(item.message.id)"
+                      :key="tool.id"
+                      class="ai-ops-detail__rail-item"
+                    >
+                      <span class="ai-ops-detail__tool-name">{{ tool.toolName }}</span>
+                      <AppStatusTag
+                        :label="tool.success ? '成功' : '失败'"
+                        :status="tool.success ? 'success' : 'error'"
+                      />
+                      <span v-if="tool.errorMessage" class="ai-ops-detail__muted">
+                        {{ tool.errorMessage }}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              </div>
-            </template>
 
-            <template v-if="feedbackForMessage(message.id).length">
-              <div class="ai-ops-detail__sub-block">
-                <h4 class="ai-ops-detail__sub-title">
-                  用户反馈
-                </h4>
-                <div class="ai-ops-detail__sub-list">
-                  <div
-                    v-for="feedback in feedbackForMessage(message.id)"
-                    :key="feedback.id"
-                    class="ai-ops-detail__sub-item"
-                  >
-                    <AppStatusTag
-                      :label="getAiFeedbackReactionLabel(feedback.reaction ?? '')"
-                      :status="feedback.reaction === 'LIKE' ? 'success' : 'warning'"
-                    />
-                    <span>{{ feedback.content || '（无文本反馈）' }}</span>
-                    <span v-if="feedback.tags.length" class="ai-ops-detail__muted">
-                      {{ feedback.tags.join('、') }}
-                    </span>
+                  <div v-if="feedbackForMessage(item.message.id).length" class="ai-ops-detail__rail-block">
+                    <span class="ai-ops-detail__rail-label">用户反馈</span>
+                    <div
+                      v-for="feedback in feedbackForMessage(item.message.id)"
+                      :key="feedback.id"
+                      class="ai-ops-detail__rail-item"
+                    >
+                      <AppStatusTag
+                        :label="getAiFeedbackReactionLabel(feedback.reaction ?? '')"
+                        :status="feedback.reaction === 'LIKE' ? 'success' : 'warning'"
+                      />
+                      <span>{{ feedback.content || '（无文本反馈）' }}</span>
+                      <span v-if="feedback.tags.length" class="ai-ops-detail__muted">
+                        {{ feedback.tags.join('、') }}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              </div>
-            </template>
 
-            <template v-if="regenerationsForMessage(message.id).length">
-              <div class="ai-ops-detail__sub-block">
-                <h4 class="ai-ops-detail__sub-title">
-                  重新生成
-                </h4>
-                <div class="ai-ops-detail__sub-list">
-                  <div
-                    v-for="regeneration in regenerationsForMessage(message.id)"
-                    :key="regeneration.id"
-                    class="ai-ops-detail__sub-item"
-                  >
-                    <span>{{ formatDate(new Date(regeneration.createdAt)) }}</span>
-                    <span v-if="regeneration.reason" class="ai-ops-detail__muted">
-                      原因：{{ regeneration.reason }}
-                    </span>
+                  <div v-if="regenerationsForMessage(item.message.id).length" class="ai-ops-detail__rail-block">
+                    <span class="ai-ops-detail__rail-label">重新生成</span>
+                    <div
+                      v-for="regeneration in regenerationsForMessage(item.message.id)"
+                      :key="regeneration.id"
+                      class="ai-ops-detail__rail-item"
+                    >
+                      <span>{{ formatDate(new Date(regeneration.createdAt)) }}</span>
+                      <span v-if="regeneration.reason" class="ai-ops-detail__muted">
+                        原因：{{ regeneration.reason }}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
-            </template>
+            </div>
 
-            <template v-if="auditLogsForMessage(message.id).length">
-              <div class="ai-ops-detail__sub-block">
-                <h4 class="ai-ops-detail__sub-title">
-                  审计记录
-                </h4>
-                <div class="ai-ops-detail__sub-list">
-                  <div
-                    v-for="log in auditLogsForMessage(message.id)"
-                    :key="log.id"
-                    class="ai-ops-detail__sub-item"
-                  >
-                    <span class="ai-ops-detail__tool-name">{{ log.action }}</span>
-                    <span class="ai-ops-detail__muted">{{ formatDate(new Date(log.createdAt)) }}</span>
-                  </div>
-                </div>
-              </div>
-            </template>
-          </div>
+            <div v-else-if="item.kind === 'notice'" class="ai-ops-detail__notice">
+              <span class="ai-ops-detail__notice-role">{{ getAiMessageRoleLabel(item.message.role) }}</span>
+              <span>{{ item.message.content || ' ' }}</span>
+            </div>
+
+            <div
+              v-else-if="item.kind === 'event'"
+              class="ai-ops-detail__event"
+              :class="`ai-ops-detail__event--${item.align}`"
+            >
+              <AppStatusTag :label="item.label" :status="item.tone" />
+              <span v-if="item.detail" class="ai-ops-detail__muted">{{ item.detail }}</span>
+              <span class="ai-ops-detail__muted">{{ formatDate(new Date(item.time)) }}</span>
+            </div>
+          </template>
         </div>
       </t-card>
 
@@ -465,74 +413,62 @@ function auditLogsForMessage(messageId: string): AiAuditLog[] {
   border: 1px solid var(--td-component-border);
 }
 
-.ai-ops-detail__note {
-  margin: 0 0 var(--td-size-4);
-  color: var(--td-text-color-secondary);
-  font-size: var(--td-font-size-body-small);
-}
-
 .ai-ops-detail__empty-block {
   display: grid;
   min-height: 200px;
   place-content: center;
 }
 
-.ai-ops-detail__messages {
+.ai-ops-detail__thread {
   display: flex;
   flex-direction: column;
-  gap: var(--td-size-5);
-}
-
-.ai-ops-detail__message {
-  padding: var(--td-size-4);
-  border: 1px solid var(--td-component-border);
+  gap: var(--td-size-4);
+  padding: var(--td-comp-paddingTB-l) var(--td-comp-paddingLR-l);
+  background: var(--td-bg-color-secondarycontainer);
   border-radius: var(--td-radius-medium);
 }
 
-.ai-ops-detail__message-head {
+.ai-ops-detail__row {
   display: flex;
-  align-items: center;
-  gap: var(--td-size-3);
-  margin-bottom: var(--td-size-3);
 }
 
-.ai-ops-detail__role {
-  padding: 2px var(--td-size-2);
-  border-radius: var(--td-radius-small);
-  font-size: var(--td-font-size-body-small);
-  font-weight: 500;
+.ai-ops-detail__row--user {
+  justify-content: flex-end;
 }
 
-.ai-ops-detail__role--primary {
-  color: var(--td-brand-color);
+.ai-ops-detail__row--assistant {
+  justify-content: flex-start;
+}
+
+.ai-ops-detail__stack {
+  display: flex;
+  max-width: 78%;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.ai-ops-detail__row--assistant .ai-ops-detail__stack {
+  max-width: 86%;
+}
+
+.ai-ops-detail__bubble {
+  padding: var(--td-comp-paddingTB-s) var(--td-comp-paddingLR-m);
+  border-radius: var(--td-radius-medium);
+  word-break: break-word;
+}
+
+.ai-ops-detail__bubble--user {
+  color: var(--td-text-color-primary);
   background: var(--td-brand-color-light);
 }
 
-.ai-ops-detail__role--warning {
-  color: var(--td-warning-color);
-  background: var(--td-warning-color-light);
+.ai-ops-detail__bubble--assistant {
+  background: var(--td-bg-color-container);
+  border: 1px solid var(--td-component-border);
 }
 
-.ai-ops-detail__role--info {
-  color: var(--td-info-color);
-  background: var(--td-info-color-light);
-}
-
-.ai-ops-detail__role--default {
-  color: var(--td-text-color-secondary);
-  background: var(--td-bg-color-component);
-}
-
-.ai-ops-detail__message-meta {
-  color: var(--td-text-color-secondary);
-  font-size: var(--td-font-size-body-small);
-}
-
-.ai-ops-detail__message-body {
-  margin-bottom: var(--td-size-3);
-}
-
-.ai-ops-detail__content {
+.ai-ops-detail__content,
+.ai-ops-detail__placeholder {
   margin: 0;
   white-space: pre-wrap;
   word-break: break-word;
@@ -541,29 +477,55 @@ function auditLogsForMessage(messageId: string): AiAuditLog[] {
   line-height: var(--td-line-height-body-medium);
 }
 
-.ai-ops-detail__exception {
-  margin-bottom: var(--td-size-3);
+.ai-ops-detail__placeholder {
+  color: var(--td-text-color-placeholder);
 }
 
-.ai-ops-detail__meta-row {
+.ai-ops-detail__time {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--td-size-3);
-  color: var(--td-text-color-secondary);
+  gap: var(--td-size-2);
+  margin-top: var(--td-size-1);
+  color: var(--td-text-color-placeholder);
   font-size: var(--td-font-size-body-small);
 }
 
-.ai-ops-detail__sub-block {
-  margin-top: var(--td-size-3);
-  padding-top: var(--td-size-3);
+.ai-ops-detail__row--user .ai-ops-detail__time {
+  justify-content: flex-end;
+}
+
+.ai-ops-detail__rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--td-size-2);
+  margin-top: var(--td-size-2);
+  padding-top: var(--td-size-2);
   border-top: 1px dashed var(--td-component-border);
 }
 
-.ai-ops-detail__sub-title {
-  margin: 0 0 var(--td-size-2);
-  font-size: var(--td-font-size-body-small);
-  font-weight: 600;
+.ai-ops-detail__rail-metrics,
+.ai-ops-detail__rail-label {
   color: var(--td-text-color-secondary);
+  font-size: var(--td-font-size-body-small);
+}
+
+.ai-ops-detail__rail-label {
+  font-weight: 600;
+}
+
+.ai-ops-detail__rail-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--td-size-1);
+}
+
+.ai-ops-detail__rail-item,
+.ai-ops-detail__sub-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--td-size-2);
+  font-size: var(--td-font-size-body-small);
 }
 
 .ai-ops-detail__sub-list {
@@ -572,11 +534,41 @@ function auditLogsForMessage(messageId: string): AiAuditLog[] {
   gap: var(--td-size-2);
 }
 
-.ai-ops-detail__sub-item {
+.ai-ops-detail__notice {
   display: flex;
   align-items: center;
-  gap: var(--td-size-3);
+  justify-content: center;
+  gap: var(--td-size-2);
+  color: var(--td-text-color-secondary);
   font-size: var(--td-font-size-body-small);
+}
+
+.ai-ops-detail__notice-role {
+  padding: 0 var(--td-size-2);
+  color: var(--td-text-color-secondary);
+  background: var(--td-bg-color-component);
+  border-radius: var(--td-radius-small);
+}
+
+.ai-ops-detail__event {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--td-size-2);
+  max-width: 78%;
+  margin-top: calc(var(--td-size-2) * -1);
+  font-size: var(--td-font-size-body-small);
+}
+
+.ai-ops-detail__event--user {
+  margin-left: auto;
+  justify-content: flex-end;
+}
+
+.ai-ops-detail__event--assistant {
+  max-width: 86%;
+  margin-right: auto;
+  justify-content: flex-start;
 }
 
 .ai-ops-detail__tool-name {

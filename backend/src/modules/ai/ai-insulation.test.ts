@@ -65,7 +65,7 @@ describe("assertInsulationSystemForScene", () => {
 });
 
 describe("formatInsulationSystemContext", () => {
-  it("注入体系名称/编码/类型并声明不得虚构体系规则", () => {
+  it("注入体系名称/编码/类型，仅供判断不复述", () => {
     const context = formatInsulationSystemContext({
       name: "VICP薄抹灰外保温系统",
       code: "VICP-TMD",
@@ -74,7 +74,8 @@ describe("formatInsulationSystemContext", () => {
     expect(context).toContain("VICP薄抹灰外保温系统");
     expect(context).toContain("VICP-TMD");
     expect(context).toContain("外墙外保温");
-    expect(context).toContain("不得自行编造体系规则");
+    expect(context).toContain("仅供判断");
+    expect(context).toContain("已有资料或确定性结果");
   });
 
   it("编码/类型缺失时省略对应行", () => {

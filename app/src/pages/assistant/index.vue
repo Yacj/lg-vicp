@@ -1,17 +1,27 @@
 <script setup lang="ts">
 import type { AiSourceRef, ApiEnvelope, CreateShareResult, ProjectRecord } from '@/api/types'
+import type { SessionReport } from '@/utils/aiAgentUi'
 import { projectApi } from '@/api/modules/projects'
+import AiComparisonSelection from '@/components/ai/AiComparisonSelection.vue'
 import AiComposer from '@/components/ai/AiComposer.vue'
 import AiFeedbackPanel from '@/components/ai/AiFeedbackPanel.vue'
 import AiMessageList from '@/components/ai/AiMessageList.vue'
+import AiNeedInputCard from '@/components/ai/AiNeedInputCard.vue'
 import AiQuickPromptRail from '@/components/ai/AiQuickPromptRail.vue'
+import AiReportTaskCard from '@/components/ai/AiReportTaskCard.vue'
+import AiSelectionCard from '@/components/ai/AiSelectionCard.vue'
 import AiSharePanel from '@/components/ai/AiSharePanel.vue'
 import AiShareSelectBar from '@/components/ai/AiShareSelectBar.vue'
 import AiWelcomeHero from '@/components/ai/AiWelcomeHero.vue'
+import { useChatImageUpload } from '@/composables/useChatImageUpload'
 import { useQuickPrompts } from '@/composables/useQuickPrompts'
 import { QUICK_PROMPT_POSITION } from '@/constants/aiQuickPrompt'
+import { CHAT_IMAGE_ONLY_CONTENT } from '@/constants/chatImage'
 import { useAssistantStore } from '@/store/assistant'
+import { useReportTypeStore } from '@/store/reportTypes'
+import { isProductSelection, isVisibleSelection } from '@/utils/aiAgentUi'
 import { compactQuery, resolveAiSourceLocator } from '@/utils/aiSource'
+import { fromParsedWaiting } from '@/utils/aiUserSelection'
 
 definePage({
   name: 'assistant',
@@ -29,20 +39,19 @@ const { requireLogin } = useAuthGate()
 const { error: showError } = useGlobalToast()
 const globalDialog = useGlobalDialog()
 const assistantStore = useAssistantStore()
+const reportTypeStore = useReportTypeStore()
 const { items: quickPrompts, loading: quickPromptsLoading, load: loadQuickPrompts } = useQuickPrompts()
+const { drafts: pendingImages, uploading: uploadingImages, pick: pickChatImage, remove: removeChatImage, clear: clearChatImages, uploadAll } = useChatImageUpload()
 
 const isComposerActive = ref(false)
 const input = ref('')
-/** 跨 Tab 传入的项目上下文：发送时创建/复用该项目会话 */
-const pendingProjectId = ref<string>()
-const pendingProjectName = ref<string>()
 let projectNameRevision = 0
 
-const activeProjectId = computed(() => pendingProjectId.value ?? assistantStore.projectId ?? undefined)
-const activeProjectName = computed(() => pendingProjectName.value)
+const activeProjectId = computed(() => assistantStore.projectId ?? undefined)
+const activeProjectName = computed(() => assistantStore.pendingProjectName || undefined)
 const messages = computed(() => assistantStore.messages)
-const navbarTitle = computed(() => assistantStore.conversation?.title?.trim() || '筑小格 Ai助手')
-const streaming = computed(() => assistantStore.isStreaming)
+const navbarTitle = computed(() => assistantStore.conversation?.title?.trim() || '筑小格 AI')
+const streaming = computed(() => assistantStore.isStreaming || assistantStore.reconnecting)
 const loadingConversation = computed(() => assistantStore.loadState === 'loading')
 const failedConversationId = ref<string>()
 const composerDisabled = computed(() => loadingConversation.value || Boolean(failedConversationId.value) || assistantStore.sendLock)
@@ -75,12 +84,86 @@ const shareDefaultTitle = computed(() => assistantStore.conversation?.title?.tri
 
 const latestMessageFingerprint = computed(() => {
   const latest = messages.value[messages.value.length - 1]
-  return latest ? `${latest.id}:${latest.content.length}:${latest.status}` : ''
+  return latest
+    ? `${latest.id}:${latest.content.length}:${latest.status}:${assistantStore.progressMessage}:${assistantStore.pendingUserInput?.runId || ''}:${assistantStore.sessionReport?.id || ''}:${assistantStore.sessionReport?.status || ''}:${assistantStore.selectionSelectedIds.join(',')}`
+    : `${assistantStore.pendingUserInput?.runId || ''}:${assistantStore.selectionSelectedIds.join(',')}`
 })
 
 function openConversationHistory() {
   if (requireLogin()) {
-    router.push({ name: 'conversation-history' })
+    router.push({
+      name: 'conversation-history',
+      params: activeProjectId.value ? { projectId: activeProjectId.value } : {},
+    })
+  }
+}
+
+function openProjectMemory() {
+  if (!requireLogin() || !activeProjectId.value) {
+    return
+  }
+  router.push({
+    name: 'project-memory',
+    params: { projectId: activeProjectId.value },
+  })
+}
+
+async function handleResume(content: string) {
+  if (!requireLogin()) {
+    return
+  }
+  try {
+    const accepted = await assistantStore.resumeAgent(content)
+    if (accepted) {
+      followLatest.value = true
+      void scrollToLatest(true)
+    }
+  }
+  catch (error) {
+    showError(error instanceof Error ? error.message : '继续任务失败，请重试')
+  }
+}
+
+function toggleSelectionOption(optionId: string) {
+  assistantStore.toggleSelection(optionId)
+}
+
+async function confirmSelection() {
+  if (!requireLogin()) {
+    return
+  }
+  try {
+    const accepted = await assistantStore.confirmSelection()
+    if (accepted) {
+      followLatest.value = true
+      void scrollToLatest(true)
+    }
+  }
+  catch (error) {
+    showError(error instanceof Error ? error.message : '确认失败，请重试')
+  }
+}
+
+const visibleSelection = computed(() => isVisibleSelection(assistantStore.pendingUserInput) ? assistantStore.pendingUserInput : null)
+const productSelection = computed(() => isProductSelection(visibleSelection.value) ? visibleSelection.value : null)
+const genericSelection = computed(() => visibleSelection.value && !isProductSelection(visibleSelection.value) ? visibleSelection.value : null)
+const conflictInput = computed(() => assistantStore.pendingUserInput?.mode === 'conflict' ? assistantStore.pendingUserInput : null)
+const selectionRequest = computed(() => visibleSelection.value ? fromParsedWaiting(visibleSelection.value) : null)
+
+function openGeneratedReport(report: SessionReport) {
+  if (!requireLogin() || !report.id) {
+    return
+  }
+  router.push({ name: 'report-detail', params: { id: report.id } })
+}
+
+async function retryGeneratedReport() {
+  if (!requireLogin()) {
+    return
+  }
+  const accepted = await assistantStore.retrySessionReport()
+  if (!accepted && assistantStore.error) {
+    showError(assistantStore.error)
   }
 }
 
@@ -150,7 +233,7 @@ async function loadProjectName(projectId: string) {
   try {
     const response = await projectApi.getDetail(projectId).send() as ApiEnvelope<{ project: ProjectRecord }>
     if (currentRevision === projectNameRevision && activeProjectId.value === projectId) {
-      pendingProjectName.value = response.data.project.name
+      assistantStore.pendingProjectName = response.data.project.name
     }
   }
   catch {
@@ -162,45 +245,74 @@ async function loadConversationSafely(id: string) {
   failedConversationId.value = undefined
   try {
     await assistantStore.loadConversation(id)
-    pendingProjectId.value = undefined
     const linkedProjectId = assistantStore.projectId
-    if (linkedProjectId && !pendingProjectName.value) {
+    if (linkedProjectId && !assistantStore.pendingProjectName) {
       void loadProjectName(linkedProjectId)
     }
     else if (!linkedProjectId) {
-      pendingProjectName.value = undefined
+      assistantStore.pendingProjectName = null
     }
   }
   catch {
     failedConversationId.value = id
-    // store.error 由下方 watch 统一 Toast
   }
 }
 
-// 跨 Tab 一次性导航上下文：会话 / 项目 / 场景 / 预设问题消费
+async function continueProjectSafely(projectId: string, projectName?: string) {
+  failedConversationId.value = undefined
+  try {
+    await assistantStore.continueProjectConversation(projectId, projectName)
+    if (!assistantStore.pendingProjectName) {
+      void loadProjectName(projectId)
+    }
+  }
+  catch (error) {
+    showError(error instanceof Error ? error.message : '项目对话加载失败')
+  }
+}
+
+// 跨 Tab 一次性导航上下文：会话 / 项目 / 预设问题消费。无上下文时恢复当前 conversationId。
 onShow(() => {
-  if (!assistantStore.isStreaming) {
+  assistantStore.setReportPageVisible(true)
+  void reportTypeStore.ensureLoaded()
+  if (!assistantStore.isStreaming && !assistantStore.reconnecting) {
     assistantStore.sendLock = false
   }
   const context = assistantStore.consumeNavContext()
 
-  if (context.conversationId && context.conversationId !== assistantStore.conversationId) {
+  if (context.conversationId) {
     projectNameRevision += 1
-    pendingProjectId.value = undefined
-    pendingProjectName.value = context.projectName
-    void loadConversationSafely(context.conversationId)
-  }
-  else if (context.projectId) {
-    const shouldStartProjectConversation = context.projectId !== assistantStore.projectId
-
-    if (shouldStartProjectConversation) {
-      failedConversationId.value = undefined
-      assistantStore.newConversation()
-      pendingProjectId.value = context.projectId
+    if (context.projectName) {
+      assistantStore.pendingProjectName = context.projectName
     }
-    pendingProjectName.value = context.projectName
+    if (context.conversationId !== assistantStore.conversationId) {
+      void loadConversationSafely(context.conversationId)
+    }
+    else if (!assistantStore.hasLiveStream) {
+      void assistantStore.recoverActiveRun()
+    }
+  }
+  else if (context.projectId && context.startNew) {
+    failedConversationId.value = undefined
+    assistantStore.newConversation({
+      projectId: context.projectId,
+      projectName: context.projectName,
+      memoryHint: true,
+    })
     if (!context.projectName) {
       void loadProjectName(context.projectId)
+    }
+  }
+  else if (context.projectId) {
+    void continueProjectSafely(context.projectId, context.projectName)
+    if (!context.projectName) {
+      void loadProjectName(context.projectId)
+    }
+  }
+  else if (assistantStore.conversationId && !assistantStore.hasLiveStream) {
+    void assistantStore.recoverActiveRun()
+    if (assistantStore.projectId && !assistantStore.pendingProjectName) {
+      void loadProjectName(assistantStore.projectId)
     }
   }
 
@@ -212,6 +324,14 @@ onShow(() => {
   refreshQuickPrompts()
 })
 
+onHide(() => {
+  assistantStore.setReportPageVisible(false)
+})
+
+onUnload(() => {
+  assistantStore.setReportPageVisible(false)
+})
+
 watch(() => assistantStore.error, (message) => {
   if (message) {
     showError(message)
@@ -219,16 +339,19 @@ watch(() => assistantStore.error, (message) => {
 })
 
 function refreshQuickPrompts() {
-  void loadQuickPrompts(pendingProjectId.value || assistantStore.projectId ? QUICK_PROMPT_POSITION.project : QUICK_PROMPT_POSITION.home)
+  void loadQuickPrompts(activeProjectId.value ? QUICK_PROMPT_POSITION.project : QUICK_PROMPT_POSITION.home)
 }
 
 function resetConversation() {
+  const projectId = activeProjectId.value
+  const projectName = assistantStore.pendingProjectName || undefined
   projectNameRevision += 1
-  assistantStore.newConversation()
+  assistantStore.newConversation(projectId
+    ? { projectId, projectName, memoryHint: true }
+    : {})
   failedConversationId.value = undefined
-  pendingProjectId.value = undefined
-  pendingProjectName.value = undefined
   input.value = ''
+  clearChatImages()
   isComposerActive.value = false
   followLatest.value = true
   refreshQuickPrompts()
@@ -246,7 +369,7 @@ function startNewConversation() {
     return
   }
 
-  if (!messages.value.length && !assistantStore.conversationId && !pendingProjectId.value && !input.value) {
+  if (!messages.value.length && !assistantStore.conversationId && !activeProjectId.value && !input.value && !pendingImages.value.length) {
     return
   }
   resetConversation()
@@ -254,24 +377,46 @@ function startNewConversation() {
 
 async function sendMessage() {
   const content = input.value.trim()
-  if (!content) {
+  if (!content && !pendingImages.value.length) {
     return
   }
   if (!requireLogin()) {
     return
   }
   try {
-    const accepted = await assistantStore.sendMessage(content, {
+    const attachmentFileIds = pendingImages.value.length ? await uploadAll() : []
+    const accepted = await assistantStore.sendMessage(content || (attachmentFileIds.length ? CHAT_IMAGE_ONLY_CONTENT : ''), {
       projectId: activeProjectId.value,
+      attachmentFileIds,
+      localAttachments: pendingImages.value.map((item, index) => ({
+        id: item.key,
+        fileId: item.fileId || attachmentFileIds[index] || item.key,
+        attachmentType: 'IMAGE' as const,
+        sortOrder: index,
+        previewUrl: item.path,
+      })),
     })
     if (accepted) {
       input.value = ''
+      clearChatImages()
       followLatest.value = true
       void scrollToLatest(true)
     }
   }
   catch (error) {
     showError(error instanceof Error ? error.message : '发送失败，请重试')
+  }
+}
+
+async function handleResend(messageId: string) {
+  if (!requireLogin()) {
+    return
+  }
+  try {
+    await assistantStore.resendFromAssistant(messageId)
+  }
+  catch (error) {
+    showError(error instanceof Error ? error.message : '重新发送失败，请重试')
   }
 }
 
@@ -371,7 +516,7 @@ onShareAppMessage(() => {
 
 <template>
   <view class="app-page app-page--immersive assistant-page box-border flex flex-col">
-    <wd-navbar custom-class="!bg-transparent" safe-area-inset-top :title="navbarTitle">
+    <wd-navbar custom-class="!bg-transparent ai-navbar" safe-area-inset-top :title="navbarTitle">
       <template #left>
         <view class="assistant-navbar-actions flex items-center">
           <view class="assistant-navbar-action flex items-center justify-center" aria-label="查看历史会话" @click="openConversationHistory">
@@ -389,6 +534,9 @@ onShareAppMessage(() => {
         <wd-icon name="home" size="30rpx" color="var(--app-action-primary)" />
         <text class="app-muted min-w-0 flex-1 truncate text-2.5">
           {{ activeProjectName ? `当前会话关联项目：${activeProjectName}` : '当前会话已关联项目' }}
+        </text>
+        <text class="app-primary-text shrink-0 text-2.5" @click="openProjectMemory">
+          项目记忆
         </text>
       </view>
 
@@ -433,10 +581,53 @@ onShareAppMessage(() => {
           :selection-mode="isSelecting"
           :selected-ids="selectedIds"
           @regenerate="handleRegenerate"
+          @resend="handleResend"
           @feedback="handleFeedback"
           @share="enterSelectMode"
           @toggle-select="toggleSelect"
           @open-source="openKnowledgeSource"
+        />
+        <AiComparisonSelection
+          v-if="productSelection && !loadingConversation && !failedConversationId"
+          :title="productSelection.title || '请选择需要纳入报告的产品/方案'"
+          :prompt="productSelection.prompt"
+          :options="productSelection.options"
+          :selected-ids="assistantStore.selectionSelectedIds"
+          :min-selections="productSelection.minSelections"
+          :max-selections="productSelection.maxSelections"
+          :confirm-label="productSelection.confirmAction?.label"
+          :disabled="!assistantStore.canSend"
+          :show-footer="true"
+          @toggle="toggleSelectionOption"
+          @confirm="confirmSelection"
+        />
+        <AiSelectionCard
+          v-else-if="genericSelection && selectionRequest && !loadingConversation && !failedConversationId"
+          :title="selectionRequest.title"
+          :description="selectionRequest.description"
+          :options="selectionRequest.options"
+          :selected-ids="assistantStore.selectionSelectedIds"
+          :multiple="selectionRequest.multiple"
+          :min-selections="selectionRequest.minSelections"
+          :max-selections="selectionRequest.maxSelections"
+          :confirm-label="selectionRequest.confirmAction.label"
+          :selection-kind="selectionRequest.selectionKind"
+          :disabled="!assistantStore.canSend"
+          @toggle="toggleSelectionOption"
+          @confirm="confirmSelection"
+        />
+        <AiNeedInputCard
+          v-else-if="conflictInput && !loadingConversation && !failedConversationId"
+          :input="conflictInput"
+          :disabled="!assistantStore.canSend"
+          @resume="handleResume"
+        />
+        <AiReportTaskCard
+          v-if="assistantStore.sessionReport && !loadingConversation && !failedConversationId"
+          :report="assistantStore.sessionReport"
+          :retrying="assistantStore.retryingReport"
+          @open="openGeneratedReport"
+          @retry="retryGeneratedReport"
         />
         <view id="assistant-message-end" class="h-1" />
       </scroll-view>
@@ -471,6 +662,12 @@ onShareAppMessage(() => {
             v-model:active="isComposerActive"
             :streaming="streaming"
             :disabled="composerDisabled"
+            :attachments="pendingImages"
+            :uploading="uploadingImages"
+            :placeholder="assistantStore.waitingForUser ? '也可以直接输入，例如「就用第一个和第三个」' : '输入你的问题...'"
+            :status-text="assistantStore.reconnecting ? '正在恢复生成…' : ''"
+            @pick="pickChatImage"
+            @remove-attachment="removeChatImage"
             @send="sendMessage"
             @stop="assistantStore.stopStreaming()"
           />
@@ -493,6 +690,8 @@ onShareAppMessage(() => {
 </template>
 
 <style lang="scss" scoped>
+:deep(.ai-navbar) {
+}
 .assistant-page {
   height: calc(var(--app-viewport-height, 100vh) - var(--app-current-tabbar-offset, 0px));
   min-height: 0;

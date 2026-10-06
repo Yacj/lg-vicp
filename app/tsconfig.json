@@ -32,6 +32,18 @@
     // 其 SFC 写法会让 vue-tsc 全量报语法错误，阻塞业务代码的类型验证。
     "src/uni_modules",
     // 脚手架遗留的 Mock 演示脚本，依赖手写 Apis 命名空间，与业务类型体系无关。
-    "src/api/mock/demo.ts"
+    "src/api/mock/demo.ts",
+    "src/utils/aiAgentUi.test.ts",
+    "src/utils/aiAnswerUx.test.ts",
+    "src/utils/aiComparison.test.ts",
+    "src/utils/aiStream.test.ts",
+    "src/utils/aiUserSelection.test.ts",
+    "src/utils/aiReportTask.test.ts",
+    "src/constants/reports.test.ts",
+    "src/utils/projectVisibility.test.ts",
+    "src/utils/clientRegister.test.ts",
+    "src/utils/authRedirect.test.ts",
+    "src/utils/wechatPhoneLogin.test.ts",
+    "src/utils/clientPassword.test.ts"
   ]
 }

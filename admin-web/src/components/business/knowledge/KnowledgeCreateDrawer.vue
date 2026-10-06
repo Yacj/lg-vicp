@@ -1,23 +1,23 @@
 <script setup lang="ts">
 import type { FormInstanceFunctions, FormRules, UploadFile } from 'tdesign-vue-next'
-import { computed, reactive, ref, watch } from 'vue'
+import type { CompleteUploadResult, FileCenterItem } from '@/types/file'
+
+import type {
+  KnowledgeCategory,
+  KnowledgeDocType,
+  KnowledgeDocument,
+  KnowledgeSelectedFile,
+} from '@/types/knowledge'
+import type { EvidenceLevel } from '@/types/professional'
 import { MessagePlugin } from 'tdesign-vue-next'
+import { computed, reactive, ref, watch } from 'vue'
 import { createKnowledgeWithFile, fetchKnowledgeCategories, updateKnowledgeDocument } from '@/api/modules/knowledge'
 import AppFilePicker from '@/components/business/AppFilePicker.vue'
 import AppFilePreview from '@/components/business/AppFilePreview.vue'
 import AppFileUploader from '@/components/business/AppFileUploader.vue'
 import KnowledgeFileCard from '@/components/business/knowledge/KnowledgeFileCard.vue'
 import { normalizeFeedbackError } from '@/composables/useAppFeedback'
-import type { FileCenterItem } from '@/types/file'
-import type { CompleteUploadResult } from '@/types/file'
-import type {
-  KnowledgeCategory,
-  KnowledgeDocument,
-  KnowledgeDocType,
-  KnowledgeSelectedFile,
-} from '@/types/knowledge'
 import { knowledgeDocTypes } from '@/types/knowledge'
-import type { EvidenceLevel } from '@/types/professional'
 import { knowledgeDocTypeLabels, knowledgeUserMessage } from '@/utils/knowledge-user'
 
 const props = withDefaults(defineProps<{
@@ -216,16 +216,21 @@ watch(
       <section v-if="mode === 'create'" class="knowledge-create__section">
         <h3>知识文件</h3>
         <t-form-item name="file" required-mark>
+          <t-button theme="default" variant="outline" @click="pickerVisible = true">
+            从文件中心选择
+          </t-button>
           <KnowledgeFileCard
             v-if="selectedFile"
             :file="selectedFile"
             @preview="previewVisible = true"
             @replace="selectedFile = null"
           />
+
           <div v-else class="knowledge-create__upload">
-            <p>上传 PDF / Word 等知识资料</p>
+            <!-- <p>上传 PDF / Word 等知识资料</p> -->
             <div class="knowledge-create__upload-actions">
               <AppFileUploader
+                v-model="uploaderFiles"
                 accept=".pdf,.docx"
                 :draggable="false"
                 :max="1"
@@ -233,12 +238,8 @@ watch(
                 :multiple="false"
                 placeholder="上传新文件"
                 tips=""
-                v-model="uploaderFiles"
                 @success="onUploaded"
               />
-              <t-button theme="default" variant="outline" @click="pickerVisible = true">
-                从文件中心选择
-              </t-button>
             </div>
           </div>
         </t-form-item>

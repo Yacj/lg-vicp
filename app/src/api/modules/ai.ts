@@ -6,7 +6,9 @@ import type {
   MessageFeedbackBody,
   MoveConversationBody,
   QuickPromptListQuery,
+  RegenerateMessageBody,
   ReportDraftBody,
+  ResumeAgentRunBody,
   SendMessageBody,
   TranscribeVoiceBody,
   UpdateConversationBody,
@@ -84,14 +86,30 @@ export const aiApi = {
     return request('PUT', '/ai/messages/{id}/feedback', { pathParams: { id }, data })
   },
 
-  regenerateMessage(id: string, reason?: string) {
+  regenerateMessage(id: string, data: RegenerateMessageBody = {}) {
     return request('POST', '/ai/messages/{id}/regenerate', {
       pathParams: { id },
-      data: reason ? { reason } : undefined,
+      data,
     })
   },
 
   createReportDraft(id: string, data: ReportDraftBody) {
     return request('POST', '/ai/conversations/{id}/report-draft', { pathParams: { id }, data })
+  },
+
+  getActiveAgentRun(id: string) {
+    return request('GET', '/ai/conversations/{id}/active-agent-run', { pathParams: { id } })
+  },
+
+  getAgentRun(id: string) {
+    return request('GET', '/ai/agent-runs/{id}', { pathParams: { id } })
+  },
+
+  resumeAgentRun(id: string, data: ResumeAgentRunBody) {
+    return request('POST', '/ai/agent-runs/{id}/resume', {
+      pathParams: { id },
+      data,
+      headers: { Accept: 'text/event-stream' },
+    })
   },
 }

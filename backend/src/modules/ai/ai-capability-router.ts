@@ -1,8 +1,14 @@
 /**
- * AI 能力路由器（P0）：根据用户问题 + 会话上下文用规则判断需要哪些能力。
- * 不替代场景配置，也不强制用户选择 scene / prompt / quickPromptId。
- * 快捷提问的 content 与自由输入走同一套判断。
+ * AI 能力路由器：预路由、安全限制与非 Agent 回退路径优化。
+ * 不再作为「某 Tool 能否被模型看到」的唯一依据。
+ * Chat Agent 核心 Tools 仅 5 个时，非寒暄消息向模型开放完整领域 Tool 集合。
  */
+
+import {
+  isReferenceLookupIntent,
+  isThermalCalculateIntent,
+  THERMAL_VALUE_PATTERN
+} from "../../shared/ai-answer-contract.js";
 
 export interface ResolveAiCapabilitiesInput {
   message: string;
@@ -13,12 +19,18 @@ export interface ResolveAiCapabilitiesInput {
 }
 
 export interface AiCapabilities {
+  /** 寒暄/空消息：不启动 Agent，走普通单次生成 */
+  idle: boolean;
   needKnowledgeSearch: boolean;
   /** 用户明确要求按图集/标准/系统资料回答：无检索结果时禁止编造来源 */
   explicitKnowledgeRequest: boolean;
   needProjectContext: boolean;
+  /** 查询已发布图集 / 参考选用表 / 已知档位 */
+  needReferenceLookup: boolean;
+  /** 正式热工计算 / 项目级合规判断 */
   needThermalTool: boolean;
   needComparisonTool: boolean;
+  needProductData: boolean;
   needReportContext: boolean;
 }
 
@@ -28,58 +40,71 @@ const EXPLICIT_KNOWLEDGE_PATTERN = /根据(图集|标准|规范|资料)|系统�
 
 const KNOWLEDGE_PATTERN = /图集|标准|规范|节点|构造|窗洞口|洞口|产品说明|施工|技术要求|技术参数|条文|页码|章节|保温|节能标准|vicp|做法|节点图|大样/i;
 
-const THERMAL_PATTERN = /热工|传热系数|k\s*值|热阻|等效厚度|计算厚度|保温厚度|导热系数/i;
+const COMPARISON_PATTERN = /材料对比|对比规则|竞品|eps|xps|岩棉|聚氨酯|一体板|对比|区别|vs|比起|相比|性价比|哪个好/i;
 
-const COMPARISON_PATTERN = /材料对比|对比规则|竞品|eps|xps|岩棉|聚氨酯|一体板/i;
+const PRODUCT_PATTERN = /产品|vicp|vlcp|适用场景|有什么优势/i;
 
-const REPORT_PATTERN = /生成报告|出一份报告|工程报告|设计说明/;
+const REPORT_PATTERN = /生成报告|出一份报告|工程报告|设计说明|对比报告/;
 
 const EMPTY_CAPABILITIES: AiCapabilities = {
+  idle: true,
   needKnowledgeSearch: false,
   explicitKnowledgeRequest: false,
   needProjectContext: false,
+  needReferenceLookup: false,
   needThermalTool: false,
   needComparisonTool: false,
+  needProductData: false,
   needReportContext: false
 };
 
 export const AGENT_TOOL_NAMES = [
   "search_knowledge",
-  "get_project_context",
-  "get_project_memory",
-  "thermal_calculate",
+  "get_project_state",
+  "get_product_data",
+  "thermal",
+  "compare_products",
   "compare_solutions",
-  "get_report_types",
-  "generate_report_draft"
+  "generate_report"
 ] as const;
 
 export type AgentToolName = (typeof AGENT_TOOL_NAMES)[number];
 
+const LEGACY_TOOL_NAME_MAP: Record<string, AgentToolName> = {
+  get_project_context: "get_project_state",
+  get_project_memory: "get_project_state",
+  get_report_types: "generate_report",
+  generate_report_draft: "generate_report",
+  thermal_calculate: "thermal"
+};
+
+export function normalizeAllowedToolNames(names: readonly string[] | null | undefined): AgentToolName[] {
+  const selected = new Set<AgentToolName>();
+  for (const name of names ?? []) {
+    const mapped = LEGACY_TOOL_NAME_MAP[name] ?? name;
+    if ((AGENT_TOOL_NAMES as readonly string[]).includes(mapped)) {
+      selected.add(mapped as AgentToolName);
+    }
+  }
+  return AGENT_TOOL_NAMES.filter((name) => selected.has(name));
+}
+
+/**
+ * 选择模型可见的领域 Tool。
+ * idle（寒暄）不给工具；其余安全限制只包括知识检索开关与是否关联项目。
+ * 热工/对比/报告不再依赖关键字，避免“帮我找合适方案”看不到 compare/thermal。
+ */
 export function selectAllowedToolNames(input: {
   capabilities: AiCapabilities;
   hasProject: boolean;
   allowKnowledgeSearch: boolean;
 }): AgentToolName[] {
-  const tools = new Set<AgentToolName>();
-  if (input.allowKnowledgeSearch && input.capabilities.needKnowledgeSearch) {
-    tools.add("search_knowledge");
-  }
-  if (input.hasProject && input.capabilities.needProjectContext) {
-    tools.add("get_project_context");
-    tools.add("get_project_memory");
-  }
-  if (input.capabilities.needThermalTool) {
-    tools.add("thermal_calculate");
-    tools.add("compare_solutions");
-  }
-  if (input.capabilities.needComparisonTool) {
-    tools.add("compare_solutions");
-  }
-  if (input.capabilities.needReportContext) {
-    tools.add("get_report_types");
-    tools.add("generate_report_draft");
-  }
-  return AGENT_TOOL_NAMES.filter((name) => tools.has(name));
+  if (input.capabilities.idle) return [];
+  const tools: AgentToolName[] = [];
+  if (input.allowKnowledgeSearch) tools.push("search_knowledge");
+  if (input.hasProject) tools.push("get_project_state");
+  tools.push("get_product_data", "thermal", "compare_products", "compare_solutions", "generate_report");
+  return tools;
 }
 
 export function resolveAiCapabilities(input: ResolveAiCapabilitiesInput): AiCapabilities {
@@ -90,18 +115,22 @@ export function resolveAiCapabilities(input: ResolveAiCapabilitiesInput): AiCapa
 
   const explicitKnowledgeRequest = EXPLICIT_KNOWLEDGE_PATTERN.test(message);
   const needKnowledgeSearch = explicitKnowledgeRequest || KNOWLEDGE_PATTERN.test(message);
-  const needThermalTool = THERMAL_PATTERN.test(message);
+  const needThermalTool = isThermalCalculateIntent(message);
+  const needReferenceLookup = isReferenceLookupIntent(message) || (!needThermalTool && THERMAL_VALUE_PATTERN.test(message));
   const needComparisonTool = COMPARISON_PATTERN.test(message);
+  const needProductData = PRODUCT_PATTERN.test(message);
   const needReportContext = REPORT_PATTERN.test(message);
-  // 仅会话已关联项目时注入项目上下文；无项目不阻断图片、检索、问答
   const needProjectContext = Boolean(input.projectId);
 
   return {
+    idle: false,
     needKnowledgeSearch,
     explicitKnowledgeRequest,
     needProjectContext,
+    needReferenceLookup,
     needThermalTool,
     needComparisonTool,
+    needProductData,
     needReportContext
   };
 }

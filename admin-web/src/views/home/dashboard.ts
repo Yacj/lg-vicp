@@ -1,69 +1,4 @@
-import type { MenuNavigationTarget, SidebarMenuItem } from '@/types/menu'
-
-export interface DashboardShortcut {
-  id: string
-  title: string
-  description: string
-  path: string | null
-  target: MenuNavigationTarget | null
-  enabled: boolean
-}
-
-export function collectMenuLeaves(menus: readonly SidebarMenuItem[]): SidebarMenuItem[] {
-  return menus.flatMap(menu => menu.children.length > 0
-    ? collectMenuLeaves(menu.children)
-    : [menu])
-}
-
-/** 从权限裁剪后的菜单投影真实可导航的快捷入口，不发明路由 */
-export function projectAvailableShortcuts(
-  menus: readonly SidebarMenuItem[],
-  canNavigate: (path: string) => boolean,
-): DashboardShortcut[] {
-  const seenTargets = new Set<string>()
-
-  return collectMenuLeaves(menus).flatMap((menu): DashboardShortcut[] => {
-    const target = menu.target ?? (menu.path ? { kind: 'internal' as const, path: menu.path } : null)
-    if (!target) {
-      return []
-    }
-
-    if (target.kind === 'internal') {
-      if (target.path === '/' || seenTargets.has(target.path) || !canNavigate(target.path)) {
-        return []
-      }
-      seenTargets.add(target.path)
-      return [{
-        description: '进入已授权功能',
-        enabled: true,
-        id: menu.id,
-        path: target.path,
-        target,
-        title: menu.title,
-      }]
-    }
-
-    if (seenTargets.has(target.href)) {
-      return []
-    }
-    seenTargets.add(target.href)
-    return [{
-      description: '在新窗口打开外部资源',
-      enabled: true,
-      id: menu.id,
-      path: null,
-      target,
-      title: menu.title,
-    }]
-  })
-}
-
-export function limitShortcuts(
-  shortcuts: readonly DashboardShortcut[],
-  limit = 3,
-): DashboardShortcut[] {
-  return [...shortcuts].slice(0, limit)
-}
+import type { AttentionPriority, DashboardAttentionItem } from '@/types/dashboard'
 
 /** 从候选路径中选择第一个真实可导航的路由，没有则返回 null */
 export function resolveFirstNavigable(
@@ -91,46 +26,171 @@ export function formatToday(date: Date = new Date()): string {
   return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日 星期${WEEKDAY_NAMES[date.getDay()]}`
 }
 
-// ===== 工作台待办与最近报告（复用既有列表接口，不新增聚合 API） =====
+// ===== 核心指标卡投影：数据来自既有列表/统计接口，无权限或路由不可达时不渲染 =====
 
-/** 待办分类输入：paths 为候选路由，按可达性取第一个；count 为可选真实计数。 */
-export interface TodoCategoryInput {
+export type DashboardMetricStatus = 'default' | 'warning' | 'error'
+
+export interface DashboardMetricInput {
   id: string
   label: string
-  description: string
+  /** 候选路由，按可达性取第一个；全部不可达（未授权）时整卡隐藏 */
   paths: readonly string[]
-  count?: number | null
+  /** 真实计数；null 表示暂无数据（加载失败或接口缺失） */
+  count: number | null
+  secondaryText?: string
+  /** count > 0 时的语义强调状态 */
+  activeStatus?: Exclude<DashboardMetricStatus, 'default'>
 }
 
-export interface DashboardTodoCard {
+export interface DashboardMetricCard {
   id: string
   label: string
-  description: string
-  count: number | null
+  value: number | null
+  secondaryText: string
+  status: DashboardMetricStatus
   path: string
-  target: MenuNavigationTarget
 }
 
-/** 待办分类投影：路由不可达（未授权或未注册）的分类不出现在工作台。 */
-export function projectTodoCards(
-  categories: readonly TodoCategoryInput[],
+export function projectMetricCards(
+  inputs: readonly DashboardMetricInput[],
   canNavigate: (path: string) => boolean,
-): DashboardTodoCard[] {
-  return categories.flatMap((category) => {
-    const path = resolveFirstNavigable(category.paths, canNavigate)
+): DashboardMetricCard[] {
+  return inputs.flatMap((input) => {
+    const path = resolveFirstNavigable(input.paths, canNavigate)
     if (!path) {
       return []
     }
+    const active = input.count !== null && input.count > 0
     return [{
-      count: category.count ?? null,
-      description: category.description,
-      id: category.id,
-      label: category.label,
+      id: input.id,
+      label: input.label,
+      value: input.count,
+      secondaryText: input.secondaryText ?? '',
+      status: active ? (input.activeStatus ?? 'default') : 'default',
       path,
-      target: { kind: 'internal', path },
     }]
   })
 }
+
+// ===== 待处理事项投影：仅展示有真实计数且大于 0 的事项，按优先级与数量排序 =====
+
+export interface DashboardAttentionInput {
+  id: string
+  title: string
+  description: string
+  priority: AttentionPriority
+  /** 候选路由，按可达性取第一个；全部不可达（未授权）时不展示 */
+  paths: readonly string[]
+  /** 真实计数；null 或 0 表示无待处理，不进入列表 */
+  count: number | null
+}
+
+const ATTENTION_PRIORITY_ORDER: Record<AttentionPriority, number> = {
+  high: 0,
+  medium: 1,
+  low: 2,
+}
+
+export function projectAttentionItems(
+  inputs: readonly DashboardAttentionInput[],
+  canNavigate: (path: string) => boolean,
+): DashboardAttentionItem[] {
+  return inputs
+    .filter(input => input.count !== null && input.count > 0)
+    .flatMap((input) => {
+      const route = resolveFirstNavigable(input.paths, canNavigate)
+      if (!route) {
+        return []
+      }
+      return [{
+        id: input.id,
+        priority: input.priority,
+        type: 'todo',
+        title: input.title,
+        description: input.description,
+        count: input.count ?? undefined,
+        route,
+      }]
+    })
+    .sort((a, b) =>
+      ATTENTION_PRIORITY_ORDER[a.priority] - ATTENTION_PRIORITY_ORDER[b.priority]
+      || (b.count ?? 0) - (a.count ?? 0))
+}
+
+// ===== 快捷入口投影：固定高频入口，按权限码与路由可达性双重裁剪 =====
+
+export type DashboardQuickIcon = 'add' | 'book' | 'chat' | 'check' | 'file' | 'user'
+
+export interface DashboardQuickAction {
+  id: string
+  title: string
+  description: string
+  icon: DashboardQuickIcon
+  path: string
+  permissions: readonly string[]
+}
+
+export const QUICK_ACTION_DEFINITIONS: readonly DashboardQuickAction[] = [
+  {
+    id: 'project-view',
+    title: '项目管理',
+    description: '查看全平台项目',
+    icon: 'file',
+    path: '/projects',
+    permissions: ['project.view'],
+  },
+  {
+    id: 'knowledge-documents',
+    title: '知识库',
+    description: '资料文档与解析',
+    icon: 'book',
+    path: '/knowledge/documents',
+    permissions: ['system:knowledge:doc:list'],
+  },
+  {
+    id: 'ai-conversations',
+    title: 'AI 会话',
+    description: '会话运营与追溯',
+    icon: 'chat',
+    path: '/ai-ops/conversations',
+    permissions: ['system:ai:conversation:list'],
+  },
+  {
+    id: 'review-center',
+    title: '统一审核',
+    description: '数据与报告审核',
+    icon: 'check',
+    path: '/review-center/queue',
+    permissions: ['system:review:list'],
+  },
+  {
+    id: 'reports',
+    title: '报告中心',
+    description: '报告成果与模板',
+    icon: 'file',
+    path: '/reports',
+    permissions: ['system:report:generate'],
+  },
+  {
+    id: 'system-user',
+    title: '用户管理',
+    description: '用户与多端访问权限',
+    icon: 'user',
+    path: '/system/user',
+    permissions: ['system:user:list'],
+  },
+]
+
+export function projectQuickActions(
+  definitions: readonly DashboardQuickAction[],
+  canAccess: (permissions: readonly string[]) => boolean,
+  canNavigate: (path: string) => boolean,
+): DashboardQuickAction[] {
+  return definitions.filter(definition =>
+    canAccess(definition.permissions) && canNavigate(definition.path))
+}
+
+// ===== 最近报告（复用既有列表接口，不新增聚合 API） =====
 
 /** 最近报告输入：平台报告成果聚合行的最小展示字段。 */
 export interface RecentReportInput {

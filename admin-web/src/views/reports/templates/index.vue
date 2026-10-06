@@ -302,6 +302,9 @@ onMounted(load)
 
 <template>
   <AppPage title="报告模板" description="报告章节模板（版本化审核实体）：配置章节启用与文案，通过后发布方可被报告生成引用。">
+    <t-alert class="vicp-tpl-alert" theme="warning">
+      报告模板属于系统高级配置。修改后可能影响报告生成结构，建议仅由技术管理员维护。
+    </t-alert>
     <template #search>
       <AppSearchPanel :loading="isLoading" @reset="reset" @search="search">
         <t-form-item label="关键词">
@@ -431,6 +434,9 @@ onMounted(load)
 .vicp-tpl-name {
   color: var(--td-text-color-primary);
   font-weight: var(--td-font-weight-medium);
+}
+.vicp-tpl-alert {
+  margin-bottom: 0;
 }
 .vicp-tpl-code {
   color: var(--td-text-color-secondary);

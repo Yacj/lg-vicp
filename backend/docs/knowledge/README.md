@@ -104,7 +104,7 @@ document → document_versions(fileId) → files(bucket+objectKey) → OSS/MinIO
 - 有 `parsingJobId`：新链路——更新 `parsing_jobs` + `versions.parseStatus/pipelineStatus`（PARSING → CHUNKING → REVIEW_PENDING），先删当前版本旧 pages/chunks（历史版本数据不动）→ 按页插入 → 切块 + 章节/锚点/关键词标注 → 批量写 chunks + chunk_terms。
 - 无 `parsingJobId`：旧 files/async_tasks 链路（兼容队列存量任务）。
 - CHUNK_REBUILD 只读该版本 pages.parsedText 重切，不重读 OSS；OCR_REQUIRED 时 jobType 保留 OCR 预留给未来 OCR worker。
-- 格式：PDF（unpdf）/DOCX（mammoth）/XLSX（exceljs，每 sheet 一个页面 + 结构化 TABLE 块，metadata 保留行列/合并单元格）；`.doc`/`.xls` 老格式标记不支持（OCR_REQUIRED，提示转换后重传）。
+- 格式：PDF（unpdf，逐页预览）/DOCX（Mammoth 全文 + **离线页图上传/ZIP + 视觉识别确认** 为正式链路；LibreOffice 默认关闭仅 fallback，见 `page-offline-recognition.md` / `docx-page-render.md`；人工页面图库接口保留）/XLSX（exceljs）；`.doc`/`.xls` 不支持。页面图库：`POST .../pages`、`batch-upload`、`import-zip`，识别 `pages/:pageId/recognize|confirm-recognition`。
 
 ## 模块结构
 

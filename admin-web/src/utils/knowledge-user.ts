@@ -1,8 +1,11 @@
 import type { AppStatus } from '@/components/ui/AppStatusTag.vue'
 import type {
   KnowledgeDocType,
+  KnowledgePageRenderingStatus,
+  KnowledgeTextParsingStatus,
   KnowledgeTocSource,
   KnowledgeUserStatus,
+  KnowledgeWorkspace,
   KnowledgeWorkspaceLastJob,
 } from '@/types/knowledge'
 
@@ -91,6 +94,67 @@ export function isKnowledgeParsingStatus(status: string | null | undefined): boo
 
 export function isKnowledgeReadyStatus(status: string | null | undefined): boolean {
   return status === 'READY_TO_VERIFY' || status === 'READY'
+}
+
+export interface KnowledgeChannelStatusMeta {
+  label: string
+  status: AppStatus
+}
+
+export function knowledgeTextParsingMeta(
+  value: KnowledgeTextParsingStatus | string | null | undefined,
+): KnowledgeChannelStatusMeta {
+  if (value === 'READY') {
+    return { label: '成功', status: 'success' }
+  }
+  if (value === 'FAILED') {
+    return { label: '失败', status: 'error' }
+  }
+  return { label: '处理中', status: 'processing' }
+}
+
+export function knowledgePageRenderingMeta(
+  value: KnowledgePageRenderingStatus | string | null | undefined,
+  complete?: boolean | null,
+): KnowledgeChannelStatusMeta {
+  if (value === 'READY' && complete !== false) {
+    return { label: '成功', status: 'success' }
+  }
+  if (value === 'READY' && complete === false) {
+    return { label: '部分失败', status: 'warning' }
+  }
+  if (value === 'FAILED') {
+    return { label: '失败', status: 'error' }
+  }
+  if (value === 'SKIPPED') {
+    return { label: '已跳过', status: 'default' }
+  }
+  return { label: '生成中', status: 'processing' }
+}
+
+/** 页面视觉仍在生成，可轮询 workspace 刷新 pageCount / 图库。 */
+export function isKnowledgePageRenderingInProgress(workspace: KnowledgeWorkspace | null | undefined): boolean {
+  if (!workspace) {
+    return false
+  }
+  if (isKnowledgeParsingStatus(workspace.currentVersion?.userStatus)) {
+    return true
+  }
+  const rendering = workspace.parsing.pageRendering
+  if (rendering === 'FAILED' || rendering === 'SKIPPED') {
+    return false
+  }
+  if (rendering === 'READY' && workspace.parsing.pageRenderingComplete !== false) {
+    return false
+  }
+  // 文本已就绪但页图未完成（含 null：生成尚未回写结果）
+  if (isKnowledgeReadyStatus(workspace.currentVersion?.userStatus) && rendering == null) {
+    const mime = workspace.primaryFile?.mimeType?.toLowerCase() ?? ''
+    const name = workspace.primaryFile?.name?.toLowerCase() ?? ''
+    const isDocx = mime.includes('wordprocessingml') || name.endsWith('.docx') || name.endsWith('.doc')
+    return isDocx && (workspace.summary.pageCount ?? 0) === 0
+  }
+  return rendering === 'READY' && workspace.parsing.pageRenderingComplete === false
 }
 
 export function knowledgeFailureMessage(job: KnowledgeWorkspaceLastJob | null | undefined): string {

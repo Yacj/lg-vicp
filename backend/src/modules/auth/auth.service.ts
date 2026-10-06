@@ -4,9 +4,42 @@ import { and, eq, gt, isNull } from "drizzle-orm";
 import type { DbExecutor } from "../../db/client.js";
 import { refreshTokens, users } from "../../db/schema.js";
 import { env } from "../../config/env.js";
-import { UnauthorizedError } from "../../shared/errors.js";
-import { AUTH_CLIENTS } from "../../shared/constants.js";
-import type { AuthClient } from "../../shared/auth-user.js";
+import { ForbiddenError, UnauthorizedError } from "../../shared/errors.js";
+import { AUTH_CLIENTS, USER_ROLES } from "../../shared/constants.js";
+import type { AppRole, AuthClient, UserRole } from "../../shared/auth-user.js";
+import {
+  appRoleForClient,
+  buildAccessTokenClaims,
+  requireAppAccessForLogin
+} from "./user-app-access.service.js";
+
+export type AccountClientGate = {
+  role: string;
+  adminLoginEnabled?: boolean;
+};
+
+const CLIENT_ACCESS_DENIED = "当前账号不能登录，请联系管理员";
+
+/**
+ * 兼容映射：无 user_app_access 行时按 users.role + 端推断有效身份。
+ * 正式登录与鉴权优先读 user_app_access。
+ */
+export function resolveClientAccessRole(accountRole: string, clientType: AuthClient): UserRole {
+  if (clientType === AUTH_CLIENTS.B_ADMIN) {
+    if (accountRole !== USER_ROLES.SUPER_ADMIN) {
+      throw new ForbiddenError(accountRole === USER_ROLES.CHANNEL_USER ? CLIENT_ACCESS_DENIED : "普通用户不能登录管理后台");
+    }
+    return USER_ROLES.SUPER_ADMIN;
+  }
+  if (accountRole !== USER_ROLES.NORMAL_USER && accountRole !== USER_ROLES.SUPER_ADMIN && accountRole !== USER_ROLES.CHANNEL_USER) {
+    throw new ForbiddenError(CLIENT_ACCESS_DENIED);
+  }
+  return USER_ROLES.NORMAL_USER;
+}
+
+export function assertAccountCanUseClient(account: AccountClientGate, clientType: AuthClient): void {
+  resolveClientAccessRole(account.role, clientType);
+}
 
 export function hashRefreshToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
@@ -27,9 +60,15 @@ export function getAccessTokenExpiresIn(clientType: AuthClient): string {
   }
 }
 
-export function signAccessToken(app: FastifyInstance, userId: string, clientType: AuthClient = AUTH_CLIENTS.B_ADMIN, jti = randomUUID()): string {
+export function signAccessToken(
+  app: FastifyInstance,
+  userId: string,
+  clientType: AuthClient = AUTH_CLIENTS.B_ADMIN,
+  jti = randomUUID(),
+  role: AppRole = appRoleForClient(clientType)
+): string {
   return app.jwt.sign(
-    { sub: userId, tokenType: "access", clientType, jti },
+    buildAccessTokenClaims({ userId, clientType, jti, role }),
     { expiresIn: getAccessTokenExpiresIn(clientType) }
   );
 }
@@ -39,7 +78,8 @@ export async function issueTokenPair(
   request: FastifyRequest,
   userId: string,
   clientType: AuthClient = AUTH_CLIENTS.B_ADMIN,
-  db: DbExecutor = app.db
+  db: DbExecutor = app.db,
+  role: AppRole = appRoleForClient(clientType)
 ) {
   const refreshToken = createOpaqueRefreshToken();
   const refreshTokenHash = hashRefreshToken(refreshToken);
@@ -57,7 +97,7 @@ export async function issueTokenPair(
   }).returning({ id: refreshTokens.id });
 
   return {
-    accessToken: signAccessToken(app, userId, clientType, accessJti),
+    accessToken: signAccessToken(app, userId, clientType, accessJti, role),
     refreshToken,
     refreshTokenId: record!.id,
     refreshTokenExpiresAt: expiresAt
@@ -78,9 +118,8 @@ export async function rotateRefreshToken(app: FastifyInstance, request: FastifyR
       throw new UnauthorizedError("刷新令牌无效或已过期");
     }
 
-    const [user] = await tx.select({ id: users.id, role: users.role, adminLoginEnabled: users.adminLoginEnabled }).from(users).where(and(
+    const [user] = await tx.select({ id: users.id, role: users.role, adminLoginEnabled: users.adminLoginEnabled, status: users.status }).from(users).where(and(
       eq(users.id, stored.userId),
-      eq(users.status, "ACTIVE"),
       isNull(users.deletedAt)
     )).limit(1);
 
@@ -88,9 +127,12 @@ export async function rotateRefreshToken(app: FastifyInstance, request: FastifyR
       throw new UnauthorizedError("账号不可用，请重新登录");
     }
 
-    const clientType = user.role === "NORMAL_USER" && !user.adminLoginEnabled && stored.clientType === AUTH_CLIENTS.B_ADMIN
-      ? AUTH_CLIENTS.C_APP
-      : stored.clientType;
+    const access = await requireAppAccessForLogin(tx, {
+      userId: user.id,
+      userStatus: user.status,
+      clientType: stored.clientType
+    });
+    const clientType = stored.clientType;
     const nextToken = createOpaqueRefreshToken();
     const accessJti = randomUUID();
     const nextExpiresAt = new Date(Date.now() + env.REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000);
@@ -118,7 +160,7 @@ export async function rotateRefreshToken(app: FastifyInstance, request: FastifyR
     }
 
     return {
-      accessToken: signAccessToken(app, user.id, clientType, accessJti),
+      accessToken: signAccessToken(app, user.id, clientType, accessJti, access.role),
       refreshToken: nextToken,
       refreshTokenExpiresAt: nextExpiresAt,
       clientType

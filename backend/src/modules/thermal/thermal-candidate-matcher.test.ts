@@ -74,6 +74,17 @@ describe("候选条件三态判定 evaluateConditions", () => {
     expect(evaluateConditions(baseRows[0]!, { targetK: 0.25 }).unmatched).toContain("targetK");
   });
 
+  it("specClass 为 null 的计算样例不得被 I/II/III 查询命中", () => {
+    const state = evaluateConditions({ ...baseRows[0]!, specClass: null }, { specClass: "I" });
+    expect(state.unmatched).toContain("specClass");
+    expect(state.matched).not.toContain("specClass");
+    const outcome = matchThermalCandidates(
+      [{ ...baseRows[0]!, rowId: "xls-calc", specClass: null, thicknessMm: 25, kValue: 0.23 }],
+      { specClass: "I", targetK: 0.3 }
+    );
+    expect(outcome.candidates).toHaveLength(0);
+  });
+
   it("热阻条件：totalThermalResistance >= target 命中", () => {
     expect(evaluateConditions(baseRows[1]!, { targetResistance: 4.2 }).matched).toContain("targetResistance");
     expect(evaluateConditions(baseRows[1]!, { targetResistance: 4.3 }).unmatched).toContain("targetResistance");

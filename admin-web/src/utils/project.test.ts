@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ProjectItem } from '@/types/project'
 import {
+  formatProjectVisibilityScope,
   isProjectManager,
   normalizeVisibilityFilter,
   projectDetailTabs,
@@ -29,49 +30,45 @@ function makeProject(overrides: Partial<ProjectItem> = {}): ProjectItem {
 }
 
 describe('project detail tab projection', () => {
-  it('includes audit tab only when the platform audit permission is granted', () => {
-    const withoutAudit = projectDetailTabs(false)
-    const withAudit = projectDetailTabs(true)
+  it('includes report tab by default', () => {
+    const withoutAudit = projectDetailTabs({ canViewAiMemory: false, canViewAuditLogs: false })
+    expect(withoutAudit.map((tab) => tab.key)).toEqual(['overview', 'conversations', 'reports'])
+  })
 
-    expect(withoutAudit.map((tab) => tab.key)).toEqual(['overview', 'conversations'])
-    expect(withAudit.map((tab) => tab.key)).toEqual(['overview', 'conversations', 'audit'])
+  it('includes audit tab only when the platform audit permission is granted', () => {
+    const withAudit = projectDetailTabs({ canViewAiMemory: false, canViewAuditLogs: true })
+    expect(withAudit.map((tab) => tab.key)).toEqual(['overview', 'conversations', 'reports', 'audit'])
+  })
+
+  it('includes AI memory tab only for advanced AI conversation permission', () => {
+    const hidden = projectDetailTabs({ canViewAiMemory: false, canViewAuditLogs: false })
+    const shown = projectDetailTabs({ canViewAiMemory: true, canViewAuditLogs: false })
+
+    expect(hidden.map((tab) => tab.key)).not.toContain('memory')
+    expect(shown.map((tab) => tab.key)).toEqual(['overview', 'conversations', 'reports', 'memory'])
+  })
+
+  it('hides AI memory when called with the legacy boolean audit flag', () => {
+    expect(projectDetailTabs(true).map((tab) => tab.key)).toEqual(['overview', 'conversations', 'reports', 'audit'])
   })
 })
 
 describe('project task entry projection', () => {
-  it('projects the seven task entries in workspace order', () => {
+  it('projects the platform view/delete task entries in workspace order', () => {
     const entries = projectTaskEntries(makeProject({ region: '上海市' }))
 
     expect(entries.map((entry) => entry.label)).toEqual([
       '基本信息',
-      '项目条件',
-      '智能计算',
-      '方案选择',
-      '材料对比',
-      '节点方案',
+      'AI 对话',
       '报告',
+      '热工计算',
     ])
   })
 
-  it('prefills candidate conditions with the project region', () => {
-    const entries = projectTaskEntries(makeProject({ id: 'p1', region: '上海市浦东新区' }))
-    const conditions = entries.find((entry) => entry.key === 'conditions')
-
-    expect(conditions?.route).toBe('/thermal/candidates?regionCode=%E4%B8%8A%E6%B5%B7%E5%B8%82%E6%B5%A6%E4%B8%9C%E6%96%B0%E5%8C%BA')
-    expect(conditions?.permissions).toEqual(['system:thermal:list'])
-  })
-
-  it('keeps the conditions entry navigable without a region', () => {
-    const entries = projectTaskEntries(makeProject({ region: null }))
-    const conditions = entries.find((entry) => entry.key === 'conditions')
-
-    expect(conditions?.route).toBe('/thermal/candidates')
-  })
-
-  it('scopes scheme history and reports to the project id', () => {
+  it('scopes thermal calc and reports to the project id', () => {
     const entries = projectTaskEntries(makeProject({ id: 'p/1' }))
 
-    expect(entries.find((entry) => entry.key === 'schemes')?.route).toBe('/thermal/calc-records?projectId=p%2F1')
+    expect(entries.find((entry) => entry.key === 'calc')?.route).toBe('/thermal/calc?projectId=p%2F1')
     expect(entries.find((entry) => entry.key === 'reports')?.route).toBe('/reports?projectId=p%2F1')
   })
 
@@ -108,9 +105,23 @@ describe('project manager rule', () => {
 })
 
 describe('project label projection', () => {
-  it('maps visibility to public/private labels', () => {
+  it('maps visibility to public/private/department labels', () => {
     expect(projectVisibilityMeta('PUBLIC')).toEqual({ label: '公开', status: 'success' })
     expect(projectVisibilityMeta('PRIVATE')).toEqual({ label: '私有', status: 'default' })
+    expect(projectVisibilityMeta('DEPARTMENT')).toEqual({ label: '部门可见', status: 'info' })
+  })
+
+  it('formats department visibility as 部门名（包含子部门）', () => {
+    expect(formatProjectVisibilityScope({
+      includeChildDepartments: true,
+      ownerDepartmentName: '技术部',
+      visibility: 'DEPARTMENT',
+    })).toBe('技术部（包含子部门）')
+    expect(formatProjectVisibilityScope({
+      includeChildDepartments: false,
+      ownerDepartmentName: '技术部',
+      visibility: 'PRIVATE',
+    })).toBe('私有')
   })
 
   it('maps status to active/deleted labels', () => {
@@ -122,7 +133,7 @@ describe('project label projection', () => {
 describe('visibility filter normalization', () => {
   it('normalizes only backend-accepted values', () => {
     expect(normalizeVisibilityFilter('PUBLIC')).toBe('PUBLIC')
-    expect(normalizeVisibilityFilter('PRIVATE')).toBe('PRIVATE')
+    expect(normalizeVisibilityFilter('DEPARTMENT')).toBe('DEPARTMENT')
     expect(normalizeVisibilityFilter('')).toBeUndefined()
     expect(normalizeVisibilityFilter('draft')).toBeUndefined()
   })

@@ -1,8 +1,6 @@
 import { computed, getCurrentScope, onScopeDispose, readonly, ref, shallowRef } from 'vue'
-import type { ProjectItem } from '@/types/project'
 import type { ReportDetailResult, ReportWithAssets, ShareLink } from '@/types/report'
 import { fetchConversationAssets, fetchReportDetail } from '@/api/modules/reports'
-import { fetchProjectDetail } from '@/api/modules/projects'
 import { normalizeFeedbackError } from './useAppFeedback'
 import { useReportActions } from './useReportActions'
 import { isReportInProgress } from '@/utils/report'
@@ -13,14 +11,14 @@ export type ReportDetailStatus = 'idle' | 'loading' | 'ready' | 'error'
 const POLL_INTERVAL_MS = 10_000
 
 /**
- * 报告详情：GET /reports/:id（状态/来源/可用格式）+
- * 会话详情（文件版本 artifacts 与分享记录 shareLinks，仅报告关联会话时可用）+
- * 项目详情。
+ * 报告详情：GET /reports/:id（状态/来源/可用格式/所属项目）+
+ * 会话详情（文件版本 artifacts 与分享记录 shareLinks，仅报告关联会话时可用）。
+ * 无项目时不请求项目详情，也不展示所属项目。
  */
 export function useReportDetail(reportId: string) {
   const detail = shallowRef<ReportDetailResult | null>(null)
   const assets = shallowRef<ReportWithAssets | null>(null)
-  const project = shallowRef<ProjectItem | null>(null)
+  const project = shallowRef<{ id: string, name: string } | null>(null)
   const status = ref<ReportDetailStatus>('idle')
   const error = shallowRef<unknown>(null)
   const polling = ref(false)
@@ -79,11 +77,7 @@ export function useReportDetail(reportId: string) {
         )
         : []
 
-      const projectResult = await fetchProjectDetail(result.report.projectId, controller.signal)
-      if (sequence !== requestSequence || controller.signal.aborted) {
-        return
-      }
-      project.value = projectResult.project
+      project.value = result.project ?? null
       status.value = 'ready'
       schedulePoll()
     }

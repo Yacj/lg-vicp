@@ -5,7 +5,9 @@ import {
   flattenValue,
   isEmptyValue,
   MISSING_MARK,
+  renderReferencePagesHtml,
   renderTemplateHtml,
+  renderTemplateWord,
   type ReportSnapshotPayload
 } from "./report-template-render.js";
 
@@ -84,5 +86,77 @@ describe("渲染辅助函数", () => {
     expect(isEmptyValue({})).toBe(true);
     expect(isEmptyValue(0)).toBe(false);
     expect(isEmptyValue("0")).toBe(false);
+  });
+});
+
+describe("参考页渲染", () => {
+  it("有图时输出参数条和图片，无图时只输出参数条", () => {
+    const withImage = renderReferencePagesHtml([{
+      highlights: [{ field: "kValue", label: "传热系数 K", value: "0.2321897625" }],
+      imageDataUrl: "data:image/png;base64,aW1n"
+    }]);
+    expect(withImage).toContain("传热系数 K = 0.2321897625");
+    expect(withImage).toContain("0.2321897625");
+    expect(withImage).toContain("<img");
+    const textOnly = renderReferencePagesHtml([{
+      highlights: [{ field: "kValue", label: "传热系数 K", value: "0.2321897625" }]
+    }]);
+    expect(textOnly).toContain("传热系数 K = 0.2321897625");
+    expect(textOnly).not.toContain("<img");
+  });
+
+  it("matches 优先分组参数条，同页只出一张图", () => {
+    const html = renderReferencePagesHtml([{
+      documentTitle: "保温图集",
+      pageLabel: "A5",
+      matches: [
+        {
+          summary: { constructionCode: "A1-1", thicknessMm: 18 },
+          highlights: [
+            { field: "thicknessMm", label: "厚度", value: "18 mm" },
+            { field: "kValue", label: "传热系数 K", value: "0.303" }
+          ]
+        },
+        {
+          summary: { constructionCode: "A1-1", thicknessMm: 20 },
+          highlights: [
+            { field: "thicknessMm", label: "厚度", value: "20 mm" },
+            { field: "kValue", label: "传热系数 K", value: "0.277" }
+          ]
+        }
+      ],
+      imageDataUrl: "data:image/png;base64,aW1n"
+    }]);
+    expect(html).toContain("厚度 = 18 mm");
+    expect(html).toContain("厚度 = 20 mm");
+    expect(html.match(/<img/g)?.length).toBe(1);
+    expect(html).toContain("保温图集 · 第 A5 页");
+  });
+
+  it("Word 从同一份 snapshot referencePages 嵌入参数条和完整页图", async () => {
+    // 1x1 PNG
+    const png = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+      "base64"
+    );
+    const buffer = await renderTemplateWord({
+      title: "参考页报告",
+      template: { name: "材料对比", sections: [] },
+      referencePages: [{
+        documentTitle: "保温图集",
+        pageLabel: "A5",
+        summary: { constructionCode: "A1-1" },
+        highlights: [
+          { field: "kValue", label: "传热系数 K", value: "0.303" },
+          { field: "rValue", label: "总热阻 R", value: "3.297" },
+          { field: "thicknessMm", label: "厚度", value: "18 mm" }
+        ],
+        imageBytes: png,
+        imageMime: "image/png",
+        pageImageObjectKey: "knowledge/previews/p1.png"
+      }]
+    });
+    expect(Buffer.isBuffer(buffer)).toBe(true);
+    expect(buffer.byteLength).toBeGreaterThan(1000);
   });
 });

@@ -6,7 +6,7 @@ import { MoreIcon } from 'tdesign-icons-vue-next'
 import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useSettingsStore } from '@/stores/settings'
-import { useTabsStore } from '@/stores/tabs'
+import { tabPathname, useTabsStore } from '@/stores/tabs'
 
 defineOptions({ name: 'AppTabs' })
 
@@ -24,7 +24,7 @@ const tabs = computed(() => tabsStore.tabs)
 const visibleTabs = computed(() => tabs.value.slice(0, visibleCount.value))
 const overflowTabs = computed(() => tabs.value.slice(visibleCount.value))
 const currentTabPath = computed(() => (
-  tabs.value.find(tab => tab.fullPath === route.fullPath)?.fullPath
+  tabs.value.find(tab => tabPathname(tab.fullPath) === route.path)?.fullPath
   ?? tabsStore.activePath
 ))
 const currentTab = computed(() => tabs.value.find(tab => tab.fullPath === currentTabPath.value) ?? null)
@@ -224,13 +224,13 @@ watch(
             <div
               class="app-tabs__tab"
               :class="{
-                'is-active': tab.fullPath === route.fullPath,
+                'is-active': tabPathname(tab.fullPath) === route.path,
                 'is-dragging': tab.fullPath === draggingPath,
                 'is-pinned': tab.pinned || tab.affix,
               }"
               :draggable="!isProtected(tab)"
               role="tab"
-              :aria-selected="tab.fullPath === route.fullPath"
+              :aria-selected="tabPathname(tab.fullPath) === route.path"
               :title="tab.title"
               @auxclick="handleAuxClick($event, tab)"
               @click="activate(tab.fullPath)"

@@ -156,11 +156,13 @@ export interface TemplateReportQuery {
 }
 
 export interface GenerateReportInput {
-  projectId: string
-  /** 已确认候选记录（thermal_candidate_selections） */
-  selectionId: string
-  /** 已发布且生效中的报告模板 */
-  templateId: string
+  reportType?: string
+  projectId?: string
+  conversationId?: string
+  /** 兼容旧接口：已确认候选。不传则按项目取最近一次确认记录。 */
+  selectionId?: string
+  /** 兼容旧接口：显式内部模板。普通业务不传，由 reportType 自动选用。 */
+  templateId?: string
   asOfDate?: string
 }
 

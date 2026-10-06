@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import type { ApiEnvelope, ApiPage, ConversationRecord, ProjectRecord } from '@/api/types'
+import type { ApiEnvelope, ApiPage, ConversationRecord } from '@/api/types'
 import type { HomeEntryKey } from '@/components/home/HomeEntryGrid.vue'
 import { aiApi } from '@/api/modules/ai'
-import { projectApi } from '@/api/modules/projects'
 import HomeEntryGrid from '@/components/home/HomeEntryGrid.vue'
 import HomeHero from '@/components/home/HomeHero.vue'
 import HomeSectionShell from '@/components/home/HomeSectionShell.vue'
@@ -10,6 +9,7 @@ import HomeWelcome from '@/components/home/HomeWelcome.vue'
 import { useAsyncSection } from '@/composables/useAsyncSection'
 import { getPlatformInfo } from '@/services/platform'
 import { useAuthStore } from '@/store/auth'
+import { formatRelativeTime } from '@/utils'
 
 definePage({
   name: 'home',
@@ -56,44 +56,15 @@ const {
     .slice(0, 3)
 })
 
-const {
-  items: recommendProjects,
-  status: projectStatus,
-  load: loadProjects,
-  reset: resetProjects,
-} = useAsyncSection<ProjectRecord>(async () => {
-  const response = await projectApi.getPublic({ page: 1, pageSize: 3 }).send() as ApiEnvelope<ApiPage<ProjectRecord>>
-  return response.data?.items || []
-})
-
 onShow(() => {
-  // 公开项目接口要求登录，未登录不发起必然失败的请求。
+  // 会话接口要求登录，未登录不发起必然失败的请求。
   if (isAuthenticated.value) {
-    void loadProjects()
     void loadConversations()
   }
   else {
-    resetProjects()
     resetConversations()
   }
 })
-
-function projectMeta(item: ProjectRecord) {
-  return item.region || '未填写地区'
-}
-
-function projectTag(item: ProjectRecord) {
-  return item.buildingType || '公开项目'
-}
-
-function formatTime(value: string) {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) {
-    return '最近更新'
-  }
-
-  return `${date.getMonth() + 1}月${date.getDate()}日 ${date.toTimeString().slice(0, 5)}`
-}
 
 function handleEntry(key: HomeEntryKey) {
   if (key === 'projects') {
@@ -116,12 +87,14 @@ function handleEntry(key: HomeEntryKey) {
   }
 
   if (key === 'public') {
-    router.pushTab({ name: 'projects', params: { scope: 'public' } })
+    if (requireLogin()) {
+      router.push({ name: 'public-projects' })
+    }
     return
   }
 
-  if (key === 'history' && requireLogin()) {
-    goConversationHistory()
+  if (key === 'library') {
+    router.push({ name: 'library' })
   }
 }
 
@@ -129,17 +102,8 @@ function openConversation(id: string) {
   openAssistant({ conversationId: id })
 }
 
-// 详情页自带登录门控与 redirect 回跳，公开项目浏览不在首页拦截
-function openProject(id: string) {
-  router.push({ name: 'project-detail', params: { id } })
-}
-
 function goConversationHistory() {
   router.push({ name: 'conversation-history' })
-}
-
-function goPublicProjects() {
-  router.pushTab({ name: 'projects', params: { scope: 'public' } })
 }
 
 function handleLoginPrompt() {
@@ -170,11 +134,20 @@ function handleAskAssistant() {
         title="最近会话"
         :status="conversationStatus"
         :empty="!conversations.length"
-        empty-icon="no-content"
-        empty-tip="暂无会话"
         @more="goConversationHistory"
         @retry="loadConversations"
       >
+        <template #empty>
+          <view class="flex flex-col items-center gap-3 px-4 pb-6 pt-2">
+            <view class="app-tertiary text-2.5">
+              暂无会话，向筑小格提第一个问题吧
+            </view>
+            <view class="home-empty-action app-pressable" @click="handleAskAssistant">
+              去问问筑小格
+            </view>
+          </view>
+        </template>
+
         <view class="home-rows">
           <view
             v-for="item in conversations"
@@ -182,7 +155,7 @@ function handleAskAssistant() {
             class="home-row app-pressable flex items-center gap-3"
             @click="openConversation(item.id)"
           >
-            <view class="home-row__icon is-ai flex shrink-0 items-center justify-center">
+            <view class="home-row__icon app-tone is-ai flex shrink-0 items-center justify-center">
               <wd-icon name="message" size="30rpx" />
             </view>
             <view class="min-w-0 flex-1">
@@ -198,43 +171,10 @@ function handleAskAssistant() {
                 </view>
               </view>
               <view class="app-tertiary mt-1 text-2.5">
-                更新于 {{ formatTime(item.updatedAt) }}
+                {{ formatRelativeTime(item.updatedAt) || '最近更新' }}
               </view>
             </view>
-          </view>
-        </view>
-      </HomeSectionShell>
-      <HomeSectionShell
-        class="mt-4"
-        title="推荐项目"
-        :status="projectStatus"
-        :empty="!recommendProjects.length"
-        empty-icon="no-content"
-        empty-tip="暂无公开项目"
-        @more="goPublicProjects"
-        @retry="loadProjects"
-      >
-        <view v-if="isAuthenticated" class="home-rows">
-          <view
-            v-for="item in recommendProjects"
-            :key="item.id"
-            class="home-row app-pressable flex items-center gap-3"
-            @click="openProject(item.id)"
-          >
-            <view class="home-row__icon is-primary flex shrink-0 items-center justify-center">
-              <wd-icon name="company" size="30rpx" />
-            </view>
-            <view class="min-w-0 flex-1">
-              <view class="truncate text-3 font-medium">
-                {{ item.name }}
-              </view>
-              <view class="app-tertiary mt-1 truncate text-2.5">
-                {{ projectMeta(item) }} · 更新于 {{ formatTime(item.updatedAt) }}
-              </view>
-            </view>
-            <view class="home-row__tag is-energy shrink-0">
-              {{ projectTag(item) }}
-            </view>
+            <wd-icon name="arrow-right" size="28rpx" color="var(--app-text-disabled)" />
           </view>
         </view>
       </HomeSectionShell>
@@ -251,10 +191,6 @@ function handleAskAssistant() {
   height: var(--home-status-bar-height);
 }
 
-// .home-rows {
-//   border-top: 1px solid var(--app-border-default);
-// }
-
 .home-row {
   min-height: 104rpx;
   padding: 20rpx 28rpx;
@@ -268,51 +204,14 @@ function handleAskAssistant() {
   width: 56rpx;
   height: 56rpx;
   border-radius: 14rpx;
-
-  &.is-primary {
-    color: var(--app-action-primary);
-    background: var(--app-action-primary-soft);
-  }
-
-  &.is-ai {
-    color: var(--app-ai);
-    background: var(--app-ai-soft);
-  }
 }
 
-.home-row__tag {
-  overflow: hidden;
-  max-width: 152rpx;
-  padding: 7rpx 12rpx;
-  border-radius: 10rpx;
-  font-size: 21rpx;
-  line-height: 28rpx;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-
-  &.is-primary {
-    color: var(--app-action-primary);
-    background: var(--app-action-primary-soft);
-  }
-
-  &.is-energy {
-    color: var(--app-energy);
-    background: var(--app-energy-soft);
-  }
-
-  &.is-ai {
-    color: var(--app-ai);
-    background: var(--app-ai-soft);
-  }
-
-  &.is-warning {
-    color: var(--app-warning);
-    background: var(--app-warning-soft);
-  }
-
-  &.is-neutral {
-    color: var(--app-text-tertiary);
-    background: var(--app-bg-soft);
-  }
+.home-empty-action {
+  padding: 12rpx 32rpx;
+  border-radius: var(--app-radius-pill);
+  color: var(--app-action-primary);
+  background: var(--app-action-primary-soft);
+  font-size: 24rpx;
+  font-weight: 600;
 }
 </style>

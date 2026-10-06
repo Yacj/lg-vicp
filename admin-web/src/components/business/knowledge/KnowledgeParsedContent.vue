@@ -9,15 +9,19 @@ withDefaults(defineProps<{
   page?: KnowledgePage | null
   loading?: boolean
   canPreview?: boolean
+  /** 标识机器提取文本通道，不是页面视觉。 */
+  machineText?: boolean
 }>(), {
   title: '',
   page: null,
   loading: false,
   canPreview: false,
+  machineText: false,
 })
 
 const emit = defineEmits<{
   previewPage: []
+  openGallery: []
 }>()
 </script>
 
@@ -26,19 +30,33 @@ const emit = defineEmits<{
     <div class="knowledge-parsed-content__head">
       <div>
         <h2>{{ title || page?.pageTitle || '解析内容' }}</h2>
-        <p v-if="page">
+        <p v-if="machineText" class="knowledge-parsed-content__badge">
+          机器提取文本 · 非页面视觉
+        </p>
+        <p v-else-if="page">
           {{ knowledgePageLabel(page.pageLabel, page.physicalPageNumber) }}
         </p>
       </div>
-      <t-button
-        v-if="canPreview && page"
-        size="small"
-        theme="primary"
-        variant="outline"
-        @click="emit('previewPage')"
-      >
-        查看原文件对应页
-      </t-button>
+      <t-space>
+        <t-button
+          v-if="page && !machineText"
+          size="small"
+          theme="default"
+          variant="outline"
+          @click="emit('openGallery')"
+        >
+          打开页面图库
+        </t-button>
+        <t-button
+          v-if="canPreview && page"
+          size="small"
+          theme="primary"
+          variant="outline"
+          @click="emit('previewPage')"
+        >
+          查看原文件对应页
+        </t-button>
+      </t-space>
     </div>
 
     <t-loading :loading="loading" text="正在加载解析内容">
@@ -46,7 +64,7 @@ const emit = defineEmits<{
         v-if="page"
         :blocks="page.blocks"
         :full-text="page.extractedText ?? page.parsedText ?? ''"
-        :page-image-url="page.pageImageUrl"
+        :page-image-url="null"
         :page-number="page.physicalPageNumber"
       />
       <AppEmptyState
@@ -93,6 +111,16 @@ const emit = defineEmits<{
 .knowledge-parsed-content__head p {
   margin-top: 4px;
   color: var(--td-text-color-secondary);
+  font-size: var(--td-font-size-body-small);
+}
+
+.knowledge-parsed-content__badge {
+  display: inline-flex;
+  margin-top: 6px;
+  padding: 2px 8px;
+  color: var(--td-brand-color);
+  background: var(--td-brand-color-light);
+  border-radius: var(--td-radius-small);
   font-size: var(--td-font-size-body-small);
 }
 

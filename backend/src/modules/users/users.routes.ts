@@ -4,7 +4,7 @@ import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { and, count, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { departments, posts, roles, userDepartments, userIdentities, userPosts, userRoles, users } from "../../db/schema.js";
-import { AUDIT_ACTIONS, CHANNEL_TYPES, USER_ROLES } from "../../shared/constants.js";
+import { APP_ACCESS_STATUSES, APP_CODES, APP_ROLES, AUDIT_ACTIONS, CHANNEL_TYPES, USER_ROLES } from "../../shared/constants.js";
 import { getCurrentUser } from "../../shared/current-user.js";
 import { ConflictError, ForbiddenError, NotFoundError } from "../../shared/errors.js";
 import { asConflictError } from "../../shared/database-errors.js";
@@ -14,6 +14,8 @@ import { assertPermission } from "../../shared/permission-guard.js";
 import { writeAuditLog } from "../audit-logs/audit-log.service.js";
 import { assertDepartmentIdsWithinActor, assertPostIdsAssignable, assertRoleIdsAssignable } from "../../shared/rbac-guard.js";
 import { isPhoneLoginIdentifier, normalizeLoginIdentifier, normalizeOptionalEmail, normalizePhone } from "../../shared/login-identifier.js";
+import { assertAdminCreateRole, assertChannelAccountHidden, assertDepartmentMemberRole, assertUserPatchAllowed } from "./user-admin.policy.js";
+import { ensureAdminAppAccess, listAppAccessByUserIds, listAppAccessForUser, serializeAppAccess } from "../auth/user-app-access.service.js";
 
 /**
  * 登录账号：取该用户最早一条身份凭证的 identifier（创建时仅写入一条），
@@ -176,6 +178,16 @@ async function validateAssignments(
 export async function userRoutes(app: FastifyInstance) {
   const route = app.withTypeProvider<ZodTypeProvider>();
 
+  route.get("/user-types", {
+    preHandler: [app.authenticate],
+    schema: { tags: ["B端 / 平台 / 用户管理"], summary: "B 端可选用户类型（P0 仅超级管理员）" }
+  }, async (request) => {
+    await requireUserPermission(request, "system:user:list");
+    return ok(request, {
+      items: [{ value: USER_ROLES.SUPER_ADMIN, label: "超级管理员" }]
+    });
+  });
+
   route.get("/users", { preHandler: [app.authenticate], schema: { tags: ["B端 / 平台 / 用户管理"], summary: "获取用户列表（支持包含下级部门筛选）", querystring: listQuerySchema } }, async (request) => {
     await requireUserPermission(request, "system:user:list");
     const { skip, take } = getPagination(request.query.page, request.query.pageSize);
@@ -189,7 +201,9 @@ export async function userRoutes(app: FastifyInstance) {
     const base = app.db.select({ id: users.id, loginIdentifier: loginIdentifierExpr, phone: users.phone, email: users.email, displayName: users.displayName, gender: users.gender, remark: users.remark, role: users.role, channelType: users.channelType, adminLoginEnabled: users.adminLoginEnabled, status: users.status, deletedAt: users.deletedAt, createdAt: users.createdAt, updatedAt: users.updatedAt }).from(users).where(and(...filters));
     const rows = await base.orderBy(desc(users.createdAt)).offset(skip).limit(take);
     const [totalRow] = await app.db.select({ value: count() }).from(users).where(and(...filters));
-    return ok(request, { items: rows, total: totalRow?.value ?? 0, page: request.query.page, pageSize: request.query.pageSize });
+    const accessMap = await listAppAccessByUserIds(app.db, rows.map((row) => row.id));
+    const items = rows.map((row) => ({ ...row, appAccess: accessMap.get(row.id) ?? [] }));
+    return ok(request, { items, total: totalRow?.value ?? 0, page: request.query.page, pageSize: request.query.pageSize });
   });
 
   route.get("/users/export", { preHandler: [app.authenticate], schema: { tags: ["B端 / 平台 / 用户管理"], summary: "导出用户 CSV", querystring: listQuerySchema } }, async (request, reply) => {
@@ -218,7 +232,11 @@ export async function userRoutes(app: FastifyInstance) {
             errors.push({ row: index + 2, message: parsed.error.issues[0]?.message ?? "数据格式不正确" });
             continue;
           }
-          if (parsed.data.role === USER_ROLES.SUPER_ADMIN && actor.role !== USER_ROLES.SUPER_ADMIN) {
+          if (parsed.data.role !== USER_ROLES.SUPER_ADMIN) {
+            errors.push({ row: index + 2, message: "管理端当前仅支持导入超级管理员；普通用户请通过 C 端注册" });
+            continue;
+          }
+          if (actor.role !== USER_ROLES.SUPER_ADMIN) {
             errors.push({ row: index + 2, message: "只有超级管理员可以导入超级管理员账号" });
             continue;
           }
@@ -235,10 +253,12 @@ export async function userRoutes(app: FastifyInstance) {
                 phone,
                 role: parsed.data.role,
                 channelType: parsed.data.role === USER_ROLES.CHANNEL_USER ? parsed.data.channelType : null,
+                adminLoginEnabled: parsed.data.role === USER_ROLES.SUPER_ADMIN,
                 status: parsed.data.status
               }).returning();
               if (!user) throw new ConflictError("用户创建失败，请稍后重试");
               await rowTx.insert(userIdentities).values({ userId: user.id, type: isPhone ? "PHONE" : "USERNAME", identifier, passwordHash: await argon2.hash(parsed.data.password, { type: argon2.argon2id }), verifiedAt: new Date() });
+              await ensureAdminAppAccess(rowTx, user.id);
             });
             imported.push(identifier);
           } catch (error) {
@@ -254,6 +274,7 @@ export async function userRoutes(app: FastifyInstance) {
   route.post("/users", { preHandler: [app.authenticate], schema: { tags: ["B端 / 平台 / 用户管理"], summary: "创建用户", body: createUserBodySchema } }, async (request) => {
     const actor = await requireUserPermission(request, "system:user:add");
     assertSuperAdminRoleChange(actor, request.body.role);
+    assertAdminCreateRole(request.body.role);
     const { departmentIds, postIds, roleIds, ...userValues } = request.body;
     const assignments = await validateAssignments(app, request, { departmentIds, postIds, roleIds });
     await assertRoleIdsAssignable(app, actor, assignments.roleIds ?? [], request.body.role);
@@ -263,7 +284,7 @@ export async function userRoutes(app: FastifyInstance) {
     const phone = request.body.phone ? normalizePhone(request.body.phone) : (isPhone ? identifier : undefined);
     const email = normalizeOptionalEmail(userValues.email);
     if (!phone) throw new ForbiddenError("请填写手机号码");
-    const adminLoginEnabled = request.body.role === USER_ROLES.NORMAL_USER ? (userValues.adminLoginEnabled ?? true) : true;
+    const adminLoginEnabled = request.body.role === USER_ROLES.SUPER_ADMIN;
     const normalizedUserValues = { ...userValues, email, phone, adminLoginEnabled };
     let created;
     try {
@@ -278,6 +299,7 @@ export async function userRoutes(app: FastifyInstance) {
       }
       const [user] = await tx.insert(users).values({ displayName: normalizedUserValues.displayName, gender: normalizedUserValues.gender, email: normalizedUserValues.email, remark: normalizedUserValues.remark, phone: normalizedUserValues.phone, role: normalizedUserValues.role, channelType: normalizedUserValues.role === USER_ROLES.CHANNEL_USER ? normalizedUserValues.channelType : null, adminLoginEnabled: normalizedUserValues.adminLoginEnabled, status: normalizedUserValues.status }).returning();
       await tx.insert(userIdentities).values({ userId: user!.id, type: isPhone ? "PHONE" : "USERNAME", identifier: identifier, passwordHash, verifiedAt: new Date() });
+      await ensureAdminAppAccess(tx, user!.id);
       if (assignments.departmentIds !== undefined && assignments.departmentIds.length > 0) await tx.insert(userDepartments).values(assignments.departmentIds.map((departmentId, index) => ({ userId: user!.id, departmentId, isPrimary: index === 0 })));
       if (assignments.postIds !== undefined && assignments.postIds.length > 0) await tx.insert(userPosts).values(assignments.postIds.map((postId) => ({ userId: user!.id, postId })));
       if (assignments.roleIds !== undefined && assignments.roleIds.length > 0) await tx.insert(userRoles).values(assignments.roleIds.map((roleId) => ({ userId: user!.id, roleId })));
@@ -289,7 +311,7 @@ export async function userRoutes(app: FastifyInstance) {
       if (conflict) throw conflict;
       throw error;
     }
-    return ok(request, { message: "用户创建成功", user: created });
+    return ok(request, { message: "用户创建成功", user: { ...created, appAccess: serializeAppAccess([{ app: APP_CODES.ADMIN, role: APP_ROLES.SUPER_ADMIN, status: APP_ACCESS_STATUSES.ACTIVE }]) } });
   });
 
   route.get("/users/:id", { preHandler: [app.authenticate], schema: { tags: ["B端 / 平台 / 用户管理"], summary: "获取用户详情", params: userParamsSchema } }, async (request) => {
@@ -301,28 +323,31 @@ export async function userRoutes(app: FastifyInstance) {
       app.db.select({ id: posts.id, name: posts.name, code: posts.code }).from(userPosts).innerJoin(posts, eq(posts.id, userPosts.postId)).where(eq(userPosts.userId, user.id)),
       app.db.select({ id: roles.id, name: roles.name, code: roles.code }).from(userRoles).innerJoin(roles, eq(roles.id, userRoles.roleId)).where(eq(userRoles.userId, user.id)),
     ]);
-    return ok(request, { user, departments: departmentRows, posts: postRows, roles: roleRows });
+    const appAccess = serializeAppAccess(await listAppAccessForUser(app.db, user.id));
+    return ok(request, { user: { ...user, appAccess }, departments: departmentRows, posts: postRows, roles: roleRows });
   });
 
   route.patch("/users/:id", { preHandler: [app.authenticate], schema: { tags: ["B端 / 平台 / 用户管理"], summary: "修改用户资料及关联配置", params: userParamsSchema, body: updateUserBodySchema } }, async (request) => {
     const actor = await requireUserPermission(request, "system:user:edit");
     assertUserInScope(request, request.params.id);
-    const { departmentIds, postIds, roleIds, status, ...profileValues } = request.body;
-    const assignments = await validateAssignments(app, request, { departmentIds, postIds, roleIds });
-    if (status === "DISABLED" && actor.id === request.params.id) throw new ForbiddenError("不能禁用当前登录账号");
+    if (request.body.status === "DISABLED" && actor.id === request.params.id) throw new ForbiddenError("不能禁用当前登录账号");
     const [before] = await app.db.select().from(users).where(and(eq(users.id, request.params.id), isNull(users.deletedAt))).limit(1);
     if (!before) throw new NotFoundError("用户不存在");
     if (before.role === USER_ROLES.SUPER_ADMIN && actor.role !== USER_ROLES.SUPER_ADMIN) {
       throw new ForbiddenError("只有超级管理员可以修改超级管理员账号");
     }
+    assertUserPatchAllowed(before.role, request.body as Record<string, unknown>);
+    const { departmentIds, postIds, roleIds, status, ...profileValues } = request.body;
+    const assignments = await validateAssignments(app, request, { departmentIds, postIds, roleIds });
     const nextRole = profileValues.role ?? before.role;
+    assertChannelAccountHidden(profileValues.role === USER_ROLES.CHANNEL_USER && before.role !== USER_ROLES.CHANNEL_USER ? USER_ROLES.CHANNEL_USER : undefined);
     await assertRoleIdsAssignable(app, actor, assignments.roleIds ?? [], nextRole);
     const nextChannelType = nextRole === USER_ROLES.CHANNEL_USER ? profileValues.channelType ?? before.channelType : null;
     if (nextRole === USER_ROLES.CHANNEL_USER && !nextChannelType) throw new ForbiddenError("渠道用户必须选择渠道类型");
     const nextPhone = "phone" in profileValues ? (profileValues.phone ? normalizePhone(profileValues.phone) : profileValues.phone) : before.phone;
     const nextEmail = "email" in profileValues ? normalizeOptionalEmail(profileValues.email) : before.email;
-    if (!nextPhone) throw new ForbiddenError("请填写手机号码");
-    const nextAdminLoginEnabled = nextRole === USER_ROLES.NORMAL_USER ? profileValues.adminLoginEnabled ?? before.adminLoginEnabled : true;
+    if (before.role !== USER_ROLES.NORMAL_USER && !nextPhone) throw new ForbiddenError("请填写手机号码");
+    const nextAdminLoginEnabled = nextRole === USER_ROLES.SUPER_ADMIN;
     const [updated] = await app.db.transaction(async (tx) => {
       const [row] = await tx.update(users).set({ ...profileValues, phone: nextPhone, email: nextEmail, role: nextRole, channelType: nextChannelType, adminLoginEnabled: nextAdminLoginEnabled, ...(status ? { status } : {}), updatedAt: new Date() }).where(eq(users.id, before.id)).returning();
       if (assignments.departmentIds !== undefined) {
@@ -443,6 +468,7 @@ export async function userRoutes(app: FastifyInstance) {
   route.put("/users/:id/departments", { preHandler: [app.authenticate], schema: { tags: ["B端 / 平台 / 用户管理"], summary: "分配用户部门", params: userParamsSchema, body: idsBodySchema } }, async (request) => {
     const actor = await requireUserPermission(request, "system:user:dept");
     const user = await requireActiveUser(app, request, request.params.id);
+    assertDepartmentMemberRole(user.role);
     const departmentIds = [...new Set(request.body.ids)];
     await assertDepartmentIdsWithinActor(app, actor, departmentIds);
     const existing = departmentIds.length ? await app.db.select({ id: departments.id }).from(departments).where(and(inArray(departments.id, departmentIds), isNull(departments.deletedAt))) : [];

@@ -30,13 +30,15 @@ flowchart LR
 
 | code | name | requiresProject | 内部模板 | 审核 |
 | --- | --- | --- | --- | --- |
-| `technical_scheme` | 综合技术方案报告 | true | `standard_report` | 是 |
-| `project_brief` | 项目方案简报 | true | `project_brief` | 是 |
+| `technical_scheme` | 综合技术方案报告 | false | `standard_report` | 是 |
+| `project_brief` | 项目方案简报 | false | `project_brief` | 是 |
 | `material_compare` | 材料对比报告 | false | `material_compare` | 是 |
 | `ai_conversation` | AI对话整理报告 | false | 无（contentJson） | 否 |
 
 `GET /types` 只返回 `{ code, name, description, requiresProject, enabled }`，不暴露 templateVersionId / renderer / variable schema。  
-历史 `TEMPLATE` / `energy_design` / `design_note` / `marketing_copy` 仍可生成、查看、导出，但不出现在普通类型列表。
+C 端不得维护另一套硬编码类型。预置业务类型默认 `requiresProject=false`；无 projectId 时使用 Conversation Context + Snapshot + 已确认知识来源。
+
+生成生命周期：`DRAFT`（尚未入队）→ `QUEUED` → `GENERATING`（含内部重试）→ `READY` / `FAILED`（仅全部重试耗尽）/ `CANCELLED`。审核态 `PENDING_REVIEW` / `APPROVED` / `REJECTED` 发生在 READY 之后。AI 对话与普通生成共用 `createReport` → Snapshot → `queueReportGeneration`。失败后 `POST /reports/:id/retry` 复用原 Snapshot 重新入队。
 
 ## 报告设置
 
@@ -75,6 +77,7 @@ AI 会话类报告 READY 即可发布。
 | --- | --- |
 | `GET /api/v1/reports/types` | 登录用户可读预置类型 |
 | `POST /api/v1/reports` | 普通生成：`reportType` + 可选 `projectId`/`conversationId`；兼容 `contentJson`/`sourceMessageIds` |
+| `POST /api/v1/reports/:id/retry` | FAILED/DRAFT 按原 Snapshot 重新入队，不重读整段对话 |
 | `GET/PUT /api/v1/platform/reports/settings` | 全局报告设置 |
 | `GET /api/v1/platform/reports/types` | B 端预置类型 |
 | `POST /api/v1/platform/reports/generate` | B 端生成；`templateId`/`selectionId` 可选兼容 |
@@ -82,6 +85,8 @@ AI 会话类报告 READY 即可发布。
 
 ## 兼容历史报告
 
+- 历史 `TEMPLATE` / `energy_design` / `design_note` / `marketing_copy` 仍可生成、查看、导出，但不出现在普通类型列表
 - 历史 `reportType=TEMPLATE` 仍按快照渲染、审核、下载
 - 旧 `templateId`/`templateVersion` 仍写在 `report_snapshots`
 - Worker：有快照走模板渲染器，无快照走 contentJson（历史 AI 报告）
+- 参考页：`REFERENCE_LOOKUP` 写入 `ai_messages.metadata.referencePages`；生成报告时 Backend 从会话恢复并按 `pageId` 去重合并，写入 `report_context_snapshots.referencePagesJson`，再原样进入 `report_snapshots.dataJson.referencePages`。HTML/PDF/Word 都只读这份冻结快照（参数条 + 完整页图；Word 用 `ImageRun`），禁止回读聊天或重算匹配。

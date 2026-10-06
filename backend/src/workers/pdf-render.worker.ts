@@ -18,10 +18,13 @@ if (!port) throw new Error("PDF 页面渲染线程缺少父线程端口");
 let pdf: Awaited<ReturnType<typeof loadDocument>> | null = null;
 let format: "png" | "webp" = "png";
 
+let dpi = 130;
+
 async function loadDocument(data: Uint8Array) {
   const runtimeCompatSpecifier = `../shared/runtime-compat.${import.meta.url.endsWith(".ts") ? "ts" : "js"}`;
-  const { installPdfRuntimeCompat } = await import(runtimeCompatSpecifier);
+  const { installPdfRuntimeCompat, installPdfCanvasGlobals } = await import(runtimeCompatSpecifier);
   installPdfRuntimeCompat();
+  await installPdfCanvasGlobals();
   const { getDocumentProxy } = await import("unpdf");
   return getDocumentProxy(data);
 }
@@ -60,6 +63,7 @@ port.on("message", async (request: { type: string; pageNumber?: number } & Parti
       const req = request as unknown as PdfRenderRequest;
       if (!(req.data instanceof Uint8Array)) throw new Error("PDF 渲染参数无效");
       format = req.format === "webp" ? "webp" : "png";
+      dpi = Number.isFinite(req.dpi) && req.dpi > 0 ? req.dpi : 130;
       pdf = await loadDocument(req.data);
       port.postMessage({ type: "ready", totalPages: pdf.numPages } satisfies PdfRenderMessage);
       return;
@@ -67,7 +71,7 @@ port.on("message", async (request: { type: string; pageNumber?: number } & Parti
     if (request.type === "render") {
       const pageNumber = request.pageNumber!;
       try {
-        const data = await renderPage(pageNumber, request.dpi ?? 130);
+        const data = await renderPage(pageNumber, dpi);
         port.postMessage({ type: "page", pageNumber, data } satisfies PdfRenderMessage, [data]);
       } catch (error) {
         // 单页渲染失败尽力而为：跳过该页继续，不中断整份文档

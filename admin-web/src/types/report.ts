@@ -9,11 +9,77 @@ import type { PageResult } from './api'
  * - modules/ai/ai-admin.routes.ts（运营详情）
  */
 
-/** 报告类型，与后端 createReportBodySchema 对齐。 */
-export type ReportType = 'energy_design' | 'design_note' | 'marketing_copy'
+/** 普通业务可见的预置报告类型（GET /reports/types listed=true）。 */
+export const PUBLIC_REPORT_TYPE_CODES = [
+  'technical_scheme',
+  'project_brief',
+  'material_compare',
+  'ai_conversation',
+] as const
+
+/** 历史/内部报告类型，仅兼容已有记录，不在普通生成页展示。 */
+export const LEGACY_REPORT_TYPE_CODES = [
+  'energy_design',
+  'design_note',
+  'marketing_copy',
+  'TEMPLATE',
+] as const
+
+export type PublicReportTypeCode = (typeof PUBLIC_REPORT_TYPE_CODES)[number]
+export type LegacyReportTypeCode = (typeof LEGACY_REPORT_TYPE_CODES)[number]
+
+/** 报告类型，与后端 generatableReportTypeSchema 对齐。 */
+export type ReportType = PublicReportTypeCode | LegacyReportTypeCode
+
+/** GET /reports/types 与 GET /platform/reports/types 公开字段。 */
+export interface PublicReportType {
+  code: string
+  name: string
+  description: string
+  requiresProject: boolean
+  enabled: boolean
+}
 
 /** 报告状态，与后端 reportStatusEnum 对齐。 */
-export type ReportStatus = 'DRAFT' | 'QUEUED' | 'GENERATING' | 'READY' | 'FAILED'
+export type ReportStatus =
+  | 'DRAFT'
+  | 'QUEUED'
+  | 'GENERATING'
+  | 'READY'
+  | 'FAILED'
+  | 'PENDING_REVIEW'
+  | 'APPROVED'
+  | 'REJECTED'
+
+/** 报告导出默认格式（报告设置 defaultExportFormat）。 */
+export type ReportExportFormat = 'PDF' | 'DOCX'
+
+/** GET/PUT /platform/reports/settings。企业 Logo 只读，复用企业信息。 */
+export interface ReportSettings {
+  defaultReportType: string | null
+  companyLogoFileId: string | null
+  coverTitle: string | null
+  showCalculationProcess: boolean
+  showSourceReferences: boolean
+  showDisclaimer: boolean
+  disclaimerText: string | null
+  headerText: string | null
+  footerText: string | null
+  defaultExportFormat: ReportExportFormat
+  updatedAt: string | null
+}
+
+export interface ReportSettingsUpdate {
+  defaultReportType?: string | null
+  coverTitle?: string | null
+  showCalculationProcess?: boolean
+  showSourceReferences?: boolean
+  showDisclaimer?: boolean
+  disclaimerText?: string | null
+  headerText?: string | null
+  footerText?: string | null
+  defaultExportFormat?: ReportExportFormat
+}
 
 /** 报告文件格式，与后端 reportArtifactTypeEnum 对齐。 */
 export type ReportArtifactType = 'HTML' | 'IMAGE' | 'WORD' | 'PDF'
@@ -50,10 +116,10 @@ export interface ReportArtifactItem {
   }
 }
 
-/** 报告记录（reports 表投影）。 */
+/** 报告记录（reports 表投影）。projectId 可空：独立报告不绑定项目。 */
 export interface ReportItem {
   id: string
-  projectId: string
+  projectId: string | null
   conversationId: string | null
   reportType: string
   status: ReportStatus
@@ -61,12 +127,39 @@ export interface ReportItem {
   templateVersion: string
   promptTemplateVersion: number | null
   publishedAt: string | null
+  submittedById?: string | null
+  submittedAt?: string | null
+  approvedById?: string | null
+  approvedAt?: string | null
+  approvalNote?: string | null
+  rejectedById?: string | null
+  rejectedAt?: string | null
+  rejectReason?: string | null
   errorMessage: string | null
   createdById: string
   deletedAt: string | null
   createdAt: string
   updatedAt: string
 }
+
+/** GET /reports/my 列表项（toMyReportItem）。 */
+export interface MyReportItem {
+  id: string
+  title: string
+  reportType: string
+  status: ReportStatus
+  createdAt: string
+  project: { id: string, name: string } | null
+}
+
+/** GET /reports/my 查询（projectId 精确筛选；缺省返回当前用户全部报告）。 */
+export interface MyReportQuery {
+  page?: number
+  pageSize?: number
+  projectId?: string
+}
+
+export type ReportAffiliationFilter = 'all' | 'linked' | 'standalone'
 
 /** 分享链接（share_links 表投影）。 */
 export interface ShareLink {
@@ -110,11 +203,11 @@ export interface ReportCenterRow extends ReportWithAssets {
   shareLinks: ReportShareLink[]
 }
 
-/** POST /reports 请求体（createReportBodySchema）。 */
+/** POST /reports 请求体（createReportBodySchema）。projectId 可省略，会话无项目时生成独立报告。 */
 export interface CreateReportInput {
-  projectId: string
+  projectId?: string
   conversationId?: string
-  reportType: ReportType
+  reportType: ReportType | string
   /** 自定义内容；缺省时后端用 sourceMessageIds 组装 selectedAnswers。 */
   contentJson?: Record<string, unknown>
   sourceMessageIds?: string[]
@@ -127,9 +220,10 @@ export interface CreateReportResult {
   taskId: string
 }
 
-/** GET /reports/:id 响应。 */
+/** GET /reports/:id 响应。无项目时 project 为 null，不展示所属项目。 */
 export interface ReportDetailResult {
   report: ReportItem
+  project?: { id: string, name: string } | null
   sources: ReportSource[]
   availableFormats: ReportArtifactType[]
 }

@@ -11,13 +11,20 @@ type _LocationUrl =
   "/pages/assistant/index" |
   "/pages/conversation-history/index" |
   "/pages/knowledge-source/index" |
+  "/pages/library/index" |
+  "/pages/password/index" |
   "/pages/profile/index" |
   "/pages/profile-info/index" |
   "/pages/project-create/index" |
   "/pages/project-detail/index" |
   "/pages/project-edit/index" |
   "/pages/project-files/index" |
+  "/pages/project-memory/index" |
   "/pages/projects/index" |
+  "/pages/public-projects/index" |
+  "/pages/register/index" |
+  "/pages/report-detail/index" |
+  "/pages/reports/index" |
   "/pages/share/index";
 
 interface NavigateToOptions {

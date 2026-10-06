@@ -59,13 +59,39 @@ export interface ThermalRow {
   evidenceSource: string
   evidenceRef: string
   evidenceLevel: EvidenceLevel
+  catalogProductId: string | null
+  sourceDocumentId: string | null
+  sourcePageId: string | null
+  sourcePageLabel: string | null
+  sortOrder: number
   createdById: string | null
   updatedById: string | null
   createdAt: string
   updatedAt: string
 }
 
-/** 热工计算规则（版本化实体；图集无结果且规则已审核时才允许计算） */
+export interface ThermalRowInput {
+  schemeId: string
+  productSpecId: string
+  thicknessMm: number
+  productThermalResistance: number
+  totalThermalResistance: number
+  kValue: number
+  rawThickness: string
+  rawProductResistance: string
+  rawTotalResistance: string
+  rawKValue: string
+  evidenceSource: string
+  evidenceRef: string
+  evidenceLevel?: EvidenceLevel
+  catalogProductId?: string | null
+  sourceDocumentId?: string | null
+  sourcePageId?: string | null
+  sourcePageLabel?: string | null
+  sortOrder?: number
+}
+
+
 export interface ThermalCalcRule extends VersionMeta, ReviewMeta, EvidenceMeta {
   id: string
   code: string
@@ -145,6 +171,29 @@ export interface ThermalStandardLimitInput {
 
 export const thermalCalcModes = ['REFERENCE_TABLE', 'EQUIVALENT', 'LAYERED'] as const
 export type ThermalCalcMode = (typeof thermalCalcModes)[number]
+
+export interface ThermalCalcRequest {
+  mode: ThermalCalcMode
+  schemeId: string
+  productSpecId: string
+  thicknessMm: number
+  regionCode?: string
+  ruleCode?: string
+  projectId?: string
+}
+
+export interface ThermalCalcFieldError {
+  field: string
+  code: string
+  message: string
+}
+
+export interface ThermalCalcExecution {
+  valid: boolean
+  errors: ThermalCalcFieldError[]
+  notes: string[]
+  record: ThermalCalcRecord | null
+}
 
 /** 计算记录（全快照只读，历史结果不随后台参数漂移） */
 export interface ThermalCalcRecord {

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { ChatImageDraft } from '@/composables/useChatImageUpload'
 import { useVoiceInput } from '@/composables/useVoiceInput'
 
 const props = defineProps<{
@@ -6,6 +7,10 @@ const props = defineProps<{
   active: boolean
   streaming: boolean
   disabled?: boolean
+  attachments?: ChatImageDraft[]
+  uploading?: boolean
+  placeholder?: string
+  statusText?: string
 }>()
 
 const emit = defineEmits<{
@@ -13,9 +18,12 @@ const emit = defineEmits<{
   'update:active': [value: boolean]
   'send': []
   'stop': []
+  'pick': [type: 'camera' | 'album']
+  'remove-attachment': [key: string]
 }>()
 
 const composerTextarea = ref()
+const sheetVisible = ref(false)
 
 /** 上滑取消的位移阈值（px），超出即进入取消意图 */
 const CANCEL_THRESHOLD = 60
@@ -29,7 +37,13 @@ const { phase, duration, cancelIntent, start, stop, markCancelIntent, reset } = 
 const isRecording = computed(() => phase.value === 'recording')
 const isRecognizing = computed(() => phase.value === 'recognizing')
 const voiceActive = computed(() => isRecording.value || isRecognizing.value)
-const voiceDisabled = computed(() => props.streaming || Boolean(props.disabled))
+const voiceDisabled = computed(() => props.streaming || Boolean(props.disabled) || Boolean(props.uploading))
+const canSend = computed(() => Boolean(props.modelValue.trim() || props.attachments?.length))
+const attachDisabled = computed(() => props.streaming || Boolean(props.disabled) || Boolean(props.uploading) || voiceActive.value)
+const sheetActions = [
+  { name: '拍照' },
+  { name: '从相册选择' },
+]
 
 let pressStartY = 0
 
@@ -48,7 +62,7 @@ function handleAction() {
     emit('stop')
     return
   }
-  if (!props.disabled && props.modelValue.trim()) {
+  if (!props.disabled && !props.uploading && canSend.value) {
     emit('send')
   }
 }
@@ -92,11 +106,60 @@ function handlePressCancel() {
     void stop()
   }
 }
+
+function openAttachSheet() {
+  if (attachDisabled.value) {
+    return
+  }
+  sheetVisible.value = true
+}
+
+function onSheetSelect({ index }: { index: number }) {
+  emit('pick', index === 0 ? 'camera' : 'album')
+}
+
+function previewDraft(draft: ChatImageDraft) {
+  const urls = (props.attachments || []).map(item => item.path)
+  uni.previewImage({
+    urls,
+    current: draft.path,
+  })
+}
 </script>
 
 <template>
   <view class="ai-composer-wrap">
     <view class="ai-composer app-panel-flat p-3">
+      <view v-if="attachments?.length && !voiceActive" class="ai-composer__thumbs mb-2">
+        <view
+          v-for="item in attachments"
+          :key="item.key"
+          class="ai-composer__thumb"
+        >
+          <image
+            class="ai-composer__thumb-image"
+            :src="item.path"
+            mode="aspectFill"
+            @click="previewDraft(item)"
+          />
+          <view
+            class="ai-composer__thumb-remove"
+            aria-label="删除图片"
+            @click.stop="emit('remove-attachment', item.key)"
+          >
+            <wd-icon name="close" size="22rpx" color="var(--app-text-inverse)" />
+          </view>
+          <view v-if="item.status === 'uploading'" class="ai-composer__thumb-mask">
+            <wd-loading size="28rpx" color="var(--app-text-inverse)" />
+          </view>
+          <view v-else-if="item.status === 'failed'" class="ai-composer__thumb-mask ai-composer__thumb-mask--failed">
+            <text class="text-2">
+              失败
+            </text>
+          </view>
+        </view>
+      </view>
+
       <!-- 录音 / 识别态面板（替换文本输入区） -->
       <view v-if="voiceActive" class="ai-composer__voice flex flex-col items-center justify-center">
         <view class="ai-composer__voice-waves flex items-center gap-1">
@@ -129,7 +192,7 @@ function handlePressCancel() {
         :cursor-spacing="12"
         auto-height
         confirm-type="send"
-        placeholder="输入你的问题..."
+        :placeholder="placeholder || '输入你的问题...'"
         no-border
         custom-class="!p-0"
         custom-textarea-class="ai-composer__textarea"
@@ -142,9 +205,17 @@ function handlePressCancel() {
       <!-- 操作行常驻：麦克风按钮作为手势目标，录音态不因 DOM 移除而中断触摸 -->
       <view class="mt-1 flex items-center gap-2">
         <view v-show="!voiceActive" class="app-tertiary min-w-0 flex-1 text-2.5">
-          {{ disabled ? '正在加载会话…' : 'Enter 换行，点击按钮发送' }}
+          {{ disabled ? '正在加载会话…' : uploading ? '正在上传图片…' : (statusText || '') }}
         </view>
-
+        <view
+          v-show="!voiceActive"
+          class="ai-composer__mic flex items-center justify-center"
+          :class="{ 'is-disabled': attachDisabled }"
+          aria-label="添加图片"
+          @click="openAttachSheet"
+        >
+          <text class="i-my-icons-plus text-4" />
+        </view>
         <view
           class="ai-composer__mic flex items-center justify-center"
           :class="{
@@ -166,7 +237,7 @@ function handlePressCancel() {
           :type="props.streaming ? 'warning' : 'primary'"
           size="mini"
           :icon="props.streaming ? 'close' : 'caret-up'"
-          :disabled="!props.streaming && (disabled || !modelValue.trim())"
+          :disabled="!props.streaming && (disabled || uploading || !canSend)"
           custom-class="ai-composer__send!"
           :aria-label="props.streaming ? '停止生成' : '发送消息'"
           @click="handleAction"
@@ -177,6 +248,14 @@ function handlePressCancel() {
     <view class="app-tertiary mt-2 text-center text-2.5">
       AI 内容可能存在误差，请结合项目规范核对
     </view>
+
+    <wd-action-sheet
+      v-model="sheetVisible"
+      :actions="sheetActions"
+      cancel-text="取消"
+      :z-index="2000"
+      @select="onSheetSelect"
+    />
   </view>
 </template>
 
@@ -202,6 +281,55 @@ function handlePressCancel() {
   line-height: 44rpx;
 }
 
+.ai-composer__thumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+}
+
+.ai-composer__thumb {
+  position: relative;
+  width: 112rpx;
+  height: 112rpx;
+  overflow: hidden;
+  border-radius: 16rpx;
+  background: var(--app-bg-drawer);
+}
+
+.ai-composer__thumb-image {
+  width: 100%;
+  height: 100%;
+}
+
+.ai-composer__thumb-remove {
+  position: absolute;
+  top: 4rpx;
+  right: 4rpx;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32rpx;
+  height: 32rpx;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 45%);
+}
+
+.ai-composer__thumb-mask {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--app-text-inverse);
+  background: rgb(0 0 0 / 35%);
+}
+
+.ai-composer__thumb-mask--failed {
+  background: rgb(0 0 0 / 50%);
+}
+
+.ai-composer__attach,
 .ai-composer__mic {
   width: 60rpx;
   height: 60rpx;
@@ -211,12 +339,19 @@ function handlePressCancel() {
   transition: color var(--app-transition-fast) ease, background-color var(--app-transition-fast) ease, transform var(--app-transition-fast) ease;
 }
 
+.ai-composer__attach {
+  color: var(--app-action-primary);
+  background: var(--app-action-primary-soft);
+}
+
+.ai-composer__attach:active,
 .ai-composer__mic:active {
   color: var(--app-action-primary);
   background: var(--app-action-primary-soft);
   transform: scale(0.92);
 }
 
+.ai-composer__attach.is-disabled,
 .ai-composer__mic.is-disabled {
   opacity: 0.4;
   pointer-events: none;

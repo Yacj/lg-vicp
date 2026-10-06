@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { nextTick, ref, watch } from 'vue'
 import { RouterView, useRoute } from 'vue-router'
-import { routeToTab, useTabsStore } from '@/stores/tabs'
+import { routeToTab, tabPathname, useTabsStore } from '@/stores/tabs'
 
 const route = useRoute()
 const tabsStore = useTabsStore()
@@ -23,7 +23,7 @@ watch(
   () => tabsStore.refreshVersion,
   async () => {
     const path = tabsStore.refreshingPath
-    if (!path || path !== route.fullPath || typeof route.name !== 'string') {
+    if (!path || tabPathname(path) !== route.path || typeof route.name !== 'string') {
       return
     }
 
@@ -48,7 +48,7 @@ function componentKey(routeName: string, fullPath: string): string {
         <component
           :is="Component"
           v-if="currentRoute.meta.keepAlive && refreshingRouteName !== currentRoute.name"
-          :key="componentKey(String(currentRoute.name), currentRoute.fullPath)"
+          :key="componentKey(String(currentRoute.name), currentRoute.path)"
         />
       </KeepAlive>
       <component

@@ -13,8 +13,10 @@ import { useAppFeedback } from '@/composables/useAppFeedback'
 import { useUserStore } from '@/stores/user'
 import { fetchReportDownloadUrl } from '@/api/modules/reports'
 import {
+  canApproveOrRejectReport,
   canPublishReport,
   canRegenerateReport,
+  canSubmitReportReview,
   formatCreatorName,
   formatFileSize,
   getReportTypeLabel,
@@ -24,7 +26,10 @@ import {
   shareState,
   SHARE_STATE_META,
 } from '@/utils/report'
+import { PRODUCT_COMPARE_THERMAL_UNAVAILABLE } from '@/utils/product-compare'
+import { projectReportComparison, remainingReportContentJson } from '@/utils/report-comparison'
 import { formatDate } from '@/utils/day'
+import { usePermissionAccess } from '@/composables/usePermissionAccess'
 
 defineOptions({ name: 'ReportDetail' })
 
@@ -32,6 +37,7 @@ const route = useRoute()
 const router = useRouter()
 const feedback = useAppFeedback()
 const userStore = useUserStore()
+const { canAccess } = usePermissionAccess()
 
 const reportId = String(route.params.id)
 const {
@@ -50,6 +56,13 @@ const shareDialogVisible = ref(false)
 const previewVisible = ref(false)
 const previewTitle = ref('')
 const previewUrl = ref('')
+const rejectDialogVisible = ref(false)
+const rejectReason = ref('')
+const rejectSubmitting = ref(false)
+
+const canReview = computed(() => canAccess({ permissions: ['system:report:review'] }))
+const canGenerate = computed(() => canAccess({ permissions: ['system:report:generate'] }))
+const canViewTechnical = computed(() => canAccess({ permissions: ['system:report:template:list'] }))
 
 onMounted(() => {
   void load()
@@ -71,8 +84,11 @@ function goBack(): void {
 }
 
 /** contentJson 顶层简单值（字符串/数字/布尔）列表。 */
+const comparisonView = computed(() => projectReportComparison(report.value?.contentJson ?? null))
+const remainingContentJson = computed(() => remainingReportContentJson(report.value?.contentJson ?? null))
+
 const simpleContentEntries = computed(() => {
-  const json = report.value?.contentJson
+  const json = remainingContentJson.value
   if (!json) {
     return []
   }
@@ -82,11 +98,39 @@ const simpleContentEntries = computed(() => {
 
 /** contentJson 嵌套结构（对象/数组），原样展示。 */
 const nestedContentEntries = computed(() => {
-  const json = report.value?.contentJson
+  const json = remainingContentJson.value
   if (!json) {
     return []
   }
   return Object.entries(json).filter(([, value]) => typeof value === 'object' && value !== null)
+})
+
+const comparisonColumns = computed(() => {
+  if (!comparisonView.value || comparisonView.value.selectedProducts.length === 0) {
+    return []
+  }
+  return [
+    { colKey: 'dimension', ellipsis: true, title: '对比维度', width: 180 },
+    ...comparisonView.value.selectedProducts.map((product, index) => ({
+      colKey: `p${index}`,
+      ellipsis: true,
+      minWidth: 160,
+      title: product.name,
+    })),
+  ]
+})
+
+const comparisonTableData = computed(() => {
+  if (!comparisonView.value) {
+    return []
+  }
+  return comparisonView.value.dimensions.map((dimension) => {
+    const row: Record<string, string> = { dimension: dimension.label }
+    dimension.cells.forEach((cell, index) => {
+      row[`p${index}`] = cell.display
+    })
+    return row
+  })
 })
 
 function copyText(text: string): void {
@@ -116,6 +160,28 @@ async function previewHtml(): Promise<void> {
     void cause
   }
 }
+
+async function submitReject(): Promise<void> {
+  if (!report.value || rejectSubmitting.value) {
+    return
+  }
+  const reason = rejectReason.value.trim()
+  if (!reason) {
+    await feedback.message('warning', '请填写驳回原因')
+    return
+  }
+  rejectSubmitting.value = true
+  try {
+    const ok = await actions.rejectReport(report.value.id, reason)
+    if (ok) {
+      rejectDialogVisible.value = false
+      rejectReason.value = ''
+    }
+  }
+  finally {
+    rejectSubmitting.value = false
+  }
+}
 </script>
 
 <template>
@@ -136,6 +202,31 @@ async function previewHtml(): Promise<void> {
         <t-tag v-if="polling" theme="primary" variant="light" size="small">
           生成中，自动刷新
         </t-tag>
+        <t-button
+          v-if="canGenerate && canSubmitReportReview(report)"
+          :loading="actions.submitReviewAction.running.value"
+          variant="outline"
+          @click="actions.submitReviewAction.run(report)"
+        >
+          提交审核
+        </t-button>
+        <t-button
+          v-if="canReview && canApproveOrRejectReport(report.status)"
+          :loading="actions.approveAction.running.value"
+          theme="success"
+          variant="outline"
+          @click="actions.approveAction.run(report)"
+        >
+          审核通过
+        </t-button>
+        <t-button
+          v-if="canReview && canApproveOrRejectReport(report.status)"
+          theme="danger"
+          variant="outline"
+          @click="rejectDialogVisible = true"
+        >
+          驳回
+        </t-button>
         <t-button
           v-if="canPublishReport(report)"
           :loading="actions.publishAction.running.value"
@@ -198,32 +289,71 @@ async function previewHtml(): Promise<void> {
         {{ report.errorMessage }}
       </t-alert>
 
-      <!-- 项目信息 -->
-      <t-card title="项目信息">
-        <t-descriptions v-if="project" bordered :column="3" size="medium">
-          <t-descriptions-item label="项目名称">
-            {{ project.name }}
+      <t-alert
+        v-if="report.status === 'REJECTED' && report.rejectReason"
+        class="report-detail__alert"
+        theme="warning"
+        title="审核驳回"
+      >
+        {{ report.rejectReason }}
+      </t-alert>
+
+      <t-card title="报告信息">
+        <t-descriptions :column="2" size="medium">
+          <t-descriptions-item label="报告类型">
+            {{ getReportTypeLabel(report.reportType) }}
           </t-descriptions-item>
-          <t-descriptions-item label="地区">
-            {{ project.region ?? '-' }}
+          <t-descriptions-item v-if="project" label="项目">
+            <t-button theme="primary" variant="text" @click="void router.push(`/projects/${encodeURIComponent(project.id)}`)">
+              {{ project.name }}
+            </t-button>
           </t-descriptions-item>
-          <t-descriptions-item label="建筑类型">
-            {{ project.buildingType ?? '-' }}
+          <t-descriptions-item label="生成时间">
+            {{ formatDate(new Date(report.createdAt)) }}
           </t-descriptions-item>
-          <t-descriptions-item label="可见性">
-            {{ project.visibility === 'PRIVATE' ? '私有' : '公开' }}
-          </t-descriptions-item>
-          <t-descriptions-item label="创建时间">
-            {{ formatDate(new Date(project.createdAt)) }}
-          </t-descriptions-item>
-          <t-descriptions-item label="更新时间">
-            {{ formatDate(new Date(project.updatedAt)) }}
-          </t-descriptions-item>
-          <t-descriptions-item label="描述" :span="3">
-            {{ project.description || '-' }}
+          <t-descriptions-item label="状态">
+            <AppStatusTag v-bind="reportStateMeta(report)" />
           </t-descriptions-item>
         </t-descriptions>
-        <AppEmptyState v-else description="项目信息加载失败或已删除" title="暂无项目信息" />
+      </t-card>
+
+      <t-card v-if="comparisonView" title="产品对比">
+        <section>
+          <h3 class="report-detail__section-title">纳入报告的产品</h3>
+          <div v-if="comparisonView.selectedProducts.length > 0" class="report-detail__product-tags">
+            <t-tag v-for="product in comparisonView.selectedProducts" :key="product.id">
+              {{ product.name }}
+            </t-tag>
+          </div>
+          <p v-else class="report-detail__muted">未记录选中产品。</p>
+        </section>
+
+        <section v-if="comparisonView.dimensions.length > 0" class="report-detail__compare-block">
+          <h3 class="report-detail__section-title">对比结果快照</h3>
+          <t-table
+            :columns="comparisonColumns"
+            :data="comparisonTableData"
+            row-key="dimension"
+            size="small"
+          />
+        </section>
+
+        <section class="report-detail__compare-block">
+          <h3 class="report-detail__section-title">来源</h3>
+          <ul v-if="comparisonView.sources.length > 0" class="report-detail__source-list">
+            <li v-for="source in comparisonView.sources" :key="`${source.type}:${source.id}`">
+              {{ source.label }}
+              <span class="report-detail__muted">（{{ source.type }}）</span>
+            </li>
+          </ul>
+          <p v-else class="report-detail__muted">暂无额外来源。</p>
+        </section>
+
+        <section class="report-detail__compare-block">
+          <h3 class="report-detail__section-title">热工数据</h3>
+          <pre v-if="comparisonView.showThermalResults" class="report-detail__json">{{ JSON.stringify(comparisonView.thermalResults, null, 2) }}</pre>
+          <p v-else class="report-detail__muted">{{ PRODUCT_COMPARE_THERMAL_UNAVAILABLE }}</p>
+        </section>
       </t-card>
 
       <!-- 使用方案与计算结果 -->
@@ -294,13 +424,26 @@ async function previewHtml(): Promise<void> {
           </div>
         </div>
         <p class="report-detail__muted">
-          模板版本 v{{ report.templateVersion }}
-          <template v-if="report.promptTemplateVersion !== null">
-            · 提示词版本 v{{ report.promptTemplateVersion }}
-          </template>
-          · 创建人 {{ formatCreatorName(report.createdById, userStore.profile?.id ?? null) }}
+          创建人 {{ formatCreatorName(report.createdById, userStore.profile?.id ?? null) }}
           · 生成任务由后端异步执行，进度以状态标签为准
         </p>
+      </t-card>
+
+      <t-card v-if="canViewTechnical" title="技术信息">
+        <t-descriptions :column="2" size="medium">
+          <t-descriptions-item label="模板版本">
+            v{{ report.templateVersion }}
+          </t-descriptions-item>
+          <t-descriptions-item v-if="report.promptTemplateVersion !== null" label="提示词版本">
+            v{{ report.promptTemplateVersion }}
+          </t-descriptions-item>
+          <t-descriptions-item v-if="report.conversationId" label="会话 ID">
+            {{ report.conversationId }}
+          </t-descriptions-item>
+          <t-descriptions-item label="报告类型编码">
+            {{ report.reportType }}
+          </t-descriptions-item>
+        </t-descriptions>
       </t-card>
 
       <!-- 文件版本 -->
@@ -401,6 +544,25 @@ async function previewHtml(): Promise<void> {
       :title="previewTitle"
       :url="previewUrl"
     />
+
+    <t-dialog
+      header="驳回报告"
+      :confirm-btn="{ content: '确认驳回', theme: 'danger', loading: rejectSubmitting }"
+      :visible="rejectDialogVisible"
+      width="min(480px, 92vw)"
+      @cancel="rejectDialogVisible = false"
+      @close="rejectDialogVisible = false"
+      @confirm="submitReject"
+    >
+      <t-form-item label="驳回原因" required-mark>
+        <t-textarea
+          v-model="rejectReason"
+          :autosize="{ minRows: 2, maxRows: 5 }"
+          maxlength="500"
+          placeholder="必填，将展示给报告创建人"
+        />
+      </t-form-item>
+    </t-dialog>
   </AppPage>
 </template>
 
@@ -414,8 +576,28 @@ async function previewHtml(): Promise<void> {
   gap: var(--td-size-4);
 }
 
-.report-detail__alert {
-  margin-bottom: var(--td-size-4);
+.report-detail__section-title {
+  margin: 0 0 var(--td-size-3);
+  color: var(--td-text-color-primary);
+  font-size: var(--td-font-size-title-small);
+}
+
+.report-detail__compare-block {
+  margin-top: var(--td-size-5);
+}
+
+.report-detail__product-tags,
+.report-detail__source-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--td-size-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.report-detail__source-list {
+  flex-direction: column;
 }
 
 .report-detail__collapse {

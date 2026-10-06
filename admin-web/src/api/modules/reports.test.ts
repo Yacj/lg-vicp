@@ -7,10 +7,14 @@ import {
   disableShare,
   fetchConversationAssets,
   fetchConversationMessages,
+  fetchMyReports,
   fetchReportDetail,
   fetchReportDownloadUrl,
+  fetchReportSettings,
+  fetchReportTypes,
   publishReport,
   regenerateReport,
+  updateReportSettings,
 } from './reports'
 
 vi.mock('@/api/http/client', () => ({
@@ -30,6 +34,48 @@ beforeEach(() => {
 })
 
 describe('report api contracts', () => {
+  it('creates a report with only report type and optional project', async () => {
+    await createReport({
+      reportType: 'technical_scheme',
+      projectId: 'project-1',
+    })
+
+    expect(mockedApi.post).toHaveBeenCalledWith('/api/v1/reports', {
+      reportType: 'technical_scheme',
+      projectId: 'project-1',
+    })
+    expect(mockedApi.post.mock.calls[0]?.[1]).not.toHaveProperty('templateId')
+    expect(mockedApi.post.mock.calls[0]?.[1]).not.toHaveProperty('templateVersionId')
+  })
+
+  it('lists public report types without template internals', async () => {
+    const signal = new AbortController().signal
+    await fetchReportTypes(signal)
+
+    expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/reports/types', { signal })
+  })
+
+  it('reads and updates report settings', async () => {
+    const signal = new AbortController().signal
+    await fetchReportSettings(signal)
+    await updateReportSettings({
+      defaultReportType: 'technical_scheme',
+      coverTitle: 'VICP智能技术方案',
+      showCalculationProcess: true,
+      defaultExportFormat: 'PDF',
+    })
+
+    expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/platform/reports/settings', { signal })
+    expect(mockedApi.put).toHaveBeenCalledWith('/api/v1/platform/reports/settings', {
+      defaultReportType: 'technical_scheme',
+      coverTitle: 'VICP智能技术方案',
+      showCalculationProcess: true,
+      defaultExportFormat: 'PDF',
+    })
+    expect(mockedApi.put.mock.calls[0]?.[1]).not.toHaveProperty('companyLogoFileId')
+    expect(mockedApi.put.mock.calls[0]?.[1]).not.toHaveProperty('companyName')
+  })
+
   it('creates a report with project, conversation and sources', async () => {
     await createReport({
       projectId: 'project-1',
@@ -43,6 +89,25 @@ describe('report api contracts', () => {
       conversationId: 'conversation-1',
       reportType: 'energy_design',
       sourceMessageIds: ['message-1', 'message-2'],
+    })
+  })
+
+  it('lists current user reports and omits empty project filter', async () => {
+    const signal = new AbortController().signal
+    await fetchMyReports({ page: 1, pageSize: 20 }, signal)
+
+    expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/reports/my', {
+      params: { page: 1, pageSize: 20 },
+      signal,
+    })
+  })
+
+  it('lists reports scoped to a project', async () => {
+    await fetchMyReports({ page: 1, pageSize: 20, projectId: 'project-1' })
+
+    expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/reports/my', {
+      params: { page: 1, pageSize: 20, projectId: 'project-1' },
+      signal: undefined,
     })
   })
 

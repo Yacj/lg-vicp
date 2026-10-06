@@ -1,36 +1,35 @@
 <script setup lang="ts">
-import type { FormRules, PrimaryTableCol, TableRowData } from 'tdesign-vue-next'
+import type { PrimaryTableCol, TableRowData } from 'tdesign-vue-next'
 import { ArrowLeftIcon } from 'tdesign-icons-vue-next'
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import AppCrudFormDialog from '@/components/business/AppCrudFormDialog.vue'
+import AppTableActions from '@/components/business/AppTableActions.vue'
+import ProjectConversationDetailDrawer from '@/components/business/ProjectConversationDetailDrawer.vue'
+import ProjectAiMemoryPanel from '@/components/business/ProjectAiMemoryPanel.vue'
 import AppDataTable from '@/components/ui/AppDataTable.vue'
 import AppErrorState from '@/components/ui/AppErrorState.vue'
 import AppPage from '@/components/ui/AppPage.vue'
 import AppStatusTag from '@/components/ui/AppStatusTag.vue'
 import { useProjectDetail } from '@/composables/useProjectDetail'
-import { usePermissionAccess } from '@/composables/usePermissionAccess'
-import { useCrudDrawer } from '@/composables/useCrudDrawer'
-import { useConfirmedCrudAction, useCrudDelete } from '@/composables/useCrudActions'
-import { useAppFeedback, normalizeFeedbackError } from '@/composables/useAppFeedback'
-import { createProject, updateProject, updateProjectVisibility, deleteProject } from '@/api/modules/projects'
-import type { ProjectForm } from '@/composables/useProjectCenter'
-import type { ProjectItem, ProjectMutationResult, ProjectVisibility } from '@/types/project'
+import { useCrudDelete } from '@/composables/useCrudActions'
+import { normalizeFeedbackError } from '@/composables/useAppFeedback'
+import { deletePlatformProject } from '@/api/modules/projects'
+import type { AppTableAction } from '@/types/crud'
+import type { ProjectItem } from '@/types/project'
 import type { ProjectConversation, ProjectAuditLog } from '@/types/project'
 import {
+  formatProjectVisibilityScope,
   isProjectManager,
   projectStatusMeta,
-  projectTaskEntries,
   projectVisibilityMeta,
 } from '@/utils/project'
-import type { ProjectTaskEntry } from '@/utils/project'
 import { useUserStore } from '@/stores/user'
+import { getAiSceneLabel } from '@/utils/ai'
 import { formatDate } from '@/utils/day'
 
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
-const feedback = useAppFeedback()
 const projectId = computed(() => (typeof route.params.id === 'string' ? route.params.id : null))
 
 const {
@@ -49,101 +48,9 @@ const isManager = computed(() => currentProject.value
   ? isProjectManager(currentProject.value, userStore.profile?.id ?? null, userStore.isSuperAdmin)
   : false)
 
-// ---- 任务入口（基本信息 / 项目条件 / 智能计算 / 方案选择 / 材料对比 / 节点方案 / 报告）----
-
-const { canAccess } = usePermissionAccess()
-
-function canNavigate(path: string): boolean {
-  const resolved = router.resolve(path)
-  return resolved.matched.length > 0 && resolved.name !== 'NotFound'
-}
-
-/** 任务入口按领域权限码与路由可达性裁剪；权限不足或路由未注册时不展示，不渲染死入口 */
-const taskEntries = computed<ProjectTaskEntry[]>(() => {
-  if (!currentProject.value) {
-    return []
-  }
-  return projectTaskEntries(currentProject.value).filter((entry) => {
-    if (!canAccess({ permissions: entry.permissions })) {
-      return false
-    }
-    return entry.route === null || canNavigate(entry.route)
-  })
-})
-
-function openTaskEntry(entry: ProjectTaskEntry): void {
-  if (entry.route) {
-    void router.push(entry.route)
-    return
-  }
-  if (entry.tabKey) {
-    activeTab.value = entry.tabKey
-  }
-}
-
-const formRules: FormRules<ProjectForm> = {
-  name: [
-    { message: '请输入项目名称', required: true },
-    { max: 120, message: '项目名称不能超过 120 个字符' },
-  ],
-  description: [{ max: 2000, message: '项目描述不能超过 2000 个字符' }],
-  region: [{ max: 80, message: '地区不能超过 80 个字符' }],
-  buildingType: [{ max: 80, message: '建筑类型不能超过 80 个字符' }],
-}
-
-function createProjectForm(): ProjectForm {
-  return { buildingType: '', description: '', name: '', region: '', visibility: 'PRIVATE' }
-}
-
-function editProjectForm(project: ProjectItem): ProjectForm {
-  return {
-    buildingType: project.buildingType ?? '',
-    description: project.description ?? '',
-    name: project.name,
-    region: project.region ?? '',
-    visibility: project.visibility,
-  }
-}
-
-const projectDrawer = useCrudDrawer<ProjectForm, ProjectItem, ProjectMutationResult>({
-  createForm: createProjectForm,
-  editForm: editProjectForm,
-  onError: (error) => void feedback.messageError(error),
-  onSuccess: async (result) => {
-    await feedback.message('success', result.message)
-    await reloadDetail()
-  },
-  submit: ({ data, entity, mode }) => {
-    const name = data.name.trim()
-    const description = data.description.trim() || undefined
-    const region = data.region.trim() || undefined
-    const buildingType = data.buildingType.trim() || undefined
-    return mode === 'create'
-      ? createProject({ name, description, region, buildingType, visibility: data.visibility })
-      : updateProject(entity!.id, { name, description, region, buildingType })
-  },
-})
-
-const visibilityAction = useConfirmedCrudAction<
-  { project: ProjectItem, visibility: ProjectVisibility },
-  ProjectMutationResult
->({
-  action: ({ project, visibility }) => updateProjectVisibility(project.id, visibility),
-  confirm: ({ project, visibility }) => ({
-    content: `确认将项目“${project.name}”切换为${visibility === 'PUBLIC' ? '公开' : '私有'}吗？`,
-    confirmText: visibility === 'PUBLIC' ? '设为公开' : '设为私有',
-    danger: visibility === 'PRIVATE',
-    title: '切换项目可见性',
-  }),
-  onSuccess: async () => {
-    await reloadDetail()
-  },
-  successMessage: (_payload, result) => result.message,
-})
-
 const deleteAction = useCrudDelete<ProjectItem, { message: string }>({
-  action: (project) => deleteProject(project.id),
-  confirm: (project) => ({
+  action: project => deletePlatformProject(project.id),
+  confirm: project => ({
     content: `确认删除项目“${project.name}”吗？删除后无法恢复。`,
     confirmText: '删除',
     danger: true,
@@ -159,18 +66,20 @@ const errorDescription = computed(() => detailError.value
   ? normalizeFeedbackError(detailError.value).message
   : '项目不存在或无权查看')
 
-/** AI 会话场景标签（与后端 AI_SCENES 对齐）。 */
-const SCENE_LABELS: Record<string, string> = {
-  general_chat: '普通对话',
-  project_design: '项目设计',
-  material_compare: '材料对比',
-  standard_qa: '标准问答',
-  report_generate: '报告生成',
-  information_extract: '信息抽取',
+const conversationDetailVisible = ref(false)
+const activeConversation = ref<ProjectConversation | null>(null)
+
+function openConversationDetail(row: TableRowData): void {
+  activeConversation.value = row as ProjectConversation
+  conversationDetailVisible.value = true
 }
 
-function sceneLabel(scene: string): string {
-  return SCENE_LABELS[scene] ?? scene
+function conversationActions(row: TableRowData): AppTableAction[] {
+  return [{
+    handler: () => openConversationDetail(row),
+    key: 'detail',
+    label: '对话详情',
+  }]
 }
 
 const conversationColumns: PrimaryTableCol<TableRowData>[] = [
@@ -181,7 +90,7 @@ const conversationColumns: PrimaryTableCol<TableRowData>[] = [
     title: '会话标题',
   },
   {
-    cell: (_h, { row }) => sceneLabel((row as ProjectConversation).scene),
+    cell: (_h, { row }) => getAiSceneLabel((row as ProjectConversation).scene),
     colKey: 'scene',
     title: '场景',
     width: 120,
@@ -244,19 +153,6 @@ function goBack(): void {
         />
       </template>
       <template v-if="isManager">
-        <t-button theme="default" variant="outline" @click="projectDrawer.openEdit(currentProject!)">
-          编辑
-        </t-button>
-        <t-button
-          theme="default"
-          variant="outline"
-          @click="visibilityAction.run({
-            project: currentProject!,
-            visibility: currentProject!.visibility === 'PUBLIC' ? 'PRIVATE' : 'PUBLIC',
-          })"
-        >
-          {{ currentProject?.visibility === 'PUBLIC' ? '设为私有' : '设为公开' }}
-        </t-button>
         <t-button theme="danger" variant="outline" @click="deleteAction.run(currentProject!)">
           删除
         </t-button>
@@ -271,7 +167,7 @@ function goBack(): void {
     />
 
     <template v-else-if="detailStatus === 'ready' && currentProject">
-      <nav aria-label="项目任务入口" class="project-task-grid">
+      <!-- <nav aria-label="项目任务入口" class="project-task-grid">
         <t-button
           v-for="entry in taskEntries"
           :key="entry.key"
@@ -286,9 +182,9 @@ function goBack(): void {
             <span class="project-task-card__description">{{ entry.description }}</span>
           </span>
         </t-button>
-      </nav>
+      </nav> -->
 
-      <t-tabs v-model="activeTab" class="project-detail-tabs">
+      <t-tabs v-model="activeTab" class="project-detail-tabs !bg-transparent">
         <t-tab-panel
           v-for="tab in tabs"
           :key="tab.key"
@@ -300,8 +196,14 @@ function goBack(): void {
             <t-card title="项目概况">
               <t-descriptions bordered :column="2" size="medium">
                 <t-descriptions-item label="项目名称">{{ currentProject.name }}</t-descriptions-item>
-                <t-descriptions-item label="可见性">
-                  {{ projectVisibilityMeta(currentProject.visibility).label }}
+                <t-descriptions-item label="创建用户">
+                  {{ currentProject.createdByName || '—' }}
+                </t-descriptions-item>
+                <t-descriptions-item label="所属部门">
+                  {{ currentProject.ownerDepartmentName || '—' }}
+                </t-descriptions-item>
+                <t-descriptions-item label="可见范围">
+                  {{ formatProjectVisibilityScope(currentProject) }}
                 </t-descriptions-item>
                 <t-descriptions-item label="状态">
                   {{ projectStatusMeta(currentProject.status).label }}
@@ -336,6 +238,7 @@ function goBack(): void {
               :error-description="conversationsList.error.value
                 ? normalizeFeedbackError(conversationsList.error.value).message
                 : '请检查网络连接后重试'"
+              :operations-width="120"
               :page-size="conversationsList.pageSize.value"
               row-key="id"
               :status="conversationsList.tableStatus.value"
@@ -343,6 +246,27 @@ function goBack(): void {
               @page-change="conversationsList.changePage"
               @refresh="conversationsList.refresh"
               @retry="conversationsList.retry"
+            >
+              <template #operations="{ row }">
+                <AppTableActions :actions="conversationActions(row)" />
+              </template>
+            </AppDataTable>
+          </section>
+
+          <section v-else-if="tab.key === 'reports'" class="project-reports mt-3">
+            <t-card title="报告">
+              <p class="project-reports__hint">项目报告成果在报告管理中查看、发布与下载。</p>
+              <t-button theme="primary" variant="outline" @click="router.push(`/reports?projectId=${encodeURIComponent(currentProject.id)}`)">
+                打开报告管理
+              </t-button>
+            </t-card>
+          </section>
+
+          <!-- AI 记忆 -->
+          <section v-else-if="tab.key === 'memory'" class="project-conversations mt-3">
+            <ProjectAiMemoryPanel
+              :can-manage="isManager"
+              :project-id="currentProject.id"
             />
           </section>
 
@@ -376,36 +300,11 @@ function goBack(): void {
       </div>
     </template>
 
-    <AppCrudFormDialog
-      description="项目名称与描述可修改，可见性切换请在页面操作中执行"
-      :form-data="projectDrawer.formData"
-      :mode="projectDrawer.mode.value"
-      :rules="formRules"
-      :submitting="projectDrawer.isSubmitting.value"
-      title="编辑项目"
-      :visible="projectDrawer.visible.value"
-      @cancel="projectDrawer.close"
-      @submit="projectDrawer.submit"
-      @update:visible="projectDrawer.setVisible"
-    >
-      <t-form-item label="项目名称" name="name">
-        <t-input v-model="projectDrawer.formData.name" maxlength="120" placeholder="请输入项目名称" />
-      </t-form-item>
-      <t-form-item label="项目地区" name="region">
-        <t-input v-model="projectDrawer.formData.region" maxlength="80" placeholder="选填，如：上海市浦东新区" />
-      </t-form-item>
-      <t-form-item label="建筑类型" name="buildingType">
-        <t-input v-model="projectDrawer.formData.buildingType" maxlength="80" placeholder="选填，如：办公建筑" />
-      </t-form-item>
-      <t-form-item label="项目描述" name="description">
-        <t-textarea
-          v-model="projectDrawer.formData.description"
-          :autosize="{ minRows: 3, maxRows: 6 }"
-          maxlength="2000"
-          placeholder="选填，说明项目背景、节能目标或改造范围"
-        />
-      </t-form-item>
-    </AppCrudFormDialog>
+    <ProjectConversationDetailDrawer
+      v-model:visible="conversationDetailVisible"
+      :conversation-id="activeConversation?.id ?? null"
+      :title="activeConversation?.title"
+    />
   </AppPage>
 </template>
 

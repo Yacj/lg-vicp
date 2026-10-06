@@ -24,6 +24,84 @@ export const staticRoutes: RouteRecordRaw[] = [  {
         },
       },
       {
+        path: 'collection',
+        name: 'CollectionCenter',
+        component: () => import('@/views/collection/index.vue'),
+        meta: {
+          keepAlive: true,
+          permissions: [
+            'system:collection:list',
+            'system:collection:task:view',
+            'system:collection:task:import',
+            'system:collection:manual:create',
+            'system:collection:auto:list',
+            'system:collection:auto:create',
+            'system:collection:auto:update',
+            'system:collection:auto:toggle',
+            'system:collection:skill:list',
+            'system:collection:skill:create',
+            'system:collection:skill:update',
+            'system:collection:dashboard',
+            'system:collection:record:list',
+          ],
+          title: '采集管理',
+        },
+      },
+      {
+        path: 'collection/manual',
+        name: 'CollectionManual',
+        redirect: { path: '/collection', query: { tab: 'manual' } },
+        meta: {
+          hidden: true,
+          title: '手动采集',
+        },
+      },
+      {
+        path: 'collection/sources',
+        name: 'CollectionSources',
+        redirect: { path: '/collection', query: { tab: 'auto' } },
+        meta: {
+          hidden: true,
+          title: '自动采集',
+        },
+      },
+      {
+        path: 'collection/tasks',
+        name: 'CollectionTasks',
+        redirect: { path: '/collection', query: { tab: 'manual' } },
+        meta: {
+          hidden: true,
+          title: '采集管理',
+        },
+      },
+      {
+        path: 'collection/dashboard',
+        name: 'CollectionDashboard',
+        redirect: { path: '/collection', query: { tab: 'dashboard' } },
+        meta: {
+          hidden: true,
+          title: '采集看板',
+        },
+      },
+      {
+        path: 'collection/skills',
+        name: 'CollectionSkills',
+        redirect: { path: '/collection', query: { tab: 'auto' } },
+        meta: {
+          hidden: true,
+          title: '采集技能',
+        },
+      },
+      {
+        path: 'collection/records',
+        name: 'CollectionRecords',
+        redirect: { path: '/collection', query: { tab: 'dashboard' } },
+        meta: {
+          hidden: true,
+          title: '采集记录',
+        },
+      },
+      {
         path: 'products/detail',
         name: 'ProductDetail',
         component: () => import('@/views/products/detail.vue'),
@@ -31,6 +109,42 @@ export const staticRoutes: RouteRecordRaw[] = [  {
           hidden: true,
           noTab: true,
           title: '产品详情',
+        },
+      },
+      {
+        path: 'products/manage',
+        name: 'ProductManage',
+        component: () => import('@/views/products/manage/index.vue'),
+        meta: {
+          permissions: ['system:md:product:list'],
+          title: '产品管理',
+        },
+      },
+      {
+        path: 'products/compare',
+        name: 'ProductCompare',
+        component: () => import('@/views/products/compare/index.vue'),
+        meta: {
+          permissions: ['system:md:product:list'],
+          title: '产品对比',
+        },
+      },
+      {
+        path: 'thermal/calc',
+        name: 'ThermalCalc',
+        component: () => import('@/views/thermal/calc/index.vue'),
+        meta: {
+          permissions: ['system:thermal:list'],
+          title: '热工计算',
+        },
+      },
+      {
+        path: 'system/admins',
+        name: 'SystemAdmins',
+        redirect: '/system/user',
+        meta: {
+          hidden: true,
+          title: '用户管理',
         },
       },
       {
@@ -122,6 +236,44 @@ export const staticRoutes: RouteRecordRaw[] = [  {
         },
       },
       {
+        path: 'ai-config/advanced',
+        name: 'AiConfigAdvanced',
+        component: () => import('@/views/ai-config/advanced/index.vue'),
+        meta: {
+          permissions: ['system:ai:model:edit', 'system:ai:debug:use'],
+          title: '高级设置',
+        },
+      },
+      {
+        path: 'ai-config/business-prompts',
+        name: 'AiConfigBusinessPrompts',
+        component: () => import('@/views/ai-config/business-prompts/index.vue'),
+        meta: {
+          permissions: ['system:ai:prompt:list'],
+          title: '提示词配置',
+        },
+      },
+      {
+        path: 'ai-config/runs',
+        name: 'AiConfigRuns',
+        component: () => import('@/views/ai-config/runs/index.vue'),
+        meta: {
+          permissions: ['system:ai:conversation:list'],
+          title: 'AI运行记录',
+        },
+      },
+      {
+        path: 'ai-config/runs/:id',
+        name: 'AiConfigRunDetail',
+        component: () => import('@/views/ai-config/runs/detail.vue'),
+        meta: {
+          hidden: true,
+          noTab: true,
+          permissions: ['system:ai:conversation:detail'],
+          title: '运行详情',
+        },
+      },
+      {
         path: 'ai-config/scenes',
         name: 'AiConfigScenes',
         component: () => import('@/views/ai-config/scenes/index.vue'),
@@ -193,7 +345,27 @@ export const staticRoutes: RouteRecordRaw[] = [  {
         name: 'ReportCenter',
         component: () => import('@/views/reports/index.vue'),
         meta: {
-          title: '报告管理',
+          permissions: ['system:report:generate'],
+          title: '报告列表',
+        },
+      },
+      {
+        path: 'reports/settings',
+        name: 'ReportSettings',
+        component: () => import('@/views/reports/settings/index.vue'),
+        meta: {
+          permissions: ['system:report:settings'],
+          title: '报告设置',
+        },
+      },
+      {
+        path: 'reports/templates',
+        name: 'ReportTemplates',
+        component: () => import('@/views/reports/templates/index.vue'),
+        meta: {
+          hidden: true,
+          permissions: ['system:report:template:list'],
+          title: '报告模板',
         },
       },
       {
@@ -203,7 +375,35 @@ export const staticRoutes: RouteRecordRaw[] = [  {
         meta: {
           hidden: true,
           noTab: true,
+          permissions: ['system:report:generate', 'system:report:review'],
           title: '报告详情',
+        },
+      },
+      {
+        path: 'system/enterprise',
+        name: 'SystemEnterprise',
+        component: () => import('@/views/system/enterprise/index.vue'),
+        meta: {
+          permissions: ['system:md:enterprise:list'],
+          title: '企业信息',
+        },
+      },
+      {
+        path: 'content/profile',
+        name: 'ContentProfile',
+        redirect: '/system/enterprise',
+        meta: {
+          hidden: true,
+          title: '企业信息',
+        },
+      },
+      {
+        path: 'content/certificates',
+        name: 'ContentCertificates',
+        redirect: '/system/enterprise',
+        meta: {
+          hidden: true,
+          title: '企业信息',
         },
       },
     ],

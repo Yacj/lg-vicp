@@ -1,3 +1,4 @@
+import { wrapContextForReasoning } from "../../shared/ai-response-policy.js";
 import type { FastifyInstance } from "fastify";
 import { aiRuleUsageLogs } from "../../db/schema.js";
 import type { AuthUser } from "../../shared/auth-user.js";
@@ -63,10 +64,10 @@ export function formatComparisonRuleContext(
       `   证据：${evidence}`
     ].join("\n");
   });
-  return [
-    "【已审核材料对比规则（来源：材料对比规则库，必须遵守，禁止编造或推算对比数据）】",
+  return wrapContextForReasoning("已审核材料对比规则", [
+    "解释差异时遵守下列已审核口径，不要复述整份规则原文，也不要推算未给出的对方数据。",
     ...lines
-  ].join("\n");
+  ].join("\n"));
 }
 
 /** AI 回答引用规则时落库使用日志（含规则快照，审计可追溯且历史不漂移） */

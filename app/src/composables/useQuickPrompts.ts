@@ -23,6 +23,22 @@ async function requestQuickPrompts(position: AiQuickPromptPosition) {
   return takeVisible(response.data?.items || [])
 }
 
+/** 项目位没有运营配置时回落到首页快捷提问，避免输入框上方整条轨道消失。 */
+async function resolveVisibleItems(position: AiQuickPromptPosition, primary: ClientQuickPrompt[]) {
+  if (primary.length || position === 'AI_HOME') {
+    return primary
+  }
+
+  const homeCached = cache.get('AI_HOME')
+  if (homeCached && Date.now() - homeCached.fetchedAt < QUICK_PROMPT_CACHE_TTL_MS) {
+    return homeCached.items
+  }
+
+  const home = await requestQuickPrompts('AI_HOME')
+  cache.set('AI_HOME', { items: home, fetchedAt: Date.now() })
+  return home
+}
+
 /**
  * 筑小格快捷提问：失败静默降级，绝不阻塞输入框。
  * 已登录才请求；未登录或接口失败时区域隐藏。
@@ -43,11 +59,13 @@ export function useQuickPrompts() {
 
     const cached = cache.get(nextPosition)
     const cacheValid = Boolean(cached && Date.now() - cached.fetchedAt < QUICK_PROMPT_CACHE_TTL_MS)
-    if (cached && (cacheValid || !options.force)) {
-      items.value = cached.items
-      if (cacheValid && !options.force) {
-        return
-      }
+    if (cached && cacheValid && !options.force) {
+      items.value = await resolveVisibleItems(nextPosition, cached.items)
+      return
+    }
+
+    if (cached && !options.force) {
+      items.value = await resolveVisibleItems(nextPosition, cached.items)
     }
 
     const showSkeleton = !cached
@@ -59,7 +77,7 @@ export function useQuickPrompts() {
       const next = await requestQuickPrompts(nextPosition)
       cache.set(nextPosition, { items: next, fetchedAt: Date.now() })
       if (position.value === nextPosition) {
-        items.value = next
+        items.value = await resolveVisibleItems(nextPosition, next)
       }
     }
     catch {
@@ -67,12 +85,12 @@ export function useQuickPrompts() {
         const next = await requestQuickPrompts(nextPosition)
         cache.set(nextPosition, { items: next, fetchedAt: Date.now() })
         if (position.value === nextPosition) {
-          items.value = next
+          items.value = await resolveVisibleItems(nextPosition, next)
         }
       }
       catch {
         if (!cached && position.value === nextPosition) {
-          items.value = []
+          items.value = await resolveVisibleItems(nextPosition, [])
         }
       }
     }

@@ -12,6 +12,7 @@ interface PersistedAuthState {
 
 interface PersistedAssistantState {
   conversation?: { userId?: string } | null
+  pendingProjectId?: string | null
 }
 
 export function readPersistedAuthUserId(): string | null {

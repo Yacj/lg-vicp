@@ -7,21 +7,32 @@ import { ForbiddenError } from "../../shared/errors.js";
 import { ok } from "../../shared/response.js";
 import { COLLECTION_PERMISSIONS } from "../../shared/collection-permissions.js";
 import {
+  collectionRecordListQuerySchema,
+  collectionSkillParamsSchema,
   collectionSourceParamsSchema,
   collectionTaskListQuerySchema,
   collectionTaskParamsSchema,
+  collectionTrendQuerySchema,
+  createCollectionSkillBodySchema,
   createCollectionSourceBodySchema,
   createManualCollectionBodySchema,
+  updateCollectionSkillBodySchema,
   updateCollectionSourceBodySchema
 } from "./collection.schemas.js";
 import {
+  createCollectionSkill,
   createCollectionSource,
   createManualCollectionTask,
+  getCollectionDashboard,
   getCollectionTask,
+  getCollectionTrends,
   importCollectionTaskToKnowledge,
+  listCollectionRecords,
+  listCollectionSkills,
   listCollectionSources,
   listCollectionTasks,
   toggleCollectionSource,
+  updateCollectionSkill,
   updateCollectionSource,
   type CollectionDeps
 } from "./collection.service.js";
@@ -151,5 +162,53 @@ export async function collectionRoutes(app: FastifyInstance) {
   }, async (request) => {
     const actor = requirePermission(request, COLLECTION_PERMISSIONS.TASK_IMPORT);
     return ok(request, await importCollectionTaskToKnowledge(app, request, actor, request.params.id));
+  });
+
+  route.get("/skills", {
+    preHandler: preAdmin,
+    schema: { tags: [TAG], summary: "采集技能列表（关键词 + instruction）" }
+  }, async (request) => {
+    requirePermission(request, COLLECTION_PERMISSIONS.SKILL_LIST);
+    return ok(request, { items: await listCollectionSkills(collectionDeps(app)) });
+  });
+
+  route.post("/skills", {
+    preHandler: preAdmin,
+    schema: { tags: [TAG], summary: "新增采集技能", body: createCollectionSkillBodySchema }
+  }, async (request) => {
+    const actor = requirePermission(request, COLLECTION_PERMISSIONS.SKILL_CREATE);
+    return ok(request, await createCollectionSkill(collectionDeps(app), request, actor, request.body));
+  });
+
+  route.put("/skills/:id", {
+    preHandler: preAdmin,
+    schema: { tags: [TAG], summary: "修改采集技能", params: collectionSkillParamsSchema, body: updateCollectionSkillBodySchema }
+  }, async (request) => {
+    const actor = requirePermission(request, COLLECTION_PERMISSIONS.SKILL_UPDATE);
+    return ok(request, await updateCollectionSkill(collectionDeps(app), request, actor, request.params.id, request.body));
+  });
+
+  route.get("/dashboard", {
+    preHandler: preAdmin,
+    schema: { tags: [TAG], summary: "采集看板：累计/今日/本月/今年新增" }
+  }, async (request) => {
+    requirePermission(request, COLLECTION_PERMISSIONS.DASHBOARD);
+    return ok(request, await getCollectionDashboard(collectionDeps(app)));
+  });
+
+  route.get("/trends", {
+    preHandler: preAdmin,
+    schema: { tags: [TAG], summary: "采集趋势（Backend 聚合，不让前端拉全量）", querystring: collectionTrendQuerySchema }
+  }, async (request) => {
+    requirePermission(request, COLLECTION_PERMISSIONS.DASHBOARD);
+    return ok(request, await getCollectionTrends(collectionDeps(app), request.query.granularity));
+  });
+
+  route.get("/records", {
+    preHandler: preAdmin,
+    schema: { tags: [TAG], summary: "结构化采集记录列表", querystring: collectionRecordListQuerySchema }
+  }, async (request) => {
+    requirePermission(request, COLLECTION_PERMISSIONS.RECORD_LIST);
+    return ok(request, await listCollectionRecords(collectionDeps(app), request.query));
   });
 }

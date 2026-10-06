@@ -2,11 +2,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '@/api/http/client'
 import {
   createProject,
+  deletePlatformProject,
   deleteProject,
   fetchMyProjects,
+  fetchPlatformProject,
   fetchPlatformProjects,
   fetchProjectDetail,
   fetchPublicProjects,
+  toPlatformProjectListParams,
   updateProject,
   updateProjectVisibility,
 } from './projects'
@@ -58,6 +61,15 @@ describe('project api contracts', () => {
     })
   })
 
+  it('omits empty visibility and keyword from platform project list params', () => {
+    expect(toPlatformProjectListParams({
+      keyword: '  ',
+      page: 1,
+      pageSize: 20,
+      visibility: undefined,
+    })).toEqual({ page: 1, pageSize: 20 })
+  })
+
   it('fetches project detail by id', async () => {
     const signal = new AbortController().signal
     await fetchProjectDetail('project-1', signal)
@@ -96,5 +108,14 @@ describe('project api contracts', () => {
     await deleteProject('project-1')
 
     expect(mockedApi.delete).toHaveBeenCalledWith('/api/v1/workspace/projects/project-1')
+  })
+
+  it('fetches and deletes platform projects', async () => {
+    const signal = new AbortController().signal
+    await fetchPlatformProject('project-1', signal)
+    await deletePlatformProject('project-1')
+
+    expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/platform/projects/project-1', { signal })
+    expect(mockedApi.delete).toHaveBeenCalledWith('/api/v1/platform/projects/project-1')
   })
 })

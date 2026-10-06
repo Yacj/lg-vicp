@@ -156,7 +156,7 @@ export async function deleteProductSeries(
 export interface ProductSpecInput {
   seriesId: string;
   specCode: string;
-  specClass: MdSpecClass;
+  specClass?: MdSpecClass | null;
   thicknessMm: number;
   lengthMm?: number | null;
   widthMm?: number | null;
@@ -215,7 +215,7 @@ export async function createProductSpec(
       seriesId: input.seriesId,
       specCode: input.specCode,
       version: 1,
-      specClass: input.specClass,
+      specClass: input.specClass ?? null,
       thicknessMm: input.thicknessMm,
       lengthMm: input.lengthMm,
       widthMm: input.widthMm,

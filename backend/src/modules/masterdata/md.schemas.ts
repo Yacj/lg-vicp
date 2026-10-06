@@ -194,7 +194,7 @@ export const productSeriesDto = z.object({
 export const productSpecCreateSchema = z.object({
   seriesId: z.uuid("系列 ID 格式不正确"),
   specCode: z.string().trim().min(1).max(80),
-  specClass: mdSpecClassSchema,
+  specClass: mdSpecClassSchema.nullable().optional(),
   thicknessMm: z.number().positive("厚度必须大于 0"),
   lengthMm: z.number().positive("长度必须大于 0").nullable().optional(),
   widthMm: z.number().positive("宽度必须大于 0").nullable().optional(),
@@ -212,7 +212,7 @@ export const productSpecDto = z.object({
   seriesId: z.string().uuid(),
   specCode: z.string(),
   version: z.number(),
-  specClass: mdSpecClassSchema,
+  specClass: mdSpecClassSchema.nullable(),
   thicknessMm: z.number(),
   lengthMm: z.number().nullable(),
   widthMm: z.number().nullable(),

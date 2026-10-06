@@ -1,10 +1,10 @@
-# 主数据（产品 / 材料参数）— Legacy / Deprecated
+# 主数据（产品 / 材料参数）— Legacy 兼容
 
-产品中心已退出普通业务。本模块表与 `/api/v1/platform/masterdata` 审核 API **保留兼容，不 DROP**。普通菜单不再暴露；新功能禁止继续增加 Product 依赖。
+P0 普通产品入口已恢复为最小骨架：`catalog_products` + `/api/v1/platform/products`（`src/modules/products/`）。本模块表与 `/api/v1/platform/masterdata` 审核 API **保留兼容，不 DROP**。完整产品参数字段待客户确认后再扩展；普通菜单不再暴露系列/规格/参数子树。
 
-正式图集、标准规范、技术资料、企业技术文件统一进入 Knowledge。产品/材料/构造/参数不再要求用户二次录入产品中心。
+正式图集、标准规范、技术资料仍进入 Knowledge。确定性计算优先 `VERIFIED knowledge_facts`，缺省 fallback 本模块已发布读取。
 
-确定性计算优先 `VERIFIED knowledge_facts`（`resolveThermalParameter` / `resolveMaterialFacts`），缺省 fallback 本模块已发布读取。
+产品可关联 Knowledge Document（`product_knowledge_links`），不在 P0 强制完整参数体系。
 
 **企业信息已从普通业务主数据中拆出**：日常维护走 `src/modules/company/`（`docs/company/README.md`）。本模块仍保留 `enterprise_profiles` / `enterprise_certificates` 表与旧审核 API，供兼容，不再作为普通 B 端入口。
 

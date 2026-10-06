@@ -26,7 +26,7 @@
 
 | 接口 | 说明 |
 | --- | --- |
-| `POST /conversations/:id/messages` | 发消息（SSE，见 `sse-protocol.md`）；body `{ content, attachmentFileIds?: string[] }`，0 张图片走原文字流程，1~4 张走 Vision 看图后再进入现有编排。若会话有 WAITING_USER_INPUT 的 Agent Run，下一句自动 Resume。不要求 projectId / sceneId / promptId |
+| `POST /conversations/:id/messages` | 发消息（SSE，见 `sse-protocol.md`）；body `{ content, attachmentFileIds?: string[], selectedIds?: string[], selectionKind?: string }`。若会话有 WAITING_USER_INPUT 的 Agent Run，下一句自动 Resume（校验 selectedIds 属于 options 且满足 min/max）。不要求 projectId / sceneId / promptId |
 | `POST /messages/:id/stop` | 停止生成 |
 | `POST /messages/:id/regenerate` | 重新生成（新建助手消息 + `ai_message_regenerations` 关系，不覆盖原回答） |
 | `PUT /messages/:id/feedback` | 点赞 / 反馈（upsert，`reasonCode` + 标签） |

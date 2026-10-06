@@ -358,10 +358,7 @@ export default {
             // #ifdef MP
             uni.setClipboardData({
               data: href,
-              success: () =>
-                uni.showToast({
-                  title: '链接已复制'
-                })
+              success: () => {}
             })
             // #endif
             // #ifdef APP-PLUS

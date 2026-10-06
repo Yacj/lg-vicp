@@ -8,8 +8,8 @@
 | `defaultModelId` / `reasoningModelId` / `fallbackModelId` | 模型绑定（FK `ai_models`，onDelete set null） |
 | `allowReasoning` | 是否允许深度思考（ON 模式前置条件） |
 | `requireProject` | 是否注入项目上下文 |
-| `allowFileUpload` / `allowKnowledgeSearch` / `allowTools` | 能力门控（一期仅占位，未实现实际能力） |
-| `temperature` / `maxOutputTokens` | 场景级覆盖参数 |
+| `allowFileUpload` / `allowKnowledgeSearch` / `allowTools` | 能力门控 |
+| `temperature` / `maxOutputTokens` | 已废弃，保留兼容列；运行时改由 `AiTaskRuntimePolicy` 决定 |
 | `promptId` | 关联提示词（FK `prompts`） |
 | `enabled` | 是否对外服务 |
 
@@ -53,6 +53,12 @@ flowchart LR
 | 删除 | `DELETE /prompts/:id` | `system:ai:prompt:remove` |
 
 所有变更写审计。
+
+## 业务 Prompt 与全局回答规则
+
+普通管理员维护的业务提示词只写**该场景要关注什么**。怎么说由代码层 `GLOBAL_RESPONSE_POLICY`（约 11 条）和 Answer Contract 统一负责，怎么做由 `EXECUTION_POLICY` 负责。即使编辑业务 Prompt，也不能覆盖：不得暴露内部 Tool/Agent、不得暴露思考链、权限不能绕过、不得伪造来源。
+
+seed 不会覆盖管理员已发布的 Prompt。`KNOWLEDGE_SEARCH` 等默认模板更新后，可通过 B 端「恢复默认」写入新版；不要把 seed 当成线上热更新。
 
 ## 兼容路径
 

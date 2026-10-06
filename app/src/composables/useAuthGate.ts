@@ -1,5 +1,6 @@
 import { useRoute, useRouter } from '@wot-ui/router'
 import { useAuthStore } from '@/store/auth'
+import { buildAuthPageLocation, rememberLoginRedirect } from '@/utils/authRedirect'
 
 type LoginRedirect = string
 
@@ -24,9 +25,11 @@ export function useAuthGate() {
       toast.warning(options.message || defaultLoginMessage)
     }
 
+    rememberLoginRedirect(redirect)
+
     const timer = setTimeout(() => {
       clearTimeout(timer)
-      router.push({ name: 'login', params: { redirect } }).catch(() => {})
+      router.push(buildAuthPageLocation('login', redirect)).catch(() => {})
     }, options.showToast === false ? 0 : 300)
   }
 

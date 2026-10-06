@@ -3,6 +3,8 @@ import type { EChartsOption } from '@/charts/echarts'
 import { useDocumentVisibility, useEventListener } from '@vueuse/core'
 import { computed, ref, watch } from 'vue'
 import VChart from 'vue-echarts'
+// type-only import 会被擦除，必须运行时加载才能注册 CanvasRenderer
+import '@/charts/echarts'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
 import AppErrorState from '@/components/ui/AppErrorState.vue'
 

@@ -6,6 +6,7 @@ import { MessagePlugin } from 'tdesign-vue-next'
 import { computed, ref } from 'vue'
 import { postKnowledgeQa, searchKnowledge } from '@/api/modules/knowledge'
 import { KnowledgeHitCard } from '@/components/business'
+import AppMarkdown from '@/components/ui/AppMarkdown.vue'
 import AppPage from '@/components/ui/AppPage.vue'
 import { normalizeFeedbackError } from '@/composables/useAppFeedback'
 import { usePermissionAccess } from '@/composables/usePermissionAccess'
@@ -233,7 +234,7 @@ function focusSource(event: MouseEvent): void {
           </div>
 
           <div v-if="answerText" class="vicp-answer">
-            <div class="vicp-answer-markdown" @click="focusSource" v-html="answerHtml" />
+            <AppMarkdown :html="answerHtml" @click="focusSource" />
             <div class="vicp-answer-footer">
               <span v-if="answerStage === 'stopped'" class="vicp-answer-stopped">（已停止，以上为部分内容）</span>
               <span v-else-if="answerStage === 'error'" class="vicp-answer-stopped">（生成失败）</span>
@@ -332,24 +333,6 @@ function focusSource(event: MouseEvent): void {
   color: var(--td-text-color-secondary);
   font-size: var(--td-font-size-body-small);
   margin-bottom: 12px;
-}
-.vicp-answer-markdown {
-  line-height: 1.75;
-  word-break: break-word;
-}
-.vicp-answer-markdown :deep(p) {
-  margin: 0 0 8px;
-}
-.vicp-answer-markdown :deep(pre) {
-  background: var(--td-bg-color-component);
-  border-radius: var(--td-radius-small);
-  padding: 12px;
-  overflow-x: auto;
-  margin: 8px 0;
-}
-.vicp-answer-markdown :deep(code) {
-  font-family: var(--td-font-family-mono);
-  font-size: 13px;
 }
 .vicp-answer-footer {
   margin-top: 8px;

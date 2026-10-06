@@ -89,6 +89,25 @@
       }
     },
     {
+      "path": "pages/library/index",
+      "type": "page",
+      "name": "library",
+      "layout": "default",
+      "style": {
+        "navigationBarTitleText": "公开文库"
+      }
+    },
+    {
+      "path": "pages/password/index",
+      "type": "page",
+      "name": "password",
+      "layout": "default",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "登录密码"
+      }
+    },
+    {
       "path": "pages/profile/index",
       "type": "page",
       "name": "profile",
@@ -122,7 +141,8 @@
       "name": "project-detail",
       "layout": "default",
       "style": {
-        "navigationStyle": "custom"
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": true
       }
     },
     {
@@ -144,12 +164,60 @@
       }
     },
     {
+      "path": "pages/project-memory/index",
+      "type": "page",
+      "name": "project-memory",
+      "layout": "default",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": true
+      }
+    },
+    {
       "path": "pages/projects/index",
       "type": "page",
       "name": "projects",
       "layout": "tabbar",
       "style": {
         "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/public-projects/index",
+      "type": "page",
+      "name": "public-projects",
+      "layout": "default",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": true
+      }
+    },
+    {
+      "path": "pages/register/index",
+      "type": "page",
+      "name": "register",
+      "layout": "default",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/report-detail/index",
+      "type": "page",
+      "name": "report-detail",
+      "layout": "default",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/reports/index",
+      "type": "page",
+      "name": "reports",
+      "layout": "default",
+      "style": {
+        "navigationStyle": "custom",
+        "enablePullDownRefresh": true
       }
     },
     {

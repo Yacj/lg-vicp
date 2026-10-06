@@ -58,6 +58,9 @@ services:
       # 百度短语音识别极速版（未配置时语音转文字接口返回 503）
       BAIDU_ASR_API_KEY: ${BAIDU_ASR_API_KEY:-}
       BAIDU_ASR_SECRET_KEY: ${BAIDU_ASR_SECRET_KEY:-}
+      # 微信小程序（C 端微信手机号快捷登录；仅服务端，未配置时该接口返回 WECHAT_API_ERROR）
+      WECHAT_MINI_APP_ID: ${WECHAT_MINI_APP_ID:-}
+      WECHAT_MINI_APP_SECRET: ${WECHAT_MINI_APP_SECRET:-}
       STORAGE_PROVIDER: ${STORAGE_PROVIDER:-minio}
       STORAGE_BUCKET: ${STORAGE_BUCKET:-lg-vicp}
       STORAGE_ENDPOINT: minio

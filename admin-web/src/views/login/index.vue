@@ -149,8 +149,8 @@ onMounted(loadCaptcha)
         </div>
 
         <header class="login-page__heading">
-          <p>蓝格 VICP 建筑节能 AI 智配系统</p>
-          <p class="login-page__entry-note">这是 B 端管理后台入口；C 端和 PC AI 端账号请使用对应客户端登录。</p>
+          <p class="!text-2xl !font-bold">蓝格 VICP 建筑节能 AI 智配系统</p>
+          <p class="login-page__entry-note">仅超级管理员可登录本后台。C 端注册用户请使用客户端。</p>
         </header>
 
         <t-form :data="formData" label-align="top" :rules="rules" @submit="handleSubmit">
