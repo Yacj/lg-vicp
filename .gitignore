@@ -10,3 +10,6 @@ test-output.txt
 
 # AI 工具会话产物
 **/.zcode/
+
+# AI 助手工作区数据（本地记忆、部署脚本与日志，不进版本库）
+**/.workbuddy-ai/
