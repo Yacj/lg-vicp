@@ -32,6 +32,7 @@ import KnowledgeAdvancedDrawer from '@/components/business/knowledge/KnowledgeAd
 import KnowledgeChapterTree from '@/components/business/knowledge/KnowledgeChapterTree.vue'
 import KnowledgeCreateDrawer from '@/components/business/knowledge/KnowledgeCreateDrawer.vue'
 import KnowledgeFailurePanel from '@/components/business/knowledge/KnowledgeFailurePanel.vue'
+import KnowledgeOverviewPanel from '@/components/business/knowledge/KnowledgeOverviewPanel.vue'
 import KnowledgePageGallery from '@/components/business/knowledge/KnowledgePageGallery.vue'
 import KnowledgePageStatusBar from '@/components/business/knowledge/KnowledgePageStatusBar.vue'
 import KnowledgeParsedContent from '@/components/business/knowledge/KnowledgeParsedContent.vue'
@@ -87,7 +88,7 @@ const advancedVisible = ref(false)
 const editVisible = ref(false)
 const replaceVisible = ref(false)
 const publishVisible = ref(false)
-const activeTab = ref<string>('gallery')
+const activeTab = ref<string>('overview')
 const focusPhysicalPageNumber = ref<number | null>(null)
 const galleryKey = ref(0)
 let pollTimer: ReturnType<typeof setInterval> | null = null
@@ -97,6 +98,7 @@ const versionId = computed(() => workspace.value?.currentVersion?.id ?? null)
 /** 后端版本守卫：仅 DRAFT 可编辑，已进入审核/发布流程的版本一律只读。 */
 const versionEditable = computed(() => workspace.value?.currentVersion?.status === 'DRAFT')
 const hasPages = computed(() => (workspace.value?.summary.pageCount ?? 0) > 0)
+const publishBlockers = computed(() => workspace.value?.summary.publishBlockers ?? [])
 const pageRendering = computed(() => isKnowledgePageRenderingInProgress(workspace.value))
 const categoryName = computed(() => {
   const id = workspace.value?.document.categoryId ?? documentMeta.value?.categoryId
@@ -133,11 +135,18 @@ const moreActions = computed<KnowledgeHeaderAction[]>(() => {
   }
   return actions
 })
-const showWorkspaceTabs = computed(() => isKnowledgeReadyStatus(userStatus.value)
+/** 无文件、无页面、无解析任务的空知识库：创建后即进入详情页引导上传资料页面。 */
+const isEmptyKnowledgeBase = computed(() => Boolean(workspace.value)
+  && !workspace.value?.primaryFile
+  && (workspace.value?.summary.pageCount ?? 0) === 0
+  && !workspace.value?.parsing.lastJob)
+const showWorkspaceTabs = computed(() => Boolean(workspace.value) && (
+  isKnowledgeReadyStatus(userStatus.value)
+  || isEmptyKnowledgeBase.value
   || (userStatus.value !== 'PARSE_FAILED'
     && userStatus.value !== 'SEARCHABLE_FILE_REQUIRED'
-    && !isKnowledgeParsingStatus(userStatus.value)
-    && Boolean(workspace.value)))
+    && !isKnowledgeParsingStatus(userStatus.value))
+))
 
 function findChapter(items: KnowledgeChapterTreeNode[], id: string | null): KnowledgeChapterTreeNode | null {
   if (!id) {
@@ -480,7 +489,7 @@ async function disable(): Promise<void> {
 }
 
 watch(documentId, () => {
-  activeTab.value = 'gallery'
+  activeTab.value = 'overview'
   focusPhysicalPageNumber.value = null
   void loadWorkspace()
   void loadVersions()
@@ -529,7 +538,7 @@ onUnmounted(() => {
 
     <div v-else class="knowledge-workspace">
       <KnowledgeParseStatus
-        v-if="isKnowledgeParsingStatus(userStatus)"
+        v-if="isKnowledgeParsingStatus(userStatus) && !isEmptyKnowledgeBase"
         :file="workspace?.primaryFile"
         :job="workspace?.parsing.lastJob"
         :progress="workspace?.parsing.lastJob?.progress ?? 8"
@@ -563,6 +572,17 @@ onUnmounted(() => {
           :value="activeTab"
           @change="onTabChange"
         >
+          <t-tab-panel label="资料概览" value="overview">
+            <KnowledgeOverviewPanel
+              :can-publish="canPublish"
+              :can-rebuild-index="canEdit"
+              :version-id="versionId"
+              :version-status="workspace?.currentVersion?.status"
+              :workspace="workspace"
+              @refresh="loadWorkspace(false)"
+            />
+          </t-tab-panel>
+
           <t-tab-panel label="页面图库" value="gallery">
             <KnowledgePageGallery
               :key="galleryKey"
@@ -628,7 +648,13 @@ onUnmounted(() => {
         v-else
         description="请上传知识文件并等待系统自动解析。"
         title="还没有解析结果"
-      />
+      >
+        <template #action>
+          <t-button theme="primary" @click="replaceVisible = true">
+            上传知识文件
+          </t-button>
+        </template>
+      </AppEmptyState>
     </div>
 
     <AppFilePreview
@@ -666,13 +692,28 @@ onUnmounted(() => {
       @update:visible="(value: boolean) => publishVisible = value"
     >
       <p class="knowledge-publish-hint">
-        解析完成后可以审核并发布。发布后，提问时就能用到这份知识库。
+        发布后，提问时就能用到这份知识库。发布前需要先完成页面校验并构建知识索引。
       </p>
+
+      <t-alert
+        v-if="!workspace?.summary.canPublish && publishBlockers.length"
+        class="knowledge-publish-blockers"
+        theme="warning"
+        title="暂时无法发布"
+      >
+        <p class="knowledge-publish-blockers-title">还需要完成：</p>
+        <ul class="knowledge-publish-blockers-list">
+          <li v-for="(blocker, blockerIndex) in publishBlockers" :key="blockerIndex">
+            {{ blocker }}
+          </li>
+        </ul>
+      </t-alert>
+
       <t-space>
         <t-button v-if="canApprove && workspace?.currentVersion?.status === 'DRAFT'" theme="primary" variant="outline" @click="approve">
           审核通过
         </t-button>
-        <t-button v-if="canPublish && workspace?.summary.canPublish" theme="primary" @click="publish">
+        <t-button v-if="canPublish" :disabled="!workspace?.summary.canPublish" theme="primary" @click="publish">
           发布
         </t-button>
         <t-button v-if="canPublish && workspace?.currentVersion?.status === 'PUBLISHED'" theme="warning" variant="outline" @click="disable">
@@ -709,5 +750,19 @@ onUnmounted(() => {
 .knowledge-publish-hint {
   margin: 0 0 var(--td-size-5);
   color: var(--td-text-color-secondary);
+}
+
+.knowledge-publish-blockers {
+  margin-bottom: var(--td-size-4);
+}
+
+.knowledge-publish-blockers-title {
+  margin: 0 0 var(--td-size-2);
+  font-weight: 600;
+}
+
+.knowledge-publish-blockers-list {
+  margin: 0;
+  padding-left: 18px;
 }
 </style>

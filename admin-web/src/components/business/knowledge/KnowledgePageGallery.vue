@@ -69,7 +69,13 @@ const batchDuplicateNames = ref<string[]>([])
 const batchUploading = ref(false)
 const batchSourceName = ref('')
 const batchMaxImageBytes = 15 * 1024 * 1024
+const batchProgress = ref(0)
+const batchUploadedBytes = ref(0)
 const objectUrls = new Map<File, string>()
+
+const batchTotalBytes = computed(() => batchFiles.value.reduce((sum, item) => sum + item.file.size, 0))
+const batchTotalSizeLabel = computed(() => `${(batchTotalBytes.value / 1024 / 1024).toFixed(1)} MB`)
+const batchEstimatedPages = computed(() => batchFiles.value.length)
 
 const pagedPages = computed(() => {
   const start = (listPage.value - 1) * listPageSize
@@ -347,6 +353,18 @@ async function uploadBatch(): Promise<void> {
     MessagePlugin.warning('文件页序不能重复，请修正预览中的页面顺序'); return
   }
   batchUploading.value = true
+  batchProgress.value = 0
+  batchUploadedBytes.value = 0
+  const totalBytes = batchTotalBytes.value
+  const progressByFile = new Map<File, number>()
+  const trackProgress = (file: File) => (event: { loaded: number, total?: number, percent: number }): void => {
+    const previous = progressByFile.get(file) ?? 0
+    batchUploadedBytes.value += Math.max(0, event.loaded - previous)
+    progressByFile.set(file, event.loaded)
+    batchProgress.value = totalBytes > 0
+      ? Math.min(100, Math.round((batchUploadedBytes.value / totalBytes) * 100))
+      : 0
+  }
   try {
     const uploaded: Array<{ fileId: string, physicalPageNumber: number, pageLabel: string | null, pageTitle: string | null }> = []
     for (let index = 0; index < batchFiles.value.length; index += 5) {
@@ -354,13 +372,14 @@ async function uploadBatch(): Promise<void> {
         const mimeType = item.file.type as SupportedFileMimeType
         const intent = await createUploadIntent({ fileName: item.file.name, mimeType, sizeBytes: item.file.size, sha256: await sha256(item.file) })
         if (intent.mode !== 'REUSE' && intent.uploadUrl) {
-          await uploadFileToPresignedUrl(intent.uploadUrl, item.file, { signal: new AbortController().signal, onProgress: () => undefined })
+          await uploadFileToPresignedUrl(intent.uploadUrl, item.file, { signal: new AbortController().signal, onProgress: trackProgress(item.file) })
           await completeFileUpload(intent.fileId)
         }
         return { fileId: intent.fileId, physicalPageNumber: item.physicalPageNumber, pageLabel: item.pageLabel || null, pageTitle: item.pageTitle || null }
       }))
       uploaded.push(...chunk)
     }
+    batchProgress.value = 100
     await batchUploadVersionPages(props.versionId, uploaded, false)
     MessagePlugin.success(`已上传并保存 ${uploaded.length} 页页面图片`)
     batchVisible.value = false
@@ -538,7 +557,17 @@ defineExpose({ reload: load, openPhysicalPage: (physicalPageNumber: number) => {
       </div>
     </div>
     <div v-else class="knowledge-gallery__empty">
-      {{ rendering ? '等待页面图片' : '还没有页面图片，请上传本地完整页 PNG/JPG 或 ZIP。' }}
+      <template v-if="rendering">
+        <p>等待页面图片</p>
+        <p>可上传本地完整页 PNG/JPG 或 ZIP。</p>
+      </template>
+      <template v-else>
+        <p>还没有资料页面</p>
+        <p>上传完整页面图片后，系统会自动识别内容。</p>
+        <t-button v-if="canUploadPages" theme="primary" @click="openBatchUpload">
+          上传页面图片
+        </t-button>
+      </template>
     </div>
 
     <t-dialog
@@ -577,7 +606,16 @@ defineExpose({ reload: load, openPhysicalPage: (physicalPageNumber: number) => {
 
     <t-dialog v-model:visible="batchVisible" header="批量上传页面图片" width="min(900px, 94vw)" :confirm-btn="{ content: '上传页面', loading: batchUploading, disabled: !batchFiles.length || batchUploading }" @confirm="uploadBatch">
       <div class="knowledge-gallery__batch-head"><span>支持多张 PNG/JPG 或单个 ZIP（可含 manifest.json）。每页图片上限 15 MB。</span><t-upload accept=".png,.jpg,.jpeg,.zip" :auto-upload="false" :multiple="true" :max="200" :show-upload-progress="false" :on-select-change="selectBatchFiles"><t-button variant="outline">选择文件</t-button></t-upload></div>
-      <div v-if="batchFiles.length" class="knowledge-gallery__batch-summary">{{ batchSourceName }} · {{ batchFiles.length }} 张页面图 · 页次 {{ batchFiles[0]?.pageLabel || '—' }} 至 {{ batchFiles.at(-1)?.pageLabel || '—' }}</div>
+      <div v-if="batchFiles.length" class="knowledge-gallery__batch-summary">
+        {{ batchSourceName }} · 文件 {{ batchFiles.length }} 个 · 预计 {{ batchEstimatedPages }} 页 · 共 {{ batchTotalSizeLabel }} · 页次 {{ batchFiles[0]?.pageLabel || '—' }} 至 {{ batchFiles.at(-1)?.pageLabel || '—' }}
+      </div>
+      <t-progress
+        v-if="batchUploading"
+        class="knowledge-gallery__batch-progress"
+        :percentage="batchProgress"
+        :stroke-width="8"
+        theme="line"
+      />
       <t-alert v-if="batchDuplicateNames.length" theme="warning" :message="`重复文件：${batchDuplicateNames.join('、')}`" />
       <t-alert v-for="(warning, index) in batchUnsupported" :key="index" theme="warning" :message="warning" />
       <div class="knowledge-gallery__batch-list">
@@ -800,5 +838,23 @@ defineExpose({ reload: load, openPhysicalPage: (physicalPageNumber: number) => {
   .knowledge-gallery__grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
+
+.knowledge-gallery__batch-progress {
+  margin: 8px 0;
+}
+
+.knowledge-gallery__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 40px 16px;
+  color: var(--td-text-color-secondary);
+  text-align: center;
+}
+
+.knowledge-gallery__empty p {
+  margin: 0;
 }
 </style>

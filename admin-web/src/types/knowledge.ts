@@ -422,6 +422,12 @@ export interface KnowledgeWorkspace {
     canAskAi: boolean
     canPublish: boolean
     canRetry: boolean
+    /** 后端给出的发布阻断原因（人类可读中文）；canPublish=false 时消费此字段，前端不自行推断。 */
+    publishBlockers?: string[]
+    /** 与 publishBlockers 一一对应的稳定业务码，仅用于日志/高级调试，不直接展示。 */
+    publishBlockerCodes?: Array<string | null>
+    /** 当前版本的内容来源：原始文件 / 页面驱动 / 尚未就绪。 */
+    contentSource?: KnowledgeContentSource
   }
   actions: {
     canRetry: boolean
@@ -430,6 +436,76 @@ export interface KnowledgeWorkspace {
     /** 页面视觉失败或 DOCX 尚无页时，重试走 POST .../reparse。 */
     canRetryPageRender?: boolean
   }
+}
+
+/** 版本内容来源（后端 workspace.summary.contentSource）。 */
+export const knowledgeContentSources = ['ORIGINAL_FILE', 'PAGE_DRIVEN', 'NOT_READY'] as const
+export type KnowledgeContentSource = (typeof knowledgeContentSources)[number]
+
+/**
+ * 页面图库识别进度汇总（后端 GET /versions/:id/pages 的 pageRecognitionSummary）。
+ * 前端必须消费此字段，不得按页面列表自行统计。
+ */
+export interface KnowledgePageRecognitionSummary {
+  total: number
+  pending: number
+  processing: number
+  reviewRequired: number
+  confirmed: number
+  failed: number
+  missingImage: number
+}
+
+/** 版本页面列表响应（在分页结果上追加识别进度汇总）。 */
+export interface KnowledgeVersionPagesResult extends PageResult<KnowledgePage> {
+  pageRecognitionSummary: KnowledgePageRecognitionSummary
+}
+
+/** 知识索引状态（后端 knowledge_index_status）。 */
+export const knowledgeIndexStatuses = ['INDEX_PENDING', 'INDEXING', 'INDEX_READY', 'INDEX_FAILED'] as const
+export type KnowledgeIndexStatus = (typeof knowledgeIndexStatuses)[number]
+
+/** 版本知识索引状态（GET /versions/:versionId/index）。 */
+export interface KnowledgeVersionIndex {
+  versionId: string
+  indexStatus: KnowledgeIndexStatus
+  indexDirty: boolean
+  indexBuiltAt: string | null
+  indexRevision: number
+  contentRevision: number
+}
+
+/** 索引重建结果（POST /versions/:versionId/index/rebuild）。 */
+export interface KnowledgeIndexRebuildResult {
+  versionId: string
+  pageCount: number
+  indexedPageCount: number
+  sectionCount: number
+  blockCount: number
+  chunkCount: number
+  indexRevision: number
+  contentRevision: number
+  indexReady: boolean
+  stale: boolean
+}
+
+/** 批量确认中单页的结果（成功/失败/跳过）。 */
+export interface BatchConfirmPageResult {
+  pageId: string
+  physicalPageNumber: number
+  code: string
+  reason: string
+}
+
+/** 批量确认结果（POST /versions/:versionId/pages/batch-confirm）。 */
+export interface BatchConfirmResult {
+  requested: number
+  confirmed: number
+  chunkCount: number
+  versionIndexDirty: boolean
+  success: Array<{ pageId: string, physicalPageNumber: number, chunkCount: number, thermalUpserted: number, thermalSkipped: number }>
+  failed: BatchConfirmPageResult[]
+  skipped: BatchConfirmPageResult[]
 }
 
 export interface KnowledgeChapterTreeNode {
@@ -636,6 +712,10 @@ export interface KnowledgePage {
   recognitionStatus?: PageRecognitionStatus | null
   recognitionWarnings?: string[]
   lastRecognitionError?: string | null
+  /** 后端版本守卫：当前版本是否可编辑（已发布/审核中为 false）。 */
+  versionEditable?: boolean | null
+  /** 当前页关联的热工参考集是否可编辑；null 表示未关联。 */
+  thermalSetEditable?: boolean | null
 }
 
 export type PageRecognitionStatus = 'PENDING' | 'PROCESSING' | 'REVIEW_REQUIRED' | 'CONFIRMED' | 'FAILED'

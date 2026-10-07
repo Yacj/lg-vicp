@@ -66,6 +66,9 @@ export interface ThermalCalcResultSummary {
   kValue: number | null
   limitKValue: number | null
   compliant: boolean | null
+  thicknessMm: number | null
+  interiorSurfaceResistance: number | null
+  exteriorSurfaceResistance: number | null
   ruleName: string | null
   ruleUsage: string | null
   standardName: string | null
@@ -84,6 +87,7 @@ export function thermalCalcResultSummary(record: ThermalCalcRecord): ThermalCalc
   const result = asRecord(record.result)
   const rule = asRecord(record.rule)
   const standard = asRecord(record.standard)
+  const input = asRecord(record.input)
   const compliant = typeof result.compliant === 'boolean' ? result.compliant : null
   return {
     productResistance: asNumber(result.productResistanceRounded) ?? asNumber(result.productResistance),
@@ -91,11 +95,55 @@ export function thermalCalcResultSummary(record: ThermalCalcRecord): ThermalCalc
     kValue: asNumber(result.kValueRounded) ?? asNumber(result.kValue),
     limitKValue: asNumber(result.limitKValue),
     compliant,
+    thicknessMm: asNumber(input.thicknessMm),
+    interiorSurfaceResistance: asNumber(rule.interiorSurfaceResistance),
+    exteriorSurfaceResistance: asNumber(rule.exteriorSurfaceResistance),
     ruleName: asText(rule.name),
     ruleUsage: asText(rule.usage),
     standardName: asText(standard.basisName) ?? asText(standard.regionName),
     standardClause: asText(standard.clauseRef),
   }
+}
+
+export interface ThermalCalcLayerRow {
+  order: number
+  name: string
+  thicknessMm: number | null
+  lambda: number | null
+  correctionFactor: number | null
+  rValue: number | null
+}
+
+/**
+ * 构造层表格行：材料 / 厚度 / λ / 修正系数 α / 热阻 R。
+ * 数值全部来自冻结快照（layers + steps），仅把 m 换算为 mm，不重算 R。
+ */
+export function thermalCalcLayerRows(record: ThermalCalcRecord): ThermalCalcLayerRow[] {
+  const rawLayers = (Array.isArray(record.layers) ? record.layers : []).map(asRecord)
+  const steps = (Array.isArray(record.steps) ? record.steps : []).map(asRecord)
+  const layerStepValues = steps
+    .filter(step => typeof step.key === 'string' && step.key.startsWith('layer_'))
+    .sort((a, b) => Number(String(a.key).replace('layer_', '')) - Number(String(b.key).replace('layer_', '')))
+    .map(step => asNumber(step.rounded) ?? asNumber(step.value))
+  const byOrder = new Map<number, number | null>()
+  layerStepValues.forEach((value, index) => byOrder.set(index + 1, value))
+  return rawLayers.map((layer, index) => {
+    const order = asNumber(layer.layerOrder) ?? index + 1
+    const thicknessM = asNumber(layer.thicknessM)
+    return {
+      order,
+      name: asText(layer.layerName) ?? '未命名构造层',
+      thicknessMm: thicknessM != null ? Math.round(thicknessM * 1000 * 100) / 100 : asNumber(layer.thicknessMm),
+      lambda: asNumber(layer.lambda),
+      correctionFactor: asNumber(layer.correctionFactor),
+      rValue: byOrder.get(order) ?? layerStepValues[index] ?? null,
+    }
+  }).sort((a, b) => a.order - b.order)
+}
+
+/** 结果来源类型：图集查表为「图集参考值」，其余为「系统计算结果」。 */
+export function thermalCalcSourceLabel(mode: ThermalCalcMode): string {
+  return mode === 'REFERENCE_TABLE' ? '图集参考值' : '系统计算结果'
 }
 
 export function thermalCalcComplianceLabel(compliant: boolean | null): string {

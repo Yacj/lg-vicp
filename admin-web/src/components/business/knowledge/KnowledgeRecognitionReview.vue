@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import type { KnowledgePage, KnowledgePageRecognition, PageRecognitionConfirmResult, PageRecognitionMappingIssue, PageRecognitionResult, PageRecognitionSchemeCandidate, PageRecognitionProductSpecCandidate } from '@/types/knowledge'
+import type { BatchConfirmResult, KnowledgePage, KnowledgePageRecognition, PageRecognitionConfirmResult, PageRecognitionMappingIssue, PageRecognitionResult, PageRecognitionSchemeCandidate, PageRecognitionProductSpecCandidate } from '@/types/knowledge'
 import { DialogPlugin, MessagePlugin } from 'tdesign-vue-next'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
-import { confirmKnowledgePageRecognition, fetchKnowledgePageRecognition, fetchVersionPages, recognizeKnowledgePage, saveKnowledgePageRecognitionDraft } from '@/api/modules/knowledge'
+import { batchConfirmVersionPages, confirmKnowledgePageRecognition, fetchKnowledgePageRecognition, fetchVersionPages, recognizeKnowledgePage, saveKnowledgePageRecognitionDraft } from '@/api/modules/knowledge'
 import { fetchPublishedConstructionSchemes } from '@/api/modules/construction'
 import { fetchPublishedProductSpecs } from '@/api/modules/masterdata'
 import { fetchThermalSets } from '@/api/modules/thermal'
@@ -62,6 +62,9 @@ const loading = ref(false)
 const saving = ref(false)
 const recognizing = ref(false)
 const confirming = ref(false)
+const batchConfirming = ref(false)
+const batchResult = ref<BatchConfirmResult | null>(null)
+const statusFilter = ref<'ALL' | 'REVIEW_REQUIRED' | 'CONFIRMED' | 'FAILED' | 'UNPROCESSED'>('ALL')
 const pollTimer = ref<ReturnType<typeof setInterval> | null>(null)
 
 /** 正式业务对象字典：用于人工映射下拉，接口失败时降级为仅候选。 */
@@ -127,6 +130,25 @@ const counts = computed(() => ({
   unrecognized: pages.value.filter(page => !page.recognitionStatus).length,
 }))
 const progressPercent = computed(() => counts.value.total === 0 ? 0 : Math.round((counts.value.confirmed / counts.value.total) * 100))
+
+const filteredPages = computed(() => {
+  const filter = statusFilter.value
+  if (filter === 'ALL') {
+    return pages.value
+  }
+  if (filter === 'UNPROCESSED') {
+    return pages.value.filter(page => !page.recognitionStatus || page.recognitionStatus === 'PENDING' || page.recognitionStatus === 'PROCESSING')
+  }
+  return pages.value.filter(page => page.recognitionStatus === filter)
+})
+
+const filterOptions = [
+  { label: '全部页面', value: 'ALL' },
+  { label: '待校验', value: 'REVIEW_REQUIRED' },
+  { label: '已确认', value: 'CONFIRMED' },
+  { label: '识别失败', value: 'FAILED' },
+  { label: '未处理', value: 'UNPROCESSED' },
+]
 
 async function load(): Promise<void> {
   if (!props.versionId) { pages.value = []; selected.value = null; return }
@@ -279,11 +301,17 @@ function applyConfirmResult(result: PageRecognitionConfirmResult): void {
   }
   confirmIssues.value = result.thermal.mappingIssues ?? []
   const synced = result.thermal.upserted
+  const skipped = result.thermal.skipped
+  const warnings = result.thermal.warnings ?? []
   if (confirmIssues.value.length > 0) {
     MessagePlugin.warning('页面已确认，但部分热工数据未同步，请检查映射')
   }
+  else if (warnings.length > 0) {
+    MessagePlugin.warning(`本页已确认，生成 ${result.chunkCount} 个页面分块；${warnings.join('；')}`)
+  }
   else {
-    MessagePlugin.success(`本页已确认，生成 ${result.chunkCount} 个页面分块${synced ? `，同步 ${synced} 条热工行` : ''}`)
+    const skippedHint = skipped > 0 ? `，跳过 ${skipped} 条热工行` : ''
+    MessagePlugin.success(`本页已确认，生成 ${result.chunkCount} 个页面分块${synced ? `，同步 ${synced} 条热工行` : ''}${skippedHint}`)
   }
 }
 async function confirmPage(next = false): Promise<void> {
@@ -297,9 +325,10 @@ async function confirmPage(next = false): Promise<void> {
       ...(thermalSetId.value ? { thermalSetId: thermalSetId.value } : {}), structuredData: apiResult(draft.value),
     })
     applyConfirmResult(result)
-    const currentIndex = pages.value.findIndex(page => page.id === selected.value?.id)
+    const list = filteredPages.value
+    const currentIndex = list.findIndex(page => page.id === selected.value?.id)
     await load()
-    if (next) await selectPage(pages.value.slice(currentIndex + 1).find(page => page.recognitionStatus !== 'CONFIRMED') ?? pages.value[currentIndex + 1] ?? null)
+    if (next) await selectPage(list.slice(currentIndex + 1).find(page => page.recognitionStatus !== 'CONFIRMED') ?? list[currentIndex + 1] ?? null)
   }
   catch (error) { handleMappingError(error) }
   finally { confirming.value = false }
@@ -342,6 +371,54 @@ async function recognizePending(): Promise<void> {
   await load()
   startPolling()
 }
+
+/**
+ * 批量确认：后端逐页独立确认，返回 success / failed / skipped 三段结果。
+ * 前端必须分别消费，不得只看请求成功就提示「全部确认成功」。
+ */
+async function confirmSafePages(): Promise<void> {
+  if (!props.versionId || batchConfirming.value) {
+    return
+  }
+  batchConfirming.value = true
+  batchResult.value = null
+  try {
+    const result = await batchConfirmVersionPages(props.versionId, {
+      confirmSafeOnly: true,
+      ...(thermalSetId.value ? { thermalSetId: thermalSetId.value } : {}),
+    })
+    batchResult.value = result
+    if (result.confirmed > 0) {
+      MessagePlugin.success(`批量确认完成：成功 ${result.confirmed} 页`)
+    }
+    else {
+      MessagePlugin.warning('本次没有可确认的页面')
+    }
+    await load()
+  }
+  catch (error) {
+    MessagePlugin.error(normalizeFeedbackError(error).message)
+  }
+  finally {
+    batchConfirming.value = false
+  }
+}
+
+function focusFailedPages(): void {
+  statusFilter.value = 'FAILED'
+  const first = filteredPages.value[0]
+  if (first) {
+    void selectPage(first)
+  }
+}
+
+function focusPendingPages(): void {
+  statusFilter.value = 'REVIEW_REQUIRED'
+  const first = filteredPages.value[0]
+  if (first) {
+    void selectPage(first)
+  }
+}
 function startPolling(): void {
   if (pollTimer.value) clearInterval(pollTimer.value)
   pollTimer.value = setInterval(() => { void load() }, 3500)
@@ -351,8 +428,9 @@ function addSystem(): void { draft.value.systems.push({ systemName: '', construc
 function addLayer(systemIndex: number): void { const system = draft.value.systems[systemIndex]; if (system) system.layers.push({ name: '' }) }
 function addOption(systemIndex: number): void { const system = draft.value.systems[systemIndex]; if (system) system.options.push({}) }
 function movePage(offset: number): void {
-  const index = pages.value.findIndex(page => page.id === selected.value?.id)
-  const target = pages.value[index + offset]
+  const list = filteredPages.value
+  const index = list.findIndex(page => page.id === selected.value?.id)
+  const target = list[index + offset]
   if (target) void selectPage(target)
 }
 
@@ -393,8 +471,41 @@ onUnmounted(() => { if (pollTimer.value) clearInterval(pollTimer.value) })
       <div class="knowledge-review__toolbar">
         <span>共 {{ counts.total }} 页</span>
         <t-button v-if="canRecognize" :disabled="versionLocked" :loading="recognizing" variant="outline" @click="recognizePending">批量识别未识别页面</t-button>
+        <t-button
+          v-if="canConfirm"
+          :disabled="versionLocked || counts.reviewPending === 0"
+          :loading="batchConfirming"
+          variant="outline"
+          @click="confirmSafePages"
+        >
+          批量确认待校验页面
+        </t-button>
       </div>
     </header>
+
+    <t-alert
+      v-if="batchResult"
+      class="knowledge-review__batch"
+      theme="info"
+      title="批量确认完成"
+      :close="true"
+      @close="batchResult = null"
+    >
+      <p class="knowledge-review__batch-summary">
+        成功：{{ batchResult.confirmed }} 页 ·
+        失败：{{ batchResult.failed.length }} 页 ·
+        跳过：{{ batchResult.skipped.length }} 页
+      </p>
+      <t-space>
+        <t-button v-if="batchResult.failed.length" size="small" variant="text" @click="focusFailedPages">查看失败页面</t-button>
+        <t-button v-if="batchResult.skipped.length" size="small" variant="text" @click="focusPendingPages">只看待处理页面</t-button>
+      </t-space>
+      <ul v-if="batchResult.failed.length" class="knowledge-review__issues">
+        <li v-for="item in batchResult.failed.slice(0, 8)" :key="item.pageId">
+          文件第 {{ item.physicalPageNumber }} 页：{{ item.reason }}
+        </li>
+      </ul>
+    </t-alert>
 
     <div v-if="counts.total" class="knowledge-review__progress">
       <t-progress :label="false" :percentage="progressPercent" :stroke-width="8" theme="line" />
@@ -413,7 +524,8 @@ onUnmounted(() => { if (pollTimer.value) clearInterval(pollTimer.value) })
     <t-loading v-if="loading && !pages.length" loading text="正在加载页面识别状态" />
     <div v-else class="knowledge-review__layout">
       <nav class="knowledge-review__pages">
-        <t-button v-for="page in pages" :key="page.id" variant="text" theme="default" :class="{ 'is-selected': selected?.id === page.id }" @click="selectPage(page)">
+        <t-select v-model="statusFilter" size="small" :options="filterOptions" />
+        <t-button v-for="page in filteredPages" :key="page.id" variant="text" theme="default" :class="{ 'is-selected': selected?.id === page.id }" @click="selectPage(page)">
           <img v-if="page.pageImageUrl" :src="page.pageImageUrl" :alt="`文件第 ${page.physicalPageNumber} 页`" loading="lazy">
           <span v-else class="knowledge-review__no-image">无页面图片</span>
           <span class="knowledge-review__page-meta"><strong>文件第 {{ page.physicalPageNumber }} 页</strong><small>资料页码 {{ page.pageLabel || '—' }}</small><small>{{ page.pageTitle || '未设置标题' }}</small><small>{{ statusMeta(page).label }}</small></span>
@@ -425,7 +537,7 @@ onUnmounted(() => { if (pollTimer.value) clearInterval(pollTimer.value) })
           <span v-else>页面图片不可用</span>
         </div>
         <div class="knowledge-review__fields">
-          <div class="knowledge-review__page-heading"><div><strong>文件页序：{{ selected.physicalPageNumber }}</strong><span>资料页码：{{ draft.pageLabel || '—' }}</span></div><t-space><t-button size="small" variant="outline" :disabled="pages.findIndex(page => page.id === selected?.id) <= 0" @click="movePage(-1)">上一页</t-button><t-button size="small" variant="outline" :disabled="pages.findIndex(page => page.id === selected?.id) >= pages.length - 1" @click="movePage(1)">下一页</t-button><t-button size="small" variant="outline" @click="openViewer">全屏核对原图</t-button><t-button v-if="canRecognize" size="small" :disabled="versionLocked" :loading="recognizing" @click="recognize()">{{ selected.recognitionStatus === 'CONFIRMED' ? '重新识别' : selected.recognitionStatus === 'FAILED' ? '重试' : '开始识别' }}</t-button></t-space></div>
+          <div class="knowledge-review__page-heading"><div><strong>文件页序：{{ selected.physicalPageNumber }}</strong><span>资料页码：{{ draft.pageLabel || '—' }}</span></div><t-space><t-button size="small" variant="outline" :disabled="filteredPages.findIndex(page => page.id === selected?.id) <= 0" @click="movePage(-1)">上一页</t-button><t-button size="small" variant="outline" :disabled="filteredPages.findIndex(page => page.id === selected?.id) >= filteredPages.length - 1" @click="movePage(1)">下一页</t-button><t-button size="small" variant="outline" @click="openViewer">全屏核对原图</t-button><t-button v-if="canRecognize" size="small" :disabled="versionLocked" :loading="recognizing" @click="recognize()">{{ selected.recognitionStatus === 'CONFIRMED' ? '重新识别' : selected.recognitionStatus === 'FAILED' ? '重试' : '开始识别' }}</t-button></t-space></div>
           <t-alert v-if="recognition?.lastRecognitionError" theme="error" :message="`识别失败：${recognition.lastRecognitionError}`" />
           <t-alert v-if="recognition?.recognitionStatus === 'CONFIRMED'" theme="warning" message="重新识别不会直接覆盖已发布数据，新结果将进入待确认。" />
           <t-alert v-if="ambiguous" theme="warning" :message="RECOGNITION_AMBIGUOUS_HINT" />
@@ -528,6 +640,8 @@ onUnmounted(() => { if (pollTimer.value) clearInterval(pollTimer.value) })
 .knowledge-review{padding:20px}.knowledge-review__header{display:flex;justify-content:space-between;gap:16px;margin-bottom:16px}.knowledge-review h2{margin:0 0 6px;font-size:18px}.knowledge-review p{margin:0;color:var(--td-text-color-secondary)}.knowledge-review__toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:12px;color:var(--td-text-color-secondary);font-size:var(--td-font-size-body-small)}
 .knowledge-review__progress{margin-bottom:16px}.knowledge-review__progress-stats{display:flex;flex-wrap:wrap;gap:16px;margin-top:8px;color:var(--td-text-color-secondary);font-size:var(--td-font-size-body-small)}.knowledge-review__progress-stats strong{color:var(--td-text-color-primary)}.knowledge-review__progress-stats .is-error,.knowledge-review__progress-stats .is-error strong{color:var(--td-error-color)}
 .knowledge-review__lock{margin-bottom:16px}
+.knowledge-review__batch{margin-bottom:16px}
+.knowledge-review__batch-summary{margin:0 0 8px;color:var(--td-text-color-primary)}
 .knowledge-review__issues{margin:0;padding-left:18px}
 .knowledge-review__layout{display:grid;grid-template-columns:220px minmax(0,1fr);gap:16px;min-height:600px}.knowledge-review__pages{display:grid;align-content:start;gap:8px;max-height:75vh;overflow:auto}.knowledge-review__pages :deep(.t-button){display:grid;height:auto;grid-template-columns:58px 1fr;gap:9px;padding:7px;border:1px solid var(--td-component-stroke);border-radius:var(--td-radius-small);background:var(--td-bg-color-container);text-align:left;cursor:pointer}.knowledge-review__pages :deep(.t-button.is-selected){border-color:var(--td-brand-color)}.knowledge-review__pages img,.knowledge-review__no-image{width:58px;height:74px;object-fit:contain;background:var(--td-bg-color-secondarycontainer)}.knowledge-review__no-image{display:grid;place-items:center;font-size:10px;color:var(--td-text-color-placeholder)}.knowledge-review__page-meta{display:grid;align-content:start;gap:3px;min-width:0}.knowledge-review__page-meta small{overflow:hidden;color:var(--td-text-color-secondary);text-overflow:ellipsis;white-space:nowrap}.knowledge-review__editor{display:grid;grid-template-columns:minmax(260px,.8fr) minmax(480px,1.2fr);gap:16px;align-items:start}.knowledge-review__image{position:sticky;top:12px;display:grid;min-height:400px;max-height:75vh;place-items:center;overflow:auto;background:var(--td-bg-color-secondarycontainer);cursor:zoom-in}.knowledge-review__image img{max-width:100%;max-height:75vh;object-fit:contain}.knowledge-review__fields{min-width:0}.knowledge-review__page-heading,.knowledge-review__actions,.knowledge-review__subhead,.knowledge-review__system header{display:flex;align-items:center;justify-content:space-between;gap:12px}.knowledge-review__page-heading{margin-bottom:12px}.knowledge-review__page-heading div{display:grid;gap:3px}.knowledge-review__page-heading span{color:var(--td-text-color-secondary);font-size:var(--td-font-size-body-small)}.knowledge-review__grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.knowledge-review__system{padding:14px;margin-bottom:14px;border:1px solid var(--td-component-stroke);border-radius:var(--td-radius-medium)}.knowledge-review__subhead{margin:12px 0 8px}.knowledge-review__row{display:grid;grid-template-columns:1.4fr repeat(4,1fr) auto;gap:8px;margin-bottom:8px}.knowledge-review__option-block{padding:10px;margin-bottom:10px;border:1px dashed var(--td-component-stroke);border-radius:var(--td-radius-small)}.knowledge-review__mapping{display:grid;gap:6px;margin:8px 0}.knowledge-review__mapping-label{color:var(--td-text-color-secondary);font-size:var(--td-font-size-body-small)}.knowledge-review__mapping-hint{color:var(--td-text-color-placeholder);font-size:var(--td-font-size-body-small)}.knowledge-review__actions{justify-content:flex-end;margin-top:16px}
 .knowledge-review__viewer-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;color:var(--td-text-color-secondary)}.knowledge-review__viewer-stage{max-height:72vh;overflow:hidden;background:var(--td-bg-color-secondarycontainer);text-align:center;user-select:none}.knowledge-review__viewer-stage img{max-width:100%;max-height:72vh;object-fit:contain;transform-origin:center center;transition:transform .08s linear}

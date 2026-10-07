@@ -11,7 +11,7 @@ import type {
 import type { EvidenceLevel } from '@/types/professional'
 import { MessagePlugin } from 'tdesign-vue-next'
 import { computed, reactive, ref, watch } from 'vue'
-import { createKnowledgeWithFile, fetchKnowledgeCategories, updateKnowledgeDocument } from '@/api/modules/knowledge'
+import { createKnowledgeDocument, createKnowledgeWithFile, fetchKnowledgeCategories, updateKnowledgeDocument } from '@/api/modules/knowledge'
 import AppFilePicker from '@/components/business/AppFilePicker.vue'
 import AppFilePreview from '@/components/business/AppFilePreview.vue'
 import AppFileUploader from '@/components/business/AppFileUploader.vue'
@@ -62,7 +62,12 @@ const rules = computed<FormRules>(() => ({
 }))
 
 const header = computed(() => props.mode === 'edit' ? '编辑基本信息' : '新建知识库')
-const confirmText = computed(() => props.mode === 'edit' ? '保存' : '创建并解析')
+const confirmText = computed(() => {
+  if (props.mode === 'edit') {
+    return '保存'
+  }
+  return selectedFile.value ? '创建并解析' : '创建知识库'
+})
 const typeOptions = knowledgeDocTypes.map(value => ({ label: knowledgeDocTypeLabels[value], value }))
 
 function reset(): void {
@@ -122,10 +127,6 @@ async function submit(): Promise<void> {
   if (valid !== true) {
     return
   }
-  if (props.mode === 'create' && !selectedFile.value) {
-    MessagePlugin.warning('请先选择知识文件')
-    return
-  }
   submitting.value = true
   try {
     const extra = {
@@ -147,10 +148,22 @@ async function submit(): Promise<void> {
       emit('update:visible', false)
       return
     }
+    // 无文件创建是正式主链路：先建知识库容器与首个草稿版本，资料页面稍后在详情页上传。
+    if (!selectedFile.value) {
+      const created = await createKnowledgeDocument({
+        title: form.title.trim(),
+        docType: form.docType,
+        ...extra,
+      })
+      MessagePlugin.success('知识库已创建，请继续上传资料页面')
+      emit('created', created.document.id)
+      emit('update:visible', false)
+      return
+    }
     const result = await createKnowledgeWithFile({
       title: form.title.trim(),
       docType: form.docType,
-      originalFileId: selectedFile.value!.fileId,
+      originalFileId: selectedFile.value.fileId,
       ...extra,
     })
     emit('created', result.document.id)
@@ -214,8 +227,11 @@ watch(
       </section>
 
       <section v-if="mode === 'create'" class="knowledge-create__section">
-        <h3>知识文件</h3>
-        <t-form-item name="file" required-mark>
+        <h3>知识文件（可选）</h3>
+        <p class="knowledge-create__hint">
+          可以先不选文件，直接创建知识库；创建后在详情页上传完整页面图片，系统会自动识别内容。
+        </p>
+        <t-form-item name="file">
           <t-button theme="default" variant="outline" @click="pickerVisible = true">
             从文件中心选择
           </t-button>
@@ -302,6 +318,12 @@ watch(
   color: var(--td-text-color-primary);
   font-size: var(--td-font-size-title-small);
   font-weight: 600;
+}
+
+.knowledge-create__hint {
+  margin: calc(-1 * var(--td-size-3)) 0 var(--td-size-4);
+  color: var(--td-text-color-secondary);
+  font-size: var(--td-font-size-body-small);
 }
 
 .knowledge-create__upload {

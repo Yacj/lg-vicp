@@ -1,60 +1,64 @@
 import type { PageResult } from '@/types/api'
 import type {
+  BatchConfirmResult,
   KnowledgeAlias,
   KnowledgeAliasInput,
   KnowledgeAliasQuery,
+  KnowledgeAssetRole,
   KnowledgeCategory,
   KnowledgeCategoryInput,
+  KnowledgeChapterTreeResult,
   KnowledgeChunk,
   KnowledgeChunkEditInput,
   KnowledgeChunkTerm,
   KnowledgeCrawlerSource,
   KnowledgeCrawlerSourceInput,
-  KnowledgeDocument,
-  KnowledgeDocumentDetail,
   KnowledgeCreateWithFileInput,
   KnowledgeCreateWithFileResult,
-  KnowledgeChapterTreeResult,
+  KnowledgeDocument,
+  KnowledgeDocumentAsset,
+  KnowledgeDocumentDetail,
   KnowledgeDocumentInput,
   KnowledgeDocumentQuery,
-  KnowledgeDocumentAsset,
-  KnowledgeParsingJob,
-  KnowledgeReplaceFileInput,
-  KnowledgeParsingJobQuery,
   KnowledgeDocumentVersion,
-  KnowledgeExtractedTextResult,
-  KnowledgePage,
-  KnowledgePageRecognition,
-  PageRecognitionResult,
-  KnowledgePageMappingsResult,
-  KnowledgePageWindow,
-  KnowledgeTocItem,
-  KnowledgeVersionAssetsResult,
-  KnowledgeVersionTocResult,
-  KnowledgeAssetRole,
-  KnowledgeUsageMode,
-  KnowledgeTocSource,
-  KnowledgeTocStatus,
   KnowledgeEvaluation,
   KnowledgeEvaluationInput,
   KnowledgeEvaluationQuery,
+  KnowledgeExtractedTextResult,
+  KnowledgeIndexRebuildResult,
+  KnowledgePage,
+  KnowledgePageMappingsResult,
+  KnowledgePageRecognition,
+  KnowledgePageWindow,
+  KnowledgeParsingJob,
+  KnowledgeParsingJobQuery,
   KnowledgeQaRequest,
   KnowledgeQaSseEvent,
   KnowledgeRankingRule,
+  KnowledgeReplaceFileInput,
   KnowledgeSearchLog,
   KnowledgeSearchLogQuery,
   KnowledgeSearchQuery,
   KnowledgeSearchResult,
+  KnowledgeTocItem,
+  KnowledgeTocSource,
+  KnowledgeTocStatus,
   KnowledgeUploadIntent,
   KnowledgeUploadIntentInput,
+  KnowledgeUsageMode,
+  KnowledgeVersionAssetsResult,
+  KnowledgeVersionIndex,
   KnowledgeVersionInput,
+  KnowledgeVersionPagesResult,
   KnowledgeVersionSection,
-  KnowledgeVersionTestQaRequest,
   KnowledgeVersionTestInspectRequest,
   KnowledgeVersionTestInspectResult,
+  KnowledgeVersionTestQaRequest,
+  KnowledgeVersionTocResult,
   KnowledgeWorkspace,
   MutationMessageResponse,
   PageRecognitionConfirmResult,
+  PageRecognitionResult,
   PublicLibraryDocumentDetail,
   PublicLibraryDocumentItem,
   PublicLibraryDocumentQuery,
@@ -287,7 +291,6 @@ export function upgradeKnowledgeParse(versionId: string): Promise<MutationMessag
   )
 }
 
-
 export function startKnowledgeParse(versionId: string): Promise<MutationMessageResponse & { jobId: string }> {
   return api.post<MutationMessageResponse & { jobId: string }>(`${KNOWLEDGE_PREFIX}/versions/${encodeURIComponent(versionId)}/parse`)
 }
@@ -387,8 +390,8 @@ export function fetchVersionPages(
   page: number,
   pageSize: number,
   signal?: AbortSignal,
-): Promise<PageResult<KnowledgePage>> {
-  return api.get<PageResult<KnowledgePage>>(`${KNOWLEDGE_PREFIX}/versions/${encodeURIComponent(versionId)}/pages`, {
+): Promise<KnowledgeVersionPagesResult> {
+  return api.get<KnowledgeVersionPagesResult>(`${KNOWLEDGE_PREFIX}/versions/${encodeURIComponent(versionId)}/pages`, {
     params: { page, pageSize },
     signal,
   })
@@ -430,6 +433,35 @@ export function confirmKnowledgePageRecognition(
   input: { thermalSetId?: string | null, structuredData: PageRecognitionResult },
 ): Promise<PageRecognitionConfirmResult> {
   return api.post(`${KNOWLEDGE_PREFIX}/pages/${encodeURIComponent(pageId)}/confirm-recognition`, input)
+}
+
+/**
+ * 批量确认页面识别（POST /versions/:versionId/pages/batch-confirm）。
+ * 后端逐页独立确认，返回 success / failed / skipped 三段结果；前端必须分别消费，不得只看 HTTP 200。
+ */
+export function batchConfirmVersionPages(
+  versionId: string,
+  input: { pageIds?: string[], confirmSafeOnly?: boolean, thermalSetId?: string | null } = {},
+): Promise<BatchConfirmResult> {
+  return api.post<BatchConfirmResult>(
+    `${KNOWLEDGE_PREFIX}/versions/${encodeURIComponent(versionId)}/pages/batch-confirm`,
+    input,
+  )
+}
+
+// ===== 版本知识索引 =====
+
+export function fetchVersionIndex(versionId: string, signal?: AbortSignal): Promise<KnowledgeVersionIndex> {
+  return api.get<KnowledgeVersionIndex>(`${KNOWLEDGE_PREFIX}/versions/${encodeURIComponent(versionId)}/index`, { signal })
+}
+
+export function rebuildVersionIndex(versionId: string): Promise<KnowledgeIndexRebuildResult> {
+  return api.post<KnowledgeIndexRebuildResult>(`${KNOWLEDGE_PREFIX}/versions/${encodeURIComponent(versionId)}/index/rebuild`)
+}
+
+/** 已发布版本的维护式重建（常规 rebuild 仅允许草稿/已审核版本）。 */
+export function rebuildVersionIndexMaintenance(versionId: string): Promise<KnowledgeIndexRebuildResult> {
+  return api.post<KnowledgeIndexRebuildResult>(`${KNOWLEDGE_PREFIX}/versions/${encodeURIComponent(versionId)}/index/maintenance-rebuild`)
 }
 
 export function fetchVersionChunks(
