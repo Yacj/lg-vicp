@@ -2,16 +2,19 @@
 import { ArrowLeftIcon } from 'tdesign-icons-vue-next'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { fetchReportDownloadUrl } from '@/api/modules/reports'
+import ReportPreviewDialog from '@/components/business/ReportPreviewDialog.vue'
+import ReportShareDialog from '@/components/business/ReportShareDialog.vue'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
 import AppErrorState from '@/components/ui/AppErrorState.vue'
 import AppPage from '@/components/ui/AppPage.vue'
 import AppStatusTag from '@/components/ui/AppStatusTag.vue'
-import ReportPreviewDialog from '@/components/business/ReportPreviewDialog.vue'
-import ReportShareDialog from '@/components/business/ReportShareDialog.vue'
-import { useReportDetail } from '@/composables/useReportDetail'
 import { useAppFeedback } from '@/composables/useAppFeedback'
+import { usePermissionAccess } from '@/composables/usePermissionAccess'
+import { useReportDetail } from '@/composables/useReportDetail'
 import { useUserStore } from '@/stores/user'
-import { fetchReportDownloadUrl } from '@/api/modules/reports'
+import { formatDate } from '@/utils/day'
+import { PRODUCT_COMPARE_THERMAL_UNAVAILABLE } from '@/utils/product-compare'
 import {
   canApproveOrRejectReport,
   canPublishReport,
@@ -26,10 +29,7 @@ import {
   shareState,
   SHARE_STATE_META,
 } from '@/utils/report'
-import { PRODUCT_COMPARE_THERMAL_UNAVAILABLE } from '@/utils/product-compare'
 import { projectReportComparison, remainingReportContentJson } from '@/utils/report-comparison'
-import { formatDate } from '@/utils/day'
-import { usePermissionAccess } from '@/composables/usePermissionAccess'
 
 defineOptions({ name: 'ReportDetail' })
 
@@ -125,6 +125,19 @@ const comparisonTableData = computed(() => {
     return []
   }
   return comparisonView.value.dimensions.map((dimension) => {
+    const row: Record<string, string> = { dimension: dimension.label }
+    dimension.cells.forEach((cell, index) => {
+      row[`p${index}`] = cell.display
+    })
+    return row
+  })
+})
+
+const thermalTableData = computed(() => {
+  if (!comparisonView.value) {
+    return []
+  }
+  return comparisonView.value.thermal.dimensions.map((dimension) => {
     const row: Record<string, string> = { dimension: dimension.label }
     dimension.cells.forEach((cell, index) => {
       row[`p${index}`] = cell.display
@@ -351,7 +364,19 @@ async function submitReject(): Promise<void> {
 
         <section class="report-detail__compare-block">
           <h3 class="report-detail__section-title">热工数据</h3>
-          <pre v-if="comparisonView.showThermalResults" class="report-detail__json">{{ JSON.stringify(comparisonView.thermalResults, null, 2) }}</pre>
+          <template v-if="comparisonView.showThermalResults && comparisonView.thermal.hasData">
+            <t-table
+              :columns="comparisonColumns"
+              :data="thermalTableData"
+              row-key="dimension"
+              size="small"
+            />
+            <t-collapse class="report-detail__collapse">
+              <t-collapse-panel header="技术数据" value="thermal-technical">
+                <pre class="report-detail__json">{{ JSON.stringify(comparisonView.thermalResults, null, 2) }}</pre>
+              </t-collapse-panel>
+            </t-collapse>
+          </template>
           <p v-else class="report-detail__muted">{{ PRODUCT_COMPARE_THERMAL_UNAVAILABLE }}</p>
         </section>
       </t-card>
@@ -425,7 +450,7 @@ async function submitReject(): Promise<void> {
         </div>
         <p class="report-detail__muted">
           创建人 {{ formatCreatorName(report.createdById, userStore.profile?.id ?? null) }}
-          · 生成任务由后端异步执行，进度以状态标签为准
+          · 生成任务由系统异步执行，进度以状态标签为准
         </p>
       </t-card>
 

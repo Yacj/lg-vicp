@@ -16,7 +16,7 @@ import type { AuthUser } from "../../shared/auth-user.js";
 import { ConflictError, NotFoundError, TooManyRequestsError } from "../../shared/errors.js";
 import { canViewProject } from "../../shared/permissions.js";
 import { formatInsulationSystemContext, formatThermalCapabilityContext } from "../../shared/prompt-assembly.js";
-import { resolveAnswerContract } from "../../shared/ai-answer-contract.js";
+import { isThermalComplianceIntent, resolveAnswerContract } from "../../shared/ai-answer-contract.js";
 import { isAbortError, startSseStream, writeProgress, writeSse } from "./ai-sse.js";
 import { checkContentFiltered } from "./ai-content-filter.service.js";
 import { writeAuditLog } from "../audit-logs/audit-log.service.js";
@@ -646,7 +646,8 @@ export async function streamConversationReply(options: {
           abortSignal: generation.controller.signal,
           initialState: resumeState,
           taskState: taskDecision.state,
-          answerContract
+          answerContract,
+          userMessage: content
         });
         fullText = agentResult.text;
         streamUsage = agentResult.usage;
@@ -700,7 +701,8 @@ export async function streamConversationReply(options: {
         abortSignal: generation.controller.signal,
         initialState: resumeState,
         taskState: taskDecision.state,
-        answerContract
+        answerContract,
+        userMessage: content
       });
       fullText = agentResult.text;
       streamUsage = agentResult.usage;
@@ -730,7 +732,8 @@ export async function streamConversationReply(options: {
         abortSignal: generation.controller.signal,
         initialState: { system, messages, recentToolHashes: [], fullText: "", userVisibleText: "", internalStepText: "", sources: [] },
         taskState: taskDecision.state,
-        answerContract
+        answerContract,
+        userMessage: content
       });
       fullText = agentResult.text;
       streamUsage = agentResult.usage;
@@ -807,6 +810,13 @@ export async function streamConversationReply(options: {
     const metadata = {
       reasoningMode: conversation.reasoningMode,
       reasoning: runtime.reasoning,
+      backendDecision: {
+        taskType: taskDecision.state.taskType,
+        source: taskDecision.source,
+        answerContract,
+        intent: answerContract === "THERMAL" && isThermalComplianceIntent(content) ? "COMPLIANCE"
+          : answerContract === "REFERENCE_LOOKUP" || answerContract === "THERMAL" ? answerContract : taskDecision.state.taskType
+      },
       capabilities,
       allowedTools,
       agentEnabled,

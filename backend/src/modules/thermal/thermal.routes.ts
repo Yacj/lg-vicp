@@ -134,7 +134,16 @@ const validateResponseSchema = z.object({
   success: z.boolean(),
   data: z.object({
     valid: z.boolean(),
-    violations: z.array(z.object({ field: z.string(), message: z.string() }))
+    violations: z.array(z.object({
+      field: z.string(),
+      message: z.string(),
+      code: z.string().optional(),
+      rowId: z.string().optional(),
+      sourcePageId: z.string().nullable().optional(),
+      sourceDocumentId: z.string().nullable().optional(),
+      versionId: z.string().nullable().optional(),
+      versionStatus: z.string().nullable().optional()
+    }))
   }),
   requestId: z.string()
 });
@@ -673,7 +682,7 @@ export async function thermalRoutes(app: FastifyInstance) {
   route.post("/candidates/query", {
     preHandler: [app.authenticate],
     schema: {
-      tags: [THERMAL_TAG], summary: "候选方案查询（条件匹配图集参考行，返回候选列表供用户选择）",
+      tags: [THERMAL_TAG], summary: "候选方案查询（图集参考行，K 支持近似/上限/下限/精确四种模式）",
       body: thermalCandidateQuerySchema,
       response: { 200: z.object({ success: z.boolean(), data: thermalCandidateQueryResponseSchema, requestId: z.string() }) }
     }

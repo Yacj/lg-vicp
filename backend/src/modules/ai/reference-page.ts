@@ -25,6 +25,9 @@ export interface ReferencePageBlock {
     productName?: string;
     productSpecName?: string;
     thicknessMm?: number;
+    productThermalResistance?: number;
+    totalThermalResistance?: number;
+    /** @deprecated 兼容旧客户端，值等于 totalThermalResistance。 */
     rValue?: number;
     kValue?: number;
   };
@@ -112,6 +115,8 @@ function buildSummary(candidate: ReferencePageCandidate): ReferencePageBlock["su
     productName: candidate.productName,
     productSpecName: candidate.specCode,
     thicknessMm: candidate.thicknessMm,
+    productThermalResistance: candidate.productThermalResistance,
+    totalThermalResistance: candidate.totalThermalResistance,
     rValue: candidate.totalThermalResistance,
     kValue: candidate.kValue
   };

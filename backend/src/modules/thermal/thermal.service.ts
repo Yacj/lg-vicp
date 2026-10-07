@@ -7,6 +7,8 @@ import { env } from "../../config/env.js";
 import {
   constructionSchemes,
   files,
+  knowledgeDocumentVersions,
+  knowledgeDocuments,
   knowledgePages,
   productSpecs,
   schemeProductOptions,
@@ -19,6 +21,7 @@ import type { AuthUser } from "../../shared/auth-user.js";
 import { AUDIT_ACTIONS } from "../../shared/constants.js";
 import { ForbiddenError, ServiceUnavailableError } from "../../shared/errors.js";
 import { ThermalError } from "../../shared/thermal-errors.js";
+import { assertThermalReferenceSetEditable } from "../../shared/page-recognition.js";
 import { assertPagesBelongToDocument } from "../knowledge/knowledge-page-gallery.service.js";
 import { getPagination } from "../../shared/pagination.js";
 import { writeAuditLog } from "../audit-logs/audit-log.service.js";
@@ -57,9 +60,6 @@ registerVersionedEntity("thermalReferenceSet", {
 });
 
 const SET_META = () => MD_ENTITIES.thermalReferenceSet!;
-
-/** 子表可编辑状态：集处于草稿/审核中/已驳回时允许增删改行 */
-const CHILD_EDITABLE: MdReviewStatus[] = ["DRAFT", "PENDING_REVIEW", "REJECTED"];
 
 /** 应用导入时目标集可复用状态：DRAFT / REJECTED（REJECTED 驳回后可修正重提） */
 const APPLYABLE_SET_STATUS: MdReviewStatus[] = ["DRAFT", "REJECTED"];
@@ -144,7 +144,7 @@ export async function updateThermalSet(
   const meta = SET_META();
   const [existing] = await app.db.select().from(thermalReferenceSets).where(eq(thermalReferenceSets.id, id)).limit(1);
   if (!existing) throw new ThermalError("THERMAL_ENTITY_NOT_FOUND", "图集热工参考集不存在");
-  assertEditable(existing as Record<string, unknown>, meta.label, CHILD_EDITABLE);
+  assertThermalReferenceSetEditable(existing);
   return app.db.transaction(async (tx) => {
     const [updated] = await tx.update(thermalReferenceSets).set({
       name: input.name ?? existing.name,
@@ -249,7 +249,7 @@ async function resolveRowSource(
 async function requireEditableSet(app: FastifyInstance, setId: string) {
   const [set] = await app.db.select().from(thermalReferenceSets).where(eq(thermalReferenceSets.id, setId)).limit(1);
   if (!set) throw new ThermalError("THERMAL_ENTITY_NOT_FOUND", "图集热工参考集不存在");
-  assertEditable(set as Record<string, unknown>, SET_META().label, CHILD_EDITABLE);
+  assertThermalReferenceSetEditable(set);
   return set;
 }
 
@@ -399,6 +399,11 @@ export async function copyThermalRows(
     productThermalResistance: row.productThermalResistance,
     totalThermalResistance: row.totalThermalResistance,
     kValue: row.kValue,
+    catalogProductId: row.catalogProductId,
+    sourceDocumentId: row.sourceDocumentId,
+    sourcePageId: row.sourcePageId,
+    sourcePageLabel: row.sourcePageLabel,
+    sortOrder: row.sortOrder,
     rawThickness: row.rawThickness,
     rawProductResistance: row.rawProductResistance,
     rawTotalResistance: row.rawTotalResistance,
@@ -424,11 +429,17 @@ export function createThermalSetNextVersion(
 export interface ThermalStructureViolation {
   field: string;
   message: string;
+  code?: string;
+  rowId?: string;
+  sourcePageId?: string | null;
+  sourceDocumentId?: string | null;
+  versionId?: string | null;
+  versionStatus?: string | null;
 }
 
 function violationsError(details: ThermalStructureViolation[]): never {
   const summary = details.map((d) => d.message).join("；");
-  throw new ThermalError("THERMAL_STRUCTURE_INVALID", `图集热工参考集结构校验未通过：${summary}`);
+  throw new ThermalError("THERMAL_STRUCTURE_INVALID", `图集热工参考集结构校验未通过：${summary}`, { violations: details });
 }
 
 /** 收集集的结构违规项（不抛错）：集非空、行引用已发布生效、数值>0、证据必填、厚度落在方案选项区间、生效区间合法 */
@@ -458,7 +469,52 @@ export async function collectThermalSetViolations(
   const options = await app.db.select().from(schemeProductOptions)
     .where(inArray(schemeProductOptions.schemeId, schemeIds));
 
+  const sourcePageIds = [...new Set(rows.map((row) => row.sourcePageId).filter((id): id is string => Boolean(id)))];
+  const sourcePages = sourcePageIds.length
+    ? await app.db.select({
+        id: knowledgePages.id,
+        documentId: knowledgePages.documentId,
+        versionId: knowledgePages.versionId,
+        versionStatus: knowledgeDocumentVersions.status,
+        documentStatus: knowledgeDocuments.status,
+        documentDeletedAt: knowledgeDocuments.deletedAt,
+        currentVersionId: knowledgeDocuments.currentVersionId,
+        effectiveDate: knowledgeDocumentVersions.effectiveDate,
+        expiryDate: knowledgeDocumentVersions.expiryDate
+      }).from(knowledgePages)
+        .innerJoin(knowledgeDocumentVersions, eq(knowledgeDocumentVersions.id, knowledgePages.versionId))
+        .innerJoin(knowledgeDocuments, eq(knowledgeDocuments.id, knowledgePages.documentId))
+        .where(inArray(knowledgePages.id, sourcePageIds))
+    : [];
+  const sourcePageById = new Map(sourcePages.map((page) => [page.id, page]));
+
   for (const row of rows) {
+    if (row.sourcePageId) {
+      const page = sourcePageById.get(row.sourcePageId);
+      const nowDate = now.toISOString().slice(0, 10);
+      const published = page?.versionStatus === "PUBLISHED"
+        && page.documentStatus === "ACTIVE"
+        && page.documentDeletedAt == null
+        && page.currentVersionId === page.versionId
+        && (!page.effectiveDate || page.effectiveDate <= nowDate)
+        && (!page.expiryDate || page.expiryDate >= nowDate);
+      if (!page || page.documentId !== row.sourceDocumentId || !published) {
+        violations.push({
+          field: "rows.sourcePageId",
+          code: "REFERENCE_PAGE_NOT_PUBLISHED",
+          rowId: row.id,
+          sourcePageId: row.sourcePageId,
+          sourceDocumentId: row.sourceDocumentId,
+          versionId: page?.versionId ?? null,
+          versionStatus: page?.versionStatus ?? null,
+          message: !page
+            ? `参考行 ${row.id} 的来源页不存在或不可用`
+            : page.documentId !== row.sourceDocumentId
+              ? `参考行 ${row.id} 的来源页不属于指定文档`
+              : `参考行 ${row.id} 的来源页必须属于已发布且当前有效的知识版本`
+        });
+      }
+    }
     if (!publishedSchemeIds.has(row.schemeId)) {
       violations.push({
         field: "rows.schemeId",

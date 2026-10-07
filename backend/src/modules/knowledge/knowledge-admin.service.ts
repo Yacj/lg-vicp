@@ -19,14 +19,28 @@ import {
   knowledgeDocumentVersions,
   knowledgeDocuments,
   knowledgePages,
-  parsingJobs
+  parsingJobs,
+  thermalReferenceRows,
+  thermalReferenceSets
 } from "../../db/schema.js";
 import { writeAuditLog } from "../audit-logs/audit-log.service.js";
+import { isKnowledgeErrorCode, KnowledgeError } from "../../shared/knowledge-errors.js";
 import { assertVersionPublishable, bindVersionAsset, type KnowledgeAssetRole } from "./knowledge-original.service.js";
+import {
+  collectKnowledgeVersionReadiness,
+  deriveKnowledgeVersionReadiness,
+  summarizePageReadiness,
+  toReadinessLogContext,
+  type KnowledgePageReadinessFacts,
+  type KnowledgeVersionReadiness
+} from "./knowledge-readiness.js";
 import { assertNoDuplicateSha256 } from "./knowledge-ingest.service.js";
 import { extractAnchors, extractKeywords } from "./knowledge-chunking.js";
 import { normalizeSearchText } from "./knowledge.normalize.js";
 import { mapKnowledgeUserStatus, type KnowledgeUserStatus } from "./knowledge-user-status.js";
+import { assertKnowledgeVersionEditable, isKnowledgeVersionEditable } from "./knowledge-version-guard.js";
+import { readPageRecognitionMeta } from "../../shared/page-recognition.js";
+import { getPageImageDownloadName } from "./knowledge-page-image.js";
 
 /**
  * 知识库管理服务：分类、文档、版本（上传/解析/审核/发布/停用/版本替代）、
@@ -67,51 +81,51 @@ interface DocumentHealthInput {
     fileId: string | null;
   } | null;
   assetRoles: string[];
-  pageCount: number;
-  chunkCount: number;
+  /** 统一 readiness（传统文件链 / 页面驱动链双判定）；null 表示版本缺失 */
+  readiness: KnowledgeVersionReadiness | null;
 }
 
-function deriveDocumentHealth(input: DocumentHealthInput) {
+/**
+ * 文档健康状态：直接消费统一 readiness，不再单独判断 ORIGINAL / parseStatus。
+ * 页面驱动知识（完整页面 PNG/ZIP）没有 ORIGINAL 不是 blocker，健康状态只反映
+ * 页面数量 / 缺图 / 识别中 / 待确认 / 失败 / 分块 / 发布状态。
+ */
+export function deriveDocumentHealth(input: DocumentHealthInput) {
   const blockers: string[] = [];
   const warnings: string[] = [];
   const version = input.version;
-  const hasOriginal = input.assetRoles.includes("ORIGINAL") || Boolean(version?.fileId);
-  const hasSearchSource = input.assetRoles.includes("SEARCH_SOURCE") || (input.assetRoles.includes("ORIGINAL") && version?.parseStatus !== "NO_TEXT_LAYER");
+  const readiness = input.readiness;
 
-  if (!version) {
+  if (!version || !readiness) {
     blockers.push("尚未创建版本");
   } else {
-    if (!hasOriginal) blockers.push("尚未上传正式文件");
-    if (["PENDING", "PARSING"].includes(version.parseStatus) || ["UPLOAD_PENDING", "UPLOADED", "PARSING", "CHUNKING"].includes(version.pipelineStatus)) {
-      blockers.push("文件识别尚未完成");
+    if (readiness.pageCount === 0) blockers.push("尚未上传资料页面");
+    // 与发布 API 同源：只消费 PUBLISH 作用域 blocker
+    for (const blocker of readiness.publishBlockers) {
+      if (!blockers.includes(blocker.message)) blockers.push(blocker.message);
     }
-    if (version.parseStatus === "FAILED") blockers.push("文件识别失败");
-    if (version.parseStatus === "NO_TEXT_LAYER" && !hasSearchSource) blockers.push("正式 PDF 没有文字层，需补充 AI 识别文件");
-    if (version.parseStatus === "SEARCH_SOURCE_REQUIRED" && version.usageMode === "AI_ENABLED" && !hasSearchSource) blockers.push("AI 检索缺少识别文件");
-    if (version.parseStatus === "NO_TEXT_LAYER") warnings.push("正式 PDF 没有文字层，AI 检索应使用独立识别文件");
-    if (version.usageMode === "AI_ENABLED" && hasSearchSource && input.chunkCount === 0) warnings.push("尚未生成可检索内容");
-    if (version.usageMode === "AI_ENABLED" && input.pageCount === 0) warnings.push("尚未生成页面内容");
-    if (version.status === "DRAFT" && version.parseStatus === "PARSED") warnings.push("内容已识别，等待审核");
+    if (readiness.pagesMissingImageCount > 0) {
+      warnings.push(`有 ${readiness.pagesMissingImageCount} 页缺少页面图片`);
+    }
+    if (readiness.unconfirmedRecognitionPageCount > 0) {
+      warnings.push(`有 ${readiness.unconfirmedRecognitionPageCount} 页视觉识别尚未确认（CONFIRMED）`);
+    }
+    if (version.usageMode === "AI_ENABLED" && readiness.hasFormalKnowledgeSource && (readiness.chunkCount ?? 0) === 0) {
+      warnings.push("尚未生成可检索内容");
+    }
+    if (version.status === "DRAFT" && readiness.reviewReady) warnings.push("内容已就绪，等待审核");
     if (version.status === "APPROVED") warnings.push("版本已审核，等待发布");
   }
 
-  const aiAvailable = Boolean(
-    version
-    && version.usageMode === "AI_ENABLED"
-    && hasSearchSource
-    && ["PARSED", "PARTIAL"].includes(version.parseStatus)
-    && input.pageCount > 0
-    && input.chunkCount > 0,
-  );
   const aiAvailabilityStatus: KnowledgeAiAvailabilityStatus = version?.usageMode === "BROWSE_ONLY"
     ? "BROWSE_ONLY"
-    : aiAvailable ? "AVAILABLE" : "UNAVAILABLE";
+    : readiness?.aiReady ? "AVAILABLE" : "UNAVAILABLE";
 
   let healthStatus: KnowledgeDocumentHealthStatus;
   if (blockers.length > 0) healthStatus = "NEEDS_ACTION";
   else if (version?.status === "PUBLISHED") healthStatus = "PUBLISHED";
   else if (version?.usageMode === "BROWSE_ONLY") healthStatus = "BROWSE_ONLY";
-  else if (version?.status === "DRAFT" && version.parseStatus === "PARSED" || version?.status === "APPROVED") healthStatus = "PENDING_REVIEW";
+  else if ((version?.status === "DRAFT" && readiness?.reviewReady) || version?.status === "APPROVED") healthStatus = "PENDING_REVIEW";
   else healthStatus = "READY";
 
   return {
@@ -120,6 +134,27 @@ function deriveDocumentHealth(input: DocumentHealthInput) {
     healthBlockers: blockers,
     healthWarnings: warnings,
   };
+}
+
+/** 由版本行 + 资产角色 + 页面事实派生统一 readiness（列表/详情共用，不写第二套判定） */
+function deriveReadinessFromListFacts(
+  version: {
+    usageMode: string;
+    parseStatus: string;
+    fileId: string | null;
+  },
+  assetRoles: string[],
+  pageFacts: KnowledgePageReadinessFacts
+): KnowledgeVersionReadiness {
+  return deriveKnowledgeVersionReadiness(
+    {
+      usageMode: version.usageMode,
+      parseStatus: version.parseStatus,
+      hasOriginalAsset: assetRoles.includes("ORIGINAL") || Boolean(version.fileId),
+      hasSearchSourceAsset: assetRoles.includes("SEARCH_SOURCE")
+    },
+    pageFacts
+  );
 }
 
 function safeExtension(fileName: string): string {
@@ -296,12 +331,27 @@ export async function listDocuments(app: FastifyInstance, query: ListDocumentsQu
         .from(knowledgeDocumentAssets).where(inArray(knowledgeDocumentAssets.versionId, versionIds))
       : Promise.resolve([] as Array<{ versionId: string; role: string }>),
     versionIds.length > 0
-      ? app.db.select({ versionId: knowledgePages.versionId })
+      ? app.db.select({
+        versionId: knowledgePages.versionId,
+        pageImageObjectKey: knowledgePages.pageImageObjectKey,
+        // 只抽取判定所需字段，避免列表把整块 metadata / 正文读进内存
+        uploadSource: sql<string | null>`${knowledgePages.metadata}->>'uploadSource'`,
+        recognitionStatus: sql<string | null>`${knowledgePages.metadata}->>'recognitionStatus'`,
+        recognitionRunId: sql<string | null>`${knowledgePages.metadata}->>'recognitionRunId'`,
+        hasText: sql<boolean>`coalesce(length(${knowledgePages.parsedText}), 0) > 0`
+      })
         .from(knowledgePages).where(and(
           inArray(knowledgePages.versionId, versionIds),
           gte(knowledgePages.pageNumber, 1)
         ))
-      : Promise.resolve([] as Array<{ versionId: string }>),
+      : Promise.resolve([] as Array<{
+        versionId: string;
+        pageImageObjectKey: string | null;
+        uploadSource: string | null;
+        recognitionStatus: string | null;
+        recognitionRunId: string | null;
+        hasText: boolean;
+      }>),
     versionIds.length > 0
       ? app.db.select({ versionId: knowledgeChunks.versionId })
         .from(knowledgeChunks).where(inArray(knowledgeChunks.versionId, versionIds))
@@ -309,16 +359,28 @@ export async function listDocuments(app: FastifyInstance, query: ListDocumentsQu
   ]);
   const assetMap = new Map<string, string[]>();
   for (const row of assetRows) assetMap.set(row.versionId, [...(assetMap.get(row.versionId) ?? []), row.role]);
-  const pageCountMap = new Map<string, number>();
-  for (const row of pageRows) pageCountMap.set(row.versionId, (pageCountMap.get(row.versionId) ?? 0) + 1);
+  const pageRowsByVersion = new Map<string, Array<Parameters<typeof summarizePageReadiness>[0][number]>>();
+  for (const row of pageRows) {
+    const list = pageRowsByVersion.get(row.versionId) ?? [];
+    list.push(row);
+    pageRowsByVersion.set(row.versionId, list);
+  }
   const chunkCountMap = new Map<string, number>();
   for (const row of chunkRows) chunkCountMap.set(row.versionId, (chunkCountMap.get(row.versionId) ?? 0) + 1);
 
   const projected = baseItems.map((item) => {
     const version = workingByDocument.get(item.id) ?? null;
     const assetRoles = version ? assetMap.get(version.id) ?? [] : [];
-    const pageCount = version ? pageCountMap.get(version.id) ?? version.pageCount ?? 0 : 0;
+    const versionPageRows = version ? pageRowsByVersion.get(version.id) ?? [] : [];
+    const pageCount = version ? versionPageRows.length || version.pageCount || 0 : 0;
     const chunkCount = version ? chunkCountMap.get(version.id) ?? 0 : 0;
+    const readiness = version
+      ? deriveReadinessFromListFacts(
+        { usageMode: version.usageMode, parseStatus: version.parseStatus, fileId: version.fileId },
+        assetRoles,
+        summarizePageReadiness(versionPageRows, chunkCount)
+      )
+      : null;
     const health = deriveDocumentHealth({
       version: version ? {
         status: version.status,
@@ -328,8 +390,7 @@ export async function listDocuments(app: FastifyInstance, query: ListDocumentsQu
         fileId: version.fileId
       } : null,
       assetRoles,
-      pageCount,
-      chunkCount
+      readiness
     });
     const userStatus = mapKnowledgeUserStatus({
       parseStatus: version?.parseStatus,
@@ -339,7 +400,9 @@ export async function listDocuments(app: FastifyInstance, query: ListDocumentsQu
       hasSearchSource: assetRoles.includes("SEARCH_SOURCE")
         || (assetRoles.includes("ORIGINAL") && version?.parseStatus !== "NO_TEXT_LAYER" && version?.parseStatus !== "SEARCH_SOURCE_REQUIRED"),
       pageCount,
-      chunkCount
+      chunkCount,
+      offlinePageContentReady: readiness?.offlinePageContentReady === true,
+      searchableContentReady: readiness?.searchableContentReady === true
     });
     return {
       ...item,
@@ -394,6 +457,62 @@ export async function listDocuments(app: FastifyInstance, query: ListDocumentsQu
   return { items: filtered.slice(skip, skip + pageSize), total: filtered.length, page, pageSize };
 }
 
+/**
+ * 在给定事务内创建知识文档与第一个 DRAFT 版本（不建解析任务、不投递队列）。
+ * 版本创建与文件上传解耦：`fileId` 可空，空 DRAFT 版本（0 页面 / 0 附件）是合法状态。
+ * 供 createDocument（无文件创建）与 createKnowledgeWithFile（有文件创建）共用，避免两套创建逻辑。
+ */
+export async function insertDocumentWithDraftVersion(
+  tx: DbExecutor,
+  input: {
+    title: string;
+    docType?: KnowledgeDocType;
+    docNumber?: string | null;
+    sourceOrg?: string | null;
+    issueDate?: string | null;
+    effectiveDate?: string | null;
+    evidenceLevel?: KnowledgeEvidenceLevel | null;
+    allowedPurposes?: string[];
+    categoryId?: string | null;
+    /** 版本主文件（原始资料附件）；为空表示空 DRAFT 版本，后续再上传 */
+    fileId?: string | null;
+    /** 缺省 UPLOAD_PENDING（等待上传原始资料）；已绑定文件时由调用方传 UPLOADED */
+    pipelineStatus?: "UPLOAD_PENDING" | "UPLOADED";
+    actorId: string;
+  }
+) {
+  const [document] = await tx.insert(knowledgeDocuments).values({
+    title: input.title,
+    docType: input.docType ?? "OTHER",
+    docNumber: input.docNumber ?? undefined,
+    sourceOrg: input.sourceOrg ?? undefined,
+    issueDate: input.issueDate ?? undefined,
+    effectiveDate: input.effectiveDate ?? undefined,
+    evidenceLevel: input.evidenceLevel ?? undefined,
+    allowedPurposes: input.allowedPurposes ?? [],
+    categoryId: input.categoryId ?? undefined,
+    status: "ACTIVE",
+    createdById: input.actorId
+  }).returning();
+  const versionNumber = await nextVersionNumber(tx, document!.id);
+  const [version] = await tx.insert(knowledgeDocumentVersions).values({
+    documentId: document!.id,
+    version: versionNumber,
+    title: input.title,
+    status: "DRAFT",
+    parseStatus: "PENDING",
+    pipelineStatus: input.pipelineStatus ?? "UPLOAD_PENDING",
+    fileId: input.fileId ?? undefined,
+    evidenceLevel: input.evidenceLevel ?? undefined,
+    createdById: input.actorId
+  }).returning();
+  return { document: document!, version: version! };
+}
+
+/**
+ * 创建知识文档（无文件）：同一事务创建文档 + 第一个 DRAFT 版本。
+ * 不接收文件、不触发解析、不投递 Worker；原始资料附件与资料页面后续在详情页独立上传。
+ */
 export async function createDocument(
   app: FastifyInstance,
   request: FastifyRequest,
@@ -410,28 +529,20 @@ export async function createDocument(
     categoryId?: string;
   }
 ) {
-  const document = await app.db.transaction(async (tx) => {
-    const [created] = await tx.insert(knowledgeDocuments).values({
-      title: input.title,
-      docType: input.docType ?? "OTHER",
-      docNumber: input.docNumber,
-      sourceOrg: input.sourceOrg,
-      issueDate: input.issueDate,
-      effectiveDate: input.effectiveDate,
-      evidenceLevel: input.evidenceLevel,
-      allowedPurposes: input.allowedPurposes ?? [],
-      categoryId: input.categoryId,
-      status: "ACTIVE",
-      createdById: actor.id
-    }).returning();
+  return app.db.transaction(async (tx) => {
+    const created = await insertDocumentWithDraftVersion(tx, { ...input, actorId: actor.id });
     await writeAuditLog({
       db: tx, request, actor,
-      action: AUDIT_ACTIONS.KNOWLEDGE_DOC_CREATED, targetType: "knowledge_document", targetId: created!.id,
-      afterJson: { title: created!.title, docType: created!.docType }
+      action: AUDIT_ACTIONS.KNOWLEDGE_DOC_CREATED, targetType: "knowledge_document", targetId: created.document.id,
+      afterJson: { title: created.document.title, docType: created.document.docType, versionId: created.version.id }
     });
-    return created!;
+    await writeAuditLog({
+      db: tx, request, actor,
+      action: AUDIT_ACTIONS.KNOWLEDGE_VERSION_CREATED, targetType: "knowledge_document_version", targetId: created.version.id,
+      afterJson: { documentId: created.document.id, version: created.version.version, triggeredBy: "CREATE_DOCUMENT" }
+    });
+    return created;
   });
-  return document;
 }
 
 export async function updateDocument(
@@ -517,6 +628,7 @@ export async function bindCenterFileToVersion(
   fileId: string,
   role: KnowledgeAssetRole
 ) {
+  assertKnowledgeVersionEditable(await requireVersion(app, versionId));
   const file = await requireActiveFile(app, fileId);
   if (file.status !== "READY") throw new ConflictError("所选文件尚未就绪，请先完成上传确认");
   if (role === "SEARCH_SOURCE" || role === "OCR_SOURCE" || role === "PREVIEW") {
@@ -587,12 +699,7 @@ export async function createVersionUploadIntent(
   assetRole?: KnowledgeAssetRole
 ) {
   const version = await requireVersion(app, versionId);
-  // ORIGINAL（缺省）仍限草稿换文件；SEARCH_SOURCE/OCR_SOURCE 允许绑定到任意未停用版本（转曲件升级路径）
-  if (assetRole === undefined || assetRole === "ORIGINAL") {
-    if (version.status !== "DRAFT") throw new ConflictError("仅草稿版本允许上传文件");
-  } else if (version.status === "DISABLED") {
-    throw new ConflictError("已停用版本不允许绑定文件资产");
-  }
+  assertKnowledgeVersionEditable(version);
 
   // FilePicker：从文件中心选择已有文件（不产生新的 OSS 上传）
   if (input.existingFileId) {
@@ -650,11 +757,7 @@ export async function completeVersionUpload(
   assetRole?: KnowledgeAssetRole
 ) {
   const version = await requireVersion(app, versionId);
-  if (assetRole === undefined || assetRole === "ORIGINAL") {
-    if (version.status !== "DRAFT") throw new ConflictError("仅草稿版本允许更换文件");
-  } else if (version.status === "DISABLED") {
-    throw new ConflictError("已停用版本不允许绑定文件资产");
-  }
+  assertKnowledgeVersionEditable(version);
   const file = await requireActiveFile(app, fileId);
   if (file.status === "RECYCLED") throw new ConflictError("所选文件已在回收站，不能绑定");
   // 文件中心选择（READY）：B 端全平台可选，跳过重复校验；未就绪文件仍限本人并完整校验
@@ -811,9 +914,7 @@ export async function enqueueParsing(
   jobType: "PARSE" | "REPARSE"
 ) {
   const version = await requireVersion(app, versionId);
-  if (version.status === "PUBLISHED" || version.status === "DISABLED") {
-    throw new ConflictError("已发布或已停用的版本不允许重新解析，请创建新版本");
-  }
+  assertKnowledgeVersionEditable(version);
   if (!version.fileId) throw new ConflictError("该版本尚未绑定源文件，请先上传文件");
   const job = await insertParsingJobAndEnqueue(app, request, actor, {
     documentId: version.documentId,
@@ -833,9 +934,7 @@ export async function enqueueChunkRebuild(
   versionId: string
 ) {
   const version = await requireVersion(app, versionId);
-  if (version.status === "DISABLED") {
-    throw new ConflictError("已停用的版本不允许重建分块");
-  }
+  assertKnowledgeVersionEditable(version);
   const [pageRow] = await app.db.select({ id: knowledgePages.id }).from(knowledgePages)
     .where(eq(knowledgePages.versionId, versionId)).limit(1);
   if (!pageRow) throw new ConflictError("该版本缺少页面数据，请先执行解析");
@@ -871,7 +970,7 @@ export async function enqueueChunkRebuild(
   return { message: "分块重建任务已提交", jobId: job.id };
 }
 
-/** 审核通过：DRAFT/PENDING_REVIEW -> APPROVED，要求解析完成 */
+/** 审核通过：DRAFT/PENDING_REVIEW -> APPROVED；传统文件链或页面驱动链任一就绪即可进入审核 */
 export async function approveVersion(
   app: FastifyInstance,
   request: FastifyRequest,
@@ -882,12 +981,20 @@ export async function approveVersion(
   const version = await requireVersion(app, versionId);
   if (version.status === "PUBLISHED") throw new ConflictError("已发布版本无需重复审核");
   if (version.status === "DISABLED") throw new ConflictError("已停用版本不能审核，请基于历史版本回滚");
-  const parseable = version.parseStatus === "PARSED"
-    || version.parseStatus === "PARTIAL"
-    || version.parseStatus === "NO_TEXT_LAYER"
-    || (version.usageMode === "BROWSE_ONLY" && version.parseStatus === "SEARCH_SOURCE_REQUIRED");
-  if (!parseable) {
-    throw new ConflictError("版本尚未完成解析，不能审核");
+  const readiness = await collectKnowledgeVersionReadiness(app, version);
+  if (!readiness.reviewReady) {
+    app.log.warn(
+      toReadinessLogContext(readiness, {
+        documentId: version.documentId,
+        versionId: version.id,
+        usageMode: version.usageMode
+      }),
+      "知识版本审核门禁未通过"
+    );
+    const reviewBlockers = readiness.reviewBlockers.length > 0 ? readiness.reviewBlockers : readiness.blockers;
+    throw new ConflictError(reviewBlockers.length > 0
+      ? reviewBlockers.map((blocker) => blocker.message).join("；")
+      : "版本尚未完成解析，不能审核");
   }
   const approved = await app.db.transaction(async (tx) => {
     const [updated] = await tx.update(knowledgeDocumentVersions).set({
@@ -912,8 +1019,10 @@ export async function approveVersion(
 /** 发布：APPROVED -> PUBLISHED，同文档其他已发布版本置 DISABLED，并更新文档当前受控版本 */
 export async function publishVersion(app: FastifyInstance, request: FastifyRequest, actor: AuthUser, versionId: string) {
   const version = await requireVersion(app, versionId);
-  if (version.status !== "APPROVED") throw new ConflictError("仅审核通过的版本可以发布");
-  // 发布门禁（P1）：AI_ENABLED 必须存在可搜索文本源（硬拦截）；TOC/页面映射未核验为软提示
+  // 稳定业务错误：已发布 / 未审核通过，B 端可直接按 error.details.errorCode 展示
+  if (version.status === "PUBLISHED") throw new KnowledgeError("KNOWLEDGE_VERSION_ALREADY_PUBLISHED");
+  if (version.status !== "APPROVED") throw new KnowledgeError("KNOWLEDGE_VERSION_NOT_APPROVED");
+  // 发布门禁（P1）：空版本 / 离线页图未确认（硬拦截，稳定业务错误）；AI_ENABLED 必须存在可搜索文本源；TOC/页面映射未核验为软提示
   const readiness = await assertVersionPublishable(app, version);
   await app.db.transaction(async (tx) => {
     await tx.update(knowledgeDocumentVersions)
@@ -1140,10 +1249,10 @@ export async function deleteAlias(app: FastifyInstance, request: FastifyRequest,
 // ---------------------------------------------------------------- 内容查看与任务
 
 export async function listVersionPages(app: FastifyInstance, versionId: string, page: number, pageSize: number) {
-  await requireVersion(app, versionId);
-  const skip = (Math.max(1, page) - 1) * Math.min(100, Math.max(1, pageSize));
-  const take = Math.min(100, Math.max(1, pageSize));
-  const [items, [totalRow]] = await Promise.all([
+  const version = await requireVersion(app, versionId);
+  const skip = (Math.max(1, page) - 1) * Math.min(200, Math.max(1, pageSize));
+  const take = Math.min(200, Math.max(1, pageSize));
+  const [items, [totalRow], allPages] = await Promise.all([
     app.db.select({
       id: knowledgePages.id,
       pageNumber: knowledgePages.pageNumber,
@@ -1157,7 +1266,8 @@ export async function listVersionPages(app: FastifyInstance, versionId: string, 
       hasTables: knowledgePages.hasTables,
       hasImages: knowledgePages.hasImages,
       sectionPath: knowledgePages.sectionPath,
-      parseStatus: knowledgePages.parseStatus
+      parseStatus: knowledgePages.parseStatus,
+      metadata: knowledgePages.metadata
     }).from(knowledgePages).where(and(
       eq(knowledgePages.versionId, versionId),
       gte(knowledgePages.pageNumber, 1)
@@ -1165,15 +1275,53 @@ export async function listVersionPages(app: FastifyInstance, versionId: string, 
     app.db.select({ value: count() }).from(knowledgePages).where(and(
       eq(knowledgePages.versionId, versionId),
       gte(knowledgePages.pageNumber, 1)
-    ))
+    )),
+    app.db.select({ id: knowledgePages.id, metadata: knowledgePages.metadata, pageImageObjectKey: knowledgePages.pageImageObjectKey })
+      .from(knowledgePages).where(and(eq(knowledgePages.versionId, versionId), gte(knowledgePages.pageNumber, 1)))
   ]);
+  const pageIds = allPages.map((row) => row.id);
+  const pageSetRows = pageIds.length > 0
+    ? await app.db.select({ pageId: thermalReferenceRows.sourcePageId, setId: thermalReferenceRows.setId })
+      .from(thermalReferenceRows).where(inArray(thermalReferenceRows.sourcePageId, pageIds))
+    : [];
+  const setIds = [...new Set(pageSetRows.map((row) => row.setId))];
+  const setRows = setIds.length > 0
+    ? await app.db.select({ id: thermalReferenceSets.id, status: thermalReferenceSets.status })
+      .from(thermalReferenceSets).where(inArray(thermalReferenceSets.id, setIds))
+    : [];
+  const setEditable = new Map(setRows.map((row) => [row.id, row.status === "DRAFT"]));
+  const summary = { total: allPages.length, pending: 0, processing: 0, reviewRequired: 0, confirmed: 0, failed: 0, missingImage: 0 };
+  for (const row of allPages) {
+    const status = readPageRecognitionMeta(row.metadata).recognitionStatus ?? "PENDING";
+    if (status === "PENDING") summary.pending++;
+    else if (status === "PROCESSING") summary.processing++;
+    else if (status === "REVIEW_REQUIRED") summary.reviewRequired++;
+    else if (status === "CONFIRMED") summary.confirmed++;
+    else if (status === "FAILED") summary.failed++;
+    if (!row.pageImageObjectKey) summary.missingImage++;
+  }
   const signed = await Promise.all(items.map(async (item) => {
     const pageImageUrl = item.pageImageObjectKey
-      ? await app.storage.createDownloadUrl(item.pageImageObjectKey, `page-${item.pageNumber}.png`, 3600)
+      ? await app.storage.createDownloadUrl(item.pageImageObjectKey, getPageImageDownloadName(item.pageImageObjectKey, item.physicalPageNumber), 3600)
       : null;
-    return { ...item, pageImageUrl };
+    const meta = readPageRecognitionMeta(item.metadata);
+    const linkedSetIds = [...new Set(pageSetRows.filter((row) => row.pageId === item.id).map((row) => row.setId))];
+    return {
+      ...item,
+      pageImageUrl,
+      hasImage: Boolean(item.pageImageObjectKey),
+      recognitionStatus: meta.recognitionStatus ?? "PENDING",
+      recognitionWarnings: meta.recognitionWarnings ?? [],
+      imageWarnings: meta.imageWarnings ?? [],
+      lastRecognitionError: meta.lastRecognitionError ?? null,
+      confirmedAt: meta.confirmedAt ?? null,
+      confirmedById: meta.confirmedById ?? null,
+      versionStatus: version.status,
+      versionEditable: isKnowledgeVersionEditable(version.status),
+      thermalSetEditable: linkedSetIds.length > 0 ? linkedSetIds.every((id) => setEditable.get(id) === true) : null
+    };
   }));
-  return { items: signed, total: totalRow?.value ?? 0, page, pageSize };
+  return { items: signed, total: totalRow?.value ?? 0, page, pageSize, pageRecognitionSummary: summary };
 }
 
 export async function listVersionChunks(
@@ -1304,9 +1452,7 @@ async function requireEditableChunk(app: FastifyInstance, chunkId: string) {
     .innerJoin(knowledgeDocumentVersions, eq(knowledgeDocumentVersions.id, knowledgeChunks.versionId))
     .where(eq(knowledgeChunks.id, chunkId)).limit(1);
   if (!row) throw new NotFoundError("知识分块不存在");
-  if (row.versionStatus === "PUBLISHED" || row.versionStatus === "DISABLED") {
-    throw new ConflictError(`版本 ${row.version} 已发布或已停用，不允许人工调整分块；请基于历史版本回滚生成新草稿`);
-  }
+  assertKnowledgeVersionEditable({ status: row.versionStatus });
   return row;
 }
 

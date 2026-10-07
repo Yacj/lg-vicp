@@ -1,5 +1,7 @@
 # 后端架构
 
+2026-10-07 迁移收口：0032 journal 漏登记以补登记 + 0051 前向补偿处理，0032 CASE 索引括号仅作语法修正；0051 对正确索引跳过，对旧索引先锁表/归一化冲突校验后同事务更新。`db:verify` 必须先校验 SQL/journal/snapshot；早期 0017–0019 的已部署命名及遗失 snapshot 仅按脚本内精确限定旧记录兼容，禁止新增通用跳号例外。可用 `MIGRATION_VERIFY_DATABASE_URL` 运行隔离临时数据库验证，禁止直接迁移生产验证。
+
 技术栈：Fastify、TypeScript、Zod、PostgreSQL、Drizzle ORM、postgres.js、Redis、BullMQ、AI SDK、MinIO/阿里云 OSS、Docker Compose、Nginx；生产可选 PM2 托管 API/Worker。
 
 目录职责：

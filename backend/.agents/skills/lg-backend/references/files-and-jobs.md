@@ -21,12 +21,14 @@ MinIO 内部连接地址与返回浏览器的预签名公开地址必须分开�
 - 文档 Worker：
   - PDF 使用 UnPDF 逐页提取：书签大纲须经 `validatePdfOutline` 质量门，噪声 CAD 导航不写入 TOC，改解析目录页；正文按分栏几何重建阅读顺序；pageLabel 与 physicalPageNumber 分离。
   - DOCX：Mammoth 提取全文供 Chunk/RAG；正式页图走离线 PNG/ZIP 上传 + 视觉识别（`page-recognition` 队列）。LibreOffice（`DOCX_RENDER_ENABLED` 默认 false）仅 fallback。详见 `docs/knowledge/page-offline-recognition.md` 与 `docs/knowledge/docx-page-render.md`。
+
+页面资产安全：batch-upload 必须把临时 File 内容复制到 `knowledge/page-images/{documentId}/{versionId}/` 专属对象；ZIP 在解压前检查 central directory，限制最多 200 张图片、单张 15MB、解压总量 300MB、manifest 1MB，并拒绝路径穿越、非图片扩展名与扩展名/签名不匹配。Knowledge Version 仅 DRAFT 可改页图、顺序、识别、TOC、资产、解析与分块；PENDING_REVIEW/APPROVED/PUBLISHED/DISABLED 只读。batch/ZIP 先校验整批文件、页号和 manifest，再写 OSS 与 DB；DB 事务失败清理本次新对象，事务成功后再删旧对象。AI_ENABLED 离线页图版本要求每页有原页图且识别已 CONFIRMED。正式热工行只可写入 DRAFT 参考集。识别任务使用稳定 page jobId + `recognitionRunId` 单飞，Worker 仅允许当前 run 写回；Confirm 在事务内锁页且只接受 REVIEW_REQUIRED。识别草稿同步结构化候选与页面展示字段；确认只消费 draftStructuredData，并须在同一数据库事务重建当前页 chunks、同步当前 pageId 的热工行、固化 confirmed snapshot 与页面字段。
   - XLSX 使用 ExcelJS（每工作表一个页面，表格按行产出结构化 TABLE 分块，metadata 保留行列与合并单元格）；`.doc`/`.xls` 老格式不支持，标记 `OCR_REQUIRED` 并提示转换后重传。
 - 保存文档版本、页码、章节和切片序号。
 - 可提取文本进入 PostgreSQL 全文索引。
 - 图片或无有效文本的 PDF 标记 `OCR_REQUIRED`。
 - OCR 适配器未配置前不得伪造文本或标记为成功。
-- 知识库版本化链路（`parsing_jobs` + `knowledge_document_versions`）：任务数据含 `parsingJobId` 时走新链路（先删当前版本旧页面/分块再写入，历史版本不动），否则走旧 `async_tasks` 链路兼容存量任务；`CHUNK_REBUILD` 只读页面原文重切，不重读对象存储。`pipelineStatus` 沿 PARSING → CHUNKING → REVIEW_PENDING（失败 FAILED）推进。
+- 知识库版本化链路（`parsing_jobs` + `knowledge_document_versions`）：任务数据含 `parsingJobId` 时走新链路（先删当前版本旧页面/分块再写入，历史版本不动），否则走旧 `async_tasks` 链路兼容存量任务；`CHUNK_REBUILD` 只读页面原文重切，不重读对象存储且只允许 DRAFT。`pipelineStatus` 沿 PARSING → CHUNKING → REVIEW_PENDING（失败 FAILED）推进。
 
 知识库多来源入库统一走 `src/modules/knowledge/knowledge-ingest.service.ts`：B 端单文件预签名直传、批量导入（`/imports/batch`）、爬虫（`knowledge_crawler_sources` + maintenance 队列 `knowledge_crawler` 任务）、内部受控 API（`/api/v1/internal/knowledge/ingest`，`x-internal-key` 服务密钥，未配置 `INTERNAL_API_KEY` 时整体禁用）。插入 `files` 前按 SHA-256 查重：命中已发布版本抛 409，命中未发布草稿提示先处理，服务端直写场景幂等跳过。
 

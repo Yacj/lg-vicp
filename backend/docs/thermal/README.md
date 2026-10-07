@@ -118,11 +118,38 @@ flowchart LR
 | `GET/POST /calc-rules`、`GET/PATCH/DELETE /calc-rules/:id` + submit/approve/reject/publish/disable/new-version + `POST /calc-rules/:id/validate` | 计算规则 CRUD + 版本化工作流 | `system:thermal:{list,add,edit,remove,approve,publish}` |
 | `GET/POST /standard-limits`、`GET/PATCH/DELETE /standard-limits/:id` + 工作流 + `POST /standard-limits/:id/validate` | 地区标准限值 CRUD + 版本化工作流 | 同上 |
 
+## K 查询语义（Query Mode）：APPROX / MAX_LIMIT / MIN_LIMIT / EXACT
+
+「K≈0.3」和「K≤0.3」是两种不同业务语义，**不能**用同一个 `targetK` 表达。查询用 `kMode` 显式区分（`thermal-lookup-mode.ts` 为单一事实源）：
+
+| `kMode` | 语义 | 过滤 | 排序 | 典型问法 |
+| --- | --- | --- | --- | --- |
+| `APPROX` | 近似（**默认用于自然语言**） | `\|kValue - targetK\| ≤ kTolerance` | `\|kValue - targetK\|` 升序 | 0.3左右 / 接近0.3 / 约0.3 / 0.3的方案有么 / 有没有0.3附近的 |
+| `MAX_LIMIT` | 上限（**API 缺省值**，兼容历史口径） | `kValue ≤ targetK` | `targetK - kValue` 升序（最接近上限优先） | K≤0.3 / 不超过0.3 / 0.3以内 / K最大0.3 / 是否满足0.3限值 |
+| `MIN_LIMIT` | 下限 | `kValue ≥ targetK` | `kValue - targetK` 升序 | K不低于0.3 / K≥0.3 |
+| `EXACT` | 数值精确相等 | `\|kValue - targetK\| ≤ kTolerance` | 同上 | K正好等于0.303 |
+
+- 容差集中在 `thermal-lookup-mode.ts`：`DEFAULT_K_APPROX_TOLERANCE = 0.02`、`DEFAULT_K_EXACT_EPSILON = 0.0005`，确定性、可测试，禁止各 Service 各写一份；调用方可用 `kTolerance` 覆盖（`MAX_LIMIT`/`MIN_LIMIT` 不使用容差窗口）。
+- **关键业务规则**：像「传热系数 0.3 的方案有么」这种没有「不超过 / 以内 / ≤ / 最大 / 上限 / 达标 / 限值」等明确约束词的问法，必须按 `APPROX` 处理，否则 `K=0.303` 会被错误排除。
+- AI 端（`thermal` 工具）：用户本轮明确语义 → Tool `lookupMode` → 上轮查询模式 → 首轮默认 `APPROX`。无本轮语义时 `inferThermalLookupMode` 返回 `null`；用户语义与模型参数冲突时以用户为准并记录中文 warning。`APPROX` 的回答只能说「接近 / 约为」，**不得**写「满足 0.3 限值」。
+
+精确厚度与相邻厚度都必须满足其他硬条件；仅相邻匹配允许厚度未命中。正式体系 UUID 优先于名称；名称统一全半角/空白/品牌与通用后缀，保留材料和型号。名称无匹配时只能明确标注跨体系回退，回答先说明没有找到该体系的正式参考方案。
+
+历史候选只用于参数/原页指代；K、模式、容差、热阻、厚度、型号、体系、方案、规格或产品目录条件变化时重新查询完整已发布且有效数据，不能在历史 top 12 中继续筛选。历史状态共用候选 Zod schema，保留双 R、方案编码、来源页、匹配明细、版本与排序等正式字段；未命中也保存查询条件。
+- 响应新增 `lookupMode` / `kTolerance` 回显；候选附 `ranking.kGap/isClosestToTarget`（`kGap` 为对应模式下的距离）。
+
 ## 目标 K 值最接近优先排序
 
-提供 targetK 时，同匹配级别内按 targetK-kValue 升序（最接近目标优先）；候选附 ranking.kGap/isClosestToTarget。
+提供 targetK 时，同匹配级别内按该模式的 K 距离升序（`MAX_LIMIT` 为 `targetK-kValue`；`APPROX`/`EXACT` 为 `|targetK-kValue|`；`MIN_LIMIT` 为 `kValue-targetK`）；候选附 ranking.kGap/isClosestToTarget。
+
+## systemHint 过滤顺序（AI 端）
+
+AI 端按体系提示收窄候选的顺序必须是 **过滤 → 排序 → limit**，禁止「先取全局前 12 条 → 再过滤体系」，否则真实命中会被提前截掉。
+体系提示无匹配时**不做静默回退**：严格过滤为空则返回 `isFallback=true` / `matchedSystemHint=false`，并在 notes 中明确说明「没有找到符合该体系的正式方案，下面是其他体系中接近目标的参考结果」，禁止让用户误以为其他体系结果就是该体系方案。
 
 ## 候选方案查询与确认
+
+2026-10-07：查询指标已统一扩展为 K / TOTAL_R / PRODUCT_R（均支持四种查询模式），兼容参数、容差、会话继承与测试记录见 [查询语义最终收口](./lookup-closeout-2026-10-07.md)。本节旧字段说明仍表示兼容 API 的行为。
 
 ```mermaid
 flowchart LR
@@ -141,7 +168,8 @@ flowchart LR
   - **项目日期**：`asOfDate` 可选（ISO 日期），限值生效窗（`effective_at`/`expires_at`）按该时点判定，缺省当前时间——用于查询历史项目时点的标准约束。
   - 基层材料忽略空白/大小写**双向包含匹配**（「200mm钢筋混凝土」可命中「钢筋混凝土」）；基层厚度 ±0.5mm 相等匹配。
   - **相邻规格**：精确厚度查询无该档时，同 (集,方案,规格) 组内返回最近档（`neighborTolerance` 档数内，默认 1，0 禁止），标注 `matchType=NEIGHBOR` + `neighborGap`；相邻档同样受其余条件约束。区间查询不产生相邻规格。
-  - **排序只按后台规则**：命中条件数降序 → 标准厚度升序 → 集 `priority`（甲方配置优先级，小优先）→ 集版本降序；**不宣称唯一最优**。
+  - **K 查询语义**：`kMode` 区分 APPROX / MAX_LIMIT / MIN_LIMIT / EXACT（见上节），不再用单一 `targetK` 包打天下；缺省 `MAX_LIMIT` 兼容历史口径。
+  - **排序只按后台规则**：命中条件数降序 → K 模式距离升序（提供 `targetK` 时）→ 标准厚度升序 → 集 `priority`（甲方配置优先级，小优先）→ 集版本降序；**不宣称唯一最优**。
 - **计算后备**：第一版只做图集查表（`calculationSource=REFERENCE_TABLE`）；图集无结果返回空候选 + 提示（相邻容差/调整条件），**不自动批量计算**。待确认后按业务规则 5 接已审核计算规则。
 - **数据支撑**（参考集/行 + 方案/系统/规格全部只读 **PUBLISHED 且生效中**）：`thermal_reference_sets` 新增 `building_types`（适用建筑类型数组）与 `priority`（甲方配置优先级）列；行 join 方案/系统/规格取基层/图集页码/规格分类。
 - **确认快照**（`thermal_candidate_selections`，迁移 0019）：保存查询条件（`queryJson`）+ 用户确认的最终候选全快照（`candidateJson`：行/集/方案/规格版本、K/热阻、证据、matchType）+ 选择理由 + 操作人；写入前校验候选行属于已发布且生效中的参考集（禁止确认草稿/待审核数据），落库与审计同事务。

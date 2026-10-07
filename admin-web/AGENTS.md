@@ -6,7 +6,7 @@
 
 ## 开发前必读
 
-修改以下范围前，必须先完整阅读 `skills/vicp-admin-ui/SKILL.md`：
+修改以下范围前，必须先完整阅读 `.skills/vicp-admin-ui/SKILL.md`：
 
 - `src/layouts/**`
 - `src/styles/**`

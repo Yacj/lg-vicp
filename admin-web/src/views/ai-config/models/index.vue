@@ -140,14 +140,14 @@ const statusOptions = [
 ]
 
 const rules = computed<FormRules<AiModelForm>>(() => ({
-  providerId: [{ message: '请选择 Provider', required: true }],
+  providerId: [{ message: '请选择服务商', required: true }],
   displayName: [
     { message: '请输入模型名称', required: true },
     { max: 120, message: '名称不能超过 120 个字符' },
   ],
   modelId: [
-    { message: '请输入 Model ID', required: true },
-    { max: 160, message: 'Model ID 不能超过 160 个字符' },
+    { message: '请输入模型标识', required: true },
+    { max: 160, message: '模型标识不能超过 160 个字符' },
   ],
 }))
 
@@ -187,7 +187,7 @@ const columns: PrimaryTableCol<TableRowData>[] = [
     cell: (_h, { row }) => h('code', { class: 'ai-model-page__code' }, (row as AiModel).modelId),
     colKey: 'modelId',
     minWidth: 160,
-    title: 'Model ID',
+    title: '模型标识',
   },
   {
     cell: (_h, { row }) => h(AppStatusTag, {
@@ -410,7 +410,7 @@ function getActions(row: TableRowData): AppTableAction[] {
           <t-input
             v-model="modelList.query.keyword"
             clearable
-            placeholder="模型名称、Provider 或 Model ID"
+            placeholder="模型名称、服务商或模型标识"
           />
         </t-form-item>
         <t-form-item label="状态">
@@ -475,29 +475,29 @@ function getActions(row: TableRowData): AppTableAction[] {
             placeholder="例如：DeepSeek Chat"
           />
         </t-form-item>
-        <t-form-item label="Provider" name="providerId">
+        <t-form-item label="服务商" name="providerId">
           <t-select
             v-model="modelDrawer.formData.providerId"
             :loading="providersLoading"
             :options="providerOptions"
-            placeholder="请选择 Provider"
+            placeholder="请选择服务商"
           />
         </t-form-item>
-        <t-form-item label="Model ID" name="modelId">
+        <t-form-item label="模型标识" name="modelId">
           <t-input
             v-model="modelDrawer.formData.modelId"
             maxlength="160"
             placeholder="例如：deepseek-chat"
           />
         </t-form-item>
-        <t-form-item label="API Base URL">
+        <t-form-item label="接口地址">
           <t-input
             :model-value="getProviderBaseUrlPreview(selectedProvider)"
             disabled
-            placeholder="选择 Provider 后显示接口地址"
+            placeholder="选择服务商后显示接口地址"
           />
         </t-form-item>
-        <t-form-item label="API凭证">
+        <t-form-item label="接口凭证">
           <t-input
             :model-value="getProviderCredentialPreview(selectedProvider)"
             disabled

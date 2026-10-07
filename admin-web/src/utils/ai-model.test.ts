@@ -203,7 +203,7 @@ describe('ai model reasoning and vision presentation', () => {
     expect(getAiReasoningLevelLabel('HIGH')).toBe('高')
     expect(getAiReasoningLevelLabel('MAX')).toBe('最高')
     expect(AI_REASONING_LEVEL_OPTIONS.find(item => item.value === 'LOW')?.hint).toBe('适合简单任务')
-    expect(AI_REASONING_LEVEL_OPTIONS.find(item => item.value === 'HIGH')?.hint).toBe('适合日常AI和Agent任务')
+    expect(AI_REASONING_LEVEL_OPTIONS.find(item => item.value === 'HIGH')?.hint).toBe('适合日常 AI 任务')
     expect(AI_REASONING_LEVEL_OPTIONS.find(item => item.value === 'MAX')?.hint).toContain('成本和耗时更高')
     expect(JSON.stringify(AI_REASONING_LEVEL_OPTIONS)).not.toContain('reasoning_effort')
     expect(JSON.stringify(AI_REASONING_LEVEL_OPTIONS)).not.toContain('medium')
@@ -294,7 +294,7 @@ describe('ai model admission results', () => {
 
     expect(classifyModelTestFailure({
       report: { ...passedReport({ toolCalling: { message: '工具调用测试失败', ok: false } }), ok: false, message: '未通过' },
-    }).label).toBe('Agent工具调用失败')
+    }).label).toBe('工具调用失败')
 
     expect(classifyModelTestFailure({
       report: { ...passedReport({ vision: { message: '图片输入调用失败', ok: false } }), ok: false, message: '未通过' },
@@ -306,6 +306,6 @@ describe('ai model admission results', () => {
 
     expect(classifyModelTestFailure({
       error: new BusinessError({ code: 409, message: '模型服务商尚未配置 API Key' }, 'req-3'),
-    }).label).toBe('Provider配置错误')
+    }).label).toBe('服务商配置错误')
   })
 })

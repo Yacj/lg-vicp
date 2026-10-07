@@ -16,7 +16,6 @@ import {
   updateAiModel,
   updateAiModelStatus,
 } from '@/api/modules/ai'
-import { planAgentModelAssignment, planVisionModelAssignment } from '@/utils/ai'
 import {
   assertNoLegacyModelInputFields,
   createAiModelForm,
@@ -169,58 +168,6 @@ export function useAiModelManagement() {
     successMessage: (_model, result) => result.message,
   })
 
-  const assigningVision = ref(false)
-  const assigningAgent = ref(false)
-
-  async function assignVisionModel(modelId: string): Promise<void> {
-    if (assigningVision.value) {
-      return
-    }
-    const updates = planVisionModelAssignment(modelList.data.value, modelId)
-    if (updates.length === 0) {
-      return
-    }
-    assigningVision.value = true
-    try {
-      for (const update of updates) {
-        await updateAiModel(update.id, update.input)
-      }
-      await feedback.message('success', '视觉模型已更新')
-      await modelList.refresh()
-    }
-    catch (error) {
-      await feedback.messageError(error)
-    }
-    finally {
-      assigningVision.value = false
-    }
-  }
-
-  async function assignAgentModel(modelId: string): Promise<void> {
-    if (assigningAgent.value) {
-      return
-    }
-    const updates = planAgentModelAssignment(modelList.data.value, modelId)
-    if (updates.length === 0) {
-      await feedback.message('warning', '只能将已开启工具调用能力的模型设为 Agent 主模型')
-      return
-    }
-    assigningAgent.value = true
-    try {
-      for (const update of updates) {
-        await updateAiModel(update.id, update.input)
-      }
-      await feedback.message('success', 'Agent 主模型已更新')
-      await modelList.refresh()
-    }
-    catch (error) {
-      await feedback.messageError(error)
-    }
-    finally {
-      assigningAgent.value = false
-    }
-  }
-
   const testingModelId = ref<string | null>(null)
 
   async function testModel(model: AiModel): Promise<AiModelTestResult> {
@@ -239,10 +186,6 @@ export function useAiModelManagement() {
   }
 
   return {
-    assigningAgent,
-    assigningVision,
-    assignAgentModel,
-    assignVisionModel,
     loadProviders,
     modelDefaultAction,
     modelDeleteAction,

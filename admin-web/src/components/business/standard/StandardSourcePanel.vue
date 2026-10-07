@@ -3,7 +3,7 @@ import type { PrimaryTableCol, TableRowData } from 'tdesign-vue-next'
 import type { AppTableAction } from '@/types/crud'
 import type { StandardSource, StandardSourceInput } from '@/types/standard'
 import { AddIcon } from 'tdesign-icons-vue-next'
-import { computed, h } from 'vue'
+import { computed, h, ref } from 'vue'
 import {
   createStandardSource,
   deleteStandardSource,
@@ -16,7 +16,7 @@ import AppTableActions from '@/components/business/AppTableActions.vue'
 import AppDataTable from '@/components/ui/AppDataTable.vue'
 import AppSearchPanel from '@/components/ui/AppSearchPanel.vue'
 import AppStatusTag from '@/components/ui/AppStatusTag.vue'
-import { normalizeFeedbackError } from '@/composables/useAppFeedback'
+import { normalizeFeedbackError, useAppFeedback } from '@/composables/useAppFeedback'
 import { useConfirmedCrudAction } from '@/composables/useCrudActions'
 import { useCrudDrawer } from '@/composables/useCrudDrawer'
 import { useCrudList } from '@/composables/useCrudList'
@@ -28,6 +28,19 @@ const canAdd = computed(() => canAccess({ permissions: ['system:standard:add'] }
 const canEdit = computed(() => canAccess({ permissions: ['system:standard:edit'] }))
 const canRemove = computed(() => canAccess({ permissions: ['system:standard:remove'] }))
 const canRun = computed(() => canAccess({ permissions: ['system:standard:run'] }))
+
+type CatalogRow = NonNullable<StandardSourceInput['catalogUrls']>[number]
+type ExtractRuleRow = NonNullable<StandardSourceInput['extractRules']>[number]
+
+const feedback = useAppFeedback()
+const advancedCatalog = ref(false)
+const advancedRules = ref(false)
+
+const paginationOptions = [
+  { label: '单页（不分页）', value: 'none' },
+  { label: '网址翻页', value: 'url' },
+  { label: '滚动加载', value: 'scroll' },
+]
 
 const list = useCrudList<StandardSource, { enabled?: boolean | '' | 'all', keyword: string }>({
   createQuery: () => ({ enabled: undefined, keyword: '' }),
@@ -53,6 +66,8 @@ const drawer = useCrudDrawer<StandardSourceInput, StandardSource>({
     officialDomain: '',
     crawlScope: 'today',
     enabled: true,
+    catalogUrls: [],
+    extractRules: [],
     keywords: { titleKeywords: [], excludeKeywords: [] },
     operatorRemark: '',
   }),
@@ -62,6 +77,8 @@ const drawer = useCrudDrawer<StandardSourceInput, StandardSource>({
     officialDomain: entity.officialDomain,
     crawlScope: entity.crawlScope,
     enabled: entity.enabled,
+    catalogUrls: entity.catalogUrls.map(item => ({ ...item })),
+    extractRules: entity.extractRules.map(item => ({ ...item })),
     keywords: {
       titleKeywords: [...entity.keywords.titleKeywords],
       excludeKeywords: [...entity.keywords.excludeKeywords],
@@ -75,6 +92,83 @@ const drawer = useCrudDrawer<StandardSourceInput, StandardSource>({
   },
   onSuccess: () => list.refresh(),
 })
+
+const catalogRows = computed<CatalogRow[]>(() => drawer.formData.catalogUrls ?? [])
+const extractRuleRows = computed<ExtractRuleRow[]>(() => drawer.formData.extractRules ?? [])
+
+function ensureCatalogRows(): CatalogRow[] {
+  if (!drawer.formData.catalogUrls) {
+    drawer.formData.catalogUrls = []
+  }
+  return drawer.formData.catalogUrls
+}
+
+function ensureExtractRules(): ExtractRuleRow[] {
+  if (!drawer.formData.extractRules) {
+    drawer.formData.extractRules = []
+  }
+  return drawer.formData.extractRules
+}
+
+function addCatalogRow(): void {
+  ensureCatalogRows().push({ label: '', url: '', paginationMode: 'none' })
+  advancedCatalog.value = true
+}
+
+function removeCatalogRow(index: number): void {
+  ensureCatalogRows().splice(index, 1)
+}
+
+function addExtractRule(): void {
+  ensureExtractRules().push({ field: '', pattern: '' })
+}
+
+function removeExtractRule(index: number): void {
+  ensureExtractRules().splice(index, 1)
+}
+
+function isHttpUrl(value: string): boolean {
+  return /^https?:\/\/\S+$/i.test(value)
+}
+
+/** 抓取依赖栏目地址，提交前做业务校验，避免保存出无法抓取的来源 */
+function validateSourceForm(): string | null {
+  const catalogs = drawer.formData.catalogUrls ?? []
+  if (catalogs.length === 0) {
+    return '请至少添加一个栏目地址，系统按栏目抓取标准文档。'
+  }
+  for (const [index, row] of catalogs.entries()) {
+    const position = `第 ${index + 1} 个栏目`
+    if (!row.label || !row.label.trim()) {
+      return `${position}：请填写栏目名称。`
+    }
+    if (!row.url || !row.url.trim()) {
+      return `${position}：请填写栏目地址。`
+    }
+    if (!isHttpUrl(row.url.trim())) {
+      return `${position}：栏目地址需为 http(s) 开头的完整链接。`
+    }
+    if (row.paginationMode === 'url' && (!row.pageParam || !row.pageParam.trim())) {
+      return `${position}：网址翻页需填写翻页参数名（如 page）。`
+    }
+  }
+  const rules = drawer.formData.extractRules ?? []
+  for (const [index, rule] of rules.entries()) {
+    if (!rule.field || !rule.field.trim() || !rule.pattern || !rule.pattern.trim()) {
+      return `第 ${index + 1} 条提取规则：字段名与匹配表达式均需填写。`
+    }
+  }
+  return null
+}
+
+function handleSubmit(): void {
+  const invalid = validateSourceForm()
+  if (invalid) {
+    feedback.message('error', invalid)
+    return
+  }
+  void drawer.submit()
+}
 
 const deleteAction = useConfirmedCrudAction<StandardSource, unknown>({
   action: row => deleteStandardSource(row.id),
@@ -234,9 +328,9 @@ function getActions(row: TableRowData): AppTableAction[] {
       :submitting="drawer.isSubmitting.value"
       :title="drawer.mode.value === 'create' ? '新增采集来源' : '编辑采集来源'"
       :visible="drawer.visible.value"
-      width="min(720px, 92vw)"
+      width="min(880px, 94vw)"
       @cancel="drawer.close"
-      @submit="drawer.submit"
+      @submit="handleSubmit"
       @update:visible="drawer.setVisible"
     >
       <t-form-item label="省份编码" name="provinceCode" required-mark>
@@ -248,6 +342,62 @@ function getActions(row: TableRowData): AppTableAction[] {
       <t-form-item class="vicp-form-wide" label="官网域名" name="officialDomain" required-mark>
         <t-input v-model="drawer.formData.officialDomain" maxlength="255" placeholder="https://..." />
       </t-form-item>
+
+      <section class="vicp-form-section vicp-form-wide">
+        <header class="vicp-form-section__head">
+          <span class="vicp-form-section__title">栏目地址</span>
+          <span class="vicp-form-section__hint">系统按栏目抓取标准文档，至少配置一个。</span>
+          <t-button size="small" variant="text" @click="advancedCatalog = !advancedCatalog">
+            {{ advancedCatalog ? '收起高级参数' : '展开高级参数' }}
+          </t-button>
+          <t-button size="small" variant="outline" @click="addCatalogRow">
+            <template #icon>
+              <AddIcon />
+            </template>
+            添加栏目
+          </t-button>
+        </header>
+
+        <p v-if="catalogRows.length === 0" class="vicp-form-empty">
+          尚未配置栏目地址，点击「添加栏目」录入。
+        </p>
+
+        <div v-for="(row, index) in catalogRows" :key="index" class="vicp-form-rows">
+          <div class="vicp-form-row">
+            <t-form-item :label="`栏目名称 ${index + 1}`" required-mark>
+              <t-input v-model="row.label" maxlength="120" placeholder="如：地方标准公告" />
+            </t-form-item>
+            <t-form-item label="栏目地址" required-mark>
+              <t-input v-model="row.url" maxlength="1000" placeholder="https://..." />
+            </t-form-item>
+            <t-form-item label="分页方式">
+              <t-select v-model="row.paginationMode" :options="paginationOptions" />
+            </t-form-item>
+            <t-button class="vicp-form-row__remove" theme="danger" variant="text" @click="removeCatalogRow(index)">
+              删除
+            </t-button>
+          </div>
+          <div v-if="advancedCatalog" class="vicp-form-row vicp-form-row--advanced">
+            <t-form-item label="翻页参数名">
+              <t-input
+                v-model="row.pageParam"
+                :disabled="row.paginationMode !== 'url'"
+                maxlength="80"
+                placeholder="如：page"
+              />
+            </t-form-item>
+            <t-form-item label="最多翻页数">
+              <t-input-number v-model="row.pageLimit" :max="200" :min="1" placeholder="默认 10" />
+            </t-form-item>
+            <t-form-item label="列表选择器（CSS）">
+              <t-input v-model="row.listSelector" maxlength="300" placeholder="选填" />
+            </t-form-item>
+            <t-form-item label="链接选择器（CSS）">
+              <t-input v-model="row.itemLinkSelector" maxlength="300" placeholder="选填" />
+            </t-form-item>
+          </div>
+        </div>
+      </section>
       <t-form-item label="抓取范围" name="crawlScope">
         <t-radio-group
           v-model="drawer.formData.crawlScope"
@@ -288,9 +438,45 @@ function getActions(row: TableRowData): AppTableAction[] {
           placeholder="输入后回车创建，命中即排除"
         />
       </t-form-item>
-      <p class="vicp-form-hint vicp-form-wide">
-        栏目 URL 与提取规则的高级配置暂未开放编辑，后续批次补齐。
-      </p>
+      <section class="vicp-form-section vicp-form-wide">
+        <header class="vicp-form-section__head">
+          <span class="vicp-form-section__title">内容提取规则（选填）</span>
+          <span class="vicp-form-section__hint">用于从文档正文中提取标题、文号等字段；留空时使用系统默认规则。</span>
+          <t-button size="small" variant="text" @click="advancedRules = !advancedRules">
+            {{ advancedRules ? '收起' : '展开' }}
+          </t-button>
+          <t-button size="small" variant="outline" @click="addExtractRule">
+            <template #icon>
+              <AddIcon />
+            </template>
+            添加规则
+          </t-button>
+        </header>
+
+        <p v-if="!advancedRules" class="vicp-form-empty">
+          已配置 {{ extractRuleRows.length }} 条规则，展开可查看与编辑。
+        </p>
+
+        <template v-else>
+          <p v-if="extractRuleRows.length === 0" class="vicp-form-empty">
+            暂无提取规则，点击「添加规则」录入。
+          </p>
+          <div v-for="(rule, index) in extractRuleRows" :key="index" class="vicp-form-row vicp-form-row--rules">
+            <t-form-item :label="`字段名 ${index + 1}`" required-mark>
+              <t-input v-model="rule.field" maxlength="80" placeholder="如：title" />
+            </t-form-item>
+            <t-form-item label="匹配表达式" required-mark>
+              <t-input v-model="rule.pattern" maxlength="500" placeholder="正则表达式" />
+            </t-form-item>
+            <t-form-item label="修饰符">
+              <t-input v-model="rule.flags" maxlength="20" placeholder="如：i" />
+            </t-form-item>
+            <t-button class="vicp-form-row__remove" theme="danger" variant="text" @click="removeExtractRule(index)">
+              删除
+            </t-button>
+          </div>
+        </template>
+      </section>
     </AppCrudFormDialog>
   </div>
 </template>
@@ -325,12 +511,65 @@ function getActions(row: TableRowData): AppTableAction[] {
   color: var(--td-error-color);
   font-size: var(--td-font-size-body-small);
 }
-.vicp-form-hint {
+.vicp-form-wide {
+  grid-column: 1 / -1;
+}
+.vicp-form-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--td-size-3);
+  padding: var(--td-size-4);
+  border: 1px solid var(--td-component-stroke);
+  border-radius: var(--td-radius-medium);
+  background: var(--td-bg-color-container);
+}
+.vicp-form-section__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--td-size-2) var(--td-size-3);
+}
+.vicp-form-section__title {
+  color: var(--td-text-color-primary);
+  font-weight: var(--td-font-weight-medium);
+}
+.vicp-form-section__hint {
+  flex: 1 1 240px;
+  color: var(--td-text-color-secondary);
+  font-size: var(--td-font-size-body-small);
+}
+.vicp-form-empty {
   margin: 0;
   color: var(--td-text-color-secondary);
   font-size: var(--td-font-size-body-small);
 }
-.vicp-form-wide {
-  grid-column: 1 / -1;
+.vicp-form-rows + .vicp-form-rows {
+  padding-top: var(--td-size-3);
+  border-top: 1px dashed var(--td-component-stroke);
+}
+.vicp-form-row {
+  display: grid;
+  align-items: start;
+  gap: var(--td-size-3);
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.6fr) minmax(0, 0.9fr) auto;
+}
+.vicp-form-row--advanced {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.vicp-form-row--rules {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) minmax(0, 0.7fr) auto;
+}
+.vicp-form-row__remove {
+  align-self: center;
+}
+@media (max-width: 720px) {
+  .vicp-form-row,
+  .vicp-form-row--advanced,
+  .vicp-form-row--rules {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .vicp-form-row__remove {
+    justify-self: start;
+  }
 }
 </style>

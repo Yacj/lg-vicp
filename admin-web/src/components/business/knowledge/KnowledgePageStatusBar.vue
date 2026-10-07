@@ -2,25 +2,9 @@
 import { computed } from 'vue'
 import AppStatusTag from '@/components/ui/AppStatusTag.vue'
 import type { KnowledgeWorkspace } from '@/types/knowledge'
-import {
-  knowledgePageRenderingMeta,
-  knowledgeTextParsingMeta,
-  knowledgeUserMessage,
-  isKnowledgePageRenderingInProgress,
-} from '@/utils/knowledge-user'
+import { knowledgeTextParsingMeta } from '@/utils/knowledge-user'
 
-const props = withDefaults(defineProps<{
-  workspace: KnowledgeWorkspace | null
-  canRetryPageRender?: boolean
-  retrying?: boolean
-}>(), {
-  canRetryPageRender: false,
-  retrying: false,
-})
-
-const emit = defineEmits<{
-  retryPageRender: []
-}>()
+const props = defineProps<{ workspace: KnowledgeWorkspace | null }>()
 
 const textMeta = computed(() => {
   const parsing = props.workspace?.parsing
@@ -38,24 +22,10 @@ const textMeta = computed(() => {
   return knowledgeTextParsingMeta(null)
 })
 
-const pageMeta = computed(() => knowledgePageRenderingMeta(
-  props.workspace?.parsing.pageRendering,
-  props.workspace?.parsing.pageRenderingComplete,
-))
-
 const pageCount = computed(() => props.workspace?.summary.pageCount ?? 0)
-const rendering = computed(() => isKnowledgePageRenderingInProgress(props.workspace))
-const pageError = computed(() => {
-  const error = props.workspace?.parsing.pageRenderingError
-  if (!error) {
-    return null
-  }
-  return knowledgeUserMessage(error.message)
-})
-const showRetry = computed(() => Boolean(props.canRetryPageRender)
-  && (props.workspace?.parsing.pageRendering === 'FAILED'
-    || props.workspace?.parsing.pageRenderingComplete === false
-    || (pageCount.value === 0 && !rendering.value)))
+const pageStatus = computed(() => pageCount.value > 0
+  ? { label: `已上传 ${pageCount.value} 页`, status: 'success' as const }
+  : { label: '等待页面图片', status: 'warning' as const })
 </script>
 
 <template>
@@ -67,30 +37,12 @@ const showRetry = computed(() => Boolean(props.canRetryPageRender)
       </div>
       <div class="knowledge-page-status__item">
         <span class="knowledge-page-status__label">页面生成</span>
-        <AppStatusTag :label="pageMeta.label" :status="pageMeta.status" />
+        <AppStatusTag :label="pageStatus.label" :status="pageStatus.status" />
       </div>
       <div class="knowledge-page-status__item">
         <span class="knowledge-page-status__label">共 {{ pageCount }} 页</span>
       </div>
-      <div class="knowledge-page-status__actions">
-        <t-button
-          v-if="showRetry"
-          size="small"
-          theme="primary"
-          variant="outline"
-          :loading="retrying"
-          @click="emit('retryPageRender')"
-        >
-          重新生成页面
-        </t-button>
-      </div>
     </div>
-    <p v-if="rendering" class="knowledge-page-status__hint is-processing">
-      正在生成页面...
-    </p>
-    <p v-else-if="pageError" class="knowledge-page-status__hint is-error">
-      {{ pageError }}
-    </p>
   </section>
 </template>
 

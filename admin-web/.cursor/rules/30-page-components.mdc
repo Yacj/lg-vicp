@@ -6,7 +6,7 @@ alwaysApply: true
 
 # 页面与组件规则
 
-- 修改布局、登录、工作台和 UI 组件前，必须完整阅读 `skills/vicp-admin-ui/SKILL.md`。
+- 修改布局、登录、工作台和 UI 组件前，必须完整阅读 `.skills/vicp-admin-ui/SKILL.md`。
 - 页面遵循标题、操作、筛选、数据内容、分页或状态区的稳定结构，不得各自重造一套页面范式。
 - 通用组合放 `components/ui`，业务组合放 `components/business`，流程状态放 `composables`。
 - 仅在多处复用或存在统一复杂行为时二次封装，避免无职责的薄包装。

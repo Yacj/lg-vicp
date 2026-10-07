@@ -24,6 +24,8 @@ import type {
   KnowledgeDocumentVersion,
   KnowledgeExtractedTextResult,
   KnowledgePage,
+  KnowledgePageRecognition,
+  PageRecognitionResult,
   KnowledgePageMappingsResult,
   KnowledgePageWindow,
   KnowledgeTocItem,
@@ -48,8 +50,11 @@ import type {
   KnowledgeVersionInput,
   KnowledgeVersionSection,
   KnowledgeVersionTestQaRequest,
+  KnowledgeVersionTestInspectRequest,
+  KnowledgeVersionTestInspectResult,
   KnowledgeWorkspace,
   MutationMessageResponse,
+  PageRecognitionConfirmResult,
   PublicLibraryDocumentDetail,
   PublicLibraryDocumentItem,
   PublicLibraryDocumentQuery,
@@ -389,6 +394,44 @@ export function fetchVersionPages(
   })
 }
 
+export interface KnowledgeBatchPageUploadItem {
+  fileId: string
+  physicalPageNumber?: number
+  pageLabel?: string | null
+  pageTitle?: string | null
+}
+
+export function batchUploadVersionPages(
+  versionId: string,
+  items: KnowledgeBatchPageUploadItem[],
+  enqueueRecognition = false,
+): Promise<{ pageCount: number, items: Array<{ pageId: string, physicalPageNumber: number, pageLabel: string | null, created: boolean, warnings: string[] }> }> {
+  return api.post(`${KNOWLEDGE_PREFIX}/versions/${encodeURIComponent(versionId)}/pages/batch-upload`, { items, enqueueRecognition })
+}
+
+export function recognizeKnowledgePage(pageId: string, reRecognize = false): Promise<{ jobId?: string, message?: string }> {
+  const action = reRecognize ? 're-recognize' : 'recognize'
+  return api.post(`${KNOWLEDGE_PREFIX}/pages/${encodeURIComponent(pageId)}/${action}`)
+}
+
+export function fetchKnowledgePageRecognition(pageId: string, signal?: AbortSignal): Promise<KnowledgePageRecognition> {
+  return api.get(`${KNOWLEDGE_PREFIX}/pages/${encodeURIComponent(pageId)}/recognition`, { signal })
+}
+
+export function saveKnowledgePageRecognitionDraft(
+  pageId: string,
+  input: { structuredData: PageRecognitionResult, pageLabel?: string | null, pageTitle?: string | null, parsedText?: string | null },
+): Promise<{ page: KnowledgePage, recognition: KnowledgePageRecognition }> {
+  return api.put(`${KNOWLEDGE_PREFIX}/pages/${encodeURIComponent(pageId)}/recognition-draft`, input)
+}
+
+export function confirmKnowledgePageRecognition(
+  pageId: string,
+  input: { thermalSetId?: string | null, structuredData: PageRecognitionResult },
+): Promise<PageRecognitionConfirmResult> {
+  return api.post(`${KNOWLEDGE_PREFIX}/pages/${encodeURIComponent(pageId)}/confirm-recognition`, input)
+}
+
 export function fetchVersionChunks(
   versionId: string,
   page: number,
@@ -550,6 +593,22 @@ export async function postKnowledgeVersionTestQa(
     `${KNOWLEDGE_PREFIX}/versions/${encodeURIComponent(versionId)}/test-qa`,
     body,
     options,
+  )
+}
+
+/**
+ * 当前版本检索调试（非流式）：返回命中 chunks / 页图 / 热工行命中。
+ * 该接口 answer 恒为 null，用于高级调试，不参与 AI 问答展示。
+ */
+export function inspectKnowledgeVersionTest(
+  versionId: string,
+  body: KnowledgeVersionTestInspectRequest,
+  signal?: AbortSignal,
+): Promise<KnowledgeVersionTestInspectResult> {
+  return api.post(
+    `${KNOWLEDGE_PREFIX}/versions/${encodeURIComponent(versionId)}/test-inspect`,
+    body,
+    { signal },
   )
 }
 

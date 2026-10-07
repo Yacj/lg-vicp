@@ -9,6 +9,8 @@
 export {}
 declare global {
   const EffectScope: typeof import('vue').EffectScope
+  const KNOWLEDGE_THERMAL_SET_LOCKED_HINT: typeof import('../composables/useKnowledgeVersionEditable').KNOWLEDGE_THERMAL_SET_LOCKED_HINT
+  const KNOWLEDGE_VERSION_LOCKED_HINT: typeof import('../composables/useKnowledgeVersionEditable').KNOWLEDGE_VERSION_LOCKED_HINT
   const acceptHMRUpdate: typeof import('pinia').acceptHMRUpdate
   const asyncComputed: typeof import('@vueuse/core').asyncComputed
   const autoResetRef: typeof import('@vueuse/core').autoResetRef
@@ -234,6 +236,7 @@ declare global {
   const useInterval: typeof import('@vueuse/core').useInterval
   const useIntervalFn: typeof import('@vueuse/core').useIntervalFn
   const useKeyModifier: typeof import('@vueuse/core').useKeyModifier
+  const useKnowledgeVersionEditable: typeof import('../composables/useKnowledgeVersionEditable').useKnowledgeVersionEditable
   const useLastChanged: typeof import('@vueuse/core').useLastChanged
   const useLink: typeof import('vue-router').useLink
   const useLocalStorage: typeof import('@vueuse/core').useLocalStorage
@@ -436,6 +439,9 @@ declare global {
   // @ts-ignore
   export type { DictionarySearchQuery, DictionaryForm } from '../composables/useDictionaryManagement'
   import('../composables/useDictionaryManagement')
+  // @ts-ignore
+  export type { KnowledgeVersionEditableInput, KnowledgeVersionEditableState } from '../composables/useKnowledgeVersionEditable'
+  import('../composables/useKnowledgeVersionEditable')
   // @ts-ignore
   export type { MenuSearchQuery, MenuTableRow } from '../composables/useMenuManagement'
   import('../composables/useMenuManagement')

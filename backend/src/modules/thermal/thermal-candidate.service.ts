@@ -23,6 +23,14 @@ import {
   type CandidateRow,
   matchThermalCandidates
 } from "./thermal-candidate-matcher.js";
+import {
+  normalizeThermalLookupQuery,
+  TOLERANCE_ADJUSTED_NOTE,
+  type ThermalLookupFilter,
+  type ThermalLookupQuery,
+  type ThermalLookupMetric,
+  type ThermalLookupMode
+} from "./thermal-lookup-mode.js";
 import type { AuthUser } from "../../shared/auth-user.js";
 
 /**
@@ -85,11 +93,15 @@ const toLimitSnapshot = (limit: LimitSnapshot | null) =>
       }
     : null;
 
-interface CandidateQueryInput {
+interface CandidateQueryInput extends ThermalLookupQuery {
   regionCode?: string;
   standardLimitId?: string;
   buildingType?: string;
   systemId?: string;
+  schemeId?: string;
+  schemeCode?: string;
+  productSpecId?: string;
+  catalogProductId?: string;
   substrateMaterial?: string;
   substrateThickness?: number;
   specClass?: "I" | "II" | "III";
@@ -97,6 +109,10 @@ interface CandidateQueryInput {
   thicknessMin?: number;
   thicknessMax?: number;
   targetK?: number;
+  /** K 查询语义：APPROX（近似）/ MAX_LIMIT（上限）/ MIN_LIMIT（下限）/ EXACT（精确）；缺省 MAX_LIMIT */
+  kMode?: ThermalLookupMode;
+  /** K 容差（APPROX/EXACT 有效）；缺省由 thermal-lookup-mode 集中默认值解析 */
+  kTolerance?: number;
   targetResistance?: number;
   neighborTolerance: number;
   projectId?: string;
@@ -104,7 +120,18 @@ interface CandidateQueryInput {
 }
 
 export interface CandidateQueryOutcome {
+  filters: ThermalLookupFilter[];
+  requestedTolerance?: number;
+  effectiveTolerance?: number;
+  toleranceAdjusted?: boolean;
+  metric?: ThermalLookupMetric;
+  targetValue?: number | null;
+  tolerance?: number | null;
   calculationSource: "REFERENCE_TABLE";
+  /** 实际生效的 K 查询语义（缺省 MAX_LIMIT） */
+  lookupMode: ThermalLookupMode;
+  /** 实际生效的 K 容差（APPROX/EXACT）；其余模式为 null */
+  kTolerance: number | null;
   candidates: Array<CandidateResult & { compliant: boolean | null }>;
   missingConditions: string[];
   notes: string[];
@@ -144,6 +171,7 @@ function toCandidateRow(row: Record<string, unknown>): CandidateRow {
     sourceDocumentId: row.sourceDocumentId == null ? null : String(row.sourceDocumentId),
     sourcePageId: row.sourcePageId == null ? null : String(row.sourcePageId),
     sourcePageLabel: row.sourcePageLabel == null ? null : String(row.sourcePageLabel)
+    ,catalogProductId: row.catalogProductId == null ? null : String(row.catalogProductId)
   };
 }
 
@@ -153,11 +181,14 @@ function toCandidateRow(row: Record<string, unknown>): CandidateRow {
  */
 export async function queryThermalCandidates(
   app: FastifyInstance,
-  _request: FastifyRequest,
+  request: FastifyRequest,
   _actor: AuthUser,
   input: CandidateQueryInput
 ): Promise<CandidateQueryOutcome> {
   const notes: string[] = [];
+
+  // 0) K 查询语义：显式 kMode 优先，缺省沿用历史「K ≤ 目标」口径（MAX_LIMIT）。
+  //    容差只在 APPROX/EXACT 生效，且集中由 thermal-lookup-mode 解析，禁止各 Service 各写一份。
 
   // 1) 标准限值解析（合格判定维度；不参与行过滤）
   //    单标准 → limit 生效（targetK 缺省取 limitKValue）；多标准并存 → limitCandidates 返回全部，
@@ -178,8 +209,20 @@ export async function queryThermalCandidates(
     }
   }
 
-  // 2) targetK 缺省取限值（显式 targetK 优先）
+  // R 指标查询不隐式附加 K 限值；限值仍单独用于合规标注。
+  const lookup = normalizeThermalLookupQuery({ ...input,
+    targetK: input.targetK ?? (!input.filters?.length && !input.metric && input.targetResistance === undefined ? limit?.limitKValue : undefined)
+  });
+  const lookupMode = lookup.mode;
+  const kTolerance = lookup.metric === "K" ? lookup.tolerance ?? null : null;
+  const lookupFields = { ...lookup, targetValue: lookup.targetValue ?? null, tolerance: lookup.tolerance ?? null };
+  if (lookup.filters.some((filter) => filter.toleranceAdjusted)) notes.push(TOLERANCE_ADJUSTED_NOTE);
   const conditions: CandidateQueryConditions = {
+    filters: input.filters?.length ? lookup.filters : undefined,
+    metric: input.metric,
+    targetValue: input.metric ? lookup.targetValue : undefined,
+    mode: lookupMode,
+    tolerance: lookup.tolerance,
     substrateMaterial: input.substrateMaterial,
     substrateThickness: input.substrateThickness,
     systemId: input.systemId,
@@ -187,7 +230,9 @@ export async function queryThermalCandidates(
     thicknessMm: input.thicknessMm,
     thicknessMin: input.thicknessMin,
     thicknessMax: input.thicknessMax,
-    targetK: input.targetK ?? limit?.limitKValue,
+    targetK: input.targetK ?? (!input.metric && input.targetResistance === undefined ? limit?.limitKValue : undefined),
+    kMode: lookupMode,
+    kTolerance: kTolerance ?? undefined,
     targetResistance: input.targetResistance,
     buildingType: input.buildingType
   };
@@ -196,7 +241,10 @@ export async function queryThermalCandidates(
   const sets = await listPublishedThermalSets(app.db);
   if (sets.length === 0) {
     return {
+      ...lookupFields,
       calculationSource: "REFERENCE_TABLE",
+      lookupMode,
+      kTolerance,
       candidates: [],
       missingConditions: [],
       notes: [...notes, "没有已发布且生效中的图集参考集，无法查表（请先在后台导入并审核发布）"],
@@ -219,6 +267,7 @@ export async function queryThermalCandidates(
       sourceDocumentId: thermalReferenceRows.sourceDocumentId,
       sourcePageId: thermalReferenceRows.sourcePageId,
       sourcePageLabel: thermalReferenceRows.sourcePageLabel,
+      catalogProductId: thermalReferenceRows.catalogProductId,
       schemeId: constructionSchemes.id,
       schemeCode: constructionSchemes.schemeCode,
       schemeVersion: constructionSchemes.version,
@@ -243,10 +292,21 @@ export async function queryThermalCandidates(
     .innerJoin(insulationSystems, eq(constructionSchemes.systemId, insulationSystems.id))
     .innerJoin(productSpecs, eq(thermalReferenceRows.productSpecId, productSpecs.id))
     .innerJoin(thermalReferenceSets, eq(thermalReferenceRows.setId, thermalReferenceSets.id))
-    .where(inArray(thermalReferenceRows.setId, setIds));
+    .where(and(
+      inArray(thermalReferenceRows.setId, setIds),
+      ...publishedReferenceConditions(constructionSchemes),
+      ...publishedReferenceConditions(insulationSystems),
+      ...publishedReferenceConditions(productSpecs)
+    ));
 
   // 5) 纯函数匹配（含相邻规格与排序）
-  const outcome = matchThermalCandidates(rows.map(toCandidateRow), conditions, {
+  // 正式标识条件先收窄全量行，不能被 EXACT 厚度绕过。
+  const scopedRows = rows.filter((row) =>
+    (!input.schemeId || row.schemeId === input.schemeId)
+    && (!input.schemeCode || row.schemeCode === input.schemeCode)
+    && (!input.productSpecId || row.productSpecId === input.productSpecId)
+    && (!input.catalogProductId || row.catalogProductId === input.catalogProductId));
+  const outcome = matchThermalCandidates(scopedRows.map(toCandidateRow), conditions, {
     neighborTolerance: input.neighborTolerance
   });
 
@@ -258,9 +318,11 @@ export async function queryThermalCandidates(
   const hasThicknessCondition = input.thicknessMm !== undefined || input.thicknessMin !== undefined || input.thicknessMax !== undefined;
   if (candidates.length === 0) {
     if (hasThicknessCondition && input.thicknessMm !== undefined && input.neighborTolerance > 0) {
-      notes.push(`没有该厚度档的已发布图集行，相邻容差 ${input.neighborTolerance} 档内也没有满足其余条件的规格`);
+      notes.push(`没有同时满足厚度与其余条件的已发布图集行，相邻容差 ${input.neighborTolerance} 档内也没有满足其余条件的规格`);
     } else if (hasThicknessCondition) {
       notes.push("没有满足条件的已发布图集行；如需相邻规格请调整 neighborTolerance");
+    } else if (lookup.targetValue !== undefined && lookupMode === "APPROX") {
+      notes.push(`没有落在 ${lookup.targetValue} ± ${lookup.tolerance} 容差窗口内的已发布图集行（近似查询）`);
     } else {
       notes.push("没有满足条件的已发布图集行");
     }
@@ -268,14 +330,30 @@ export async function queryThermalCandidates(
     notes.push("包含相邻已发布规格（matchType=NEIGHBOR），请确认厚度档后自行选择");
   }
 
-  // 7) 多标准并存且未显式给 targetK：K 条件标缺失（不隐式选最严格，与 matcher 语义一致）
+  // 7) 已有正式热工条件（包括双 R）无需再补 K；未提供条件仍兼容旧标准选择流程。
   const missingConditions = [...outcome.globalMissingConditions];
-  if (limitCandidates && input.targetK === undefined && !missingConditions.includes("targetK")) {
+  if (limitCandidates && lookup.filters.length === 0 && !missingConditions.includes("targetK")) {
     missingConditions.push("targetK");
   }
 
+  // 8) 结构化查询日志：只记录确定性统计与语义，不记录 prompt / 签名地址 / 敏感数据。
+  request.log?.info?.({
+    taskType: "REFERENCE_LOOKUP",
+    metric: lookup.metric ?? null,
+    mode: lookupMode,
+    targetValue: lookup.targetValue ?? null,
+    tolerance: lookup.tolerance ?? null,
+    filters: lookup.filters,
+    candidateCountBeforeFilter: rows.length,
+    candidateCountAfterFilter: candidates.length,
+    selectedCandidateIds: candidates.slice(0, 12).map((candidate) => candidate.candidateId)
+  }, "热工参考查询");
+
   return {
     calculationSource: "REFERENCE_TABLE",
+    ...lookupFields,
+    lookupMode,
+    kTolerance,
     candidates,
     missingConditions,
     notes,

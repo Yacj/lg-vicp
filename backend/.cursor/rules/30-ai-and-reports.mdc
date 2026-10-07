@@ -4,6 +4,14 @@ globs: src/modules/ai*/**/*.ts,src/modules/knowledge/**/*.ts,src/modules/reports
 alwaysApply: false
 ---
 
+- 最终交互与UAT（2026-10-07）：方案查询动作不能被「限值/这个墙体」抢入计算；明确重新算走热工，合规仍走标准链。活跃厚度无metric词的省略追问更新厚度；取消厚度清三字段和preferThinner。Parser/Matcher主结构冻结，后续先新增真实失败Case再修复。`pnpm uat:ai`40场景123轮真实HTTP/SSE，独立临时库/用户/Redis队列/对象，禁止写生产会话或修改正式发布数据；工程数值/来源全部程序断言，AI Judge仅体验，环境失败为BLOCKED。详见`docs/ai/business-uat.md`。
+
+- 日常表达与局部条件收口（2026-10-07）：指标定位、数字抽取、比较语义分开；在/控制在/要求/达到/做到/目标等连接词不决定模式。多轮 filters 按 metric 增改删，未提及条件保留，同 metric 默认替换（含 mode），仅明确再加范围条件可追加同指标边界；取消条件不得由旧摘要或模型重复参数复活。厚度精确档 thicknessMm、单边/双边 thicknessMin/thicknessMax 独立解析与持久化，签名覆盖三字段；放宽单边厚度继承原边界含义，取消厚度清除三字段。尽量薄只在满足硬条件后按厚度升序展示，不编造范围。所有条件变化重查正式已发布数据，纯参数/原页指代可复用。无数据库结构变化，Thermal Engine 与 Knowledge 流程不变。
+
+- 热工规范比较词完整短语优先：不应/不得大于或超过→MAX_LIMIT，不应/不得小于或低于→MIN_LIMIT；以上/以下→下限/上限。普通大于/小于和 >/< 按包含边界的工程筛选口径。所有入口归一为 filters[]，多指标 AND，未知指标条件或 OR 澄清而非丢弃。productSpec 切换清继承 catalogProduct/型号；specClass 切换清规格/目录；catalogProduct 切换清规格；scheme 切换清继承规格/目录并重查正式关系。双 R 查询不要求 targetK。每项容差保存 requestedTolerance/effectiveTolerance/toleranceAdjusted，调整需中文 note，模型自由容差仍无效。
+
+- 热工查表指标统一 `metric=K|TOTAL_R|PRODUCT_R` + `targetValue` + `mode`。旧 `targetK/kMode/kTolerance/targetResistance` 兼容，Tool 旧 `targetR` 兼容；Tool 的 `mode` 仍用于正式计算，查表模式使用 `lookupMode`。容差单一来源 `thermal-lookup-mode.ts`：K 默认 0.02/上限 0.05、双 R 默认 0.05/上限 0.2、EXACT 固定 0.0005；AI 只从用户明确 ±/上下表达授权，忽略模型容差及旧历史未经确认的容差。跨轮只有已确认 USER 容差可继承。切体系清旧方案/依赖规格/产品；切型号/产品清规格；切方案清继承规格后正式重查。条件变化重查完整 PUBLISHED 有效数据；仅纯参数/原页指代可复用。跨体系回退必须先说指定体系未命中，近似与上下限筛选不得宣称规范合规。Thermal Engine 与公式不变。
+
 - 模型按场景读取数据库配置，禁止写死 DeepSeek、Base URL、模型 ID 或 API Key。正式 Runtime 只选择 `enabled=true` 且 `lastTestStatus=PASSED` 的模型；图片请求额外要求 `supportsVision=true`。不要按 B 端勾选的 `supportsTools` / `supportsAgent` 选模。C 端正式对话默认 `general_chat`，不要求用户选择 scene / prompt / Agent 类型；任务状态是 Backend Runtime（GENERAL / PRODUCT_CONSULTATION / COMPARISON / REPORT_*），判定优先级为 UI 动作 → ConversationTaskState → 项目/会话上下文 → intent。`resolveAiCapabilities` 只做预路由、寒暄优化与安全限制，不能代替 Agent Loop，也不能用 regex 作为某 Tool 能否被模型看到的唯一依据。领域 Tools：`search_knowledge` / `get_project_state` / `get_product_data` / `thermal`（LOOKUP_CANDIDATES / CALCULATE） / `compare_products` / `compare_solutions` / `generate_report`。寒暄走普通 `streamText`；产品对比不强制热工、不固定评分；查已有图集/参考方案走 REFERENCE_LOOKUP（先查已发布选用表，未命中再检索知识库图集原文），不得仅因「传热系数 / K值」进入 THERMAL；人机选择统一 `USER_SELECTION`（兼容旧 CHOICE / COMPARISON_SELECTION）。图集来源可多选，仅 1 个候选时自动使用；`insulationSystemId` 不是图集来源。报告类型优先 Backend 推断，无法判断时结构化选择。用户确认后写 Report Context Snapshot，再走统一报告队列；`report_completed` 不得在 DRAFT 时发送。
 - Agent 主模型必须已通过真实工具调用准入测试。temperature / topP / maxTokens / 回答风格不属于模型配置；回答风格归 Global Response Policy，业务 Prompt 只写场景关注点，运行时参数归 `getAiTaskRuntimePolicy`。推理强度只使用 `LOW` / `HIGH` / `MAX`，禁止静默降级，禁止把 `reasoning_content` 展示给用户。热工数值必须调用现有确定性引擎。
 - 基础 System Instruction 由 Backend 自动附加：平台硬规则 + Execution Policy + Global Response Policy + Answer Contract + 不可覆盖回答约束。用户和管理员日常流程不选择系统指令。业务 Prompt 不能覆盖权限、思考链暴露或伪造来源。
@@ -11,7 +19,7 @@ alwaysApply: false
 - 快捷提问使用独立表 `ai_quick_prompts`，不要复用 `prompts` / `prompt_versions`。点击后把 `content` 当作用户消息走现有 SSE。`content` 必须是自然问题；seed 只覆盖仍带系统味的旧文案。
 - 场景/提示词菜单对普通业务管理员隐藏，接口保留给技术管理员。
 - 知识库为「原文档导航 + 原始页面 + AI 检索索引」模型：ORIGINAL 展示原文件 / SEARCH_SOURCE 检索文本源（双源资产）；TOC=原文件目录（可信 PDF 书签或目录页解析，CAD 导航树拒绝，人工确认制，≠Section）；Page=物理页+印刷页码标签（pageLabel 非整数禁止 Number()，禁止物理页号冒充印刷页码）；转曲件 NO_TEXT_LAYER 走检索源映射（禁止物理页硬对齐与线性插值）；parsedText 一律称「机器提取文本」，原文=ORIGINAL 页面/预览图。
-- 重建只能删除 Section、Block、Chunk 等派生索引，必须保留 Page ID、页面预览、人工页签/标题、CONFIRMED TOC 和 MANUAL/verified 映射；双源重建读取 SEARCH_SOURCE，未映射检索页不得入 AI 索引或伪造 ORIGINAL 定位。生产 AI 仅检索当前、PUBLISHED、未过期、AI_ENABLED 的版本，BROWSE_ONLY 仅供浏览。B 端草稿验证走 `POST /platform/knowledge/versions/:versionId/test-qa`，从检索入口限定 versionId，不得全库检索后再过滤，也不得把该范围并入生产 `/ai/knowledge-qa`。
+- 重建只能删除 Section、Block、Chunk 等派生索引，必须保留 Page ID、页面预览、人工页签/标题、CONFIRMED TOC 和 MANUAL/verified 映射；双源重建读取 SEARCH_SOURCE，未映射检索页不得入 AI 索引或伪造 ORIGINAL 定位。Knowledge Version 内容仅 DRAFT 可写，PENDING_REVIEW/APPROVED/PUBLISHED/DISABLED 均只读；CHUNK_REBUILD 也仅允许 DRAFT。生产 AI 仅检索当前、PUBLISHED、未过期、AI_ENABLED 的版本；同版本存在 page-aware chunks 时排除 `source=DOCUMENT_TEXT` 且 `visualPage=false` 的 Mammoth 回退块。BROWSE_ONLY 仅供浏览。B 端草稿验证走 `POST /platform/knowledge/versions/:versionId/test-qa`，从检索入口限定 versionId，不得全库检索后再过滤，也不得把该范围并入生产 `/ai/knowledge-qa`；仅草稿测试允许 DOCUMENT_TEXT fallback 并将 `traceable=false` 返回给调试界面。
 - AI 检索走 `searchWikiHierarchy`（章节/页面/内容块优先，Chunk 辅助），禁止默认全库 TopN chunk 拼接。正式聊天无项目时只检索平台已发布文档，有项目时平台 + 当前项目；不得检索草稿或其他项目私有资料。
 - AI 来源契约统一走 `ai-source.mapper.ts`（AiSourceRef），正常生成与 regenerate 同构；C 端主要使用 `title` / `tocPath` / `sectionTitle` / `pageLabel` / `quote`；查看原文用 `originalFileId` + `physicalPageNumber`。无证据返回空数组，不伪造来源；来源详情走 `/api/v1/ai/knowledge/source-detail`。
 - 专业 AI 会话必须选择保温体系（会话级 `insulationSystemId`，非 general_chat 强制），体系影响 Prompt、检索加权与候选查询。
@@ -39,3 +47,6 @@ alwaysApply: false
 - B 端接口必须执行精确权限码校验，禁止使用任意 `system:*` 作为兜底；禁用角色不再授予权限。AI 业务接口不依赖后台 RBAC，但必须执行客户端、项目、会话和文件归属校验。
 - 用户端会话详情与后台运营详情分离：用户端仅看自己的消息、处理阶段、检索摘要、反馈、报告和分享；后台端可在有权限时查看工具调用、任务、分享访问和审计日志。两端都只展示中文处理阶段，不展示模型原始思考链。
 - 参考方案查表走 REFERENCE_LOOKUP，命中且页面有图时发 SSE `reference_pages`；没有页图只返回参数，不伪造页面。正式计算仍走 THERMAL。报告快照 `referencePagesJson` 保存页图 objectKey。正式 DOCX 页图默认离线上传 PNG/ZIP + 视觉识别确认；LibreOffice（`DOCX_RENDER_ENABLED` 默认 false）仅 fallback。
+- 只有 DRAFT knowledge version 可修改页面、识别、TOC、资产、解析或分块；审核中和已审核版本须创建新草稿。热工参考行只允许写入 DRAFT 集，集发布前来源页必须属于当前有效的 PUBLISHED Knowledge Version；ReferencePage 输出前再次校验且不得签名草稿/失效页。识别任务按 pageId 使用稳定 jobId + recognitionRunId 单飞，旧 run 不得覆盖新结果；Confirm 锁页且仅 REVIEW_REQUIRED 可执行。方案/规格映射为 0=NOT_FOUND、1=自动绑定、多候选=AMBIGUOUS，显式 ID 仍须校验发布状态、厚度、规格类别和方案归属。识别草稿将结构化候选与 pageLabel/pageTitle/parsedText 同步，确认只消费 draftStructuredData，并事务化重建当前页 chunks、同步当前 pageId rows、固化 confirmed snapshot 与页面字段。AI_ENABLED 离线页图版本发布前每页必须有原页图且识别为 CONFIRMED。batch/ZIP 导入全量 preflight，DB 事务失败清理本次新增对象，成功提交后才删除旧对象；ZIP 解压前做数量、单图、总解压量、manifest、路径和签名校验。
+
+2026-10-07 收口：参考候选 exact/neighbor 仍需满足其余硬条件；用户明确 K 语义优先于 Tool 参数，再继承历史，首次默认 APPROX。候选状态共用 Zod schema，完整保留双 R 与来源原页；查询条件变化重查完整已发布数据，纯参数/原页指代才可复用历史。跨体系 fallback 首句说明未命中，历史也保留标记；未命中查询条件仍须持久化。STRICT 与空 BROWSE_ONLY 发布判断统一进入 readiness。迁移验证先检查 SQL/journal/snapshot，使用隔离库，不对生产试跑。

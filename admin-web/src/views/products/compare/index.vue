@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
-import AppPage from '@/components/ui/AppPage.vue'
-import { compareCatalogProducts, fetchCatalogProducts } from '@/api/modules/catalog-products'
-import { normalizeFeedbackError, useAppFeedback } from '@/composables/useAppFeedback'
 import type { CatalogProduct, CatalogProductCompareResult } from '@/types/catalog-product'
+import { computed, onMounted, ref, watch } from 'vue'
+import { compareCatalogProducts, fetchCatalogProducts } from '@/api/modules/catalog-products'
+import AppPage from '@/components/ui/AppPage.vue'
+import { normalizeFeedbackError, useAppFeedback } from '@/composables/useAppFeedback'
 import {
   buildCompareProductIds,
   PRODUCT_COMPARE_AI_DISCLAIMER,
@@ -49,6 +49,19 @@ const tableData = computed(() => {
     return []
   }
   return projected.value.dimensions.map((dimension) => {
+    const row: Record<string, string> = { dimension: dimension.label }
+    dimension.cells.forEach((cell, index) => {
+      row[`p${index}`] = cell.display
+    })
+    return row
+  })
+})
+
+const thermalTableData = computed(() => {
+  if (!projected.value) {
+    return []
+  }
+  return projected.value.thermal.dimensions.map((dimension) => {
     const row: Record<string, string> = { dimension: dimension.label }
     dimension.cells.forEach((cell, index) => {
       row[`p${index}`] = cell.display
@@ -105,7 +118,7 @@ onMounted(() => {
 
 <template>
   <AppPage
-    description="管理员查看、验证系统当前可以形成的结构化对比信息，以及 C 端最终会得到什么结果。本页不是用户选型页，也不提供固定评分或权重。"
+    description="管理员查看、验证系统当前可以形成的结构化对比信息，以及用户端最终会得到什么结果。本页不是用户选型页，也不提供固定评分或权重。"
     title="产品对比"
   >
     <t-card title="选择产品">
@@ -177,8 +190,18 @@ onMounted(() => {
 
       <section class="compare-thermal">
         <h3>热工数据</h3>
-        <template v-if="projected.showThermalResults">
-          <pre class="compare-json">{{ JSON.stringify(projected.thermalResults, null, 2) }}</pre>
+        <template v-if="projected.showThermalResults && projected.thermal.hasData">
+          <t-table
+            :columns="tableColumns"
+            :data="thermalTableData"
+            row-key="dimension"
+            size="small"
+          />
+          <t-collapse class="compare-technical">
+            <t-collapse-panel header="技术数据" value="technical">
+              <pre class="compare-json">{{ JSON.stringify(projected.thermalResults, null, 2) }}</pre>
+            </t-collapse-panel>
+          </t-collapse>
         </template>
         <p v-else class="compare-muted">{{ PRODUCT_COMPARE_THERMAL_UNAVAILABLE }}</p>
       </section>
@@ -214,6 +237,10 @@ onMounted(() => {
 
 .compare-muted {
   color: var(--td-text-color-placeholder);
+}
+
+.compare-technical {
+  margin-top: var(--td-size-3);
 }
 
 .compare-json {

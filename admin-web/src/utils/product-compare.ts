@@ -59,6 +59,12 @@ export interface ProductCompareWorkbenchView {
   thermalStatus: CatalogProductCompareThermalStatus
   thermalResults: unknown[] | null
   showThermalResults: boolean
+  thermal: ProductCompareThermalView
+}
+
+export interface ProductCompareThermalView {
+  dimensions: ProductCompareDimensionView[]
+  hasData: boolean
 }
 
 export function buildCompareProductIds(ownerProductId: string, compareProductIds: readonly string[]): string[] {
@@ -107,7 +113,86 @@ export function projectProductCompareWorkbench(
     thermalStatus,
     thermalResults: showThermalResults ? thermalResults : null,
     showThermalResults,
+    thermal: projectThermalComparison(products, showThermalResults ? thermalResults : []),
   }
+}
+
+interface ThermalFieldSpec {
+  key: string
+  label: string
+  aliases: readonly string[]
+  format?: (value: number) => string
+  text?: boolean
+}
+
+const THERMAL_FIELD_SPECS: readonly ThermalFieldSpec[] = [
+  { aliases: ['thicknessMm', 'thickness'], format: value => `${value} mm`, key: 'thicknessMm', label: '厚度' },
+  { aliases: ['productThermalResistance', 'productResistance'], key: 'productThermalResistance', label: '产品层热阻' },
+  { aliases: ['totalThermalResistance', 'totalResistance', 'rValue'], key: 'totalThermalResistance', label: '总热阻' },
+  { aliases: ['kValue'], key: 'kValue', label: 'K' },
+  { aliases: ['sourcePageLabel', 'pageLabel', 'source'], key: 'source', label: '来源', text: true },
+]
+
+function pickThermalField(item: Record<string, unknown>, spec: ThermalFieldSpec): string | null {
+  for (const alias of spec.aliases) {
+    const value = item[alias]
+    if (value == null || value === '') {
+      continue
+    }
+    if (spec.text) {
+      return typeof value === 'string' ? value : String(value)
+    }
+    const numeric = typeof value === 'number' ? value : Number(value)
+    if (!Number.isFinite(numeric)) {
+      continue
+    }
+    return spec.format ? spec.format(numeric) : String(numeric)
+  }
+  return null
+}
+
+/**
+ * 将对比热工结果投影为业务表格：按产品维度展示厚度 / 产品层热阻 / 总热阻 / K / 来源。
+ * 结果项为后端透传结构，字段缺失时显示「暂无可靠资料」，不做任何评分或推断。
+ */
+export function projectThermalComparison(
+  products: readonly { id: string }[],
+  thermalResults: readonly unknown[],
+): ProductCompareThermalView {
+  const items = thermalResults.map(item => (item && typeof item === 'object' && !Array.isArray(item) ? item as Record<string, unknown> : {}))
+  if (items.length === 0) {
+    return { dimensions: [], hasData: false }
+  }
+  const byProductId = new Map<string, Record<string, unknown>>()
+  items.forEach((item, index) => {
+    const productId = typeof item.productId === 'string' ? item.productId : null
+    if (productId) {
+      byProductId.set(productId, item)
+      return
+    }
+    const product = products[index]
+    if (product) {
+      byProductId.set(product.id, item)
+    }
+  })
+  const dimensions = THERMAL_FIELD_SPECS.map((spec) => {
+    const cells: ProductCompareCellView[] = products.map((product) => {
+      const item = byProductId.get(product.id)
+      const display = item ? pickThermalField(item, spec) : null
+      return {
+        productId: product.id,
+        display: display ?? PRODUCT_COMPARE_MISSING_VALUE,
+        insufficient: display == null,
+      }
+    })
+    return {
+      key: spec.key,
+      label: spec.label,
+      insufficient: cells.every(cell => cell.insufficient),
+      cells,
+    }
+  })
+  return { dimensions, hasData: dimensions.some(dimension => !dimension.insufficient) }
 }
 
 function projectDimensions(
@@ -120,6 +205,8 @@ function projectDimensions(
 
   return raw
     .filter(dimension => !isForbiddenCompareDimensionKey(dimension.key))
+    // 热工维度由后端以 JSON 字符串透传，改由专用热工对比表呈现，主表不再展示原始 JSON。
+    .filter(dimension => dimension.key !== 'thermal')
     .map(dimension => ({
       key: dimension.key,
       label: dimension.label || catalogProductFieldLabel(dimension.key),

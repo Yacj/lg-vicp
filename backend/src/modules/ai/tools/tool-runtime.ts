@@ -83,6 +83,8 @@ export interface ToolRuntimeContext {
   selectedUserSelection?: import("../user-selection.js").UserSelectionResult | null;
   taskState?: ConversationTaskState | null;
   answerContract?: string | null;
+  /** 本轮用户原始提问：用于工具在模型未显式给参数时做确定性兜底（如 K 查询语义） */
+  userMessage?: string | null;
   onWait?: (signal: AgentWaitSignal) => void;
   onEvent?: (event: string, data: unknown) => void;
 }
@@ -106,6 +108,7 @@ export async function persistToolCall(
     success: boolean;
     errorMessage?: string;
     durationMs: number;
+    auditMetadata?: Record<string, unknown>;
   }
 ) {
   await ctx.app.db.insert(aiToolCalls).values({
@@ -114,7 +117,7 @@ export async function persistToolCall(
     agentRunId: ctx.agentRunId,
     toolName: input.toolName,
     inputJson: summarizeToolPayload(input.args),
-    outputJson: summarizeToolPayload(input.output),
+    outputJson: { ...summarizeToolPayload(input.output), ...input.auditMetadata },
     inputHash: hashToolInput(input.toolName, input.args),
     success: input.success,
     errorMessage: input.errorMessage ?? null,
@@ -134,7 +137,7 @@ export async function runRegisteredTool<TInput, TOutput>(
   ctx: ToolRuntimeContext,
   name: AgentToolName,
   input: TInput,
-  options: { toolCallId: string; abortSignal?: AbortSignal; statusMessage?: string },
+  options: { toolCallId: string; abortSignal?: AbortSignal; statusMessage?: string; auditMetadata?: () => Record<string, unknown> },
   execute: () => Promise<TOutput>,
   timeoutMs = DEFAULT_TOOL_TIMEOUT_MS
 ): Promise<TOutput | ToolErrorOutput> {
@@ -172,6 +175,7 @@ export async function runRegisteredTool<TInput, TOutput>(
       args,
       output,
       success: true,
+      auditMetadata: options.auditMetadata?.(),
       durationMs: Date.now() - started
     });
     ctx.onEvent?.("tool_result", { toolName: name, success: true });
@@ -193,6 +197,7 @@ export async function runRegisteredTool<TInput, TOutput>(
       args,
       output: payload,
       success: false,
+      auditMetadata: options.auditMetadata?.(),
       errorMessage: aiError.message,
       durationMs: Date.now() - started
     });

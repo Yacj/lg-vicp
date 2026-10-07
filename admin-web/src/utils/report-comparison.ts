@@ -2,8 +2,10 @@ import type { CatalogProductCompareDimension } from '@/types/catalog-product'
 import {
   formatCompareCellDisplay,
   isForbiddenCompareDimensionKey,
+  projectThermalComparison,
   type ProductCompareDimensionView,
   type ProductCompareSourceView,
+  type ProductCompareThermalView,
 } from '@/utils/product-compare'
 
 export interface ReportComparisonProductView {
@@ -20,6 +22,7 @@ export interface ReportComparisonView {
   thermalStatus: 'AVAILABLE' | 'NOT_AVAILABLE' | 'PENDING'
   thermalResults: unknown[] | null
   showThermalResults: boolean
+  thermal: ProductCompareThermalView
 }
 
 const EXTRACTED_CONTENT_KEYS = new Set([
@@ -78,6 +81,8 @@ export function projectReportComparison(contentJson: Record<string, unknown> | n
   const dimensionProducts = selectedProducts.length > 0 ? selectedProducts : products
   const dimensions = rawDimensions
     .filter(dimension => !isForbiddenCompareDimensionKey(dimension.key))
+    // 热工维度由后端以 JSON 透传，改由专用热工对比表呈现。
+    .filter(dimension => dimension.key !== 'thermal')
     .map(dimension => ({
       key: dimension.key,
       label: dimension.label || dimension.key,
@@ -112,6 +117,7 @@ export function projectReportComparison(contentJson: Record<string, unknown> | n
     thermalStatus,
     thermalResults: showThermalResults ? thermalResults : null,
     showThermalResults,
+    thermal: projectThermalComparison(dimensionProducts, showThermalResults ? thermalResults : []),
   }
 }
 

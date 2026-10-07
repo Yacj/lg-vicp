@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { paginationQuerySchema } from "../../shared/pagination.js";
+import { THERMAL_LOOKUP_METRICS, THERMAL_LOOKUP_MODES } from "./thermal-lookup-mode.js";
+import { thermalLookupFilterSchema, normalizedThermalLookupFilterSchema } from "./thermal-lookup.schemas.js";
 
 /**
  * 候选方案查询与条件匹配 Zod Schema。
@@ -13,6 +15,11 @@ import { paginationQuerySchema } from "../../shared/pagination.js";
 
 /** 候选查询字段（单一事实源）：AI 端组合必填 projectId 时复用，避免对带 refine 的 schema 再 extend */
 export const thermalCandidateQueryFields = {
+  filters: z.array(thermalLookupFilterSchema).min(1).max(12).optional().describe("多个热工指标条件全部同时满足（AND）；提供时优先于单指标及旧字段"),
+  metric: z.enum(THERMAL_LOOKUP_METRICS).optional().describe("K 传热系数 / TOTAL_R 总热阻 / PRODUCT_R 产品层热阻"),
+  targetValue: z.coerce.number().positive().max(100).optional(),
+  mode: z.enum(THERMAL_LOOKUP_MODES).optional().describe("新指标查询默认 APPROX；上下限只是查表筛选，不等同规范合规"),
+  tolerance: z.coerce.number().positive().max(100).optional().describe("后端按指标限制容差；EXACT 固定精度"),
   /** 地区编码：仅用于解析标准限值（合格判定维度），不过滤参考行 */
   regionCode: z.string().trim().min(1).max(40).optional(),
   /** 标准限值 ID：解析 limitKValue（未给 targetK 时作为 K 条件缺省阈值） */
@@ -21,6 +28,10 @@ export const thermalCandidateQueryFields = {
   buildingType: z.string().trim().min(1).max(80).optional(),
   /** 保温系统 ID：方案所属系统精确匹配 */
   systemId: z.uuid("保温系统 ID 格式不正确").optional(),
+  schemeId: z.uuid("构造方案 ID 格式不正确").optional(),
+  schemeCode: z.string().trim().min(1).max(80).optional(),
+  productSpecId: z.uuid("产品规格 ID 格式不正确").optional(),
+  catalogProductId: z.uuid("产品目录 ID 格式不正确").optional(),
   /** 基层材料：忽略空白/大小写的包含匹配（如「200mm钢筋混凝土」可命中「钢筋混凝土」） */
   substrateMaterial: z.string().trim().min(1).max(120).optional(),
   /** 基层厚度 mm：±0.5mm 相等匹配；方案未填厚度时标注缺失不排除 */
@@ -33,10 +44,21 @@ export const thermalCandidateQueryFields = {
   thicknessMin: z.coerce.number().positive().max(1000).optional(),
   /** 厚度区间上限 mm */
   thicknessMax: z.coerce.number().positive().max(1000).optional(),
-  /** 目标 K 值：参考行 kValue <= targetK */
-  targetK: z.coerce.number().positive().max(10).optional(),
+  /** 目标 K 值：含义由 kMode 决定（缺省 MAX_LIMIT：参考行 kValue <= targetK） */
+  targetK: z.coerce.number().positive().max(10).optional().describe("deprecated：请使用 metric=K + targetValue；兼容旧 API 默认上限"),
+  /**
+   * K 查询语义（缺省 MAX_LIMIT，兼容历史「K ≤ 目标」口径）：
+   * - APPROX：「0.3 左右 / 接近 0.3 / 0.3 的方案有么」→ 容差窗口内按 |kValue - targetK| 升序；
+   * - MAX_LIMIT：「K≤0.3 / 不超过 0.3 / 0.3 以内」→ 只保留 kValue <= targetK；
+   * - MIN_LIMIT：「K≥0.3 / 不低于 0.3」→ 只保留 kValue >= targetK；
+   * - EXACT：「K=0.303」→ 按数值精度近似相等。
+   */
+  kMode: z.enum(["APPROX", "MAX_LIMIT", "MIN_LIMIT", "EXACT"]).optional()
+    .describe("APPROX 按 abs(K-target) 容差匹配；MAX_LIMIT 要求 K≤目标；MIN_LIMIT 要求 K≥目标；EXACT 按精度相等。默认 MAX_LIMIT"),
+  /** K 容差（APPROX/EXACT 有效）；缺省使用后台集中配置的固定业务默认值，不由调用方随意放大 */
+  kTolerance: z.coerce.number().positive().max(5).optional(),
   /** 目标总热阻 m²·K/W：参考行 totalThermalResistance >= targetResistance */
-  targetResistance: z.coerce.number().positive().max(100).optional(),
+  targetResistance: z.coerce.number().positive().max(100).optional().describe("deprecated：请使用 metric=TOTAL_R + targetValue；旧字段仍默认下限"),
   /** 相邻已发布规格容差档数（0=禁止相邻匹配） */
   neighborTolerance: z.coerce.number().int().min(0).max(3).default(1),
   /** 项目日期（asOfDate）：标准限值生效窗按该时点判定，缺省当前时间 */
@@ -46,6 +68,10 @@ export const thermalCandidateQueryFields = {
 /** 候选查询约束（精确厚度与区间互斥、区间上下限有序）；B 端与 AI 端共用 */
 export function withCandidateQueryRefines<T extends z.ZodObject<typeof thermalCandidateQueryFields>>(schema: T) {
   return schema
+    .refine((q) => (q.metric === undefined) === (q.targetValue === undefined),
+      { message: "metric 与 targetValue 必须同时提供", path: ["targetValue"] })
+    .refine((q) => q.metric !== "K" || q.targetValue === undefined || q.targetValue <= 10,
+      { message: "目标 K 不能超过 10", path: ["targetValue"] })
     .refine(
       (q) => !(q.thicknessMm !== undefined && (q.thicknessMin !== undefined || q.thicknessMax !== undefined)),
       { message: "thicknessMm 精确档与厚度区间互斥，只能提供一种", path: ["thicknessMm"] }
@@ -72,9 +98,11 @@ export const thermalCandidateDto = z.object({
   missingConditions: z.array(z.string()),
   /** 与解析出的标准限值比较（K 判定）；无限值时 null */
   compliant: z.boolean().nullable(),
-  /** 目标 K 值排序信息（提供 targetK 时返回；kGap = targetK - kValue，isClosestToTarget 标记最接近目标的候选） */
+  /** K 距离：APPROX/EXACT 为 abs(K-target)，MAX_LIMIT 为 target-K，MIN_LIMIT 为 K-target */
   ranking: z.object({
-    kGap: z.number(),
+    metric: z.enum(THERMAL_LOOKUP_METRICS).optional(),
+    metricGap: z.number().optional(),
+    kGap: z.number().describe("APPROX/EXACT 为 abs(K-target)，MAX_LIMIT 为 target-K，MIN_LIMIT 为 K-target"),
     isClosestToTarget: z.boolean()
   }).optional(),
   scheme: z.object({
@@ -94,6 +122,10 @@ export const thermalCandidateDto = z.object({
     totalThermalResistance: z.number(),
     kValue: z.number()
   }),
+  sourceDocumentId: z.string().nullable().optional(),
+  sourcePageId: z.string().nullable().optional(),
+  sourcePageLabel: z.string().nullable().optional(),
+  catalogProductId: z.uuid().nullable().optional(),
   evidence: z.object({ source: z.string(), ref: z.string() })
 });
 
@@ -109,8 +141,19 @@ export const thermalLimitSnapshotDto = z.object({
 });
 
 export const thermalCandidateQueryResponseSchema = z.object({
+  filters: z.array(normalizedThermalLookupFilterSchema).optional(),
+  requestedTolerance: z.number().optional(),
+  effectiveTolerance: z.number().optional(),
+  toleranceAdjusted: z.boolean().optional(),
+  metric: z.enum(THERMAL_LOOKUP_METRICS).optional(),
+  targetValue: z.number().nullable().optional(),
+  tolerance: z.number().nullable().optional(),
   /** 计算来源：第一版仅图集查表（REFERENCE_TABLE），无结果不自动批量计算 */
   calculationSource: z.literal("REFERENCE_TABLE"),
+  /** 实际生效的 K 查询语义（缺省 MAX_LIMIT）；用于前端/日志确认「近似」与「上限」未被混淆 */
+  lookupMode: z.enum(["APPROX", "MAX_LIMIT", "MIN_LIMIT", "EXACT"]).optional(),
+  /** 实际生效的 K 容差（APPROX/EXACT）；其余模式为 null */
+  kTolerance: z.number().nullable().optional(),
   candidates: z.array(thermalCandidateDto),
   /** 查询提供了但全部数据缺失的条件（如所有方案未填基层厚度） */
   missingConditions: z.array(z.string()),

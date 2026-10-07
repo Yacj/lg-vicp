@@ -24,10 +24,17 @@ import {
 import { writeAuditLog } from "../audit-logs/audit-log.service.js";
 import { streamConversationReply } from "../ai/ai-generation.service.js";
 import { toAiSources, toUserTestSources } from "../ai/ai-source.mapper.js";
-import { collectAiReadinessContext, evaluateVersionAiReadiness } from "./knowledge-original.service.js";
+import {
+  collectKnowledgeVersionReadiness,
+  deriveKnowledgeVersionReadiness,
+  summarizePageReadiness
+} from "./knowledge-readiness.js";
 import { searchWikiHierarchy } from "./knowledge.service.js";
+import { getPageImageDownloadName } from "./knowledge-page-image.js";
 import {
   addParsingJobToQueue,
+  bindCenterFileToVersion,
+  insertDocumentWithDraftVersion,
   nextVersionNumber,
   requireActiveFile,
   type KnowledgeDocType,
@@ -99,6 +106,12 @@ function hasSearchSourceRole(roles: string[], parseStatus?: string | null): bool
     && parseStatus !== "OCR_REQUIRED";
 }
 
+/**
+ * 一次创建知识文档与 v1 版本。
+ * - 不传 `originalFileId`：只创建文档 + 空 DRAFT 版本，不建解析任务、不投递队列
+ *   （原始资料附件与完整页面图片后续在知识库详情中独立上传）。
+ * - 传 `originalFileId`：绑定 ORIGINAL 原始资料附件并自动发起解析（历史行为，保持兼容）。
+ */
 export async function createKnowledgeWithFile(
   app: FastifyInstance,
   request: FastifyRequest,
@@ -106,7 +119,8 @@ export async function createKnowledgeWithFile(
   input: {
     title: string;
     docType: KnowledgeDocType;
-    originalFileId: string;
+    /** 原始资料附件（可选）；为空 = 先建知识库，后补资料 */
+    originalFileId?: string | null;
     searchSourceFileId?: string | null;
     categoryId?: string | null;
     docNumber?: string | null;
@@ -117,6 +131,57 @@ export async function createKnowledgeWithFile(
     allowedPurposes?: string[];
   }
 ) {
+  if (!input.originalFileId) {
+    const created = await app.db.transaction(async (tx) => {
+      const row = await insertDocumentWithDraftVersion(tx, {
+        title: input.title,
+        docType: input.docType,
+        docNumber: input.docNumber,
+        sourceOrg: input.sourceOrg,
+        issueDate: input.issueDate,
+        effectiveDate: input.effectiveDate,
+        evidenceLevel: input.evidenceLevel,
+        allowedPurposes: input.allowedPurposes,
+        categoryId: input.categoryId,
+        pipelineStatus: "UPLOAD_PENDING",
+        actorId: actor.id
+      });
+      await writeAuditLog({
+        db: tx, request, actor,
+        action: AUDIT_ACTIONS.KNOWLEDGE_DOC_CREATED, targetType: "knowledge_document", targetId: row.document.id,
+        afterJson: { title: row.document.title, docType: row.document.docType, versionId: row.version.id, withFile: false }
+      });
+      await writeAuditLog({
+        db: tx, request, actor,
+        action: AUDIT_ACTIONS.KNOWLEDGE_VERSION_CREATED, targetType: "knowledge_document_version", targetId: row.version.id,
+        afterJson: { documentId: row.document.id, version: row.version.version, triggeredBy: "CREATE_WITHOUT_FILE" }
+      });
+      return row;
+    });
+    // 允许只绑定检索源（转曲件场景）：不产生解析任务，需显式发起解析
+    if (input.searchSourceFileId) {
+      await requireUsableFile(app, input.searchSourceFileId);
+      await bindCenterFileToVersion(app, request, actor, created.version.id, input.searchSourceFileId, "SEARCH_SOURCE");
+    }
+    return {
+      document: {
+        id: created.document.id,
+        title: created.document.title,
+        docType: created.document.docType
+      },
+      version: {
+        id: created.version.id,
+        versionNo: created.version.version
+      },
+      documentId: created.document.id,
+      versionId: created.version.id,
+      versionStatus: created.version.status,
+      currentVersionId: created.document.currentVersionId,
+      file: null,
+      parsing: null
+    };
+  }
+
   const original = await requireUsableFile(app, input.originalFileId);
   const searchSource = input.searchSourceFileId
     ? await requireUsableFile(app, input.searchSourceFileId)
@@ -155,34 +220,23 @@ export async function createKnowledgeWithFile(
   }
 
   const created = await app.db.transaction(async (tx) => {
-    const [document] = await tx.insert(knowledgeDocuments).values({
+    const row = await insertDocumentWithDraftVersion(tx, {
       title: input.title,
       docType: input.docType,
-      docNumber: input.docNumber ?? undefined,
-      sourceOrg: input.sourceOrg ?? undefined,
-      issueDate: input.issueDate ?? undefined,
-      effectiveDate: input.effectiveDate ?? undefined,
-      evidenceLevel: input.evidenceLevel ?? undefined,
-      allowedPurposes: input.allowedPurposes ?? [],
-      categoryId: input.categoryId ?? undefined,
-      status: "ACTIVE",
-      createdById: actor.id
-    }).returning();
-    const versionNumber = await nextVersionNumber(tx, document!.id);
-    const [version] = await tx.insert(knowledgeDocumentVersions).values({
-      documentId: document!.id,
-      version: versionNumber,
-      title: input.title,
-      status: "DRAFT",
-      parseStatus: "PENDING",
-      pipelineStatus: "UPLOADED",
+      docNumber: input.docNumber,
+      sourceOrg: input.sourceOrg,
+      issueDate: input.issueDate,
+      effectiveDate: input.effectiveDate,
+      evidenceLevel: input.evidenceLevel,
+      allowedPurposes: input.allowedPurposes,
+      categoryId: input.categoryId,
       fileId: original.id,
-      evidenceLevel: input.evidenceLevel ?? undefined,
-      createdById: actor.id
-    }).returning();
+      pipelineStatus: "UPLOADED",
+      actorId: actor.id
+    });
     await tx.insert(knowledgeDocumentAssets).values({
-      documentId: document!.id,
-      versionId: version!.id,
+      documentId: row.document.id,
+      versionId: row.version.id,
       fileId: original.id,
       role: "ORIGINAL",
       isPrimary: true,
@@ -190,8 +244,8 @@ export async function createKnowledgeWithFile(
     });
     if (searchSource) {
       await tx.insert(knowledgeDocumentAssets).values({
-        documentId: document!.id,
-        versionId: version!.id,
+        documentId: row.document.id,
+        versionId: row.version.id,
         fileId: searchSource.id,
         role: "SEARCH_SOURCE",
         isPrimary: true,
@@ -199,8 +253,8 @@ export async function createKnowledgeWithFile(
       });
     }
     const [job] = await tx.insert(parsingJobs).values({
-      documentId: document!.id,
-      versionId: version!.id,
+      documentId: row.document.id,
+      versionId: row.version.id,
       jobType: "PARSE",
       status: "QUEUED",
       fileId: original.id,
@@ -208,20 +262,20 @@ export async function createKnowledgeWithFile(
     }).returning();
     await writeAuditLog({
       db: tx, request, actor,
-      action: AUDIT_ACTIONS.KNOWLEDGE_DOC_CREATED, targetType: "knowledge_document", targetId: document!.id,
-      afterJson: { title: document!.title, docType: document!.docType, versionId: version!.id, parsingJobId: job!.id }
+      action: AUDIT_ACTIONS.KNOWLEDGE_DOC_CREATED, targetType: "knowledge_document", targetId: row.document.id,
+      afterJson: { title: row.document.title, docType: row.document.docType, versionId: row.version.id, parsingJobId: job!.id }
     });
     await writeAuditLog({
       db: tx, request, actor,
-      action: AUDIT_ACTIONS.KNOWLEDGE_VERSION_CREATED, targetType: "knowledge_document_version", targetId: version!.id,
-      afterJson: { documentId: document!.id, version: version!.version, originalFileId: original.id }
+      action: AUDIT_ACTIONS.KNOWLEDGE_VERSION_CREATED, targetType: "knowledge_document_version", targetId: row.version.id,
+      afterJson: { documentId: row.document.id, version: row.version.version, originalFileId: original.id }
     });
     await writeAuditLog({
       db: tx, request, actor,
-      action: AUDIT_ACTIONS.KNOWLEDGE_VERSION_PARSED, targetType: "knowledge_document_version", targetId: version!.id,
+      action: AUDIT_ACTIONS.KNOWLEDGE_VERSION_PARSED, targetType: "knowledge_document_version", targetId: row.version.id,
       afterJson: { jobType: "PARSE", parsingJobId: job!.id, triggeredBy: "CREATE_WITH_FILE" }
     });
-    return { document: document!, version: version!, job: job! };
+    return { ...row, job: job! };
   });
 
   await addParsingJobToQueue(app, {
@@ -241,6 +295,10 @@ export async function createKnowledgeWithFile(
       id: created.version.id,
       versionNo: created.version.version
     },
+    documentId: created.document.id,
+    versionId: created.version.id,
+    versionStatus: created.version.status,
+    currentVersionId: created.document.currentVersionId,
     file: {
       id: original.id,
       name: original.originalName
@@ -357,7 +415,10 @@ export async function getDocumentWorkspace(
         sectionCount: 0,
         canAskAi: false,
         canPublish: false,
-        canRetry: false
+        canRetry: false,
+        publishBlockers: ["当前知识库还没有资料页面，请先上传完整页面图片"],
+        publishBlockerCodes: ["KNOWLEDGE_VERSION_EMPTY"],
+        contentSource: "NOT_READY" as const
       },
       actions: {
         canRetry: false,
@@ -395,16 +456,8 @@ export async function getDocumentWorkspace(
   const hasSearchSource = hasSearchSourceRole(roles, version.parseStatus);
   const pageCount = pageCountRow.length;
   const chunkCount = chunkCountRow.length;
-  const userStatus = mapKnowledgeUserStatus({
-    parseStatus: version.parseStatus,
-    pipelineStatus: version.pipelineStatus,
-    versionStatus: version.status,
-    usageMode: version.usageMode,
-    hasSearchSource,
-    pageCount,
-    chunkCount,
-    jobStatus: lastJob?.status
-  });
+  // 统一 readiness：页面驱动链就绪时不要求 ORIGINAL，也不因 parseStatus=PENDING 被判为「待解析」
+  const readiness = await collectKnowledgeVersionReadiness(app, version);
   const statusInput = {
     parseStatus: version.parseStatus,
     pipelineStatus: version.pipelineStatus,
@@ -413,21 +466,15 @@ export async function getDocumentWorkspace(
     hasSearchSource,
     pageCount,
     chunkCount,
-    jobStatus: lastJob?.status
+    jobStatus: lastJob?.status,
+    offlinePageContentReady: readiness.offlinePageContentReady,
+    searchableContentReady: readiness.searchableContentReady
   };
+  const userStatus = mapKnowledgeUserStatus(statusInput);
   const canAskAi = canAskAiFromStatus(statusInput);
   const canRetry = canRetryParse({ userStatus, versionStatus: version.status });
-  let canPublish = false;
-  try {
-    const readiness = evaluateVersionAiReadiness(version, await collectAiReadinessContext(app, version.id));
-    const parseable = version.parseStatus === "PARSED"
-      || version.parseStatus === "PARTIAL"
-      || version.parseStatus === "NO_TEXT_LAYER"
-      || (version.usageMode === "BROWSE_ONLY" && version.parseStatus === "SEARCH_SOURCE_REQUIRED");
-    canPublish = parseable && readiness.eligible && (version.status === "DRAFT" || version.status === "APPROVED");
-  } catch {
-    canPublish = false;
-  }
+  // 与发布 API 完全一致：canPublish 直接来自 readiness.publishReady
+  const canPublish = readiness.publishReady && (version.status === "DRAFT" || version.status === "APPROVED");
 
   const originalAsset = assetRows.find((row) => row.role === "ORIGINAL");
   const searchAsset = assetRows.find((row) => row.role === "SEARCH_SOURCE");
@@ -483,7 +530,13 @@ export async function getDocumentWorkspace(
       sectionCount: sectionCountRow.length,
       canAskAi,
       canPublish,
-      canRetry
+      canRetry,
+      /** 与发布 API 同一份 readiness：B 端展示的 blockers 即发布被拒原因 */
+      publishBlockers: readiness.publishBlockers.map((blocker) => blocker.message),
+      publishBlockerCodes: readiness.publishBlockers.map((blocker) => blocker.knowledgeErrorCode),
+      contentSource: readiness.traditionalContentReady
+        ? "ORIGINAL_FILE"
+        : readiness.offlinePageContentReady ? "PAGE_DRIVEN" : "NOT_READY"
     },
     actions: {
       canRetry,
@@ -675,6 +728,10 @@ export async function listVersionChapterTree(app: FastifyInstance, versionId: st
   };
 }
 
+/**
+ * Knowledge Test 门禁：传统文件链或页面驱动链任一就绪 + 存在可检索 chunks 即可测试。
+ * 页面驱动版本即使 parseStatus=PENDING 也允许测试（不再依据原始文件解析状态拒绝）。
+ */
 export async function assertVersionTestable(app: FastifyInstance, versionId: string) {
   const [version] = await app.db.select().from(knowledgeDocumentVersions)
     .where(eq(knowledgeDocumentVersions.id, versionId)).limit(1);
@@ -687,28 +744,35 @@ export async function assertVersionTestable(app: FastifyInstance, versionId: str
   const [assetRows, pageRows, chunkRows] = await Promise.all([
     app.db.select({ role: knowledgeDocumentAssets.role }).from(knowledgeDocumentAssets)
       .where(eq(knowledgeDocumentAssets.versionId, versionId)),
-    app.db.select({ id: knowledgePages.id }).from(knowledgePages)
+    app.db.select({
+      pageImageObjectKey: knowledgePages.pageImageObjectKey,
+      metadata: knowledgePages.metadata
+    }).from(knowledgePages)
       .where(eq(knowledgePages.versionId, versionId)),
     app.db.select({ id: knowledgeChunks.id }).from(knowledgeChunks)
       .where(eq(knowledgeChunks.versionId, versionId))
   ]);
   const roles = assetRows.map((row) => row.role);
   const hasSearchSource = hasSearchSourceRole(roles, version.parseStatus);
+  const readiness = deriveKnowledgeVersionReadiness(
+    {
+      usageMode: version.usageMode,
+      parseStatus: version.parseStatus,
+      hasOriginalAsset: roles.includes("ORIGINAL") || Boolean(version.fileId),
+      hasSearchSourceAsset: roles.includes("SEARCH_SOURCE")
+    },
+    summarizePageReadiness(pageRows, chunkRows.length)
+  );
 
-  if (["PENDING", "PARSING", "FAILED"].includes(version.parseStatus)
-    || ["PARSING", "CHUNKING", "UPLOAD_PENDING"].includes(version.pipelineStatus)) {
-    throw new KnowledgeError("KNOWLEDGE_NOT_READY_FOR_TEST");
-  }
-  if (
-    version.parseStatus === "OCR_REQUIRED"
-    || ((version.parseStatus === "SEARCH_SOURCE_REQUIRED" || version.parseStatus === "NO_TEXT_LAYER") && !hasSearchSource)
-  ) {
+  // 无文本层且无检索源：保留既有稳定业务码，提示先补检索文本源
+  if (version.parseStatus === "OCR_REQUIRED"
+    || ((version.parseStatus === "SEARCH_SOURCE_REQUIRED" || version.parseStatus === "NO_TEXT_LAYER") && !hasSearchSource)) {
     throw new KnowledgeError("KNOWLEDGE_SEARCH_SOURCE_REQUIRED");
   }
-  if (pageRows.length === 0 || chunkRows.length === 0) {
+  if (!readiness.searchableContentReady) {
     throw new KnowledgeError("KNOWLEDGE_NOT_READY_FOR_TEST");
   }
-  return { version, document, hasSearchSource };
+  return { version, document, hasSearchSource, readiness };
 }
 
 export async function streamVersionTestQa(
@@ -785,7 +849,7 @@ export async function inspectVersionTestQa(
       pageImageObjectKey: page.pageImageObjectKey,
       pageImageUrl: await app.storage.createDownloadUrl(
         page.pageImageObjectKey,
-        `page-${page.physicalPageNumber}.png`,
+        getPageImageDownloadName(page.pageImageObjectKey, page.physicalPageNumber),
         3600
       )
     });
@@ -799,6 +863,7 @@ export async function inspectVersionTestQa(
       setId: thermalReferenceRows.setId,
       thicknessMm: thermalReferenceRows.thicknessMm,
       productThermalResistance: thermalReferenceRows.productThermalResistance,
+      totalThermalResistance: thermalReferenceRows.totalThermalResistance,
       kValue: thermalReferenceRows.kValue,
       sourcePageId: thermalReferenceRows.sourcePageId,
       sourcePageLabel: thermalReferenceRows.sourcePageLabel
@@ -824,6 +889,9 @@ export async function inspectVersionTestQa(
         chunkId: hit.chunkId ?? hit.sourceId,
         content: hit.content,
         pageId: hit.pageId ?? null,
+        traceable: Boolean(hit.pageId),
+        retrievalUnit: hit.retrievalUnit,
+        sourceType: hit.sourceType ?? (hit.pageId ? "PAGE_AWARE" : "DOCUMENT_TEXT"),
         physicalPageNumber: hit.physicalPageNumber ?? page?.physicalPageNumber ?? null,
         pageLabel: hit.pageLabel ?? page?.pageLabel ?? null,
         documentId: hit.documentId,

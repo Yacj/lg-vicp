@@ -70,7 +70,6 @@ export const ORDINARY_HIDDEN_SIDEBAR_PATH_PREFIXES: readonly string[] = [
   '/thermal/calc-records',
   '/system/admins',
   '/ai-config/providers',
-  '/ai-config/runs',
   '/ai-config/filters',
   '/ai-config/scenes',
   '/ai-config/prompts',
@@ -86,7 +85,6 @@ export const ORDINARY_HIDDEN_SIDEBAR_TITLES: ReadonlySet<string> = new Set([
   '资料抓取',
   '超级管理员',
   '服务商管理',
-  'AI运行记录',
   '场景配置',
   '提示词管理',
   '关键词过滤',
@@ -97,6 +95,7 @@ export const SIDEBAR_TITLE_OVERRIDES: Readonly<Record<string, string>> = {
   '产品中心': '产品与计算',
   '业务提示词': '提示词配置',
   '模型管理': '模型配置',
+  // 后端菜单仍以旧名称下发，前端统一展示为业务名称，避免暴露内部术语。
   'Agent设置': '高级设置',
 }
 

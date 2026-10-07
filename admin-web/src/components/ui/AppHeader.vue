@@ -7,7 +7,6 @@ import {
   CloudyNightIcon,
   FullscreenExitIcon,
   FullscreenIcon,
-  LockOnIcon,
   LogoutIcon,
   MoreIcon,
   NotificationIcon,
@@ -15,8 +14,6 @@ import {
   RefreshIcon,
   RobotIcon,
   SearchIcon,
-  SettingIcon,
-  UserIcon,
 } from 'tdesign-icons-vue-next'
 import { computed, nextTick, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -283,21 +280,6 @@ async function handleLogout(): Promise<void> {
           <div class="app-header__user-panel">
             <AppUserSummary />
             <t-divider />
-            <div class="app-header__user-actions">
-              <div class="app-header__user-action is-unavailable">
-                <UserIcon />
-                <span>个人信息（暂未开放）</span>
-              </div>
-              <div class="app-header__user-action is-unavailable">
-                <SettingIcon />
-                <span>账号设置（暂未开放）</span>
-              </div>
-              <div class="app-header__user-action is-unavailable">
-                <LockOnIcon />
-                <span>修改密码（暂未开放）</span>
-              </div>
-            </div>
-            <t-divider />
             <t-button block variant="text" class="app-header__user-action is-danger" @click="handleLogout">
               <LogoutIcon />
               <span>退出登录</span>
@@ -413,11 +395,6 @@ async function handleLogout(): Promise<void> {
   padding: var(--td-size-4);
 }
 
-.app-header__user-actions {
-  display: grid;
-  gap: var(--td-size-1);
-}
-
 .app-header__user-action {
   height: auto;
   justify-content: flex-start;
@@ -453,18 +430,6 @@ async function handleLogout(): Promise<void> {
 
 .app-header__user-action:not(:disabled):hover {
   background: var(--td-bg-color-container-hover);
-}
-
-.app-header__user-action.is-unavailable {
-  color: var(--td-text-color-placeholder);
-  cursor: default;
-  opacity: 0.8;
-}
-
-.app-header__user-action.is-unavailable svg {
-  margin-right: var(--td-size-3);
-  font-size: var(--td-font-size-body-large);
-  vertical-align: middle;
 }
 
 .app-header__user-action.is-danger {

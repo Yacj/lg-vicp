@@ -21,7 +21,7 @@ import { formatDate } from '@/utils/day'
 
 /**
  * 模板报告记录面板（报告管理工作区 Tab 内容区）。
- * 按项目查看模板报告记录，提交审核并执行决议；报告生成入口（候选确认后）后续开放。
+ * 按项目查看模板报告记录，提交审核并执行决议。
  */
 const { canAccess } = usePermissionAccess()
 const canReview = computed(() => canAccess({ permissions: ['system:report:review'] }))

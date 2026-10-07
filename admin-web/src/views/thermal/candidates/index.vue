@@ -24,7 +24,7 @@ const defaultSubstrateMaterial = computed(() => queryText('substrateMaterial'))
 <template>
   <AppPage
     title="候选方案试算"
-    description="按图集参考表查询满足条件的保温构造候选方案；后端会标记最接近目标 K 值的方案，全部候选平等展示，可核对每条方案的图集依据。"
+    description="按图集参考表查询满足条件的保温构造候选方案；系统会标记最接近目标 K 值的方案，全部候选平等展示，可核对每条方案的图集依据。"
   >
     <ThermalCandidatePanel
       :key="`${defaultRegionCode ?? ''}-${defaultSubstrateMaterial ?? ''}`"

@@ -3,6 +3,10 @@
  * TaskType 只存在于 Backend Runtime，不是独立 Agent，也不是 C 端 Scene 选择器。
  */
 import { wrapContextForReasoning } from "../../shared/ai-response-policy.js";
+import { z } from "zod";
+import { normalizedThermalLookupFilterSchema } from "../thermal/thermal-lookup.schemas.js";
+import { formatLookupThickness } from "../thermal/thermal-lookup-thickness.js";
+import { THERMAL_LOOKUP_METRICS, THERMAL_LOOKUP_MODES, type ThermalLookupMetric, type ThermalLookupMode } from "../thermal/thermal-lookup-mode.js";
 export const CONVERSATION_TASK_TYPES = [
   "GENERAL",
   "PRODUCT_CONSULTATION",
@@ -25,36 +29,89 @@ export type ConversationPendingSelection = {
 
 export type ReferenceLookupSpecClass = "I" | "II" | "III";
 
-export type ReferenceLookupCandidate = {
-  id: string;
-  specClass?: ReferenceLookupSpecClass;
-  thicknessMm?: number;
-  kValue?: number;
-  systemName?: string;
-  atlasPage?: string | null;
-  schemeId?: string;
-  productSpecId?: string;
-  evidenceSource?: string;
-  evidenceRef?: string;
-  schemeCode?: string;
-  productThermalResistance?: number;
-  totalThermalResistance?: number;
-  sourceDocumentId?: string | null;
-  sourcePageId?: string | null;
-  sourcePageLabel?: string | null;
-};
+/** 所有指标共用同一查询语义。 */
+export type ReferenceLookupMode = ThermalLookupMode;
+
+const REFERENCE_LOOKUP_MODES: readonly ReferenceLookupMode[] = THERMAL_LOOKUP_MODES;
+
+function parseReferenceLookupMode(raw: unknown): ReferenceLookupMode | undefined {
+  return REFERENCE_LOOKUP_MODES.includes(raw as ReferenceLookupMode)
+    ? raw as ReferenceLookupMode
+    : undefined;
+}
+
+/** 候选类型与状态解析共用 schema；新增正式字段只在此登记。 */
+export const referenceLookupCandidateSchema = z.object({
+  id: z.string().trim().min(1),
+  specClass: z.enum(["I", "II", "III"]).optional(),
+  thicknessMm: z.number().finite().optional(),
+  kValue: z.number().finite().optional(),
+  systemId: z.string().optional(),
+  systemCode: z.string().nullable().optional(),
+  systemName: z.string().optional(),
+  atlasPage: z.string().nullable().optional(),
+  schemeId: z.string().optional(),
+  schemeCode: z.string().optional(),
+  schemeVersion: z.number().optional(),
+  substrateMaterial: z.string().optional(),
+  substrateThickness: z.number().nullable().optional(),
+  productSpecId: z.string().optional(),
+  catalogProductId: z.string().nullable().optional(),
+  specCode: z.string().optional(),
+  specVersion: z.number().optional(),
+  setId: z.string().optional(),
+  setCode: z.string().optional(),
+  setVersion: z.number().optional(),
+  setPriority: z.number().optional(),
+  setBuildingTypes: z.array(z.string()).optional(),
+  matchType: z.enum(["EXACT", "NEIGHBOR"]).optional(),
+  neighborGap: z.number().nullable().optional(),
+  matchedConditions: z.array(z.string()).optional(),
+  unmatchedConditions: z.array(z.string()).optional(),
+  missingConditions: z.array(z.string()).optional(),
+  ranking: z.object({ kGap: z.number(), metric: z.enum(THERMAL_LOOKUP_METRICS).optional(), metricGap: z.number().optional(), isClosestToTarget: z.boolean() }).optional(),
+  compliant: z.boolean().nullable().optional(),
+  evidenceSource: z.string().optional(),
+  evidenceRef: z.string().optional(),
+  productThermalResistance: z.number().finite().optional(),
+  totalThermalResistance: z.number().finite().optional(),
+  sourceDocumentId: z.string().nullable().optional(),
+  sourcePageId: z.string().nullable().optional(),
+  sourcePageLabel: z.string().nullable().optional()
+});
+export type ReferenceLookupCandidate = z.infer<typeof referenceLookupCandidateSchema>;
 
 export type LastReferenceLookup = {
   query: {
+    filters?: import("../thermal/thermal-lookup-mode.js").ThermalLookupFilter[];
+    requestedTolerance?: number;
+    effectiveTolerance?: number;
+    toleranceAdjusted?: boolean;
+    metric?: ThermalLookupMetric;
+    targetValue?: number;
     targetK?: number;
     targetR?: number;
     thicknessMm?: number;
+    thicknessMin?: number;
+    thicknessMax?: number;
+    preferThinner?: boolean;
     systemHint?: string;
     specClass?: ReferenceLookupSpecClass;
     systemId?: string;
+    schemeId?: string;
+    schemeCode?: string;
+    productSpecId?: string;
+    catalogProductId?: string;
+    /** 指标查询语义：跨轮继承，近似查询不混成上下限 */
+    mode?: ReferenceLookupMode;
+    /** 指标容差；USER 仅表示从用户原话确认过的近似窗口 */
+    tolerance?: number;
+    toleranceSource?: "USER" | "DEFAULT";
   };
   candidates: ReferenceLookupCandidate[];
   createdAt: string;
+  matchedSystemHint?: boolean | null;
+  isFallback?: boolean;
 };
 
 export type ConversationTaskState = {
@@ -162,31 +219,42 @@ function parseLastReferenceLookup(raw: unknown): LastReferenceLookup | undefined
   const candidates = Array.isArray(value.candidates)
     ? value.candidates.flatMap((item) => {
       if (!item || typeof item !== "object") return [];
-      const row = item as Record<string, unknown>;
-      if (typeof row.id !== "string" || !row.id.trim()) return [];
-      return [{
-        id: row.id,
-        specClass: parseSpecClassValue(row.specClass),
-        thicknessMm: typeof row.thicknessMm === "number" ? row.thicknessMm : undefined,
-        kValue: typeof row.kValue === "number" ? row.kValue : undefined,
-        systemName: typeof row.systemName === "string" ? row.systemName : undefined,
-        atlasPage: typeof row.atlasPage === "string" || row.atlasPage === null ? row.atlasPage : undefined,
-        schemeId: typeof row.schemeId === "string" ? row.schemeId : undefined,
-        productSpecId: typeof row.productSpecId === "string" ? row.productSpecId : undefined,
-        evidenceSource: typeof row.evidenceSource === "string" ? row.evidenceSource : undefined,
-        evidenceRef: typeof row.evidenceRef === "string" ? row.evidenceRef : undefined
-      } satisfies ReferenceLookupCandidate];
+      const parsed = referenceLookupCandidateSchema.safeParse(item);
+      return parsed.success ? [parsed.data] : [];
     })
     : [];
   if (candidates.length === 0 && typeof value.createdAt !== "string") return undefined;
   return {
     query: {
+      filters: Array.isArray(queryRaw.filters) ? queryRaw.filters.flatMap((filter) => {
+        const parsed = normalizedThermalLookupFilterSchema.safeParse(filter);
+        return parsed.success ? [parsed.data] : [];
+      }) : undefined,
+      requestedTolerance: typeof queryRaw.requestedTolerance === "number" && Number.isFinite(queryRaw.requestedTolerance) ? queryRaw.requestedTolerance : undefined,
+      effectiveTolerance: typeof queryRaw.effectiveTolerance === "number" && Number.isFinite(queryRaw.effectiveTolerance) ? queryRaw.effectiveTolerance : undefined,
+      toleranceAdjusted: typeof queryRaw.toleranceAdjusted === "boolean" ? queryRaw.toleranceAdjusted : undefined,
+      metric: queryRaw.metric === "K" || queryRaw.metric === "TOTAL_R" || queryRaw.metric === "PRODUCT_R" ? queryRaw.metric : undefined,
+      targetValue: typeof queryRaw.targetValue === "number" && Number.isFinite(queryRaw.targetValue) && queryRaw.targetValue > 0 ? queryRaw.targetValue : undefined,
+      targetR: typeof queryRaw.targetR === "number" ? queryRaw.targetR : undefined,
+      thicknessMm: typeof queryRaw.thicknessMm === "number" ? queryRaw.thicknessMm : undefined,
+      thicknessMin: typeof queryRaw.thicknessMin === "number" ? queryRaw.thicknessMin : undefined,
+      thicknessMax: typeof queryRaw.thicknessMax === "number" ? queryRaw.thicknessMax : undefined,
+      preferThinner: typeof queryRaw.preferThinner === "boolean" ? queryRaw.preferThinner : undefined,
+      schemeId: typeof queryRaw.schemeId === "string" ? queryRaw.schemeId : undefined,
+      schemeCode: typeof queryRaw.schemeCode === "string" ? queryRaw.schemeCode : undefined,
+      productSpecId: typeof queryRaw.productSpecId === "string" ? queryRaw.productSpecId : undefined,
+      catalogProductId: typeof queryRaw.catalogProductId === "string" ? queryRaw.catalogProductId : undefined,
       targetK: typeof queryRaw.targetK === "number" ? queryRaw.targetK : undefined,
       systemHint: typeof queryRaw.systemHint === "string" ? queryRaw.systemHint : undefined,
       specClass: parseSpecClassValue(queryRaw.specClass),
-      systemId: typeof queryRaw.systemId === "string" ? queryRaw.systemId : undefined
+      systemId: typeof queryRaw.systemId === "string" ? queryRaw.systemId : undefined,
+      mode: parseReferenceLookupMode(queryRaw.mode),
+      tolerance: typeof queryRaw.tolerance === "number" ? queryRaw.tolerance : undefined,
+      toleranceSource: queryRaw.toleranceSource === "USER" || queryRaw.toleranceSource === "DEFAULT" ? queryRaw.toleranceSource : undefined
     },
     candidates,
+    matchedSystemHint: typeof value.matchedSystemHint === "boolean" || value.matchedSystemHint === null ? value.matchedSystemHint : undefined,
+    isFallback: typeof value.isFallback === "boolean" ? value.isFallback : undefined,
     createdAt: typeof value.createdAt === "string" ? value.createdAt : new Date(0).toISOString()
   };
 }
@@ -235,13 +303,34 @@ export function mergeConversationTaskState(
 }
 
 function formatLastReferenceLookupContext(lookup: LastReferenceLookup): string {
+  const modeLabel = lookup.query.mode === "APPROX"
+    ? "近似（左右/接近，未要求上限）"
+    : lookup.query.mode === "MAX_LIMIT"
+      ? "上限（不超过）"
+      : lookup.query.mode === "MIN_LIMIT"
+        ? "下限（不低于）"
+        : lookup.query.mode === "EXACT" ? "精确相等" : null;
   const queryBits = [
+    lookup.query.filters?.length ? `全部条件同时满足：${lookup.query.filters.map((filter) => {
+      const label = filter.metric === "K" ? "传热系数 K" : filter.metric === "TOTAL_R" ? "总热阻" : "产品层热阻";
+      const symbol = filter.mode === "MAX_LIMIT" ? "≤" : filter.mode === "MIN_LIMIT" ? "≥" : filter.mode === "EXACT" ? "=" : "≈";
+      return `${label}${symbol}${filter.targetValue}${filter.tolerance !== undefined ? `，实际范围±${filter.tolerance}` : ""}`;
+    }).join(" 且 ")}` : null,
+    lookup.query.targetValue !== undefined ? `目标${lookup.query.metric === "TOTAL_R" ? "总热阻" : lookup.query.metric === "PRODUCT_R" ? "产品层热阻" : "传热系数"} ${lookup.query.targetValue}` : null,
+    lookup.query.targetR !== undefined ? `目标总热阻 ${lookup.query.targetR}` : null,
     lookup.query.targetK !== undefined ? `目标传热系数 ${lookup.query.targetK}` : null,
+    modeLabel ? `查询语义 ${modeLabel}` : null,
     lookup.query.systemHint ? `体系 ${lookup.query.systemHint}` : null,
-    lookup.query.specClass ? `${lookup.query.specClass}型` : null
+    lookup.query.specClass ? `${lookup.query.specClass}型` : null,
+    formatLookupThickness(lookup.query),
+    lookup.query.preferThinner ? "满足条件后优先较薄方案" : null
   ].filter(Boolean);
   const candidateLines = lookup.candidates.slice(0, 12).map((item) => {
     const bits = [
+      item.schemeCode ? `方案 ${item.schemeCode}` : null,
+      item.productThermalResistance !== undefined ? `产品层热阻 ${item.productThermalResistance}` : null,
+      item.totalThermalResistance !== undefined ? `总热阻 ${item.totalThermalResistance}` : null,
+      item.sourcePageId ? `sourcePageId=${item.sourcePageId}，原页标签 ${item.sourcePageLabel ?? "未标注"}` : null,
       item.specClass ? `${item.specClass}型` : null,
       item.kValue !== undefined ? `K=${item.kValue}` : null,
       item.thicknessMm !== undefined ? `厚度 ${item.thicknessMm}mm` : null,
@@ -256,9 +345,11 @@ function formatLastReferenceLookupContext(lookup: LastReferenceLookup): string {
   });
   return [
     "已查询的参考档位（结构化结果，优先于知识检索片段）：",
+    lookup.isFallback || lookup.matchedSystemHint === false ? "上一轮未找到用户指定体系，以下候选属于其他体系的明确回退，不能称为指定体系命中。" : null,
+    lookup.candidates.length === 0 ? "上一轮参考表未命中，仍保留查询条件；新的条件需要重新查询。" : null,
     queryBits.length > 0 ? `查询：${queryBits.join("；")}` : null,
     ...candidateLines,
-    "后续追问优先使用以上结果。不要用知识检索片段覆盖这些已确认的 K 值、厚度或档位，除非用户更换了图集或保温体系。"
+    "纯参数或原页指代可复用上述历史结果；K、模式、热阻、厚度、型号、体系、方案或规格条件变化时必须重新查已发布数据库，历史候选仅用于理解指代与补全缺省条件。不要用知识检索片段覆盖上述数值。"
   ].filter(Boolean).join("\n");
 }
 
@@ -268,7 +359,7 @@ export function formatConversationTaskContext(state: ConversationTaskState | nul
     && !state.reportContextSnapshotId
     && !state.confirmedKnowledgeSourceIds?.length
     && !state.selectedReportType
-    && !state.lastReferenceLookup?.candidates.length) {
+    && !state.lastReferenceLookup) {
     return null;
   }
   const lines = [
@@ -281,7 +372,7 @@ export function formatConversationTaskContext(state: ConversationTaskState | nul
       : null,
     state.selectedReportType ? "已确认报告类型，生成时直接使用，不要再列出类型清单。" : null,
     state.reportContextSnapshotId ? "已有确认后的报告材料，生成时直接使用，不要再问是否确认。" : null,
-    state.lastReferenceLookup?.candidates.length
+    state.lastReferenceLookup
       ? formatLastReferenceLookupContext(state.lastReferenceLookup)
       : null,
     state.pendingSelection

@@ -103,7 +103,7 @@ describe('app header', () => {
 
     expect(document.body.textContent).toContain('平台管理员')
     expect(document.body.textContent).toContain('总部')
-    expect(document.body.textContent).toContain('个人信息')
+    expect(document.body.textContent).toContain('退出登录')
   })
 
   it('emits the navigation toggle as a shell intent', async () => {

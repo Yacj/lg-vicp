@@ -8,6 +8,8 @@ import { useRouter } from 'vue-router'
 import { AppEmptyState, AppPage } from '@/components/ui'
 import { usePermissionAccess } from '@/composables/usePermissionAccess'
 import { formatDate } from '@/utils/day'
+import { formatProjectStatisticsScope, formatProjectVisibilityScope } from '@/utils/project'
+import type { DashboardMetricInput, DashboardQuickAction } from './dashboard'
 import DashboardAttentionList from './components/DashboardAttentionList.vue'
 import DashboardMetrics from './components/DashboardMetrics.vue'
 import DashboardRecentPanel from './components/DashboardRecentPanel.vue'
@@ -20,7 +22,6 @@ import {
   projectQuickActions,
   QUICK_ACTION_DEFINITIONS,
 } from './dashboard'
-import type { DashboardMetricInput, DashboardQuickAction } from './dashboard'
 import { useDashboardMetrics } from './useDashboardMetrics'
 import { useDashboardRecent } from './useDashboardRecent'
 import { useDashboardTodos } from './useDashboardTodos'
@@ -56,7 +57,7 @@ const metricCards = computed(() => {
       label: '项目总数',
       paths: ['/projects'],
       count: stats?.total ?? null,
-      secondaryText: stats ? `公开 ${stats.public} · 私有 ${stats.private}` : '',
+      secondaryText: stats ? formatProjectStatisticsScope(stats) : '',
     },
     {
       id: 'knowledge',
@@ -195,7 +196,7 @@ function openPath(path: string): void {
                   <strong>{{ project.name }}</strong>
                   <span class="dashboard-line-item__meta">
                     {{ project.region || '未填写地区' }} ·
-                    {{ project.visibility === 'PUBLIC' ? '公开' : '私有' }}
+                    {{ formatProjectVisibilityScope(project) }}
                   </span>
                 </t-button>
                 <span class="dashboard-line-item__time">

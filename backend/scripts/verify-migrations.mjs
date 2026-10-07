@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 // ============================================================
 // 迁移预检脚本：在临时 PostgreSQL 容器中验证全部迁移可执行
 //
@@ -30,6 +29,9 @@ const info = (msg) => console.log(`[预检] ${msg}`);
 
 const run = (cmd, args, opts = {}) => {
   const r = spawnSync(cmd, args, { encoding: "utf8", ...opts });
+  if (r.error && !opts.allowFail) {
+    throw new Error(`无法启动 ${cmd}：${r.error.code === "ENOENT" ? "未安装或不在 PATH" : r.error.message}`);
+  }
   if (r.status !== 0 && !opts.allowFail) {
     throw new Error(`${cmd} ${args.join(" ")} 失败：${r.stderr || r.stdout}`);
   }
@@ -41,6 +43,48 @@ const migrationFiles = () => {
   const journal = JSON.parse(readFileSync(path.join(DRIZZLE_DIR, "meta/_journal.json"), "utf8"));
   return journal.entries.map((e) => `${e.tag}.sql`);
 };
+
+/** 静态检查不依赖 Docker：SQL/journal 一一对应，序号、时间与 snapshot 链连续。 */
+export function checkMigrationConsistency(directory = DRIZZLE_DIR) {
+  const errors = [];
+  const journal = JSON.parse(readFileSync(path.join(directory, "meta/_journal.json"), "utf8"));
+  const sqlFiles = readdirSync(directory).filter((name) => /^\d+_.+\.sql$/.test(name));
+  const tags = new Set();
+  const indexes = new Set();
+  let previousSnapshot = "00000000-0000-0000-0000-000000000000";
+  let previousTime = -1;
+  // 早期手工迁移留下的已部署命名：保留文件名/hash，例外精确限定，后续迁移仍严格连续。
+  const legacyTagNumbers = { "0017_sloppy_patch": 16, "0018_thermal_calc_engine": 17, "0019_thermal_candidate_query": 18 };
+  for (const [position, entry] of journal.entries.entries()) {
+    if (indexes.has(entry.idx)) errors.push(`重复 idx：${entry.idx}`);
+    indexes.add(entry.idx);
+    if (tags.has(entry.tag)) errors.push(`重复 tag：${entry.tag}`);
+    tags.add(entry.tag);
+    if (entry.idx !== position || (legacyTagNumbers[entry.tag] ?? Number(entry.tag.split("_")[0])) !== position) errors.push(`序号缺口：${entry.tag} / idx=${entry.idx} / position=${position}`);
+    if (entry.when <= previousTime) errors.push(`迁移时间非递增：${entry.tag}`);
+    previousTime = entry.when;
+    if (!sqlFiles.includes(`${entry.tag}.sql`)) errors.push(`journal 对应 SQL 缺失：${entry.tag}`);
+    const prefix = entry.tag.split("_")[0];
+    const snapshotFile = `${prefix}_snapshot.json`;
+    // 手写 migration 可以没有 snapshot；已有 snapshot 必须按最近的 snapshot 串联。
+    if (entry.tag !== "0019_thermal_candidate_query" && readdirSync(path.join(directory, "meta")).includes(snapshotFile)) {
+      const snapshot = JSON.parse(readFileSync(path.join(directory, "meta", snapshotFile), "utf8"));
+      // 0016-0018 的历史 snapshot 未随已部署 SQL 保存；仅承认这一个已核实的旧断点。
+      const legacySnapshotGap = entry.tag === "0019_tough_harpoon"
+        && previousSnapshot === "3527e55c-8ac1-4c69-bf4b-4b6d0626db19"
+        && snapshot.prevId === "8284ca7f-0831-42da-88e9-3031139edae4";
+      if (snapshot.prevId !== previousSnapshot && !legacySnapshotGap) errors.push(`snapshot 链不匹配：${snapshotFile}`);
+      previousSnapshot = snapshot.id;
+    }
+  }
+  for (const file of sqlFiles) {
+    if (!tags.has(file.slice(0, -4))) errors.push(`SQL 未登记 journal：${file}`);
+  }
+  for (const file of readdirSync(path.join(directory, "meta")).filter((name) => /^\d+_snapshot\.json$/.test(name))) {
+    if (!journal.entries.some((entry) => entry.tag.split("_")[0] === file.split("_")[0])) errors.push(`snapshot 未登记 journal：${file}`);
+  }
+  return errors;
+}
 
 const psql = (db, sql, opts = {}) => {
   const r = spawnSync("docker", ["exec", "-i", CONTAINER, "psql", "-U", "postgres", "-d", db, "-v", "ON_ERROR_STOP=1", "-X", "-q"], {
@@ -73,6 +117,20 @@ const waitReady = () => {
 };
 
 const main = async () => {
+  const consistencyErrors = checkMigrationConsistency();
+  if (consistencyErrors.length > 0) {
+    consistencyErrors.forEach(fail);
+    process.exitCode = 1;
+    return;
+  }
+  info("静态迁移链检查通过");
+  if (process.argv.includes("--static")) return;
+  // 显式指定验证连接时只创建/删除唯一命名的临时数据库，绝不迁移连接所指的业务库。
+  if (process.env.MIGRATION_VERIFY_DATABASE_URL) {
+    const { verifyWithPostgres } = await import("./verify-migrations-postgres.mjs");
+    await verifyWithPostgres(process.env.MIGRATION_VERIFY_DATABASE_URL, DRIZZLE_DIR);
+    return;
+  }
   info(`启动临时 PostgreSQL 容器（${IMAGE}）`);
   run("docker", ["run", "-d", "--name", CONTAINER, "-e", `POSTGRES_PASSWORD=${PASSWORD}`, IMAGE]);
   try {
@@ -151,4 +209,6 @@ const main = async () => {
   console.log("\n[预检] 全部通过");
 };
 
-main();
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((error) => { fail(error.message); process.exitCode = 1; });
+}

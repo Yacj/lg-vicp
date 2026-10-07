@@ -40,8 +40,8 @@ export const THERMAL_ERROR_SPECS: Record<ThermalErrorCode, ThermalErrorSpec> = {
 
 /** 图集热工参考表业务错误：code 为稳定 THERMAL_* 错误码，statusCode 为数值型 HTTP 语义码 */
 export class ThermalError extends AppError {
-  constructor(code: ThermalErrorCode, message?: string) {
+  constructor(code: ThermalErrorCode, message?: string, details?: unknown) {
     const spec = THERMAL_ERROR_SPECS[code];
-    super(code, message ?? spec.message, spec.statusCode);
+    super(code, message ?? spec.message, spec.statusCode, details);
   }
 }

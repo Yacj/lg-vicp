@@ -3,6 +3,8 @@ import {
   normalizeComparisonForModel,
   normalizeProductDataForModel,
   normalizeSearchKnowledgeForModel,
+  normalizeReferenceLookupForModel,
+  normalizeToolResultForModel,
   toModelVisibleToolOutput
 } from "./tool-result-normalizer.js";
 import { emptyThermalState, freezeProductComparisonResult } from "../compare-product.js";
@@ -19,6 +21,23 @@ beforeAll(() => {
 });
 
 describe("Tool Result Normalizer", () => {
+  it("热工厚度范围与偏好经过二次归一仍保留，回答说明所有硬条件", () => {
+    const data = normalizeToolResultForModel("thermal", { data: {
+      found: false, candidates: [], thicknessMin: 18, thicknessMax: 25, preferThinner: true,
+      metric: "K", targetValue: 0.3, lookupMode: "MAX_LIMIT",
+      filters: [{ metric: "K", targetValue: 0.3, mode: "MAX_LIMIT" }]
+    } });
+    expect(data).toMatchObject({ thicknessMin: 18, thicknessMax: 25, preferThinner: true });
+    expect((data as any).instruction).toContain("厚度 18～25mm");
+    expect((data as any).instruction).toContain("不得偷偷放宽厚度");
+  });
+  it("跨体系回退不能同时要求先回答有", () => {
+    const result = normalizeReferenceLookupForModel({ found: true, candidates: [], matchedSystemHint: false, isFallback: true, lookupMode: "APPROX" });
+    expect(result.instruction).toContain("没有找到符合");
+    expect(result.instruction).not.toContain("第一行直接回答有");
+    expect((normalizeToolResultForModel("thermal", { data: result }) as any).instruction).not.toContain("第一行直接回答有");
+    expect(normalizeReferenceLookupForModel({ found: true, candidates: [], matchedSystemHint: true }).instruction).toContain("第一行直接回答有");
+  });
   it("search_knowledge 只保留 title/section/pageLabel/content", () => {
     const data = normalizeSearchKnowledgeForModel({
       hits: [{

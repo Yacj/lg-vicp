@@ -93,7 +93,7 @@ function jsonPanelValue(runId: string, toolId: string, kind: 'input' | 'output')
 </script>
 
 <template>
-  <AppPage :title="pageTitle" description="展示 Agent 状态、工具调用、业务结果、错误和来源，不展示模型私有推理。">
+  <AppPage :title="pageTitle" description="展示运行状态、工具调用、业务结果、错误和来源，不展示模型私有推理。">
     <template #navigation>
       <t-button theme="default" variant="outline" @click="goBack">
         <template #icon>
@@ -123,7 +123,7 @@ function jsonPanelValue(runId: string, toolId: string, kind: 'input' | 'output')
           <t-descriptions-item label="项目">
             {{ detail.project?.name ?? '—' }}
           </t-descriptions-item>
-          <t-descriptions-item label="Conversation">
+          <t-descriptions-item label="会话">
             {{ detail.conversation.title || '未命名会话' }}
           </t-descriptions-item>
           <t-descriptions-item label="更新时间">
@@ -142,7 +142,7 @@ function jsonPanelValue(runId: string, toolId: string, kind: 'input' | 'output')
       <AppEmptyState
         v-if="runs.length === 0"
         description="该会话尚未产生工具调用或失败记录。"
-        title="暂无 Agent 运行"
+        title="暂无运行记录"
       />
 
       <article
@@ -173,7 +173,7 @@ function jsonPanelValue(runId: string, toolId: string, kind: 'input' | 'output')
           <t-descriptions-item label="模型">
             {{ run.model || '—' }}
           </t-descriptions-item>
-          <t-descriptions-item label="Tool次数">
+          <t-descriptions-item label="工具调用次数">
             {{ run.toolCalls.length }}
           </t-descriptions-item>
           <t-descriptions-item label="提示词">
@@ -202,7 +202,7 @@ function jsonPanelValue(runId: string, toolId: string, kind: 'input' | 'output')
 
         <section class="ai-run-detail__block">
           <h3 class="ai-run-detail__block-title">
-            Tool 执行顺序
+            工具执行顺序
           </h3>
           <div v-if="run.toolCalls.length === 0" class="ai-run-detail__muted">
             本次运行没有工具调用。

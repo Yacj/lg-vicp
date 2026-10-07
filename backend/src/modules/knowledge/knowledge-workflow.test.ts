@@ -62,12 +62,17 @@ describe("createKnowledgeWithFile", () => {
   it("READY 文件同事务创建文档/v1/资产/解析任务并入队", async () => {
     const inserts: Record<string, unknown>[] = [];
     const add = vi.fn().mockResolvedValue(undefined);
+    let simpleSelectCount = 0;
     const app = {
       db: {
         select: () => ({
           from: () => ({
+            innerJoin: () => ({ where: () => ({ limit: async () => [] }) }),
             where: () => ({
-              limit: async () => [readyPdf]
+              limit: async () => {
+                simpleSelectCount += 1;
+                return simpleSelectCount === 1 ? [readyPdf] : [];
+              }
             })
           })
         }),

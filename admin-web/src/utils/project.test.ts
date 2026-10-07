@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest'
 import type { ProjectItem } from '@/types/project'
+import { describe, expect, it } from 'vitest'
 import {
+  formatProjectStatisticsScope,
   formatProjectVisibilityScope,
   isProjectManager,
   normalizeVisibilityFilter,
@@ -136,5 +137,16 @@ describe('visibility filter normalization', () => {
     expect(normalizeVisibilityFilter('DEPARTMENT')).toBe('DEPARTMENT')
     expect(normalizeVisibilityFilter('')).toBeUndefined()
     expect(normalizeVisibilityFilter('draft')).toBeUndefined()
+  })
+})
+
+describe('project statistics scope text', () => {
+  it('includes the department count when the backend reports it', () => {
+    expect(formatProjectStatisticsScope({ public: 5, private: 7, department: 3 }))
+      .toBe('公开 5 · 部门 3 · 私有 7')
+  })
+
+  it('omits the department count when the backend does not report it', () => {
+    expect(formatProjectStatisticsScope({ public: 5, private: 7 })).toBe('公开 5 · 私有 7')
   })
 })

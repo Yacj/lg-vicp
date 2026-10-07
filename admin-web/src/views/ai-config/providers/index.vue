@@ -247,7 +247,7 @@ function getActions(row: TableRowData): AppTableAction[] {
     </AppDataTable>
 
     <AppCrudFormDialog
-      description="API Key 仅用于后端发起 AI 请求，保存后不可回显；编辑时留空表示保留原密钥。"
+      description="API Key 仅用于系统发起 AI 请求，保存后不可回显；编辑时留空表示保留原密钥。"
       :form-data="providerDrawer.formData"
       :mode="drawerMode"
       :rules="rules"

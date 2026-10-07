@@ -1,19 +1,22 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
-import { useRoute } from 'vue-router'
-import AppPage from '@/components/ui/AppPage.vue'
-import { fetchPublishedConstructionSchemes } from '@/api/modules/construction'
-import { fetchPublishedProductSpecs } from '@/api/modules/masterdata'
-import { executeThermalCalc } from '@/api/modules/thermal'
-import { useAppFeedback } from '@/composables/useAppFeedback'
 import type { ConstructionScheme } from '@/types/construction'
 import type { ProductSpec } from '@/types/masterdata'
 import type { ThermalCalcExecution, ThermalCalcMode, ThermalCalcRecord } from '@/types/thermal'
+import { computed, onMounted, reactive, ref } from 'vue'
+import { useRoute } from 'vue-router'
+import { fetchPublishedConstructionSchemes } from '@/api/modules/construction'
+import { fetchPublishedProductSpecs } from '@/api/modules/masterdata'
+import { executeThermalCalc } from '@/api/modules/thermal'
+import AppPage from '@/components/ui/AppPage.vue'
+import AppStatusTag from '@/components/ui/AppStatusTag.vue'
+import { useAppFeedback } from '@/composables/useAppFeedback'
 import {
   THERMAL_CALC_MODE_OPTIONS,
+  thermalCalcComplianceLabel,
   thermalCalcConclusion,
   thermalCalcFormulaLines,
   thermalCalcModeLabel,
+  thermalCalcResultSummary,
   thermalCalcStepLines,
 } from '@/utils/thermal-calc'
 
@@ -40,6 +43,7 @@ const specOptions = computed(() => specs.value.map(item => ({
   value: item.id,
 })))
 const record = computed<ThermalCalcRecord | null>(() => execution.value?.record ?? null)
+const summary = computed(() => (record.value ? thermalCalcResultSummary(record.value) : null))
 
 async function loadOptions(): Promise<void> {
   try {
@@ -89,7 +93,7 @@ onMounted(() => {
 
 <template>
   <AppPage
-    description="输入 Backend 已支持参数后执行计算。热工计算独立于产品对比，不作为对比前置步骤。核心计算由热工引擎完成，本页只展示公式、过程、结果与结论。"
+    description="输入计算参数后执行热工计算。核心计算由系统热工引擎完成，本页只展示参数、公式、过程与正式结果。"
     title="热工计算"
   >
     <t-card title="计算参数">
@@ -106,7 +110,7 @@ onMounted(() => {
         <t-form-item label="厚度 (mm)">
           <t-input-number v-model="form.thicknessMm" :min="1" :step="1" theme="column" />
         </t-form-item>
-        <t-form-item label="地区编码">
+        <t-form-item label="地区">
           <t-input v-model="form.regionCode" maxlength="40" placeholder="选填，用于限值判定" />
         </t-form-item>
         <t-form-item>
@@ -120,11 +124,40 @@ onMounted(() => {
     <t-card v-if="execution" class="mt-4" title="计算结果">
       <t-alert v-if="!execution.valid" theme="warning" :message="execution.errors.map(item => item.message).join('；')" />
       <p v-for="note in execution.notes" :key="note" class="calc-note">{{ note }}</p>
-      <template v-if="record">
-        <t-descriptions bordered :column="2" class="mt-3">
-          <t-descriptions-item label="计算模式">{{ thermalCalcModeLabel(record.mode) }}</t-descriptions-item>
-          <t-descriptions-item label="结论">{{ thermalCalcConclusion(record) }}</t-descriptions-item>
+      <template v-if="record && summary">
+        <t-descriptions bordered :column="3" class="mt-3">
+          <t-descriptions-item label="产品层热阻 R">
+            {{ summary.productResistance ?? '—' }}
+          </t-descriptions-item>
+          <t-descriptions-item label="总热阻 R0">
+            {{ summary.totalResistance ?? '—' }}
+          </t-descriptions-item>
+          <t-descriptions-item label="传热系数 K">
+            {{ summary.kValue != null ? `${summary.kValue} W/(m²·K)` : '—' }}
+          </t-descriptions-item>
+          <t-descriptions-item label="限值">
+            {{ summary.limitKValue != null ? `${summary.limitKValue} W/(m²·K)` : '未提供地区限值' }}
+          </t-descriptions-item>
+          <t-descriptions-item label="是否满足要求">
+            <AppStatusTag
+              :label="thermalCalcComplianceLabel(summary.compliant)"
+              :status="summary.compliant === true ? 'success' : summary.compliant === false ? 'error' : 'default'"
+            />
+          </t-descriptions-item>
+          <t-descriptions-item label="计算模式">
+            {{ thermalCalcModeLabel(record.mode) }}
+          </t-descriptions-item>
+          <t-descriptions-item label="使用规则">
+            {{ summary.ruleName || '—' }}
+          </t-descriptions-item>
+          <t-descriptions-item label="依据标准">
+            {{ [summary.standardName, summary.standardClause].filter(Boolean).join(' · ') || '—' }}
+          </t-descriptions-item>
+          <t-descriptions-item label="规则用途">
+            {{ summary.ruleUsage || '—' }}
+          </t-descriptions-item>
         </t-descriptions>
+        <p class="calc-note">结论：{{ thermalCalcConclusion(record) }}</p>
         <h3 class="calc-section-title">公式</h3>
         <ul>
           <li v-for="item in thermalCalcFormulaLines(record)" :key="item.key">
@@ -139,8 +172,11 @@ onMounted(() => {
             <span v-if="step.value"> = {{ step.value }}</span>
           </li>
         </ol>
-        <h3 class="calc-section-title">结果快照</h3>
-        <pre class="calc-json">{{ JSON.stringify(record.result, null, 2) }}</pre>
+        <t-collapse class="calc-technical">
+          <t-collapse-panel header="技术详情" value="technical">
+            <pre class="calc-json">{{ JSON.stringify(record.result, null, 2) }}</pre>
+          </t-collapse-panel>
+        </t-collapse>
       </template>
     </t-card>
   </AppPage>
@@ -156,6 +192,10 @@ onMounted(() => {
   margin: var(--td-size-5) 0 var(--td-size-2);
   color: var(--td-text-color-primary);
   font-size: var(--td-font-size-title-small);
+}
+
+.calc-technical {
+  margin-top: var(--td-size-4);
 }
 
 .calc-json {

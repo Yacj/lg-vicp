@@ -33,29 +33,36 @@ type AnswerContractCapabilities = {
 };
 
 /** 正式计算 / 项目级合规，不是「查已有档位」。 */
-export const THERMAL_CALC_PATTERN = /帮我算|算一下|计算|达标|满足要求|符合|限值|能不能用|节能要求|这个墙体/i;
+export const THERMAL_CALC_PATTERN = /帮我算|重新算|算一下|计算|(?:改成|改为|换成|换为).{0,20}(?:后.*(?:多少|是多少)|重新算)|如果厚度改为/i;
+
+/** 合规判断消费正式标准限值；「限值0.3有哪些方案」只是筛选。 */
+export const THERMAL_COMPLIANCE_PATTERN = /达标|够不够|是否满足|是否符合|符合哪个标准|满足要求|符合(?:规范|标准|要求)|能不能用|节能要求/i;
+
+export function isThermalComplianceIntent(message: string): boolean {
+  return THERMAL_COMPLIANCE_PATTERN.test(message);
+}
 
 /** 查询已发布图集 / 参考表 / 已知档位。不含单独的「图集/做法」，以免抢走普通知识问答。 */
-export const REFERENCE_LOOKUP_PATTERN = /有没有|有么|有哪些|接近|左右|档位|参考表|参考选用|图集里/i;
+export const REFERENCE_LOOKUP_PATTERN = /有没有|有么|有哪些|有什么方案|找方案|推荐几个现有方案|参考方案|图集方案|选用表|已有方案|哪个构造|哪些构造|接近|左右|档位|参考表|参考选用|图集里/i;
 
 /** 热工数值用语：单独命中时不再进 THERMAL。 */
-export const THERMAL_VALUE_PATTERN = /传热系数|k\s*值|热阻|热工|保温厚度|等效厚度|计算厚度|导热系数/i;
+export const THERMAL_VALUE_PATTERN = /传热系数|\bk\b|\bk(?:\s*值|\s*[=≈≥≤\d])|total_r|product_r|总\s*r|产品\s*r|\br[0₀]?\s*[=≈≥≤\d]|主断面传热阻|热阻|热工|保温厚度|等效厚度|计算厚度|导热系数/i;
 
 /** 上一轮已查出候选后的档位追问。 */
-export const LOOKUP_FOLLOWUP_PATTERN = /[iⅰⅠ1一]型|[iiⅱⅡ2二]型|[iiiⅲⅢ3三]型|厚度|更低|更接近|具体参数|档位/i;
+export const LOOKUP_FOLLOWUP_PATTERN = /[iⅰⅠ1一]型|[iiⅱⅡ2二]型|[iiiⅲⅢ3三]型|体系|系统|屋面|薄抹灰|厚度|\d+\s*(?:mm|毫米|以内|以上)|(?:改成|放宽到|收紧到|调到)\d+|更低|更接近|具体参数|档位|原页|那页|刚才|第[一二三\d]+个|上一个|这个方案|把页面/i;
 
 export function isThermalCalculateIntent(message: string): boolean {
-  return THERMAL_CALC_PATTERN.test(message);
+  return THERMAL_CALC_PATTERN.test(message) || isThermalComplianceIntent(message);
 }
 
 export function isReferenceLookupIntent(
   message: string,
-  lastReferenceLookup?: { candidates?: unknown[] } | null
+  lastReferenceLookup?: { candidates?: unknown[]; query?: object } | null
 ): boolean {
   if (isThermalCalculateIntent(message)) return false;
   if (REFERENCE_LOOKUP_PATTERN.test(message)) return true;
   if (THERMAL_VALUE_PATTERN.test(message)) return true;
-  const hasLookup = Array.isArray(lastReferenceLookup?.candidates) && lastReferenceLookup.candidates.length > 0;
+  const hasLookup = Boolean(lastReferenceLookup?.query) || Array.isArray(lastReferenceLookup?.candidates) && lastReferenceLookup.candidates.length > 0;
   return hasLookup && LOOKUP_FOLLOWUP_PATTERN.test(message);
 }
 
@@ -64,7 +71,7 @@ export function resolveAnswerContract(input: {
   capabilities?: AnswerContractCapabilities | null;
   skipToolLoop?: boolean;
   message?: string | null;
-  lastReferenceLookup?: { candidates?: unknown[] } | null;
+  lastReferenceLookup?: { candidates?: unknown[]; query?: object } | null;
 }): AnswerContract {
   const capabilities = input.capabilities;
   const message = input.message?.trim() ?? "";
@@ -107,7 +114,10 @@ const CONTRACT_SHAPES: Record<AnswerContract, string> = {
   ].join(""),
   REFERENCE_LOOKUP: [
     "REFERENCE_LOOKUP：查询已发布图集 / 参考选用表 / 已知档位，不是正式热工计算。",
-    "结构化参考表有命中时：第一行回答“有”，只使用表中的数值。不要把构造层表格再用 Markdown 重写，页面由系统单独展示。",
+    "结构化参考表符合用户指定体系且有命中时：第一行回答“有”，只使用表中的数值。",
+    "多个热工条件默认全部同时满足；只有满足全部条件才可回答“有”。无完整命中时说明未找到同时满足全部条件的正式参考方案，继续检索图集原文。若列接近结果，逐项说明不满足的条件，不得冒充完整命中。不要向用户输出条件数组或查询模式枚举。",
+    "若结果标记 isFallback=true 或 matchedSystemHint=false：第一句必须说明“没有找到符合该体系条件的正式参考方案”，随后说明其他体系的参考结果，禁止开头回答“有”。",
+    "近似查询只说接近目标，不得称为满足上限、下限或规范达标；上下限筛选也不等同规范合规。总热阻与产品层热阻必须区分。不要把构造层表格再用 Markdown 重写，页面由系统单独展示。",
     "结构化参考表未命中时：不要立刻说没有方案；继续检索知识库/图集原文。知识检索有出处时可以列方案，并说明依据来自图集或资料。",
     "表和知识库都没有可核验出处时，才说暂未找到。禁止编造档位或 K 值，也不要把示例数字写进回答。",
     "不要把地区、气候区、建筑类型、基层、厚度当作查询前置条件。不要展开完整热工公式。",

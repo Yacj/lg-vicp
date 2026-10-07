@@ -79,7 +79,7 @@ const deleteAction = useConfirmedCrudAction<KnowledgeCategory, unknown>({
   action: async (row) => {
     await deleteKnowledgeCategory(row.id)
   },
-  confirm: (row) => ({ title: '删除分类', content: `确定删除「${row.name}」？分类下存在文档时后端将拒绝。`, danger: true }),
+  confirm: (row) => ({ title: '删除分类', content: `确定删除「${row.name}」？分类下存在文档时将无法删除。`, danger: true }),
   successMessage: '已删除',
   onSuccess: () => load(),
 })

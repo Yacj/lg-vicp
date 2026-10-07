@@ -78,6 +78,6 @@ END $$;
 DROP INDEX "user_identities_type_identifier_unique";--> statement-breakpoint
 DROP INDEX "users_phone_unique";--> statement-breakpoint
 DROP INDEX "users_email_unique";--> statement-breakpoint
-CREATE UNIQUE INDEX "user_identities_identifier_unique" ON "user_identities" USING btree (case when btrim("identifier") ~ '^\\+?[0-9]{6,20}$' then btrim("identifier") else lower(btrim("identifier")) end) WHERE "user_identities"."deleted_at" is null;--> statement-breakpoint
+CREATE UNIQUE INDEX "user_identities_identifier_unique" ON "user_identities" USING btree ((case when btrim("identifier") ~ '^\\+?[0-9]{6,20}$' then btrim("identifier") else lower(btrim("identifier")) end)) WHERE "user_identities"."deleted_at" is null;--> statement-breakpoint
 CREATE UNIQUE INDEX "users_phone_unique" ON "users" USING btree (btrim("phone")) WHERE "users"."deleted_at" is null;--> statement-breakpoint
 CREATE UNIQUE INDEX "users_email_unique" ON "users" USING btree (lower("email")) WHERE "users"."deleted_at" is null;

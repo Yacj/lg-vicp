@@ -23,7 +23,7 @@
 - `src/components/business/`：业务组件组合
 - `src/styles/`：全局 Design Token、主题与布局样式
 - `src/views/`：路由页面
-- `skills/vicp-admin-ui/SKILL.md`：布局、主题、登录、工作台和 UI 组件的设计规范
+- `.skills/vicp-admin-ui/SKILL.md`：布局、主题、登录、工作台和 UI 组件的设计规范
 
 ## 外观配置
 
@@ -61,4 +61,4 @@ pnpm test
 pnpm build
 ```
 
-修改布局、主题、登录、工作台或 `src/components/ui/**` 前，必须先阅读 `skills/vicp-admin-ui/SKILL.md`。
+修改布局、主题、登录、工作台或 `src/components/ui/**` 前，必须先阅读 `.skills/vicp-admin-ui/SKILL.md`。

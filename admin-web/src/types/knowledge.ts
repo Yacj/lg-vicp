@@ -459,6 +459,67 @@ export interface KnowledgeVersionTestQaRequest {
   limit?: number
 }
 
+/** 当前版本检索调试（POST versions/:versionId/test-inspect，非流式）。 */
+export interface KnowledgeVersionTestInspectRequest {
+  query: string
+  limit?: number
+}
+
+export interface KnowledgeTestInspectSource {
+  title: string
+  pageLabel?: string | null
+  physicalPageNumber?: number | null
+  quote?: string | null
+  pageId?: string | null
+}
+
+export interface KnowledgeTestInspectReferencePage {
+  pageId: string
+  physicalPageNumber: number
+  pageLabel?: string | null
+  pageTitle?: string | null
+  pageImageObjectKey?: string | null
+  pageImageUrl?: string | null
+}
+
+export interface KnowledgeTestInspectReferenceRow {
+  id: string
+  setId: string
+  thicknessMm: number
+  productThermalResistance: number
+  totalThermalResistance: number
+  kValue: number
+  sourcePageId?: string | null
+  sourcePageLabel?: string | null
+}
+
+export interface KnowledgeTestInspectChunk {
+  chunkId?: string | null
+  content?: string | null
+  pageId?: string | null
+  traceable?: boolean
+  retrievalUnit?: string | null
+  sourceType?: string | null
+  physicalPageNumber?: number | null
+  pageLabel?: string | null
+  documentId?: string | null
+  versionId?: string | null
+  score?: number | null
+}
+
+/**
+ * 检索调试结果。注意 answer 恒为 null——这是检索调试接口，不是问答接口，
+ * 前端不得将其视为「回答为空 / 接口异常」。
+ */
+export interface KnowledgeVersionTestInspectResult {
+  answer: null
+  taskType?: string | null
+  sources: KnowledgeTestInspectSource[]
+  referencePages: KnowledgeTestInspectReferencePage[]
+  matchedReferenceRows: KnowledgeTestInspectReferenceRow[]
+  retrievedChunks: KnowledgeTestInspectChunk[]
+}
+
 /** 普通用户测试知识库引用来源（后端 toUserTestSources，不含 score/chunkId）。 */
 export interface KnowledgeUserTestSource {
   documentId: string
@@ -488,6 +549,11 @@ export interface KnowledgeReferencePageMatch {
     productName?: string
     productSpecName?: string
     thicknessMm?: number
+    /** 产品层热阻。 */
+    productThermalResistance?: number
+    /** 外墙主断面总热阻（正式字段）。 */
+    totalThermalResistance?: number
+    /** @deprecated 仅兼容旧数据，含义等同 totalThermalResistance。 */
     rValue?: number
     kValue?: number
   }
@@ -567,6 +633,134 @@ export interface KnowledgePage {
   hasImages: boolean
   parseStatus: string
   createdAt: string
+  recognitionStatus?: PageRecognitionStatus | null
+  recognitionWarnings?: string[]
+  lastRecognitionError?: string | null
+}
+
+export type PageRecognitionStatus = 'PENDING' | 'PROCESSING' | 'REVIEW_REQUIRED' | 'CONFIRMED' | 'FAILED'
+
+export interface PageRecognitionLayer {
+  order?: number | null
+  name: string
+  thicknessMm?: number | null
+  lambda?: number | null
+  alpha?: number | null
+  rValue?: number | null
+}
+
+export interface PageRecognitionOption {
+  /** 管理员人工选择的已发布产品规格；AI 不生成，仅由人工映射写入。 */
+  productSpecId?: string | null
+  /** 可选的产品目录约束，用于缩小规格候选；AI 不猜测。 */
+  catalogProductId?: string | null
+  thicknessMm?: number | null
+  productThermalResistance?: number | null
+  totalThermalResistance?: number | null
+  kValue?: number | null
+  /** @deprecated 仅兼容历史 recognition draft；含义等同 totalThermalResistance。 */
+  rValue?: number | null
+}
+
+export interface PageRecognitionSystem {
+  /** 管理员人工选择的已发布构造方案；AI 不生成，仅由人工映射写入。 */
+  schemeId?: string | null
+  systemName?: string | null
+  specClass?: 'I' | 'II' | 'III' | null
+  constructionCode?: string | null
+  baseMaterial?: string | null
+  baseThicknessMm?: number | null
+  layers?: PageRecognitionLayer[]
+  options?: PageRecognitionOption[]
+}
+
+/** 构造方案候选（Backend PAGE_RECOGNITION_MAPPING_AMBIGUOUS details.schemeCandidates）。 */
+export interface PageRecognitionSchemeCandidate {
+  id: string
+  schemeCode?: string | null
+  name: string
+  systemId?: string | null
+  version?: number | null
+}
+
+/** 产品规格候选（Backend PAGE_RECOGNITION_MAPPING_AMBIGUOUS details.productSpecCandidates）。 */
+export interface PageRecognitionProductSpecCandidate {
+  id: string
+  catalogProductId?: string | null
+  specCode?: string | null
+  specClass?: 'I' | 'II' | 'III' | null
+  thicknessMm?: number | null
+  version?: number | null
+}
+
+export type PageRecognitionMappingStatus = 'AMBIGUOUS' | 'NOT_FOUND'
+
+/**
+ * 确认后未能同步正式 thermal_reference_rows 的映射问题。
+ * 来源：Backend PAGE_RECOGNITION_MAPPING_AMBIGUOUS details，或 confirm 返回的 thermal.mappingIssues。
+ */
+export interface PageRecognitionMappingIssue {
+  mappingStatus: PageRecognitionMappingStatus
+  kind: 'SCHEME' | 'PRODUCT_SPEC'
+  constructionCode?: string | null
+  schemeId?: string | null
+  productSpecId?: string | null
+  thicknessMm?: number | null
+  specClass?: 'I' | 'II' | 'III' | null
+  /** AMBIGUOUS 时返回的正式构造方案候选。 */
+  schemeCandidates?: PageRecognitionSchemeCandidate[]
+  /** AMBIGUOUS 时返回的正式产品规格候选。 */
+  productSpecCandidates?: PageRecognitionProductSpecCandidate[]
+}
+
+/** 页面识别确认结果（POST pages/:pageId/confirm-recognition）。 */
+export interface PageRecognitionConfirmResult {
+  message: string
+  pageId: string
+  recognitionStatus: 'CONFIRMED'
+  chunkCount: number
+  thermal: {
+    upserted: number
+    warnings: string[]
+    skipped: number
+    mappingIssues: PageRecognitionMappingIssue[]
+  }
+  recognition: KnowledgePageRecognition
+}
+
+export interface PageRecognitionResult {
+  pageLabel?: string | null
+  pageTitle?: string | null
+  fullText: string
+  systems: PageRecognitionSystem[]
+  notes?: string[]
+  warnings?: string[]
+}
+
+export interface KnowledgePageRecognition {
+  pageId: string
+  versionId: string
+  documentId: string
+  physicalPageNumber: number
+  pageLabel: string | null
+  pageTitle: string | null
+  parsedText: string | null
+  pageImageUrl: string | null
+  recognitionStatus: PageRecognitionStatus | null
+  recognitionModel: string | null
+  recognitionConfidence: number | null
+  recognitionWarnings: string[]
+  structuredData: PageRecognitionResult | null
+  draftStructuredData: PageRecognitionResult | null
+  confirmedStructuredData: PageRecognitionResult | null
+  confirmedAt: string | null
+  confirmedById: string | null
+  lastRecognitionAt: string | null
+  lastRecognitionError: string | null
+  imageWarnings: string[]
+  versionStatus: KnowledgeVersionStatus
+  versionEditable: boolean
+  thermalSetEditable: boolean | null
 }
 
 export interface KnowledgePageMapping {

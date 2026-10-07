@@ -39,6 +39,9 @@ export interface WikiHit {
   physicalPageNumber?: number | null;
   /** 印刷页码标签（AI 引用/展示用：4 / 21 / A1 / A5 / D16 / G10；非整数，禁止 Number()） */
   pageLabel?: string | null;
+  /** 命中内容是否可直接定位到 ORIGINAL 原页。 */
+  traceable?: boolean;
+  sourceType?: string | null;
   pageTitle?: string | null;
   /** ORIGINAL 展示原文件 id（用户看到的"原文"载体） */
   originalFileId?: string | null;
@@ -188,6 +191,7 @@ interface SearchRow {
   evidenceLevel: string | null;
   usageScope: string[] | null;
   region: string | null;
+  sourceType: string | null;
 }
 
 export async function runSearch(app: FastifyInstance, query: string, options: RunSearchOptions): Promise<SearchHit[]> {
@@ -267,7 +271,23 @@ export async function runSearch(app: FastifyInstance, query: string, options: Ru
       and (kdv.expiry_date is null or kdv.expiry_date >= current_date)
       and kd.current_version_id = kc.version_id
       and kd.status = 'ACTIVE'
-      and kd.deleted_at is null`;
+      and kd.deleted_at is null
+      and not coalesce((
+        kc.metadata->>'source' = 'DOCUMENT_TEXT'
+        and kc.metadata->>'visualPage' = 'false'
+        and exists (
+          select 1 from knowledge_chunks page_aware
+          where page_aware.version_id = kc.version_id
+            and page_aware.metadata->>'pageAware' = 'true'
+        )
+      ), false)
+      and not coalesce((
+        kc.metadata->>'pageAware' = 'true'
+        and not exists (
+          select 1 from knowledge_pages kp
+          where kp.id::text = kc.metadata->>'pageId'
+        )
+      ), false)`;
 
   const rows = await sql<SearchRow[]>`
     select
@@ -309,7 +329,8 @@ export async function runSearch(app: FastifyInstance, query: string, options: Ru
       case when kd.current_version_id = kc.version_id then 1 else 0 end as "currentScore",
       kd.evidence_level as "evidenceLevel",
       kd.allowed_purposes as "usageScope",
-      kd.region
+      kd.region,
+      kc.metadata->>'source' as "sourceType"
     from knowledge_chunks kc
     inner join knowledge_document_versions kdv on kdv.id = kc.version_id
     inner join knowledge_documents kd on kd.id = kc.document_id
@@ -358,6 +379,8 @@ export async function runSearch(app: FastifyInstance, query: string, options: Ru
       sectionId: row.sectionId,
       pageBlockId: row.pageBlockId,
       pageId: row.pageId,
+      traceable: Boolean(row.pageId),
+      sourceType: row.sourceType,
       retrievalUnit: "CHUNK" as const,
       content: row.content,
       sourcePage: row.sourcePage,
@@ -396,6 +419,8 @@ export function sanitizeSearchHit(hit: SearchHit, debugEnabled: boolean): Search
     versionId: hit.versionId,
     sectionId: hit.sectionId ?? null,
     pageId: hit.pageId ?? null,
+    traceable: hit.traceable ?? Boolean(hit.pageId),
+    sourceType: hit.sourceType ?? null,
     pageBlockId: hit.pageBlockId ?? null,
     sourcePage: hit.sourcePage,
     pageEnd: hit.pageEnd ?? null,

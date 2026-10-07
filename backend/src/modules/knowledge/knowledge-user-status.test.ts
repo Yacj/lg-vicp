@@ -143,3 +143,43 @@ describe("deriveParsingStage", () => {
     expect(deriveParsingStage({ jobStatus: "FAILED" })).toBe("FAILED");
   });
 });
+
+/**
+ * 页面驱动知识（无 ORIGINAL / parseStatus=PENDING）用户态：
+ * 页面齐备 + 识别确认 + page-aware chunks 就绪后，不能再显示「待解析 / 不可用」。
+ */
+describe("页面驱动知识用户态", () => {
+  const pageDrivenReady = {
+    parseStatus: "PENDING",
+    pipelineStatus: "UPLOAD_PENDING",
+    usageMode: "AI_ENABLED",
+    pageCount: 5,
+    chunkCount: 12,
+    offlinePageContentReady: true,
+    searchableContentReady: true
+  };
+
+  it("就绪后进入 READY / READY_TO_VERIFY，且 canAskAi=true", () => {
+    expect(mapKnowledgeUserStatus({ ...pageDrivenReady, versionStatus: "PUBLISHED" })).toBe("READY");
+    expect(mapKnowledgeUserStatus({ ...pageDrivenReady, versionStatus: "DRAFT" })).toBe("READY_TO_VERIFY");
+    expect(canAskAiFromStatus({ ...pageDrivenReady, versionStatus: "PUBLISHED" })).toBe(true);
+    expect(canAskAiFromStatus({ ...pageDrivenReady, versionStatus: "DRAFT" })).toBe(true);
+  });
+
+  it("历史 parseStatus（PARSING / FAILED / NO_TEXT_LAYER）不覆盖页面驱动就绪态", () => {
+    expect(mapKnowledgeUserStatus({ ...pageDrivenReady, parseStatus: "PARSING", versionStatus: "PUBLISHED" })).toBe("READY");
+    expect(mapKnowledgeUserStatus({ ...pageDrivenReady, parseStatus: "FAILED", versionStatus: "DRAFT" })).toBe("READY_TO_VERIFY");
+    expect(mapKnowledgeUserStatus({ ...pageDrivenReady, parseStatus: "NO_TEXT_LAYER", versionStatus: "DRAFT" })).toBe("READY_TO_VERIFY");
+  });
+
+  it("未就绪的页面驱动知识仍显示待解析且不可问答", () => {
+    const pending = { parseStatus: "PENDING", pageCount: 2, chunkCount: 0, offlinePageContentReady: false };
+    expect(mapKnowledgeUserStatus(pending)).toBe("PENDING_PARSE");
+    expect(canAskAiFromStatus(pending)).toBe(false);
+    expect(hasSearchableContent({ ...pending, searchableContentReady: false })).toBe(false);
+  });
+
+  it("BROWSE_ONLY 页面驱动知识不进入 AI 问答", () => {
+    expect(canAskAiFromStatus({ ...pageDrivenReady, versionStatus: "PUBLISHED", usageMode: "BROWSE_ONLY" })).toBe(false);
+  });
+});

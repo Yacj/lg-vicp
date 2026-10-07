@@ -2,19 +2,29 @@ import { tool } from "ai";
 import { z } from "zod";
 import { executeThermalCalc } from "../../thermal/thermal-calc.service.js";
 import { thermalCalcModeSchema } from "../../thermal/thermal-calc.schemas.js";
+import { thermalLookupFilterSchema } from "../../thermal/thermal-lookup.schemas.js";
+import { formatLookupThickness } from "../../thermal/thermal-lookup-thickness.js";
 import { queryThermalCandidates } from "../../thermal/thermal-candidate.service.js";
 import { runRegisteredTool, type ToolRuntimeContext } from "./tool-runtime.js";
 import { toolError, toolOk } from "./tool-output.js";
 import { buildReferencePageBlocks, REFERENCE_PAGE_MISSING_NOTE, type ReferencePageCandidate } from "../reference-page.js";
-import { knowledgeDocuments, knowledgePages } from "../../../db/schema.js";
+import { knowledgeDocumentVersions, knowledgeDocuments, knowledgePages } from "../../../db/schema.js";
 import { eq, inArray } from "drizzle-orm";
 import { normalizeReferenceLookupForModel, normalizeThermalForModel } from "./tool-result-normalizer.js";
 import {
-  compactCandidateResults,
+  compactCandidateResult,
   filterCandidatesBySystemHint,
   filterReusableCandidates,
-  inheritLookupQuery
+  normalizeConversationLookupQuery,
+  LOOKUP_LIMIT,
+  sanitizeSystemHint
 } from "./thermal-lookup.js";
+import {
+  resolveMetricTolerance,
+  TOLERANCE_ADJUSTED_NOTE,
+  THERMAL_LOOKUP_METRICS,
+  type ThermalLookupMode
+} from "../../thermal/thermal-lookup-mode.js";
 import { parseConversationTaskState, mergeConversationTaskState, type LastReferenceLookup } from "../conversation-task.js";
 import { saveConversationTaskState } from "../ai-conversation-state.service.js";
 
@@ -25,29 +35,62 @@ const specClassSchema = z.enum(["I", "II", "III"]);
  * OpenAI 兼容网关（含 DeepSeek）对 oneOf/anyOf Tool JSON Schema 经常卡住或死循环重试。
  */
 export const thermalInput = z.object({
+  filters: z.array(thermalLookupFilterSchema).min(1).max(12).optional().describe("多个热工指标条件，默认全部同时满足（AND）；不得只传其中一项"),
+  metric: z.enum(THERMAL_LOOKUP_METRICS).optional().describe("查表指标：K 传热系数，TOTAL_R 总热阻，PRODUCT_R 产品层热阻"),
+  targetValue: z.number().positive().max(100).optional().describe("查表指标目标值，与 metric 配合使用"),
+  tolerance: z.number().positive().max(100).optional().describe("仅用户明确给出±或上下误差时传入；后端从用户原话提取并限制，模型值不直接生效"),
   operation: z.enum(["LOOKUP_CANDIDATES", "CALCULATE"])
     .describe("查已有参考档位用 LOOKUP_CANDIDATES；对已确定方案/规格/厚度做正式计算用 CALCULATE"),
   targetK: z.number().positive().max(10).optional()
-    .describe("目标传热系数；查询已有参考档位时有此值即可开始，不要因此追问地区"),
+    .describe("deprecated：兼容目标 K，优先使用 metric=K + targetValue"),
   targetR: z.number().positive().max(100).optional()
-    .describe("目标总热阻。查表时使用，不因此进入正式计算"),
+    .describe("deprecated：兼容目标总热阻，优先使用 metric=TOTAL_R + targetValue"),
   systemHint: z.string().trim().min(1).max(80).optional()
     .describe("用户提到的保温体系提示，例如薄抹灰；不是 UUID"),
   specClass: specClassSchema.optional()
     .describe("I / II / III 型；用户说Ⅱ型时传 II"),
+  systemId: z.uuid("保温体系 ID 格式不正确").optional().describe("已知的正式保温体系 ID，优先于名称提示"),
+  schemeCode: z.string().trim().min(1).max(80).optional().describe("查询指定构造方案编码"),
+  catalogProductId: z.uuid("产品目录 ID 格式不正确").optional().describe("查询指定产品目录"),
+  lookupMode: z.enum(["APPROX", "MAX_LIMIT", "MIN_LIMIT", "EXACT"]).optional()
+    .describe(
+      "查询已有参考档位时的指标语义（K / 总热阻 / 产品层热阻共用），必须与用户原话一致："
+      + "「0.3左右 / 接近0.3 / 约0.3 / 0.3的方案有么 / 有没有0.3附近的」用 APPROX；"
+      + "「不超过0.3 / 0.3以内 / K≤0.3 / 最大0.3 / 上限0.3 / 是否满足0.3限值」用 MAX_LIMIT；"
+      + "「不低于0.3 / K≥0.3 / 至少0.3」用 MIN_LIMIT；「正好等于0.303」用 EXACT。"
+      + "用户本轮明确语义优先于本参数；缺省先按原话推断，无新语义则继承上轮，首轮默认 APPROX。"
+    ),
+  kTolerance: z.number().positive().max(5).optional()
+    .describe("K 容差（仅 APPROX/EXACT 生效）；一般不要传，由后端使用固定业务默认值"),
   mode: thermalCalcModeSchema.optional()
     .describe("REFERENCE_TABLE 图集查表，EQUIVALENT 整体当量，LAYERED 分层法；仅 CALCULATE 需要"),
   schemeId: z.uuid("构造方案 ID 格式不正确").optional()
-    .describe("已发布构造方案 ID；仅 CALCULATE 需要"),
+    .describe("已发布构造方案 ID；查询时可限定方案，CALCULATE 必填"),
   productSpecId: z.uuid("产品规格 ID 格式不正确").optional()
-    .describe("已发布产品规格 ID；仅 CALCULATE 需要"),
+    .describe("已发布产品规格 ID；查询时可限定规格，CALCULATE 必填"),
   thicknessMm: z.coerce.number().positive().max(100000).optional()
     .describe("保温厚度 mm。查表时用于匹配参考行；正式计算时必须落在方案产品选项区间内"),
+  thicknessMin: z.coerce.number().positive().max(1000).optional().describe("查表最小保温厚度 mm，与精确厚度互斥"),
+  thicknessMax: z.coerce.number().positive().max(1000).optional().describe("查表最大保温厚度 mm；20mm以内传此字段，不能传精确厚度"),
   regionCode: z.string().trim().min(1).max(40).optional()
     .describe("标准限值地区编码；缺省不判定是否达标"),
   ruleCode: z.string().trim().min(1).max(80).optional()
     .describe("计算规则编码；缺省取最新已发布规则")
 }).superRefine((data, ctx) => {
+  if (data.operation === "LOOKUP_CANDIDATES") {
+    if (data.thicknessMm !== undefined && (data.thicknessMin !== undefined || data.thicknessMax !== undefined)) {
+      ctx.addIssue({ code: "custom", path: ["thicknessMm"], message: "精确厚度与厚度范围不能同时提供" });
+    }
+    if (data.thicknessMin !== undefined && data.thicknessMax !== undefined && data.thicknessMin > data.thicknessMax) {
+      ctx.addIssue({ code: "custom", path: ["thicknessMin"], message: "厚度范围下限不能大于上限" });
+    }
+  }
+  if (data.operation === "LOOKUP_CANDIDATES" && (data.metric === undefined) !== (data.targetValue === undefined)) {
+    ctx.addIssue({ code: "custom", path: ["targetValue"], message: "metric 与 targetValue 必须同时提供" });
+  }
+  if (data.metric === "K" && data.targetValue != null && data.targetValue > 10) {
+    ctx.addIssue({ code: "custom", path: ["targetValue"], message: "目标 K 不能超过 10" });
+  }
   if (data.operation !== "CALCULATE") return;
   if (!data.mode) {
     ctx.addIssue({ code: "custom", path: ["mode"], message: "正式计算必须指定计算模式" });
@@ -92,19 +135,24 @@ async function persistLastReferenceLookup(ctx: ToolRuntimeContext, snapshot: Las
 export function createThermalTool(ctx: ToolRuntimeContext) {
   return tool({
     description: `
-      热工能力。LOOKUP_CANDIDATES：按目标 K / 体系提示查询已发布图集参考档位，不要要求地区、气候区、基层或建筑类型；未命中时必须再检索知识库，不要对用户说没有方案。
+      热工能力。LOOKUP_CANDIDATES：按传热系数 K / 总热阻 TOTAL_R / 产品层热阻 PRODUCT_R 和体系提示查询已发布图集参考档位，不要要求地区、气候区、基层或建筑类型；未命中时必须再检索知识库，不得把选用表未命中说成整个资料库没有方案。跨体系回退必须先说明没有找到指定体系的正式参考方案。传热阻系数含义不明时澄清是传热系数K还是总热阻R；模型不能决定容差。
+      查询时必须区分 K 语义：用户说「0.3左右 / 接近0.3 / 0.3的方案有么」是近似查询（lookupMode=APPROX，0.303 也应返回）；只有用户明确说「不超过 / 以内 / ≤ / 最大 / 上限 / 限值」才是上限查询（lookupMode=MAX_LIMIT）。
+      多轮仅更新用户明确改变的指标，保留其他条件；取消条件从用户原话识别。厚度18mm是精确档，20mm以内用thicknessMax，18mm以上用thicknessMin，18～25mm同时传上下限。尽量薄不猜数字，在满足硬条件后按厚度升序展示。
       CALCULATE：对已确定的方案、规格和厚度做正式确定性计算；合规判断才需要地区。
       项目归属以当前会话为准，不要传入 projectId。
     `,
     inputSchema: thermalInput,
     execute: async (args, options) => {
+      // 每次调用单独保存审计，避免同Step并行工具共享上下文时相互污染。
+      let lookupDecision: Record<string, unknown> | undefined;
       const statusMessage = args.operation === "LOOKUP_CANDIDATES"
         ? "正在查询已发布参考方案…"
         : "正在进行热工计算…";
       return runRegisteredTool(ctx, "thermal", args, {
         toolCallId: options.toolCallId,
         abortSignal: options.abortSignal,
-        statusMessage
+        statusMessage,
+        auditMetadata: () => lookupDecision ? { backendDecision: lookupDecision } : {}
       }, async () => {
         if (args.operation === "CALCULATE" && ctx.answerContract === "REFERENCE_LOOKUP") {
           return toolError({
@@ -114,51 +162,108 @@ export function createThermalTool(ctx: ToolRuntimeContext) {
         }
         if (args.operation !== "CALCULATE") {
           const last = ctx.taskState?.lastReferenceLookup;
-          const inherited = inheritLookupQuery({
+          const resolution = normalizeConversationLookupQuery({
+            filters: args.filters,
+            metric: args.metric,
+            targetValue: args.targetValue,
+            systemId: args.systemId,
+            schemeId: args.schemeId,
+            schemeCode: args.schemeCode,
+            productSpecId: args.productSpecId,
+            catalogProductId: args.catalogProductId,
             targetK: args.targetK,
             targetR: args.targetR,
             thicknessMm: args.thicknessMm,
+            thicknessMin: args.thicknessMin,
+            thicknessMax: args.thicknessMax,
             systemHint: args.systemHint,
-            specClass: args.specClass
-          }, last);
-          const reusable = filterReusableCandidates(last, {
-            targetK: inherited.targetK,
-            targetR: inherited.targetR,
-            thicknessMm: inherited.thicknessMm,
-            specClass: inherited.specClass,
-            systemHint: inherited.systemHint
-          });
+            specClass: args.specClass,
+            mode: args.lookupMode,
+            tolerance: args.tolerance ?? args.kTolerance
+          }, ctx.userMessage ?? "", last);
+          if (resolution.needsClarification) {
+            return toolOk({ needsClarification: true, instruction: "请用一个短问题确认不明确的热工指标、目标值及多条件关系；已明确的条件全部保留，禁止只取一项或猜测工程指标。" });
+          }
+          const inherited = resolution.query;
+          const requestedMode = inherited.mode;
+          if (resolution.conflict) {
+            ctx.app.log.warn({ toolMode: args.lookupMode, resolvedMode: requestedMode }, "热工查询模式冲突：以用户明确语义为准");
+          }
+          // 只有纯参数/原页指代可复用；普通查询即使签名相同也重新读取正式发布状态。
+          const attributeQuestion = resolution.attributeQuestion;
+          const reusable = attributeQuestion ? filterReusableCandidates(last, inherited) : null;
+          lookupDecision = {
+            query: inherited,
+            reusePreviousCandidate: reusable !== null,
+            candidateIds: reusable?.map(candidate => candidate.id) ?? []
+          };
           let candidates = reusable;
           let notes: string[] = [];
+          let effectiveMode: ThermalLookupMode = inherited.mode ?? requestedMode;
+          let effectiveTolerance: number | null = inherited.metric ? resolveMetricTolerance(inherited.metric, effectiveMode, inherited.tolerance) ?? null : null;
+          let matchedSystemHint: boolean | null = reusable ? last?.matchedSystemHint ?? null : inherited.systemHint ? true : null;
+          let isFallback = reusable ? last?.isFallback ?? false : false;
           if (!candidates) {
             const outcome = await queryThermalCandidates(ctx.app, ctx.request, ctx.user, {
+              filters: inherited.filters?.length ? inherited.filters : undefined,
+              metric: inherited.metric,
+              targetValue: inherited.targetValue,
+              mode: effectiveMode,
+              tolerance: inherited.tolerance,
+              systemId: inherited.systemId,
+              schemeId: inherited.schemeId,
+              schemeCode: inherited.schemeCode,
+              productSpecId: inherited.productSpecId,
+              catalogProductId: inherited.catalogProductId,
               targetK: inherited.targetK,
+              kMode: effectiveMode,
+              kTolerance: inherited.tolerance,
               targetResistance: inherited.targetR,
               thicknessMm: inherited.thicknessMm,
+              thicknessMin: inherited.thicknessMin,
+              thicknessMax: inherited.thicknessMax,
               specClass: inherited.specClass,
               neighborTolerance: 1,
               projectId: ctx.conversation.projectId ?? undefined
             });
-            candidates = filterCandidatesBySystemHint(
-              compactCandidateResults(outcome.candidates),
-              inherited.systemHint
-            );
-            notes = outcome.notes;
+            effectiveMode = outcome.lookupMode;
+            effectiveTolerance = outcome.tolerance ?? null;
+            // 顺序必须是「DB 候选 → 状态/语义过滤 → 体系过滤 → 排序 → limit」：
+            // 先在完整候选集上按体系收窄，再截断，避免真实命中被全局前 12 条挤掉。
+            const all = outcome.candidates.map(compactCandidateResult);
+            if (inherited.preferThinner) all.sort((a, b) => (a.thicknessMm ?? Infinity) - (b.thicknessMm ?? Infinity));
+            const hint = sanitizeSystemHint(inherited.systemHint);
+            const strict = inherited.systemId ? all : filterCandidatesBySystemHint(all, hint);
+            if (!inherited.systemId && hint && strict.length === 0 && all.length > 0) {
+              // 明确的二级回退：不得静默把其他体系当成「薄抹灰」命中结果
+              candidates = all.slice(0, LOOKUP_LIMIT);
+              matchedSystemHint = false;
+              isFallback = true;
+              notes = [
+                ...outcome.notes,
+                `没有找到符合「${hint}」条件的正式方案，下面是其他体系中接近目标的参考结果。`
+              ];
+            } else {
+              candidates = strict.slice(0, LOOKUP_LIMIT);
+              matchedSystemHint = hint ? strict.length > 0 : null;
+              notes = outcome.notes;
+            }
           }
           if (candidates.length === 0) {
+            const thicknessLabel = formatLookupThickness(inherited);
+            if (thicknessLabel) notes.push(`当前正式参考数据里没有找到同时满足${thicknessLabel}和所述热工条件的方案。`);
             notes = [...notes, "选用表未命中不等于知识库没有该方案，请继续检索图集原文"];
           }
-          if (candidates.length > 0) {
+          if (inherited.filters?.some((filter) => filter.toleranceAdjusted) && !notes.includes(TOLERANCE_ADJUSTED_NOTE)) {
+            notes.push(TOLERANCE_ADJUSTED_NOTE);
+          }
+          {
             const snapshot: LastReferenceLookup = {
-              query: {
-                targetK: inherited.targetK,
-                targetR: inherited.targetR,
-                thicknessMm: inherited.thicknessMm,
-                systemHint: inherited.systemHint,
-                specClass: inherited.specClass
-              },
+              query: { ...inherited, mode: effectiveMode },
               candidates,
-              createdAt: new Date().toISOString()
+              createdAt: new Date().toISOString(),
+              matchedSystemHint,
+              isFallback
             };
             await persistLastReferenceLookup(ctx, snapshot);
           }
@@ -167,9 +272,24 @@ export function createThermalTool(ctx: ToolRuntimeContext) {
             notes = [...notes, REFERENCE_PAGE_MISSING_NOTE];
           }
           const data = normalizeReferenceLookupForModel({
+            thicknessMm: inherited.thicknessMm,
+            thicknessMin: inherited.thicknessMin,
+            thicknessMax: inherited.thicknessMax,
+            preferThinner: inherited.preferThinner,
+            filters: inherited.filters,
+            requestedTolerance: inherited.requestedTolerance,
+            effectiveTolerance: inherited.effectiveTolerance,
+            toleranceAdjusted: inherited.toleranceAdjusted,
+            metric: inherited.metric,
+            targetValue: inherited.targetValue,
+            tolerance: effectiveTolerance,
             found: candidates.length > 0,
             candidates,
-            notes
+            notes,
+            lookupMode: effectiveMode,
+            kTolerance: inherited.metric === "K" ? effectiveTolerance : null,
+            matchedSystemHint,
+            isFallback
           });
           return toolOk(data, {
             summary: candidates.length > 0
@@ -212,7 +332,24 @@ export function createThermalTool(ctx: ToolRuntimeContext) {
   });
 }
 
-async function emitReferencePages(
+export function isReferencePageConsumable(row: {
+  versionId: string;
+  versionStatus: string;
+  documentStatus: string;
+  documentDeletedAt: Date | null;
+  currentVersionId: string | null;
+  effectiveDate: string | null;
+  expiryDate: string | null;
+}, today = new Date().toISOString().slice(0, 10)): boolean {
+  return row.versionStatus === "PUBLISHED"
+    && row.documentStatus === "ACTIVE"
+    && row.documentDeletedAt == null
+    && row.currentVersionId === row.versionId
+    && (!row.effectiveDate || row.effectiveDate <= today)
+    && (!row.expiryDate || row.expiryDate >= today);
+}
+
+export async function emitReferencePages(
   ctx: ToolRuntimeContext,
   candidates: Array<{
     id: string;
@@ -236,11 +373,25 @@ async function emitReferencePages(
     pageNumber: knowledgePages.pageNumber,
     physicalPageNumber: knowledgePages.physicalPageNumber,
     pageLabel: knowledgePages.pageLabel,
-    pageImageObjectKey: knowledgePages.pageImageObjectKey
+    pageImageObjectKey: knowledgePages.pageImageObjectKey,
+    versionId: knowledgeDocumentVersions.id,
+    versionStatus: knowledgeDocumentVersions.status,
+    effectiveDate: knowledgeDocumentVersions.effectiveDate,
+    expiryDate: knowledgeDocumentVersions.expiryDate,
+    documentStatus: knowledgeDocuments.status,
+    documentDeletedAt: knowledgeDocuments.deletedAt,
+    currentVersionId: knowledgeDocuments.currentVersionId
   }).from(knowledgePages)
     .innerJoin(knowledgeDocuments, eq(knowledgeDocuments.id, knowledgePages.documentId))
+    .innerJoin(knowledgeDocumentVersions, eq(knowledgeDocumentVersions.id, knowledgePages.versionId))
     .where(inArray(knowledgePages.id, pageIds));
-  const pages = await Promise.all(rows.map(async (row) => {
+  const today = new Date().toISOString().slice(0, 10);
+  const validRows = rows.filter((row) => isReferencePageConsumable(row, today));
+  const rejectedPageIds = pageIds.filter((pageId) => !validRows.some((row) => row.pageId === pageId));
+  if (rejectedPageIds.length > 0) {
+    ctx.app.log.warn({ pageIds: rejectedPageIds }, "热工参考页当前不满足正式知识版本访问条件，已跳过签名输出");
+  }
+  const pages = await Promise.all(validRows.map(async (row) => {
     const physicalPageNumber = row.physicalPageNumber ?? row.pageNumber;
     return {
       pageId: row.pageId,

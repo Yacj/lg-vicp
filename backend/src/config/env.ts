@@ -66,6 +66,14 @@ const envSchema = z.object({
   STORAGE_PRESIGN_EXPIRES_SECONDS: z.coerce.number().int().min(60).max(3600).default(900),
   // 单文件上传上限：默认 1GB（甲方图纸/规范文件可达数百 MB），对象存储直传本身无此限制
   MAX_UPLOAD_BYTES: z.coerce.number().int().positive().default(1024 * 1024 * 1024),
+  // 页面图片批量上传保护（P1）：单次批次总字节上限（默认 300MB，与 ZIP 解压上限对齐）
+  PAGE_BATCH_MAX_TOTAL_BYTES: z.coerce.number().int().positive().default(300 * 1024 * 1024),
+  // 页面图片批量上传保护：单次批次图片数量上限（默认 200，与 ZIP 条目上限对齐）
+  PAGE_BATCH_MAX_ITEMS: z.coerce.number().int().min(1).max(2000).default(200),
+  // 批量上传预检的并发读取上限（避免一次性把所有图片 Buffer 常驻内存）
+  PAGE_BATCH_READ_CONCURRENCY: z.coerce.number().int().min(1).max(10).default(4),
+  // 页面识别任务对账阈值：PENDING/PROCESSING 超过该分钟数且无对应队列任务时判定为 stale 并恢复
+  PAGE_RECOGNITION_STALE_MINUTES: z.coerce.number().int().min(1).max(1440).default(15),
   PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH: optionalString,
   BOOTSTRAP_ADMIN_USERNAME: z.string().min(3).default("admin"),
   BOOTSTRAP_ADMIN_PASSWORD: z.string().min(5),

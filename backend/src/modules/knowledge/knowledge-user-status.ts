@@ -33,6 +33,13 @@ export interface KnowledgeUserStatusInput {
   pageCount?: number;
   chunkCount?: number;
   jobStatus?: string | null;
+  /**
+   * 页面驱动链是否已就绪（完整页面 + 必要识别已确认 + 无缺图/失败）。
+   * 由 knowledge-readiness 统一派生：页面驱动知识不应因为 parseStatus=PENDING 被显示为「待解析」。
+   */
+  offlinePageContentReady?: boolean;
+  /** 两条链合并后的可检索内容就绪（传统文件链或页面驱动链任一就绪 + 存在 chunks） */
+  searchableContentReady?: boolean;
 }
 
 export interface ParseFailureJobInput {
@@ -57,7 +64,13 @@ export interface ParseFailurePresentation {
 
 const PAGE_FAILURE_PATTERN = /(?:第\s*)(\d+)(?:\s*页)|(?:page\s+)(\d+)/i;
 
+/**
+ * 是否已存在正式可检索内容。
+ * - 优先使用 readiness 统一派生的结论（页面驱动链与传统文件链合并口径）；
+ * - 未提供时按历史口径从 parseStatus + 页面/分块计数回退（兼容既有调用方）。
+ */
 export function hasSearchableContent(input: KnowledgeUserStatusInput): boolean {
+  if (input.searchableContentReady != null) return input.searchableContentReady;
   const parseStatus = input.parseStatus ?? "";
   const hasSearchSource = Boolean(input.hasSearchSource);
   const searchableParse = parseStatus === "PARSED"
@@ -68,33 +81,43 @@ export function hasSearchableContent(input: KnowledgeUserStatusInput): boolean {
     && (input.chunkCount ?? 0) > 0;
 }
 
-/** 派生 B 端用户态。内部 DRAFT/APPROVED/PUBLISHED 与 parseStatus 仍保留给高级接口。 */
+/**
+ * 派生 B 端用户态。内部 DRAFT/APPROVED/PUBLISHED 与 parseStatus 仍保留给高级接口。
+ * 页面驱动链已就绪（offlinePageContentReady）时不再因为 parseStatus=PENDING/PARSING/FAILED
+ * 显示「待解析 / 解析失败 / 需补充识别文件」，直接进入可验证或就绪态。
+ */
 export function mapKnowledgeUserStatus(input: KnowledgeUserStatusInput): KnowledgeUserStatus {
   const parseStatus = input.parseStatus ?? "PENDING";
   const pipelineStatus = input.pipelineStatus ?? "UPLOAD_PENDING";
   const jobStatus = input.jobStatus ?? null;
   const hasSearchSource = Boolean(input.hasSearchSource);
+  const searchable = hasSearchableContent(input);
+  const pageDrivenReady = input.offlinePageContentReady === true;
 
-  if (jobStatus === "ACTIVE" || parseStatus === "PARSING" || pipelineStatus === "PARSING" || pipelineStatus === "CHUNKING") {
+  if (!pageDrivenReady
+    && (jobStatus === "ACTIVE" || parseStatus === "PARSING" || pipelineStatus === "PARSING" || pipelineStatus === "CHUNKING")) {
     return "PARSING";
   }
-  if (jobStatus === "QUEUED" || parseStatus === "PENDING") {
+  if (!pageDrivenReady && (jobStatus === "QUEUED" || parseStatus === "PENDING")) {
     return "PENDING_PARSE";
   }
-  if (parseStatus === "FAILED" || pipelineStatus === "FAILED" || jobStatus === "FAILED") {
+  if (!pageDrivenReady && (parseStatus === "FAILED" || pipelineStatus === "FAILED" || jobStatus === "FAILED")) {
     return "PARSE_FAILED";
   }
   if (
-    parseStatus === "OCR_REQUIRED"
-    || jobStatus === "OCR_REQUIRED"
-    || ((parseStatus === "NO_TEXT_LAYER" || parseStatus === "SEARCH_SOURCE_REQUIRED") && !hasSearchSource)
+    !pageDrivenReady
+    && (
+      parseStatus === "OCR_REQUIRED"
+      || jobStatus === "OCR_REQUIRED"
+      || ((parseStatus === "NO_TEXT_LAYER" || parseStatus === "SEARCH_SOURCE_REQUIRED") && !hasSearchSource)
+    )
   ) {
     return "SEARCHABLE_FILE_REQUIRED";
   }
-  if (hasSearchableContent(input) && input.versionStatus === "PUBLISHED" && (input.usageMode ?? "AI_ENABLED") === "AI_ENABLED") {
+  if (searchable && input.versionStatus === "PUBLISHED" && (input.usageMode ?? "AI_ENABLED") === "AI_ENABLED") {
     return "READY";
   }
-  if (hasSearchableContent(input) || parseStatus === "PARSED" || parseStatus === "PARTIAL") {
+  if (searchable || parseStatus === "PARSED" || parseStatus === "PARTIAL" || pageDrivenReady) {
     return "READY_TO_VERIFY";
   }
   if ((parseStatus === "NO_TEXT_LAYER" || parseStatus === "SEARCH_SOURCE_REQUIRED") && hasSearchSource) {

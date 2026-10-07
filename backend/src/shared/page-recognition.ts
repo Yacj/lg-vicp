@@ -35,6 +35,10 @@ export const pageRecognitionLayerSchema = z.object({
  * 旧字段 rValue 仅作历史 draft 兼容，新识别结果禁止再写。
  */
 export const pageRecognitionOptionSchema = z.object({
+  /** 管理员人工选择的已发布产品规格；AI 不应生成此字段。 */
+  productSpecId: z.string().uuid().nullable().optional(),
+  /** 可选的产品目录约束，用于缩小规格候选；AI 不应猜测。 */
+  catalogProductId: z.string().uuid().nullable().optional(),
   thicknessMm: z.number().nullable().optional(),
   productThermalResistance: z.number().nullable().optional(),
   totalThermalResistance: z.number().nullable().optional(),
@@ -44,6 +48,8 @@ export const pageRecognitionOptionSchema = z.object({
 });
 
 export const pageRecognitionSystemSchema = z.object({
+  /** 管理员人工选择的已发布构造方案；AI 不应生成此字段。 */
+  schemeId: z.string().uuid().nullable().optional(),
   systemName: z.string().nullable().optional(),
   specClass: z.enum(["I", "II", "III"]).nullable().optional(),
   constructionCode: z.string().nullable().optional(),
@@ -65,6 +71,22 @@ export const pageRecognitionResultSchema = z.object({
 export type PageRecognitionResult = z.infer<typeof pageRecognitionResultSchema>;
 export type PageRecognitionOption = z.infer<typeof pageRecognitionOptionSchema>;
 
+export function buildRecognitionDraft(input: {
+  structuredData?: PageRecognitionResult | null;
+  fallback?: PageRecognitionResult | null;
+  pageLabel?: string | null;
+  pageTitle?: string | null;
+  parsedText?: string | null;
+}): PageRecognitionResult {
+  const base = pageRecognitionResultSchema.parse(input.structuredData ?? input.fallback ?? { fullText: "", systems: [] });
+  return pageRecognitionResultSchema.parse({
+    ...base,
+    pageLabel: input.pageLabel !== undefined ? input.pageLabel : base.pageLabel,
+    pageTitle: input.pageTitle !== undefined ? input.pageTitle : base.pageTitle,
+    fullText: input.parsedText !== undefined ? (input.parsedText ?? "") : base.fullText
+  });
+}
+
 /** knowledge_pages.metadata 中的页面识别扩展字段 */
 export type PageRecognitionMetadata = {
   recognitionStatus?: PageRecognitionStatus;
@@ -81,6 +103,10 @@ export type PageRecognitionMetadata = {
   confirmedById?: string | null;
   lastRecognitionAt?: string | null;
   lastRecognitionError?: string | null;
+  /** 当前有效识别任务标识，用于 single-flight 与阻止旧 Worker 覆盖。 */
+  recognitionRunId?: string | null;
+  /** 识别任务入队时间（ISO）：stale 对账据此判断 PENDING/PROCESSING 是否长期无对应队列任务。 */
+  recognitionQueuedAt?: string | null;
   imageWarnings?: string[];
   uploadSource?: "BATCH" | "ZIP" | "MANUAL" | "LIBREOFFICE" | string;
   originalFileName?: string | null;
@@ -177,6 +203,17 @@ export function resolveOptionThermalResistances(opt: PageRecognitionOption): Res
   };
 }
 
+/**
+ * 页面是否存在「排队中或执行中」的识别任务。
+ * - PROCESSING：Worker 正在识别；
+ * - PENDING + recognitionRunId：任务已入队但 Worker 尚未开始（或已失败回退前）。
+ * 二者期间都必须禁止人工写回识别数据，否则排队中的 Worker 会静默覆盖人工结果。
+ */
+export function isPageRecognitionBusy(meta: PageRecognitionMetadata): boolean {
+  return meta.recognitionStatus === "PROCESSING"
+    || (meta.recognitionStatus === "PENDING" && Boolean(meta.recognitionRunId));
+}
+
 export function emptyRecognitionMetadata(
   overrides: Partial<PageRecognitionMetadata> = {}
 ): PageRecognitionMetadata {
@@ -192,6 +229,8 @@ export function emptyRecognitionMetadata(
     confirmedById: null,
     lastRecognitionAt: null,
     lastRecognitionError: null,
+    recognitionRunId: null,
+    recognitionQueuedAt: null,
     imageWarnings: [],
     ...overrides
   };
@@ -229,6 +268,8 @@ export function readPageRecognitionMeta(
     lastRecognitionError: typeof metadata.lastRecognitionError === "string"
       ? metadata.lastRecognitionError
       : null,
+    recognitionRunId: typeof metadata.recognitionRunId === "string" ? metadata.recognitionRunId : null,
+    recognitionQueuedAt: typeof metadata.recognitionQueuedAt === "string" ? metadata.recognitionQueuedAt : null,
     imageWarnings: Array.isArray(metadata.imageWarnings)
       ? metadata.imageWarnings.filter((item): item is string => typeof item === "string")
       : [],
@@ -265,6 +306,14 @@ export function extractPageLabelFromFileName(fileName: string): string | null {
   return null;
 }
 
+/**
+ * 页面文件自然排序：page-1 < page-2 < page-10（不依赖浏览器选择顺序）。
+ * ZIP 导入与普通批量上传共用同一套规则，避免两套页序逻辑。
+ */
+export function naturalPageSort<T>(items: readonly T[], keyOf: (item: T) => string): T[] {
+  return [...items].sort((a, b) => keyOf(a).localeCompare(keyOf(b), undefined, { numeric: true, sensitivity: "base" }));
+}
+
 export const PAGE_IMAGE_MAX_BYTES = 15 * 1024 * 1024;
 export const PAGE_IMAGE_MIN_WIDTH_HINT = 1200;
 export const PAGE_IMAGE_MIME = new Set(["image/png", "image/jpeg"]);
@@ -284,22 +333,6 @@ export function assertThermalReferenceSetEditable(set: { status: string }): void
       { errorCode: "THERMAL_REFERENCE_SET_NOT_EDITABLE", status: set.status }
     );
   }
-}
-
-/** 已发布/停用知识版本不可原地改页图与识别 */
-export function assertKnowledgeVersionEditable(version: { status: string }): void {
-  if (version.status === "PUBLISHED" || version.status === "DISABLED") {
-    throw new AppError(
-      "KNOWLEDGE_VERSION_NOT_EDITABLE",
-      "已发布知识版本不可直接修改，请创建新版本后再操作",
-      409,
-      { errorCode: "KNOWLEDGE_VERSION_NOT_EDITABLE", status: version.status }
-    );
-  }
-}
-
-export function isKnowledgeVersionEditable(status: string): boolean {
-  return status !== "PUBLISHED" && status !== "DISABLED";
 }
 
 export function isThermalReferenceSetEditable(status: string): boolean {

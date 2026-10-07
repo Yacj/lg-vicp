@@ -61,7 +61,6 @@ function addThickness(): void { const value = Number(drawer.formData.thicknessIn
 function removeThickness(value: number): void { drawer.formData.thicknessOptionsMm = (drawer.formData.thicknessOptionsMm ?? []).filter(item => item !== value) }
 const columns: PrimaryTableCol<TableRowData>[] = [
   { colKey: 'name', ellipsis: true, minWidth: 180, title: '产品名称' },
-  { colKey: 'categoryId', minWidth: 120, title: '产品分类', cell: () => '—' },
   { colKey: 'productType', minWidth: 110, title: '产品类型', cell: (_, { row }) => (row as CatalogProduct).productType || '—' },
   { colKey: 'specClass', minWidth: 100, title: '规格分类', cell: (_, { row }) => (row as CatalogProduct).specClass ? `${(row as CatalogProduct).specClass}型` : '未指定' },
   { colKey: 'thermalConductivity', minWidth: 130, title: '导热系数 λ', cell: (_, { row }) => String((row as CatalogProduct).thermalConductivity ?? '—') },

@@ -96,7 +96,7 @@ function clearPage(): void {
     <template v-if="documentId">
       <div class="source-page-picker__status">
         <t-tag v-if="selectedPage" theme="primary" variant="light">
-          已选：物理第 {{ selectedPage.physicalPageNumber }} 页 · 图集页次 {{ knowledgePageLabel(selectedPage.pageLabel, selectedPage.physicalPageNumber) }} · {{ selectedPage.pageTitle || '未设置标题' }}
+          已选：文件第 {{ selectedPage.physicalPageNumber }} 页 · 资料页码 {{ knowledgePageLabel(selectedPage.pageLabel, selectedPage.physicalPageNumber) }} · {{ selectedPage.pageTitle || '未设置标题' }}
         </t-tag>
         <span v-else class="source-page-picker__unlinked">未关联原始页面</span>
         <t-button v-if="selectedPage && !disabled" size="small" variant="text" @click="clearPage">暂不关联页面</t-button>
@@ -118,8 +118,8 @@ function clearPage(): void {
             <span v-else>暂无图片</span>
           </div>
           <div class="source-page-card__meta">
-            <strong>物理第 {{ page.physicalPageNumber }} 页</strong>
-            <span>图集页次 {{ knowledgePageLabel(page.pageLabel, page.physicalPageNumber) }}</span>
+            <strong>文件第 {{ page.physicalPageNumber }} 页</strong>
+            <span>资料页码 {{ knowledgePageLabel(page.pageLabel, page.physicalPageNumber) }}</span>
             <span :title="page.pageTitle ?? undefined">{{ page.pageTitle || '未设置标题' }}</span>
           </div>
         </div>

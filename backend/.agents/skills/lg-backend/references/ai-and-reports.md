@@ -4,7 +4,19 @@
 
 <!-- 2026-08 Wiki 层级知识体系改造增量：AI 来源契约统一 ai-source.mapper.ts；知识检索为 searchWikiHierarchy 层级检索（Section/Page/Block 优先，Chunk 辅助）；专业会话必须选保温体系（AI_INSULATION_SYSTEM_REQUIRED）；公开文库 /api/v1/client/knowledge/*、企业介绍 /api/v1/company/about（旧路径 /api/v1/client/content/enterprise-profile）；B 端通知 /api/v1/platform/notifications（system:notification:*）。 -->
 
+正式生产检索中，同一版本存在 page-aware chunks 时必须排除 `metadata.source=DOCUMENT_TEXT` 且 `visualPage=false` 的 Mammoth 无页定位块；只有 B 端 DRAFT 测试可使用该文本回退，并将不可追溯标记返回调试结果。
+
 # AI 与报告
+
+最终交互与UAT（2026-10-07）：方案查询不因「限值/这个墙体」进入计算；明确算/重新算走热工，合规继续正式标准链，metadata验收intent区分COMPLIANCE。活跃厚度无metric词的省略追问更新厚度，取消厚度清除三字段及preferThinner。Parser/Matcher主结构冻结，后续自然语言变更须真实失败Case驱动。真实验收`pnpm uat:ai`覆盖销售20+设计院20共123轮，独立HTTP/SSE会话、临时库/用户/Redis队列/页图，工程条件/数值/来源程序断言，AI Judge只体验；BLOCKED不得冒充通过。类型与结构检查`pnpm uat:check`不是业务验收。详见`docs/ai/business-uat.md`。
+
+日常表达与局部条件收口（2026-10-07）：指标定位、数字抽取、比较语义分开；在/控制在/要求/达到/做到/目标等连接词不决定模式。多轮 filters 按 metric 增改删，未提及条件保留，同 metric 默认替换（含 mode），仅明确再加范围条件可追加同指标边界；取消条件不得由旧摘要或模型重复参数复活。厚度精确档 thicknessMm、单边/双边 thicknessMin/thicknessMax 独立解析与持久化，签名覆盖三字段；放宽单边厚度继承原边界含义，取消厚度清除三字段。尽量薄只在满足硬条件后按厚度升序展示，不编造范围。所有条件变化重查正式已发布数据，纯参数/原页指代可复用。无数据库结构变化，Thermal Engine 与 Knowledge 流程不变。
+
+2026-10-07 自然语言最终收口：规范比较词优先完整匹配；不应/不得大于与超过为上限，不应/不得小于与低于为下限，以上/以下为下限/上限。普通大于/小于采用包含边界的工程筛选。查询统一 filters[] 且全部 AND，单指标及旧 DTO 保留兼容摘要；多条件不明确时澄清。会话每项保存用户容差授权与 requested/effective/adjusted 元信息，后端调整需中文提示；仅模型传入的容差不生效。切规格清继承产品目录/型号，切型号清规格/目录，切目录清规格，切方案清继承规格/目录后重查发布关系。missingConditions 按归一条件判断，双 R 不要求 K。验收见 `docs/thermal/natural-language-closeout-2026-10-07.md`。
+
+2026-10-07 指标统一：`metric=K|TOTAL_R|PRODUCT_R`、`targetValue`、`mode` 经过 `normalizeThermalLookupQuery` 同源匹配/距离排序。旧 API 裸 K 保留 MAX_LIMIT、旧总 R 保留 MIN_LIMIT；AI 首轮 APPROX，Tool 正式计算的 `mode` 保留，查表用 `lookupMode`。集中默认/最大近似容差为 K 0.02/0.05、双 R 0.05/0.2，精确查询固定 0.0005。AI Tool 忽略模型自由容差，只有用户原话明确 ±/上下容差可覆盖并 clamp；历史 USER 来源才允许继承。切体系清旧方案/依赖规格/产品，切型号/产品清规格，切方案清继承规格后查正式关系。TOTAL_R/PRODUCT_R 查询及来源状态完整保留；模糊「传热阻系数」无明确指标上下文则澄清。Answer Contract 与 Tool 的跨体系回退首句一致，近似/上下限筛选不等同规范达标。详见 `docs/thermal/lookup-closeout-2026-10-07.md`。
+
+2026-10-07 参考查询收口：精确厚度不能放宽 K/型号/体系；模式优先级为本轮用户明确语义 → Tool 参数 → 历史 → 首轮 APPROX，冲突写中文 warning。候选类型与历史解析共用 Zod schema，完整保留双 R、来源页和正式字段；无候选也保存查询条件并支持厚度追问。只有纯参数/原页指代可复用历史；查询签名变化必须重新读取已发布有效数据。正式体系 ID 优先，名称归一保留材料/型号，跨体系回退首句必须说明未命中并在历史状态保留回退标记。
 
 AI 模型按场景从数据库解析。服务商、Base URL、模型 ID 和提示词不能写死在业务代码中。DeepSeek 使用 OpenAI-compatible 适配器。
 
@@ -55,6 +67,7 @@ AI 回答是可复用资产。点赞、反馈和重新生成不得覆盖原始�
 - 仅 `general_chat` 作为 C 端默认入口（`visibility=USER`）；用户不选择场景/系统指令/Agent 类型。统一 Conversation Runtime：UI 动作优先于 ConversationTaskState，再才是 intent。`resolveAiCapabilities` 只做预路由、寒暄优化与非 Agent 回退注入；非寒暄时开放领域 Tool 集合（`search_knowledge` / `get_project_state` / `get_product_data` / `thermal`（`LOOKUP_CANDIDATES` / `CALCULATE`） / `compare_products` / `compare_solutions` / `generate_report`）。产品对比走 `compareProducts()` 动态维度，热工为 optional；查已有图集/参考方案走 `REFERENCE_LOOKUP`（先查已发布选用表，未命中再检索知识库图集原文），不得仅因「传热系数 / K值」进入 `THERMAL`。统一 `USER_SELECTION`（`KNOWLEDGE_SOURCE` / `REPORT_TYPE` / `PRODUCT`）确认后固化 `report_context_snapshots` 再排队生成报告。其余场景保留为 `INTERNAL`。
 - 快捷提问独立表 `ai_quick_prompts`，不复用 Prompt / Scene。C 端只读 `GET /api/v1/ai/quick-prompts`；B 端 `/api/v1/platform/ai/quick-prompts`。`content` 必须是用户自然问题；`pnpm db:seed` 只覆盖仍带系统味的预置 4 条。
 - 生产知识检索只覆盖 PUBLISHED + AI_ENABLED + 当前受控版本；无项目时只搜平台文档，有项目时平台 + 当前项目。草稿与无权限项目文档不得进入正式聊天。
+- 热工 `REFERENCE_LOOKUP` 生成 `REFERENCE_PAGE` 时，只能签名当前、有效且文档未删除的 PUBLISHED Knowledge Version 页面；历史脏引用只记录 warning 并省略页面块，不中断其余结构化候选。摘要同时返回 `productThermalResistance` 与 `totalThermalResistance`，旧 `rValue` 仅兼容映射总热阻。
 - 运行时解析链路：场景（须启用）→ 当前 PUBLISHED 提示词版本 → 按 `reasoningMode` 解析已准入模型（`enabled` + `lastTestStatus=PASSED`）→ 构造语言模型。禁止在业务代码写死模型 ID。采样与输出上限由 `getAiTaskRuntimePolicy` 决定，不读模型表 temperature/maxTokens。
 - reasoningMode=ON：`allowReasoning=false` 抛 `AI_REASONING_NOT_SUPPORTED`；`reasoningModelId` 不可用降级默认模型并写入 `metadata.downgradeNote`；fallback 仅在主模型未产出任何 token 时重试一次。
 - 上下文预算：`estimateTokens`（CJK/1.5 + ASCII/4）分桶裁剪（系统 / 项目档案 / 项目记忆 / 会话摘要 / 近期消息 / 工具与知识 / 当前消息）。项目/记忆/摘要继续完整参与判断，默认不复述到回答正文。即将裁剪时增量更新 `ai_conversation_states`。

@@ -9,7 +9,7 @@ import type {
   KnowledgeSelectedFile,
   KnowledgeWorkspace,
 } from '@/types/knowledge'
-import { DialogPlugin, MessagePlugin } from 'tdesign-vue-next'
+import { MessagePlugin } from 'tdesign-vue-next'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
@@ -31,13 +31,13 @@ import AppFilePreview from '@/components/business/AppFilePreview.vue'
 import KnowledgeAdvancedDrawer from '@/components/business/knowledge/KnowledgeAdvancedDrawer.vue'
 import KnowledgeChapterTree from '@/components/business/knowledge/KnowledgeChapterTree.vue'
 import KnowledgeCreateDrawer from '@/components/business/knowledge/KnowledgeCreateDrawer.vue'
-import KnowledgeDocumentInfoPanel from '@/components/business/knowledge/KnowledgeDocumentInfoPanel.vue'
 import KnowledgeFailurePanel from '@/components/business/knowledge/KnowledgeFailurePanel.vue'
 import KnowledgePageGallery from '@/components/business/knowledge/KnowledgePageGallery.vue'
 import KnowledgePageStatusBar from '@/components/business/knowledge/KnowledgePageStatusBar.vue'
 import KnowledgeParsedContent from '@/components/business/knowledge/KnowledgeParsedContent.vue'
 import KnowledgeParseStatus from '@/components/business/knowledge/KnowledgeParseStatus.vue'
 import KnowledgeReplaceFileDrawer from '@/components/business/knowledge/KnowledgeReplaceFileDrawer.vue'
+import KnowledgeRecognitionReview from '@/components/business/knowledge/KnowledgeRecognitionReview.vue'
 import KnowledgeSearchablePanel from '@/components/business/knowledge/KnowledgeSearchablePanel.vue'
 import KnowledgeStructuredDataPanel from '@/components/business/knowledge/KnowledgeStructuredDataPanel.vue'
 import KnowledgeTestPanel from '@/components/business/knowledge/KnowledgeTestPanel.vue'
@@ -90,16 +90,14 @@ const publishVisible = ref(false)
 const activeTab = ref<string>('gallery')
 const focusPhysicalPageNumber = ref<number | null>(null)
 const galleryKey = ref(0)
-const retryingPageRender = ref(false)
 let pollTimer: ReturnType<typeof setInterval> | null = null
 
 const userStatus = computed(() => workspace.value?.currentVersion?.userStatus ?? 'PENDING_PARSE')
 const versionId = computed(() => workspace.value?.currentVersion?.id ?? null)
+/** 后端版本守卫：仅 DRAFT 可编辑，已进入审核/发布流程的版本一律只读。 */
+const versionEditable = computed(() => workspace.value?.currentVersion?.status === 'DRAFT')
 const hasPages = computed(() => (workspace.value?.summary.pageCount ?? 0) > 0)
 const pageRendering = computed(() => isKnowledgePageRenderingInProgress(workspace.value))
-const canRetryPageRender = computed(() => Boolean(
-  canParse.value && workspace.value?.actions.canRetryPageRender,
-))
 const categoryName = computed(() => {
   const id = workspace.value?.document.categoryId ?? documentMeta.value?.categoryId
   return categories.value.find(item => item.id === id)?.name ?? ''
@@ -365,32 +363,6 @@ async function reparse(): Promise<void> {
   }
 }
 
-function retryPageRender(): void {
-  if (!versionId.value || retryingPageRender.value) {
-    return
-  }
-  const dialog = DialogPlugin.confirm({
-    header: '重新生成页面',
-    body: '将重新生成该版本的页面视觉资源。不会在前端转换 Word，由后端重新执行页面渲染。',
-    confirmBtn: '重新生成页面',
-    onConfirm: async () => {
-      retryingPageRender.value = true
-      try {
-        await restartKnowledgeParse(versionId.value!)
-        MessagePlugin.success('已开始重新生成页面')
-        dialog.hide()
-        await loadWorkspace()
-      }
-      catch (cause) {
-        MessagePlugin.error(knowledgeUserMessage(normalizeFeedbackError(cause).message))
-      }
-      finally {
-        retryingPageRender.value = false
-      }
-    },
-  })
-}
-
 async function bindSearchable(file: KnowledgeSelectedFile): Promise<void> {
   if (!versionId.value) {
     return
@@ -436,6 +408,12 @@ function openGalleryPage(physicalPageNumber: number | null | undefined, pageId?:
   if (pageId) {
     MessagePlugin.info('已切换到页面图库，请按页面卡片定位来源页')
   }
+}
+
+function openRecognitionPage(physicalPageNumber: number): void {
+  activeTab.value = 'recognition'
+  focusPhysicalPageNumber.value = null
+  requestAnimationFrame(() => { focusPhysicalPageNumber.value = physicalPageNumber })
 }
 
 function onTabChange(value: string | number): void {
@@ -578,9 +556,6 @@ onUnmounted(() => {
       <template v-else-if="showWorkspaceTabs || isKnowledgeReadyStatus(userStatus)">
         <KnowledgePageStatusBar
           :workspace="workspace"
-          :can-retry-page-render="canRetryPageRender"
-          :retrying="retryingPageRender"
-          @retry-page-render="retryPageRender"
         />
 
         <t-tabs
@@ -593,9 +568,29 @@ onUnmounted(() => {
               :key="galleryKey"
               :version-id="versionId"
               :editable="canEdit"
+              :version-editable="versionEditable"
               :focus-physical-page-number="focusPhysicalPageNumber"
               :rendering="pageRendering"
               @changed="loadWorkspace(false)"
+              @review-page="openRecognitionPage"
+            />
+          </t-tab-panel>
+
+          <t-tab-panel label="识别校验" value="recognition">
+            <KnowledgeRecognitionReview
+              :key="`recognition-${versionId}`"
+              :document-id="documentId"
+              :version-id="versionId"
+              :focus-physical-page-number="focusPhysicalPageNumber"
+              @open-gallery-page="openGalleryPage"
+            />
+          </t-tab-panel>
+
+          <t-tab-panel label="结构化数据" value="structured">
+            <KnowledgeStructuredDataPanel
+              :document-id="documentId"
+              :version-id="versionId"
+              @open-source-page="openGalleryPage($event.physicalPageNumber, $event.pageId)"
             />
           </t-tab-panel>
 
@@ -619,14 +614,6 @@ onUnmounted(() => {
             </div>
           </t-tab-panel>
 
-          <t-tab-panel label="结构化数据" value="structured">
-            <KnowledgeStructuredDataPanel
-              :document-id="documentId"
-              :version-id="versionId"
-              @open-source-page="openGalleryPage($event.physicalPageNumber, $event.pageId)"
-            />
-          </t-tab-panel>
-
           <t-tab-panel v-if="canTest" label="知识库测试" value="test">
             <KnowledgeTestPanel
               :version-id="versionId"
@@ -634,14 +621,6 @@ onUnmounted(() => {
             />
           </t-tab-panel>
 
-          <t-tab-panel label="资料信息" value="info">
-            <KnowledgeDocumentInfoPanel
-              :category-name="categoryName"
-              :document="documentMeta"
-              :page-count="workspace?.summary.pageCount ?? documentMeta?.currentVersion?.pageCount"
-              :user-status="userStatus"
-            />
-          </t-tab-panel>
         </t-tabs>
       </template>
 

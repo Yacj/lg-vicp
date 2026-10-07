@@ -56,21 +56,21 @@ export const AGENT_RUNTIME_LIMITS = [
     label: '最大步骤数',
     value: 8,
     unit: '步',
-    source: 'AI_AGENT_MAX_STEPS',
+    source: '系统默认，只读',
   },
   {
     key: 'toolTimeoutMs',
     label: '单 Tool 超时',
     value: 20000,
     unit: 'ms',
-    source: '服务端默认 20 秒',
+    source: '系统默认，只读',
   },
   {
     key: 'overallTimeoutMs',
     label: '总超时',
     value: 120000,
     unit: 'ms',
-    source: 'AI_AGENT_OVERALL_TIMEOUT_MS',
+    source: '系统默认，只读',
   },
 ] as const
 

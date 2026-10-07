@@ -59,3 +59,51 @@ export function thermalCalcFormulaLines(record: ThermalCalcRecord): Array<{ key:
     value: value == null ? '—' : String(value),
   }))
 }
+
+export interface ThermalCalcResultSummary {
+  productResistance: number | null
+  totalResistance: number | null
+  kValue: number | null
+  limitKValue: number | null
+  compliant: boolean | null
+  ruleName: string | null
+  ruleUsage: string | null
+  standardName: string | null
+  standardClause: string | null
+}
+
+function asText(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() !== '' ? value : null
+}
+
+/**
+ * 从后端计算快照读取业务结果，不在前端重算。
+ * 结果主视图展示总热阻 / 传热系数 / 限值 / 是否满足 / 使用规则，raw JSON 仅作技术详情。
+ */
+export function thermalCalcResultSummary(record: ThermalCalcRecord): ThermalCalcResultSummary {
+  const result = asRecord(record.result)
+  const rule = asRecord(record.rule)
+  const standard = asRecord(record.standard)
+  const compliant = typeof result.compliant === 'boolean' ? result.compliant : null
+  return {
+    productResistance: asNumber(result.productResistanceRounded) ?? asNumber(result.productResistance),
+    totalResistance: asNumber(result.totalResistanceRounded) ?? asNumber(result.totalResistance),
+    kValue: asNumber(result.kValueRounded) ?? asNumber(result.kValue),
+    limitKValue: asNumber(result.limitKValue),
+    compliant,
+    ruleName: asText(rule.name),
+    ruleUsage: asText(rule.usage),
+    standardName: asText(standard.basisName) ?? asText(standard.regionName),
+    standardClause: asText(standard.clauseRef),
+  }
+}
+
+export function thermalCalcComplianceLabel(compliant: boolean | null): string {
+  if (compliant === true) {
+    return '满足要求'
+  }
+  if (compliant === false) {
+    return '不满足要求'
+  }
+  return '未判定（缺少地区限值）'
+}

@@ -12,7 +12,7 @@ import { BusinessError, HttpRequestError } from '@/types/error'
 export const AI_REASONING_LEVELS = ['LOW', 'HIGH', 'MAX'] as const
 
 export const AI_REASONING_LEVEL_META: Record<AiReasoningLevel, { label: string, hint: string }> = {
-  HIGH: { hint: '适合日常AI和Agent任务', label: '高' },
+  HIGH: { hint: '适合日常 AI 任务', label: '高' },
   LOW: { hint: '适合简单任务', label: '低' },
   MAX: { hint: '适合复杂分析任务，通常成本和耗时更高', label: '最高' },
 }
@@ -27,7 +27,7 @@ export type AiModelDisplayTestStatus = AiModelTestStatus | 'STALE'
 
 export const ENABLE_MODEL_REQUIRES_TEST_HINT = '请先完成模型检测，并确保所有必需能力正常。'
 
-export const TOOL_CALLING_BLOCKED_HINT = '当前模型无法完成系统要求的工具调用，不能启用为正式模型。'
+export const TOOL_CALLING_BLOCKED_HINT = '当前模型未通过系统要求的工具调用检测，暂不能启用为正式模型。'
 
 export const MODEL_PROMPT_DUTY_HINT = '回答风格、精炼程度和业务关注点请前往“提示词配置”维护。全局回答规则控制怎么说。'
 
@@ -64,10 +64,10 @@ export const AI_MODEL_TEST_ERROR_LABELS: Record<AiModelTestErrorKind, string> = 
   auth: '认证失败',
   connection: '连接失败',
   model_not_found: '模型不存在',
-  provider_config: 'Provider配置错误',
+  provider_config: '服务商配置错误',
   reasoning: '推理强度不支持',
   text: '文本生成失败',
-  tool_calling: 'Agent工具调用失败',
+  tool_calling: '工具调用失败',
   vision: '图片输入失败',
 }
 
@@ -82,7 +82,7 @@ const ADMISSION_CHECK_LABELS: Record<keyof AiModelTestResult['checks'], string> 
   connection: '接口连接',
   reasoning: '推理配置',
   text: '文本生成',
-  toolCalling: 'Agent工具调用',
+  toolCalling: '工具调用能力',
   vision: '图片输入',
 }
 

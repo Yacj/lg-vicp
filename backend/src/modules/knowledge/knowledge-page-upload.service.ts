@@ -3,26 +3,33 @@
  * 正式链路不再依赖 LibreOffice；上传后 recognitionStatus=PENDING，由视觉识别 Worker 处理。
  */
 import { unzipSync } from "fflate";
-import { fileTypeFromBuffer } from "file-type";
 import type { FastifyInstance, FastifyRequest } from "fastify";
-import { and, asc, count, eq, sql } from "drizzle-orm";
+import { and, count, eq, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import type { AuthUser } from "../../shared/auth-user.js";
+import type { DbExecutor } from "../../db/client.js";
 import { AppError, NotFoundError } from "../../shared/errors.js";
 import {
   PAGE_IMAGE_MAX_BYTES,
   PAGE_IMAGE_MIME,
   PAGE_IMAGE_MIN_WIDTH_HINT,
+  ZIP_MAX_IMAGE_ENTRIES,
   emptyRecognitionMetadata,
   extractPageLabelFromFileName,
+  isPageRecognitionBusy,
   mergePageMetadata,
+  naturalPageSort,
   readPageRecognitionMeta,
   type PageRecognitionMetadata
 } from "../../shared/page-recognition.js";
+import { mapWithConcurrency } from "../../shared/concurrency.js";
+import { assertKnowledgeVersionEditable } from "./knowledge-version-guard.js";
+import { markPageContentMutation, purgePageDerivedIndex } from "./knowledge-page-index.service.js";
 import { env } from "../../config/env.js";
 import { files, knowledgeDocumentVersions, knowledgePages } from "../../db/schema.js";
 import { writeAuditLog } from "../audit-logs/audit-log.service.js";
+import { detectPageImageMime, inspectZipCentralDirectory, normalizeZipEntryName } from "./knowledge-page-upload.security.js";
 
 const ZIP_MIME = new Set([
   "application/zip",
@@ -48,9 +55,9 @@ async function requireVersion(app: FastifyInstance, versionId: string) {
   const [version] = await app.db.select().from(knowledgeDocumentVersions)
     .where(eq(knowledgeDocumentVersions.id, versionId)).limit(1);
   if (!version) throw new NotFoundError("文档版本不存在");
+  assertKnowledgeVersionEditable(version);
   return version;
 }
-
 async function syncVersionPageCount(
   db: { update: FastifyInstance["db"]["update"]; select: FastifyInstance["db"]["select"] },
   versionId: string
@@ -105,27 +112,10 @@ async function loadReadyPageImageFile(app: FastifyInstance, fileId: string) {
   return file;
 }
 
-async function inspectImageWarnings(
-  app: FastifyInstance,
-  objectKey: string,
-  mimeType: string
-): Promise<string[]> {
-  const warnings: string[] = [];
-  try {
-    const buffer = await app.storage.getObject(objectKey);
-    const dims = readImageDimensions(buffer, mimeType);
-    if (dims && dims.width < PAGE_IMAGE_MIN_WIDTH_HINT) {
-      warnings.push(`图片宽度 ${dims.width}px 低于建议值 ${PAGE_IMAGE_MIN_WIDTH_HINT}px，可能影响视觉识别`);
-    }
-  } catch {
-    warnings.push("无法读取图片尺寸，建议确认图片完整");
-  }
-  return warnings;
-}
-
 /**
  * 同一 version + physicalPageNumber：更新同页、替换图片、保留 page id。
- * 替换图片后 recognitionStatus 重置为 PENDING（已确认页进入候选重审，不静默覆盖 confirmedStructuredData）。
+ * 换图即正式内容变化：清空识别候选与已确认快照 + 删除该页派生索引（chunks/blocks/DRAFT 热工行）
+ * + 清空旧 parsedText，并将版本正式索引置脏（indexDirty），等待重新识别 / 重新确认 / 版本重建。
  */
 export async function upsertPageImage(
   app: FastifyInstance,
@@ -136,9 +126,11 @@ export async function upsertPageImage(
     pageTitle?: string | null;
     pageImageObjectKey: string;
     metadataPatch: PageRecognitionMetadata;
-  }
+  },
+  db: DbExecutor = app.db
 ) {
-  const [existing] = await app.db.select().from(knowledgePages)
+  assertKnowledgeVersionEditable(version);
+  const [existing] = await db.select().from(knowledgePages)
     .where(and(
       eq(knowledgePages.versionId, version.id),
       eq(knowledgePages.physicalPageNumber, input.physicalPageNumber)
@@ -146,34 +138,53 @@ export async function upsertPageImage(
 
   if (existing) {
     const prevMeta = readPageRecognitionMeta(existing.metadata);
-    const wasConfirmed = prevMeta.recognitionStatus === "CONFIRMED";
-    const nextMeta = mergePageMetadata(existing.metadata, {
-      ...emptyRecognitionMetadata({
-        confirmedStructuredData: wasConfirmed
-          ? (prevMeta.confirmedStructuredData ?? prevMeta.structuredData)
-          : prevMeta.confirmedStructuredData,
-        confirmedAt: wasConfirmed ? prevMeta.confirmedAt : prevMeta.confirmedAt,
-        confirmedById: wasConfirmed ? prevMeta.confirmedById : prevMeta.confirmedById,
-        uploadSource: input.metadataPatch.uploadSource ?? prevMeta.uploadSource,
-        originalFileName: input.metadataPatch.originalFileName ?? prevMeta.originalFileName,
-        imageWarnings: input.metadataPatch.imageWarnings ?? [],
-        recognitionStatus: "PENDING"
-      })
-    });
-    const [updated] = await app.db.update(knowledgePages).set({
+    // P1-6：busy 判定统一复用 isPageRecognitionBusy()，覆盖
+    // PROCESSING，以及 PENDING + recognitionRunId（已入队、Job 仍 active/waiting/delayed）。
+    // 直接换图会让旧 Job 继续跑并与新图冲突，因此显式拒绝（提示稍后重试），
+    // 不依赖 15 分钟 stale reconcile 兜底。
+    if (isPageRecognitionBusy(prevMeta)) {
+      throw new AppError("PAGE_RECOGNITION_BUSY", "当前页面正在排队或识别，请稍后重试。", 409, {
+        errorCode: "PAGE_RECOGNITION_BUSY",
+        pageId: existing.id,
+        recognitionStatus: prevMeta.recognitionStatus ?? "PENDING",
+        recognitionRunId: prevMeta.recognitionRunId ?? null,
+        hint: "如确认识别任务已终止，请先执行「识别任务对账」恢复页面状态后再换图"
+      });
+    }
+    // 换图 = 正式内容变化：先清派生索引（chunks/blocks/DRAFT 热工行），再重置识别快照。
+    const purged = await purgePageDerivedIndex(db, existing);
+    const nextMeta = mergePageMetadata(existing.metadata, emptyRecognitionMetadata({
+      uploadSource: input.metadataPatch.uploadSource ?? prevMeta.uploadSource,
+      originalFileName: input.metadataPatch.originalFileName ?? prevMeta.originalFileName,
+      imageWarnings: input.metadataPatch.imageWarnings ?? [],
+      recognitionStatus: "PENDING",
+      recognitionRunId: input.metadataPatch.recognitionRunId ?? null,
+      recognitionQueuedAt: input.metadataPatch.recognitionQueuedAt ?? null
+    }));
+    const [updated] = await db.update(knowledgePages).set({
       pageLabel: input.pageLabel,
       pageLabelSource: "MANUAL",
       pageLabelVerified: true,
       pageTitle: input.pageTitle !== undefined ? input.pageTitle : existing.pageTitle,
       pageImageObjectKey: input.pageImageObjectKey,
       hasImages: true,
+      // 旧 parsedText 属于旧图片，换图后清空，避免残留正文与检索不一致
+      parsedText: null,
       metadata: nextMeta,
       parseStatus: "PARSED"
     }).where(eq(knowledgePages.id, existing.id)).returning();
-    return { page: updated!, created: false };
+    await markPageContentMutation(db, version.id);
+    return {
+      page: updated!,
+      created: false,
+      previousObjectKey: existing.pageImageObjectKey,
+      invalidated: true,
+      purged,
+      lockedThermalRows: purged.lockedThermalRows
+    };
   }
 
-  const [created] = await app.db.insert(knowledgePages).values({
+  const [created] = await db.insert(knowledgePages).values({
     documentId: version.documentId,
     versionId: version.id,
     pageNumber: input.physicalPageNumber,
@@ -190,7 +201,58 @@ export async function upsertPageImage(
       ...input.metadataPatch
     }))
   }).returning();
-  return { page: created!, created: true };
+  await markPageContentMutation(db, version.id);
+  return { page: created!, created: true, previousObjectKey: null, invalidated: true, purged: null, lockedThermalRows: 0 };
+}
+
+async function removeReplacedPageImage(app: FastifyInstance, objectKey: string | null | undefined, nextKey: string) {
+  if (objectKey && objectKey !== nextKey && objectKey.startsWith("knowledge/page-images/")) {
+    await app.storage.removeObject(objectKey).catch(() => undefined);
+  }
+}
+
+/**
+ * 逐页入队识别任务，单页入队失败不影响其他页面：
+ * 失败页面回退为「可重新入队」状态（PENDING + recognitionRunId=null），
+ * 避免出现「PENDING 但无 Job 且无法重新入队」的永久卡死（manual/auto/batch retry 均可恢复）。
+ */
+export async function enqueueRecognitionWithRecovery(
+  app: FastifyInstance,
+  versionId: string,
+  actor: Pick<AuthUser, "id">,
+  rows: Array<{ pageId: string }>,
+  recognitionRunIds: Map<string, string>
+): Promise<{ enqueued: number; failed: Array<{ pageId: string; error: string }> }> {
+  let enqueued = 0;
+  const failed: Array<{ pageId: string; error: string }> = [];
+  for (const row of rows) {
+    const recognitionRunId = recognitionRunIds.get(row.pageId);
+    if (!recognitionRunId) continue;
+    try {
+      await app.queues.pageRecognition.add(
+        "recognize-page",
+        { pageId: row.pageId, versionId, triggeredBy: actor.id, recognitionRunId },
+        { jobId: `page-recog-${row.pageId}`, removeOnComplete: true, removeOnFail: true }
+      );
+      enqueued += 1;
+    } catch (error) {
+      const [page] = await app.db.select().from(knowledgePages).where(eq(knowledgePages.id, row.pageId)).limit(1);
+      if (page) {
+        const meta = readPageRecognitionMeta(page.metadata);
+        await app.db.update(knowledgePages).set({
+          metadata: mergePageMetadata(page.metadata, {
+            ...meta,
+            recognitionStatus: "PENDING",
+            recognitionRunId: null,
+            recognitionQueuedAt: null,
+            lastRecognitionError: "识别任务入队失败，可重新触发识别"
+          })
+        }).where(eq(knowledgePages.id, row.pageId));
+      }
+      failed.push({ pageId: row.pageId, error: error instanceof Error ? error.message : String(error) });
+    }
+  }
+  return { enqueued, failed };
 }
 
 export async function batchUploadVersionPages(
@@ -203,10 +265,99 @@ export async function batchUploadVersionPages(
 ) {
   if (items.length === 0) throw new AppError("EMPTY_PAGE_UPLOAD", "请至少上传一张页面图片", 400);
   const version = await requireVersion(app, versionId);
+  if (items.length > env.PAGE_BATCH_MAX_ITEMS) {
+    throw new AppError("PAGE_BATCH_TOO_MANY", `单次批量上传不能超过 ${env.PAGE_BATCH_MAX_ITEMS} 张图片`, 400);
+  }
+
+  // 1) 预检：先读取文件行（不读 Buffer），校验单张大小 / 总量 / 页序。
   const existingMax = await app.db.select({
     maxPhysical: sql<number>`coalesce(max(${knowledgePages.physicalPageNumber}), 0)`
   }).from(knowledgePages).where(eq(knowledgePages.versionId, versionId));
   let nextPhysical = Number(existingMax[0]?.maxPhysical ?? 0) + 1;
+
+  const fileRows = await Promise.all(items.map((item) => loadReadyPageImageFile(app, item.fileId)));
+  const totalBytes = fileRows.reduce((sum, file) => sum + Number(file.sizeBytes ?? 0), 0);
+  if (totalBytes > env.PAGE_BATCH_MAX_TOTAL_BYTES) {
+    throw new AppError(
+      "PAGE_BATCH_TOO_LARGE",
+      `单次批量上传总大小不能超过 ${Math.floor(env.PAGE_BATCH_MAX_TOTAL_BYTES / (1024 * 1024))}MB`,
+      400,
+      { totalBytes, maxTotalBytes: env.PAGE_BATCH_MAX_TOTAL_BYTES }
+    );
+  }
+
+  // 2) 页序：显式 physicalPageNumber 优先；未指定的按文件名自然排序（不依赖浏览器选择顺序）。
+  const loaded = items.map((item, index) => ({ item, file: fileRows[index]! }));
+  const requestedPageNumbers = new Set<number>();
+  const planned: Array<{
+    physicalPageNumber: number; pageLabel: string; pageTitle: string | null;
+    file: typeof files.$inferSelect;
+  }> = [];
+  for (const entry of loaded.filter((row) => row.item.physicalPageNumber != null)) {
+    const physical = entry.item.physicalPageNumber!;
+    if (!Number.isInteger(physical) || physical < 1) {
+      throw new AppError("INVALID_PHYSICAL_PAGE_NUMBER", "physicalPageNumber 必须为正整数", 400);
+    }
+    if (requestedPageNumbers.has(physical)) {
+      throw new AppError("DUPLICATE_PHYSICAL_PAGE_NUMBER", `本次上传的 physicalPageNumber 重复：${physical}`, 400, {
+        errorCode: "DUPLICATE_PHYSICAL_PAGE_NUMBER",
+        physicalPageNumber: physical
+      });
+    }
+    requestedPageNumbers.add(physical);
+    nextPhysical = Math.max(nextPhysical, physical + 1);
+    planned.push({
+      physicalPageNumber: physical,
+      pageLabel: entry.item.pageLabel?.trim() || extractPageLabelFromFileName(entry.file.originalName) || String(physical),
+      pageTitle: entry.item.pageTitle ?? null,
+      file: entry.file
+    });
+  }
+  const implicit = naturalPageSort(
+    loaded.filter((row) => row.item.physicalPageNumber == null),
+    (entry) => entry.file.originalName
+  );
+  for (const entry of implicit) {
+    while (requestedPageNumbers.has(nextPhysical)) nextPhysical += 1;
+    const physical = nextPhysical++;
+    requestedPageNumbers.add(physical);
+    planned.push({
+      physicalPageNumber: physical,
+      pageLabel: entry.item.pageLabel?.trim() || extractPageLabelFromFileName(entry.file.originalName) || String(physical),
+      pageTitle: entry.item.pageTitle ?? null,
+      file: entry.file
+    });
+  }
+
+  // 3) 并发受限读取 + 内容校验 + 立即上传，读完即释放 Buffer（不再整批常驻内存）。
+  const createdObjectKeys: string[] = [];
+  let prepared: Array<{
+    physicalPageNumber: number; pageLabel: string; pageTitle: string | null;
+    file: typeof files.$inferSelect; key: string; mimeType: string; warnings: string[];
+  }>;
+  try {
+    prepared = await mapWithConcurrency(planned, env.PAGE_BATCH_READ_CONCURRENCY, async (entry) => {
+      const bytes = await app.storage.getObject(entry.file.objectKey);
+      if (bytes.byteLength > PAGE_IMAGE_MAX_BYTES) {
+        throw new AppError("PAGE_IMAGE_TOO_LARGE", `单张页面图片不能超过 ${PAGE_IMAGE_MAX_BYTES / (1024 * 1024)}MB`, 400);
+      }
+      const mimeType = await detectPageImageMime(bytes, entry.file.originalName);
+      if (mimeType !== entry.file.mimeType) {
+        throw new AppError("INVALID_PAGE_IMAGE", "页面图片内容与文件类型不匹配，仅支持 PNG / JPG", 400);
+      }
+      const dims = readImageDimensions(bytes, mimeType);
+      const warnings = dims && dims.width < PAGE_IMAGE_MIN_WIDTH_HINT
+        ? [`图片宽度 ${dims.width}px 低于建议值 ${PAGE_IMAGE_MIN_WIDTH_HINT}px，可能影响视觉识别`]
+        : [];
+      const key = `knowledge/page-images/${version.documentId}/${version.id}/p${entry.physicalPageNumber}-${randomUUID()}.${mimeType === "image/png" ? "png" : "jpg"}`;
+      await app.storage.putObject(key, bytes, mimeType);
+      createdObjectKeys.push(key);
+      return { ...entry, key, mimeType, warnings };
+    });
+  } catch (error) {
+    await Promise.all(createdObjectKeys.map((key) => app.storage.removeObject(key).catch(() => undefined)));
+    throw error;
+  }
 
   const results: Array<{
     pageId: string;
@@ -215,62 +366,44 @@ export async function batchUploadVersionPages(
     created: boolean;
     warnings: string[];
   }> = [];
-
-  for (const item of items) {
-    const file = await loadReadyPageImageFile(app, item.fileId);
-    const warnings = await inspectImageWarnings(app, file.objectKey, file.mimeType);
-    const physicalPageNumber = item.physicalPageNumber ?? nextPhysical++;
-    if (item.physicalPageNumber != null) {
-      nextPhysical = Math.max(nextPhysical, item.physicalPageNumber + 1);
-    }
-    const pageLabel = item.pageLabel?.trim()
-      || extractPageLabelFromFileName(file.originalName)
-      || String(physicalPageNumber);
-    const upserted = await upsertPageImage(app, version, {
-      physicalPageNumber,
-      pageLabel,
-      pageTitle: item.pageTitle ?? null,
-      pageImageObjectKey: file.objectKey,
-      metadataPatch: {
-        uploadSource: "BATCH",
-        originalFileName: file.originalName,
-        imageWarnings: warnings,
-        recognitionStatus: "PENDING"
+  const recognitionRunIds = new Map<string, string>();
+  const replacedObjects: Array<{ previous: string | null; next: string }> = [];
+  let pageCount = 0;
+  try {
+    pageCount = await app.db.transaction(async (tx) => {
+      for (const item of prepared) {
+        const recognitionRunId = options?.enqueueRecognition === false ? null : randomUUID();
+        const upserted = await upsertPageImage(app, version, {
+          physicalPageNumber: item.physicalPageNumber, pageLabel: item.pageLabel, pageTitle: item.pageTitle,
+          pageImageObjectKey: item.key,
+          metadataPatch: {
+            uploadSource: "BATCH",
+            originalFileName: item.file.originalName,
+            imageWarnings: item.warnings,
+            recognitionStatus: "PENDING",
+            recognitionRunId,
+            recognitionQueuedAt: recognitionRunId ? new Date().toISOString() : null
+          }
+        }, tx);
+        replacedObjects.push({ previous: upserted.previousObjectKey, next: item.key });
+        results.push({ pageId: upserted.page.id, physicalPageNumber: upserted.page.physicalPageNumber, pageLabel: upserted.page.pageLabel, created: upserted.created, warnings: item.warnings });
+        if (recognitionRunId) recognitionRunIds.set(upserted.page.id, recognitionRunId);
       }
+      const currentCount = await syncVersionPageCount(tx, versionId);
+      await writeAuditLog({ db: tx, request, actor, action: "knowledge.pages_batch_uploaded", targetType: "knowledge_document_version", targetId: versionId, afterJson: { count: results.length, pageCount: currentCount, created: results.filter((r) => r.created).length } });
+      return currentCount;
     });
-    results.push({
-      pageId: upserted.page.id,
-      physicalPageNumber: upserted.page.physicalPageNumber,
-      pageLabel: upserted.page.pageLabel,
-      created: upserted.created,
-      warnings
-    });
+  } catch (error) {
+    await Promise.all(createdObjectKeys.map((key) => app.storage.removeObject(key).catch(() => undefined)));
+    throw error;
   }
+  await Promise.all(replacedObjects.map(({ previous, next }) => removeReplacedPageImage(app, previous, next)));
 
-  const pageCount = await syncVersionPageCount(app.db, versionId);
-  await writeAuditLog({
-    db: app.db, request, actor,
-    action: "knowledge.pages_batch_uploaded",
-    targetType: "knowledge_document_version",
-    targetId: versionId,
-    afterJson: { count: results.length, pageCount, created: results.filter((r) => r.created).length }
-  });
+  const enqueue = options?.enqueueRecognition === false
+    ? { enqueued: 0, failed: [] as Array<{ pageId: string; error: string }> }
+    : await enqueueRecognitionWithRecovery(app, versionId, actor, results, recognitionRunIds);
 
-  if (options?.enqueueRecognition !== false) {
-    for (const row of results) {
-      await app.queues.pageRecognition.add(
-        "recognize-page",
-        { pageId: row.pageId, versionId, triggeredBy: actor.id },
-        { jobId: `page-recog-${row.pageId}-${Date.now()}`, removeOnComplete: true }
-      );
-    }
-  }
-
-  return { pageCount, items: results };
-}
-
-function normalizeZipEntryName(name: string): string {
-  return name.replace(/\\/g, "/").replace(/^\.\//, "");
+  return { pageCount, items: results, enqueued: enqueue.enqueued, enqueueFailed: enqueue.failed };
 }
 
 function isAllowedPageImageName(name: string): boolean {
@@ -297,6 +430,7 @@ export async function importVersionPagesFromZip(
   }
 
   const zipBuffer = await app.storage.getObject(zipFile.objectKey);
+  inspectZipCentralDirectory(zipBuffer);
   let entries: Record<string, Uint8Array>;
   try {
     entries = unzipSync(new Uint8Array(zipBuffer));
@@ -314,6 +448,17 @@ export async function importVersionPagesFromZip(
       try {
         const parsed = JSON.parse(Buffer.from(data).toString("utf8"));
         if (Array.isArray(parsed)) {
+          if (parsed.length > ZIP_MAX_IMAGE_ENTRIES) {
+            throw new AppError("INVALID_MANIFEST", "manifest.json 页面条目不能超过 200 条", 400);
+          }
+          if (parsed.some((item) => !item || typeof item !== "object"
+            || typeof item.file !== "string"
+            || (item.pageLabel !== undefined && typeof item.pageLabel !== "string")
+            || (item.pageTitle !== undefined && typeof item.pageTitle !== "string")
+            || (item.physicalPageNumber !== undefined
+              && (!Number.isInteger(item.physicalPageNumber) || item.physicalPageNumber < 1)))) {
+            throw new AppError("INVALID_MANIFEST", "manifest.json 页面字段无效", 400);
+          }
           manifest = parsed as ZipManifestEntry[];
         }
       } catch {
@@ -322,7 +467,7 @@ export async function importVersionPagesFromZip(
       continue;
     }
     if (!isAllowedPageImageName(base)) continue;
-    fileMap.set(base, data);
+    if (fileMap.has(name)) throw new AppError("DUPLICATE_MANIFEST_FILE", `ZIP 内文件路径重复：${name}`, 400);
     fileMap.set(name, data);
   }
 
@@ -334,11 +479,17 @@ export async function importVersionPagesFromZip(
     pageTitle?: string | null;
   };
   const planned: Planned[] = [];
+  const manifestFiles = new Set<string>();
 
   if (manifest && manifest.length > 0) {
     let order = 1;
     for (const entry of manifest) {
-      const bytes = fileMap.get(entry.file) ?? fileMap.get(path.posix.basename(entry.file));
+      const safeName = normalizeZipEntryName(entry.file);
+      if (manifestFiles.has(safeName)) {
+        throw new AppError("DUPLICATE_MANIFEST_FILE", `manifest 中的图片不能重复引用：${entry.file}`, 400);
+      }
+      manifestFiles.add(safeName);
+      const bytes = fileMap.get(safeName);
       if (!bytes) {
         throw new AppError("MANIFEST_FILE_MISSING", `manifest 中的文件不存在：${entry.file}`, 400);
       }
@@ -355,9 +506,7 @@ export async function importVersionPagesFromZip(
       order += 1;
     }
   } else {
-    const imageNames = [...new Set(
-      [...fileMap.keys()].filter((name) => !name.includes("/") && isAllowedPageImageName(name))
-    )].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    const imageNames = naturalPageSort([...fileMap.keys()].filter(isAllowedPageImageName), (name) => name);
     if (imageNames.length === 0) {
       throw new AppError("EMPTY_ZIP", "ZIP 内未找到 PNG/JPG 页面图片", 400);
     }
@@ -365,7 +514,7 @@ export async function importVersionPagesFromZip(
     for (const name of imageNames) {
       const bytes = fileMap.get(name)!;
       planned.push({
-        fileName: name,
+        fileName: path.posix.basename(name),
         bytes,
         physicalPageNumber: physical,
         pageLabel: extractPageLabelFromFileName(name) || String(physical),
@@ -373,6 +522,31 @@ export async function importVersionPagesFromZip(
       });
       physical += 1;
     }
+  }
+
+  const seenPhysicalPages = new Set<number>();
+  const preflight: Array<Planned & { mimeType: string; warnings: string[] }> = [];
+  let plannedBytes = 0;
+  for (const item of planned) {
+    if (!Number.isInteger(item.physicalPageNumber) || item.physicalPageNumber < 1 || seenPhysicalPages.has(item.physicalPageNumber)) {
+      throw new AppError("DUPLICATE_PHYSICAL_PAGE_NUMBER", "manifest 中的 physicalPageNumber 不能重复，且必须为正整数", 400, {
+        errorCode: "DUPLICATE_PHYSICAL_PAGE_NUMBER",
+        physicalPageNumber: item.physicalPageNumber
+      });
+    }
+    seenPhysicalPages.add(item.physicalPageNumber);
+    plannedBytes += item.bytes.byteLength;
+  }
+  if (planned.length > env.PAGE_BATCH_MAX_ITEMS) {
+    throw new AppError("PAGE_BATCH_TOO_MANY", `单次导入不能超过 ${env.PAGE_BATCH_MAX_ITEMS} 张图片`, 400);
+  }
+  if (plannedBytes > env.PAGE_BATCH_MAX_TOTAL_BYTES) {
+    throw new AppError(
+      "PAGE_BATCH_TOO_LARGE",
+      `单次导入总大小不能超过 ${Math.floor(env.PAGE_BATCH_MAX_TOTAL_BYTES / (1024 * 1024))}MB`,
+      400,
+      { totalBytes: plannedBytes, maxTotalBytes: env.PAGE_BATCH_MAX_TOTAL_BYTES }
+    );
   }
 
   const results: Array<{
@@ -383,6 +557,7 @@ export async function importVersionPagesFromZip(
     warnings: string[];
     fileName: string;
   }> = [];
+  const recognitionRunIds = new Map<string, string>();
 
   for (const item of planned) {
     const buffer = Buffer.from(item.bytes);
@@ -393,90 +568,66 @@ export async function importVersionPagesFromZip(
         400
       );
     }
-    const detected = await fileTypeFromBuffer(buffer);
-    const mimeType = detected?.mime === "image/png" || detected?.mime === "image/jpeg"
-      ? detected.mime
-      : item.fileName.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg";
-    if (!PAGE_IMAGE_MIME.has(mimeType)) {
-      throw new AppError("INVALID_PAGE_IMAGE", `${item.fileName} 不是 PNG/JPG`, 400);
-    }
+    const mimeType = await detectPageImageMime(buffer, item.fileName);
     const dims = readImageDimensions(buffer, mimeType);
     const warnings: string[] = [];
     if (dims && dims.width < PAGE_IMAGE_MIN_WIDTH_HINT) {
       warnings.push(`图片宽度 ${dims.width}px 低于建议值 ${PAGE_IMAGE_MIN_WIDTH_HINT}px`);
     }
 
-    const objectKey = `knowledge/page-images/${version.documentId}/${version.id}/${item.physicalPageNumber}-${randomUUID()}.${mimeType === "image/png" ? "png" : "jpg"}`;
-    await app.storage.putObject(objectKey, buffer, mimeType);
-
-    const upserted = await upsertPageImage(app, version, {
-      physicalPageNumber: item.physicalPageNumber,
-      pageLabel: item.pageLabel,
-      pageTitle: item.pageTitle,
-      pageImageObjectKey: objectKey,
-      metadataPatch: {
-        uploadSource: "ZIP",
-        originalFileName: item.fileName,
-        imageWarnings: warnings,
-        recognitionStatus: "PENDING"
-      }
-    });
-    results.push({
-      pageId: upserted.page.id,
-      physicalPageNumber: upserted.page.physicalPageNumber,
-      pageLabel: upserted.page.pageLabel,
-      created: upserted.created,
-      warnings,
-      fileName: item.fileName
-    });
+    preflight.push({ ...item, bytes: buffer, mimeType, warnings });
   }
 
-  const pageCount = await syncVersionPageCount(app.db, versionId);
-  await writeAuditLog({
-    db: app.db, request, actor,
-    action: "knowledge.pages_imported_zip",
-    targetType: "knowledge_document_version",
-    targetId: versionId,
-    afterJson: { zipFileId, count: results.length, pageCount, hasManifest: Boolean(manifest) }
-  });
-
-  if (options?.enqueueRecognition !== false) {
-    for (const row of results) {
-      await app.queues.pageRecognition.add(
-        "recognize-page",
-        { pageId: row.pageId, versionId, triggeredBy: actor.id },
-        { jobId: `page-recog-${row.pageId}-${Date.now()}`, removeOnComplete: true }
-      );
+  const createdObjectKeys: string[] = [];
+  const replacedObjects: Array<{ previous: string | null; next: string }> = [];
+  let pageCount = 0;
+  try {
+    for (const item of preflight) {
+      const key = `knowledge/page-images/${version.documentId}/${version.id}/p${item.physicalPageNumber}-${randomUUID()}.${item.mimeType === "image/png" ? "png" : "jpg"}`;
+      createdObjectKeys.push(key);
+      await app.storage.putObject(key, Buffer.from(item.bytes), item.mimeType);
     }
+    pageCount = await app.db.transaction(async (tx) => {
+      for (let index = 0; index < preflight.length; index++) {
+        const item = preflight[index]!;
+        const key = createdObjectKeys[index]!;
+        const recognitionRunId = options?.enqueueRecognition === false ? null : randomUUID();
+        const upserted = await upsertPageImage(app, version, {
+          physicalPageNumber: item.physicalPageNumber, pageLabel: item.pageLabel, pageTitle: item.pageTitle,
+          pageImageObjectKey: key,
+          metadataPatch: {
+            uploadSource: "ZIP",
+            originalFileName: item.fileName,
+            imageWarnings: item.warnings,
+            recognitionStatus: "PENDING",
+            recognitionRunId,
+            recognitionQueuedAt: recognitionRunId ? new Date().toISOString() : null
+          }
+        }, tx);
+        replacedObjects.push({ previous: upserted.previousObjectKey, next: key });
+        results.push({ pageId: upserted.page.id, physicalPageNumber: upserted.page.physicalPageNumber, pageLabel: upserted.page.pageLabel, created: upserted.created, warnings: item.warnings, fileName: item.fileName });
+        if (recognitionRunId) recognitionRunIds.set(upserted.page.id, recognitionRunId);
+      }
+      const currentCount = await syncVersionPageCount(tx, versionId);
+      await writeAuditLog({ db: tx, request, actor, action: "knowledge.pages_imported_zip", targetType: "knowledge_document_version", targetId: versionId, afterJson: { zipFileId, count: results.length, pageCount: currentCount, hasManifest: Boolean(manifest) } });
+      return currentCount;
+    });
+  } catch (error) {
+    await Promise.all(createdObjectKeys.map((key) => app.storage.removeObject(key).catch(() => undefined)));
+    throw error;
   }
+  await Promise.all(replacedObjects.map(({ previous, next }) => removeReplacedPageImage(app, previous, next)));
+
+  const enqueue = options?.enqueueRecognition === false
+    ? { enqueued: 0, failed: [] as Array<{ pageId: string; error: string }> }
+    : await enqueueRecognitionWithRecovery(app, versionId, actor, results, recognitionRunIds);
 
   return {
     pageCount,
     imported: results.length,
     hasManifest: Boolean(manifest),
-    items: results
+    items: results,
+    enqueued: enqueue.enqueued,
+    enqueueFailed: enqueue.failed
   };
-}
-
-export async function listVersionPagesForRecognition(app: FastifyInstance, versionId: string) {
-  await requireVersion(app, versionId);
-  const rows = await app.db.select().from(knowledgePages)
-    .where(eq(knowledgePages.versionId, versionId))
-    .orderBy(asc(knowledgePages.physicalPageNumber));
-  return rows.map((row) => {
-    const meta = readPageRecognitionMeta(row.metadata);
-    return {
-      id: row.id,
-      physicalPageNumber: row.physicalPageNumber,
-      pageNumber: row.pageNumber,
-      pageLabel: row.pageLabel,
-      pageTitle: row.pageTitle,
-      hasImage: Boolean(row.pageImageObjectKey),
-      recognitionStatus: meta.recognitionStatus ?? null,
-      recognitionWarnings: meta.recognitionWarnings ?? [],
-      imageWarnings: meta.imageWarnings ?? [],
-      lastRecognitionError: meta.lastRecognitionError ?? null,
-      confirmedAt: meta.confirmedAt ?? null
-    };
-  });
 }

@@ -16,7 +16,8 @@ import {
   assertPublicDocument,
   assertReadableKnowledgeDocument,
   isVersionReadable,
-  locateHighlight
+  locateHighlight,
+  resolveSourceDetail
 } from "./knowledge-wiki-read.service.js";
 import { NotFoundError } from "../../shared/errors.js";
 
@@ -161,5 +162,105 @@ describe("高亮定位 locateHighlight", () => {
   it("完全无命中时返回 null 偏移", () => {
     const { charStart } = locateHighlight(fullText, "不存在的原文");
     expect(charStart).toBeNull();
+  });
+});
+
+/**
+ * Case J：页面驱动知识（originalFileId=null）的来源详情必须可用：
+ * 返回页图 / 页文本 / 页块 / 页码，而不是因为没有 ORIGINAL 返回 404。
+ */
+describe("来源详情：无 ORIGINAL 的页面驱动知识", () => {
+  const page = {
+    id: "page-9",
+    documentId: "doc-1",
+    versionId: "ver-1",
+    sectionId: null,
+    pageNumber: 3,
+    physicalPageNumber: 3,
+    pageLabel: "3",
+    pageLabelSource: "MANUAL",
+    pageLabelConfidence: null,
+    pageLabelVerified: true,
+    pageTitle: "外墙构造表",
+    parsedText: "VICP 保温装饰板 25mm，产品层热阻 4.0，总传热阻 4.31",
+    pageImageObjectKey: "knowledge/page-images/doc-1/ver-1/p3.png",
+    hasTables: true,
+    hasImages: true,
+    sectionPath: null
+  };
+  const document = {
+    id: "doc-1",
+    title: "VICP 页面驱动图集",
+    docNumber: null,
+    docType: "DETAIL_ATLAS",
+    visibility: "PUBLIC",
+    projectId: null,
+    status: "ACTIVE",
+    deletedAt: null,
+    currentVersionId: "ver-1"
+  };
+  const version = { id: "ver-1", documentId: "doc-1", version: 1, status: "PUBLISHED", expiryDate: null };
+  const blocks = [{
+    id: "block-1",
+    blockIndex: 0,
+    content: "产品层热阻 4.0",
+    contentType: "TABLE",
+    sourceAnchor: null,
+    metadata: null
+  }];
+
+  function scriptedApp(results: unknown[][]) {
+    let index = 0;
+    const next = () => results[index++] ?? [];
+    const target: any = {
+      from: () => target,
+      where: () => target,
+      innerJoin: () => target,
+      orderBy: () => Promise.resolve(next()),
+      limit: () => Promise.resolve(next()),
+      then: (resolve: (value: unknown[]) => void) => resolve(next())
+    };
+    return {
+      db: { select: () => target },
+      storage: {
+        createDownloadUrl: async (_objectKey: string, name: string) => `https://example.test/${name}`
+      }
+    } as any;
+  }
+
+  it("pageId 入口：original.fileId=null 但页图/页文本/页块齐备，不 404", async () => {
+    const app = scriptedApp([[page], [document], [version], blocks, [], []]);
+    const detail = await resolveSourceDetail(app, { id: "u1", role: "NORMAL_USER" } as never, { pageId: "page-9" });
+
+    expect(detail.original.fileId).toBeNull();
+    expect(detail.original.previewUrl).toBeNull();
+    expect(detail.original.pageImageUrl).toContain("page-3.png");
+    expect(detail.page?.pageLabel).toBe("3");
+    expect(detail.page?.extractedText).toContain("产品层热阻 4.0");
+    expect(detail.page?.blocks).toHaveLength(1);
+    expect(detail.extracted.blocks).toHaveLength(1);
+    expect(detail.location.physicalPageNumber).toBe(3);
+    expect(detail.location.pageNumber).toBe(3);
+    expect(detail.toc.path).toBeNull();
+  });
+
+  it("chunk 入口：页面驱动 chunk 仍能回溯到原页（page-aware）", async () => {
+    const chunk = {
+      id: "chunk-1",
+      documentId: "doc-1",
+      versionId: "ver-1",
+      sectionId: null,
+      pageBlockId: null,
+      sourcePage: 3,
+      citationAnchor: null,
+      metadata: { pageId: "page-9", physicalPageNumber: 3, pageAware: true }
+    };
+    const app = scriptedApp([[chunk], [document], [version], [page], blocks, [], []]);
+    const detail = await resolveSourceDetail(app, { id: "u1", role: "NORMAL_USER" } as never, { chunkId: "chunk-1" });
+
+    expect(detail.original.fileId).toBeNull();
+    expect(detail.page?.id).toBe("page-9");
+    expect(detail.original.pageImageUrl).toContain("page-3.png");
+    expect(detail.location.physicalPageNumber).toBe(3);
   });
 });

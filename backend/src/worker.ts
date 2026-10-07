@@ -18,6 +18,7 @@ import { createCollectionFetchProcessor } from "./workers/collection-fetch.worke
 import { createPageRecognitionProcessor } from "./workers/page-recognition.worker.js";
 import { ensureCollectionAutoScanScheduler } from "./modules/collection/collection.service.js";
 import { runCrawlerSource } from "./modules/knowledge/knowledge-ingest.service.js";
+import { reconcilePageRecognitionJobs } from "./modules/knowledge/knowledge-page-index.service.js";
 import { runStandardCrawl } from "./modules/standard/standard-crawl.service.js";
 import { configureConsoleEncoding } from "./shared/console-encoding.js";
 import { logDocxRendererAvailability } from "./workers/docx-to-pdf.js";
@@ -44,6 +45,18 @@ try {
   await ensureCollectionAutoScanScheduler(queues.collectionFetch);
 } catch (error) {
   console.warn("注册自动采集扫描任务失败，Worker 继续启动", error);
+}
+
+// 页面识别任务对账：周期性扫描 PENDING/PROCESSING 但队列无任务的页面，恢复为可重新入队状态。
+const PAGE_RECOGNITION_RECONCILE_INTERVAL_MS = 10 * 60 * 1000;
+try {
+  await queues.maintenance.upsertJobScheduler(
+    "page-recognition-reconcile",
+    { every: PAGE_RECOGNITION_RECONCILE_INTERVAL_MS },
+    { name: "page_recognition_reconcile", data: {} }
+  );
+} catch (error) {
+  console.warn("注册页面识别对账任务失败，Worker 继续启动", error);
 }
 
 const documentWorker = new Worker<DocumentJobData>(
@@ -81,6 +94,11 @@ const workers = [
         if (!crawlJobId) throw new Error("standard_crawl 任务缺少 crawlJobId 参数");
         const stats = await runStandardCrawl({ db, storage }, crawlJobId);
         return { message: `标准抓取完成：新增 ${stats.new}、变更 ${stats.changed}、失败 ${stats.failed}`, crawlJobId };
+      }
+      // 定时任务按 job.name 分发：页面识别任务对账（stale job 恢复）
+      if (job.name === "page_recognition_reconcile") {
+        const result = await reconcilePageRecognitionJobs({ db, queues, log: console } as never);
+        return { message: `页面识别对账完成：扫描 ${result.scanned}、恢复 ${result.recovered}、仍在队列 ${result.stillPending}` };
       }
       if (executionId) await db.update(cronExecutions).set({ status: "SUCCESS", finishedAt: new Date() }).where(eq(cronExecutions.id, executionId));
       return { message: "维护任务执行完成" };

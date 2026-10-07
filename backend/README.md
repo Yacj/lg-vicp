@@ -1,5 +1,17 @@
 # 蓝格 VICP 后端
 
+2026-10-07 最终交互 + 真实业务UAT：四个边界收口（查询/计算/合规路由、厚度省略追问、厚度口语与取消、指标省略连接词）。`pnpm uat:ai`运行销售20+设计院20、123轮真实HTTP/SSE场景；`pnpm uat:check`只做类型/结构检查。UAT使用独立临时库/用户/Redis队列/页图，事实全部确定性断言，默认规则体验评审，可用`--judge`启用只评价回答体验的AI Judge。Parser/Matcher主结构冻结，后续变更必须有真实失败Case。场景列表、运行依赖、报告及验收限制见[销售与设计院业务UAT](docs/ai/business-uat.md)。
+
+日常表达与局部条件收口（2026-10-07）：指标定位、数字抽取、比较语义分开；在/控制在/要求/达到/做到/目标等连接词不决定模式。多轮 filters 按 metric 增改删，未提及条件保留，同 metric 默认替换（含 mode），仅明确再加范围条件可追加同指标边界；取消条件不得由旧摘要或模型重复参数复活。厚度精确档 thicknessMm、单边/双边 thicknessMin/thicknessMax 独立解析与持久化，签名覆盖三字段；放宽单边厚度继承原边界含义，取消厚度清除三字段。尽量薄只在满足硬条件后按厚度升序展示，不编造范围。所有条件变化重查正式已发布数据，纯参数/原页指代可复用。无数据库结构变化，Thermal Engine 与 Knowledge 流程不变。 本轮实现与验证见 [日常表达与多轮条件验收](docs/thermal/daily-language-closeout-2026-10-07.md)。
+
+2026-10-07 自然语言与多条件最终收口：支持“不应/不得/以上/以下”等规范比较词；普通大于/小于采用包含边界的工程筛选口径。API 与 Tool 新增可选 `filters[]`，多个指标全部 AND，旧单指标及 K/R 字段继续兼容。多轮规格/产品/型号切换清旧依赖并重新查询正式发布数据；双 R 查询不再误报 missing targetK。超限容差返回 requested/effective/adjusted 元信息与中文提示，会话 JSON 保留每项授权来源。详见 `docs/thermal/natural-language-closeout-2026-10-07.md`；无数据库结构修改。
+
+2026-10-07 查询语义收口：参考查询统一使用 `metric`（K / TOTAL_R / PRODUCT_R）、`targetValue`、`mode`；双 R 均支持近似、上限、下限与固定精度匹配。保留旧 API 字段，AI 容差由用户原话与后端规则确定；切体系/型号/产品清理依赖 ID，条件变化重查已发布数据，跨体系回退先说明未命中。完整契约及验证记录见 `docs/thermal/lookup-closeout-2026-10-07.md`。本轮没有数据库结构修改。
+
+2026-10-07 生产收口：精确厚度保留 K/型号/体系等硬筛选；参考查询模式按用户语义 → Tool 参数 → 历史 → APPROX，条件变化重查完整发布数据。候选状态完整保留双热阻、来源原页和正式字段；STRICT 与工作台共用发布 readiness，空 BROWSE_ONLY 版本返回 NO_PAGES。迁移检查及原页联调见 `scripts/verify-migrations.mjs`、`scripts/verify-reference-lookup.mjs` 与 `docs/production-closeout-2026-10-07.md`。
+
+迁移验证：`pnpm db:verify` 默认使用 Docker；`node scripts/verify-migrations.mjs --static` 只检查 SQL/journal/snapshot。设置 `MIGRATION_VERIFY_DATABASE_URL` 后 `pnpm db:verify` 在指定 PostgreSQL 实例创建唯一命名的隔离临时库，验证真实 Drizzle 新库/漏 0032 升级/已手工执行/冲突回滚，再自动清理。该连接须有临时库创建权限，验证脚本不迁移连接指定的业务数据库。构建后运行 `node scripts/verify-reference-lookup.mjs` 做真实 Tool/状态/原页签名下载/STRICT 门禁联调；同样只在隔离临时库写业务数据。
+
 蓝格 VICP 是面向外墙保温和建筑节能业务的 AI 智配系统后端，服务三个客户端：
 
 - `B_ADMIN`：B 端管理后台和渠道工作台。
@@ -24,7 +36,7 @@
 - `/api/v1/client/*` 为 C 端/PC AI 端只读内容接口（企业介绍兼容入口、公开文库），要求 JWT、`aud=client` 且客户端为 `C_APP`/`PC_AI`，不依赖后台 RBAC。普通企业介绍请用 `GET /api/v1/company/about`。ADMIN Token 不得冒充 C 端 Token。
 - 客户端访问令牌按客户端类型分别配置：`B_ADMIN` 默认 `24h`，`C_APP` 默认 `30d`，`PC_AI` 默认 `30d`；refresh token 统一默认有效 `30` 天。
 - B 端后台接口必须先通过 JWT 和客户端校验，再通过具体按钮权限码校验；超级管理员直通。例外：当前账号可见范围内的只读项目统计（`GET /platform/projects/statistics`）不要求按钮权限码。
-- 知识库采用“原文档导航 + 原始页面 + AI 检索索引”：平台管理路径 `/api/v1/platform/knowledge/*` 要求 `B_ADMIN` 与精确 `system:knowledge:*` 权限；C_APP/PC_AI 公开读取仅使用 `/api/v1/client/knowledge/*`。普通 B 端新建走 `POST /documents/create-with-file`（只收 fileId，自动解析），草稿验证走 `POST /versions/:versionId/test-qa`（只检索当前版本）。生产 AI 只检索当前、已发布、未过期且 `AI_ENABLED` 的版本；`BROWSE_ONLY` 仅可浏览原文件。DOCX：Mammoth 负责文本/RAG，LibreOffice Headless（宿主机）转临时 PDF 后复用 PDF 页图链路；渲染失败不阻断文本。热工参考行通过 `sourcePageId` 绑定页面，有页图时 AI 返回 `reference_pages`。
+- 知识库采用“原文档导航 + 原始页面 + AI 检索索引”：平台管理路径 `/api/v1/platform/knowledge/*` 要求 `B_ADMIN` 与精确 `system:knowledge:*` 权限；C_APP/PC_AI 公开读取仅使用 `/api/v1/client/knowledge/*`。普通 B 端新建走 `POST /documents/create-with-file`（只收 fileId，自动解析），草稿验证走 `POST /versions/:versionId/test-qa`（只检索当前版本）。Knowledge Version 只有 DRAFT 可修改内容；进入 PENDING_REVIEW/APPROVED/PUBLISHED/DISABLED 后只读，修改需创建新 DRAFT。生产 AI 只检索当前、已发布、未过期且 `AI_ENABLED` 的版本；有 page-aware 分块时排除无页定位的 Mammoth `DOCUMENT_TEXT` 回退块；离线页图版本发布为 AI_ENABLED 前每页必须有原页图且识别已 CONFIRMED。`BROWSE_ONLY` 仅可浏览原文件。DOCX：Mammoth 负责文本/RAG；页面视觉通过离线高保真 PNG/ZIP 上传并人工确认，LibreOffice 默认关闭且仅作 fallback。同页识别以稳定 BullMQ jobId + `recognitionRunId` 单飞，旧任务不得覆盖新结果，只有 `REVIEW_REQUIRED` 可确认。热工参考行通过 `sourcePageId` 绑定页面；参考集发布前要求来源页属于当前、有效的 PUBLISHED Knowledge Version，AI 输出 `reference_pages` 前再次校验并只签名合法页。
 - 不允许使用任意 `system:*` 作为模块级通行证；查看、新增、修改、删除、导出、分配和测试使用独立权限码。
 - C 端和 PC AI 端不能访问后台管理接口，但可以访问明确开放的 AI、公开项目、本人项目、受控文件、报告和分享业务接口。
 - 项目权限独立于后台 RBAC，必须继续执行 `canViewProject`、`canManageProject`、会话归属和文件归属校验。

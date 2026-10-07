@@ -6,13 +6,7 @@ import AppDataTable from '@/components/ui/AppDataTable.vue'
 import AppPage from '@/components/ui/AppPage.vue'
 import AppStatusTag from '@/components/ui/AppStatusTag.vue'
 import { useAiModelManagement } from '@/composables/useAiModelManagement'
-import { usePermissionAccess } from '@/composables/usePermissionAccess'
-import {
-  AGENT_MODEL_UNSET_HINT,
-  canAssignAgentModel,
-  getRuntimeModelHealthLabel,
-  resolveAgentModelSlot,
-} from '@/utils/ai'
+import { getAiReasoningLevelLabel } from '@/utils/ai-model'
 import {
   AGENT_RUNTIME_LIMITS,
   AGENT_TOOL_CATALOG,
@@ -23,28 +17,14 @@ import {
 
 defineOptions({ name: 'AiConfigAdvanced' })
 
-const { assigningAgent, assignAgentModel, modelList } = useAiModelManagement()
-const { canAccess } = usePermissionAccess()
+const { modelList } = useAiModelManagement()
 
-const canEditAgentModel = computed(() => canAccess({ permissions: ['system:ai:model:edit'] }))
 const rows = computed(() => modelList.data.value as AiModel[])
-const agentSlot = computed(() => resolveAgentModelSlot(rows.value))
-const agentEnabled = computed(() => agentSlot.value.status === 'ok')
-const toolStatus = computed(() => resolveAgentToolStatus(agentEnabled.value))
-
-const agentModelOptions = computed(() => rows.value
-  .filter(model => canAssignAgentModel(model))
-  .map(model => ({
-    label: model.enabled ? model.displayName : `${model.displayName}（已停用）`,
-    value: model.id,
-  })))
-
-function onAgentModelChange(value: unknown): void {
-  if (typeof value !== 'string' || !value || value === agentSlot.value.id) {
-    return
-  }
-  void assignAgentModel(value)
-}
+const defaultModel = computed(() => rows.value.find(model => model.isDefault) ?? null)
+const enabledModels = computed(() => rows.value.filter(model => model.enabled))
+const visionModels = computed(() => rows.value.filter(model => model.supportsVision))
+/** 专业工具随「已启用模型」运行；由运行时实际能力与准入机制管理，不依赖人工开关。 */
+const toolStatus = computed(() => resolveAgentToolStatus(enabledModels.value.length > 0))
 
 const toolColumns: PrimaryTableCol<TableRowData>[] = [
   {
@@ -73,46 +53,35 @@ const toolColumns: PrimaryTableCol<TableRowData>[] = [
 
 <template>
   <AppPage
-    description="配置筑小格 Agent 主模型，并查看专业工具状态。步骤数与超时由服务端环境变量控制，本页只读。"
-    title="Agent 设置"
+    description="查看系统 AI 运行能力与专业工具状态。运行限制与工具由系统统一管理，本页只读。"
+    title="高级设置"
   >
     <section class="ai-advanced__section">
       <h2 class="ai-advanced__heading">
-        Agent 主模型
+        模型概览
       </h2>
-      <div class="ai-advanced__model">
-        <div class="ai-advanced__model-item">
-          <span class="ai-advanced__label">Agent 主模型</span>
-          <t-select
-            v-if="canEditAgentModel"
-            :disabled="agentModelOptions.length === 0 || assigningAgent"
-            :loading="assigningAgent || modelList.isLoading.value"
-            :model-value="agentSlot.id ?? ''"
-            :options="agentModelOptions"
-            :placeholder="agentModelOptions.length === 0 ? '暂无支持 Tools 的模型' : '请选择 Agent 主模型'"
-            @change="onAgentModelChange"
-          />
-          <strong v-else class="ai-advanced__value">{{ agentSlot.name ?? '未设置' }}</strong>
-          <AppStatusTag
-            :label="getRuntimeModelHealthLabel(agentSlot.status)"
-            :status="agentSlot.status === 'ok' ? 'success' : agentSlot.status === 'disabled' ? 'warning' : 'disabled'"
-          />
-          <p class="ai-advanced__hint">
-            仅展示已开启「工具调用」的模型。不支持 Tools 的模型不能被设置为 Agent 主模型。
-          </p>
-        </div>
-        <div class="ai-advanced__model-item">
-          <span class="ai-advanced__label">是否启用 Agent</span>
-          <t-switch :model-value="agentEnabled" disabled :label="['已启用', '未启用']" />
-          <p class="ai-advanced__hint">
-            已配置且启用支持工具调用的 Agent 主模型时，对话会走专业工具；未配置时回退为普通生成。
-          </p>
-        </div>
-      </div>
+      <t-descriptions bordered :column="3" size="medium">
+        <t-descriptions-item label="默认模型">
+          <template v-if="defaultModel">
+            {{ defaultModel.displayName }}
+            <span class="ai-advanced__muted">（{{ getAiReasoningLevelLabel(defaultModel.reasoningLevel) }}推理强度）</span>
+          </template>
+          <span v-else class="ai-advanced__muted">未设置</span>
+        </t-descriptions-item>
+        <t-descriptions-item label="已启用模型">
+          {{ enabledModels.length }} 个
+        </t-descriptions-item>
+        <t-descriptions-item label="支持图片输入">
+          {{ visionModels.length }} 个
+        </t-descriptions-item>
+      </t-descriptions>
+      <p class="ai-advanced__hint">
+        模型启用后，可用于系统支持的 AI 场景。建议先完成准入检测，确认当前模型配置可正常调用。
+      </p>
       <t-alert
-        v-if="agentSlot.status === 'unset'"
-        theme="warning"
-        :title="AGENT_MODEL_UNSET_HINT"
+        v-if="!defaultModel"
+        theme="info"
+        title="尚未设置默认模型。可在模型配置中，将已启用且检测正常的模型设为默认。"
       />
     </section>
 
@@ -127,17 +96,17 @@ const toolColumns: PrimaryTableCol<TableRowData>[] = [
           :label="item.label"
         >
           <strong>{{ item.value }} {{ item.unit }}</strong>
-          <span class="ai-advanced__muted">（{{ item.source }}，只读）</span>
+          <span class="ai-advanced__muted">（{{ item.source }}）</span>
         </t-descriptions-item>
       </t-descriptions>
     </section>
 
     <section class="ai-advanced__section">
       <h2 class="ai-advanced__heading">
-        工具状态
+        专业工具
       </h2>
       <p class="ai-advanced__hint">
-        工具由系统注册，管理员只查看用途和状态，不能编辑 JSON Schema、Function Definition、Tool Code 或 Prompt。
+        工具由系统注册，管理员只查看用途和状态，不能编辑工具定义或调用逻辑。
       </p>
       <AppDataTable
         :columns="toolColumns"
@@ -174,44 +143,11 @@ const toolColumns: PrimaryTableCol<TableRowData>[] = [
   font-weight: 600;
 }
 
-.ai-advanced__model {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--td-size-5);
-}
-
-.ai-advanced__model-item {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: var(--td-size-2);
-}
-
-.ai-advanced__model-item :deep(.t-select) {
-  width: 100%;
-}
-
-.ai-advanced__label {
-  color: var(--td-text-color-secondary);
-  font-size: var(--td-font-size-body-small);
-}
-
-.ai-advanced__value {
-  color: var(--td-text-color-primary);
-  font-size: var(--td-font-size-title-small);
-}
-
 .ai-advanced__hint,
 .ai-advanced__muted {
   margin: 0;
   color: var(--td-text-color-secondary);
   font-size: var(--td-font-size-body-small);
   line-height: 1.5;
-}
-
-@media (max-width: 960px) {
-  .ai-advanced__model {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }
 </style>

@@ -24,12 +24,18 @@ function makeDb(rows: Array<Array<Record<string, unknown>>>): {
     offset: () => chain(),
     then: (resolve: (value: unknown) => void) => Promise.resolve(next()).then(resolve)
   });
+  const selectChain = () => {
+    const query: any = {
+      from: () => query,
+      innerJoin: () => query,
+      where: () => chain(),
+      limit: async () => next(),
+      then: (resolve: (value: unknown) => void) => Promise.resolve(next()).then(resolve)
+    };
+    return query;
+  };
   const db = {
-    select: () => ({
-      from: () => ({
-        where: () => chain()
-      })
-    }),
+    select: () => selectChain(),
     update: () => ({
       set: () => ({ where: () => chain() })
     }),
@@ -62,7 +68,7 @@ describe("createThermalSetNextVersion 派生新版本", () => {
   it("复制全部参考行到新 DRAFT 版本（历史快照不漂移）", async () => {
     const newSet = { ...publishedSet, id: "set-2", version: 2, status: "DRAFT" };
     const rows = [
-      { id: "row-1", setId: "set-1", schemeId: "scheme-1", productSpecId: "spec-1", thicknessMm: 20, productThermalResistance: 2.31, totalThermalResistance: 3.15, kValue: 0.35, rawThickness: "20mm", rawProductResistance: "2.31", rawTotalResistance: "3.15", rawKValue: "0.35", evidenceSource: "图集 X", evidenceRef: "P12", evidenceLevel: "A", createdById: "u-0", updatedById: "u-0" },
+      { id: "row-1", setId: "set-1", schemeId: "scheme-1", productSpecId: "spec-1", catalogProductId: "product-1", thicknessMm: 20, productThermalResistance: 2.31, totalThermalResistance: 3.15, kValue: 0.35, sourceDocumentId: "doc-1", sourcePageId: "page-22", sourcePageLabel: "22", sortOrder: 7, rawThickness: "20mm", rawProductResistance: "2.31", rawTotalResistance: "3.15", rawKValue: "0.35", evidenceSource: "图集 X", evidenceRef: "P12", evidenceLevel: "A", createdById: "u-0", updatedById: "u-0" },
       { id: "row-2", setId: "set-1", schemeId: "scheme-1", productSpecId: "spec-1", thicknessMm: 25, productThermalResistance: 2.89, totalThermalResistance: 3.73, kValue: 0.3, rawThickness: "25mm", rawProductResistance: "2.89", rawTotalResistance: "3.73", rawKValue: "0.3", evidenceSource: "图集 X", evidenceRef: "P13", evidenceLevel: "A", createdById: "u-0", updatedById: "u-0" }
     ];
     const { db, insertCalls } = makeDb([
@@ -83,7 +89,9 @@ describe("createThermalSetNextVersion 派生新版本", () => {
     expect(copied).toHaveLength(2);
     expect(copied[0]).toMatchObject({
       setId: "set-2", schemeId: "scheme-1", productSpecId: "spec-1", thicknessMm: 20,
-      rawThickness: "20mm", kValue: 0.35, evidenceSource: "图集 X", evidenceRef: "P12"
+      catalogProductId: "product-1", sourceDocumentId: "doc-1", sourcePageId: "page-22",
+      sourcePageLabel: "22", sortOrder: 7, rawThickness: "20mm", kValue: 0.35,
+      evidenceSource: "图集 X", evidenceRef: "P12"
     });
     expect(copied[0]).not.toHaveProperty("id");
   });
@@ -112,7 +120,7 @@ describe("参考行状态守卫", () => {
       schemeId: "scheme-1", productSpecId: "spec-1", thicknessMm: 20,
       productThermalResistance: 2.31, totalThermalResistance: 3.15, kValue: 0.35,
       evidenceSource: "图集 X", evidenceRef: "P12"
-    })).rejects.toThrow("当前状态（PUBLISHED）不允许执行该操作");
+    })).rejects.toThrow("已发布热工参考集不可直接修改，请创建新版本后再操作");
   });
 
   it("更新不存在的参考行抛 404", async () => {
@@ -163,6 +171,52 @@ describe("collectThermalSetViolations / validateThermalSet", () => {
     ]);
     const violations = await collectThermalSetViolations(app(db), "set-1");
     expect(violations[0]).toMatchObject({ field: "rows.thicknessMm", message: expect.stringContaining("[25, 50]mm") });
+  });
+
+  it("来源页属于 DRAFT 知识版本 -> 返回可定位的 REFERENCE_PAGE_NOT_PUBLISHED", async () => {
+    const sourcedRow = { ...row, sourceDocumentId: "doc-1", sourcePageId: "page-1", sourcePageLabel: "22" };
+    const { db } = makeDb([
+      [sourcedRow],
+      [{ id: "scheme-1", status: "PUBLISHED", effectiveAt: null, expiresAt: null }],
+      [{ id: "opt-1", schemeId: "scheme-1", productSpecId: "spec-1", minThickness: 15, maxThickness: 30 }],
+      [{ id: "page-1", documentId: "doc-1", versionId: "version-1", currentVersionId: "version-1", versionStatus: "DRAFT", documentStatus: "ACTIVE", documentDeletedAt: null, effectiveDate: null, expiryDate: null }],
+      [{ effectiveAt: null, expiresAt: null }]
+    ]);
+    const violations = await collectThermalSetViolations(app(db), "set-1");
+    expect(violations).toContainEqual(expect.objectContaining({
+      code: "REFERENCE_PAGE_NOT_PUBLISHED",
+      rowId: "row-1",
+      sourcePageId: "page-1",
+      sourceDocumentId: "doc-1",
+      versionId: "version-1",
+      versionStatus: "DRAFT"
+    }));
+  });
+
+  it("来源页属于当前有效的 PUBLISHED 知识版本 -> 允许提交", async () => {
+    const sourcedRow = { ...row, sourceDocumentId: "doc-1", sourcePageId: "page-1", sourcePageLabel: "22" };
+    const { db } = makeDb([
+      [sourcedRow],
+      [{ id: "scheme-1", status: "PUBLISHED", effectiveAt: null, expiresAt: null }],
+      [{ id: "opt-1", schemeId: "scheme-1", productSpecId: "spec-1", minThickness: 15, maxThickness: 30 }],
+      [{ id: "page-1", documentId: "doc-1", versionId: "version-1", currentVersionId: "version-1", versionStatus: "PUBLISHED", documentStatus: "ACTIVE", documentDeletedAt: null, effectiveDate: null, expiryDate: null }],
+      [{ effectiveAt: null, expiresAt: null }]
+    ]);
+    expect(await collectThermalSetViolations(app(db), "set-1")).toEqual([]);
+  });
+
+  it("来源页不属于 sourceDocumentId -> 拒绝", async () => {
+    const sourcedRow = { ...row, sourceDocumentId: "doc-other", sourcePageId: "page-1", sourcePageLabel: "22" };
+    const { db } = makeDb([
+      [sourcedRow],
+      [{ id: "scheme-1", status: "PUBLISHED", effectiveAt: null, expiresAt: null }],
+      [{ id: "opt-1", schemeId: "scheme-1", productSpecId: "spec-1", minThickness: 15, maxThickness: 30 }],
+      [{ id: "page-1", documentId: "doc-1", versionId: "version-1", currentVersionId: "version-1", versionStatus: "PUBLISHED", documentStatus: "ACTIVE", documentDeletedAt: null, effectiveDate: null, expiryDate: null }],
+      [{ effectiveAt: null, expiresAt: null }]
+    ]);
+    const violations = await collectThermalSetViolations(app(db), "set-1");
+    expect(violations[0]).toMatchObject({ code: "REFERENCE_PAGE_NOT_PUBLISHED", rowId: "row-1" });
+    expect(violations[0]?.message).toContain("不属于指定文档");
   });
 
   it("validateThermalSet 遇空集直接抛 THERMAL_STRUCTURE_INVALID", async () => {

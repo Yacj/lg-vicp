@@ -125,8 +125,8 @@ document → document_versions(fileId) → files(bucket+objectKey) → OSS/MinIO
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
 | GET/POST | `/categories`、`PATCH/DELETE /categories/:id` | 知识分类 |
-| GET/POST | `/documents`、`GET/PATCH/DELETE /documents/:id` | 知识文档（分页/过滤/软删除；列表含 workingVersion + `userStatus`，保留 `healthStatus`） |
-| POST | `/documents/create-with-file` | 一次创建文档 + v1 + 绑定 fileId + 自动 PARSE（只收 fileId） |
+| GET/POST | `/documents`、`GET/PATCH/DELETE /documents/:id` | 知识文档（分页/过滤/软删除；列表含 workingVersion + `userStatus`，保留 `healthStatus`）。**POST 只收知识库基本信息**：同事务创建文档 + 首个 DRAFT 版本，不要求文件、不触发解析，返回 `documentId/versionId/versionStatus/currentVersionId` |
+| POST | `/documents/create-with-file` | 创建文档 + v1；`originalFileId` 可选：传了则绑定 ORIGINAL 原始资料附件并自动 PARSE，不传则等同「先建知识库」只留空 DRAFT |
 | GET | `/documents/:id/workspace` | 用户态摘要（currentVersion/userStatus/primaryFile/lastJob/canAskAi） |
 | POST | `/documents/:id/replace-file` | 更换文件：新建下一版本并自动解析 |
 | POST | `/documents/:id/versions` | 创建 DRAFT 版本 |
@@ -174,3 +174,74 @@ document → document_versions(fileId) → files(bucket+objectKey) → OSS/MinIO
 - **接口边界**：后台 `/api/v1/platform/knowledge/*` 必须同时通过 B_ADMIN 客户端校验和 `system:knowledge:*` 精确权限；C_APP/PC_AI 公开文库仅使用 `/api/v1/client/knowledge/*`。
 - **B 端用户工作流编排**：普通新建 `create-with-file` → 轮询 `workspace.userStatus` → `READY_TO_VERIFY` 后看 `chapter-tree` + `pages/window` 并用 `test-qa` 验证 → 再审核/发布。无文本层时 `userStatus=SEARCHABLE_FILE_REQUIRED`，复用现有 assets/`existingFileId` 绑定检索源后自动 UPGRADE_PARSE。解析失败返回 `userMessage`（普通）+ `technical`（仅 `system:knowledge:debug`）。旧 `/documents` `/versions` `/upload-intent` `/parse` 保留。生产 `/api/v1/ai/knowledge-qa` 仍只检索已发布知识，且需 B_ADMIN。
 - **Admin-Web 契约**：新建只调 FilePicker + `create-with-file` + `workspace`；不要在普通页展示 ORIGINAL/SEARCH_SOURCE、chunk/score、TOC source、Worker exception。历史版本从「更多」再读 `GET /documents/:id` 的 `versions[]`。
+
+## 创建与文件上传解耦（2026-10）
+
+业务模型：`Knowledge Document` 是容器，`Knowledge Version` 是版本，`Original File` 是**可选**原始资料附件，`Knowledge Page`（完整页面 PNG/ZIP）才是正式页面识别与视觉依据。禁止再假设「一个知识库 = 一个上传文件」。
+
+```
+Knowledge Document
+├── Version V1 (DRAFT → APPROVED → PUBLISHED)
+│   ├── 原始资料附件（可选：DOCX/PDF/XLSX…）
+│   ├── Page 1 / Page 2 / …（完整页面图片，ZIP/批量上传）
+│   └── Recognition → Confirm → 派生索引
+└── metadata
+```
+
+三个独立动作，互不绑定：
+
+- **A. 创建 Knowledge Document / Version**：`POST /documents`（或 `create-with-file` 不传 `originalFileId`）。同事务创建文档 + 首个 DRAFT 版本，`parseStatus=PENDING`、`pipelineStatus=UPLOAD_PENDING`、`fileId=null`。**不建 parsing_jobs、不投递 document-processing 队列**，空 DRAFT（0 页面 / 0 附件）是合法状态。
+- **B. 上传或关联原始资料附件（可选）**：`POST /versions/:versionId/upload-intent` + `/upload-complete`（`assetRole=ORIGINAL`），或 `POST /documents/:id/replace-file`。仅登记附件与版本主文件，不改页面上传主链。
+- **C. 上传完整页面图片 / ZIP**：`POST /versions/:versionId/pages/batch-upload`、`POST /versions/:versionId/pages/import-zip` → `knowledge_pages`，随后显式发起 Recognition。Word/PDF **不会**自动成为 Knowledge Page 主链。
+
+发布门禁（允许空 DRAFT，但更严格地拦截空发布）：
+
+| 场景 | 稳定业务错误（`error.details.errorCode`） |
+| --- | --- |
+| 0 个 Knowledge Page | `KNOWLEDGE_VERSION_EMPTY`（"当前知识库还没有资料页面，请先上传页面后再发布。"） |
+| 版本非 APPROVED | `KNOWLEDGE_VERSION_NOT_APPROVED` |
+| 版本已 PUBLISHED | `KNOWLEDGE_VERSION_ALREADY_PUBLISHED` |
+| 离线页图版本存在未 CONFIRMED 页面 | `KNOWLEDGE_VERSION_PAGES_UNCONFIRMED` |
+| 离线页图版本存在缺原页图片的页面 | `KNOWLEDGE_VERSION_PAGES_MISSING_IMAGE` |
+
+普通文本型知识（PDF/DOCX 解析页）不要求逐页 Recognition CONFIRMED；只有离线页图版本（`uploadSource ∈ BATCH/ZIP/MANUAL`）在 AI_ENABLED 下才要求页面识别已确认——沿用既有统一 publish readiness（`assertVersionPublishable` + `evaluateVersionAiReadiness`），不新增分叉。
+
+DB 无需迁移：`knowledge_documents.file_id`、`knowledge_document_versions.file_id` 本就 nullable，版本可 0 页面；旧数据与旧调用（传 `originalFileId`）完全兼容。
+
+## 图片驱动知识库最终一致性与版本级索引（2026-10）
+
+页面驱动链（`uploadSource ∈ BATCH/ZIP/MANUAL`，即「离线页图版本」）的正式链路固定为：
+
+```text
+上传页面图片 / ZIP
+  → 视觉识别（候选 draftStructuredData）
+  → 人工 Review / Confirm（confirmedStructuredData）
+  → 版本级正式索引重建 rebuildPageDrivenVersionIndex（sections / page_blocks / chunks）
+  → Approve → Publish（发布门禁要求 indexReady + 完整性校验通过）
+  → AI 检索（只读正式索引）→ 原页溯源（chunk.metadata.pageId → knowledge_pages）
+```
+
+**关键心智模型**：识别完成 ≠ 正式知识可用；单页 Confirm ≠ 正式发布索引。
+
+- **正式正文唯一来源**：`resolveFormalPageText(page)`。页面驱动页只取 `confirmedStructuredData.fullText`，未确认返回 `null`；传统文本页取 `parsedText`。AI draft / 识别原始输出永不进入正式索引。
+- **单页 Confirm**：只产出「即时 page-aware chunk」供人工即时测试，并调用 `markVersionIndexDirty` 把版本索引置脏。它不是正式发布索引的唯一来源。
+- **版本级重建**（`rebuildPageDrivenVersionIndex`）：读取全部正式可索引页面，按 `physicalPageNumber ASC` 跨页统一解析，生成三层索引；`chunkIndex` 全局连续；section/block 使用 `stableUuid(versionId, kind, key)` 保证重跑身份稳定。重建期间 `indexStatus = INDEXING`，成功 `INDEX_READY`（`indexDirty=false`、`indexBuiltAt`、`indexRevision+1`），失败 `INDEX_FAILED`。
+- **版本索引字段**（`knowledge_document_versions`）：`indexStatus`（`INDEX_PENDING|INDEXING|INDEX_READY|INDEX_FAILED`）、`indexDirty`、`indexBuiltAt`、`indexRevision`。
+- **失效入口**：换图 / 改正式正文 / 删页统一走 `purgePageDerivedIndex`（删该页 chunks、page_blocks、DRAFT 集 thermal rows）→ `markVersionIndexDirty`。已发布热工集不可变，其引用行只统计为 `lockedThermalRows`，删除页面时若 `lockedThermalRows > 0` 抛 `PAGE_IN_USE`。
+- **发布门禁**：`assertVersionPublishable` 在页面驱动版本上追加 `validatePageDrivenKnowledgeIntegrity`，返回可读中文原因（如「第 22 页识别尚未确认」「检测到 N 条孤立 Chunk」），不用笼统 `KNOWLEDGE_INVALID`。
+- **检索防脏**：`search_knowledge` 只返回来源页面仍存在的 page-aware chunk；来源详情 `resolveSourceDetail` 遇到 page-aware chunk 无对应页面时抛「来源页面不存在，引用已失效」，不编造 ReferencePage。
+
+新增 B 端接口（`/api/v1/platform/knowledge`）：
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| POST | `/versions/:versionId/pages/batch-confirm` | 批量确认「无风险页」（见下）；热工页更严格，逐页返回结果 |
+| POST | `/versions/:versionId/index/rebuild` | 版本级正式索引重建 |
+| GET | `/versions/:versionId/index` | 版本索引状态 + 完整性校验（B 端「版本索引」面板） |
+| POST | `/versions/:versionId/pages/reconcile-recognition` | 识别任务对账（stale 恢复，见下） |
+
+**批量确认安全条件**（`assessBatchConfirmSafety`）：仅「无风险页」可批量——`REVIEW_REQUIRED` + `fullText` 非空 + 无 fatal warning + 无映射歧义 + schema 校验通过。热工页更严格：存在 scheme/product spec 映射歧义或 R/K 缺失时禁止批量，必须逐页人工确认。
+
+**识别任务一致性**：DB 写页成功后逐页入队（`enqueueRecognitionWithRecovery`），单页入队失败回退为可重新入队状态（`PENDING` + `recognitionRunId=null` + `lastRecognitionError`），不出现「PENDING 但无 Job 且无法重新入队」。`reconcilePageRecognitionJobs` 扫描 `PENDING/PROCESSING` 且超过 `PAGE_RECOGNITION_STALE_MINUTES` 的页面，用 `queue.getJob()` 判活后做 stale 恢复；worker 通过 maintenance 队列每 10 分钟自动调度 `page_recognition_reconcile`。
+
+**批量上传保护**：`PAGE_BATCH_MAX_ITEMS`（默认 200）、`PAGE_BATCH_MAX_TOTAL_BYTES`（默认 300MB）、`PAGE_BATCH_READ_CONCURRENCY`（默认 4）。预检先读文件行（不读 Buffer），再以受限并发读取 + 校验 + 上传，读完即释放。页序：显式 `physicalPageNumber` 优先，未指定的按 `naturalPageSort()` 文件名自然排序（`page-1 < page-2 < page-10`）；ZIP 有 `manifest.json` 时以 manifest 顺序为显式顺序，无 manifest 时自然排序；重复 `physicalPageNumber` 一律 400 拒绝，不静默覆盖。

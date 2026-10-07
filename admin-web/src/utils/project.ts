@@ -1,5 +1,5 @@
-import type { ProjectItem, ProjectVisibility } from '@/types/project'
 import type { AppStatus } from '@/components/ui/AppStatusTag.vue'
+import type { ProjectItem, ProjectStatistics, ProjectVisibility } from '@/types/project'
 
 export type ProjectDetailTabKey = 'overview' | 'conversations' | 'reports' | 'memory' | 'audit'
 
@@ -80,6 +80,18 @@ export function formatProjectVisibilityScope(project: Pick<
   return project.includeChildDepartments === false
     ? departmentName
     : `${departmentName}（包含子部门）`
+}
+
+/** 工作台项目统计副标题：公开 / 部门 / 私有。后端未返回 department 时省略该项。 */
+export function formatProjectStatisticsScope(
+  stats: Pick<ProjectStatistics, 'public' | 'private' | 'department'>,
+): string {
+  const parts = [`公开 ${stats.public}`]
+  if (typeof stats.department === 'number') {
+    parts.push(`部门 ${stats.department}`)
+  }
+  parts.push(`私有 ${stats.private}`)
+  return parts.join(' · ')
 }
 
 export interface ProjectStatusMeta {

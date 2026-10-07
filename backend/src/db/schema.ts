@@ -216,6 +216,22 @@ export const knowledgePageMappingMethodEnum = pgEnum("knowledge_page_mapping_met
 
 /** 版本用途：AI_ENABLED 进入 AI 检索（发布门禁校验文本源）；BROWSE_ONLY 仅浏览原文，不进 AI 检索 */
 export const knowledgeUsageModeEnum = pgEnum("knowledge_usage_mode", ["AI_ENABLED", "BROWSE_ONLY"]);
+
+/**
+ * 版本级正式知识索引状态（页面驱动链收口）：
+ * 单页 Confirm 只产出即时 chunk；正式发布索引必须由版本级 rebuild 统一重建。
+ * - INDEX_PENDING：索引待重建（页面变更后置脏）
+ * - INDEXING：正在重建
+ * - INDEX_READY：索引与当前 CONFIRMED 页面一致
+ * - INDEX_FAILED：重建失败
+ * 传统文件链不强制该状态（由 parseStatus/readiness 判定）。
+ */
+export const knowledgeIndexStatusEnum = pgEnum("knowledge_index_status", [
+  "INDEX_PENDING",
+  "INDEXING",
+  "INDEX_READY",
+  "INDEX_FAILED"
+]);
 export const parsingJobStatusEnum = pgEnum("parsing_job_status", [
   "QUEUED",
   "ACTIVE",
@@ -448,7 +464,7 @@ export const userIdentities = pgTable(
     ...timestamps
   },
   (table) => [
-    uniqueIndex("user_identities_identifier_unique").on(sql`case when btrim(${table.identifier}) ~ '^\\+?[0-9]{6,20}$' then btrim(${table.identifier}) else lower(btrim(${table.identifier})) end`).where(sql`${table.deletedAt} is null`),
+    uniqueIndex("user_identities_identifier_unique").on(sql`(case when btrim(${table.identifier}) ~ '^\\+?[0-9]{6,20}$' then btrim(${table.identifier}) else lower(btrim(${table.identifier})) end)`).where(sql`${table.deletedAt} is null`),
     index("user_identities_user_idx").on(table.userId)
   ]
 );
@@ -799,6 +815,22 @@ export const knowledgeDocumentVersions = pgTable(
     expiryDate: date("expiry_date"),
     /** 版本用途（发布门禁）：AI_ENABLED 必须存在可搜索文本源；BROWSE_ONLY 允许仅 ORIGINAL，不进 AI 检索 */
     usageMode: knowledgeUsageModeEnum("usage_mode").notNull().default("AI_ENABLED"),
+    /** 版本级正式索引状态（页面驱动链）：页面变更置 INDEX_PENDING，版本 rebuild 完成后 INDEX_READY */
+    indexStatus: knowledgeIndexStatusEnum("index_status").notNull().default("INDEX_PENDING"),
+    /** 索引是否与当前页面内容不一致（任何正式页面变更即置 true；rebuild 完成置 false） */
+    indexDirty: boolean("index_dirty").notNull().default(true),
+    /** 最近一次成功 rebuild 的时间 */
+    indexBuiltAt: timestamp("index_built_at", { withTimezone: true }),
+    /**
+     * 索引内容版本号：记录「本次正式索引是基于哪个 contentRevision 构建的」。
+     * 发布门禁要求 indexRevision === contentRevision（索引与当前正式页面内容严格一致）。
+     */
+    indexRevision: integer("index_revision").notNull().default(0),
+    /**
+     * 正式页面内容修订号：任何影响正式页面内容的 Mutation（增/删/改页、换图、确认、批量确认、
+     * 重新确认、正式正文修改、重排）都 +1。rebuild 用 CAS 比对它，避免并发 Mutation 期间误标 INDEX_READY。
+     */
+    contentRevision: integer("content_revision").notNull().default(0),
     createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
     approvedById: uuid("approved_by_id").references(() => users.id, { onDelete: "set null" }),
     approvedAt: timestamp("approved_at", { withTimezone: true }),

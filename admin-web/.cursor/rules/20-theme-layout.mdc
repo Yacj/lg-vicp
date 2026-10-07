@@ -6,7 +6,7 @@ alwaysApply: true
 
 # 主题与布局规则
 
-- 修改布局、主题、登录、工作台、`src/components/ui/**` 或 `src/stores/settings.ts` 前，必须完整阅读 `skills/vicp-admin-ui/SKILL.md`。
+- 修改布局、主题、登录、工作台、`src/components/ui/**` 或 `src/stores/settings.ts` 前，必须完整阅读 `.skills/vicp-admin-ui/SKILL.md`。
 - 外观配置只能由 settings store 作为单一事实来源，页面不得直接读写 `localStorage`。
 - 外观持久化统一使用版本化键 `vicp-admin-appearance-v1`。
 - 根节点通过 `data-theme`、`data-layout`、`data-sidebar-theme`、`data-content-width`、`data-density`、`data-tabs-style`、`data-radius`、`data-system-theme-preset`、`data-component-theme-preset`、`data-sync-theme-colors`、`data-fixed-header` 接收外观投影。

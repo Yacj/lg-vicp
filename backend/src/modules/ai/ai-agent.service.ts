@@ -346,6 +346,8 @@ export async function runAgentLoop(options: {
   initialState: AgentRunState;
   taskState?: ConversationTaskState | null;
   answerContract?: string | null;
+  /** 本轮用户原始提问：透传给工具做确定性兜底（如 K 查询语义推断） */
+  userMessage?: string | null;
 }): Promise<{
   text: string;
   usage?: LanguageModelUsage;
@@ -420,6 +422,7 @@ export async function runAgentLoop(options: {
     selectedUserSelection: initialState.selectedUserSelection ?? null,
     taskState: options.taskState ?? null,
     answerContract: options.answerContract ?? null,
+    userMessage: options.userMessage ?? null,
     onWait: (signal) => {
       const type = signal.type === "APPROVAL"
         ? "APPROVAL"
@@ -505,9 +508,23 @@ export async function runAgentLoop(options: {
         stepCountIs(getAiTaskRuntimePolicy("PROJECT_AGENT").maxSteps),
         () => waitingRef.current !== null || abortSignal.aborted
       ],
-      prepareStep: async () => ({
-        activeTools: allowedTools
-      }),
+      prepareStep: async () => {
+        // 参考查询与正式热工由后端持有权威数据、硬条件与来源页：首步必须真实调用工具。
+        // 否则模型会凭对话上下文直接作答，导致会话权威条件不更新、来源无法核验。
+        const ownsReferenceData = ctx.answerContract === "REFERENCE_LOOKUP" || ctx.answerContract === "THERMAL";
+        const hasActiveCandidates = (ctx.taskState?.lastReferenceLookup?.candidates?.length ?? 0) > 0;
+        // 已存在候选集的追问（原页/参数/局部改条件）必须回到 thermal 重查并重新给出原页，
+        // 不能让模型改用其他工具或凭上下文复述；全新查询只要求至少真实调用一次工具。
+        const toolChoice = !ownsReferenceData || allowedTools.length === 0
+          ? undefined
+          : hasActiveCandidates && allowedTools.includes("thermal")
+            ? { type: "tool", toolName: "thermal" } as const
+            : "required" as const;
+        return {
+          activeTools: allowedTools,
+          ...(step === 0 && toolChoice ? { toolChoice } : {})
+        };
+      },
       ...languageModelCallOptions("PROJECT_AGENT"),
       timeout: Math.min(getAiTaskRuntimePolicy("PROJECT_AGENT").timeoutMs, env.AI_AGENT_OVERALL_TIMEOUT_MS),
       abortSignal,

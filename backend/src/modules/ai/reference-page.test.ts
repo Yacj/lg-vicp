@@ -36,6 +36,9 @@ describe("REFERENCE_PAGE", () => {
     expect(built.blocks[0]?.type).toBe("REFERENCE_PAGE");
     expect(built.blocks[0]?.page.imageUrl).toContain("p1.png");
     expect(built.blocks[0]?.summary.kValue).toBe(0.2321897625);
+    expect(built.blocks[0]?.summary.productThermalResistance).toBe(4);
+    expect(built.blocks[0]?.summary.totalThermalResistance).toBe(4.306822098);
+    expect(built.blocks[0]?.summary.rValue).toBe(4.306822098);
     expect(built.missingPage).toBe(false);
   });
 

@@ -107,7 +107,7 @@ const columns: PrimaryTableCol<TableRowData>[] = [
   {
     cell: () => '—',
     colKey: 'toolCount',
-    title: 'Tool次数',
+    title: '工具调用次数',
     width: 100,
   },
 ]
@@ -127,7 +127,7 @@ function openDetail(row: TableRowData): void {
 
 <template>
   <AppPage
-    description="按会话排查 Agent 执行结果。模型、耗时和 Tool 次数在详情中展示，不展示模型私有推理。"
+    description="按会话排查 AI 运行结果。模型、请求时间、耗时、状态、错误与工具调用次数在详情中展示，不展示模型私有推理。"
     title="AI 运行记录"
   >
     <template #search>

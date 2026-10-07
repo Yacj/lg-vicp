@@ -223,7 +223,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <AppPage title="模板报告" description="项目级模板报告：选择项目后查看该项目的报告记录，提交审核并执行决议；报告生成入口（候选确认后）后续开放。">
+  <AppPage title="模板报告" description="项目级模板报告：选择项目后查看该项目的报告记录，提交审核并执行决议。">
     <template #search>
       <t-form-item label="项目">
         <t-select

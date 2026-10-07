@@ -1,4 +1,4 @@
-import { and, asc, count, eq, ne } from "drizzle-orm";
+import { and, asc, count, eq } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { env } from "../../config/env.js";
 import {
@@ -13,7 +13,14 @@ import {
 } from "../../db/schema.js";
 import type { AuthUser } from "../../shared/auth-user.js";
 import { ConflictError, NotFoundError } from "../../shared/errors.js";
+import { isKnowledgeErrorCode, KnowledgeError } from "../../shared/knowledge-errors.js";
 import { writeAuditLog } from "../audit-logs/audit-log.service.js";
+import {
+  collectKnowledgeVersionReadiness,
+  toReadinessLogContext
+} from "./knowledge-readiness.js";
+import { validatePageDrivenKnowledgeIntegrity } from "./knowledge-page-index.service.js";
+import { assertKnowledgeVersionEditable } from "./knowledge-version-guard.js";
 
 /**
  * 原文档导航模型服务（2026-08 二次优化）：
@@ -61,6 +68,7 @@ export async function bindVersionAsset(
   input: { role: KnowledgeAssetRole; fileId: string }
 ) {
   const version = await requireVersion(app, versionId);
+  assertKnowledgeVersionEditable(version);
   const [file] = await app.db.select({ id: files.id, status: files.status })
     .from(files).where(eq(files.id, input.fileId)).limit(1);
   if (!file) throw new NotFoundError("文件不存在");
@@ -113,6 +121,7 @@ export async function updateVersionAsset(
   assetId: string,
   input: { isPrimary?: boolean }
 ) {
+  assertKnowledgeVersionEditable(await requireVersion(app, versionId));
   const [existing] = await app.db.select().from(knowledgeDocumentAssets)
     .where(and(eq(knowledgeDocumentAssets.id, assetId), eq(knowledgeDocumentAssets.versionId, versionId))).limit(1);
   if (!existing) throw new NotFoundError("文件资产不存在");
@@ -135,6 +144,7 @@ export async function deleteVersionAsset(
   versionId: string,
   assetId: string
 ) {
+  assertKnowledgeVersionEditable(await requireVersion(app, versionId));
   const [existing] = await app.db.select().from(knowledgeDocumentAssets)
     .where(and(eq(knowledgeDocumentAssets.id, assetId), eq(knowledgeDocumentAssets.versionId, versionId))).limit(1);
   if (!existing) throw new NotFoundError("文件资产不存在");
@@ -216,6 +226,7 @@ export async function replaceVersionToc(
   options: { confirm?: boolean } = {}
 ) {
   const version = await requireVersion(app, versionId);
+  assertKnowledgeVersionEditable(version);
   const saved = await app.db.transaction(async (tx) => {
     await tx.delete(knowledgeTocItems).where(eq(knowledgeTocItems.versionId, versionId));
     let sortOrder = 0;
@@ -261,6 +272,7 @@ export async function updateTocItem(
 ) {
   const [existing] = await app.db.select().from(knowledgeTocItems).where(eq(knowledgeTocItems.id, tocId)).limit(1);
   if (!existing) throw new NotFoundError("目录条目不存在");
+  assertKnowledgeVersionEditable(await requireVersion(app, existing.versionId));
   const [updated] = await app.db.update(knowledgeTocItems).set({
     title: input.title?.slice(0, 255) ?? existing.title,
     pageLabel: input.pageLabel !== undefined ? input.pageLabel : existing.pageLabel,
@@ -281,9 +293,10 @@ export async function updateTocItem(
 }
 
 export async function deleteTocItem(app: FastifyInstance, request: FastifyRequest, actor: AuthUser, tocId: string) {
-  const [existing] = await app.db.select({ id: knowledgeTocItems.id }).from(knowledgeTocItems)
+  const [existing] = await app.db.select({ id: knowledgeTocItems.id, versionId: knowledgeTocItems.versionId }).from(knowledgeTocItems)
     .where(eq(knowledgeTocItems.id, tocId)).limit(1);
   if (!existing) throw new NotFoundError("目录条目不存在");
+  assertKnowledgeVersionEditable(await requireVersion(app, existing.versionId));
   await app.db.delete(knowledgeTocItems).where(eq(knowledgeTocItems.id, tocId));
   await writeAuditLog({
     db: app.db, request, actor,
@@ -300,7 +313,7 @@ export async function reorderVersionToc(
   versionId: string,
   items: Array<{ id: string; sortOrder: number; parentId?: string | null; level?: number }>
 ) {
-  await requireVersion(app, versionId);
+  assertKnowledgeVersionEditable(await requireVersion(app, versionId));
   await app.db.transaction(async (tx) => {
     for (const item of items) {
       await tx.update(knowledgeTocItems).set({
@@ -327,7 +340,7 @@ export async function remapVersionToc(
   actor: AuthUser,
   versionId: string
 ) {
-  await requireVersion(app, versionId);
+  assertKnowledgeVersionEditable(await requireVersion(app, versionId));
   const pages = await app.db.select({
     physicalPageNumber: knowledgePages.physicalPageNumber,
     pageLabel: knowledgePages.pageLabel
@@ -381,6 +394,7 @@ export async function updateVersionPage(
   physicalPageNumber: number,
   input: { pageLabel?: string | null; pageTitle?: string | null }
 ) {
+  assertKnowledgeVersionEditable(await requireVersion(app, versionId));
   const [page] = await app.db.select().from(knowledgePages)
     .where(and(eq(knowledgePages.versionId, versionId), eq(knowledgePages.physicalPageNumber, physicalPageNumber)))
     .limit(1);
@@ -407,131 +421,86 @@ export async function updateVersionPage(
 
 // ---------------------------------------------------------------- 发布门禁（AI_ENABLED / BROWSE_ONLY）
 
-export interface AiReadinessContext {
-  hasOriginalAsset: boolean;
-  hasSearchSourceAsset: boolean;
-  pageCount: number;
-  fallbackPageLabelCount: number;
-  mappingCount: number;
-  reliableMappingCount: number;
-  verifiedMappingCount: number;
-  tocItemCount: number;
-  confirmedTocCount: number;
-  /** 有页图但未确认视觉识别的页面数（离线页图正式链路） */
-  unconfirmedRecognitionPageCount: number;
-  pagesMissingImageCount: number;
-}
+/**
+ * 发布门禁已统一收口到 knowledge-readiness：
+ * - 传统文件链（ORIGINAL + 解析完成）与页面驱动链（完整页面 + 识别确认 + 可检索内容）任一就绪即可发布；
+ * - 不再把「必须 ORIGINAL」「version.parseStatus = PARSED」作为所有版本的硬前提；
+ * - 审核 / 发布 / 工作台 canPublish / 文档健康 / AI 可用性共用同一份 readiness，避免判定分叉。
+ */
+export {
+  collectAiReadinessContext,
+  collectKnowledgeVersionReadiness,
+  deriveKnowledgeVersionReadiness,
+  evaluateVersionAiReadiness,
+  summarizePageReadiness,
+  toPageReadinessRow,
+  toReadinessLogContext,
+  type AiReadinessContext,
+  type AiReadinessResult,
+  type KnowledgePageReadinessFacts,
+  type KnowledgePageReadinessRow,
+  type KnowledgeReadinessBlocker,
+  type KnowledgeReadinessSource,
+  type KnowledgeVersionReadiness
+} from "./knowledge-readiness.js";
 
-export interface AiReadinessResult {
-  /** 硬拦截：AI_ENABLED 版本必须存在可搜索文本源 */
-  eligible: boolean;
-  blockers: string[];
-  /** 软提示：TOC 未确认 / 映射未人工核验（发布成功但仍返回） */
-  warnings: string[];
-}
-
-export function evaluateVersionAiReadiness(
-  version: Pick<typeof knowledgeDocumentVersions.$inferSelect, "usageMode" | "parseStatus">,
-  context: AiReadinessContext
-): AiReadinessResult {
-  const blockers: string[] = [];
-  const warnings: string[] = [];
-  if (version.usageMode === "AI_ENABLED" && !context.hasOriginalAsset) {
-    blockers.push("缺少 ORIGINAL 正式原文件，不能发布 AI 可引用版本");
-  }
-  if (version.usageMode === "AI_ENABLED" && version.parseStatus === "SEARCH_SOURCE_REQUIRED") {
-    blockers.push("原文件没有文本层且未绑定可检索的文本源：请上传 SEARCH_SOURCE 资产后升级解析，或将版本用途改为 BROWSE_ONLY（仅浏览）");
-  }
-  if (version.usageMode === "AI_ENABLED" && version.parseStatus === "NO_TEXT_LAYER" && !context.hasSearchSourceAsset) {
-    blockers.push("原文件没有文本层且不存在 SEARCH_SOURCE 文本源，不能进入 AI 检索");
-  }
-  if (version.usageMode === "AI_ENABLED" && version.parseStatus === "NO_TEXT_LAYER" && context.mappingCount === 0) {
-    blockers.push("检索文本未映射到任何 ORIGINAL 页面，不能生成可回溯的 AI 引用");
-  }
-  if (context.tocItemCount === 0) {
-    warnings.push("原文目录尚不可用：请从 PDF 书签、目录页、配套检索源或人工维护生成 TOC");
-  } else if (context.confirmedTocCount === 0) {
-    warnings.push("原文目录尚未人工确认（CONFIRMED），AI 引用的目录路径以当前草稿为准");
-  }
-  if (context.fallbackPageLabelCount > 0) {
-    warnings.push(`有 ${context.fallbackPageLabelCount} 页仅使用物理页码回退（FALLBACK），未识别到可靠印刷页码`);
-  }
-  if (context.mappingCount > 0 && context.verifiedMappingCount === 0) {
-    warnings.push("检索页到原文页的映射尚未人工核验（verified），引用回溯可能偏页");
-  }
-  if (context.mappingCount > context.reliableMappingCount) {
-    warnings.push(`有 ${context.mappingCount - context.reliableMappingCount} 条低置信映射不能用于正式 AI 引用`);
-  }
-  if (context.pageCount === 0) {
-    warnings.push("尚未上传任何页面图片；正式 DOCX 资料应走离线页图上传");
-  }
-  if (context.pagesMissingImageCount > 0) {
-    warnings.push(`有 ${context.pagesMissingImageCount} 页缺少页面图片`);
-  }
-  if (context.unconfirmedRecognitionPageCount > 0) {
-    warnings.push(`有 ${context.unconfirmedRecognitionPageCount} 页视觉识别尚未确认（CONFIRMED），发布后热工引用可能不完整`);
-  }
-  return { eligible: blockers.length === 0, blockers, warnings };
-}
-
-/** 汇集版本的 AI 就绪上下文（资产/映射/TOC 统计） */
-export async function collectAiReadinessContext(
+/**
+ * 发布门禁组装：空版本硬拦截 + 统一 readiness 判定 + 软提示。
+ * 允许先创建空 DRAFT 版本，但空版本（0 个 Knowledge Page）不允许发布，返回稳定业务错误
+ * KNOWLEDGE_VERSION_EMPTY；带稳定错误码的 blocker（页面缺图 / 识别未确认 / 识别失败 / 缺检索源）
+ * 同样以 KnowledgeError 抛出，其余 blocker 沿用 ConflictError 中文提示。
+ */
+export async function assertVersionPublishable(
   app: FastifyInstance,
-  versionId: string
-): Promise<AiReadinessContext> {
-  const [assetRows, mappingRows, tocRows, pageRows] = await Promise.all([
-    app.db.select({ role: knowledgeDocumentAssets.role }).from(knowledgeDocumentAssets)
-      .where(eq(knowledgeDocumentAssets.versionId, versionId)),
-    app.db.select({ verified: knowledgePageMappings.verified, confidence: knowledgePageMappings.confidence }).from(knowledgePageMappings)
-      .where(eq(knowledgePageMappings.versionId, versionId)),
-    app.db.select({ status: knowledgeTocItems.status }).from(knowledgeTocItems)
-      .where(eq(knowledgeTocItems.versionId, versionId)),
-    app.db.select({
-      pageLabelSource: knowledgePages.pageLabelSource,
-      pageImageObjectKey: knowledgePages.pageImageObjectKey,
-      metadata: knowledgePages.metadata
-    }).from(knowledgePages)
-      .where(eq(knowledgePages.versionId, versionId))
-  ]);
-  const unconfirmedRecognitionPageCount = pageRows.filter((row) => {
-    if (!row.pageImageObjectKey) return false;
-    const meta = row.metadata && typeof row.metadata === "object"
-      ? (row.metadata as Record<string, unknown>)
-      : null;
-    // 仅统计进入离线识别管线的页（有 recognitionStatus）；LibreOffice/PDF 旧页无此字段不计入
-    if (!meta || typeof meta.recognitionStatus !== "string") return false;
-    return meta.recognitionStatus !== "CONFIRMED";
-  }).length;
+  version: typeof knowledgeDocumentVersions.$inferSelect
+) {
+  const readiness = await collectKnowledgeVersionReadiness(app, version);
+  if (readiness.pageCount === 0) {
+    throw new KnowledgeError("KNOWLEDGE_VERSION_EMPTY");
+  }
+  // 单一事实来源：publishReady 已包含「无 PUBLISH 作用域 blocker」，不再单独判 blockers.length，
+  // 保证 B 端 canPublish（同一 readiness.publishReady）与发布 API 完全一致。
+  if (!readiness.publishReady) {
+    app.log.warn(
+      toReadinessLogContext(readiness, {
+        documentId: version.documentId,
+        versionId: version.id,
+        usageMode: version.usageMode
+      }),
+      "知识版本发布门禁未通过"
+    );
+    const publishBlockers = readiness.publishBlockers.length > 0 ? readiness.publishBlockers : readiness.blockers;
+    const coded = publishBlockers.find((blocker) => blocker.knowledgeErrorCode != null && isKnowledgeErrorCode(blocker.knowledgeErrorCode));
+    if (coded?.knowledgeErrorCode && isKnowledgeErrorCode(coded.knowledgeErrorCode)) {
+      throw new KnowledgeError(coded.knowledgeErrorCode, coded.message);
+    }
+    throw new ConflictError(
+      publishBlockers.length > 0
+        ? publishBlockers.map((blocker) => blocker.message).join("；")
+        : "当前版本不满足发布条件，请先完成资料页面或原始文件处理"
+    );
+  }
+  // 页面驱动版本：发布前额外做一次完整性校验（孤儿 chunk / 页码重复 / 索引未就绪等），
+  // 返回可读中文原因，避免笼统错误码。仅当版本行携带索引状态字段时执行（真实 DB 行恒有该字段）。
+  const integrity = version.indexStatus != null
+    ? await validatePageDrivenKnowledgeIntegrity(app, version.id)
+    : null;
+  if (integrity && integrity.pageDriven && !integrity.ok) {
+    app.log.warn(
+      { versionId: version.id, issues: integrity.issues.map((issue) => issue.code), stats: integrity.stats },
+      "知识版本发布完整性校验未通过"
+    );
+    throw new ConflictError(integrity.issues.map((issue) => issue.message).join("；"));
+  }
   return {
-    hasOriginalAsset: assetRows.some((row) => row.role === "ORIGINAL"),
-    hasSearchSourceAsset: assetRows.some((row) => row.role === "SEARCH_SOURCE"),
-    pageCount: pageRows.length,
-    fallbackPageLabelCount: pageRows.filter((row) => row.pageLabelSource === "FALLBACK").length,
-    mappingCount: mappingRows.length,
-    reliableMappingCount: mappingRows.filter((row) => row.verified || (row.confidence != null && row.confidence >= env.KNOWLEDGE_MAPPING_MIN_AI_CONFIDENCE)).length,
-    verifiedMappingCount: mappingRows.filter((row) => row.verified).length,
-    tocItemCount: tocRows.length,
-    confirmedTocCount: tocRows.filter((row) => row.status === "CONFIRMED").length,
-    unconfirmedRecognitionPageCount,
-    pagesMissingImageCount: pageRows.filter((row) => !row.pageImageObjectKey).length
+    eligible: readiness.publishReady,
+    blockers: readiness.blockers.map((blocker) => blocker.message),
+    blockerCodes: readiness.blockerCodes,
+    warnings: readiness.warnings,
+    publishReady: readiness.publishReady,
+    readiness,
+    integrity
   };
-}
-
-/** 发布门禁组装：解析状态放行集合 + AI 就绪硬拦截 + 软提示 */
-export async function assertVersionPublishable(app: FastifyInstance, version: typeof knowledgeDocumentVersions.$inferSelect) {
-  const parseable = version.parseStatus === "PARSED"
-    || version.parseStatus === "PARTIAL"
-    || version.parseStatus === "NO_TEXT_LAYER"
-    || (version.usageMode === "BROWSE_ONLY" && version.parseStatus === "SEARCH_SOURCE_REQUIRED");
-  if (!parseable) {
-    throw new ConflictError("版本尚未完成解析，不能发布");
-  }
-  const readiness = await collectAiReadinessContext(app, version.id);
-  const result = evaluateVersionAiReadiness(version, readiness);
-  if (!result.eligible || (env.STRICT_KNOWLEDGE_PUBLISH_CHECK && version.usageMode === "AI_ENABLED" && result.warnings.length > 0)) {
-    throw new ConflictError((result.blockers.length > 0 ? result.blockers : result.warnings).join("；"));
-  }
-  return result;
 }
 
 // ---------------------------------------------------------------- 页面映射人工核验
@@ -545,6 +514,7 @@ export async function verifyVersionPageMappings(
   input: { mappings: Array<{ searchPhysicalPageNumber: number; originalPhysicalPageNumber: number; pageLabel?: string | null }> }
 ) {
   const version = await requireVersion(app, versionId);
+  assertKnowledgeVersionEditable(version);
   const originalPageIdByPhysical = new Map<number, string>();
   const pageRows = await app.db.select({ id: knowledgePages.id, physicalPageNumber: knowledgePages.physicalPageNumber })
     .from(knowledgePages).where(eq(knowledgePages.versionId, versionId));
@@ -615,6 +585,7 @@ export async function updateVersionUsageMode(
   usageMode: "AI_ENABLED" | "BROWSE_ONLY"
 ) {
   const version = await requireVersion(app, versionId);
+  assertKnowledgeVersionEditable(version);
   const [updated] = await app.db.update(knowledgeDocumentVersions)
     .set({ usageMode, updatedById: actor.id, updatedAt: new Date() })
     .where(eq(knowledgeDocumentVersions.id, versionId)).returning();
@@ -636,7 +607,7 @@ export async function enqueueUpgradeParse(
   versionId: string
 ) {
   const version = await requireVersion(app, versionId);
-  if (version.status === "DISABLED") throw new ConflictError("已停用的版本不允许升级解析");
+  assertKnowledgeVersionEditable(version);
   const [pageRow] = await app.db.select({ id: knowledgePages.id }).from(knowledgePages)
     .where(eq(knowledgePages.versionId, versionId)).limit(1);
   if (!pageRow) throw new ConflictError("该版本缺少页面数据，请先执行解析");

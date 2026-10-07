@@ -129,6 +129,18 @@ describe("发布门禁 evaluateVersionAiReadiness（AI_ENABLED / BROWSE_ONLY）"
     expect(result.eligible).toBe(true);
   });
 
+  it("AI_ENABLED 离线页图版本必须所有页有图且识别已确认", () => {
+    const readiness = {
+      hasOriginalAsset: true, hasSearchSourceAsset: true, pageCount: 79, fallbackPageLabelCount: 0,
+      mappingCount: 0, reliableMappingCount: 0, verifiedMappingCount: 0, tocItemCount: 0, confirmedTocCount: 0,
+      unconfirmedRecognitionPageCount: 1, pagesMissingImageCount: 0, hasOfflinePageImages: true
+    };
+    const result = evaluateVersionAiReadiness({ usageMode: "AI_ENABLED", parseStatus: "PARSED" }, readiness);
+    expect(result.eligible).toBe(false);
+    expect(result.blockers.join(" ")).toContain("1 页识别未确认");
+    expect(evaluateVersionAiReadiness({ usageMode: "BROWSE_ONLY", parseStatus: "PARSED" }, readiness).eligible).toBe(true);
+  });
+
   it("NO_TEXT_LAYER + 已绑定检索源：放行，但映射未核验/TOC 未确认为软提示", () => {
     const result = evaluateVersionAiReadiness(
       { usageMode: "AI_ENABLED", parseStatus: "NO_TEXT_LAYER" },

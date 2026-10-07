@@ -3,16 +3,17 @@
  * AI 结果仅为候选（REVIEW_REQUIRED）；Confirm 在单事务内写 page-aware chunks 与 thermal_reference_rows。
  */
 import { generateObject } from "ai";
+import { randomUUID } from "node:crypto";
 import type { FastifyInstance, FastifyRequest } from "fastify";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import type { AuthUser } from "../../shared/auth-user.js";
 import { AppError, NotFoundError } from "../../shared/errors.js";
 import type { DbExecutor } from "../../db/client.js";
 import {
   PAGE_RECOGNITION_SYSTEM_PROMPT,
-  assertKnowledgeVersionEditable,
+  buildRecognitionDraft,
   assertThermalReferenceSetEditable,
-  isKnowledgeVersionEditable,
+  isPageRecognitionBusy,
   isThermalReferenceSetEditable,
   mergePageMetadata,
   pageRecognitionResultSchema,
@@ -21,6 +22,8 @@ import {
   type PageRecognitionMetadata,
   type PageRecognitionResult
 } from "../../shared/page-recognition.js";
+import { assertKnowledgeVersionEditable, isKnowledgeVersionEditable } from "./knowledge-version-guard.js";
+import { getPageImageDownloadName } from "./knowledge-page-image.js";
 import {
   constructionSchemes,
   knowledgeChunks,
@@ -28,6 +31,7 @@ import {
   knowledgeDocuments,
   knowledgePages,
   productSpecs,
+  schemeProductOptions,
   thermalReferenceRows,
   thermalReferenceSets
 } from "../../db/schema.js";
@@ -35,9 +39,114 @@ import { resolveDefaultVisionModel } from "../ai-config/ai-config.service.js";
 import { languageModelSamplingOptions, getAiTaskRuntimePolicy } from "../ai-config/ai-task-runtime-policy.js";
 import { writeAuditLog } from "../audit-logs/audit-log.service.js";
 import { buildChunksFromPages, type AliasDictEntry } from "./knowledge-chunking.js";
+import { markPageContentMutation, purgePageDerivedIndex, type PurgePageIndexResult } from "./knowledge-page-index.service.js";
 import { normalizeSearchText } from "./knowledge.normalize.js";
 
 const VISION_URL_TTL = 600;
+
+function mappingError(
+  code: "PAGE_RECOGNITION_MAPPING_AMBIGUOUS" | "PAGE_RECOGNITION_MAPPING_INVALID",
+  message: string,
+  details: Record<string, unknown>
+): never {
+  throw new AppError(code, message, 400, details);
+}
+
+function isPublishedEffective(row: { status: string; effectiveAt?: Date | null; expiresAt?: Date | null }): boolean {
+  const now = new Date();
+  return row.status === "PUBLISHED"
+    && (!row.effectiveAt || row.effectiveAt <= now)
+    && (!row.expiresAt || row.expiresAt >= now);
+}
+
+async function resolveSchemeMapping(
+  db: DbExecutor,
+  system: PageRecognitionResult["systems"][number]
+) {
+  const code = system.constructionCode?.trim();
+  if (system.schemeId) {
+    const [scheme] = await db.select().from(constructionSchemes)
+      .where(eq(constructionSchemes.id, system.schemeId)).limit(1);
+    if (!scheme || !isPublishedEffective(scheme) || (code && scheme.schemeCode !== code)) {
+      mappingError("PAGE_RECOGNITION_MAPPING_INVALID", "人工选择的构造方案与识别数据不兼容", {
+        mappingStatus: "NOT_FOUND",
+        schemeId: system.schemeId,
+        constructionCode: code ?? null
+      });
+    }
+    return scheme;
+  }
+  if (!code) return null;
+  const candidates = (await db.select().from(constructionSchemes).where(and(
+    eq(constructionSchemes.schemeCode, code),
+    eq(constructionSchemes.status, "PUBLISHED")
+  )).limit(21)).filter(isPublishedEffective);
+  if (candidates.length > 1) {
+    mappingError("PAGE_RECOGNITION_MAPPING_AMBIGUOUS", `构造编号 ${code} 匹配到多个已发布方案，请人工选择`, {
+      mappingStatus: "AMBIGUOUS",
+      constructionCode: code,
+      schemeCandidates: candidates.map((item) => ({
+        id: item.id,
+        schemeCode: item.schemeCode,
+        name: item.name,
+        systemId: item.systemId,
+        version: item.version
+      }))
+    });
+  }
+  return candidates[0] ?? null;
+}
+
+async function resolveProductSpecMapping(
+  db: DbExecutor,
+  schemeId: string,
+  system: PageRecognitionResult["systems"][number],
+  option: NonNullable<PageRecognitionResult["systems"][number]["options"]>[number],
+  thicknessMm: number
+) {
+  const conditions = [
+    eq(productSpecs.status, "PUBLISHED"),
+    eq(productSpecs.thicknessMm, thicknessMm)
+  ];
+  if (system.specClass) conditions.push(eq(productSpecs.specClass, system.specClass));
+  if (option.catalogProductId) conditions.push(eq(productSpecs.catalogProductId, option.catalogProductId));
+  if (option.productSpecId) conditions.push(eq(productSpecs.id, option.productSpecId));
+  const specs = (await db.select().from(productSpecs).where(and(...conditions)).limit(21)).filter(isPublishedEffective);
+  const optionRows = specs.length > 0
+    ? await db.select().from(schemeProductOptions).where(and(
+        eq(schemeProductOptions.schemeId, schemeId),
+        inArray(schemeProductOptions.productSpecId, specs.map((item) => item.id))
+      ))
+    : [];
+  const allowedIds = new Set(optionRows.map((item) => item.productSpecId));
+  const candidates = specs.filter((item) => allowedIds.has(item.id));
+  if (option.productSpecId && candidates.length !== 1) {
+    mappingError("PAGE_RECOGNITION_MAPPING_INVALID", "人工选择的产品规格不存在、未发布或不属于该构造方案", {
+      mappingStatus: "NOT_FOUND",
+      schemeId,
+      productSpecId: option.productSpecId,
+      thicknessMm,
+      specClass: system.specClass ?? null
+    });
+  }
+  if (candidates.length > 1) {
+    mappingError("PAGE_RECOGNITION_MAPPING_AMBIGUOUS", `厚度 ${thicknessMm}mm 匹配到多个产品规格，请人工选择`, {
+      mappingStatus: "AMBIGUOUS",
+      schemeId,
+      thicknessMm,
+      specClass: system.specClass ?? null,
+      productSpecCandidates: candidates.map((item) => ({
+        id: item.id,
+        catalogProductId: item.catalogProductId,
+        specCode: item.specCode,
+        specClass: item.specClass,
+        thicknessMm: item.thicknessMm,
+        version: item.version
+      }))
+    });
+  }
+  return candidates[0] ?? null;
+}
 
 async function requirePage(db: DbExecutor, pageId: string) {
   const [page] = await db.select().from(knowledgePages).where(eq(knowledgePages.id, pageId)).limit(1);
@@ -60,11 +169,20 @@ export async function getPageRecognition(app: FastifyInstance, pageId: string) {
   if (page.pageImageObjectKey) {
     pageImageUrl = await app.storage.createDownloadUrl(
       page.pageImageObjectKey,
-      `page-${page.physicalPageNumber}.png`,
+      getPageImageDownloadName(page.pageImageObjectKey, page.physicalPageNumber),
       3600
     );
   }
   let thermalSetEditable: boolean | null = null;
+  const linkedRows = await app.db.select({ setId: thermalReferenceRows.setId })
+    .from(thermalReferenceRows).where(eq(thermalReferenceRows.sourcePageId, page.id));
+  if (linkedRows.length > 0) {
+    const setIds = [...new Set(linkedRows.map((row) => row.setId))];
+    const linkedSets = await app.db.select({ id: thermalReferenceSets.id, status: thermalReferenceSets.status })
+      .from(thermalReferenceSets).where(inArray(thermalReferenceSets.id, setIds));
+    thermalSetEditable = linkedSets.length === setIds.length
+      && linkedSets.every((set) => isThermalReferenceSetEditable(set.status));
+  }
   return {
     pageId: page.id,
     versionId: page.versionId,
@@ -83,6 +201,7 @@ export async function getPageRecognition(app: FastifyInstance, pageId: string) {
     confirmedStructuredData: meta.confirmedStructuredData ?? null,
     confirmedAt: meta.confirmedAt ?? null,
     confirmedById: meta.confirmedById ?? null,
+    confirmedBy: meta.confirmedById ?? null,
     lastRecognitionAt: meta.lastRecognitionAt ?? null,
     lastRecognitionError: meta.lastRecognitionError ?? null,
     imageWarnings: meta.imageWarnings ?? [],
@@ -99,38 +218,90 @@ export async function enqueuePageRecognition(
   pageId: string,
   options?: { reRecognize?: boolean }
 ) {
-  const page = await requirePage(app.db, pageId);
-  const version = await requireVersionForPage(app.db, page.versionId);
-  assertKnowledgeVersionEditable(version);
-  if (!page.pageImageObjectKey) {
-    throw new AppError("PAGE_IMAGE_REQUIRED", "页面尚未绑定图片，无法识别", 400);
-  }
-  const meta = readPageRecognitionMeta(page.metadata);
-  const patch: PageRecognitionMetadata = {
-    recognitionStatus: "PENDING",
-    lastRecognitionError: null
-  };
-  // 重新识别：不立即覆盖已确认数据；新结果进 structuredData / draftStructuredData 候选
-  if (options?.reRecognize && meta.recognitionStatus === "CONFIRMED") {
-    patch.confirmedStructuredData = meta.confirmedStructuredData ?? meta.structuredData;
-    patch.confirmedAt = meta.confirmedAt;
-    patch.confirmedById = meta.confirmedById;
-  }
-  await app.db.update(knowledgePages).set({
-    metadata: mergePageMetadata(page.metadata, { ...meta, ...patch })
-  }).where(eq(knowledgePages.id, pageId));
+  const runId = randomUUID();
+  const outcome = await app.db.transaction(async (tx) => {
+    await tx.execute(sql`select id from knowledge_pages where id = ${pageId} for update`);
+    const lockedPage = await requirePage(tx, pageId);
+    const version = await requireVersionForPage(tx, lockedPage.versionId);
+    assertKnowledgeVersionEditable(version);
+    if (!lockedPage.pageImageObjectKey) {
+      throw new AppError("PAGE_IMAGE_REQUIRED", "页面尚未绑定图片，无法识别", 400);
+    }
+    const meta = readPageRecognitionMeta(lockedPage.metadata);
+    if (isPageRecognitionBusy(meta)) {
+      throw new AppError("PAGE_RECOGNITION_IN_PROGRESS", "该页面已有识别任务正在排队或执行", 409, {
+        errorCode: "PAGE_RECOGNITION_IN_PROGRESS",
+        pageId,
+        recognitionStatus: meta.recognitionStatus ?? "PENDING",
+        recognitionRunId: meta.recognitionRunId ?? null
+      });
+    }
+    const patch: PageRecognitionMetadata = {
+      recognitionStatus: "PENDING",
+      recognitionRunId: runId,
+      recognitionQueuedAt: new Date().toISOString(),
+      lastRecognitionError: null
+    };
+    if (options?.reRecognize && meta.recognitionStatus === "CONFIRMED") {
+      patch.confirmedStructuredData = meta.confirmedStructuredData ?? meta.structuredData;
+      patch.confirmedAt = meta.confirmedAt;
+      patch.confirmedById = meta.confirmedById;
+    }
+    await tx.update(knowledgePages).set({
+      metadata: mergePageMetadata(lockedPage.metadata, { ...meta, ...patch })
+    }).where(eq(knowledgePages.id, pageId));
+    // 已确认页重新识别 = 识别重置（CONFIRMED → PENDING）：
+    // 旧正式 page-aware index 必须「立即」退出当前版本的可测试索引——
+    // 先清理该页派生的 chunks / page_blocks / 可编辑热工行，再登记 Page Mutation，
+    // 否则会出现「页面显示正在重新识别，但 AI / Knowledge Test 仍命中旧正式正文」的语义不一致。
+    // 已发布 / 已停用热工集不可变：其引用行不删除（lockedThermalRows 仅统计）。
+    let purged: PurgePageIndexResult | null = null;
+    if (meta.recognitionStatus === "CONFIRMED") {
+      purged = await purgePageDerivedIndex(tx, lockedPage);
+      await markPageContentMutation(tx, lockedPage.versionId);
+    }
+    return { page: lockedPage, purged };
+  });
+  const page = outcome.page;
 
-  await app.queues.pageRecognition.add(
-    options?.reRecognize ? "re-recognize-page" : "recognize-page",
-    { pageId, versionId: page.versionId, triggeredBy: actor.id, reRecognize: Boolean(options?.reRecognize) },
-    { jobId: `page-recog-${pageId}-${Date.now()}`, removeOnComplete: true }
-  );
+  try {
+    await app.queues.pageRecognition.add(
+      options?.reRecognize ? "re-recognize-page" : "recognize-page",
+      { pageId, versionId: page.versionId, triggeredBy: actor.id, reRecognize: Boolean(options?.reRecognize), recognitionRunId: runId },
+      { jobId: `page-recog-${pageId}`, removeOnComplete: true, removeOnFail: true }
+    );
+  } catch (error) {
+    const latest = await requirePage(app.db, pageId);
+    const latestMeta = readPageRecognitionMeta(latest.metadata);
+    if (latestMeta.recognitionRunId === runId) {
+      await app.db.update(knowledgePages).set({
+        metadata: mergePageMetadata(latest.metadata, {
+          ...latestMeta,
+          recognitionStatus: "FAILED",
+          recognitionRunId: null,
+          recognitionQueuedAt: null,
+          lastRecognitionError: "识别任务入队失败"
+        })
+      }).where(eq(knowledgePages.id, pageId));
+    }
+    throw error;
+  }
   await writeAuditLog({
     db: app.db, request, actor,
     action: options?.reRecognize ? "knowledge.page_re_recognize_queued" : "knowledge.page_recognize_queued",
     targetType: "knowledge_page",
     targetId: pageId,
-    afterJson: { versionId: page.versionId }
+    afterJson: {
+      versionId: page.versionId,
+      recognitionRunId: runId,
+      indexInvalidated: outcome.purged != null,
+      ...(outcome.purged ? {
+        chunksDeleted: outcome.purged.chunksDeleted,
+        blocksDeleted: outcome.purged.blocksDeleted,
+        thermalRowsDeleted: outcome.purged.thermalRowsDeleted,
+        lockedThermalRows: outcome.purged.lockedThermalRows
+      } : {})
+    }
   });
   return { message: options?.reRecognize ? "已排队重新识别" : "已排队识别", pageId, status: "PENDING" };
 }
@@ -138,20 +309,44 @@ export async function enqueuePageRecognition(
 /** Worker 调用：执行视觉结构化识别并落候选（不写正式热工行） */
 export async function runPageRecognitionJob(
   app: Pick<FastifyInstance, "db" | "storage" | "log">,
-  pageId: string
+  pageId: string,
+  recognitionRunId: string
 ): Promise<{ status: string; pageId: string }> {
   const page = await requirePage(app.db, pageId);
+  let meta = readPageRecognitionMeta(page.metadata);
+  if (!meta.recognitionRunId && meta.recognitionStatus === "PENDING") {
+    const claimed = await app.db.update(knowledgePages).set({
+      metadata: mergePageMetadata(page.metadata, { ...meta, recognitionRunId })
+    }).where(and(
+      eq(knowledgePages.id, pageId),
+      sql`(${knowledgePages.metadata}->>'recognitionRunId') is null`
+    )).returning({ id: knowledgePages.id });
+    if (claimed.length > 0) meta = { ...meta, recognitionRunId };
+  }
+  if (meta.recognitionRunId !== recognitionRunId) {
+    app.log.warn({ pageId, recognitionRunId, activeRunId: meta.recognitionRunId }, "忽略已失效的页面识别任务");
+    return { status: "STALE", pageId };
+  }
+  const version = await requireVersionForPage(app.db, page.versionId);
+  assertKnowledgeVersionEditable(version);
   if (!page.pageImageObjectKey) {
     throw new AppError("PAGE_IMAGE_REQUIRED", "页面尚未绑定图片", 400);
   }
-  const meta = readPageRecognitionMeta(page.metadata);
-  await app.db.update(knowledgePages).set({
+  const started = await app.db.update(knowledgePages).set({
     metadata: mergePageMetadata(page.metadata, {
       ...meta,
       recognitionStatus: "PROCESSING",
+      recognitionRunId,
       lastRecognitionError: null
     })
-  }).where(eq(knowledgePages.id, pageId));
+  }).where(and(
+    eq(knowledgePages.id, pageId),
+    sql`${knowledgePages.metadata}->>'recognitionRunId' = ${recognitionRunId}`
+  )).returning({ id: knowledgePages.id });
+  if (started.length === 0) {
+    app.log.warn({ pageId, recognitionRunId }, "识别启动前任务已失效，跳过执行");
+    return { status: "STALE", pageId };
+  }
 
   try {
     const [doc] = await app.db.select({ title: knowledgeDocuments.title })
@@ -159,7 +354,7 @@ export async function runPageRecognitionJob(
     const vision = await resolveDefaultVisionModel(app.db);
     const imageUrl = await app.storage.createDownloadUrl(
       page.pageImageObjectKey,
-      `page-${page.physicalPageNumber}.png`,
+      getPageImageDownloadName(page.pageImageObjectKey, page.physicalPageNumber),
       VISION_URL_TTL
     );
 
@@ -189,50 +384,93 @@ export async function runPageRecognitionJob(
       abortSignal: AbortSignal.timeout(getAiTaskRuntimePolicy("VISION").timeoutMs)
     });
 
+    const [latestPage] = await app.db.select().from(knowledgePages)
+      .where(eq(knowledgePages.id, pageId)).limit(1);
+    const latestRunMeta = readPageRecognitionMeta(latestPage?.metadata);
+    if (!latestPage || latestRunMeta.recognitionRunId !== recognitionRunId || latestRunMeta.recognitionStatus !== "PROCESSING") {
+      app.log.warn({ pageId, recognitionRunId }, "识别完成时任务已失效，丢弃旧结果");
+      return { status: "STALE", pageId };
+    }
+    const [latestVersion] = await app.db.select().from(knowledgeDocumentVersions)
+      .where(eq(knowledgeDocumentVersions.id, latestPage.versionId)).limit(1);
+    if (!latestVersion) throw new NotFoundError("文档版本不存在");
+    assertKnowledgeVersionEditable(latestVersion);
+
     const parsed = pageRecognitionResultSchema.parse(result.object);
+    const hadLegacyRValue = parsed.systems.some((system) =>
+      system.options?.some((option) => option.rValue != null)
+    );
+    const candidate: PageRecognitionResult = {
+      ...parsed,
+      systems: parsed.systems.map((system) => ({
+        ...system,
+        options: system.options?.map(({ rValue: _legacyRValue, ...option }) => option)
+      })),
+      warnings: [
+        ...(parsed.warnings ?? []),
+        ...(hadLegacyRValue ? ["模型输出了旧字段 rValue，已移除；请分别确认产品层热阻与总传热阻"] : [])
+      ]
+    };
     const warnings = [
-      ...(parsed.warnings ?? []),
+      ...(candidate.warnings ?? []),
       ...(meta.imageWarnings ?? [])
     ];
 
-    const nextMeta = mergePageMetadata(page.metadata, {
-      ...meta,
+    const latestMeta = readPageRecognitionMeta(latestPage.metadata);
+    const nextMeta = mergePageMetadata(latestPage.metadata, {
+      ...latestMeta,
       recognitionStatus: "REVIEW_REQUIRED",
+      recognitionRunId,
       recognitionModel: vision.modelRef.id,
       recognitionConfidence: null,
       recognitionWarnings: warnings,
-      structuredData: parsed,
-      draftStructuredData: parsed,
+      structuredData: candidate,
+      draftStructuredData: candidate,
       // 保留已确认快照，避免重识别静默覆盖正式数据
-      confirmedStructuredData: meta.confirmedStructuredData,
-      confirmedAt: meta.confirmedAt,
-      confirmedById: meta.confirmedById,
+      confirmedStructuredData: latestMeta.confirmedStructuredData,
+      confirmedAt: latestMeta.confirmedAt,
+      confirmedById: latestMeta.confirmedById,
       lastRecognitionAt: new Date().toISOString(),
       lastRecognitionError: null
     });
 
-    await app.db.update(knowledgePages).set({
-      parsedText: parsed.fullText || page.parsedText,
-      pageTitle: parsed.pageTitle?.trim() || page.pageTitle,
-      pageLabel: parsed.pageLabel?.trim() || page.pageLabel,
-      metadata: nextMeta
-    }).where(eq(knowledgePages.id, pageId));
+    await app.db.update(knowledgePages).set({ metadata: nextMeta }).where(and(
+      eq(knowledgePages.id, pageId),
+      sql`${knowledgePages.metadata}->>'recognitionRunId' = ${recognitionRunId}`
+    ));
 
     return { status: "REVIEW_REQUIRED", pageId };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    await app.db.update(knowledgePages).set({
-      metadata: mergePageMetadata(page.metadata, {
-        ...readPageRecognitionMeta(page.metadata),
-        recognitionStatus: "FAILED",
-        lastRecognitionError: message,
-        lastRecognitionAt: new Date().toISOString()
-      })
-    }).where(eq(knowledgePages.id, pageId));
+    const [latestPage] = await app.db.select().from(knowledgePages).where(eq(knowledgePages.id, pageId)).limit(1);
+    const latestMeta = readPageRecognitionMeta(latestPage?.metadata);
+    const [latestVersion] = latestPage ? await app.db.select().from(knowledgeDocumentVersions)
+      .where(eq(knowledgeDocumentVersions.id, latestPage.versionId)).limit(1) : [];
+    if (latestPage && latestMeta.recognitionRunId === recognitionRunId && latestVersion && isKnowledgeVersionEditable(latestVersion.status)) {
+      await app.db.update(knowledgePages).set({
+        metadata: mergePageMetadata(latestPage.metadata, {
+          ...latestMeta,
+          recognitionStatus: "FAILED",
+          recognitionRunId,
+          lastRecognitionError: message,
+          lastRecognitionAt: new Date().toISOString()
+        })
+      }).where(and(eq(knowledgePages.id, pageId), sql`${knowledgePages.metadata}->>'recognitionRunId' = ${recognitionRunId}`));
+    }
     throw error;
   }
 }
 
+/**
+ * 保存人工识别草稿。
+ *
+ * 并发约束（与 enqueuePageRecognition 对同一 knowledge_pages 行串行化）：
+ * - 事务内 SELECT ... FOR UPDATE 重新读取最新 metadata，禁止用预检时的旧快照整体写回，
+ *   否则会把并发 enqueue 刚写入的 PENDING + recognitionRunId 覆盖掉；
+ * - 识别任务「排队中（PENDING + recognitionRunId）」或「执行中（PROCESSING）」时拒绝写入，
+ *   否则排队中的 Worker 启动后会把人工草稿改回 PROCESSING 并在识别完成后静默覆盖；
+ * - 其余状态保持既有业务行为（REVIEW_REQUIRED / FAILED / CONFIRMED / 无识别均允许保存，落 REVIEW_REQUIRED）。
+ */
 export async function savePageRecognitionDraft(
   app: FastifyInstance,
   request: FastifyRequest,
@@ -245,39 +483,78 @@ export async function savePageRecognitionDraft(
     parsedText?: string | null;
   }
 ) {
-  const page = await requirePage(app.db, pageId);
-  const version = await requireVersionForPage(app.db, page.versionId);
-  assertKnowledgeVersionEditable(version);
-  const meta = readPageRecognitionMeta(page.metadata);
-  if (meta.recognitionStatus === "PROCESSING") {
-    throw new AppError("PAGE_RECOGNITION_BUSY", "页面正在识别中，请稍后再编辑", 400);
-  }
-  const structuredData = input.structuredData
-    ? pageRecognitionResultSchema.parse(input.structuredData)
-    : meta.structuredData;
-  const nextMeta = mergePageMetadata(page.metadata, {
-    ...meta,
-    structuredData: structuredData ?? null,
-    draftStructuredData: structuredData ?? null,
-    recognitionStatus: meta.recognitionStatus === "CONFIRMED"
-      ? "REVIEW_REQUIRED"
-      : (meta.recognitionStatus ?? "REVIEW_REQUIRED")
+  const updated = await app.db.transaction(async (tx) => {
+    await tx.execute(sql`select id from knowledge_pages where id = ${pageId} for update`);
+    const [lockedPage] = await tx.select().from(knowledgePages).where(eq(knowledgePages.id, pageId)).limit(1);
+    if (!lockedPage) throw new NotFoundError("页面不存在");
+    const [lockedVersion] = await tx.select().from(knowledgeDocumentVersions)
+      .where(eq(knowledgeDocumentVersions.id, lockedPage.versionId)).limit(1);
+    if (!lockedVersion) throw new NotFoundError("文档版本不存在");
+    assertKnowledgeVersionEditable(lockedVersion);
+
+    const meta = readPageRecognitionMeta(lockedPage.metadata);
+    if (isPageRecognitionBusy(meta)) {
+      app.log.warn({
+        pageId,
+        versionId: lockedPage.versionId,
+        recognitionStatus: meta.recognitionStatus ?? null,
+        recognitionRunId: meta.recognitionRunId ?? null,
+        operation: "save_recognition_draft"
+      }, "拒绝保存页面识别草稿：识别任务正在排队或执行");
+      throw new AppError(
+        "PAGE_RECOGNITION_BUSY",
+        "页面识别任务正在排队或执行，请等待识别完成后再编辑",
+        409,
+        {
+          errorCode: "PAGE_RECOGNITION_BUSY",
+          pageId,
+          recognitionStatus: meta.recognitionStatus ?? "PENDING",
+          recognitionRunId: meta.recognitionRunId ?? null
+        }
+      );
+    }
+
+    const structuredData = buildRecognitionDraft({
+      structuredData: input.structuredData,
+      fallback: meta.draftStructuredData ?? meta.structuredData ?? meta.confirmedStructuredData,
+      pageLabel: input.pageLabel !== undefined ? input.pageLabel : (input.structuredData?.pageLabel ?? meta.draftStructuredData?.pageLabel ?? lockedPage.pageLabel),
+      pageTitle: input.pageTitle !== undefined ? input.pageTitle : (input.structuredData?.pageTitle ?? meta.draftStructuredData?.pageTitle ?? lockedPage.pageTitle),
+      parsedText: input.parsedText !== undefined ? input.parsedText : (input.structuredData?.fullText ?? meta.draftStructuredData?.fullText ?? meta.structuredData?.fullText ?? lockedPage.parsedText ?? "")
+    });
+    // 保留 recognitionRunId：REVIEW_REQUIRED 后的 runId 仅用于审计，Worker 完成态校验要求 status=PROCESSING，不会被再次消费。
+    const nextMeta = mergePageMetadata(lockedPage.metadata, {
+      ...meta,
+      structuredData: structuredData ?? null,
+      draftStructuredData: structuredData ?? null,
+      recognitionStatus: "REVIEW_REQUIRED"
+    });
+    const [saved] = await tx.update(knowledgePages).set({
+      pageLabel: structuredData.pageLabel ?? null,
+      pageTitle: structuredData.pageTitle ?? null,
+      parsedText: structuredData.fullText,
+      pageLabelVerified: input.pageLabel !== undefined ? Boolean(input.pageLabel) : lockedPage.pageLabelVerified,
+      metadata: nextMeta
+    }).where(eq(knowledgePages.id, pageId)).returning();
+    if (!saved) throw new NotFoundError("页面不存在");
+    // 已确认页保存新草稿 = 识别重置（CONFIRMED → REVIEW_REQUIRED）：正式正文退出正式索引，
+    // 必须先清理该页派生索引（chunks / page_blocks / 可编辑热工行）再登记 Page Mutation，
+    // 避免出现「索引仍含旧正文、状态却已非 CONFIRMED」的漂移，或草稿正文被误当作正式内容检索。
+    // 已发布 / 已停用热工集不可变：其引用行不删除。
+    if (meta.recognitionStatus === "CONFIRMED") {
+      await purgePageDerivedIndex(tx, lockedPage);
+      await markPageContentMutation(tx, lockedPage.versionId);
+    }
+    return saved;
   });
-  const [updated] = await app.db.update(knowledgePages).set({
-    pageLabel: input.pageLabel !== undefined ? input.pageLabel : page.pageLabel,
-    pageTitle: input.pageTitle !== undefined ? input.pageTitle : page.pageTitle,
-    parsedText: input.parsedText !== undefined ? input.parsedText : page.parsedText,
-    metadata: nextMeta
-  }).where(eq(knowledgePages.id, pageId)).returning();
 
   await writeAuditLog({
     db: app.db, request, actor,
     action: "knowledge.page_recognition_draft_saved",
     targetType: "knowledge_page",
     targetId: pageId,
-    afterJson: { recognitionStatus: nextMeta.recognitionStatus }
+    afterJson: { recognitionStatus: "REVIEW_REQUIRED" }
   });
-  return { page: updated!, recognition: await getPageRecognition(app, pageId) };
+  return { page: updated, recognition: await getPageRecognition(app, pageId) };
 }
 
 async function rebuildPageAwareChunks(
@@ -357,15 +634,19 @@ export async function syncThermalRowsFromConfirmedPage(
   page: typeof knowledgePages.$inferSelect,
   structured: PageRecognitionResult,
   thermalSetId: string
-): Promise<{ upserted: number; warnings: string[]; skipped: number }> {
+): Promise<{ upserted: number; warnings: string[]; skipped: number; mappingIssues: Array<Record<string, unknown>> }> {
   const warnings: string[] = [];
+  const mappingIssues: Array<Record<string, unknown>> = [];
   const [set] = await db.select().from(thermalReferenceSets)
     .where(eq(thermalReferenceSets.id, thermalSetId)).limit(1);
   if (!set) throw new AppError("THERMAL_SET_NOT_FOUND", "热工参考集不存在", 400);
   assertThermalReferenceSetEditable(set);
 
   // 只清当前页绑定行，不碰整个 set
-  await db.delete(thermalReferenceRows).where(eq(thermalReferenceRows.sourcePageId, page.id));
+  await db.delete(thermalReferenceRows).where(and(
+    eq(thermalReferenceRows.sourcePageId, page.id),
+    eq(thermalReferenceRows.setId, thermalSetId)
+  ));
 
   let upserted = 0;
   let skipped = 0;
@@ -373,16 +654,14 @@ export async function syncThermalRowsFromConfirmedPage(
     const code = system.constructionCode?.trim();
     if (!code) {
       warnings.push(`系统「${system.systemName ?? "未命名"}」缺少 constructionCode，跳过热工同步`);
+      mappingIssues.push({ mappingStatus: "NOT_FOUND", kind: "SCHEME", constructionCode: null });
       skipped += 1;
       continue;
     }
-    const [scheme] = await db.select().from(constructionSchemes)
-      .where(and(
-        eq(constructionSchemes.schemeCode, code),
-        eq(constructionSchemes.status, "PUBLISHED")
-      )).limit(1);
+    const scheme = await resolveSchemeMapping(db, system);
     if (!scheme) {
       warnings.push(`未找到已发布构造方案 schemeCode=${code}`);
+      mappingIssues.push({ mappingStatus: "NOT_FOUND", kind: "SCHEME", constructionCode: code });
       skipped += 1;
       continue;
     }
@@ -400,16 +679,17 @@ export async function syncThermalRowsFromConfirmedPage(
       const totalThermalResistance = resolved.totalThermalResistance!;
       const kValue = resolved.kValue!;
 
-      const specConditions = [
-        eq(productSpecs.status, "PUBLISHED"),
-        eq(productSpecs.thicknessMm, thicknessMm)
-      ];
-      if (system.specClass) {
-        specConditions.push(eq(productSpecs.specClass, system.specClass));
-      }
-      const [spec] = await db.select().from(productSpecs).where(and(...specConditions)).limit(1);
+      const spec = await resolveProductSpecMapping(db, scheme.id, system, opt, thicknessMm);
       if (!spec) {
-        warnings.push(`构造 ${code} 厚度 ${thicknessMm}mm 未匹配已发布产品规格`);
+        warnings.push(`构造 ${code} 厚度 ${thicknessMm}mm 未匹配属于该方案的已发布产品规格`);
+        mappingIssues.push({
+          mappingStatus: "NOT_FOUND",
+          kind: "PRODUCT_SPEC",
+          schemeId: scheme.id,
+          constructionCode: code,
+          thicknessMm,
+          specClass: system.specClass ?? null
+        });
         skipped += 1;
         continue;
       }
@@ -419,6 +699,7 @@ export async function syncThermalRowsFromConfirmedPage(
         setId: thermalSetId,
         schemeId: scheme.id,
         productSpecId: spec.id,
+        catalogProductId: spec.catalogProductId,
         thicknessMm,
         productThermalResistance,
         totalThermalResistance,
@@ -440,7 +721,7 @@ export async function syncThermalRowsFromConfirmedPage(
       upserted += 1;
     }
   }
-  return { upserted, warnings, skipped };
+  return { upserted, warnings, skipped, mappingIssues };
 }
 
 export async function confirmPageRecognition(
@@ -448,67 +729,85 @@ export async function confirmPageRecognition(
   request: FastifyRequest,
   actor: AuthUser,
   pageId: string,
-  input?: { thermalSetId?: string | null; structuredData?: PageRecognitionResult }
+    input?: { thermalSetId?: string | null }
 ) {
   const page = await requirePage(app.db, pageId);
   const version = await requireVersionForPage(app.db, page.versionId);
   assertKnowledgeVersionEditable(version);
 
-  const meta = readPageRecognitionMeta(page.metadata);
-  const structured = pageRecognitionResultSchema.parse(
-    input?.structuredData ?? meta.structuredData ?? meta.draftStructuredData ?? meta.confirmedStructuredData
-  );
-  if (!structured.fullText?.trim() && !page.parsedText?.trim()) {
-    throw new AppError("PAGE_RECOGNITION_INCOMPLETE", "确认前需要页面全文（fullText/parsedText）", 400);
-  }
-
-  // 预检：有 thermalSetId 时先校验可编辑，避免事务中途失败
-  if (input?.thermalSetId) {
-    const [set] = await app.db.select().from(thermalReferenceSets)
-      .where(eq(thermalReferenceSets.id, input.thermalSetId)).limit(1);
-    if (!set) throw new AppError("THERMAL_SET_NOT_FOUND", "热工参考集不存在", 400);
-    assertThermalReferenceSetEditable(set);
-  }
-
-  const fullText = structured.fullText?.trim() || page.parsedText || "";
-  const pageForChunks = {
-    ...page,
-    pageLabel: structured.pageLabel?.trim() || page.pageLabel,
-    pageTitle: structured.pageTitle?.trim() || page.pageTitle,
-    parsedText: fullText
-  };
-
   const result = await app.db.transaction(async (tx) => {
-    const chunkCount = await rebuildPageAwareChunks(tx, pageForChunks, fullText);
-
-    let thermal = { upserted: 0, warnings: [] as string[], skipped: 0 };
+    // 事务内重新读取并校验，避免预检后版本/页面状态被并发修改。
+    await tx.execute(sql`select id from knowledge_pages where id = ${pageId} for update`);
+    const [lockedPage] = await tx.select().from(knowledgePages).where(eq(knowledgePages.id, pageId)).limit(1);
+    if (!lockedPage) throw new NotFoundError("页面不存在");
+    const [lockedVersion] = await tx.select().from(knowledgeDocumentVersions)
+      .where(eq(knowledgeDocumentVersions.id, lockedPage.versionId)).limit(1);
+    if (!lockedVersion) throw new NotFoundError("文档版本不存在");
+    assertKnowledgeVersionEditable(lockedVersion);
     if (input?.thermalSetId) {
-      thermal = await syncThermalRowsFromConfirmedPage(tx, actor, page, structured, input.thermalSetId);
-    } else if ((structured.systems?.length ?? 0) > 0) {
+      const [lockedSet] = await tx.select().from(thermalReferenceSets)
+        .where(eq(thermalReferenceSets.id, input.thermalSetId)).limit(1);
+      if (!lockedSet) throw new AppError("THERMAL_SET_NOT_FOUND", "热工参考集不存在", 400);
+      assertThermalReferenceSetEditable(lockedSet);
+    }
+    const currentMeta = readPageRecognitionMeta(lockedPage.metadata);
+    if (currentMeta.recognitionStatus !== "REVIEW_REQUIRED") {
+      const code = currentMeta.recognitionStatus === "CONFIRMED"
+        ? "PAGE_RECOGNITION_ALREADY_CONFIRMED"
+        : "PAGE_RECOGNITION_NOT_READY";
+      throw new AppError(code, currentMeta.recognitionStatus === "CONFIRMED"
+        ? "该页面识别结果已经确认"
+        : `页面识别状态为 ${currentMeta.recognitionStatus ?? "PENDING"}，仅 REVIEW_REQUIRED 可确认`, 409, {
+        pageId,
+        recognitionStatus: currentMeta.recognitionStatus ?? "PENDING"
+      });
+    }
+    const currentStructured = pageRecognitionResultSchema.parse(currentMeta.draftStructuredData);
+    if (!currentStructured.fullText?.trim()) {
+      throw new AppError("PAGE_RECOGNITION_INCOMPLETE", "确认前需要页面全文（fullText/parsedText）", 400);
+    }
+    const currentText = currentStructured.fullText ?? "";
+    const currentPageForChunks = {
+      ...lockedPage,
+      pageLabel: currentStructured.pageLabel?.trim() ?? null,
+      pageTitle: currentStructured.pageTitle?.trim() ?? null,
+      parsedText: currentText
+    };
+    const chunkCount = await rebuildPageAwareChunks(tx, currentPageForChunks, currentText);
+
+    let thermal = { upserted: 0, warnings: [] as string[], skipped: 0, mappingIssues: [] as Array<Record<string, unknown>> };
+    if (input?.thermalSetId) {
+      thermal = await syncThermalRowsFromConfirmedPage(tx, actor, { ...lockedPage, pageLabel: currentPageForChunks.pageLabel }, currentStructured, input.thermalSetId);
+    } else if ((currentStructured.systems?.length ?? 0) > 0) {
       thermal.warnings.push("未提供 thermalSetId：已确认页面与 chunks，未同步 thermal_reference_rows");
     }
 
-    const nextMeta = mergePageMetadata(page.metadata, {
-      ...meta,
+    const nextMeta = mergePageMetadata(lockedPage.metadata, {
+      ...currentMeta,
       recognitionStatus: "CONFIRMED",
-      structuredData: structured,
-      draftStructuredData: structured,
-      confirmedStructuredData: structured,
+      structuredData: currentStructured,
+      draftStructuredData: currentStructured,
+      confirmedStructuredData: currentStructured,
       confirmedAt: new Date().toISOString(),
       confirmedById: actor.id,
       recognitionWarnings: [
-        ...(structured.warnings ?? []),
+        ...(currentStructured.warnings ?? []),
         ...thermal.warnings
       ]
     });
 
     await tx.update(knowledgePages).set({
-      parsedText: fullText,
-      pageLabel: structured.pageLabel?.trim() || page.pageLabel,
-      pageTitle: structured.pageTitle?.trim() || page.pageTitle,
+      parsedText: currentText,
+      pageLabel: currentStructured.pageLabel?.trim() ?? null,
+      pageTitle: currentStructured.pageTitle?.trim() ?? null,
       pageLabelVerified: true,
       metadata: nextMeta
     }).where(eq(knowledgePages.id, pageId));
+
+    // 单页 Confirm 只产出「即时 page-aware chunk」用于人工即时测试；
+    // 正式发布索引必须由版本级 rebuild 统一重建，因此这里统一登记一次 Page Mutation
+    // （contentRevision++ / indexDirty=true），供 rebuild 的 CAS 与发布门禁比对。
+    await markPageContentMutation(tx, page.versionId);
 
     await writeAuditLog({
       db: tx, request, actor,
@@ -520,7 +819,8 @@ export async function confirmPageRecognition(
         thermalUpserted: thermal.upserted,
         thermalSkipped: thermal.skipped,
         thermalWarnings: thermal.warnings,
-        thermalSetId: input?.thermalSetId ?? null
+        thermalSetId: input?.thermalSetId ?? null,
+        versionIndexDirty: true
       }
     });
 
@@ -539,6 +839,167 @@ export async function confirmPageRecognition(
     chunkCount: result.chunkCount,
     thermal: result.thermal,
     recognition
+  };
+}
+
+/**
+ * 批量确认安全评估：仅「无风险页」允许批量自动确认。
+ * 风险包括：缺少全文、结构未通过 schema、构造/产品映射歧义、热工字段不完整（无法写入正式热工行）。
+ * 热工页更严格：存在构造编号缺失或 R/K 不完整时禁止批量，继续人工逐页确认。
+ */
+export function assessBatchConfirmSafety(structured: PageRecognitionResult): { safe: boolean; reasons: string[] } {
+  const reasons: string[] = [];
+  if (!structured.fullText?.trim()) reasons.push("缺少页面全文（fullText/parsedText）");
+  for (const system of structured.systems ?? []) {
+    const options = system.options ?? [];
+    const hasThermal = options.some((opt) => opt.thicknessMm != null
+      || opt.productThermalResistance != null
+      || opt.totalThermalResistance != null
+      || opt.kValue != null
+      || opt.rValue != null);
+    if (hasThermal && !system.constructionCode?.trim()) {
+      reasons.push(`系统「${system.systemName ?? "未命名"}」缺少 constructionCode，存在构造映射歧义`);
+    }
+    for (const opt of options) {
+      const resolved = resolveOptionThermalResistances(opt);
+      if (resolved.skipFormalWrite && (opt.thicknessMm != null || opt.kValue != null || opt.productThermalResistance != null || opt.totalThermalResistance != null)) {
+        reasons.push(...resolved.warnings);
+      }
+    }
+  }
+  return { safe: reasons.length === 0, reasons: [...new Set(reasons)] };
+}
+
+export interface BatchConfirmInput {
+  pageIds?: string[];
+  /**
+   * true（默认）：只确认「无风险页」，风险页进入 skipped 并给出原因；
+   * false：尝试确认全部 REVIEW_REQUIRED 页面，确认失败页进入 failed 并给出原因。
+   *
+   * 两种模式都是 **per-page result**，不再存在 all-or-nothing 语义
+   * （此前协议宣称 all-or-nothing，实现却是每页独立事务，属于协议与实现不一致）。
+   */
+  confirmSafeOnly?: boolean;
+  thermalSetId?: string | null;
+}
+
+/** 批量确认逐页结果项（B 端可直接展示失败/跳过原因） */
+export interface BatchConfirmPageResult {
+  pageId: string;
+  physicalPageNumber: number;
+  code: string;
+  reason: string;
+}
+
+export interface BatchConfirmResult {
+  requested: number;
+  confirmed: number;
+  chunkCount: number;
+  versionIndexDirty: boolean;
+  /** 已成功确认的页面 */
+  success: Array<{ pageId: string; physicalPageNumber: number; chunkCount: number; thermalUpserted: number; thermalSkipped: number }>;
+  /** 尝试确认但失败的页面（confirmSafeOnly=false 时才会尝试风险页） */
+  failed: BatchConfirmPageResult[];
+  /** 未尝试确认的页面（状态不符 / 安全条件不满足） */
+  skipped: BatchConfirmPageResult[];
+}
+
+/**
+ * 批量确认页面识别（降低 92 页逐页点击成本）。
+ * 安全条件：REVIEW_REQUIRED + fullText 非空 + 结构通过 schema + 无映射歧义 + 热工字段完整。
+ *
+ * 语义：逐页独立确认，单页失败不影响其他页；返回 success / failed / skipped 三组逐页结果。
+ * 不静默确认任何风险页（confirmSafeOnly=true 时风险页只跳过并给出原因）。
+ */
+export async function batchConfirmPageRecognition(
+  app: FastifyInstance,
+  request: FastifyRequest,
+  actor: AuthUser,
+  versionId: string,
+  input: BatchConfirmInput
+): Promise<BatchConfirmResult> {
+  const version = await requireVersionForPage(app.db, versionId);
+  assertKnowledgeVersionEditable(version);
+  const confirmSafeOnly = input.confirmSafeOnly ?? true;
+  const pages = input.pageIds && input.pageIds.length > 0
+    ? await app.db.select().from(knowledgePages).where(and(
+      eq(knowledgePages.versionId, versionId),
+      inArray(knowledgePages.id, input.pageIds)
+    ))
+    : await app.db.select().from(knowledgePages).where(and(
+      eq(knowledgePages.versionId, versionId),
+      sql`${knowledgePages.metadata}->>'recognitionStatus' = 'REVIEW_REQUIRED'`
+    ));
+  if (pages.length === 0) {
+    throw new AppError("PAGE_BATCH_CONFIRM_EMPTY", "没有可批量确认的页面", 400);
+  }
+
+  const success: BatchConfirmResult["success"] = [];
+  const failed: BatchConfirmPageResult[] = [];
+  const skipped: BatchConfirmPageResult[] = [];
+  let chunkCount = 0;
+
+  for (const page of pages) {
+    const meta = readPageRecognitionMeta(page.metadata);
+    if (meta.recognitionStatus !== "REVIEW_REQUIRED") {
+      skipped.push({
+        pageId: page.id,
+        physicalPageNumber: page.physicalPageNumber,
+        code: "PAGE_NOT_REVIEW_REQUIRED",
+        reason: `识别状态为 ${meta.recognitionStatus ?? "PENDING"}，仅 REVIEW_REQUIRED 可确认`
+      });
+      continue;
+    }
+    let structured: PageRecognitionResult;
+    try {
+      structured = pageRecognitionResultSchema.parse(meta.draftStructuredData);
+    } catch {
+      const reason = "结构化候选未通过 schema 校验";
+      if (confirmSafeOnly) {
+        skipped.push({ pageId: page.id, physicalPageNumber: page.physicalPageNumber, code: "PAGE_DRAFT_SCHEMA_INVALID", reason });
+      } else {
+        failed.push({ pageId: page.id, physicalPageNumber: page.physicalPageNumber, code: "PAGE_DRAFT_SCHEMA_INVALID", reason });
+      }
+      continue;
+    }
+    const safety = assessBatchConfirmSafety(structured);
+    if (!safety.safe && confirmSafeOnly) {
+      skipped.push({
+        pageId: page.id,
+        physicalPageNumber: page.physicalPageNumber,
+        code: "PAGE_UNSAFE",
+        reason: safety.reasons.join("；")
+      });
+      continue;
+    }
+
+    // 逐页独立事务（confirmPageRecognition 内部）；单页失败不影响其他页，也不回滚已成功页。
+    try {
+      const confirmed = await confirmPageRecognition(app, request, actor, page.id, { thermalSetId: input.thermalSetId ?? null });
+      chunkCount += confirmed.chunkCount;
+      success.push({
+        pageId: page.id,
+        physicalPageNumber: page.physicalPageNumber,
+        chunkCount: confirmed.chunkCount,
+        thermalUpserted: confirmed.thermal.upserted,
+        thermalSkipped: confirmed.thermal.skipped
+      });
+    } catch (error) {
+      const code = error instanceof AppError ? error.code : "PAGE_CONFIRM_FAILED";
+      const reason = error instanceof Error ? error.message : String(error);
+      app.log.warn({ pageId: page.id, versionId, code, reason }, "批量确认单页失败，已记录并继续");
+      failed.push({ pageId: page.id, physicalPageNumber: page.physicalPageNumber, code, reason });
+    }
+  }
+
+  return {
+    requested: pages.length,
+    confirmed: success.length,
+    chunkCount,
+    versionIndexDirty: success.length > 0,
+    success,
+    failed,
+    skipped
   };
 }
 

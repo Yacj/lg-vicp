@@ -45,5 +45,5 @@ DOCX_RENDER_TIMEOUT_MS=60000
 
 ## 验收要点
 
-1. `DOCX_RENDER_ENABLED=true` 且 soffice 可用：DOCX → 文本 + 页图
-2. `DOCX_RENDER_ENABLED=false`：文本 READY、`pageRendering=SKIPPED`，需离线上传页图
+1. `DOCX_RENDER_ENABLED=false`（默认）：DOCX → Mammoth 文本；页面视觉由离线高保真 PNG/ZIP 上传
+2. 仅在显式启用 fallback 且 soffice 可用时：DOCX → 临时 PDF → 页图；失败不阻断文本入库

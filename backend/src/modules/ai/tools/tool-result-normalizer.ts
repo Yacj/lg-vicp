@@ -7,6 +7,9 @@
 import { USER_LANGUAGE_NOTES } from "../../../shared/ai-response-policy.js";
 import type { AgentToolName } from "../ai-capability-router.js";
 import type { ProductComparisonResult } from "../compare-product.js";
+import type { ReferenceLookupCandidate } from "../conversation-task.js";
+import { formatLookupThickness, type LookupThickness } from "../../thermal/thermal-lookup-thickness.js";
+import type { ThermalLookupFilter } from "../../thermal/thermal-lookup-mode.js";
 
 export type KnowledgeHitForModel = {
   title: string;
@@ -61,20 +64,23 @@ export type NormalizedThermal = {
   instruction: string;
 };
 
-export type NormalizedReferenceLookup = {
+export type NormalizedReferenceLookup = LookupThickness & {
+  filters?: ThermalLookupFilter[];
+  requestedTolerance?: number;
+  effectiveTolerance?: number;
+  toleranceAdjusted?: boolean;
+  metric?: "K" | "TOTAL_R" | "PRODUCT_R";
+  targetValue?: number | null;
+  tolerance?: number | null;
   found: boolean;
-  candidates: Array<{
-    id: string;
-    specClass?: string;
-    thicknessMm?: number;
-    kValue?: number;
-    systemName?: string;
-    atlasPage?: string | null;
-    schemeId?: string;
-    productSpecId?: string;
-    evidenceSource?: string;
-    evidenceRef?: string;
-  }>;
+  candidates: ReferenceLookupCandidate[];
+  /** 本次查询实际使用的 K 语义（APPROX / MAX_LIMIT / MIN_LIMIT / EXACT） */
+  lookupMode?: string;
+  kTolerance?: number | null;
+  /** 体系提示是否命中；false 表示下方是其他体系的回退结果 */
+  matchedSystemHint?: boolean | null;
+  /** 是否为体系无匹配后的明确二级回退 */
+  isFallback?: boolean;
   notes: string[];
   instruction: string;
 };
@@ -182,18 +188,68 @@ export function normalizeComparisonForModel(
   };
 }
 
-export function normalizeReferenceLookupForModel(input: {
+export function normalizeReferenceLookupForModel(input: LookupThickness & {
+  filters?: ThermalLookupFilter[];
+  requestedTolerance?: number;
+  effectiveTolerance?: number;
+  toleranceAdjusted?: boolean;
+  metric?: "K" | "TOTAL_R" | "PRODUCT_R";
+  targetValue?: number | null;
+  tolerance?: number | null;
   found: boolean;
   candidates: NormalizedReferenceLookup["candidates"];
   notes?: string[];
+  lookupMode?: string;
+  kTolerance?: number | null;
+  matchedSystemHint?: boolean | null;
+  isFallback?: boolean;
 }): NormalizedReferenceLookup {
+  const mode = input.lookupMode;
+  const multiple = (input.filters?.length ?? 0) > 1;
+  const metricLabel = input.metric === "TOTAL_R" ? "总热阻 R" : input.metric === "PRODUCT_R" ? "产品层热阻 R" : "传热系数 K";
+  const modeInstruction = input.filters?.length === 0 && input.targetValue == null ? "" : multiple
+    ? "本次包含多个热工条件，候选必须同时满足全部条件。有结果时说明找到同时符合这些筛选条件的参考方案；无结果时说明没有找到同时满足全部条件的正式参考方案。列出 K、总热阻、产品层热阻、厚度、构造与原始页，不得输出内部条件数组、枚举或宣称规范达标。"
+    : mode === "APPROX"
+    ? `本次是${metricLabel}近似查询：只能说「接近 / 约为 / 与目标值很接近」，不能称为满足上限或下限，更不能称为规范达标。`
+    : mode === "MAX_LIMIT"
+      ? `本次是上限查询：候选均满足${metricLabel} ≤ 目标值，可以说「满足不超过目标值的筛选条件」；不能说满足当地规范。`
+      : mode === "MIN_LIMIT"
+        ? `本次是下限查询：候选均满足${metricLabel} ≥ 目标值，按最接近下限排序；不能说满足当地规范。`
+        : mode === "EXACT"
+          ? `本次是${metricLabel}精确查询：只返回固定数值精度内相等的已发布档位。`
+          : "";
+  const fallback = input.isFallback === true || input.matchedSystemHint === false;
+  const fallbackInstruction = fallback
+    ? "注意：没有找到符合用户所述保温体系的正式方案，下方是其他体系中接近目标的参考结果。必须先用一句话说明「没有找到符合该体系的正式方案」，再说明下面是其他体系的接近结果，禁止让用户误以为这些就是该体系方案。"
+    : "";
+  const base = input.found
+    ? `${fallback ? "第一句说明没有找到符合用户所述体系条件的正式参考方案，随后说明其他体系的参考结果。" : "第一行直接回答有。"}只使用本结果中的数值。不要把整张构造表再用 Markdown 重写。页面图片由系统单独返回。不要把地区、气候区、基层、建筑类型当成查询前置，也不要展开热工公式。不要暴露内部字段名（如 thermal_reference_rows、systemHint、candidate score）。`
+    : "这只说明当前已发布选用表没有匹配行，不代表知识库或图集原文没有方案。必须继续检索知识库/图集后再回答；有出处才能列方案。不要对用户说没有方案，也不要编造档位或 K 值。";
   return {
+    thicknessMm: input.thicknessMm,
+    thicknessMin: input.thicknessMin,
+    thicknessMax: input.thicknessMax,
+    preferThinner: input.preferThinner,
+    filters: input.filters,
+    requestedTolerance: input.requestedTolerance,
+    effectiveTolerance: input.effectiveTolerance,
+    toleranceAdjusted: input.toleranceAdjusted,
+    metric: input.metric,
+    targetValue: input.targetValue ?? null,
+    tolerance: input.tolerance ?? null,
     found: input.found,
     candidates: input.candidates,
+    lookupMode: mode,
+    kTolerance: input.kTolerance ?? null,
+    matchedSystemHint: input.matchedSystemHint ?? null,
+    isFallback: input.isFallback ?? false,
     notes: input.notes ?? [],
-    instruction: input.found
-      ? "第一行直接回答有。只使用本结果中的数值。不要把整张构造表再用 Markdown 重写。页面图片由系统单独返回。不要把地区、气候区、基层、建筑类型当成查询前置，也不要展开热工公式。"
-      : "这只说明当前已发布选用表没有匹配行，不代表知识库或图集原文没有方案。必须继续检索知识库/图集后再回答；有出处才能列方案。不要对用户说没有方案，也不要编造档位或 K 值。"
+    instruction: [base, modeInstruction, fallbackInstruction,
+      formatLookupThickness(input) ? `用简单中文说明本次同时按「${formatLookupThickness(input)}」和热工条件筛选；无结果时复述当前条件，不得偷偷放宽厚度或编造接近方案，不输出内部字段名。` : "",
+      input.preferThinner ? "用户希望薄一点；在满足全部硬条件的结果中按厚度升序展示，不宣称唯一最优，不编造厚度范围。" : "",
+      input.toleranceAdjusted || input.filters?.some((filter) => filter.toleranceAdjusted)
+        ? "请说明用户给出的查询范围较大，已按允许的最大范围筛选，并标明实际采用的范围。" : ""
+    ].filter(Boolean).join("")
   };
 }
 
@@ -288,21 +344,47 @@ export function normalizeToolResultForModel(toolName: AgentToolName | string, ra
     }
   }
   if (toolName === "thermal" || toolName === "thermal_calculate") {
-    const data = (record.data ?? record) as {
+    const data = (record.data ?? record) as LookupThickness & {
       valid?: boolean;
       found?: boolean;
+      filters?: ThermalLookupFilter[];
+      requestedTolerance?: number;
+      effectiveTolerance?: number;
+      toleranceAdjusted?: boolean;
+      metric?: "K" | "TOTAL_R" | "PRODUCT_R";
+      targetValue?: number | null;
+      tolerance?: number | null;
       candidates?: NormalizedReferenceLookup["candidates"];
       K?: unknown;
       R?: unknown;
       pass?: boolean | null;
       notes?: string[];
+      lookupMode?: string;
+      kTolerance?: number | null;
+      matchedSystemHint?: boolean | null;
+      isFallback?: boolean;
       errors?: Array<{ message?: string } | string>;
     };
     if (Array.isArray(data.candidates) || typeof data.found === "boolean") {
       return normalizeReferenceLookupForModel({
+        thicknessMm: data.thicknessMm,
+        thicknessMin: data.thicknessMin,
+        thicknessMax: data.thicknessMax,
+        preferThinner: data.preferThinner,
+        filters: data.filters,
+        requestedTolerance: data.requestedTolerance,
+        effectiveTolerance: data.effectiveTolerance,
+        toleranceAdjusted: data.toleranceAdjusted,
+        metric: data.metric,
+        targetValue: data.targetValue,
+        tolerance: data.tolerance,
         found: data.found ?? (data.candidates?.length ?? 0) > 0,
         candidates: data.candidates ?? [],
-        notes: data.notes
+        notes: data.notes,
+        lookupMode: data.lookupMode,
+        kTolerance: data.kTolerance,
+        matchedSystemHint: data.matchedSystemHint,
+        isFallback: data.isFallback
       });
     }
     if (typeof data.valid === "boolean") {

@@ -80,6 +80,66 @@ const limitRow = {
 };
 
 describe("候选查询 queryThermalCandidates", () => {
+  const a13 = { ...row25, rowId: "a1-3", schemeCode: "A1-3", thicknessMm: 18,
+    productThermalResistance: 2.88, totalThermalResistance: 3.297, kValue: 0.303, sourcePageId: "page-22", sourcePageLabel: "22" };
+
+  it.each(["TOTAL_R", "PRODUCT_R", "K"] as const)("多标准下新指标 %s 不错误要求旧 targetK", async (metric) => {
+    const { db } = makeDb([[limitRow, { ...limitRow, id: "lim-2" }], [setRow], [a13]]);
+    const result = await queryThermalCandidates(app(db), request, actor, { regionCode: "BJ", metric,
+      targetValue: metric === "K" ? 0.3 : metric === "TOTAL_R" ? 3.3 : 2.9, neighborTolerance: 1 });
+    expect(result.missingConditions).not.toContain("targetK");
+    expect(result.limitCandidates).toHaveLength(2);
+  });
+
+  it("filters 双条件应用于正式服务，R 查询不附加地区 K；响应保留容差 metadata", async () => {
+    const { db } = makeDb([[limitRow], [setRow], [a13, { ...a13, rowId: "both", kValue: 0.295, totalThermalResistance: 3.39 }]]);
+    const result = await queryThermalCandidates(app(db), request, actor, { regionCode: "BJ", filters: [
+      { metric: "K", targetValue: 0.3, mode: "MAX_LIMIT" }, { metric: "TOTAL_R", targetValue: 3.3, mode: "MIN_LIMIT" }
+    ], neighborTolerance: 1 });
+    expect(result.candidates.map((c) => c.candidateId)).toEqual(["both"]);
+    expect(result.filters).toHaveLength(2);
+    expect(result.candidates[0]?.compliant).toBe(false);
+    const empty = makeDb([[]]);
+    const adjusted = await queryThermalCandidates(app(empty.db), request, actor, { metric: "TOTAL_R", targetValue: 3.3, tolerance: 5, neighborTolerance: 1 });
+    expect(adjusted).toMatchObject({ requestedTolerance: 5, effectiveTolerance: 0.2, toleranceAdjusted: true });
+    expect(adjusted.notes.join("")).toContain("允许的最大范围");
+  });
+
+  it("新规格正式查询返回它的产品目录，不用旧目录限制新规格", async () => {
+    const { db } = makeDb([[setRow], [{ ...a13, productSpecId: "spec-B18", catalogProductId: "product-B" },
+      { ...a13, rowId: "old", productSpecId: "spec-A18", catalogProductId: "product-A" }]]);
+    const result = await queryThermalCandidates(app(db), request, actor, { productSpecId: "spec-B18", neighborTolerance: 1 });
+    expect(result.candidates).toHaveLength(1);
+    expect(result.candidates[0]).toMatchObject({ productSpec: { id: "spec-B18" }, catalogProductId: "product-B" });
+  });
+
+  it.each([
+    ["TOTAL_R", 3.3, "APPROX", true], ["TOTAL_R", 3.3, "MIN_LIMIT", false],
+    ["PRODUCT_R", 2.9, "APPROX", true], ["PRODUCT_R", 2.9, "MIN_LIMIT", false]
+  ] as const)("正式服务 %s %s %s", async (metric, targetValue, mode, found) => {
+    const { db } = makeDb([[setRow], [a13]]);
+    const result = await queryThermalCandidates(app(db), request, actor, { metric, targetValue, mode, neighborTolerance: 1 });
+    expect(result).toMatchObject({ metric, targetValue, lookupMode: mode, kTolerance: null, tolerance: mode === "APPROX" ? 0.05 : null });
+    expect(result.candidates).toHaveLength(found ? 1 : 0);
+    if (found) expect(result.candidates[0]).toMatchObject({ sourcePageLabel: "22", result: { productThermalResistance: 2.88, totalThermalResistance: 3.297, kValue: 0.303 }, ranking: { metric, metricGap: metric === "TOTAL_R" ? 0.003 : 0.02, isClosestToTarget: true } });
+  });
+
+  it("新R指标查询不附加地区K过滤，限值仍单独标注合规", async () => {
+    const { db } = makeDb([[{ ...limitRow, limitKValue: 0.2 }], [setRow], [a13]]);
+    const result = await queryThermalCandidates(app(db), request, actor, { regionCode: "BJ", metric: "TOTAL_R", targetValue: 3.3, mode: "APPROX", neighborTolerance: 1 });
+    expect(result.candidates).toHaveLength(1);
+    expect(result.candidates[0]?.compliant).toBe(false);
+    expect(result.lookupMode).toBe("APPROX");
+  });
+
+  it("空参考集也返回指标、模式、受控容差，旧R默认下限", async () => {
+    const { db } = makeDb([[]]);
+    const result = await queryThermalCandidates(app(db), request, actor, { metric: "PRODUCT_R", targetValue: 2.9, tolerance: 5, neighborTolerance: 1 });
+    expect(result).toMatchObject({ metric: "PRODUCT_R", targetValue: 2.9, lookupMode: "APPROX", tolerance: 0.2, candidates: [] });
+    const old = makeDb([[setRow], [a13]]);
+    expect((await queryThermalCandidates(app(old.db), request, actor, { targetResistance: 3.3, neighborTolerance: 1 })).candidates).toEqual([]);
+  });
+
   it("验收 1：200mm 钢筋混凝土 + Ⅰ型 + K≤0.25 → 25/30mm 候选，来源为图集查表", async () => {
     const { db } = makeDb([[setRow], [row25, row30]]);
     const result = await queryThermalCandidates(app(db), request, actor, {

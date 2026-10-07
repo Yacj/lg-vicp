@@ -17,6 +17,7 @@ import {
 import type { AuthUser } from "../../shared/auth-user.js";
 import { canViewProject } from "../../shared/permissions.js";
 import { ForbiddenError, NotFoundError } from "../../shared/errors.js";
+import { getPageImageDownloadName } from "./knowledge-page-image.js";
 
 /**
  * Wiki 原文阅读统一读取服务（C 端公开文库与 AI 来源详情共用，不写第二套逻辑）。
@@ -268,7 +269,7 @@ async function toPageDto(app: FastifyInstance, page: typeof knowledgePages.$infe
   let pageImageUrl: string | null = null;
   if (page.pageImageObjectKey) {
     try {
-      pageImageUrl = await app.storage.createDownloadUrl(page.pageImageObjectKey, `page-${page.physicalPageNumber}.${page.pageImageObjectKey.endsWith(".webp") ? "webp" : "png"}`, 3600);
+      pageImageUrl = await app.storage.createDownloadUrl(page.pageImageObjectKey, getPageImageDownloadName(page.pageImageObjectKey, page.physicalPageNumber), 3600);
     } catch {
       pageImageUrl = null;
     }
@@ -389,6 +390,10 @@ export async function resolveSourceDetail(
             .where(and(eq(knowledgePages.versionId, chunk.versionId), eq(knowledgePages.pageNumber, chunk.sourcePage)))
             .limit(1).then((rows) => rows[0] ?? null);
         }
+      }
+      // 页面驱动正式索引：page-aware chunk 的来源页面必须仍存在，否则不编造 ReferencePage（引用已失效）。
+      if (chunk.metadata?.pageAware === "true" && !page) {
+        throw new NotFoundError("来源页面不存在，引用已失效");
       }
     }
     citationAnchor = chunk.citationAnchor;
