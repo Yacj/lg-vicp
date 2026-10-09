@@ -14,6 +14,7 @@ export type AiTaskType =
   | "COLLECTION_AGENT"
   | "TITLE"
   | "VISION"
+  | "PAGE_RECOGNITION"
   | "MODEL_TEST";
 
 export interface AiTaskRuntimePolicy {
@@ -108,6 +109,15 @@ const POLICIES: Record<AiTaskType, AiTaskRuntimePolicy> = {
     tools: false,
     maxSteps: 1,
     structuredOutput: false,
+    reasoningOverride: "LOW"
+  },
+  PAGE_RECOGNITION: {
+    taskType: "PAGE_RECOGNITION",
+    maxOutputTokens: 8192,
+    timeoutMs: 120_000,
+    tools: false,
+    maxSteps: 1,
+    structuredOutput: true,
     reasoningOverride: "LOW"
   },
   MODEL_TEST: {

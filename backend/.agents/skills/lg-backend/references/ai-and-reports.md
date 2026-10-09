@@ -45,6 +45,13 @@ AI 回答是可复用资产。点赞、反馈和重新生成不得覆盖原始�
 
 报告流程：结构化 JSON -> 内部预置模板 HTML -> HTML/PDF/图片；结构化 JSON -> Word。普通调用只传 `reportType`，不传 templateId。AI 只生成草稿内容，内部模板决定版式，Worker 负责导出。多条 AI 回答生成报告时，使用 `report_sources` 保存来源顺序和回答快照。`reports.projectId` 可空，继承会话项目；无项目会话可生成独立报告（`requiresProject=false` 的类型）。公开项目仅开放已发布报告。聊天图片走 `ai_message_attachments`，Vision 只注入观察上下文。
 
+Knowledge 页面图片结构化识别调用 AI SDK 时，将识别规则放在 `instructions`，带图片与页码的输入放在用户 `messages`；当前 SDK 拒绝 `messages` 中的 `system` 角色。
+图集页面识别使用独立 `PAGE_RECOGNITION` 预算（8192 输出 token、120 秒），与聊天图片 `VISION` 的 1200 token 观察预算分开，避免多构造 JSON 在输出上限处截断。
+多厚度合并单元格按构造编号和同一水平行配对选项；可变产品层的层厚度/层热阻留空，逐档值写入 `options[]`，此说明属于 notes。未选可编辑热工参考集时页面确认可供资料问答，参考档位尚未同步到方案查询。
+兼容网关可能忽略 responseFormat，页面识别 Prompt 需显式列出 `pageRecognitionResultSchema` 层级和字段，禁止模型用 `thickness`/`systemCode`/`constructionLayers` 等非正式键名。
+模型 JSON 与 schema 不符时，可确定性修复明确的表示差异后重新校验；不得猜测双 R 或补算 K。失败日志仅记录字段路径和 finishReason，不记录原始识别文字。
+视觉模型请求因服务商余额不足失败时，使用独立错误码与通俗中文提示，保留任务编号供排障，不把原始响应展示给用户。
+
 公开分享只返回分享快照或报告文件临时下载地址。不得通过分享链接开放源文件、知识库原文或原始 AI 会话；匿名访问必须记录访问日志和次数。
 - AI 业务接口和 AI 后台运营接口必须区分：C/AI 可以使用 `/api/v1/ai/*` 的业务能力，但不能访问 `/api/v1/platform/ai/*` 的运营详情、反馈和配置接口。
 - AI 配置、运营详情和反馈查询使用独立的 `system:ai:*` 权限码；超级管理员直通，禁用角色权限立即失效。

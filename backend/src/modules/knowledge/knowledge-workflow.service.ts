@@ -676,6 +676,16 @@ export function buildUserChapterTree(
   return roots.map(prune);
 }
 
+export function chooseChapterSource(
+  toc: Array<{ title: string; status: string; physicalPageNumber: number | null }>,
+  sectionCount: number
+): "CONFIRMED_TOC" | "SECTIONS" | "DRAFT_TOC" | "EMPTY" {
+  if (toc.some((item) => item.status === "CONFIRMED")) return "CONFIRMED_TOC";
+  if (sectionCount > 0) return "SECTIONS";
+  if (toc.some((item) => item.physicalPageNumber != null && !/^\d+$/.test(item.title.trim()))) return "DRAFT_TOC";
+  return "EMPTY";
+}
+
 export async function listVersionChapterTree(app: FastifyInstance, versionId: string) {
   const [version] = await app.db.select({ id: knowledgeDocumentVersions.id }).from(knowledgeDocumentVersions)
     .where(eq(knowledgeDocumentVersions.id, versionId)).limit(1);
@@ -694,12 +704,6 @@ export async function listVersionChapterTree(app: FastifyInstance, versionId: st
     .where(eq(knowledgeTocItems.versionId, versionId))
     .orderBy(asc(knowledgeTocItems.sortOrder), asc(knowledgeTocItems.level));
 
-  if (tocRows.length > 0) {
-    const confirmed = tocRows.filter((row) => row.status === "CONFIRMED");
-    const source = confirmed.length > 0 ? confirmed : tocRows;
-    return { items: buildUserChapterTree(source) };
-  }
-
   const sections = await app.db.select({
     id: knowledgeSections.id,
     parentId: knowledgeSections.parentId,
@@ -710,6 +714,10 @@ export async function listVersionChapterTree(app: FastifyInstance, versionId: st
   }).from(knowledgeSections)
     .where(eq(knowledgeSections.versionId, versionId))
     .orderBy(asc(knowledgeSections.sortOrder), asc(knowledgeSections.level));
+  const source = chooseChapterSource(tocRows, sections.length);
+  if (source === "CONFIRMED_TOC") return { items: buildUserChapterTree(tocRows.filter((row) => row.status === "CONFIRMED")) };
+  if (source === "DRAFT_TOC") return { items: buildUserChapterTree(tocRows.filter((row) => row.physicalPageNumber != null && !/^\d+$/.test(row.title.trim()))) };
+  if (source === "EMPTY") return { items: [] };
   const pageRows = await app.db.select({
     physicalPageNumber: knowledgePages.physicalPageNumber,
     pageLabel: knowledgePages.pageLabel

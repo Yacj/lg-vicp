@@ -6,7 +6,7 @@ import {
   schemeProductOptions,
   thermalReferenceSets
 } from "../../db/schema.js";
-import { syncThermalRowsFromConfirmedPage } from "./knowledge-page-recognition.service.js";
+import { assessBatchConfirmMapping, syncThermalRowsFromConfirmedPage } from "./knowledge-page-recognition.service.js";
 
 const actor = { id: "00000000-0000-4000-8000-000000000099" } as any;
 const page = {
@@ -16,7 +16,7 @@ const page = {
   physicalPageNumber: 22,
   pageLabel: "22"
 } as any;
-const set = { id: "set-1", status: "DRAFT" };
+const set = { id: "set-1", status: "DRAFT", atlasDocumentId: page.documentId };
 const scheme = {
   id: "00000000-0000-4000-8000-000000000010",
   systemId: "00000000-0000-4000-8000-000000000011",
@@ -83,6 +83,13 @@ function makeDb(fixtures: {
 }
 
 describe("Recognition 正式映射", () => {
+  it("一键核对在缺参考集或正式映射不完整时跳过，完整映射才允许", async () => {
+    const { db: emptyDb } = makeDb({});
+    expect((await assessBatchConfirmMapping(emptyDb, page, structured(), null)).join(" ")).toContain("热工参考集");
+    expect((await assessBatchConfirmMapping(emptyDb, page, structured(), set.id)).join(" ")).toContain("未匹配到已发布方案");
+    const { db: mappedDb } = makeDb({ schemes: [scheme], specs: [spec], options: [{ schemeId: scheme.id, productSpecId: spec.id }] });
+    expect(await assessBatchConfirmMapping(mappedDb, page, structured(), set.id)).toEqual([]);
+  });
   it("0 个方案候选标记 NOT_FOUND 语义并跳过正式写入", async () => {
     const { db, inserts } = makeDb({});
     const result = await syncThermalRowsFromConfirmedPage(db, actor, page, structured(), set.id);

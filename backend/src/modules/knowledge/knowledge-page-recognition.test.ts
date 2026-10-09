@@ -1,4 +1,16 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.hoisted(() => {
+  process.env.NODE_ENV = "test";
+  process.env.DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/test";
+  process.env.JWT_SECRET = "test-jwt-secret-at-least-32-characters";
+  process.env.AI_CONFIG_ENCRYPTION_KEY = "0123456789abcdef0123456789abcdef";
+  process.env.STORAGE_ACCESS_KEY = "test";
+  process.env.STORAGE_SECRET_KEY = "test-secret";
+  process.env.BOOTSTRAP_ADMIN_PASSWORD = "test-admin-password";
+});
+import { generateObject } from "ai";
+import { MockLanguageModelV3 } from "ai/test";
 import {
   extractPageLabelFromFileName,
   buildRecognitionDraft,
@@ -10,6 +22,57 @@ import {
   assertThermalReferenceSetEditable
 } from "../../shared/page-recognition.js";
 import { assertKnowledgeVersionEditable } from "./knowledge-version-guard.js";
+import { buildPageRecognitionPrompt, describePageRecognitionFailure } from "./knowledge-page-recognition.service.js";
+import { getAiTaskRuntimePolicy, languageModelSamplingOptions } from "../ai-config/ai-task-runtime-policy.js";
+
+describe("页面图片识别提示词", () => {
+  it("识别失败保留稳定错误码且不把底层异常直接给用户", () => {
+    expect(describePageRecognitionFailure(Object.assign(new Error("gateway secret"), { name: "TimeoutError" })))
+      .toEqual({ code: "PAGE_RECOGNITION_TIMEOUT", message: "页面识别超时，请重试" });
+    expect(describePageRecognitionFailure(new Error("upstream internal stack")))
+      .toEqual({ code: "PAGE_RECOGNITION_FAILED", message: "页面识别服务未能完成处理，请稍后重试" });
+    expect(describePageRecognitionFailure(Object.assign(new Error("Insufficient Balance (request_id: secret)"), { name: "AI_APICallError" })))
+      .toEqual({ code: "PAGE_RECOGNITION_BALANCE_INSUFFICIENT", message: "图片识别服务余额不足，请联系平台管理员处理后重试" });
+    expect(describePageRecognitionFailure(Object.assign(new Error("Payment Required"), { name: "AI_APICallError", statusCode: 402 })))
+      .toMatchObject({ code: "PAGE_RECOGNITION_BALANCE_INSUFFICIENT" });
+    expect(describePageRecognitionFailure(Object.assign(new Error("服务暂时不可用"), { name: "AI_APICallError", statusCode: 503 })))
+      .toMatchObject({ code: "PAGE_RECOGNITION_FAILED" });
+  });
+  it("图集结构化识别有独立输出预算，避免 1200 token 截断 JSON", () => {
+    expect(languageModelSamplingOptions("PAGE_RECOGNITION").maxOutputTokens).toBe(8192);
+    expect(getAiTaskRuntimePolicy("PAGE_RECOGNITION").timeoutMs).toBe(120_000);
+    expect(languageModelSamplingOptions("VISION").maxOutputTokens).toBe(1200);
+  });
+
+  it("系统规则经 instructions 传给 AI SDK，图片和页码保留在用户消息", async () => {
+    const prompt = buildPageRecognitionPrompt({
+      documentTitle: "外墙图集",
+      pageLabel: "12",
+      physicalPageNumber: 12,
+      imageUrl: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+    });
+    const model = new MockLanguageModelV3({
+      doGenerate: async () => { throw new Error("已到达模型调用"); }
+    });
+
+    await expect(generateObject({
+      model,
+      schema: pageRecognitionResultSchema,
+      ...prompt,
+      maxRetries: 0
+    })).rejects.toThrow("已到达模型调用");
+    expect(model.doGenerateCalls).toHaveLength(1);
+    expect(prompt.instructions).toContain("只提取页面真实存在的数据");
+    expect(prompt.instructions).toContain("options[] 元素仅使用 thicknessMm、productThermalResistance、totalThermalResistance、kValue");
+    expect(prompt.instructions).toContain("不要输出 physicalPageNumber、systemCode、constructionLayers");
+    expect(prompt.messages).toHaveLength(1);
+    expect(prompt.messages[0]?.role).toBe("user");
+    expect(prompt.messages[0]?.content[0]).toMatchObject({
+      type: "text",
+      text: expect.stringContaining("当前 physicalPageNumber：12")
+    });
+  });
+});
 
 function readPngWidth(buffer: Buffer): number | null {
   if (buffer.length < 24) return null;

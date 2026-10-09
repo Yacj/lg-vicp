@@ -91,6 +91,24 @@ describe("批量确认安全条件", () => {
     expect(result.safe).toBe(false);
     expect(result.reasons.join(" ")).toContain("constructionCode");
   });
+
+  it("解释性备注不阻断完整候选，厚度离群值保留原值并跳过自动确认", () => {
+    const complete = {
+      fullText: "构造层和外墙主断面数据",
+      systems: [{ constructionCode: "A2-2", options: [18, 25, 35, 50].map((thicknessMm) => ({
+        thicknessMm, productThermalResistance: 2.88, totalThermalResistance: 3.297, kValue: 0.303
+      })) }],
+      warnings: ["构造层厚度随选项变化，已记录在 options 中"]
+    };
+    expect(assessBatchConfirmSafety(complete).safe).toBe(true);
+    const anomalous = { ...complete, systems: [{ ...complete.systems[0]!, options: [
+      { ...complete.systems[0]!.options[0]!, thicknessMm: 190 }, ...complete.systems[0]!.options.slice(1)
+    ] }] };
+    const result = assessBatchConfirmSafety(anomalous);
+    expect(result.safe).toBe(false);
+    expect(result.reasons.join(" ")).toContain("190mm");
+    expect(anomalous.systems[0]!.options[0]!.thicknessMm).toBe(190);
+  });
 });
 
 describe("页序：自然排序", () => {

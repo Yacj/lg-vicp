@@ -37,6 +37,13 @@
 - 客户端访问令牌按客户端类型分别配置：`B_ADMIN` 默认 `24h`，`C_APP` 默认 `30d`，`PC_AI` 默认 `30d`；refresh token 统一默认有效 `30` 天。
 - B 端后台接口必须先通过 JWT 和客户端校验，再通过具体按钮权限码校验；超级管理员直通。例外：当前账号可见范围内的只读项目统计（`GET /platform/projects/statistics`）不要求按钮权限码。
 - 知识库采用“原文档导航 + 原始页面 + AI 检索索引”：平台管理路径 `/api/v1/platform/knowledge/*` 要求 `B_ADMIN` 与精确 `system:knowledge:*` 权限；C_APP/PC_AI 公开读取仅使用 `/api/v1/client/knowledge/*`。普通 B 端新建走 `POST /documents/create-with-file`（只收 fileId，自动解析），草稿验证走 `POST /versions/:versionId/test-qa`（只检索当前版本）。Knowledge Version 只有 DRAFT 可修改内容；进入 PENDING_REVIEW/APPROVED/PUBLISHED/DISABLED 后只读，修改需创建新 DRAFT。生产 AI 只检索当前、已发布、未过期且 `AI_ENABLED` 的版本；有 page-aware 分块时排除无页定位的 Mammoth `DOCUMENT_TEXT` 回退块；离线页图版本发布为 AI_ENABLED 前每页必须有原页图且识别已 CONFIRMED。`BROWSE_ONLY` 仅可浏览原文件。DOCX：Mammoth 负责文本/RAG；页面视觉通过离线高保真 PNG/ZIP 上传并人工确认，LibreOffice 默认关闭且仅作 fallback。同页识别以稳定 BullMQ jobId + `recognitionRunId` 单飞，旧任务不得覆盖新结果，只有 `REVIEW_REQUIRED` 可确认。热工参考行通过 `sourcePageId` 绑定页面；参考集发布前要求来源页属于当前、有效的 PUBLISHED Knowledge Version，AI 输出 `reference_pages` 前再次校验并只签名合法页。
+- 页面视觉识别的 AI SDK 调用将识别规则传入 `instructions`，图片和页码传入用户 `messages`，以兼容当前 SDK 的提示词校验。
+- 图集页面结构化识别使用独立 `PAGE_RECOGNITION` 预算（最多 8192 输出 token、120 秒）；聊天图片观察仍使用 `VISION` 的 1200 token 预算。
+- 视觉模型的兼容网关可能不支持 JSON schema 约束，识别提示词同时明确列出结构化结果字段与层级，防止输出字段别名被解析器丢弃。
+- 页面识别结果对明确的格式偏差做确定性修复并重新校验 schema；含义不明的热工值留给人工审核，失败日志不记录模型原文。
+- 页面识别的服务商余额不足单独提示用户联系平台管理员处理后重试，不展示服务商原始错误。
+- 多厚度表格按构造和同行数值生成选项；产品层共用参数保留在构造层，可变厚度与热阻逐档保存。页面确认后若未选择可编辑热工参考集，资料问答可用，参考档位仍需关联后同步。
+- 知识库详情提供一键识别和无风险页一键核对，结果逐页列出成功、失败和跳过原因；模型解释性备注不等同识别失败。查看内容优先已确认目录，其次正文章节，并始终允许按文件页浏览。
 - 不允许使用任意 `system:*` 作为模块级通行证；查看、新增、修改、删除、导出、分配和测试使用独立权限码。
 - C 端和 PC AI 端不能访问后台管理接口，但可以访问明确开放的 AI、公开项目、本人项目、受控文件、报告和分享业务接口。
 - 项目权限独立于后台 RBAC，必须继续执行 `canViewProject`、`canManageProject`、会话归属和文件归属校验。

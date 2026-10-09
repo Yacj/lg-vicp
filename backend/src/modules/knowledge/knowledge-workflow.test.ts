@@ -4,6 +4,7 @@ import { ConflictError } from "../../shared/errors.js";
 import {
   assertKnowledgeFileUsable,
   buildUserChapterTree,
+  chooseChapterSource,
   createKnowledgeWithFile,
   replaceDocumentFile
 } from "./knowledge-workflow.service.js";
@@ -253,5 +254,15 @@ describe("buildUserChapterTree", () => {
       }]
     }]);
     expect(JSON.stringify(tree)).not.toContain("PDF_BOOKMARK");
+  });
+});
+
+describe("chooseChapterSource", () => {
+  it("已确认目录优先，未确认的孤立数字标题不覆盖章节", () => {
+    expect(chooseChapterSource([{ title: "12", status: "CONFIRMED", physicalPageNumber: 12 }], 4)).toBe("CONFIRMED_TOC");
+    expect(chooseChapterSource([{ title: "12", status: "PENDING_REVIEW", physicalPageNumber: 12 }], 4)).toBe("SECTIONS");
+    expect(chooseChapterSource([{ title: "12", status: "PENDING_REVIEW", physicalPageNumber: 12 }], 0)).toBe("EMPTY");
+    expect(chooseChapterSource([], 3)).toBe("SECTIONS");
+    expect(chooseChapterSource([{ title: "一、概述", status: "PENDING_REVIEW", physicalPageNumber: 2 }], 0)).toBe("DRAFT_TOC");
   });
 });

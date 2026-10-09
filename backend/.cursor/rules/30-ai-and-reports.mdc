@@ -37,6 +37,13 @@ alwaysApply: false
 - 项目分享只保存项目摘要和已发布报告快照，不能包含源文件、知识库原文、未发布报告或原始 AI 会话。
 - 点赞、反馈和重新生成不得覆盖原始 AI 回答；重新生成必须生成新消息并记录关系。
 - 聊天图片走 `ai_message_attachments` + 文件中心 `CHAT_IMAGE`，不依赖 projectId；Vision 只看图，模型按 `supportsVision` + 准入测试解析。
+- Knowledge 页面图片结构化识别使用 AI SDK `instructions` 传系统规则，`messages` 只放含图片的用户消息，不放 `system` 角色。
+- 图集页面结构化识别走独立 `PAGE_RECOGNITION` 运行时预算（8192 输出 token、120 秒），聊天图片观察继续走 `VISION`（1200 token）；多构造 JSON 不得被聊天摘要预算截断。
+- 页面识别提示词明确 `pageRecognitionResultSchema` 的字段层级；兼容模型即使忽略 responseFormat，也必须输出正式键名，不能把 `thicknessMm`/`constructionCode`/`layers` 换成 `thickness`/`systemCode`/`constructionLayers`。
+- 页面识别 JSON 校验失败时只修复明确的格式差异，并经正式 schema 再验证；禁止猜测双 R 或计算 K，诊断日志只记录字段路径和结束原因，不记录模型原文。
+- 页面识别服务商余额不足单独使用稳定错误码和中文用户提示，禁止把原始服务商响应展示为错误正文。
+- 页面识别的模型解释性备注不是任务故障；批量确认只处理字段、厚度异常、参考集和已发布映射校验均通过的页面。章节阅读优先已确认目录，其次正文章节，并保留独立页面导航。
+- 多厚度合并单元格须按构造编号及同行对齐 `options[]` 的厚度、产品层 R、总 R、K；可变层厚度与层热阻留空是正常结构。未选可编辑热工参考集时确认页只供资料问答，参考档位不参与方案查询。
 - 会话无项目时跳过 projectContext，不阻断图片、检索、SSE 和报告生成。`reports.projectId` 可空；`GET /reports/my` 无项目时 `project=null`。预置业务报告类型默认不强制项目。
 - 多条 AI 回答生成报告时，使用 `report_sources` 保存来源顺序和回答快照。普通生成只传 `reportType`（及可选 projectId/conversationId），Backend 按预置类型选用内部模板并叠加报告设置；不要求调用方传 templateId/章节变量。
 - AI 只生成结构化报告草稿，Worker 根据内部模板导出 HTML、图片、Word 和 PDF。报告模板管理对普通业务管理员隐藏。

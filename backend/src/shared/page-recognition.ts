@@ -103,6 +103,7 @@ export type PageRecognitionMetadata = {
   confirmedById?: string | null;
   lastRecognitionAt?: string | null;
   lastRecognitionError?: string | null;
+  lastRecognitionErrorCode?: string | null;
   /** 当前有效识别任务标识，用于 single-flight 与阻止旧 Worker 覆盖。 */
   recognitionRunId?: string | null;
   /** 识别任务入队时间（ISO）：stale 对账据此判断 PENDING/PROCESSING 是否长期无对应队列任务。 */
@@ -118,6 +119,7 @@ export const PAGE_RECOGNITION_SYSTEM_PROMPT = [
   "不要根据公式补算缺失值。",
   "不要根据上下文猜测模糊数字。",
   "无法确定时返回 null 并写 warnings。",
+  "notes 只记录提取方式等说明；warnings 只记录需要人工核对的原图歧义、数值冲突或异常。正常的分层厚度、多厚度 options、字段来源说明和禁止补算不属于 warnings。",
   "必须区分三种数值，禁止混用：",
   "1) productThermalResistance：保温产品/保温层自身热阻（产品层热阻）；",
   "2) totalThermalResistance：外墙主断面总传热阻 R；",
@@ -125,10 +127,19 @@ export const PAGE_RECOGNITION_SYSTEM_PROMPT = [
   "productThermalResistance 与 totalThermalResistance 不是同一字段；页面只明确出现其中一个时，另一个必须返回 null。",
   "禁止根据公式由产品层热阻推算总传热阻，或由总传热阻推算产品层热阻，或自行计算 K。",
   "不要修正 R、不要判断业务是否合规、不要自动发布正式数据。",
-  "必须保持 thickness / productThermalResistance / totalThermalResistance / K 的同行对应关系。",
-  "一个页面存在多个构造时分成多个 system；同一构造多厚度必须进入 options[]。",
-  "options 中不要再输出旧字段 rValue。",
-  "必须输出结构化 JSON，字段遵循给定 schema；fullText 保留页面可读原文。"
+  "必须保持 thicknessMm / productThermalResistance / totalThermalResistance / kValue 的同行对应关系。",
+  "一个页面存在多个构造时分成多个 systems[] 元素；同一构造多厚度必须进入 options[]。",
+  "读取合并单元格表格时，先按构造编号分组，再将厚度列的每一行与同一水平行的产品层热阻、外墙主断面总传热阻和传热系数对应；同一构造的合并单元格值可用于该组各行，不得把相邻构造的数值串行。",
+  "同一产品层有多个厚度档时，layers[] 中该层的 thicknessMm 和 rValue 填 null；每档厚度及该层热阻写入 options[] 的 thicknessMm 和 productThermalResistance。该层共同的 lambda、alpha 仍保留在 layers[]。这种正常表格结构不要写入 warnings。",
+  "表格中若分别列出构造层热阻与外墙主断面总传热阻，前者只属于对应构造层或产品层，后者只写入 options[].totalThermalResistance；逐档抄录原数值，不补算、不四舍五入。",
+  "只输出一个完整 JSON 对象，不要 Markdown 代码块、解释文字或额外字段。",
+  "顶层字段仅为 pageLabel、pageTitle、fullText、systems、notes、warnings；fullText 保留页面可读原文，不要在各构造中重复全文。",
+  "systems[] 元素仅使用 systemName、specClass、constructionCode、baseMaterial、baseThicknessMm、layers、options。",
+  "layers[] 元素仅使用 order、name、thicknessMm、lambda、alpha、rValue；这里的 rValue 仅表示该构造层自身热阻。",
+  "options[] 元素仅使用 thicknessMm、productThermalResistance、totalThermalResistance、kValue，禁止使用 rValue。",
+  "fullText 必须是字符串；layers[].name 必须是非空字符串；specClass 只能是 I、II、III 或 null。",
+  "厚度、热阻、K、lambda、alpha 和 order 必须是 JSON 数字或 null，不要把单位写入数字，也不要输出数字字符串；notes 与 warnings 必须是字符串数组。",
+  "没有的数值填 null，没有的数组填 []；不要输出 physicalPageNumber、systemCode、constructionLayers、layerName、thickness、thermalConductivity、correctionFactor、thermalResistance 等别名。"
 ].join("\n");
 
 export type ResolvedOptionResistances = {
@@ -229,6 +240,7 @@ export function emptyRecognitionMetadata(
     confirmedById: null,
     lastRecognitionAt: null,
     lastRecognitionError: null,
+    lastRecognitionErrorCode: null,
     recognitionRunId: null,
     recognitionQueuedAt: null,
     imageWarnings: [],
@@ -268,6 +280,8 @@ export function readPageRecognitionMeta(
     lastRecognitionError: typeof metadata.lastRecognitionError === "string"
       ? metadata.lastRecognitionError
       : null,
+    lastRecognitionErrorCode: typeof metadata.lastRecognitionErrorCode === "string"
+      ? metadata.lastRecognitionErrorCode : null,
     recognitionRunId: typeof metadata.recognitionRunId === "string" ? metadata.recognitionRunId : null,
     recognitionQueuedAt: typeof metadata.recognitionQueuedAt === "string" ? metadata.recognitionQueuedAt : null,
     imageWarnings: Array.isArray(metadata.imageWarnings)

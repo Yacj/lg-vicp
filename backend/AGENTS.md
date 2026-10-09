@@ -131,6 +131,13 @@
 - AI 配置、运营、反馈处理与调试使用独立 `system:ai:*` 权限码并写审计，详见 `docs/ai/`。
 - AI 会话历史支持分页、搜索、来源筛选、项目筛选、重命名、按用户置顶、移动项目、软删除和恢复；删除会话必须禁用由该会话产生的有效 AI 分享链接。
 - 聊天图片属于 Message 附件（`ai_message_attachments`），不落 projectId；上传 `purpose=CHAT_IMAGE` 完成后直接 READY，不进文档解析。Vision 只产出观察上下文再进入现有编排，模型必须 `supportsVision=true` 且已通过准入测试，未配置返回 `VISION_MODEL_NOT_CONFIGURED`。
+- 页面图片结构化识别调用 AI SDK 时，识别规则放在 `instructions`，`messages` 仅包含带图片的用户消息；不得在 `messages` 中传 `system` 角色。
+- 页面图集结构化识别使用独立 `PAGE_RECOGNITION` 运行时预算（8192 输出 token、120 秒），不复用聊天图片观察的 1200 token 上限，以免多构造/多厚度 JSON 被截断。
+- 多厚度合并单元格按构造及同行拆分选项；可变产品层的层级厚度/热阻留空是正常结构，档位数值进 `options[]`。未选可编辑热工参考集时确认页只进入知识问答，不进入正式方案查询。
+- 页面识别模型 JSON 与 schema 不符时，仅确定性修复数字字符串、空数组和规格等级等明确的表示差异，最终仍须通过 Zod；不猜测双 R 或补算 K。失败日志只记字段路径和结束原因，不记录原页全文。
+- 页面识别服务商余额不足须返回独立、通俗的中文错误码与提示，不把服务商原始响应或请求标识展示给用户。
+- 页面识别的模型解释性备注与真实任务失败分开展示；批量核对只自动确认通过字段、厚度异常、参考集和已发布方案/规格映射校验的页面，逐页返回跳过原因。查看内容优先已确认目录，再用正文章节，页面导航始终可用。
+- 图集识别提示词显式列出 `pageRecognitionResultSchema` 的字段层级；兼容网关若忽略 responseFormat，模型仍须输出 `thicknessMm`/`constructionCode`/`layers`/`options` 等正式键名，不得用 `thickness`/`systemCode`/`constructionLayers` 别名。
 - 会话 `projectId` 可空：有项目才注入项目结构化上下文；无项目仍可发图片、检索知识和生成报告。
 - `reports.projectId` 可空（继承会话项目，无项目则为 null）；`GET /api/v1/reports/my` 返回当前用户报告，无项目时 `project=null`。预置业务类型（含综合技术方案/项目简报）默认 `requiresProject=false`，只有未来确实要求项目字段的类型才拦截。
 - 公开分享只暴露分享快照或已生成报告文件，不开放源文件、知识库原文或原始 AI 会话。

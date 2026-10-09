@@ -16,6 +16,11 @@ Word 原件（Mammoth 全文 RAG 兜底，可选）
 
 LibreOffice（`DOCX_RENDER_ENABLED`，**默认 false**）仅作 fallback，不是正式入库必经步骤，生产可不装 soffice。
 
+页面结构化识别调用 AI SDK 时，识别规则使用 `instructions`，原页图片及页码放在用户消息中；`messages` 不包含 `system` 角色。
+多构造/多厚度图集页使用独立的 `PAGE_RECOGNITION` 输出预算（8192 token、120 秒），避免套用聊天图片 `VISION` 的 1200 token 上限而截断 JSON。
+兼容模型网关可能忽略 responseFormat，识别 Prompt 显式声明顶层、systems[]、layers[] 和 options[] 的合法字段；仅含义明确的表示别名可被修复，`systemCode` 等含义不明的字段不自动写入正式数据。
+模型输出 JSON 已解析但字段类型不符时，`experimental_repairText` 仅修复明确的表示差异（如数字字符串、规格等级罗马数字、单对象数组），并再次通过正式 Zod schema。来源不明的热阻不映射到产品层或总传热阻，不能补算 K；修复提示进入候选 warnings，仍需人工确认。失败日志只记 schema 字段路径与 finishReason，不记录页面原文。
+
 > **关键心智模型**：识别完成 ≠ 正式知识可用；单页 Confirm ≠ 正式发布索引。
 > 单页 Confirm 只产出「即时 page-aware chunk」用于人工即时测试，并把版本索引置脏；
 > 正式发布索引由版本级重建统一产出。
@@ -45,10 +50,14 @@ LibreOffice（`DOCX_RENDER_ENABLED`，**默认 false**）仅作 fallback，不�
 `PENDING → PROCESSING → REVIEW_REQUIRED → CONFIRMED`（失败 `FAILED` 可重试）
 
 - 识别完成只写候选 `structuredData` / `draftStructuredData`，**不**写正式 chunks / `thermal_reference_rows`
+- 多厚度合并单元格按构造编号拆分 `systems[]`，同一行的厚度、产品层 R、总 R、K 写入一条 `options[]`；可变产品层的 `layers[].thicknessMm/rValue=null` 是正常结构，`lambda/alpha` 仍保留。此类说明进入 `notes`，不得作为识别失败或风险告警。
 - Draft：改候选，不进正式查询；若该页原为 `CONFIRMED`，保存草稿等同识别重置（`CONFIRMED → REVIEW_REQUIRED`），登记 Page Mutation
-- Confirm：写 page-aware chunks（即时测试用）；可选 `thermalSetId` 同步热工行（`sourcePageId`/`sourcePageLabel`）；并登记 Page Mutation（`contentRevision++` / `indexDirty=true`）
+- Confirm：写 page-aware chunks（即时测试用）；选择可编辑 `thermalSetId` 才同步热工行（`sourcePageId`/`sourcePageLabel`）。未选择时页面仍确认并可用于资料问答，参考档位未进入方案查询；并登记 Page Mutation（`contentRevision++` / `indexDirty=true`）
 - Re-recognize：保留 `confirmedStructuredData`，新结果进候选，直到再次 Confirm；若该页原为 `CONFIRMED`，重新识别同样登记 Page Mutation
 - 批量确认：**逐页结果**（`success` / `failed` / `skipped`），不存在 all-or-nothing；`confirmSafeOnly=true`（默认）只确认无风险页，风险页进 `skipped`；`false` 尝试确认全部 `REVIEW_REQUIRED` 页，失败页进 `failed`，已成功页不回滚
+- B 端概览和资料处理提供一键识别、一键核对入口；一键识别逐页报告入队失败，一键核对在确认前校验全文、双 R/K/厚度、离群厚度、可编辑参考集及已发布方案/规格映射。模型的解释性 `notes/warnings` 保留为识别备注，不单凭备注阻断自动确认；`lastRecognitionErrorCode` 与 `recognitionRunId` 用于定位真实识别失败。
+- 视觉模型返回余额不足或 HTTP 402 时，页面失败码为 `PAGE_RECOGNITION_BALANCE_INSUFFICIENT`，对用户提示联系平台管理员处理后重试；不得把服务商原始响应或请求标识直接展示为错误正文。
+- 查看内容按已确认目录 → 正文章节 → 有效目录草稿选择章节来源；未确认的孤立数字目录不遮蔽正文。页面导航独立可用，未确认页没有正式正文时提示前往核对。
 
 ## 正式正文唯一来源
 
