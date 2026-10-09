@@ -1,24 +1,25 @@
 <script setup lang="ts">
 import type { PrimaryTableCol, TableRowData } from 'tdesign-vue-next'
+import type { AppTableAction } from '@/types/crud'
+import type { KnowledgeCategory, KnowledgeCategoryInput } from '@/types/knowledge'
 import { AddIcon } from 'tdesign-icons-vue-next'
 import { computed, h, onMounted, ref } from 'vue'
-import AppCrudFormDialog from '@/components/business/AppCrudFormDialog.vue'
-import AppTableActions from '@/components/business/AppTableActions.vue'
-import AppDataTable from '@/components/ui/AppDataTable.vue'
-import AppPage from '@/components/ui/AppPage.vue'
-import AppSearchPanel from '@/components/ui/AppSearchPanel.vue'
-import { normalizeFeedbackError, useAppFeedback } from '@/composables/useAppFeedback'
-import { useConfirmedCrudAction } from '@/composables/useCrudActions'
-import { useCrudDrawer } from '@/composables/useCrudDrawer'
-import { usePermissionAccess } from '@/composables/usePermissionAccess'
 import {
   createKnowledgeCategory,
   deleteKnowledgeCategory,
   fetchKnowledgeCategories,
   updateKnowledgeCategory,
 } from '@/api/modules/knowledge'
-import type { AppTableAction } from '@/types/crud'
-import type { KnowledgeCategory, KnowledgeCategoryInput } from '@/types/knowledge'
+import AppCrudFormDialog from '@/components/business/AppCrudFormDialog.vue'
+import AppTableActions from '@/components/business/AppTableActions.vue'
+import AppDataTable from '@/components/ui/AppDataTable.vue'
+import AppPage from '@/components/ui/AppPage.vue'
+import AppSearchPanel from '@/components/ui/AppSearchPanel.vue'
+import { useAppFeedback } from '@/composables/useAppFeedback'
+import { useConfirmedCrudAction } from '@/composables/useCrudActions'
+import { useCrudDrawer } from '@/composables/useCrudDrawer'
+import { usePermissionAccess } from '@/composables/usePermissionAccess'
+import { businessUserError } from '@/utils/business-error'
 import { formatDate } from '@/utils/day'
 
 const { canAccess } = usePermissionAccess()
@@ -59,7 +60,7 @@ function reset(): void {
 
 const drawer = useCrudDrawer<KnowledgeCategoryInput, KnowledgeCategory>({
   createForm: () => ({ name: '', code: '', parentId: undefined, sortOrder: 0, description: '' }),
-  editForm: (entity) => ({
+  editForm: entity => ({
     name: entity.name,
     code: entity.code,
     parentId: entity.parentId ?? undefined,
@@ -79,7 +80,7 @@ const deleteAction = useConfirmedCrudAction<KnowledgeCategory, unknown>({
   action: async (row) => {
     await deleteKnowledgeCategory(row.id)
   },
-  confirm: (row) => ({ title: '删除分类', content: `确定删除「${row.name}」？分类下存在文档时将无法删除。`, danger: true }),
+  confirm: row => ({ title: '删除分类', content: `确定删除「${row.name}」？分类下存在文档时将无法删除。`, danger: true }),
   successMessage: '已删除',
   onSuccess: () => load(),
 })
@@ -95,23 +96,21 @@ async function toggleEnabled(row: KnowledgeCategory): Promise<void> {
   }
 }
 
-const errorDescription = computed(() => error.value
-  ? normalizeFeedbackError(error.value).message
-  : '请检查网络连接后重试')
+const errorDescription = computed(() => businessUserError(error.value))
 
 const filtered = computed(() => {
   const kw = keyword.value.trim()
   if (!kw) {
     return categories.value
   }
-  return categories.value.filter((item) => item.name.includes(kw) || item.code.includes(kw))
+  return categories.value.filter(item => item.name.includes(kw) || item.code.includes(kw))
 })
 
 function parentName(row: KnowledgeCategory): string {
   if (!row.parentId) {
     return '—'
   }
-  return categories.value.find((item) => item.id === row.parentId)?.name ?? row.parentId
+  return categories.value.find(item => item.id === row.parentId)?.name ?? row.parentId
 }
 
 const columns: PrimaryTableCol<TableRowData>[] = [
@@ -131,13 +130,17 @@ function getActions(row: TableRowData): AppTableAction[] {
   if (canEdit.value) {
     actions.push({ key: 'edit', label: '编辑', handler: () => drawer.openEdit(entity) })
     actions.push({
-      key: 'toggle', label: entity.enabled ? '停用' : '启用',
+      key: 'toggle',
+      label: entity.enabled ? '停用' : '启用',
       handler: () => void toggleEnabled(entity),
     })
   }
   if (canRemove.value) {
     actions.push({
-      key: 'remove', label: '删除', loading: deleteAction.running.value, theme: 'danger',
+      key: 'remove',
+      label: '删除',
+      loading: deleteAction.running.value,
+      theme: 'danger',
       handler: () => deleteAction.run(entity),
     })
   }
@@ -148,7 +151,7 @@ onMounted(load)
 </script>
 
 <template>
-  <AppPage title="资料分类" description="给知识库分类，方便查找。">
+  <AppPage title="资料分类" description="按资料用途整理知识库，方便查找和维护。">
     <template #search>
       <AppSearchPanel :loading="isLoading" @reset="reset" @search="search">
         <t-form-item label="关键词">
@@ -160,8 +163,8 @@ onMounted(load)
     <AppDataTable
       :columns="columns"
       :data="filtered"
-      empty-description="可新增第一个知识分类"
-      empty-title="暂无分类"
+      empty-description="点击“新增分类”建立第一个资料分类。"
+      empty-title="还没有资料分类"
       :error-description="errorDescription"
       :operations-width="180"
       :show-pagination="false"
@@ -173,7 +176,9 @@ onMounted(load)
     >
       <template #toolbar>
         <t-button v-if="canAdd" theme="primary" @click="drawer.openCreate">
-          <template #icon><AddIcon /></template>
+          <template #icon>
+            <AddIcon />
+          </template>
           新增分类
         </t-button>
       </template>
@@ -189,7 +194,7 @@ onMounted(load)
       :submitting="drawer.isSubmitting.value"
       :title="drawer.mode.value === 'create' ? '新增分类' : '编辑分类'"
       :visible="drawer.visible.value"
-      :width="'min(640px, 92vw)'"
+      width="min(640px, 92vw)"
       @cancel="drawer.close"
       @submit="drawer.submit"
       @update:visible="drawer.setVisible"
@@ -198,7 +203,7 @@ onMounted(load)
         <t-input v-model="drawer.formData.name" maxlength="120" placeholder="如：图集" />
       </t-form-item>
       <t-form-item label="分类编码" name="code" required-mark>
-        <t-input v-model="drawer.formData.code" maxlength="80" placeholder="唯一编码" />
+        <t-input v-model="drawer.formData.code" maxlength="80" placeholder="用于区分分类的唯一编号" />
       </t-form-item>
       <t-form-item label="父分类" name="parentId">
         <t-select

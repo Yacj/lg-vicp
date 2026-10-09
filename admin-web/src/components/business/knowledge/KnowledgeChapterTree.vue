@@ -1,16 +1,19 @@
 <script setup lang="ts">
+import type { KnowledgeChapterTreeNode, KnowledgePage } from '@/types/knowledge'
 import { computed } from 'vue'
-import type { KnowledgeChapterTreeNode } from '@/types/knowledge'
 import { flattenChapterTree, knowledgePageLabel } from '@/utils/knowledge-user'
 
 const props = defineProps<{
   items: KnowledgeChapterTreeNode[]
+  pages?: KnowledgePage[]
   selectedId?: string | null
+  selectedPhysicalPageNumber?: number | null
   loading?: boolean
 }>()
 
 const emit = defineEmits<{
   select: [node: KnowledgeChapterTreeNode]
+  selectPage: [physicalPageNumber: number]
 }>()
 
 const rows = computed(() => flattenChapterTree(props.items))
@@ -41,6 +44,22 @@ const rows = computed(() => flattenChapterTree(props.items))
       <p v-else-if="!loading" class="knowledge-chapter-tree__empty">
         暂未识别到章节
       </p>
+      <div v-if="pages?.length" class="knowledge-chapter-tree__head">资料页面</div>
+      <ul v-if="pages?.length" class="knowledge-chapter-tree__list">
+        <li
+          v-for="page in pages"
+          :key="page.id"
+          class="knowledge-chapter-tree__item"
+          :class="{ 'is-active': page.physicalPageNumber === selectedPhysicalPageNumber }"
+          role="button"
+          tabindex="0"
+          @click="emit('selectPage', page.physicalPageNumber)"
+          @keydown.enter="emit('selectPage', page.physicalPageNumber)"
+        >
+          <span>文件第 {{ page.physicalPageNumber }} 页</span>
+          <em>{{ knowledgePageLabel(page.pageLabel, page.physicalPageNumber) }}</em>
+        </li>
+      </ul>
     </t-loading>
   </aside>
 </template>

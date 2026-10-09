@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import type { PrimaryTableCol, TableRowData } from 'tdesign-vue-next'
+import type { ConstructionScheme, InsulationSystem } from '@/types/construction'
+import type { KnowledgePage } from '@/types/knowledge'
+import type { ProductSeries, ProductSpec } from '@/types/masterdata'
+import type { ThermalRow, ThermalSet } from '@/types/thermal'
 import { computed, h, onMounted, ref, watch } from 'vue'
 import { fetchConstructionSchemes, fetchInsulationSystems } from '@/api/modules/construction'
 import { fetchVersionPages } from '@/api/modules/knowledge'
 import { fetchProductSeries, fetchPublishedProductSpecs } from '@/api/modules/masterdata'
 import { fetchThermalSetRows, fetchThermalSets } from '@/api/modules/thermal'
 import AppDataTable from '@/components/ui/AppDataTable.vue'
-import { normalizeFeedbackError } from '@/composables/useAppFeedback'
-import type { ConstructionScheme, InsulationSystem } from '@/types/construction'
-import type { KnowledgePage } from '@/types/knowledge'
-import type { ProductSeries, ProductSpec } from '@/types/masterdata'
-import type { ThermalRow, ThermalSet } from '@/types/thermal'
+import { businessUserError } from '@/utils/business-error'
 import { knowledgePageLabel } from '@/utils/knowledge-user'
 import { mdReviewStatusMetaFor } from '@/utils/professional-status'
 
@@ -63,6 +63,20 @@ async function loadAllPages(versionId: string): Promise<KnowledgePage[]> {
   return items
 }
 
+async function loadAllThermalRows(setId: string): Promise<ThermalRow[]> {
+  try {
+    const first = await fetchThermalSetRows(setId, { page: 1, pageSize: 100 })
+    const items = [...first.items]
+    for (let page = 2; page <= Math.ceil(first.total / 100); page += 1) {
+      items.push(...(await fetchThermalSetRows(setId, { page, pageSize: 100 })).items)
+    }
+    return items
+  }
+  catch {
+    return []
+  }
+}
+
 function openSource(row: StructuredRowView): void {
   if (!row.sourcePageId && row.physicalPageNumber == null) {
     return
@@ -94,7 +108,7 @@ async function load(): Promise<void> {
     const setPool = relatedSets.length > 0 ? relatedSets : sets
     const collected: ThermalRow[] = []
     for (const set of setPool) {
-      const setRows = await loadDictionary<ThermalRow>(() => fetchThermalSetRows(set.id, { page: 1, pageSize: 200 }))
+      const setRows = await loadAllThermalRows(set.id)
       for (const row of setRows) {
         if (row.sourceDocumentId === props.documentId || set.atlasDocumentId === props.documentId) {
           collected.push(row)
@@ -176,17 +190,17 @@ const columns = computed<PrimaryTableCol<TableRowData>[]>(() => [
   <section class="knowledge-structured">
     <header class="knowledge-structured__header">
       <div>
-        <h2>结构化数据</h2>
-        <p>展示本资料关联的热工参考方案。点击来源页可打开页面图库对应页。</p>
+        <h2>热工信息</h2>
+        <p>查看这份资料关联的热工参考方案。点击来源页可核对原始页面。</p>
       </div>
     </header>
     <AppDataTable
       :columns="columns"
       :current="1"
       :data="rows"
-      empty-title="暂无结构化参考方案"
-      empty-description="本资料尚未关联热工参考行。可在热工中心维护后在此查看。"
-      :error-description="error ? normalizeFeedbackError(error).message : '请检查网络连接后重试'"
+      empty-title="还没有关联热工信息"
+      empty-description="如需在问答中引用热工数据，请先到热工中心建立并关联参考方案。"
+      :error-description="businessUserError(error)"
       row-key="id"
       :total="rows.length"
       :page-size="200"
@@ -200,7 +214,10 @@ const columns = computed<PrimaryTableCol<TableRowData>[]>(() => [
 
 <style scoped>
 .knowledge-structured {
-  padding: 20px;
+  padding: var(--td-size-5);
+  border: 1px solid var(--td-component-stroke);
+  border-radius: var(--vicp-radius);
+  background: var(--td-bg-color-secondarycontainer);
 }
 
 .knowledge-structured__header {

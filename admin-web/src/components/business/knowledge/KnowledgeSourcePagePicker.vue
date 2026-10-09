@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
-import { MessagePlugin } from 'tdesign-vue-next'
-import { fetchVersionPages } from '@/api/modules/knowledge'
-import { normalizeFeedbackError } from '@/composables/useAppFeedback'
 import type { KnowledgeDocument, KnowledgePage } from '@/types/knowledge'
+import { MessagePlugin } from 'tdesign-vue-next'
+import { computed, ref, watch } from 'vue'
+import { fetchVersionPages } from '@/api/modules/knowledge'
+import { businessUserError } from '@/utils/business-error'
 import { knowledgePageLabel } from '@/utils/knowledge-user'
 
 /**
@@ -25,6 +25,10 @@ const emit = defineEmits<{
 }>()
 
 const pages = ref<KnowledgePage[]>([])
+const failedImageIds = ref<Set<string>>(new Set())
+function markImageUnavailable(id: string): void {
+  failedImageIds.value = new Set([...failedImageIds.value, id])
+}
 const loadingPages = ref(false)
 
 const documentOptions = computed(() => props.documents.map(item => ({ label: item.title, value: item.id })))
@@ -32,9 +36,12 @@ const selectedPage = computed(() => pages.value.find(item => item.id === props.p
 
 async function loadPages(documentId: string): Promise<void> {
   pages.value = []
+  failedImageIds.value = new Set()
   const document = props.documents.find(item => item.id === documentId)
   const versionId = document?.workingVersionId ?? document?.currentVersion?.id
-  if (!versionId) return
+  if (!versionId) {
+    return
+  }
   loadingPages.value = true
   try {
     const first = await fetchVersionPages(versionId, 1, 100)
@@ -45,7 +52,7 @@ async function loadPages(documentId: string): Promise<void> {
     pages.value = items.sort((a, b) => a.pageNumber - b.pageNumber)
   }
   catch (cause) {
-    MessagePlugin.error(normalizeFeedbackError(cause).message)
+    MessagePlugin.error(businessUserError(cause))
   }
   finally {
     loadingPages.value = false
@@ -53,8 +60,12 @@ async function loadPages(documentId: string): Promise<void> {
 }
 
 watch(() => props.documentId, (value) => {
-  if (value) void loadPages(value)
-  else pages.value = []
+  if (value) {
+    void loadPages(value)
+  }
+  else {
+    pages.value = []
+  }
 }, { immediate: true })
 
 function selectDocument(value: unknown): void {
@@ -65,7 +76,9 @@ function selectDocument(value: unknown): void {
 }
 
 function togglePage(page: KnowledgePage): void {
-  if (props.disabled) return
+  if (props.disabled) {
+    return
+  }
   if (props.pageId === page.id) {
     emit('update:pageId', null)
     emit('selectPage', null)
@@ -76,7 +89,9 @@ function togglePage(page: KnowledgePage): void {
 }
 
 function clearPage(): void {
-  if (props.disabled) return
+  if (props.disabled) {
+    return
+  }
   emit('update:pageId', null)
   emit('selectPage', null)
 }
@@ -96,10 +111,12 @@ function clearPage(): void {
     <template v-if="documentId">
       <div class="source-page-picker__status">
         <t-tag v-if="selectedPage" theme="primary" variant="light">
-          已选：文件第 {{ selectedPage.physicalPageNumber }} 页 · 资料页码 {{ knowledgePageLabel(selectedPage.pageLabel, selectedPage.physicalPageNumber) }} · {{ selectedPage.pageTitle || '未设置标题' }}
+          已选：文件第 {{ selectedPage.physicalPageNumber }} 页 · 资料页码 {{ knowledgePageLabel(selectedPage.pageLabel, selectedPage.physicalPageNumber) }}{{ selectedPage.pageTitle ? ` · ${selectedPage.pageTitle}` : '' }}
         </t-tag>
         <span v-else class="source-page-picker__unlinked">未关联原始页面</span>
-        <t-button v-if="selectedPage && !disabled" size="small" variant="text" @click="clearPage">暂不关联页面</t-button>
+        <t-button v-if="selectedPage && !disabled" size="small" variant="text" @click="clearPage">
+          暂不关联页面
+        </t-button>
       </div>
       <t-loading v-if="loadingPages" text="正在加载资料页面" />
       <div v-else-if="pages.length" class="source-page-picker__grid">
@@ -114,19 +131,23 @@ function clearPage(): void {
           @keydown.enter="togglePage(page)"
         >
           <div class="source-page-card__image">
-            <img v-if="page.pageImageUrl" :alt="knowledgePageLabel(page.pageLabel, page.physicalPageNumber)" :src="page.pageImageUrl">
-            <span v-else>暂无图片</span>
+            <img v-if="page.pageImageUrl && !failedImageIds.has(page.id)" :alt="knowledgePageLabel(page.pageLabel, page.physicalPageNumber)" :src="page.pageImageUrl" @error="markImageUnavailable(page.id)">
+            <span v-else>原图暂不可用</span>
           </div>
           <div class="source-page-card__meta">
             <strong>文件第 {{ page.physicalPageNumber }} 页</strong>
             <span>资料页码 {{ knowledgePageLabel(page.pageLabel, page.physicalPageNumber) }}</span>
-            <span :title="page.pageTitle ?? undefined">{{ page.pageTitle || '未设置标题' }}</span>
+            <span v-if="page.pageTitle" :title="page.pageTitle">{{ page.pageTitle }}</span>
           </div>
         </div>
       </div>
-      <p v-else class="source-page-picker__empty">该资料暂无页面，可先在知识库页面图库中维护</p>
+      <p v-else class="source-page-picker__empty">
+        这份资料还没有页面，请先到知识库的“资料页面”上传。
+      </p>
     </template>
-    <p v-else class="source-page-picker__hint">未选择知识资料，该参考方案将不关联原始页面</p>
+    <p v-else class="source-page-picker__hint">
+      未选择知识资料，该参考方案将不关联原始页面
+    </p>
   </div>
 </template>
 

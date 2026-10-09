@@ -2,45 +2,49 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api, getHttpAccessToken } from '@/api/http/client'
 import {
   approveKnowledgeVersion,
+  batchUploadVersionPages,
   completeKnowledgeUpload,
+  confirmKnowledgePageRecognition,
   createKnowledgeCategory,
+  createKnowledgeDocument,
   createKnowledgeEvaluation,
   createKnowledgeUploadIntent,
   createKnowledgeVersion,
+  createKnowledgeWithFile,
   disableKnowledgeVersion,
   fetchChunkTerms,
   fetchKnowledgeDocumentDetail,
   fetchKnowledgeDocuments,
   fetchKnowledgeEvaluations,
-  fetchVersionPages,
-  fetchVersionAssets,
-  fetchVersionToc,
-  fetchVersionPageMappings,
-  fetchPublicLibraryDocumentToc,
+  fetchKnowledgeWorkspace,
   fetchPublicLibraryDocumentPage,
   fetchPublicLibraryDocumentPageByLabel,
-  replaceVersionToc,
-  updateKnowledgeTocItem,
-  reorderVersionToc,
-  verifyVersionPageMappings,
-  updateVersionUsageMode,
-  createKnowledgeWithFile,
-  fetchKnowledgeWorkspace,
+  fetchPublicLibraryDocumentToc,
+  fetchVersionAssets,
   fetchVersionChapterTree,
+  fetchVersionPageMappings,
+  fetchVersionPages,
   fetchVersionSections,
-  postKnowledgeVersionTestQa,
-  replaceKnowledgeDocumentFile,
+  fetchVersionToc,
+  importVersionPagesFromZip,
   judgeKnowledgeEvaluation,
   mergeKnowledgeChunk,
   postKnowledgeQa,
+  postKnowledgeVersionTestQa,
   publishKnowledgeVersion,
   rebuildKnowledgeChunks,
+  reorderVersionToc,
+  replaceKnowledgeDocumentFile,
+  replaceVersionToc,
   restartKnowledgeParse,
   rollbackKnowledgeVersion,
   searchKnowledge,
   splitKnowledgeChunk,
   startKnowledgeParse,
   updateKnowledgeChunk,
+  updateKnowledgeTocItem,
+  updateVersionUsageMode,
+  verifyVersionPageMappings,
 } from './knowledge'
 
 vi.mock('@/api/http/client', () => ({
@@ -184,7 +188,7 @@ describe('knowledge pages / chunks contracts', () => {
     await fetchVersionAssets('version-1')
     expect(mockedApi.get).toHaveBeenCalledWith('/api/v1/platform/knowledge/versions/version-1/assets', { signal: undefined })
 
-    await createKnowledgeUploadIntent('version-1', { fileName: 'search.pdf', mimeType: 'application/pdf', sizeBytes: 10, },)
+    await createKnowledgeUploadIntent('version-1', { fileName: 'search.pdf', mimeType: 'application/pdf', sizeBytes: 10 })
     expect(mockedApi.post).toHaveBeenLastCalledWith('/api/v1/platform/knowledge/versions/version-1/upload-intent', { fileName: 'search.pdf', mimeType: 'application/pdf', sizeBytes: 10 })
 
     await fetchVersionToc('version-1')
@@ -206,8 +210,6 @@ describe('knowledge pages / chunks contracts', () => {
     await fetchPublicLibraryDocumentPageByLabel('document-1', 'A5')
     expect(mockedApi.get).toHaveBeenLastCalledWith('/api/v1/platform/knowledge/public/documents/document-1/pages/by-label/A5', { signal: undefined })
   })
-
-
   it('fetches chunk terms', async () => {
     const signal = new AbortController().signal
     await fetchChunkTerms('chunk-1', signal)
@@ -386,6 +388,45 @@ describe('postKnowledgeQa (SSE)', () => {
 })
 
 describe('knowledge user workflow contracts', () => {
+  it('allows ZIP upload verification to finish before starting page import', async () => {
+    await completeKnowledgeUpload('version-1', 'zip-1', 'PREVIEW')
+    expect(mockedApi.post).toHaveBeenCalledWith('/api/v1/platform/knowledge/versions/version-1/upload-complete', {
+      fileId: 'zip-1',
+      assetRole: 'PREVIEW',
+    }, { timeout: 240_000 })
+  })
+
+  it('allows synchronous page batches to finish beyond the default request timeout', async () => {
+    await batchUploadVersionPages('version-1', [{ fileId: 'file-1', physicalPageNumber: 7 }])
+    expect(mockedApi.post).toHaveBeenCalledWith('/api/v1/platform/knowledge/versions/version-1/pages/batch-upload', {
+      items: [{ fileId: 'file-1', physicalPageNumber: 7 }],
+      enqueueRecognition: true,
+    }, { timeout: 240_000 })
+  })
+
+  it('creates the knowledge container and first draft without requiring a source file', async () => {
+    await createKnowledgeDocument({ title: '建筑构造图集', docType: 'DETAIL_ATLAS' })
+    expect(mockedApi.post).toHaveBeenCalledWith('/api/v1/platform/knowledge/documents', {
+      title: '建筑构造图集',
+      docType: 'DETAIL_ATLAS',
+    })
+  })
+
+  it('submits the saved recognition draft by page id and optional thermal set only', async () => {
+    await confirmKnowledgePageRecognition('page-1', { thermalSetId: 'set-1' })
+    expect(mockedApi.post).toHaveBeenCalledWith('/api/v1/platform/knowledge/pages/page-1/confirm-recognition', {
+      thermalSetId: 'set-1',
+    })
+  })
+
+  it('delegates ZIP page import to the backend', async () => {
+    await importVersionPagesFromZip('version-1', { zipFileId: 'zip-1', enqueueRecognition: true })
+    expect(mockedApi.post).toHaveBeenCalledWith('/api/v1/platform/knowledge/versions/version-1/pages/import-zip', {
+      zipFileId: 'zip-1',
+      enqueueRecognition: true,
+    }, { timeout: 240_000 })
+  })
+
   it('creates a knowledge base with a file center id and auto parse', async () => {
     await createKnowledgeWithFile({
       title: 'VICP建筑构造图集',

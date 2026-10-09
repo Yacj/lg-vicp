@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
 import type { KnowledgeWorkspaceFile, KnowledgeWorkspaceLastJob } from '@/types/knowledge'
+import { computed, ref } from 'vue'
 import { formatDate } from '@/utils/day'
-import { knowledgeFailureMessage, knowledgeParsingStageLabel, knowledgeUserMessage } from '@/utils/knowledge-user'
+import { knowledgeFailureMessage, knowledgeParsingStageLabel } from '@/utils/knowledge-user'
 
 const props = withDefaults(defineProps<{
   file?: KnowledgeWorkspaceFile | null
@@ -65,14 +65,20 @@ const processedAt = computed(() => {
 
     <div v-if="canDebug && job" class="knowledge-failure__tech">
       <t-button theme="default" variant="text" @click="technicalOpen = !technicalOpen">
-        详细说明 {{ technicalOpen ? '▴' : '▾' }}
+        排障详情 {{ technicalOpen ? '▴' : '▾' }}
       </t-button>
       <dl v-if="technicalOpen">
         <div><dt>任务编号</dt><dd>{{ job.id }}</dd></div>
-        <div v-if="job.technical?.parser"><dt>解析方式</dt><dd>{{ job.technical.parser }}</dd></div>
+        <div v-if="job.technical?.parser">
+          <dt>解析方式</dt><dd>{{ job.technical.parser }}</dd>
+        </div>
         <div><dt>尝试次数</dt><dd>{{ job.attempts }}</dd></div>
-        <div v-if="job.stage"><dt>当前阶段</dt><dd>{{ knowledgeParsingStageLabel(job.stage) }}</dd></div>
-        <div v-if="job.technical?.reason"><dt>系统说明</dt><dd>{{ knowledgeUserMessage(job.technical.reason) }}</dd></div>
+        <div v-if="job.stage">
+          <dt>当前阶段</dt><dd>{{ knowledgeParsingStageLabel(job.stage) }}</dd>
+        </div>
+        <div v-if="job.technical?.reason">
+          <dt>原始说明</dt><dd>{{ job.technical.reason }}</dd>
+        </div>
       </dl>
     </div>
   </section>

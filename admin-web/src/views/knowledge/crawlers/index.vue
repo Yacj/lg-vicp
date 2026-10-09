@@ -16,7 +16,7 @@ import AppTableActions from '@/components/business/AppTableActions.vue'
 import AppDataTable from '@/components/ui/AppDataTable.vue'
 import AppPage from '@/components/ui/AppPage.vue'
 import AppStatusTag from '@/components/ui/AppStatusTag.vue'
-import { normalizeFeedbackError, useAppFeedback } from '@/composables/useAppFeedback'
+import { useAppFeedback } from '@/composables/useAppFeedback'
 import { useConfirmedCrudAction } from '@/composables/useCrudActions'
 import { useCrudDrawer } from '@/composables/useCrudDrawer'
 import { usePermissionAccess } from '@/composables/usePermissionAccess'
@@ -24,6 +24,7 @@ import {
 
   knowledgeDocTypes,
 } from '@/types/knowledge'
+import { businessUserError, businessUserMessage } from '@/utils/business-error'
 import { formatDate } from '@/utils/day'
 
 /** Legacy：普通入口已迁至独立采集管理，本页仅 hidden/兼容保留。 */
@@ -89,7 +90,7 @@ const runAction = useConfirmedCrudAction<KnowledgeCrawlerSource, string>({
     return result.message
   },
   confirm: row => ({ title: '手动触发抓取', content: `立即对「${row.name}」执行一次抓取任务？` }),
-  successMessage: (_payload, result) => result,
+  successMessage: (_payload, result) => businessUserMessage(result),
 })
 
 async function toggleEnabled(row: KnowledgeCrawlerSource): Promise<void> {
@@ -103,9 +104,7 @@ async function toggleEnabled(row: KnowledgeCrawlerSource): Promise<void> {
   }
 }
 
-const errorDescription = computed(() => error.value
-  ? normalizeFeedbackError(error.value).message
-  : '请检查网络连接后重试')
+const errorDescription = computed(() => businessUserError(error.value))
 
 const docTypeLabel: Record<KnowledgeDocType, string> = {
   SPECIFICATION: '产品规范',
@@ -146,7 +145,7 @@ const columns: PrimaryTableCol<TableRowData>[] = [
     cell: (_, { row }) => {
       const entity = row as KnowledgeCrawlerSource
       if (entity.lastCrawlStatus === 'FAILED' && entity.lastErrorMessage) {
-        return h('span', { class: 'vicp-src-error', title: entity.lastErrorMessage }, entity.lastErrorMessage)
+        return h('span', { class: 'vicp-src-error', title: businessUserMessage(entity.lastErrorMessage) }, businessUserMessage(entity.lastErrorMessage))
       }
       return entity.operatorRemark || '—'
     },
@@ -193,12 +192,12 @@ onMounted(load)
 </script>
 
 <template>
-  <AppPage title="资料抓取" description="定期从外部收集标准和图集。点「抓取」可以立即收集一次。">
+  <AppPage title="资料抓取" description="管理外部资料来源，查看最近一次抓取结果；需要时可手动重新抓取。">
     <AppDataTable
       :columns="columns"
       :data="sources"
-      empty-description="可新增第一个抓取源"
-      empty-title="暂无抓取源"
+      empty-description="点击“新增抓取源”添加第一个资料来源。"
+      empty-title="还没有抓取源"
       :error-description="errorDescription"
       :operations-width="200"
       :show-pagination="false"
@@ -239,8 +238,8 @@ onMounted(load)
       <t-form-item label="基础地址" name="baseUrl" required-mark>
         <t-input v-model="drawer.formData.baseUrl" maxlength="500" placeholder="https://…" />
       </t-form-item>
-      <t-form-item label="下载地址模式" name="downloadUrlPattern" required-mark>
-        <t-input v-model="drawer.formData.downloadUrlPattern" maxlength="500" placeholder="匹配附件下载链接的正则/模式" />
+      <t-form-item label="附件链接匹配规则" name="downloadUrlPattern" required-mark>
+        <t-input v-model="drawer.formData.downloadUrlPattern" maxlength="500" placeholder="填写附件链接的匹配规则" />
       </t-form-item>
       <t-form-item label="文档类型" name="docType">
         <t-select

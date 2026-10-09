@@ -1,25 +1,25 @@
 <script setup lang="ts">
 import type { PageInfo, PrimaryTableCol, TableRowData } from 'tdesign-vue-next'
-import { computed, h, onMounted, reactive, ref } from 'vue'
-import { MessagePlugin } from 'tdesign-vue-next'
-import AppDataTable from '@/components/ui/AppDataTable.vue'
-import AppStatusTag from '@/components/ui/AppStatusTag.vue'
 import type { AppStatus } from '@/components/ui/AppStatusTag.vue'
-import AppTableActions from '@/components/business/AppTableActions.vue'
 import type { AppTableAction } from '@/types/crud'
-import { normalizeFeedbackError } from '@/composables/useAppFeedback'
-import { useConfirmedCrudAction } from '@/composables/useCrudActions'
-import { usePermissionAccess } from '@/composables/usePermissionAccess'
+import type { KnowledgeEvaluation, KnowledgeEvaluationJudgement } from '@/types/knowledge'
+import { MessagePlugin } from 'tdesign-vue-next'
+import { computed, h, onMounted, reactive, ref } from 'vue'
 import {
   createKnowledgeEvaluation,
   fetchKnowledgeEvaluations,
   judgeKnowledgeEvaluation,
 } from '@/api/modules/knowledge'
+import AppTableActions from '@/components/business/AppTableActions.vue'
+import AppDataTable from '@/components/ui/AppDataTable.vue'
+import AppStatusTag from '@/components/ui/AppStatusTag.vue'
+import { useConfirmedCrudAction } from '@/composables/useCrudActions'
+import { usePermissionAccess } from '@/composables/usePermissionAccess'
 import {
+
   knowledgeEvaluationJudgements,
-  type KnowledgeEvaluation,
-  type KnowledgeEvaluationJudgement,
 } from '@/types/knowledge'
+import { businessUserError } from '@/utils/business-error'
 import { formatDate } from '@/utils/day'
 
 const { canAccess } = usePermissionAccess()
@@ -38,7 +38,7 @@ const formVisible = ref(false)
 const form = reactive({ query: '', expectedDocumentId: '', expectedPage: '' as string | number })
 const submitting = ref(false)
 
-const judgementMeta: Record<KnowledgeEvaluationJudgement, { label: string; status: AppStatus }> = {
+const judgementMeta: Record<KnowledgeEvaluationJudgement, { label: string, status: AppStatus }> = {
   PENDING: { label: '待判定', status: 'default' },
   APPROVED: { label: '通过', status: 'success' },
   PARTIAL: { label: '部分通过', status: 'warning' },
@@ -106,7 +106,7 @@ async function submitForm(): Promise<void> {
     await load()
   }
   catch (cause) {
-    MessagePlugin.error(normalizeFeedbackError(cause).message)
+    MessagePlugin.error(businessUserError(cause))
   }
   finally {
     submitting.value = false
@@ -151,15 +151,15 @@ function resultSummary(row: KnowledgeEvaluation): string {
       const pageLabel = typeof item.pageLabel === 'string' ? item.pageLabel : null
       const physicalPage = typeof item.physicalPageNumber === 'number' ? item.physicalPageNumber : typeof item.sourcePage === 'number' ? item.sourcePage : null
       const page = pageLabel ? ` 页码 ${pageLabel}` : physicalPage != null ? ` 第 ${physicalPage} 页` : ''
-      return `${String(item.sourceTitle ?? '未知')}${page}（${String(item.hitReason ?? '-')}）`
+      return `${String(item.sourceTitle ?? '未命名资料')}${page}`
     })
     .join('；')
 }
 
 const columns: PrimaryTableCol<TableRowData>[] = [
   { cell: (_, { row }) => h('div', { class: 'vicp-query' }, row.query), colKey: 'query', minWidth: 220, title: '检查问题' },
-  { cell: (_, { row }) => h('div', { class: 'vicp-keywords' }, (row.parsedKeywords ?? []).join('、') || '—'), colKey: 'parsedKeywords', minWidth: 160, title: '解析关键词' },
-  { cell: (_, { row }) => resultSummary(row as KnowledgeEvaluation), colKey: 'actualTopResults', minWidth: 300, title: '实际检索结果（Top3）' },
+  { cell: (_, { row }) => h('div', { class: 'vicp-keywords' }, (row.parsedKeywords ?? []).join('、') || '—'), colKey: 'parsedKeywords', minWidth: 160, title: '识别出的关键词' },
+  { cell: (_, { row }) => resultSummary(row as KnowledgeEvaluation), colKey: 'actualTopResults', minWidth: 300, title: '找到的前三条资料' },
   {
     cell: (_, { row }) => {
       const meta = judgementMeta[row.judgement as KnowledgeEvaluationJudgement]
@@ -204,15 +204,17 @@ onMounted(() => {
         style="width: 160px"
         @change="filter"
       />
-      <t-button v-if="canCreate" theme="primary" @click="openForm">提交检查</t-button>
+      <t-button v-if="canCreate" theme="primary" @click="openForm">
+        提交检查
+      </t-button>
     </t-space>
 
     <AppDataTable
       :columns="columns"
       :data="evaluations"
       empty-description="还没有检查记录，可以提交问题开始检查"
-      empty-title="暂无检查"
-      :error-description="error ? normalizeFeedbackError(error).message : '请检查网络连接后重试'"
+      empty-title="还没有检查记录"
+      :error-description="businessUserError(error)"
       :operations-width="240"
       row-key="id"
       :status="isLoading ? 'loading' : error ? 'error' : 'ready'"

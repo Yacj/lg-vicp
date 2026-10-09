@@ -51,7 +51,7 @@ describe('buildThermalCalcPresentation', () => {
     expect(presentation.compliant).toBe(true)
     expect(presentation.standardLabel).toBe('DB11/891 · 3.3.1')
     expect(presentation.steps.map(step => step.key)).toEqual(['layer_1', 'total_resistance', 'k_value'])
-    expect(presentation.steps[2]).toMatchObject({ value: 0.232, unit: 'W/(㎡·K)' })
+    expect(presentation.steps[2]).toMatchObject({ value: 0.232, unit: 'W/(m²·K)' })
   })
 
   it('converts layer thickness from meters to millimeters', () => {

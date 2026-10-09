@@ -12,17 +12,17 @@ export const SUPPORTED_FILE_MIME_TYPES = [
 export type SupportedFileMimeType = (typeof SUPPORTED_FILE_MIME_TYPES)[number]
 
 /** 文件状态，与后端 fileStatusEnum 对齐。 */
-export type FileStatus =
-  | 'UPLOADING'
-  | 'UPLOADED'
-  | 'QUEUED'
-  | 'PARSING'
-  | 'OCR_REQUIRED'
-  | 'INDEXING'
-  | 'READY'
-  | 'FAILED'
-  | 'DELETED'
-  | 'RECYCLED'
+export type FileStatus
+  = | 'UPLOADING'
+    | 'UPLOADED'
+    | 'QUEUED'
+    | 'PARSING'
+    | 'OCR_REQUIRED'
+    | 'INDEXING'
+    | 'READY'
+    | 'FAILED'
+    | 'DELETED'
+    | 'RECYCLED'
 
 export const fileCenterSources = [
   'USER_UPLOAD',
@@ -78,9 +78,20 @@ export interface AsyncTaskRecord {
   updatedAt: string
 }
 
+/**
+ * 文件用途（后端 filePurposeSchema）。
+ * - GENERAL：缺省值，complete 后进入文档解析队列（status=QUEUED），READY 需等解析完成
+ * - CHAT_IMAGE：聊天图片，complete 后直接 READY
+ * - KNOWLEDGE_SOURCE：知识库来源文件，complete 后直接 READY（不触发自动解析）
+ * 注意：页图 / 需要「上传后立即 READY」的场景必须显式传 KNOWLEDGE_SOURCE，否则默认 GENERAL 会先入解析队列，
+ * 导致后续依赖 READY 的接口（如 pages/batch-upload）报「文件尚未上传完成」。
+ */
+export type FilePurpose = 'GENERAL' | 'CHAT_IMAGE' | 'KNOWLEDGE_SOURCE'
+
 /** 创建上传凭证请求体（createUploadIntentBodySchema）。 */
 export interface CreateUploadIntentInput {
   projectId?: string
+  purpose?: FilePurpose
   fileName: string
   mimeType: SupportedFileMimeType
   sizeBytes: number
@@ -109,6 +120,8 @@ export interface CompleteUploadResult {
   message: string
   fileId: string
   taskId: string
+  /** 上传完成后按内容去重时，指向最终可用的 READY 文件；fileId 同样是这个最终 ID。 */
+  duplicateOfFileId?: string
 }
 
 /** GET /files/:id/status 响应。 */

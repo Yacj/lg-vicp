@@ -8,6 +8,7 @@ import type {
   KnowledgeWorkspace,
   KnowledgeWorkspaceLastJob,
 } from '@/types/knowledge'
+import { businessUserMessage } from '@/utils/business-error'
 
 /** 知识库类型用户文案（不展示 enum）。 */
 export const knowledgeDocTypeLabels: Record<KnowledgeDocType, string> = {
@@ -30,8 +31,8 @@ export interface KnowledgeUserStatusMeta {
 const userStatusMeta: Record<KnowledgeUserStatus, KnowledgeUserStatusMeta> = {
   PENDING_PARSE: { label: '待解析', status: 'default', usageLabel: '暂不可用' },
   PARSING: { label: '解析中', status: 'processing', usageLabel: '暂不可用' },
-  READY_TO_VERIFY: { label: '待验证', status: 'warning', usageLabel: '待确认' },
-  READY: { label: '可使用', status: 'success', usageLabel: '可以使用' },
+  READY_TO_VERIFY: { label: '待核对', status: 'warning', usageLabel: '需要核对内容' },
+  READY: { label: '内容已准备', status: 'success', usageLabel: '内容已准备' },
   PARSE_FAILED: { label: '解析失败', status: 'error', usageLabel: '需要处理' },
   SEARCHABLE_FILE_REQUIRED: { label: '需要补充可搜索文字', status: 'warning', usageLabel: '需要处理' },
 }
@@ -96,6 +97,20 @@ export function isKnowledgeReadyStatus(status: string | null | undefined): boole
   return status === 'READY_TO_VERIFY' || status === 'READY'
 }
 
+/** 页图在识别完成前可返回 NOT_READY，不能据此退回原文件解析流程。 */
+export function isKnowledgePageDrivenWorkspace(workspace: KnowledgeWorkspace | null | undefined): boolean {
+  if (!workspace) return false
+  if (workspace.summary.contentSource === 'PAGE_DRIVEN') return true
+  if (workspace.summary.contentSource === 'ORIGINAL_FILE') return false
+  return !workspace.primaryFile && !workspace.parsing.lastJob
+}
+
+/** PENDING_PARSE 也是离线页图版本的初始状态，只有文件流程才等待文件解析。 */
+export function isKnowledgeFileParsingInProgress(workspace: KnowledgeWorkspace | null | undefined): boolean {
+  return Boolean(workspace && !isKnowledgePageDrivenWorkspace(workspace)
+    && isKnowledgeParsingStatus(workspace.currentVersion?.userStatus))
+}
+
 export interface KnowledgeChannelStatusMeta {
   label: string
   status: AppStatus
@@ -134,10 +149,10 @@ export function knowledgePageRenderingMeta(
 
 /** 页面视觉仍在生成，可轮询 workspace 刷新 pageCount / 图库。 */
 export function isKnowledgePageRenderingInProgress(workspace: KnowledgeWorkspace | null | undefined): boolean {
-  if (!workspace) {
+  if (!workspace || isKnowledgePageDrivenWorkspace(workspace)) {
     return false
   }
-  if (isKnowledgeParsingStatus(workspace.currentVersion?.userStatus)) {
+  if (isKnowledgeFileParsingInProgress(workspace)) {
     return true
   }
   const rendering = workspace.parsing.pageRendering
@@ -158,7 +173,7 @@ export function isKnowledgePageRenderingInProgress(workspace: KnowledgeWorkspace
 }
 
 export function knowledgeFailureMessage(job: KnowledgeWorkspaceLastJob | null | undefined): string {
-  return knowledgeUserMessage(
+  return businessUserMessage(
     job?.userMessage
     || job?.errorMessage
     || '系统在解析文件时遇到问题。',
@@ -177,61 +192,6 @@ export function knowledgeTocSourceLabel(value: string | null | undefined): strin
     return knowledgeTocSourceLabels[value as KnowledgeTocSource]
   }
   return '人工添加'
-}
-
-const knowledgeMessageReplacements: Array<[RegExp, string]> = [
-  [/缺少 ORIGINAL 正式原文件，不能发布 AI 可引用版本/g, '还没有知识文件，不能发布给提问使用。'],
-  [/原文件没有文本层且未绑定可检索的文本源：请上传 SEARCH_SOURCE 资产后升级解析，或将版本用途改为 BROWSE_ONLY（仅浏览）/g, '当前文件读不出文字。请补充可搜索文字版本，或改为只查看原文件。'],
-  [/原文件没有文本层且不存在 SEARCH_SOURCE 文本源，不能进入 AI 检索/g, '当前文件读不出文字，请先补充可搜索文字版本。'],
-  [/检索文本未映射到任何 ORIGINAL 页面，不能生成可回溯的 AI 引用/g, '可搜索文字版本还没有和原文件页面对上，暂时不能发布给提问使用。'],
-  [/原文目录尚不可用：请从 PDF 书签、目录页、配套检索源或人工维护生成 TOC/g, '还没有识别到章节目录，可以重新解析或在更多设置中补充章节。'],
-  [/原文目录尚未人工确认（CONFIRMED），AI 引用的目录路径以当前草稿为准/g, '章节目录还没有确认，提问引用会按当前识别结果。'],
-  [/有 (\d+) 页仅使用物理页码回退（FALLBACK），未识别到可靠印刷页码/g, '有 $1 页没有识别到印刷页码，会用文件页码代替。'],
-  [/检索页到原文页的映射尚未人工核验（verified），引用回溯可能偏页/g, '文字版本和原文件的页面对应关系还没有核对，引用页码可能不准。'],
-  [/有 (\d+) 条低置信映射不能用于正式 AI 引用/g, '有 $1 处页面对应关系不够确定，可能影响引用是否准确。'],
-  [/SEARCH_SOURCE 资产绑定完成，已自动发起升级解析（重建检索内容与页面映射）/g, '已补充可搜索文字版本，正在重新解析。'],
-  [/SEARCH_SOURCE 资产绑定完成；如为检索文本源，请触发“升级解析”重建内容与页面映射/g, '已补充可搜索文字版本。如果没有自动开始，请点击重新解析。'],
-  [/仅审核通过的版本可以发布/g, '请先审核通过，再发布给提问使用。'],
-  [/版本尚未完成解析，不能发布/g, '请等解析完成后再发布。'],
-  [/版本尚未完成解析，不能审核/g, '请等解析完成后再审核。'],
-  [/已发布或已停用的版本不允许重新解析，请创建新版本/g, '已发布的知识库不能直接重新解析，请更换文件后再解析。'],
-  [/仅已发布版本可以停用/g, '只有已发布的知识库可以停用。'],
-  [/已发布版本无需重复审核/g, '这份知识库已经审核过了。'],
-  [/知识库还在解析中，完成后即可测试。/g, '知识库还在解析中，完成后就可以测试。'],
-  [/当前文件无法读取文字，请先补充可搜索文字版本。/g, '当前文件读不出文字，请先补充可搜索文字版本。'],
-  [/当前 PDF 无法直接读取文字，请补充可搜索文字版本，或仅作为原文浏览。/g, '当前文件读不出文字。请补充可搜索文字版本，或改为只查看原文件。'],
-  [/正式原文件/g, '知识文件'],
-  [/检索文件/g, '可搜索文字版本'],
-  [/无文本层/g, '读不出文字'],
-  [/检索源/g, '可搜索文字版本'],
-  [/物理页/g, '文件页'],
-  [/页面映射/g, '页面对应'],
-  [/\bORIGINAL\b/g, '知识文件'],
-  [/\bSEARCH_SOURCE\b/g, '可搜索文字版本'],
-  [/\bBROWSE_ONLY\b/g, '只查看原文件'],
-  [/\bAI_ENABLED\b/g, '可用于提问'],
-  [/\bCONFIRMED\b/g, '已确认'],
-  [/\bFALLBACK\b/g, '文件页'],
-  [/\bTOC\b/g, '目录'],
-  [/\bOCR\b/g, '文字识别'],
-  [/\bChunk\b/gi, '内容'],
-  [/\bBlock\b/gi, '内容'],
-]
-
-/** 把后端技术说明转成普通用户能看懂的句子。 */
-export function knowledgeUserMessage(message: string | null | undefined): string {
-  const text = (message ?? '').trim()
-  if (!text) {
-    return '处理时遇到问题，请稍后重试。'
-  }
-  let next = text
-  for (const [pattern, replacement] of knowledgeMessageReplacements) {
-    next = next.replace(pattern, replacement)
-  }
-  if (/error|exception|stack|worker boom|traceback/i.test(next) && /[A-Za-z]/.test(next)) {
-    return '系统在解析文件时遇到问题，请稍后重试。'
-  }
-  return next.replace(/\s{2,}/g, ' ').trim()
 }
 
 export function knowledgeFileKind(mimeType: string | null | undefined, fileName?: string | null): string {

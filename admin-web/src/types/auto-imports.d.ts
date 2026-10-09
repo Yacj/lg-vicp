@@ -236,6 +236,7 @@ declare global {
   const useInterval: typeof import('@vueuse/core').useInterval
   const useIntervalFn: typeof import('@vueuse/core').useIntervalFn
   const useKeyModifier: typeof import('@vueuse/core').useKeyModifier
+  const useKnowledgeLifecycle: typeof import('../composables/useKnowledgeLifecycle').useKnowledgeLifecycle
   const useKnowledgeVersionEditable: typeof import('../composables/useKnowledgeVersionEditable').useKnowledgeVersionEditable
   const useLastChanged: typeof import('@vueuse/core').useLastChanged
   const useLink: typeof import('vue-router').useLink
@@ -439,6 +440,9 @@ declare global {
   // @ts-ignore
   export type { DictionarySearchQuery, DictionaryForm } from '../composables/useDictionaryManagement'
   import('../composables/useDictionaryManagement')
+  // @ts-ignore
+  export type { UseKnowledgeLifecycleOptions, KnowledgeLifecycleRefreshOptions, UseKnowledgeLifecycleReturn } from '../composables/useKnowledgeLifecycle'
+  import('../composables/useKnowledgeLifecycle')
   // @ts-ignore
   export type { KnowledgeVersionEditableInput, KnowledgeVersionEditableState } from '../composables/useKnowledgeVersionEditable'
   import('../composables/useKnowledgeVersionEditable')

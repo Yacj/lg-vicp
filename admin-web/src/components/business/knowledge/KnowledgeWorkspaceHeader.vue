@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import type { DropdownOption } from 'tdesign-vue-next'
+import type { KnowledgeUserStatus } from '@/types/knowledge'
 import { ArrowLeftIcon, ChevronDownIcon } from 'tdesign-icons-vue-next'
 import { computed } from 'vue'
 import AppStatusTag from '@/components/ui/AppStatusTag.vue'
-import type { KnowledgeUserStatus } from '@/types/knowledge'
 import { knowledgeDocTypeLabel, knowledgeUserStatusMetaFor } from '@/utils/knowledge-user'
 
 export interface KnowledgeHeaderAction {
@@ -18,8 +18,6 @@ const props = withDefaults(defineProps<{
   docType?: string | null
   categoryName?: string | null
   userStatus?: KnowledgeUserStatus | string | null
-  pageCount?: number | null
-  chapterCount?: number | null
   canPreview?: boolean
   canTest?: boolean
   moreActions?: KnowledgeHeaderAction[]
@@ -27,8 +25,6 @@ const props = withDefaults(defineProps<{
   docType: '',
   categoryName: '',
   userStatus: null,
-  pageCount: null,
-  chapterCount: null,
   canPreview: false,
   canTest: false,
   moreActions: () => [],
@@ -43,16 +39,6 @@ const emit = defineEmits<{
 
 const statusMeta = computed(() => knowledgeUserStatusMetaFor(props.userStatus))
 const subtitle = computed(() => [knowledgeDocTypeLabel(props.docType), props.categoryName].filter(Boolean).join(' · '))
-const summary = computed(() => {
-  const parts: string[] = []
-  if (props.pageCount != null && props.pageCount > 0) {
-    parts.push(`${props.pageCount} 页`)
-  }
-  if (props.chapterCount != null && props.chapterCount > 0) {
-    parts.push(`${props.chapterCount} 个章节`)
-  }
-  return parts.join(' · ')
-})
 const dropdownOptions = computed<DropdownOption[]>(() => props.moreActions.map(action => ({
   content: action.label,
   disabled: action.disabled,
@@ -90,7 +76,6 @@ function onMore(option: DropdownOption['value']): void {
 
     <div class="knowledge-workspace-header__status">
       <AppStatusTag :label="statusMeta.label" :status="statusMeta.status" />
-      <span v-if="summary">{{ summary }}</span>
     </div>
 
     <div class="knowledge-workspace-header__actions">
@@ -125,10 +110,9 @@ function onMore(option: DropdownOption['value']): void {
   align-items: center;
   justify-content: space-between;
   gap: var(--td-size-4);
-  padding: var(--td-comp-paddingTB-m) var(--td-size-6);
-  background: var(--vicp-bg-surface);
-  border: 1px solid var(--td-component-stroke);
-  border-radius: var(--vicp-radius);
+  padding: var(--td-comp-paddingTB-m) 0;
+  border-bottom: 1px solid var(--td-component-stroke);
+  background: transparent;
 }
 
 .knowledge-workspace-header__leading {

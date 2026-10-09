@@ -8,10 +8,10 @@ import { postKnowledgeQa, searchKnowledge } from '@/api/modules/knowledge'
 import { KnowledgeHitCard } from '@/components/business'
 import AppMarkdown from '@/components/ui/AppMarkdown.vue'
 import AppPage from '@/components/ui/AppPage.vue'
-import { normalizeFeedbackError } from '@/composables/useAppFeedback'
 import { usePermissionAccess } from '@/composables/usePermissionAccess'
-import { normalizeAiSource, aiSourceRefFromSearchHit } from '@/types/ai-source'
+import { aiSourceRefFromSearchHit, normalizeAiSource } from '@/types/ai-source'
 import { renderMarkdown } from '@/utils/ai'
+import { businessUserError, businessUserMessage } from '@/utils/business-error'
 
 const { canAccess } = usePermissionAccess()
 const canAnswer = computed(() => canAccess({ permissions: ['system:knowledge:search:answer'] }))
@@ -25,12 +25,13 @@ const searchLoading = ref(false)
 const searchError = ref<string | null>(null)
 const searchSearched = ref(false)
 const searchHits = ref<KnowledgeSearchHit[]>([])
-const searchTook = ref(0)
 
 async function runSearch(): Promise<void> {
   const text = searchQuery.value.trim()
   if (!text || searchLoading.value) {
-    if (!text) MessagePlugin.warning('请输入要找的内容')
+    if (!text) {
+      MessagePlugin.warning('请输入要找的内容')
+    }
     return
   }
   searchLoading.value = true
@@ -38,11 +39,10 @@ async function runSearch(): Promise<void> {
   try {
     const result = await searchKnowledge({ query: text, limit: 20 })
     searchHits.value = result.items
-    searchTook.value = result.took
     searchSearched.value = true
   }
   catch (cause) {
-    searchError.value = normalizeFeedbackError(cause).message
+    searchError.value = businessUserError(cause)
   }
   finally {
     searchLoading.value = false
@@ -50,7 +50,6 @@ async function runSearch(): Promise<void> {
 }
 
 const searchSources = computed(() => searchHits.value.map(hit => aiSourceRefFromSearchHit(hit)))
-
 
 const answerVisible = ref(false)
 const answerStage = ref('')
@@ -110,7 +109,7 @@ async function runAnswer(): Promise<void> {
           switch (event.type) {
             case 'progress':
               answerStage.value = event.data.stage
-              answerStageMessage.value = event.data.message
+              answerStageMessage.value = businessUserMessage(event.data.message)
               break
             case 'delta':
               answerText.value += event.data.text
@@ -123,7 +122,7 @@ async function runAnswer(): Promise<void> {
               answerStageMessage.value = '回答已停止'
               break
             case 'error':
-              answerError.value = `${event.data.message}（${event.data.code}）`
+              answerError.value = businessUserMessage(event.data.message)
               answerStage.value = 'error'
               break
             default:
@@ -139,7 +138,7 @@ async function runAnswer(): Promise<void> {
       answerStageMessage.value = '回答已停止'
     }
     else {
-      answerError.value = normalizeFeedbackError(cause).message
+      answerError.value = businessUserError(cause)
       answerStage.value = 'error'
     }
   }
@@ -204,17 +203,21 @@ function focusSource(event: MouseEvent): void {
 
     <div class="vicp-workspace">
       <div class="vicp-search-results">
-      <div class="vicp-panel-header">
-        <span class="vicp-panel-title">找到的资料</span>
-        <span v-if="searchSearched" class="vicp-panel-meta">用时 {{ searchTook }} 毫秒 · {{ searchHits.length }} 条</span>
-      </div>
-      <t-input v-model="searchQuery" clearable placeholder="先找一找资料，不生成回答" @enter="runSearch" />
-      <t-alert v-if="searchError" theme="error" :message="searchError" />
-      <div v-if="searchSources.length > 0" class="vicp-ref-list">
-        <KnowledgeHitCard v-for="(source, index) in searchSources" :key="`${index}-${source.documentId ?? source.title}`" :debug-enabled="canDebug" :index="index + 1" :source="source" />
-      </div>
-      <div v-else-if="searchSearched" class="vicp-empty">没有找到已发布的资料。</div>
-      <div v-else class="vicp-empty">可以先查找资料，结果会按资料、章节、页面展示。</div>
+        <div class="vicp-panel-header">
+          <span class="vicp-panel-title">找到的资料</span>
+          <span v-if="searchSearched" class="vicp-panel-meta">找到 {{ searchHits.length }} 条资料</span>
+        </div>
+        <t-input v-model="searchQuery" clearable placeholder="先找一找资料，不生成回答" @enter="runSearch" />
+        <t-alert v-if="searchError" theme="error" :message="searchError" />
+        <div v-if="searchSources.length > 0" class="vicp-ref-list">
+          <KnowledgeHitCard v-for="(source, index) in searchSources" :key="`${index}-${source.documentId ?? source.title}`" :debug-enabled="canDebug" :index="index + 1" :source="source" />
+        </div>
+        <div v-else-if="searchSearched" class="vicp-empty">
+          没有找到已发布的资料。
+        </div>
+        <div v-else class="vicp-empty">
+          可以先查找资料，结果会按资料、章节、页面展示。
+        </div>
       </div>
 
       <!-- AI 回答 -->
@@ -226,11 +229,12 @@ function focusSource(event: MouseEvent): void {
         <t-alert v-if="answerError" theme="error" :message="answerError" style="margin-bottom: 12px" />
 
         <div v-if="!answerVisible" class="vicp-empty">
-          输入问题，我会根据已发布资料给出回答，并标出引用。</div>
+          输入问题，我会根据已发布资料给出回答，并标出引用。
+        </div>
         <template v-else>
           <div v-if="answerStage && answerStage !== 'completed'" class="vicp-stage">
             <t-loading size="small" />
-            <span>{{ answerStageMessage || answerStage }}</span>
+            <span>{{ answerStageMessage || '正在整理回答' }}</span>
           </div>
 
           <div v-if="answerText" class="vicp-answer">
@@ -251,7 +255,7 @@ function focusSource(event: MouseEvent): void {
       <section class="vicp-panel">
         <header class="vicp-panel-header">
           <span class="vicp-panel-title">引用</span>
-          <span v-if="answerSources.length > 0" class="vicp-panel-meta">共 {{ answerSources.length }} 条</span>
+          <span v-if="answerSources.length > 0" class="vicp-panel-meta">{{ answerSources.length }} 条引用</span>
         </header>
 
         <div v-if="answerSources.length === 0" class="vicp-empty">
@@ -301,11 +305,9 @@ function focusSource(event: MouseEvent): void {
   }
 }
 .vicp-panel {
-  border: 1px solid var(--td-component-border);
-  border-radius: var(--td-radius-medium);
-  background: var(--td-bg-color-container);
-  padding: 16px;
-  min-height: 200px;
+  border-top: 1px solid var(--td-component-border);
+  padding: var(--td-size-4) 0;
+  min-width: 0;
 }
 .vicp-panel-header {
   display: flex;
@@ -324,7 +326,7 @@ function focusSource(event: MouseEvent): void {
   color: var(--td-text-color-placeholder);
   font-size: var(--td-font-size-body-small);
   text-align: center;
-  padding: 48px 0;
+  padding: var(--td-size-6) 0;
 }
 .vicp-stage {
   display: flex;

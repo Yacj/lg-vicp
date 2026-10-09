@@ -1,7 +1,7 @@
 <script setup lang="ts">
+import type { KnowledgePage } from '@/types/knowledge'
 import KnowledgePageView from '@/components/business/KnowledgePageView.vue'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
-import type { KnowledgePage } from '@/types/knowledge'
 import { knowledgePageLabel } from '@/utils/knowledge-user'
 
 withDefaults(defineProps<{
@@ -11,17 +11,20 @@ withDefaults(defineProps<{
   canPreview?: boolean
   /** 标识机器提取文本通道，不是页面视觉。 */
   machineText?: boolean
+  unconfirmed?: boolean
 }>(), {
   title: '',
   page: null,
   loading: false,
   canPreview: false,
   machineText: false,
+  unconfirmed: false,
 })
 
 const emit = defineEmits<{
   previewPage: []
   openGallery: []
+  openRecognition: []
 }>()
 </script>
 
@@ -45,7 +48,7 @@ const emit = defineEmits<{
           variant="outline"
           @click="emit('openGallery')"
         >
-          打开页面图库
+          查看资料页面
         </t-button>
         <t-button
           v-if="canPreview && page"
@@ -60,8 +63,16 @@ const emit = defineEmits<{
     </div>
 
     <t-loading :loading="loading" text="正在加载解析内容">
+      <AppEmptyState
+        v-if="page && unconfirmed && !page.parsedText && !page.blocks?.length"
+        description="这一页尚未完成识别核对，正式正文暂不可查看。可查看原图或前往核对识别结果。"
+        size="small"
+        title="页面待核对"
+      >
+        <template #action><t-button theme="primary" @click="emit('openRecognition')">前往核对</t-button></template>
+      </AppEmptyState>
       <KnowledgePageView
-        v-if="page"
+        v-else-if="page"
         :blocks="page.blocks"
         :full-text="page.extractedText ?? page.parsedText ?? ''"
         :page-image-url="null"

@@ -1,9 +1,4 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
-import { MessagePlugin } from 'tdesign-vue-next'
-import { inspectKnowledgeVersionTest, postKnowledgeVersionTestQa } from '@/api/modules/knowledge'
-import AppMarkdown from '@/components/ui/AppMarkdown.vue'
-import { normalizeFeedbackError } from '@/composables/useAppFeedback'
 import type {
   KnowledgeQaSource,
   KnowledgeQaSseEvent,
@@ -11,7 +6,14 @@ import type {
   KnowledgeUserTestSource,
   KnowledgeVersionTestInspectResult,
 } from '@/types/knowledge'
-import { knowledgePageLabel, knowledgeUserMessage } from '@/utils/knowledge-user'
+import { MessagePlugin } from 'tdesign-vue-next'
+import { computed, ref, watch } from 'vue'
+import { inspectKnowledgeVersionTest, postKnowledgeVersionTestQa } from '@/api/modules/knowledge'
+import KnowledgeOriginalPageViewer from '@/components/business/knowledge/KnowledgeOriginalPageViewer.vue'
+import AppMarkdown from '@/components/ui/AppMarkdown.vue'
+import { usePermissionAccess } from '@/composables/usePermissionAccess'
+import { businessUserError } from '@/utils/business-error'
+import { knowledgePageLabel } from '@/utils/knowledge-user'
 
 interface TestResult {
   query: string
@@ -21,24 +23,32 @@ interface TestResult {
   referencePages: KnowledgeReferencePageBlock[]
 }
 
-const props = defineProps<{
+type TestMode = 'NORMAL' | 'DEBUG'
+
+const props = withDefaults(defineProps<{
   versionId: string | null
-}>()
+  /** 是否允许进入高级调试（system:knowledge:debug）。无权限时只保留常规测试。 */
+  canDebug?: boolean
+}>(), {
+  canDebug: false,
+})
 
-const emit = defineEmits<{
-  openGalleryPage: [physicalPageNumber: number]
-}>()
-
-const query = ref('薄抹灰保温系统传热系数0.3的方案有么')
+const mode = ref<TestMode>('NORMAL')
+const { canAccess } = usePermissionAccess()
+const canViewOriginal = computed(() => canAccess({ permissions: ['system:knowledge:doc:list'] }))
+const query = ref('')
 const sending = ref(false)
 const result = ref<TestResult | null>(null)
-const debugExpanded = ref(false)
 const debugLoading = ref(false)
 const debugResult = ref<KnowledgeVersionTestInspectResult | null>(null)
 const debugError = ref<unknown>(null)
+const viewerVisible = ref(false)
+const viewerPage = ref<{ imageUrl: string | null, pageId: string | null, versionId: string | null, physicalPageNumber: number | null, pageLabel: string | null, title: string }>({ imageUrl: null, pageId: null, versionId: null, physicalPageNumber: null, pageLabel: null, title: '原始页面' })
 let abortController: AbortController | null = null
 
-const canSend = computed(() => query.value.trim().length > 0 && !sending.value && Boolean(props.versionId))
+const isDebugMode = computed(() => props.canDebug && mode.value === 'DEBUG')
+const busy = computed(() => sending.value || debugLoading.value)
+const canSend = computed(() => query.value.trim().length > 0 && !busy.value && Boolean(props.versionId))
 
 function toUserTestSource(item: KnowledgeQaSource | KnowledgeUserTestSource): KnowledgeUserTestSource {
   const debugSource = item as KnowledgeQaSource
@@ -53,6 +63,7 @@ function toUserTestSource(item: KnowledgeQaSource | KnowledgeUserTestSource): Kn
     physicalPageNumber: item.physicalPageNumber ?? debugSource.pageNumber ?? debugSource.page ?? null,
     matchedText: item.matchedText ?? debugSource.snippet ?? null,
     pageId: debugSource.pageId ?? userSource.pageId ?? null,
+    pageImageUrl: userSource.pageImageUrl ?? null,
   }
 }
 
@@ -64,6 +75,10 @@ function inferRetrievalType(referencePages: KnowledgeReferencePageBlock[], sourc
     return 'KNOWLEDGE'
   }
   return 'DIRECT'
+}
+
+function retrievalTypeLabel(value: string): string {
+  return { REFERENCE_LOOKUP: '图集参考方案', KNOWLEDGE: '知识内容', DIRECT: '直接回答' }[value] ?? '检索中'
 }
 
 /** 匹配方案标签：优先展示产品层热阻 / 总热阻双 R，仅在缺失时兼容旧 R。 */
@@ -136,9 +151,9 @@ async function send(): Promise<void> {
   }
   catch (cause) {
     if (!controller.signal.aborted) {
-      MessagePlugin.error(knowledgeUserMessage(normalizeFeedbackError(cause).message))
+      MessagePlugin.error(businessUserError(cause))
       if (result.value && !result.value.answer) {
-        result.value.answer = knowledgeUserMessage(normalizeFeedbackError(cause).message)
+        result.value.answer = businessUserError(cause)
       }
     }
   }
@@ -169,11 +184,12 @@ async function runInspect(): Promise<void> {
   }
 }
 
-function onDebugExpand(value: unknown): void {
-  debugExpanded.value = Array.isArray(value) ? value.includes('debug') : value === 'debug'
-  if (debugExpanded.value && !debugResult.value) {
+function run(): void {
+  if (isDebugMode.value) {
     void runInspect()
+    return
   }
+  void send()
 }
 
 function clearResult(): void {
@@ -184,23 +200,48 @@ function clearResult(): void {
   debugError.value = null
 }
 
-function openPage(physicalPageNumber?: number | null): void {
-  if (physicalPageNumber == null) {
-    return
-  }
-  emit('openGalleryPage', physicalPageNumber)
+function openSource(source: KnowledgeUserTestSource): void {
+  viewerPage.value = { imageUrl: source.pageImageUrl ?? null, pageId: source.pageId ?? null, versionId: source.versionId || null, physicalPageNumber: source.physicalPageNumber ?? null, pageLabel: source.pageLabel ?? null, title: source.title || '引用原页' }
+  viewerVisible.value = true
+}
+
+function openReferencePage(block: KnowledgeReferencePageBlock): void {
+  if (!block.page.imageUrl && !canViewOriginal.value) return
+  viewerPage.value = { imageUrl: block.page.imageUrl ?? null, pageId: block.page.pageId, versionId: null, physicalPageNumber: block.page.physicalPageNumber ?? block.page.pageNumber ?? null, pageLabel: block.page.pageLabel ?? null, title: block.page.documentTitle || '参考原页' }
+  viewerVisible.value = true
 }
 
 watch(() => props.versionId, () => clearResult())
+// 权限收回时强制退出调试模式，避免停留在无权限界面。
+watch(() => props.canDebug, (value) => {
+  if (!value) {
+    mode.value = 'NORMAL'
+    debugResult.value = null
+    debugError.value = null
+  }
+})
 </script>
 
 <template>
   <section class="knowledge-test-panel">
     <header class="knowledge-test-panel__header">
       <div>
-        <h2>知识库测试</h2>
-        <p>以真实提问验证当前资料：先看 AI 回答与匹配方案，需要时再展开高级调试信息核对检索细节。</p>
+        <h2>问答测试</h2>
+        <p v-if="isDebugMode">
+          检索调试只核对命中过程，不生成回答，因此没有 AI 回答属于正常现象。
+        </p>
+        <p v-else>
+          {{ canDebug ? '输入问题，检查回答、匹配方案与引用原页；需要排障时可切换高级调试。' : '输入问题，检查回答是否正确，并核对引用的原始页面。' }}
+        </p>
       </div>
+      <t-radio-group v-if="canDebug" v-model="mode" variant="default-filled">
+        <t-radio-button value="NORMAL">
+          常规测试
+        </t-radio-button>
+        <t-radio-button value="DEBUG">
+          高级调试
+        </t-radio-button>
+      </t-radio-group>
     </header>
 
     <div class="knowledge-test-panel__composer">
@@ -209,138 +250,133 @@ watch(() => props.versionId, () => clearResult())
         :autosize="{ minRows: 3, maxRows: 6 }"
         maxlength="500"
         placeholder="例如：薄抹灰保温系统传热系数0.3的方案有么"
-        @keydown.enter.exact.prevent="send"
+        @keydown.enter.exact.prevent="run"
       />
       <div class="knowledge-test-panel__composer-actions">
         <t-button theme="default" variant="text" @click="clearResult">
           清空
         </t-button>
-        <t-button :disabled="!canSend" :loading="sending" theme="primary" @click="send">
-          开始测试
+        <t-button :disabled="!canSend" :loading="busy" theme="primary" @click="run">
+          {{ isDebugMode ? '运行检索调试' : '开始测试' }}
         </t-button>
       </div>
     </div>
 
-    <div v-if="result" class="knowledge-test-panel__result">
-      <section class="knowledge-test-panel__block">
-        <h3>AI 回答</h3>
-        <p v-if="!result.answer && sending" class="knowledge-test-panel__muted">
-          正在生成…
-        </p>
-        <AppMarkdown v-else-if="result.answer" :content="result.answer" />
-        <p v-else class="knowledge-test-panel__muted">
-          暂无回答
-        </p>
-      </section>
-
-      <section class="knowledge-test-panel__block">
-        <h3>检索类型</h3>
-        <t-tag theme="primary" variant="light">
-          {{ result.retrievalType }}
-        </t-tag>
-      </section>
-
-      <section v-if="result.referencePages.length" class="knowledge-test-panel__block">
-        <h3>匹配方案</h3>
-        <div class="knowledge-test-panel__schemes">
-          <article v-for="(block, index) in result.referencePages" :key="`${block.page.pageId}-${index}`" class="knowledge-test-panel__scheme">
-            <header>{{ matchSchemeLabel(block) }}</header>
-            <div class="knowledge-test-panel__scheme-meta">
-              <span>{{ block.page.documentTitle }}</span>
-              <em>{{ knowledgePageLabel(block.page.pageLabel, block.page.physicalPageNumber ?? block.page.pageNumber) }}</em>
-            </div>
-          </article>
-        </div>
-      </section>
-
-      <section v-if="result.sources.length" class="knowledge-test-panel__block">
-        <h3>引用来源</h3>
-        <div class="knowledge-test-panel__sources">
-          <article v-for="(source, index) in result.sources" :key="`${source.documentId}-${index}`" class="knowledge-test-panel__source">
-            <header>
-              <strong>{{ source.title }}</strong>
-              <span>资料页码 {{ source.pageLabel || '—' }}</span>
-              <span>文件页序 {{ source.physicalPageNumber ?? '—' }}</span>
-            </header>
-            <blockquote v-if="source.matchedText">
-              {{ source.matchedText }}
-            </blockquote>
-            <t-button
-              v-if="source.physicalPageNumber != null"
-              size="small"
-              theme="primary"
-              variant="text"
-              @click="openPage(source.physicalPageNumber)"
-            >
-              打开页面图库
-            </t-button>
-          </article>
-        </div>
-      </section>
-
-      <section v-if="result.referencePages.length" class="knowledge-test-panel__block">
-        <h3>原始页面</h3>
-        <div class="knowledge-test-panel__pages">
-          <figure
-            v-for="(block, index) in result.referencePages"
-            :key="`page-${block.page.pageId}-${index}`"
-            class="knowledge-test-panel__page"
-            role="button"
-            tabindex="0"
-            @click="openPage(block.page.physicalPageNumber ?? block.page.pageNumber)"
-            @keydown.enter="openPage(block.page.physicalPageNumber ?? block.page.pageNumber)"
-          >
-            <img
-              v-if="block.page.imageUrl"
-              :alt="knowledgePageLabel(block.page.pageLabel, block.page.physicalPageNumber)"
-              :src="block.page.imageUrl"
-              loading="lazy"
-            >
-            <div v-else class="knowledge-test-panel__page-empty">
-              暂无页面图
-            </div>
-            <figcaption>
-              {{ knowledgePageLabel(block.page.pageLabel, block.page.physicalPageNumber ?? block.page.pageNumber) }}
-            </figcaption>
-          </figure>
-        </div>
-      </section>
-
-      <t-collapse class="knowledge-test-panel__debug" :value="debugExpanded ? ['debug'] : []" @change="onDebugExpand">
-        <t-collapse-panel header="高级调试信息" value="debug">
-          <p class="knowledge-test-panel__muted">
-            检索调试用于核对命中过程，不生成回答，因此「回答」为空属于正常现象。
+    <template v-if="!isDebugMode">
+      <div v-if="result" class="knowledge-test-panel__result">
+        <section class="knowledge-test-panel__block">
+          <h3>AI 回答</h3>
+          <p v-if="!result.answer && sending" class="knowledge-test-panel__muted">
+            正在生成…
           </p>
-          <div class="knowledge-test-panel__debug-actions">
-            <t-button :disabled="debugLoading || !query.trim()" size="small" variant="outline" @click="runInspect">
-              重新运行检索调试
-            </t-button>
-          </div>
-          <t-loading v-if="debugLoading" text="正在检索调试" />
-          <t-alert
-            v-else-if="debugError"
-            theme="error"
-            :message="normalizeFeedbackError(debugError).message"
-          />
-          <template v-else-if="debugResult">
-            <t-descriptions bordered :column="2" size="small">
-              <t-descriptions-item label="任务类型">
-                {{ debugResult.taskType || '检索调试' }}
-              </t-descriptions-item>
-              <t-descriptions-item label="命中文段数">
-                {{ debugResult.retrievedChunks.length }}
-              </t-descriptions-item>
-              <t-descriptions-item label="命中热工行数">
-                {{ debugResult.matchedReferenceRows.length }}
-              </t-descriptions-item>
-              <t-descriptions-item label="引用页面数">
-                {{ debugResult.referencePages.length }}
-              </t-descriptions-item>
-            </t-descriptions>
+          <AppMarkdown v-else-if="result.answer" :content="result.answer" />
+          <p v-else class="knowledge-test-panel__muted">
+            未生成回答。请检查问题和资料内容后重试。
+          </p>
+        </section>
 
-            <h4 class="knowledge-test-panel__debug-title">
-              命中文段
-            </h4>
+        <section class="knowledge-test-panel__block">
+          <h3>回答依据</h3>
+          <t-tag theme="primary" variant="light">
+            {{ retrievalTypeLabel(result.retrievalType) }}
+          </t-tag>
+        </section>
+
+        <section v-if="result.referencePages.length" class="knowledge-test-panel__block">
+          <h3>匹配方案</h3>
+          <div class="knowledge-test-panel__schemes">
+            <article v-for="(block, index) in result.referencePages" :key="`${block.page.pageId}-${index}`" class="knowledge-test-panel__scheme">
+              <header>{{ matchSchemeLabel(block) }}</header>
+              <div class="knowledge-test-panel__scheme-meta">
+                <span>{{ block.page.documentTitle }}</span>
+                <em>{{ knowledgePageLabel(block.page.pageLabel, block.page.physicalPageNumber ?? block.page.pageNumber) }}</em>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section v-if="result.sources.length" class="knowledge-test-panel__block">
+          <h3>引用来源</h3>
+          <div class="knowledge-test-panel__sources">
+            <article v-for="(source, index) in result.sources" :key="`${source.documentId}-${index}`" class="knowledge-test-panel__source">
+              <header>
+                <strong>{{ source.title }}</strong>
+                <span>资料页码 {{ source.pageLabel || '—' }}</span>
+                <span>文件页序 {{ source.physicalPageNumber ?? '—' }}</span>
+              </header>
+              <blockquote v-if="source.matchedText">
+                {{ source.matchedText }}
+              </blockquote>
+              <t-button
+                v-if="source.pageImageUrl || (canViewOriginal && (source.pageId || (source.versionId && source.physicalPageNumber != null)))"
+                size="small"
+                theme="primary"
+                variant="text"
+                @click="openSource(source)"
+              >
+                查看来源原页
+              </t-button>
+              <span v-else-if="source.pageId || source.physicalPageNumber != null" class="knowledge-test-panel__muted">当前账号无原页查看权限</span>
+            </article>
+          </div>
+        </section>
+
+        <section v-if="result.referencePages.length" class="knowledge-test-panel__block">
+          <h3>原始页面</h3>
+          <div class="knowledge-test-panel__pages">
+            <figure
+              v-for="(block, index) in result.referencePages"
+              :key="`page-${block.page.pageId}-${index}`"
+              class="knowledge-test-panel__page"
+              role="button"
+              tabindex="0"
+              @click="openReferencePage(block)"
+              @keydown.enter="openReferencePage(block)"
+            >
+              <img
+                v-if="block.page.imageUrl"
+                :alt="knowledgePageLabel(block.page.pageLabel, block.page.physicalPageNumber)"
+                :src="block.page.imageUrl"
+                loading="lazy"
+              >
+              <div v-else class="knowledge-test-panel__page-empty">
+                暂无页面图
+              </div>
+              <figcaption>
+                {{ knowledgePageLabel(block.page.pageLabel, block.page.physicalPageNumber ?? block.page.pageNumber) }}
+              </figcaption>
+            </figure>
+          </div>
+        </section>
+      </div>
+    </template>
+
+    <template v-else>
+      <div class="knowledge-test-panel__result">
+        <t-loading v-if="debugLoading" text="正在检索调试" />
+        <t-alert
+          v-else-if="debugError"
+          theme="error"
+          :message="businessUserError(debugError)"
+        />
+        <template v-else-if="debugResult">
+          <t-descriptions bordered :column="2" size="small">
+            <t-descriptions-item label="任务类型">
+              {{ debugResult.taskType || '检索调试' }}
+            </t-descriptions-item>
+            <t-descriptions-item label="命中文段数">
+              {{ debugResult.retrievedChunks.length }}
+            </t-descriptions-item>
+            <t-descriptions-item label="命中热工行数">
+              {{ debugResult.matchedReferenceRows.length }}
+            </t-descriptions-item>
+            <t-descriptions-item label="引用页面数">
+              {{ debugResult.referencePages.length }}
+            </t-descriptions-item>
+          </t-descriptions>
+
+          <section class="knowledge-test-panel__block">
+            <h3>命中文段</h3>
             <div v-if="debugResult.retrievedChunks.length" class="knowledge-test-panel__chunks">
               <div v-for="(chunk, index) in debugResult.retrievedChunks" :key="`chunk-${index}`" class="knowledge-test-panel__chunk">
                 <strong>[{{ index + 1 }}] {{ chunk.pageLabel || chunk.physicalPageNumber || '未标注页码' }}</strong>
@@ -351,10 +387,10 @@ watch(() => props.versionId, () => clearResult())
             <p v-else class="knowledge-test-panel__muted">
               本次没有命中文段。
             </p>
+          </section>
 
-            <h4 class="knowledge-test-panel__debug-title">
-              命中热工行
-            </h4>
+          <section class="knowledge-test-panel__block">
+            <h3>命中热工行</h3>
             <div v-if="debugResult.matchedReferenceRows.length" class="knowledge-test-panel__chunks">
               <div v-for="row in debugResult.matchedReferenceRows" :key="row.id" class="knowledge-test-panel__chunk">
                 <strong>{{ row.sourcePageLabel || '—' }} · {{ row.thicknessMm }} mm</strong>
@@ -364,10 +400,22 @@ watch(() => props.versionId, () => clearResult())
             <p v-else class="knowledge-test-panel__muted">
               本次没有命中热工行。
             </p>
-          </template>
-        </t-collapse-panel>
-      </t-collapse>
-    </div>
+          </section>
+        </template>
+        <p v-else class="knowledge-test-panel__muted">
+          输入问题后点击「运行检索调试」，查看命中文段、热工行与引用页面。
+        </p>
+      </div>
+    </template>
+    <KnowledgeOriginalPageViewer
+      v-model:visible="viewerVisible"
+      :image-url="viewerPage.imageUrl"
+      :page-id="viewerPage.pageId"
+      :version-id="viewerPage.versionId"
+      :physical-page-number="viewerPage.physicalPageNumber"
+      :page-label="viewerPage.pageLabel"
+      :title="viewerPage.title"
+    />
   </section>
 </template>
 
@@ -375,8 +423,18 @@ watch(() => props.versionId, () => clearResult())
 .knowledge-test-panel {
   display: flex;
   flex-direction: column;
+  gap: var(--td-size-4);
+  padding: var(--td-size-5);
+  border: 1px solid var(--td-component-stroke);
+  border-radius: var(--vicp-radius);
+  background: var(--td-bg-color-secondarycontainer);
+}
+
+.knowledge-test-panel__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
   gap: 16px;
-  padding: 20px;
 }
 
 .knowledge-test-panel__header h2 {
@@ -410,10 +468,8 @@ watch(() => props.versionId, () => clearResult())
 }
 
 .knowledge-test-panel__block {
-  padding: 14px 16px;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: var(--td-radius-medium);
-  background: var(--td-bg-color-container);
+  padding: var(--td-size-4) 0;
+  border-top: 1px solid var(--td-component-stroke);
 }
 
 .knowledge-test-panel__block h3 {
@@ -432,9 +488,8 @@ watch(() => props.versionId, () => clearResult())
 .knowledge-test-panel__scheme,
 .knowledge-test-panel__source,
 .knowledge-test-panel__chunk {
-  padding: 10px 12px;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: var(--td-radius-medium);
+  padding: var(--td-size-3) 0;
+  border-bottom: 1px solid var(--td-component-stroke);
 }
 
 .knowledge-test-panel__scheme header,
@@ -498,18 +553,6 @@ watch(() => props.versionId, () => clearResult())
   padding: 8px 10px;
   color: var(--td-text-color-secondary);
   font-size: var(--td-font-size-body-small);
-}
-
-.knowledge-test-panel__debug-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin: 10px 0;
-}
-
-.knowledge-test-panel__debug-title {
-  margin: 16px 0 8px;
-  color: var(--td-text-color-primary);
-  font-size: var(--td-font-size-body-medium);
 }
 
 @media (max-width: 900px) {

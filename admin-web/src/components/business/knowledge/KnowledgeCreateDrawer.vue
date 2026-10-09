@@ -16,9 +16,9 @@ import AppFilePicker from '@/components/business/AppFilePicker.vue'
 import AppFilePreview from '@/components/business/AppFilePreview.vue'
 import AppFileUploader from '@/components/business/AppFileUploader.vue'
 import KnowledgeFileCard from '@/components/business/knowledge/KnowledgeFileCard.vue'
-import { normalizeFeedbackError } from '@/composables/useAppFeedback'
 import { knowledgeDocTypes } from '@/types/knowledge'
-import { knowledgeDocTypeLabels, knowledgeUserMessage } from '@/utils/knowledge-user'
+import { businessUserError } from '@/utils/business-error'
+import { knowledgeDocTypeLabels } from '@/utils/knowledge-user'
 
 const props = withDefaults(defineProps<{
   visible: boolean
@@ -170,7 +170,7 @@ async function submit(): Promise<void> {
     emit('update:visible', false)
   }
   catch (cause) {
-    MessagePlugin.error(knowledgeUserMessage(normalizeFeedbackError(cause).message))
+    MessagePlugin.error(businessUserError(cause))
   }
   finally {
     submitting.value = false
@@ -247,6 +247,7 @@ watch(
             <div class="knowledge-create__upload-actions">
               <AppFileUploader
                 v-model="uploaderFiles"
+                purpose="KNOWLEDGE_SOURCE"
                 accept=".pdf,.docx"
                 :draggable="false"
                 :max="1"

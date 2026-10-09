@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import AppTaskProgress from '@/components/business/AppTaskProgress.vue'
 import type { KnowledgeWorkspaceFile, KnowledgeWorkspaceLastJob } from '@/types/knowledge'
+import AppTaskProgress from '@/components/business/AppTaskProgress.vue'
 import { knowledgeParsingStageLabel } from '@/utils/knowledge-user'
 
 withDefaults(defineProps<{
@@ -9,7 +9,6 @@ withDefaults(defineProps<{
   file?: KnowledgeWorkspaceFile | null
   job?: KnowledgeWorkspaceLastJob | null
 }>(), {
-  progress: 0,
   stage: null,
   file: null,
   job: null,
@@ -25,7 +24,8 @@ withDefaults(defineProps<{
     <p class="knowledge-parse-status__lead">
       正在识别文档章节和内容
     </p>
-    <AppTaskProgress :progress="progress" theme="plump" />
+    <AppTaskProgress v-if="progress != null" :progress="progress" theme="plump" />
+    <p v-else>等待解析任务返回进度</p>
     <dl>
       <div>
         <dt>当前阶段</dt>

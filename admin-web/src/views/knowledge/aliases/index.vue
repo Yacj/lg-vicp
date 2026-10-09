@@ -1,29 +1,29 @@
 <script setup lang="ts">
 import type { PageInfo, PrimaryTableCol, TableRowData } from 'tdesign-vue-next'
+import type { AppTableAction } from '@/types/crud'
+import type { KnowledgeAlias, KnowledgeAliasInput, KnowledgeTermType } from '@/types/knowledge'
 import { AddIcon } from 'tdesign-icons-vue-next'
 import { computed, h, onMounted, reactive, ref } from 'vue'
-import AppCrudFormDialog from '@/components/business/AppCrudFormDialog.vue'
-import AppTableActions from '@/components/business/AppTableActions.vue'
-import AppDataTable from '@/components/ui/AppDataTable.vue'
-import AppPage from '@/components/ui/AppPage.vue'
-import AppSearchPanel from '@/components/ui/AppSearchPanel.vue'
-import { normalizeFeedbackError, useAppFeedback } from '@/composables/useAppFeedback'
-import { useConfirmedCrudAction } from '@/composables/useCrudActions'
-import { useCrudDrawer } from '@/composables/useCrudDrawer'
-import { usePermissionAccess } from '@/composables/usePermissionAccess'
 import {
   createKnowledgeAlias,
   deleteKnowledgeAlias,
   fetchKnowledgeAliases,
   updateKnowledgeAlias,
 } from '@/api/modules/knowledge'
-import type { AppTableAction } from '@/types/crud'
+import AppCrudFormDialog from '@/components/business/AppCrudFormDialog.vue'
+import AppTableActions from '@/components/business/AppTableActions.vue'
+import AppDataTable from '@/components/ui/AppDataTable.vue'
+import AppPage from '@/components/ui/AppPage.vue'
+import AppSearchPanel from '@/components/ui/AppSearchPanel.vue'
+import { useAppFeedback } from '@/composables/useAppFeedback'
+import { useConfirmedCrudAction } from '@/composables/useCrudActions'
+import { useCrudDrawer } from '@/composables/useCrudDrawer'
+import { usePermissionAccess } from '@/composables/usePermissionAccess'
 import {
+
   knowledgeTermTypes,
-  type KnowledgeAlias,
-  type KnowledgeAliasInput,
-  type KnowledgeTermType,
 } from '@/types/knowledge'
+import { businessUserError } from '@/utils/business-error'
 import { formatDate } from '@/utils/day'
 
 const { canAccess } = usePermissionAccess()
@@ -87,7 +87,7 @@ function onPageSizeChange(pageSize: number): void {
 
 const drawer = useCrudDrawer<KnowledgeAliasInput, KnowledgeAlias>({
   createForm: () => ({ term: '', alias: '', termType: 'KEYWORD', scope: 'GLOBAL' }),
-  editForm: (entity) => ({
+  editForm: entity => ({
     term: entity.term,
     alias: entity.alias,
     termType: entity.termType,
@@ -101,12 +101,16 @@ const drawer = useCrudDrawer<KnowledgeAliasInput, KnowledgeAlias>({
   },
   onSuccess: () => load(),
 })
+const scopeDisplay = computed({
+  get: () => drawer.formData.scope === 'GLOBAL' ? '全部资料' : drawer.formData.scope,
+  set: (value: string) => { drawer.formData.scope = value === '全部资料' ? 'GLOBAL' : value },
+})
 
 const deleteAction = useConfirmedCrudAction<KnowledgeAlias, unknown>({
   action: async (row) => {
     await deleteKnowledgeAlias(row.id)
   },
-  confirm: (row) => ({ title: '删除别名', content: `确定删除「${row.term} → ${row.alias}」？`, danger: true }),
+  confirm: row => ({ title: '删除别名', content: `确定删除「${row.term} → ${row.alias}」？`, danger: true }),
   successMessage: '已删除',
   onSuccess: () => load(),
 })
@@ -122,9 +126,7 @@ async function toggleEnabled(row: KnowledgeAlias): Promise<void> {
   }
 }
 
-const errorDescription = computed(() => error.value
-  ? normalizeFeedbackError(error.value).message
-  : '请检查网络连接后重试')
+const errorDescription = computed(() => businessUserError(error.value))
 
 const termTypeLabel: Record<KnowledgeTermType, string> = {
   KEYWORD: '关键词',
@@ -150,13 +152,17 @@ function getActions(row: TableRowData): AppTableAction[] {
   if (canEdit.value) {
     actions.push({ key: 'edit', label: '编辑', handler: () => drawer.openEdit(entity) })
     actions.push({
-      key: 'toggle', label: entity.enabled ? '停用' : '启用',
+      key: 'toggle',
+      label: entity.enabled ? '停用' : '启用',
       handler: () => void toggleEnabled(entity),
     })
   }
   if (canRemove.value) {
     actions.push({
-      key: 'remove', label: '删除', loading: deleteAction.running.value, theme: 'danger',
+      key: 'remove',
+      label: '删除',
+      loading: deleteAction.running.value,
+      theme: 'danger',
       handler: () => deleteAction.run(entity),
     })
   }
@@ -179,8 +185,8 @@ onMounted(load)
     <AppDataTable
       :columns="columns"
       :data="aliases"
-      empty-description="可新增第一个别名映射"
-      empty-title="暂无别名"
+      empty-description="点击“新增别名”，帮助问答找到不同叫法对应的资料。"
+      empty-title="还没有同义词"
       :error-description="errorDescription"
       :operations-width="180"
       row-key="id"
@@ -193,7 +199,9 @@ onMounted(load)
     >
       <template #toolbar>
         <t-button v-if="canAdd" theme="primary" @click="drawer.openCreate">
-          <template #icon><AddIcon /></template>
+          <template #icon>
+            <AddIcon />
+          </template>
           新增别名
         </t-button>
       </template>
@@ -209,7 +217,7 @@ onMounted(load)
       :submitting="drawer.isSubmitting.value"
       :title="drawer.mode.value === 'create' ? '新增别名' : '编辑别名'"
       :visible="drawer.visible.value"
-      :width="'min(560px, 92vw)'"
+      width="min(560px, 92vw)"
       @cancel="drawer.close"
       @submit="drawer.submit"
       @update:visible="drawer.setVisible"
@@ -226,8 +234,8 @@ onMounted(load)
           :options="knowledgeTermTypes.map((value) => ({ label: termTypeLabel[value], value }))"
         />
       </t-form-item>
-      <t-form-item label="作用域" name="scope">
-        <t-input v-model="drawer.formData.scope" maxlength="80" placeholder="GLOBAL 或项目/模块标识" />
+      <t-form-item label="适用范围" name="scope">
+        <t-input v-model="scopeDisplay" maxlength="80" placeholder="全部资料，或填写项目／模块编号" />
       </t-form-item>
     </AppCrudFormDialog>
   </AppPage>

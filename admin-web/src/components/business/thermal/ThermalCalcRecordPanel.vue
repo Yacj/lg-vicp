@@ -5,13 +5,20 @@ import type { ThermalCalcMode, ThermalCalcRecord, ThermalCalcRecordQuery } from 
 import { computed, ref, watch } from 'vue'
 import { fetchThermalCalcRecord, fetchThermalCalcRecords } from '@/api/modules/thermal'
 import AppTableActions from '@/components/business/AppTableActions.vue'
+import ThermalCalcResultCard from '@/components/business/thermal/ThermalCalcResultCard.vue'
+import ThermalDebugPanel from '@/components/business/thermal/ThermalDebugPanel.vue'
 import AppDataTable from '@/components/ui/AppDataTable.vue'
 import AppSearchPanel from '@/components/ui/AppSearchPanel.vue'
-import AppStatusTag from '@/components/ui/AppStatusTag.vue'
-import { normalizeFeedbackError } from '@/composables/useAppFeedback'
 import { useCrudList } from '@/composables/useCrudList'
 import { usePermissionAccess } from '@/composables/usePermissionAccess'
+import { businessUserError } from '@/utils/business-error'
 import { formatDate } from '@/utils/day'
+import {
+  THERMAL_CALC_MODE_OPTIONS,
+  thermalCalcEvidence,
+  thermalCalcModeLabel,
+  thermalCalcResultSummary,
+} from '@/utils/thermal-calc'
 import { buildThermalCalcPresentation } from '@/utils/thermal-presentation'
 
 /**
@@ -24,18 +31,10 @@ const props = defineProps<{
 
 const { canAccess } = usePermissionAccess()
 const canList = computed(() => canAccess({ permissions: ['system:thermal:list'] }))
+/** 高级调试：后端 system:thermal:* 无专用 debug 码，沿用知识库 debug 码门控（超管自动放行）。 */
+const canDebug = computed(() => canAccess({ permissions: ['system:knowledge:debug'] }))
 
-const modeOptions = [
-  { label: '图集查表', value: 'REFERENCE_TABLE' },
-  { label: '等效热阻', value: 'EQUIVALENT' },
-  { label: '分层计算', value: 'LAYERED' },
-]
-
-const modeLabels: Record<ThermalCalcMode, string> = {
-  REFERENCE_TABLE: '图集查表',
-  EQUIVALENT: '等效热阻',
-  LAYERED: '分层计算',
-}
+const modeOptions = THERMAL_CALC_MODE_OPTIONS
 
 const list = useCrudList<ThermalCalcRecord, ThermalCalcRecordQuery>({
   createQuery: () => ({ page: 1, pageSize: 20, keyword: '', status: '', mode: '', projectId: props.lockedProjectId ?? '' }),
@@ -62,6 +61,8 @@ watch(() => props.lockedProjectId, (value) => {
 
 const detailPresentation = computed(() =>
   detail.value ? buildThermalCalcPresentation(detail.value) : null)
+const detailSummary = computed(() => (detail.value ? thermalCalcResultSummary(detail.value) : null))
+const detailEvidence = computed(() => (detail.value ? thermalCalcEvidence(detail.value) : null))
 
 async function openDetail(row: ThermalCalcRecord): Promise<void> {
   detailVisible.value = true
@@ -75,26 +76,32 @@ async function openDetail(row: ThermalCalcRecord): Promise<void> {
   }
 }
 
-const errorDescription = computed(() => list.error.value
-  ? normalizeFeedbackError(list.error.value).message
-  : '请检查网络连接后重试')
+const errorDescription = computed(() => businessUserError(list.error.value))
 
+/** 列表结果摘要：双 R + K + 判定（来自冻结快照，不展示原始 JSON 键值）。 */
 function resultSummary(row: ThermalCalcRecord): string {
-  const result = row.result as Record<string, unknown> | null
-  if (!result) {
-    return '—'
-  }
+  const summary = thermalCalcResultSummary(row)
   const parts: string[] = []
-  for (const [key, value] of Object.entries(result)) {
-    if (typeof value === 'number' || typeof value === 'string' || typeof value === 'boolean') {
-      parts.push(`${key}: ${String(value)}`)
-    }
+  if (summary.productResistance != null) {
+    parts.push(`R=${summary.productResistance}`)
   }
-  return parts.slice(0, 3).join('；') || '—'
+  if (summary.totalResistance != null) {
+    parts.push(`R₀=${summary.totalResistance}`)
+  }
+  if (summary.kValue != null) {
+    parts.push(`K=${summary.kValue}`)
+  }
+  if (summary.compliant === true) {
+    parts.push('满足限值')
+  }
+  if (summary.compliant === false) {
+    parts.push('不满足限值')
+  }
+  return parts.length > 0 ? parts.join(' · ') : '—'
 }
 
 const columns: PrimaryTableCol<TableRowData>[] = [
-  { cell: (_, { row }) => modeLabels[row.mode as ThermalCalcMode] ?? row.mode, colKey: 'mode', minWidth: 100, title: '计算方式' },
+  { cell: (_, { row }) => thermalCalcModeLabel(row.mode as ThermalCalcMode), colKey: 'mode', minWidth: 100, title: '计算方式' },
   { cell: (_, { row }) => resultSummary(row as ThermalCalcRecord), colKey: 'result', minWidth: 280, title: '结果摘要' },
   { cell: (_, { row }) => row.ruleVersion == null ? '—' : `v${row.ruleVersion}`, colKey: 'ruleVersion', minWidth: 90, title: '规则版本' },
   { cell: (_, { row }) => row.limitVersion == null ? '—' : `v${row.limitVersion}`, colKey: 'limitVersion', minWidth: 90, title: '限值版本' },
@@ -108,15 +115,6 @@ function getActions(row: TableRowData): AppTableAction[] {
     actions.push({ key: 'detail', label: '查看详情', handler: () => void openDetail(entity) })
   }
   return actions
-}
-
-function formatJson(value: unknown): string {
-  try {
-    return JSON.stringify(value, null, 2)
-  }
-  catch {
-    return String(value)
-  }
 }
 </script>
 
@@ -163,34 +161,13 @@ function formatJson(value: unknown): string {
     >
       <t-loading :loading="detailLoading">
         <div v-if="detail" class="vicp-record">
-          <!-- 用户展示视图：结果 → 计算过程 → 构造分层 -->
-          <section class="vicp-record__section">
-            <h4>计算结果</h4>
-            <div v-if="detailPresentation && (detailPresentation.resultK !== null || detailPresentation.totalResistance !== null)" class="vicp-record__result">
-              <div v-if="detailPresentation.targetK !== null" class="vicp-record__result-item">
-                <span>目标 K</span>
-                <strong>≤ {{ detailPresentation.targetK }} W/(㎡·K)</strong>
-              </div>
-              <div v-if="detailPresentation.resultK !== null" class="vicp-record__result-item">
-                <span>结果 K</span>
-                <strong>{{ detailPresentation.resultK }} W/(㎡·K)</strong>
-              </div>
-              <div v-else-if="detailPresentation.totalResistance !== null" class="vicp-record__result-item">
-                <span>总热阻</span>
-                <strong>{{ detailPresentation.totalResistance }} (㎡·K)/W</strong>
-              </div>
-              <div v-if="detailPresentation.compliant !== null" class="vicp-record__result-item">
-                <span>状态</span>
-                <AppStatusTag
-                  :label="detailPresentation.compliant ? '满足要求' : '不满足要求'"
-                  :status="detailPresentation.compliant ? 'success' : 'error'"
-                />
-              </div>
-            </div>
-            <p v-if="detailPresentation?.standardLabel" class="vicp-record__basis">
-              依据：{{ detailPresentation.standardLabel }}
-            </p>
-          </section>
+          <!-- 用户展示视图：结果（双 R）→ 计算过程 → 构造分层 → 基本信息 → 高级调试 -->
+          <ThermalCalcResultCard
+            v-if="detailSummary && detailEvidence"
+            :evidence="detailEvidence"
+            :mode="detail.mode as ThermalCalcMode"
+            :summary="detailSummary"
+          />
 
           <t-collapse v-if="detailPresentation && detailPresentation.steps.length > 0" :default-value="['process']" class="vicp-record__collapse">
             <t-collapse-panel value="process" header="计算过程">
@@ -223,34 +200,15 @@ function formatJson(value: unknown): string {
             <h4>基本信息</h4>
             <dl>
               <div><dt>请求 ID</dt><dd>{{ detail.requestId ?? '—' }}</dd></div>
-              <div><dt>计算方式</dt><dd>{{ modeLabels[detail.mode as ThermalCalcMode] ?? detail.mode }}</dd></div>
+              <div><dt>计算方式</dt><dd>{{ thermalCalcModeLabel(detail.mode as ThermalCalcMode) }}</dd></div>
               <div><dt>规则版本</dt><dd>{{ detail.ruleVersion == null ? '—' : `v${detail.ruleVersion}` }}</dd></div>
               <div><dt>限值版本</dt><dd>{{ detail.limitVersion == null ? '—' : `v${detail.limitVersion}` }}</dd></div>
               <div><dt>计算时间</dt><dd>{{ formatDate(new Date(detail.createdAt)) }}</dd></div>
             </dl>
           </section>
 
-          <!-- 技术调试信息：原始快照 JSON，默认折叠，不面向业务人员 -->
-          <t-collapse class="vicp-record__collapse">
-            <t-collapse-panel value="debug" header="技术调试信息（原始快照）">
-              <section v-if="detail.input" class="vicp-record__debug-block">
-                <h5>输入</h5>
-                <pre class="vicp-record__json">{{ formatJson(detail.input) }}</pre>
-              </section>
-              <section v-if="detail.steps && detail.steps.length > 0" class="vicp-record__debug-block">
-                <h5>计算步骤快照</h5>
-                <pre class="vicp-record__json">{{ formatJson(detail.steps) }}</pre>
-              </section>
-              <section v-if="detail.formulas" class="vicp-record__debug-block">
-                <h5>公式</h5>
-                <pre class="vicp-record__json">{{ formatJson(detail.formulas) }}</pre>
-              </section>
-              <section class="vicp-record__debug-block">
-                <h5>结果</h5>
-                <pre class="vicp-record__json">{{ formatJson(detail.result) }}</pre>
-              </section>
-            </t-collapse-panel>
-          </t-collapse>
+          <!-- 技术调试信息：原始快照 JSON，仅 debug 权限可见，不面向业务人员 -->
+          <ThermalDebugPanel :can-debug="canDebug" :record="detail" />
         </div>
       </t-loading>
     </t-drawer>
@@ -271,37 +229,6 @@ function formatJson(value: unknown): string {
   min-width: 0;
   flex-direction: column;
   gap: var(--td-size-5);
-}
-
-.vicp-record__result {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--td-size-6);
-}
-
-.vicp-record__result-item {
-  display: flex;
-  min-width: 0;
-  align-items: baseline;
-  flex-direction: column;
-  gap: var(--td-size-1);
-}
-
-.vicp-record__result-item span {
-  color: var(--td-text-color-secondary);
-  font-size: var(--td-font-size-body-small);
-}
-
-.vicp-record__result-item strong {
-  color: var(--td-text-color-primary);
-  font-size: var(--td-font-size-title-medium);
-  font-weight: var(--td-font-weight-medium);
-}
-
-.vicp-record__basis {
-  margin: var(--td-size-3) 0 0;
-  color: var(--td-text-color-secondary);
-  font-size: var(--td-font-size-body-small);
 }
 
 .vicp-record__collapse {
@@ -355,17 +282,6 @@ function formatJson(value: unknown): string {
   font-weight: var(--td-font-weight-medium);
 }
 
-.vicp-record__debug-block + .vicp-record__debug-block {
-  margin-top: var(--td-size-4);
-}
-
-.vicp-record__debug-block h5 {
-  margin: 0 0 var(--td-size-2);
-  color: var(--td-text-color-secondary);
-  font-size: var(--td-font-size-body-small);
-  font-weight: var(--td-font-weight-medium);
-}
-
 .vicp-record__section h4 {
   margin: 0 0 var(--td-size-3);
   color: var(--td-text-color-primary);
@@ -400,20 +316,5 @@ function formatJson(value: unknown): string {
   text-overflow: ellipsis;
   word-break: break-all;
   white-space: nowrap;
-}
-
-.vicp-record__json {
-  max-height: 320px;
-  overflow: auto;
-  margin: 0;
-  padding: var(--td-size-3);
-  border-radius: var(--td-radius-small);
-  background: var(--td-bg-color-component);
-  color: var(--td-text-color-primary);
-  font-family: var(--td-font-family-mono);
-  font-size: var(--td-font-size-body-small);
-  line-height: 1.6;
-  white-space: pre-wrap;
-  word-break: break-all;
 }
 </style>

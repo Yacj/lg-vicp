@@ -267,11 +267,48 @@ export interface ThermalRowQuery {
 
 // ===== 候选方案查询（B 端试算与 AI 端共用同一契约） =====
 
+/** 热工指标（后端 THERMAL_LOOKUP_METRICS）：K 传热系数 / TOTAL_R 总热阻 / PRODUCT_R 产品层热阻。 */
+export const thermalLookupMetrics = ['K', 'TOTAL_R', 'PRODUCT_R'] as const
+export type ThermalLookupMetric = (typeof thermalLookupMetrics)[number]
+
+/** 指标匹配语义（后端 THERMAL_LOOKUP_MODES）。 */
+export const thermalLookupModes = ['APPROX', 'MAX_LIMIT', 'MIN_LIMIT', 'EXACT'] as const
+export type ThermalLookupMode = (typeof thermalLookupModes)[number]
+
+/** 单个热工指标条件；多个条件之间为 AND（后端 filters[]，1–12 条）。 */
+export interface ThermalLookupFilter {
+  metric: ThermalLookupMetric
+  targetValue: number
+  /** 缺省由后端按指标取默认语义（K 默认 MAX_LIMIT）。 */
+  mode?: ThermalLookupMode
+  /** APPROX/EXACT 有效；缺省用后端集中配置的业务默认值。 */
+  tolerance?: number
+}
+
+/** 候选查询响应的已归一化条件，容差来源由 Backend 给出。 */
+export interface ThermalNormalizedLookupFilter extends ThermalLookupFilter {
+  /** 查询响应中的后端归一化容差元信息。 */
+  toleranceSource?: 'USER' | 'DEFAULT'
+  requestedTolerance?: number
+  effectiveTolerance?: number
+  toleranceAdjusted?: boolean
+}
+
 export interface ThermalCandidateQuery {
+  /** 多指标条件（AND）；提供时优先于单指标与旧字段。 */
+  filters?: ThermalLookupFilter[]
+  metric?: ThermalLookupMetric
+  targetValue?: number
+  mode?: ThermalLookupMode
+  tolerance?: number
   regionCode?: string
   standardLimitId?: string
   buildingType?: string
   systemId?: string
+  schemeId?: string
+  schemeCode?: string
+  productSpecId?: string
+  catalogProductId?: string
   substrateMaterial?: string
   substrateThickness?: number
   specClass?: 'I' | 'II' | 'III'
@@ -279,7 +316,9 @@ export interface ThermalCandidateQuery {
   thicknessMm?: number
   thicknessMin?: number
   thicknessMax?: number
+  /** @deprecated 请使用 metric='K' + targetValue。 */
   targetK?: number
+  /** @deprecated 请使用 metric='TOTAL_R' + targetValue。 */
   targetResistance?: number
   neighborTolerance?: number
   asOfDate?: string
@@ -294,12 +333,17 @@ export interface ThermalCandidate {
   unmatchedConditions: string[]
   missingConditions: string[]
   compliant: boolean | null
-  ranking: { kGap: number, isClosestToTarget: boolean } | null
+  ranking?: { metric?: ThermalLookupMetric, metricGap?: number, kGap: number, isClosestToTarget: boolean }
   scheme: { id: string, code: string, version: number, substrateMaterial: string, substrateThickness: number | null, atlasPage: string | null }
   system: { id: string, code: string | null, name: string | null }
-  productSpec: { id: string, specCode: string, specVersion: number, specClass: 'I' | 'II' | 'III' }
+  productSpec: { id: string, specCode: string, specVersion: number, specClass: 'I' | 'II' | 'III' | null }
   set: { id: string, code: string, version: number, priority: number, buildingTypes: string[] }
   result: { thicknessMm: number, productThermalResistance: number, totalThermalResistance: number, kValue: number }
+  /** 来源资料与印刷页码（用于回溯原始页面）。 */
+  sourceDocumentId?: string | null
+  sourcePageId?: string | null
+  sourcePageLabel?: string | null
+  catalogProductId?: string | null
   evidence: { source: string, ref: string }
 }
 
@@ -315,11 +359,23 @@ export interface ThermalLimitSnapshot {
 }
 
 export interface ThermalCandidateQueryResult {
+  /** 实际生效的查询条件（回显）。 */
+  filters?: ThermalNormalizedLookupFilter[]
+  requestedTolerance?: number
+  effectiveTolerance?: number
+  toleranceAdjusted?: boolean
+  metric?: ThermalLookupMetric
+  targetValue?: number | null
+  tolerance?: number | null
   calculationSource: 'REFERENCE_TABLE'
+  /** 实际生效的匹配语义（确认「接近」与「上限」未被混淆）。 */
+  lookupMode?: ThermalLookupMode
+  kTolerance?: number | null
   candidates: ThermalCandidate[]
   missingConditions: string[]
   notes: string[]
   limit: ThermalLimitSnapshot | null
+  /** 多标准并存时非空：须由用户选择（standardLimitId）。 */
   limitCandidates: ThermalLimitSnapshot[] | null
 }
 

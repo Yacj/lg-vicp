@@ -12,7 +12,6 @@ import {
   knowledgeParsingStageLabel,
   knowledgeTextParsingMeta,
   knowledgeTocSourceLabel,
-  knowledgeUserMessage,
   knowledgeUserStatusMetaFor,
 } from './knowledge-user'
 
@@ -25,7 +24,7 @@ describe('knowledge-user labels', () => {
   })
 
   it('maps user statuses without exposing internal enums', () => {
-    expect(knowledgeUserStatusMetaFor('READY')).toMatchObject({ label: '可使用', usageLabel: '可以使用', status: 'success' })
+    expect(knowledgeUserStatusMetaFor('READY')).toMatchObject({ label: '内容已准备', usageLabel: '内容已准备', status: 'success' })
     expect(knowledgeUserStatusMetaFor('PARSING')).toMatchObject({ label: '解析中', usageLabel: '暂不可用' })
     expect(knowledgeUserStatusMetaFor('PARSE_FAILED')).toMatchObject({ label: '解析失败', usageLabel: '需要处理' })
     expect(knowledgeUserStatusMetaFor('SEARCHABLE_FILE_REQUIRED').label).toBe('需要补充可搜索文字')
@@ -116,9 +115,7 @@ describe('knowledge-user helpers', () => {
     expect(knowledgeFileKind('application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'a.docx')).toBe('Word')
   })
 
-  it('turns backend technical messages into user language', () => {
-    expect(knowledgeUserMessage('缺少 ORIGINAL 正式原文件，不能发布 AI 可引用版本')).toBe('还没有知识文件，不能发布给提问使用。')
-    expect(knowledgeUserMessage('原文件没有文本层且不存在 SEARCH_SOURCE 文本源，不能进入 AI 检索')).toBe('当前文件读不出文字，请先补充可搜索文字版本。')
+  it('maps toc sources to user language', () => {
     expect(knowledgeTocSourceLabel('PDF_BOOKMARK')).toBe('文件目录')
     expect(knowledgeTocSourceLabel('MANUAL')).toBe('人工添加')
   })

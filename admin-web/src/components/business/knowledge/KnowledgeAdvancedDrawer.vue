@@ -1,7 +1,13 @@
 <script setup lang="ts">
 import type { PageInfo, PrimaryTableCol, TableRowData } from 'tdesign-vue-next'
-import { computed, reactive, ref, watch } from 'vue'
+import type {
+  KnowledgeChunk,
+  KnowledgePage,
+  KnowledgePageMapping,
+  KnowledgeTocItem,
+} from '@/types/knowledge'
 import { MessagePlugin } from 'tdesign-vue-next'
+import { computed, reactive, ref, watch } from 'vue'
 import {
   deleteKnowledgeTocItem,
   fetchVersionChunks,
@@ -16,14 +22,7 @@ import KnowledgePageMappingTable from '@/components/business/KnowledgePageMappin
 import KnowledgePageView from '@/components/business/KnowledgePageView.vue'
 import KnowledgeTocEditor from '@/components/business/KnowledgeTocEditor.vue'
 import AppDataTable from '@/components/ui/AppDataTable.vue'
-import { normalizeFeedbackError } from '@/composables/useAppFeedback'
-import type {
-  KnowledgeChunk,
-  KnowledgePage,
-  KnowledgePageMapping,
-  KnowledgeTocItem,
-} from '@/types/knowledge'
-import { knowledgeUserMessage } from '@/utils/knowledge-user'
+import { businessUserError } from '@/utils/business-error'
 
 const props = defineProps<{
   visible: boolean
@@ -57,23 +56,41 @@ const chunkColumns: PrimaryTableCol<TableRowData>[] = [
 const resolvedMappings = computed(() => mappings.value)
 
 async function loadToc(): Promise<void> {
-  if (!props.versionId) return
+  if (!props.versionId) {
+    return
+  }
   tocLoading.value = true
-  try { tocItems.value = (await fetchVersionToc(props.versionId)).items }
-  catch { tocItems.value = [] }
-  finally { tocLoading.value = false }
+  try {
+    tocItems.value = (await fetchVersionToc(props.versionId)).items
+  }
+  catch {
+    tocItems.value = []
+  }
+  finally {
+    tocLoading.value = false
+  }
 }
 
 async function loadMappings(): Promise<void> {
-  if (!props.versionId) return
+  if (!props.versionId) {
+    return
+  }
   mappingLoading.value = true
-  try { mappings.value = (await fetchVersionPageMappings(props.versionId)).items }
-  catch { mappings.value = [] }
-  finally { mappingLoading.value = false }
+  try {
+    mappings.value = (await fetchVersionPageMappings(props.versionId)).items
+  }
+  catch {
+    mappings.value = []
+  }
+  finally {
+    mappingLoading.value = false
+  }
 }
 
 async function loadPages(): Promise<void> {
-  if (!props.versionId) return
+  if (!props.versionId) {
+    return
+  }
   pageLoading.value = true
   try {
     const result = await fetchVersionPageWindow(props.versionId, 1, 0, 8)
@@ -97,49 +114,71 @@ async function loadPages(): Promise<void> {
       createdAt: new Date().toISOString(),
     }]
   }
-  catch { pages.value = [] }
-  finally { pageLoading.value = false }
+  catch {
+    pages.value = []
+  }
+  finally {
+    pageLoading.value = false
+  }
 }
 
 async function loadChunks(): Promise<void> {
-  if (!props.versionId) return
+  if (!props.versionId) {
+    return
+  }
   chunksLoading.value = true
   try {
     const result = await fetchVersionChunks(props.versionId, chunkQuery.page, chunkQuery.pageSize)
     chunks.value = result.items
     chunkTotal.value = result.total
   }
-  catch { chunks.value = [] }
-  finally { chunksLoading.value = false }
+  catch {
+    chunks.value = []
+  }
+  finally {
+    chunksLoading.value = false
+  }
 }
 
 async function saveToc(items: KnowledgeTocItem[], confirm: boolean): Promise<void> {
-  if (!props.versionId) return
+  if (!props.versionId) {
+    return
+  }
   tocSaving.value = true
   try {
     await replaceVersionToc(props.versionId, items.map(({ id: _id, children: _children, status: _status, confidence: _confidence, ...item }) => item), confirm)
     await loadToc()
     MessagePlugin.success(confirm ? '章节已保存并确认' : '章节已保存')
   }
-  catch (cause) { MessagePlugin.error(knowledgeUserMessage(normalizeFeedbackError(cause).message)) }
-  finally { tocSaving.value = false }
+  catch (cause) {
+    MessagePlugin.error(businessUserError(cause))
+  }
+  finally {
+    tocSaving.value = false
+  }
 }
 
 async function autoMatch(): Promise<void> {
-  if (!props.versionId) return
+  if (!props.versionId) {
+    return
+  }
   try {
     await remapVersionToc(props.versionId)
     await loadToc()
     await loadMappings()
     MessagePlugin.success('已自动对上页码')
   }
-  catch (cause) { MessagePlugin.error(knowledgeUserMessage(normalizeFeedbackError(cause).message)) }
+  catch (cause) {
+    MessagePlugin.error(businessUserError(cause))
+  }
 }
 
 watch(
   () => [props.visible, props.versionId] as const,
   ([visible, versionId]) => {
-    if (!visible || !versionId) return
+    if (!visible || !versionId) {
+      return
+    }
     void loadToc()
     void loadMappings()
     void loadPages()

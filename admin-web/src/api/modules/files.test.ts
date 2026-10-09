@@ -62,6 +62,22 @@ describe('file api contracts', () => {
     })
   })
 
+  it('forwards purpose so knowledge files become READY without entering the parse queue', async () => {
+    await createUploadIntent({
+      purpose: 'KNOWLEDGE_SOURCE',
+      fileName: 'page-001.png',
+      mimeType: 'image/png',
+      sizeBytes: 2048,
+    })
+
+    expect(mockedApi.post).toHaveBeenCalledWith('/api/v1/files/upload-intents', {
+      purpose: 'KNOWLEDGE_SOURCE',
+      fileName: 'page-001.png',
+      mimeType: 'image/png',
+      sizeBytes: 2048,
+    })
+  })
+
   it('completes upload with the file id path', async () => {
     await completeFileUpload('file-1')
 

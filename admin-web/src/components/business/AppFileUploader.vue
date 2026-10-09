@@ -13,7 +13,7 @@ import { completeFileUpload, createUploadIntent, uploadFileToPresignedUrl } from
 import { normalizeFeedbackError } from '@/composables/useAppFeedback'
 import type { CompleteUploadResult } from '@/types/file'
 import { SUPPORTED_FILE_MIME_TYPES } from '@/types/file'
-import type { SupportedFileMimeType } from '@/types/file'
+import type { FilePurpose, SupportedFileMimeType } from '@/types/file'
 
 /**
  * 文件上传组件（预签名直传）：
@@ -23,10 +23,16 @@ import type { SupportedFileMimeType } from '@/types/file'
  * - 上传进度、取消上传、失败重试
  * - 上传完成（返回 fileId / taskId）
  * - 重复文件提示（同名文件过滤）
+ *
+ * 注意 purpose：缺省 GENERAL 会让文件在 complete 后进入文档解析队列（status=QUEUED），
+ * READY 需等解析完成。凡是「上传后立刻需要 READY 文件」的场景（知识库源文件 / 页图 / 文字版本等）
+ * 必须显式传 KNOWLEDGE_SOURCE，否则下游依赖 READY 的接口会报「文件尚未上传完成」。
  */
 const props = withDefaults(defineProps<{
   /** 关联项目（可选，用户级文件可不传）。 */
   projectId?: string
+  /** 文件用途（透传后端 upload-intents 的 purpose）。 */
+  purpose?: FilePurpose
   accept?: string
   allowedMimeTypes?: readonly string[]
   unsupportedTypeMessage?: string
@@ -40,6 +46,7 @@ const props = withDefaults(defineProps<{
   tips?: string
   placeholder?: string
 }>(), {
+  purpose: 'GENERAL',
   accept: '.pdf,.docx,.png,.jpg,.jpeg',
   allowedMimeTypes: () => [...SUPPORTED_FILE_MIME_TYPES],
   unsupportedTypeMessage: '暂不支持该文件类型，仅支持 PDF、Word（.docx）、PNG、JPG、SVG',
@@ -134,6 +141,7 @@ async function uploadOne(uploadFile: UploadFile): Promise<CompleteUploadResult> 
   try {
     const sha256 = await computeSha256(raw)
     const intent = await createUploadIntent({
+      purpose: props.purpose,
       fileName: raw.name,
       mimeType: raw.type as SupportedFileMimeType,
       projectId: props.projectId,

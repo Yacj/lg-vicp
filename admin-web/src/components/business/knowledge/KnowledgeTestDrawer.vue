@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import type { KnowledgeQaSource, KnowledgeQaSseEvent, KnowledgeUserTestSource } from '@/types/knowledge'
 import { MessagePlugin } from 'tdesign-vue-next'
+import { computed, ref, watch } from 'vue'
 import { postKnowledgeVersionTestQa } from '@/api/modules/knowledge'
 import AppMarkdown from '@/components/ui/AppMarkdown.vue'
-import { normalizeFeedbackError } from '@/composables/useAppFeedback'
-import type { KnowledgeQaSource, KnowledgeQaSseEvent, KnowledgeUserTestSource } from '@/types/knowledge'
-import { knowledgePageLabel, knowledgeUserMessage } from '@/utils/knowledge-user'
+import { businessUserError } from '@/utils/business-error'
+import { knowledgePageLabel } from '@/utils/knowledge-user'
 
 interface TestMessage {
   role: 'user' | 'assistant'
@@ -102,10 +102,10 @@ async function send(): Promise<void> {
   }
   catch (cause) {
     if (!controller.signal.aborted) {
-      MessagePlugin.error(knowledgeUserMessage(normalizeFeedbackError(cause).message))
+      MessagePlugin.error(businessUserError(cause))
       const current = messages.value[assistantIndex]
       if (current && !current.content) {
-        current.content = knowledgeUserMessage(normalizeFeedbackError(cause).message)
+        current.content = businessUserError(cause)
       }
     }
   }

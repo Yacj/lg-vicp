@@ -1,9 +1,14 @@
 import type { ThermalCalcMode, ThermalCalcRecord } from '@/types/thermal'
 
+/**
+ * 计算模式展示文案（单一事实源）。
+ * 与后端 enum REFERENCE_TABLE / EQUIVALENT / LAYERED 一一对应；
+ * EQUIVALENT 后端语义为「整体当量法」，不得在别处另起「当量导热 / 等效热阻」等别名。
+ */
 export const THERMAL_CALC_MODE_OPTIONS: Array<{ label: string, value: ThermalCalcMode }> = [
-  { label: '图集查表', value: 'REFERENCE_TABLE' },
-  { label: '当量导热', value: 'EQUIVALENT' },
-  { label: '分层计算', value: 'LAYERED' },
+  { label: '参考构造', value: 'REFERENCE_TABLE' },
+  { label: '等效热阻计算', value: 'EQUIVALENT' },
+  { label: '分层构造计算', value: 'LAYERED' },
 ]
 
 export function thermalCalcModeLabel(mode: ThermalCalcMode): string {
@@ -23,6 +28,10 @@ function asNumber(value: unknown): number | null {
     return Number.isFinite(parsed) ? parsed : null
   }
   return null
+}
+
+function asText(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() !== '' ? value : null
 }
 
 /** 从后端快照读取结论，不在前端重算。 */
@@ -60,6 +69,44 @@ export function thermalCalcFormulaLines(record: ThermalCalcRecord): Array<{ key:
   }))
 }
 
+/**
+ * 图集查表命中行（后端 REFERENCE_TABLE 快照 result.candidates[]）。
+ * 后端已按参考集 priority 排序，前端不重排、不插值。
+ */
+export interface ThermalCalcReferenceCandidate {
+  setId: string | null
+  setCode: string | null
+  setVersion: number | null
+  thicknessMm: number | null
+  /** 产品层热阻 R（快照无独立舍入字段，直接取原值） */
+  productThermalResistance: number | null
+  /** 总热阻 R₀（优先取舍入值） */
+  totalThermalResistance: number | null
+  /** 传热系数 K（优先取舍入值） */
+  kValue: number | null
+  compliant: boolean | null
+  evidenceSource: string | null
+  evidenceRef: string | null
+  evidenceLevel: string | null
+}
+
+export function thermalCalcReferenceCandidates(record: ThermalCalcRecord): ThermalCalcReferenceCandidate[] {
+  const result = asRecord(record.result)
+  return (Array.isArray(result.candidates) ? result.candidates : []).map(asRecord).map(item => ({
+    setId: asText(item.setId),
+    setCode: asText(item.setCode),
+    setVersion: asNumber(item.setVersion),
+    thicknessMm: asNumber(item.thicknessMm),
+    productThermalResistance: asNumber(item.productThermalResistance),
+    totalThermalResistance: asNumber(item.totalThermalResistanceRounded) ?? asNumber(item.totalThermalResistance),
+    kValue: asNumber(item.kValueRounded) ?? asNumber(item.kValue),
+    compliant: typeof item.compliant === 'boolean' ? item.compliant : null,
+    evidenceSource: asText(item.evidenceSource),
+    evidenceRef: asText(item.evidenceRef),
+    evidenceLevel: asText(item.evidenceLevel),
+  }))
+}
+
 export interface ThermalCalcResultSummary {
   productResistance: number | null
   totalResistance: number | null
@@ -69,19 +116,20 @@ export interface ThermalCalcResultSummary {
   thicknessMm: number | null
   interiorSurfaceResistance: number | null
   exteriorSurfaceResistance: number | null
+  ruleCode: string | null
   ruleName: string | null
   ruleUsage: string | null
   standardName: string | null
   standardClause: string | null
-}
-
-function asText(value: unknown): string | null {
-  return typeof value === 'string' && value.trim() !== '' ? value : null
+  /** 图集查表命中参考行数；非查表模式为 0 */
+  candidateCount: number
 }
 
 /**
  * 从后端计算快照读取业务结果，不在前端重算。
- * 结果主视图展示总热阻 / 传热系数 / 限值 / 是否满足 / 使用规则，raw JSON 仅作技术详情。
+ * 结果主视图展示双 R（产品层热阻 R / 总热阻 R₀）/ 传热系数 K / 限值 / 是否满足 / 使用规则，
+ * raw JSON 仅作技术详情。
+ * REFERENCE_TABLE 快照没有顶层数值，结果只存在于 result.candidates[]（取排序后的首条为主视图）。
  */
 export function thermalCalcResultSummary(record: ThermalCalcRecord): ThermalCalcResultSummary {
   const result = asRecord(record.result)
@@ -89,20 +137,67 @@ export function thermalCalcResultSummary(record: ThermalCalcRecord): ThermalCalc
   const standard = asRecord(record.standard)
   const input = asRecord(record.input)
   const compliant = typeof result.compliant === 'boolean' ? result.compliant : null
+  const candidates = thermalCalcReferenceCandidates(record)
+  const primary = candidates[0] ?? null
   return {
-    productResistance: asNumber(result.productResistanceRounded) ?? asNumber(result.productResistance),
-    totalResistance: asNumber(result.totalResistanceRounded) ?? asNumber(result.totalResistance),
-    kValue: asNumber(result.kValueRounded) ?? asNumber(result.kValue),
-    limitKValue: asNumber(result.limitKValue),
-    compliant,
-    thicknessMm: asNumber(input.thicknessMm),
+    productResistance: asNumber(result.productResistanceRounded)
+      ?? asNumber(result.productResistance)
+      ?? primary?.productThermalResistance
+      ?? null,
+    totalResistance: asNumber(result.totalResistanceRounded)
+      ?? asNumber(result.totalResistance)
+      ?? primary?.totalThermalResistance
+      ?? null,
+    kValue: asNumber(result.kValueRounded) ?? asNumber(result.kValue) ?? primary?.kValue ?? null,
+    limitKValue: asNumber(result.limitKValue) ?? asNumber(standard.limitKValue),
+    compliant: compliant ?? primary?.compliant ?? null,
+    thicknessMm: asNumber(input.thicknessMm) ?? primary?.thicknessMm ?? null,
     interiorSurfaceResistance: asNumber(rule.interiorSurfaceResistance),
     exteriorSurfaceResistance: asNumber(rule.exteriorSurfaceResistance),
+    ruleCode: asText(rule.code),
     ruleName: asText(rule.name),
     ruleUsage: asText(rule.usage),
     standardName: asText(standard.basisName) ?? asText(standard.regionName),
     standardClause: asText(standard.clauseRef),
+    candidateCount: candidates.length,
   }
+}
+
+/** 结果依据与来源回溯（图集证据优先，其次计算规则/标准限值快照）。 */
+export interface ThermalCalcEvidence {
+  /** 依据来源（图集证据来源 / 标准名称 / 规则证据来源） */
+  source: string | null
+  /** 依据编号（图集证据编号 / 标准条文 / 规则证据编号） */
+  ref: string | null
+  /** 证据等级（A/B/C/D） */
+  level: string | null
+  ruleCode: string | null
+  ruleVersion: number | null
+  limitVersion: number | null
+  /** 图集查表命中参考行数 */
+  candidateCount: number
+}
+
+export function thermalCalcEvidence(record: ThermalCalcRecord): ThermalCalcEvidence {
+  const rule = asRecord(record.rule)
+  const standard = asRecord(record.standard)
+  const candidates = thermalCalcReferenceCandidates(record)
+  const primary = candidates[0] ?? null
+  return {
+    source: primary?.evidenceSource ?? asText(standard.basisName) ?? asText(rule.evidenceSource),
+    ref: primary?.evidenceRef ?? asText(standard.clauseRef) ?? asText(rule.evidenceRef),
+    level: primary?.evidenceLevel ?? asText(standard.evidenceLevel) ?? asText(rule.evidenceLevel),
+    ruleCode: asText(rule.code),
+    ruleVersion: asNumber(rule.version) ?? record.ruleVersion,
+    limitVersion: asNumber(standard.version) ?? record.limitVersion,
+    candidateCount: candidates.length,
+  }
+}
+
+/** 依据展示文本（如「DB11/891 · 3.3.1」），无依据时返回 null。 */
+export function thermalCalcEvidenceLabel(evidence: ThermalCalcEvidence): string | null {
+  const parts = [evidence.source, evidence.ref].filter((item): item is string => Boolean(item))
+  return parts.length > 0 ? parts.join(' · ') : null
 }
 
 export interface ThermalCalcLayerRow {

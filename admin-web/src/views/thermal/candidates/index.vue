@@ -19,17 +19,26 @@ function queryText(name: string): string | undefined {
 
 const defaultRegionCode = computed(() => queryText('regionCode'))
 const defaultSubstrateMaterial = computed(() => queryText('substrateMaterial'))
+const defaultSchemeId = computed(() => queryText('schemeId'))
+const defaultProductSpecId = computed(() => queryText('productSpecId'))
+const defaultThicknessMm = computed(() => {
+  const value = Number(queryText('thicknessMm'))
+  return Number.isFinite(value) && value > 0 && value <= 1000 ? value : undefined
+})
 </script>
 
 <template>
   <AppPage
-    title="候选方案试算"
-    description="按图集参考表查询满足条件的保温构造候选方案；系统会标记最接近目标 K 值的方案，全部候选平等展示，可核对每条方案的图集依据。"
+    description="查询已发布图集参考值。可组合热工指标、厚度和构造规格条件；接近候选仅供比较，不代表符合硬条件。"
+    title="参考方案查询"
   >
     <ThermalCandidatePanel
-      :key="`${defaultRegionCode ?? ''}-${defaultSubstrateMaterial ?? ''}`"
+      :key="`${defaultRegionCode ?? ''}-${defaultSubstrateMaterial ?? ''}-${defaultSchemeId ?? ''}-${defaultProductSpecId ?? ''}-${defaultThicknessMm ?? ''}`"
       :default-region-code="defaultRegionCode"
       :default-substrate-material="defaultSubstrateMaterial"
+      :default-scheme-id="defaultSchemeId"
+      :default-product-spec-id="defaultProductSpecId"
+      :default-thickness-mm="defaultThicknessMm"
     />
   </AppPage>
 </template>

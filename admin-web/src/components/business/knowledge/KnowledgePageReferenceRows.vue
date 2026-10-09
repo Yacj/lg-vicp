@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import type { PrimaryTableCol, TableRowData } from 'tdesign-vue-next'
+import type { ConstructionScheme, InsulationSystem } from '@/types/construction'
+import type { ProductSeries, ProductSpec } from '@/types/masterdata'
+import type { ThermalRow } from '@/types/thermal'
 import { onMounted, ref, watch } from 'vue'
 import { fetchConstructionSchemes, fetchInsulationSystems } from '@/api/modules/construction'
 import { fetchPageReferenceRows } from '@/api/modules/knowledge'
 import { fetchProductSeries, fetchPublishedProductSpecs } from '@/api/modules/masterdata'
 import { fetchThermalSetRows } from '@/api/modules/thermal'
-import { normalizeFeedbackError } from '@/composables/useAppFeedback'
-import type { ConstructionScheme, InsulationSystem } from '@/types/construction'
-import type { ProductSeries, ProductSpec } from '@/types/masterdata'
-import type { ThermalRow } from '@/types/thermal'
+import { businessUserError } from '@/utils/business-error'
 
 /**
  * 知识页面已关联的热工参考方案（只读结构化投影）。
@@ -62,7 +62,9 @@ async function load(): Promise<void> {
     const rowMap = new Map<string, ThermalRow>()
     const setRows = await Promise.all(setIds.map(setId => loadDictionary(() => fetchThermalSetRows(setId, { page: 1, pageSize: 100 }))))
     for (const rows of setRows) {
-      for (const row of rows) rowMap.set(row.id, row)
+      for (const row of rows) {
+        rowMap.set(row.id, row)
+      }
     }
     const [schemes, systems, specs, series] = await Promise.all([
       loadDictionary<ConstructionScheme>(() => fetchConstructionSchemes({ page: 1, pageSize: 100 })),
@@ -120,7 +122,7 @@ const columns: PrimaryTableCol<TableRowData>[] = [
       <h3>关联参考方案</h3>
     </header>
     <t-loading v-if="loading" text="正在加载参考方案" />
-    <t-alert v-else-if="error" theme="error" :message="normalizeFeedbackError(error).message" closeable @close="load" />
+    <t-alert v-else-if="error" theme="error" :message="businessUserError(error)" closeable @close="load" />
     <t-table
       v-else-if="items.length"
       :columns="columns"
@@ -130,7 +132,9 @@ const columns: PrimaryTableCol<TableRowData>[] = [
       size="small"
       :pagination="undefined"
     />
-    <p v-else class="page-reference-rows__empty">当前页面未关联参考方案</p>
+    <p v-else class="page-reference-rows__empty">
+      当前页面未关联参考方案
+    </p>
   </section>
 </template>
 

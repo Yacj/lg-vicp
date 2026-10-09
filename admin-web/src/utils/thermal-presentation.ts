@@ -1,4 +1,10 @@
-import type { ThermalCalcMode, ThermalCalcRecord } from '@/types/thermal'
+import type {
+  ThermalCalcMode,
+  ThermalCalcRecord,
+  ThermalLookupFilter,
+  ThermalLookupMetric,
+  ThermalLookupMode,
+} from '@/types/thermal'
 
 /**
  * 热工计算「用户展示视图」纯投影：
@@ -57,10 +63,10 @@ function asString(value: unknown): string | null {
 /** 展示单位按确定性 key 映射（与后端 thermal-calc-presentation 同口径，不猜测数值） */
 function stepUnit(key: string): string | null {
   if (key === 'k_value') {
-    return 'W/(㎡·K)'
+    return 'W/(m²·K)'
   }
   if (key === 'total_resistance' || key.startsWith('layer_') || key.startsWith('product_')) {
-    return '(㎡·K)/W'
+    return 'm²·K/W'
   }
   return null
 }
@@ -119,4 +125,52 @@ export interface ThermalCandidateRanking {
  */
 export function closestThermalCandidateIds<T extends ThermalCandidateRanking>(candidates: readonly T[]): Set<string> {
   return new Set(candidates.filter(item => item.ranking?.isClosestToTarget === true).map(item => item.candidateId))
+}
+
+// ===== 查询条件文案（指标 / 匹配语义 / 条件摘要单一事实源） =====
+
+export const THERMAL_LOOKUP_METRIC_OPTIONS: Array<{ label: string, value: ThermalLookupMetric }> = [
+  { label: '传热系数 K', value: 'K' },
+  { label: '总热阻 R₀', value: 'TOTAL_R' },
+  { label: '产品层热阻 R', value: 'PRODUCT_R' },
+]
+
+export const THERMAL_LOOKUP_MODE_OPTIONS: Array<{ label: string, value: ThermalLookupMode }> = [
+  { label: '接近', value: 'APPROX' },
+  { label: '不超过', value: 'MAX_LIMIT' },
+  { label: '不低于', value: 'MIN_LIMIT' },
+  { label: '等于', value: 'EXACT' },
+]
+
+/** 各指标的单位（仅用于展示，不参与计算）。 */
+export const THERMAL_LOOKUP_METRIC_UNITS: Record<ThermalLookupMetric, string> = {
+  K: 'W/(m²·K)',
+  TOTAL_R: 'm²·K/W',
+  PRODUCT_R: 'm²·K/W',
+}
+
+export function thermalLookupMetricLabel(metric: ThermalLookupMetric | undefined): string {
+  return THERMAL_LOOKUP_METRIC_OPTIONS.find(item => item.value === metric)?.label ?? (metric ?? '指标')
+}
+
+export function thermalLookupModeLabel(mode: ThermalLookupMode | undefined): string {
+  return THERMAL_LOOKUP_MODE_OPTIONS.find(item => item.value === mode)?.label ?? '不超过'
+}
+
+export function thermalLookupMetricUnit(metric: ThermalLookupMetric | undefined): string {
+  return metric ? THERMAL_LOOKUP_METRIC_UNITS[metric] : ''
+}
+
+/** 单条条件文本，如「传热系数 K 不超过 0.30 W/(m²·K)」。 */
+export function thermalLookupConditionText(filter: ThermalLookupFilter): string {
+  const unit = thermalLookupMetricUnit(filter.metric)
+  return `${thermalLookupMetricLabel(filter.metric)} ${thermalLookupModeLabel(filter.mode)} ${filter.targetValue}${unit ? ` ${unit}` : ''}`
+}
+
+/** 多条条件以「且」连接；空数组返回未指定提示。 */
+export function thermalLookupConditionSummary(filters: readonly ThermalLookupFilter[]): string {
+  if (filters.length === 0) {
+    return '未指定热工指标条件'
+  }
+  return filters.map(thermalLookupConditionText).join(' 且 ')
 }

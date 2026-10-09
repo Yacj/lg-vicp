@@ -1,14 +1,12 @@
-<script lang="ts">
-export type ThermalWorkspaceTabKey = 'sets' | 'calc-rules'
-</script>
-
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import AppPage from '@/components/ui/AppPage.vue'
-import AppWorkspaceTabs from '@/components/ui/AppWorkspaceTabs.vue'
 import ThermalCalcRulePanel from '@/components/business/thermal/ThermalCalcRulePanel.vue'
 import ThermalSetPanel from '@/components/business/thermal/ThermalSetPanel.vue'
+import AppPage from '@/components/ui/AppPage.vue'
+import AppWorkspaceTabs from '@/components/ui/AppWorkspaceTabs.vue'
 import { usePermissionAccess } from '@/composables/usePermissionAccess'
+
+type ThermalWorkspaceTabKey = 'sets' | 'calc-rules'
 
 /**
  * 热工数据工作区：聚合 [图集热工表] [计算规则] 两个 Tab。
@@ -31,7 +29,7 @@ const tabs = computed(() => canList.value
 const activeTab = ref<ThermalWorkspaceTabKey>(props.initialTab ?? 'sets')
 
 watch(tabs, (value) => {
-  if (value.length > 0 && !value.some((tab) => tab.key === activeTab.value)) {
+  if (value.length > 0 && !value.some(tab => tab.key === activeTab.value)) {
     activeTab.value = value[0]!.key
   }
 }, { immediate: true })

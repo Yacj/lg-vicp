@@ -465,6 +465,38 @@ describe('dynamic menu projection', () => {
     expect(projection.routes.some(route => route.path === '/knowledge/crawlers')).toBe(true)
   })
 
+  it('shows provider management in AI 配置 when the backend grants its menu', () => {
+    const projection = projectDynamicMenus([
+      menu({
+        children: [
+          menu({
+            component: 'ai-config/providers/index',
+            id: 'ai-providers',
+            name: '服务商管理',
+            parentId: 'ai-config',
+            permissionCode: 'system:ai:provider:list',
+            routePath: '/ai-config/providers',
+          }),
+          menu({
+            component: 'ai-config/models/index',
+            id: 'ai-models',
+            name: '模型管理',
+            parentId: 'ai-config',
+            permissionCode: 'system:ai:model:list',
+            routePath: '/ai-config/models',
+          }),
+        ],
+        id: 'ai-config',
+        menuType: 'DIRECTORY',
+        name: 'AI 配置',
+        routePath: '/ai-config',
+      }),
+    ])
+
+    expect(projection.sidebarMenus[0]?.children.map(item => item.title)).toEqual(['服务商管理', '模型配置'])
+    expect(projection.sidebarMenus[0]?.children[0]?.path).toBe('/ai-config/providers')
+  })
+
   it('keeps product management, thermal calc and compare as 产品与计算 children', () => {
     const projection = projectDynamicMenus([
       menu({

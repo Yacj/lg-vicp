@@ -5,8 +5,8 @@ import { TimeIcon } from 'tdesign-icons-vue-next'
 import { ref } from 'vue'
 import { AppEmptyState, AppStatusTag } from '@/components/ui'
 import AppWorkspaceTabs from '@/components/ui/AppWorkspaceTabs.vue'
+import { businessUserMessage } from '@/utils/business-error'
 import { formatDate } from '@/utils/day'
-import { knowledgeUserMessage } from '@/utils/knowledge-user'
 import { getReportTypeLabel, reportStateMeta } from '@/utils/report'
 
 const props = defineProps<{
@@ -108,7 +108,7 @@ const tabs = [
                   <span class="dashboard-line-item__main is-static">
                     <strong>{{ job.document?.title || '未命名知识库' }}</strong>
                     <span class="dashboard-line-item__meta">
-                      {{ JOB_TYPE_LABELS[job.jobType] }} · {{ knowledgeUserMessage(job.errorMessage || '解析失败') }}
+                      {{ JOB_TYPE_LABELS[job.jobType] }} · {{ businessUserMessage(job.errorMessage || '解析失败') }}
                     </span>
                   </span>
                   <span class="dashboard-line-item__time">

@@ -5,6 +5,7 @@ import type {
   KnowledgeAliasInput,
   KnowledgeAliasQuery,
   KnowledgeAssetRole,
+  KnowledgeBatchPageUploadResult,
   KnowledgeCategory,
   KnowledgeCategoryInput,
   KnowledgeChapterTreeResult,
@@ -56,6 +57,7 @@ import type {
   KnowledgeVersionTestQaRequest,
   KnowledgeVersionTocResult,
   KnowledgeWorkspace,
+  KnowledgeZipImportResult,
   MutationMessageResponse,
   PageRecognitionConfirmResult,
   PageRecognitionResult,
@@ -72,6 +74,8 @@ import { HttpRequestError } from '@/types/error'
 
 const KNOWLEDGE_PREFIX = '/api/v1/platform/knowledge'
 const AI_PREFIX = '/api/v1/ai'
+/** 页面导入由服务端同步保存；网关的 API 等待上限为 300 秒。 */
+const PAGE_IMPORT_TIMEOUT_MS = 240_000
 
 function resourcePath(resource: string, id: string): string {
   return `${KNOWLEDGE_PREFIX}/${resource}/${encodeURIComponent(id)}`
@@ -107,8 +111,15 @@ export function fetchKnowledgeDocuments(
   return api.get<PageResult<KnowledgeDocument>>(`${KNOWLEDGE_PREFIX}/documents`, { params: query, signal })
 }
 
-export function createKnowledgeDocument(input: KnowledgeDocumentInput): Promise<{ document: KnowledgeDocument }> {
-  return api.post<{ document: KnowledgeDocument }>(`${KNOWLEDGE_PREFIX}/documents`, input)
+export function createKnowledgeDocument(input: KnowledgeDocumentInput): Promise<{
+  document: KnowledgeDocument
+  version: KnowledgeDocumentVersion
+  documentId: string
+  versionId: string
+  versionStatus: KnowledgeDocumentVersion['status']
+  currentVersionId: string | null
+}> {
+  return api.post(`${KNOWLEDGE_PREFIX}/documents`, input)
 }
 
 export function createKnowledgeWithFile(input: KnowledgeCreateWithFileInput): Promise<KnowledgeCreateWithFileResult> {
@@ -165,10 +176,11 @@ export function completeKnowledgeUpload(
   fileId: string,
   assetRole?: KnowledgeAssetRole,
 ): Promise<MutationMessageResponse> {
-  return api.post<MutationMessageResponse>(
-    `${KNOWLEDGE_PREFIX}/versions/${encodeURIComponent(versionId)}/upload-complete`,
-    { fileId, ...(assetRole ? { assetRole } : {}) },
-  )
+  const url = `${KNOWLEDGE_PREFIX}/versions/${encodeURIComponent(versionId)}/upload-complete`
+  const body = { fileId, ...(assetRole ? { assetRole } : {}) }
+  return assetRole === 'PREVIEW'
+    ? api.post<MutationMessageResponse>(url, body, { timeout: PAGE_IMPORT_TIMEOUT_MS })
+    : api.post<MutationMessageResponse>(url, body)
 }
 
 export async function bindKnowledgeSearchSource(
@@ -404,12 +416,36 @@ export interface KnowledgeBatchPageUploadItem {
   pageTitle?: string | null
 }
 
+/**
+ * 批量上传离线页面 PNG/JPG（POST /versions/:versionId/pages/batch-upload）。
+ * 默认 enqueueRecognition=true：上传成功后由后端直接入识别队列，普通用户无需再手动触发识别。
+ */
 export function batchUploadVersionPages(
   versionId: string,
   items: KnowledgeBatchPageUploadItem[],
-  enqueueRecognition = false,
-): Promise<{ pageCount: number, items: Array<{ pageId: string, physicalPageNumber: number, pageLabel: string | null, created: boolean, warnings: string[] }> }> {
-  return api.post(`${KNOWLEDGE_PREFIX}/versions/${encodeURIComponent(versionId)}/pages/batch-upload`, { items, enqueueRecognition })
+  enqueueRecognition = true,
+): Promise<KnowledgeBatchPageUploadResult> {
+  return api.post<KnowledgeBatchPageUploadResult>(
+    `${KNOWLEDGE_PREFIX}/versions/${encodeURIComponent(versionId)}/pages/batch-upload`,
+    { items, enqueueRecognition },
+    { timeout: PAGE_IMPORT_TIMEOUT_MS },
+  )
+}
+
+/**
+ * ZIP 批量导入页面图片（POST /versions/:versionId/pages/import-zip）。
+ * ZIP 由后端解包（含 zip bomb / 路径穿越 / manifest / 自然排序校验），前端只负责上传与展示结果。
+ * 识别异步入队，进度轮询 GET /versions/:versionId/pages 的 pageRecognitionSummary。
+ */
+export function importVersionPagesFromZip(
+  versionId: string,
+  input: { zipFileId: string, enqueueRecognition?: boolean },
+): Promise<KnowledgeZipImportResult> {
+  return api.post<KnowledgeZipImportResult>(
+    `${KNOWLEDGE_PREFIX}/versions/${encodeURIComponent(versionId)}/pages/import-zip`,
+    input,
+    { timeout: PAGE_IMPORT_TIMEOUT_MS },
+  )
 }
 
 export function recognizeKnowledgePage(pageId: string, reRecognize = false): Promise<{ jobId?: string, message?: string }> {
@@ -430,7 +466,7 @@ export function saveKnowledgePageRecognitionDraft(
 
 export function confirmKnowledgePageRecognition(
   pageId: string,
-  input: { thermalSetId?: string | null, structuredData: PageRecognitionResult },
+  input: { thermalSetId?: string | null } = {},
 ): Promise<PageRecognitionConfirmResult> {
   return api.post(`${KNOWLEDGE_PREFIX}/pages/${encodeURIComponent(pageId)}/confirm-recognition`, input)
 }

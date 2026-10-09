@@ -303,6 +303,8 @@ export interface KnowledgeVersionInput {
   title?: string
   changeNote?: string
   evidenceLevel?: EvidenceLevel
+  originalFileId?: string
+  searchSourceFileId?: string
 }
 
 export interface KnowledgeUploadIntentInput {
@@ -317,7 +319,7 @@ export interface KnowledgeUploadIntentInput {
 export interface KnowledgeCreateWithFileInput {
   title: string
   docType: KnowledgeDocType
-  originalFileId: string
+  originalFileId?: string | null
   searchSourceFileId?: string | null
   categoryId?: string | null
   docNumber?: string | null
@@ -331,8 +333,12 @@ export interface KnowledgeCreateWithFileInput {
 export interface KnowledgeCreateWithFileResult {
   document: { id: string, title: string, docType: KnowledgeDocType }
   version: { id: string, versionNo: number }
-  file: { id: string, name: string }
-  parsing: { jobId: string, status: 'QUEUED' }
+  documentId: string
+  versionId: string
+  versionStatus: KnowledgeVersionStatus
+  currentVersionId: string | null
+  file: { id: string, name: string } | null
+  parsing: { jobId: string, status: 'QUEUED' } | null
 }
 
 export interface KnowledgeReplaceFileInput {
@@ -459,6 +465,47 @@ export interface KnowledgePageRecognitionSummary {
 /** 版本页面列表响应（在分页结果上追加识别进度汇总）。 */
 export interface KnowledgeVersionPagesResult extends PageResult<KnowledgePage> {
   pageRecognitionSummary: KnowledgePageRecognitionSummary
+}
+
+/** 批量上传页面结果（POST /versions/:versionId/pages/batch-upload）。 */
+export interface KnowledgeBatchPageUploadResult {
+  pageCount: number
+  items: Array<{
+    pageId: string
+    physicalPageNumber: number
+    pageLabel: string | null
+    created: boolean
+    warnings: string[]
+  }>
+  /** 已入识别队列的页面数（enqueueRecognition=false 时为 0）。 */
+  enqueued: number
+  /** 入识别队列失败的页面（可重试）。 */
+  enqueueFailed: Array<{ pageId: string, error: string }>
+}
+
+/** ZIP 导入的单个页面条目（POST /versions/:versionId/pages/import-zip）。 */
+export interface KnowledgeZipImportItem {
+  pageId: string
+  physicalPageNumber: number
+  pageLabel: string | null
+  created: boolean
+  warnings: string[]
+  /** ZIP 内的原始文件名。 */
+  fileName: string
+}
+
+/**
+ * ZIP 导入结果（POST /versions/:versionId/pages/import-zip）。
+ * 后端同步解包并落库，识别异步入队；进度需轮询页面列表的 pageRecognitionSummary。
+ */
+export interface KnowledgeZipImportResult {
+  pageCount: number
+  imported: number
+  /** ZIP 内是否包含 manifest.json（决定页序与页码来源）。 */
+  hasManifest: boolean
+  items: KnowledgeZipImportItem[]
+  enqueued: number
+  enqueueFailed: Array<{ pageId: string, error: string }>
 }
 
 /** 知识索引状态（后端 knowledge_index_status）。 */
@@ -710,8 +757,10 @@ export interface KnowledgePage {
   parseStatus: string
   createdAt: string
   recognitionStatus?: PageRecognitionStatus | null
+  recognitionRunId?: string | null
   recognitionWarnings?: string[]
   lastRecognitionError?: string | null
+  lastRecognitionErrorCode?: string | null
   /** 后端版本守卫：当前版本是否可编辑（已发布/审核中为 false）。 */
   versionEditable?: boolean | null
   /** 当前页关联的热工参考集是否可编辑；null 表示未关联。 */
@@ -837,6 +886,9 @@ export interface KnowledgePageRecognition {
   confirmedById: string | null
   lastRecognitionAt: string | null
   lastRecognitionError: string | null
+  lastRecognitionErrorCode?: string | null
+  recognitionRunId?: string | null
+  reviewIssues?: string[]
   imageWarnings: string[]
   versionStatus: KnowledgeVersionStatus
   versionEditable: boolean

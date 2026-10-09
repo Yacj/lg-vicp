@@ -8,7 +8,7 @@ import { fetchPublicLibraryDocuments } from '@/api/modules/knowledge'
 import KnowledgePublicOriginalReader from '@/components/business/KnowledgePublicOriginalReader.vue'
 import AppDataTable from '@/components/ui/AppDataTable.vue'
 import AppPage from '@/components/ui/AppPage.vue'
-import { normalizeFeedbackError } from '@/composables/useAppFeedback'
+import { businessUserError } from '@/utils/business-error'
 import { formatDate } from '@/utils/day'
 import { knowledgeDocTypeLabel } from '@/utils/knowledge-user'
 
@@ -147,7 +147,7 @@ onMounted(() => {
 <template>
   <AppPage
     title="公开文库"
-    description="已经公开的图集、标准、产品资料和企业资料。点击「查看原文」可按章节阅读。"
+    description="浏览已公开的图集、标准和产品资料；点击“查看原文”阅读完整内容。"
   >
     <div class="vicp-library">
       <div class="vicp-library__toolbar">
@@ -185,9 +185,9 @@ onMounted(() => {
         :columns="columns"
         :current="query.page"
         :data="items"
-        empty-description="还没有已公开的资料；发布资料后这里会自动展示"
-        empty-title="暂无公开资料"
-        :error-description="error ? normalizeFeedbackError(error).message : '请检查网络连接后重试'"
+        empty-description="知识库发布为公开资料后，会显示在这里。"
+        empty-title="还没有公开资料"
+        :error-description="businessUserError(error)"
         :operations-width="110"
         :page-size="query.pageSize"
         row-key="id"

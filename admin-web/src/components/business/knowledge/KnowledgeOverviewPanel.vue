@@ -1,194 +1,92 @@
 <script setup lang="ts">
-import type { AppStatus } from '@/components/ui/AppStatusTag.vue'
-import type {
-  KnowledgeContentSource,
-  KnowledgeIndexStatus,
-  KnowledgePageRecognitionSummary,
-  KnowledgeVersionIndex,
-  KnowledgeWorkspace,
-} from '@/types/knowledge'
+import type { KnowledgePageRecognitionSummary, KnowledgeVersionIndex, KnowledgeWorkspace } from '@/types/knowledge'
 import { MessagePlugin } from 'tdesign-vue-next'
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
-import { fetchVersionIndex, fetchVersionPages, rebuildVersionIndex, rebuildVersionIndexMaintenance } from '@/api/modules/knowledge'
-import AppStatusTag from '@/components/ui/AppStatusTag.vue'
-import { normalizeFeedbackError } from '@/composables/useAppFeedback'
-import { knowledgeUserMessage, knowledgeUserStatusMetaFor } from '@/utils/knowledge-user'
+import { computed, ref } from 'vue'
+import { rebuildVersionIndex, rebuildVersionIndexMaintenance } from '@/api/modules/knowledge'
+import { businessUserError, businessUserMessage } from '@/utils/business-error'
+import { buildKnowledgeFlowSteps } from '@/utils/knowledge-lifecycle'
+import { buildOverviewFacts, getOverviewNextStep, remainingOverviewBlockers } from '@/utils/knowledge-overview'
 
 const props = withDefaults(defineProps<{
   versionId: string | null
   workspace: KnowledgeWorkspace | null
+  /** 当前版本知识索引状态（由页面级 useKnowledgeLifecycle 提供）。 */
+  index?: KnowledgeVersionIndex | null
+  /** 后端 pageRecognitionSummary（由页面级 useKnowledgeLifecycle 提供）。 */
+  recognitionSummary?: KnowledgePageRecognitionSummary | null
   /** 是否允许重建知识索引（权限）。 */
   canRebuildIndex?: boolean
-  /** 是否允许查看发布阻断原因（仅用于文案，不改变展示）。 */
-  canPublish?: boolean
+  canTest?: boolean
+  canOpenPublish?: boolean
+  canUploadPages?: boolean
+  canHandleRecognition?: boolean
   /** 当前版本状态；已发布版本走维护式重建。 */
   versionStatus?: string | null
 }>(), {
+  index: null,
+  recognitionSummary: null,
   canRebuildIndex: false,
-  canPublish: false,
+  canTest: false,
+  canOpenPublish: false,
+  canUploadPages: false,
+  canHandleRecognition: false,
   versionStatus: null,
 })
 
-const emit = defineEmits<{ refresh: [] }>()
+const emit = defineEmits<{ refresh: [], navigate: [tab: string], publish: [] }>()
 
-const index = ref<KnowledgeVersionIndex | null>(null)
-const recognition = ref<KnowledgePageRecognitionSummary | null>(null)
-const indexLoading = ref(false)
 const rebuilding = ref(false)
-const error = ref<unknown>(null)
-let pollTimer: ReturnType<typeof setInterval> | null = null
 
 const summary = computed(() => props.workspace?.summary ?? null)
-const userStatus = computed(() => props.workspace?.currentVersion?.userStatus ?? null)
-const statusMeta = computed(() => knowledgeUserStatusMetaFor(userStatus.value))
-
-const contentSourceLabel = computed(() => {
-  const map: Record<KnowledgeContentSource, string> = {
-    ORIGINAL_FILE: '原始文件解析',
-    PAGE_DRIVEN: '资料页面识别',
-    NOT_READY: '尚未就绪',
-  }
-  const source = summary.value?.contentSource
-  return source ? map[source] : '尚未就绪'
-})
-
-const indexMeta = computed<{ label: string, status: AppStatus, hint: string }>(() => {
-  if (!index.value) {
-    return { label: '读取中', status: 'processing', hint: '' }
-  }
-  const map: Record<KnowledgeIndexStatus, { label: string, status: AppStatus }> = {
-    INDEX_PENDING: { label: '待构建', status: 'warning' },
-    INDEXING: { label: '构建中', status: 'processing' },
-    INDEX_READY: { label: '已就绪', status: 'success' },
-    INDEX_FAILED: { label: '构建失败', status: 'error' },
-  }
-  const base = map[index.value.indexStatus]
-  const stale = index.value.indexDirty || index.value.indexRevision !== index.value.contentRevision
-  if (base.status === 'success' && stale) {
-    return { label: '需要更新', status: 'warning', hint: '页面内容已发生变化，需要更新知识索引。' }
-  }
-  if (base.status === 'warning' && index.value.indexStatus === 'INDEX_PENDING' && index.value.indexBuiltAt) {
-    return { ...base, hint: '页面内容已发生变化，需要更新知识索引。' }
-  }
-  if (index.value.indexStatus === 'INDEX_FAILED') {
-    return { ...base, hint: '知识索引构建失败，请重新构建。' }
-  }
-  return { ...base, hint: '' }
-})
-
+const flowSteps = computed(() => buildKnowledgeFlowSteps({
+  workspace: props.workspace,
+  index: props.index,
+  recognitionSummary: props.recognitionSummary,
+}))
 const builtAtLabel = computed(() => {
-  const value = index.value?.indexBuiltAt
+  const value = props.index?.indexBuiltAt
   if (!value) {
-    return '尚未构建'
+    return '尚未更新'
   }
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString()
 })
 
-const publishBlockers = computed(() => summary.value?.publishBlockers ?? [])
+const publishBlockers = computed(() => (summary.value?.publishBlockers ?? []).map(businessUserMessage))
+const published = computed(() => props.workspace?.currentVersion?.status === 'PUBLISHED')
+const canPublish = computed(() => Boolean(summary.value?.canPublish))
+const canAskAi = computed(() => Boolean(summary.value?.canAskAi))
+const isPageDriven = computed(() => summary.value?.contentSource !== 'ORIGINAL_FILE')
+const nextStep = computed(() => getOverviewNextStep({
+  published: published.value,
+  canAskAi: canAskAi.value,
+  canPublish: canPublish.value,
+  pageCount: summary.value?.pageCount ?? 0,
+  isPageDriven: isPageDriven.value,
+  recognitionSummary: props.recognitionSummary,
+  parseStatus: props.workspace?.currentVersion?.parseStatus,
+  index: props.index,
+  canTest: props.canTest,
+  canUploadPages: props.canUploadPages,
+  canHandleRecognition: props.canHandleRecognition,
+  canRebuildIndex: props.canRebuildIndex,
+  canOpenPublish: props.canOpenPublish,
+}))
+const facts = computed(() => buildOverviewFacts(summary.value?.pageCount ?? 0, props.recognitionSummary, isPageDriven.value))
+const remainingBlockers = computed(() => remainingOverviewBlockers(publishBlockers.value, nextStep.value.reason))
 
-interface FlowStep {
-  label: string
-  detail: string
-  state: 'done' | 'active' | 'todo' | 'error'
-}
-
-const flowSteps = computed<FlowStep[]>(() => {
-  const pageCount = summary.value?.pageCount ?? 0
-  const rec = recognition.value
-  const idx = index.value
-  const published = props.workspace?.currentVersion?.status === 'PUBLISHED'
-
-  const uploaded = pageCount > 0
-  const recDone = Boolean(rec && rec.total > 0 && rec.confirmed === rec.total)
-  const recFailed = Boolean(rec && rec.failed > 0)
-  const indexReady = Boolean(idx && idx.indexStatus === 'INDEX_READY' && !idx.indexDirty && idx.indexRevision === idx.contentRevision)
-
-  return [
-    {
-      label: '上传资料',
-      detail: uploaded ? `${pageCount} 页` : '待上传',
-      state: uploaded ? 'done' : 'active',
-    },
-    {
-      label: 'AI 识别',
-      detail: rec ? `${rec.confirmed + rec.reviewRequired + rec.processing + rec.pending + rec.failed} 页` : '—',
-      state: recFailed ? 'error' : uploaded ? (recDone ? 'done' : 'active') : 'todo',
-    },
-    {
-      label: '内容校验',
-      detail: rec ? `${rec.confirmed} / ${rec.total}` : '—',
-      state: recFailed ? 'error' : recDone ? 'done' : uploaded ? 'active' : 'todo',
-    },
-    {
-      label: '知识索引',
-      detail: indexReady ? '已就绪' : indexMeta.value.label,
-      state: idx?.indexStatus === 'INDEX_FAILED' ? 'error' : indexReady ? 'done' : uploaded ? 'active' : 'todo',
-    },
-    {
-      label: '发布',
-      detail: published ? '已发布' : summary.value?.canPublish ? '可发布' : '未完成',
-      state: published ? 'done' : summary.value?.canPublish ? 'active' : 'todo',
-    },
-  ]
-})
-
-function stopPoll(): void {
-  if (pollTimer) {
-    clearInterval(pollTimer)
-    pollTimer = null
-  }
-}
-function startPoll(): void {
-  stopPoll()
-  pollTimer = setInterval(() => {
-    void loadIndex(false)
-  }, 3000)
-  setTimeout(stopPoll, 120000)
-}
-
-async function loadIndex(showLoading = true): Promise<void> {
-  if (!props.versionId) {
-    index.value = null
+function followNextStep(): void {
+  if (nextStep.value.tab === 'index') {
+    void rebuild()
     return
   }
-  if (showLoading) {
-    indexLoading.value = true
-  }
-  try {
-    index.value = await fetchVersionIndex(props.versionId)
-    if (index.value.indexStatus === 'INDEXING') {
-      startPoll()
-    }
-    else {
-      stopPoll()
-    }
-  }
-  catch (cause) {
-    error.value = cause
-  }
-  finally {
-    indexLoading.value = false
-  }
-}
-
-async function loadRecognition(): Promise<void> {
-  if (!props.versionId) {
-    recognition.value = null
+  if (nextStep.value.tab === 'publish') {
+    emit('publish')
     return
   }
-  try {
-    const result = await fetchVersionPages(props.versionId, 1, 1)
-    recognition.value = result.pageRecognitionSummary
+  if (nextStep.value.tab) {
+    emit('navigate', nextStep.value.tab)
   }
-  catch {
-    recognition.value = null
-  }
-}
-
-async function loadAll(): Promise<void> {
-  error.value = null
-  await Promise.all([loadIndex(), loadRecognition()])
 }
 
 async function rebuild(): Promise<void> {
@@ -197,298 +95,265 @@ async function rebuild(): Promise<void> {
   }
   rebuilding.value = true
   try {
-    // 常规重建仅允许草稿/已审核版本；已发布版本走维护式重建。
-    const useMaintenance = props.versionStatus === 'PUBLISHED'
-    if (useMaintenance) {
+    // 常规重建仅允许草稿/已审核版本；已发布/已停用版本走维护式重建。
+    if (props.versionStatus === 'PUBLISHED' || props.versionStatus === 'DISABLED') {
       await rebuildVersionIndexMaintenance(props.versionId)
     }
     else {
       await rebuildVersionIndex(props.versionId)
     }
-    MessagePlugin.success('已提交重建，正在构建知识索引')
-    await loadIndex(false)
+    MessagePlugin.success('问答内容已更新')
     emit('refresh')
   }
   catch (cause) {
-    MessagePlugin.error(knowledgeUserMessage(normalizeFeedbackError(cause).message))
+    MessagePlugin.error(businessUserError(cause))
   }
   finally {
     rebuilding.value = false
   }
 }
-
-watch(() => props.versionId, () => void loadAll())
-watch(() => props.workspace?.summary.pageCount, () => void loadRecognition())
-onMounted(() => void loadAll())
-onUnmounted(stopPoll)
 </script>
 
 <template>
   <section class="knowledge-overview">
-    <ol class="knowledge-overview__flow">
-      <li
-        v-for="(step, stepIndex) in flowSteps"
-        :key="step.label"
-        class="knowledge-overview__flow-step"
-        :class="`is-${step.state}`"
-      >
-        <span class="knowledge-overview__flow-index">{{ stepIndex + 1 }}</span>
-        <span class="knowledge-overview__flow-body">
-          <strong>{{ step.label }}</strong>
-          <small>{{ step.detail }}</small>
-        </span>
-      </li>
-    </ol>
+    <div class="knowledge-overview__next">
+      <div class="knowledge-overview__next-copy">
+        <h2>{{ nextStep.reason === 'published' ? '已发布' : '下一步' }}</h2>
+        <p>{{ nextStep.text }}</p>
+      </div>
+      <t-button v-if="nextStep.action" theme="primary" @click="followNextStep">
+        {{ nextStep.action }}
+      </t-button>
+    </div>
 
-    <div class="knowledge-overview__grid">
-      <t-card title="资料状态" :bordered="true">
-        <div class="knowledge-overview__facts">
-          <div class="knowledge-overview__fact">
-            <span>当前版本</span>
-            <strong>{{ workspace?.currentVersion ? `v${workspace.currentVersion.versionNo}` : '—' }}</strong>
-          </div>
-          <div class="knowledge-overview__fact">
-            <span>版本状态</span>
-            <AppStatusTag :label="statusMeta.label" :status="statusMeta.status" />
-          </div>
-          <div class="knowledge-overview__fact">
-            <span>资料来源</span>
-            <strong>{{ contentSourceLabel }}</strong>
-          </div>
-          <div class="knowledge-overview__fact">
-            <span>资料页数</span>
-            <strong>{{ summary?.pageCount ?? 0 }} 页</strong>
-          </div>
-        </div>
-      </t-card>
+    <dl v-if="facts.length" class="knowledge-overview__facts" aria-label="资料处理概况">
+      <div v-for="fact in facts" :key="fact.key" class="knowledge-overview__fact" :class="`is-${fact.tone}`">
+        <dt>{{ fact.label }}</dt>
+        <dd>{{ fact.value }}</dd>
+      </div>
+    </dl>
+    <details class="knowledge-overview__details">
+      <summary>
+        <span>处理进度与发布条件</span>
+      </summary>
+      <div class="knowledge-overview__details-content">
+        <section class="knowledge-overview__section" aria-label="资料处理步骤">
+          <h3>处理步骤</h3>
+          <ol class="knowledge-overview__flow">
+            <li v-for="step in flowSteps" :key="step.label" class="knowledge-overview__flow-step" :class="`is-${step.state}`">
+              <span class="knowledge-overview__flow-mark" aria-hidden="true" />
+              <strong>{{ step.label }}</strong>
+              <span class="knowledge-overview__flow-detail">{{ step.state === 'done' ? '已完成' : step.detail }}</span>
+            </li>
+          </ol>
+        </section>
 
-      <t-card title="识别进度" :bordered="true">
-        <template v-if="recognition && recognition.total > 0">
-          <t-progress
-            :label="false"
-            :percentage="recognition.total ? Math.round((recognition.confirmed / recognition.total) * 100) : 0"
-            :stroke-width="8"
-            theme="line"
-          />
-          <div class="knowledge-overview__stats">
-            <span>已确认 <strong>{{ recognition.confirmed }}</strong></span>
-            <span>待校验 <strong>{{ recognition.reviewRequired }}</strong></span>
-            <span>识别中 <strong>{{ recognition.processing }}</strong></span>
-            <span>排队中 <strong>{{ recognition.pending }}</strong></span>
-            <span :class="{ 'is-error': recognition.failed > 0 }">识别失败 <strong>{{ recognition.failed }}</strong></span>
+        <section class="knowledge-overview__section knowledge-overview__readiness" aria-label="发布与问答条件">
+          <h3>发布与问答</h3>
+          <dl class="knowledge-overview__readiness-list">
+            <div>
+              <dt>发布</dt>
+              <dd>{{ published ? '已发布' : canPublish ? '可以发布' : '尚未满足条件' }}</dd>
+            </div>
+            <div>
+              <dt>问答</dt>
+              <dd>{{ canAskAi ? '可以使用' : '暂不能使用' }}</dd>
+            </div>
+          </dl>
+          <div v-if="remainingBlockers.length" class="knowledge-overview__blockers">
+            <h4>还需完成</h4>
+            <ul>
+              <li v-for="(blocker, blockerIndex) in remainingBlockers" :key="blockerIndex">
+                {{ blocker }}
+              </li>
+            </ul>
           </div>
-        </template>
-        <p v-else class="knowledge-overview__empty">
-          还没有资料页面。上传完整页面图片后，系统会自动识别内容。
-        </p>
-      </t-card>
-
-      <t-card title="知识索引" :bordered="true">
-        <div class="knowledge-overview__index-head">
-          <AppStatusTag :label="indexMeta.label" :status="indexMeta.status" />
+          <p v-if="index?.indexBuiltAt" class="knowledge-overview__updated">
+            问答内容上次更新：{{ builtAtLabel }}
+          </p>
           <t-button
-            v-if="canRebuildIndex"
+            v-if="canRebuildIndex && nextStep.reason !== 'index'"
             :disabled="!versionId || rebuilding || index?.indexStatus === 'INDEXING'"
             :loading="rebuilding"
             size="small"
-            theme="primary"
             variant="outline"
             @click="rebuild"
           >
-            重新构建索引
+            更新问答内容
           </t-button>
-        </div>
-        <p v-if="indexMeta.hint" class="knowledge-overview__hint">
-          {{ indexMeta.hint }}
-        </p>
-        <p class="knowledge-overview__meta">最近构建：{{ builtAtLabel }}</p>
-      </t-card>
-
-      <t-card title="发布与 AI 可用性" :bordered="true">
-        <div class="knowledge-overview__facts">
-          <div class="knowledge-overview__fact">
-            <span>可以发布</span>
-            <AppStatusTag
-              :label="summary?.canPublish ? '可以发布' : '暂不可发布'"
-              :status="summary?.canPublish ? 'success' : 'warning'"
-            />
-          </div>
-          <div class="knowledge-overview__fact">
-            <span>可用于 AI 问答</span>
-            <AppStatusTag
-              :label="summary?.canAskAi ? '可用于 AI 问答' : '暂不可用于 AI'"
-              :status="summary?.canAskAi ? 'success' : 'default'"
-            />
-          </div>
-        </div>
-        <div v-if="publishBlockers.length" class="knowledge-overview__blockers">
-          <p class="knowledge-overview__blockers-title">还需要完成：</p>
-          <ul>
-            <li v-for="(blocker, blockerIndex) in publishBlockers" :key="blockerIndex">
-              {{ blocker }}
-            </li>
-          </ul>
-        </div>
-      </t-card>
-    </div>
-
-    <t-alert v-if="error" theme="error" :message="knowledgeUserMessage(normalizeFeedbackError(error).message)" />
+        </section>
+      </div>
+    </details>
   </section>
 </template>
 
 <style scoped>
 .knowledge-overview {
   display: flex;
+  min-width: 0;
   flex-direction: column;
   gap: var(--td-size-4);
   padding: var(--td-size-4) 0;
+  container-type: inline-size;
 }
 
-.knowledge-overview__flow {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: var(--td-size-3);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.knowledge-overview__flow-step {
-  display: flex;
-  align-items: center;
-  gap: var(--td-size-2);
-  padding: var(--td-size-3);
-  border: 1px solid var(--td-component-stroke);
-  border-radius: var(--vicp-radius);
-  background: var(--td-bg-color-container);
-}
-
-.knowledge-overview__flow-index {
-  display: grid;
-  width: 22px;
-  height: 22px;
-  flex: 0 0 auto;
-  place-items: center;
-  border-radius: var(--td-radius-circle);
-  background: var(--td-bg-color-secondarycontainer);
-  color: var(--td-text-color-secondary);
-  font-size: var(--td-font-size-body-small);
-}
-
-.knowledge-overview__flow-body {
-  display: grid;
-  min-width: 0;
-  gap: 2px;
-}
-
-.knowledge-overview__flow-body small {
-  color: var(--td-text-color-secondary);
-  font-size: var(--td-font-size-body-small);
-}
-
-.knowledge-overview__flow-step.is-done .knowledge-overview__flow-index {
-  background: var(--td-success-color-1);
-  color: var(--td-success-color);
-}
-
-.knowledge-overview__flow-step.is-active .knowledge-overview__flow-index {
-  background: var(--td-brand-color-1);
-  color: var(--td-brand-color);
-}
-
-.knowledge-overview__flow-step.is-error .knowledge-overview__flow-index {
-  background: var(--td-error-color-1);
-  color: var(--td-error-color);
-}
-
-.knowledge-overview__grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--td-size-4);
-}
-
-.knowledge-overview__facts {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--td-size-3);
-}
-
-.knowledge-overview__fact {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.knowledge-overview__fact span {
-  color: var(--td-text-color-secondary);
-  font-size: var(--td-font-size-body-small);
-}
-
-.knowledge-overview__stats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--td-size-4);
-  margin-top: var(--td-size-3);
-  color: var(--td-text-color-secondary);
-  font-size: var(--td-font-size-body-small);
-}
-
-.knowledge-overview__stats strong {
-  color: var(--td-text-color-primary);
-}
-
-.knowledge-overview__stats .is-error,
-.knowledge-overview__stats .is-error strong {
-  color: var(--td-error-color);
-}
-
-.knowledge-overview__index-head {
+.knowledge-overview__next {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--td-size-3);
+  gap: var(--td-size-5);
+  padding: var(--td-size-4) var(--td-size-5);
+  border-left: 3px solid var(--td-brand-color);
+  background: var(--td-brand-color-1);
 }
 
-.knowledge-overview__hint {
-  margin: var(--td-size-3) 0 0;
-  color: var(--td-warning-color);
-  font-size: var(--td-font-size-body-small);
-}
-
-.knowledge-overview__meta,
-.knowledge-overview__empty {
-  margin: var(--td-size-3) 0 0;
-  color: var(--td-text-color-secondary);
-  font-size: var(--td-font-size-body-small);
-}
-
-.knowledge-overview__blockers {
-  margin-top: var(--td-size-4);
-  padding-top: var(--td-size-3);
-  border-top: 1px dashed var(--td-component-stroke);
-}
-
-.knowledge-overview__blockers-title {
-  margin: 0 0 var(--td-size-2);
+.knowledge-overview__next-copy { min-width: 0; }
+.knowledge-overview__next h2,
+.knowledge-overview__section h3,
+.knowledge-overview__blockers h4 {
+  margin: 0;
   color: var(--td-text-color-primary);
-  font-size: var(--td-font-size-body-small);
+  font-size: var(--td-font-size-body-medium);
   font-weight: 600;
 }
+.knowledge-overview__next p {
+  margin: var(--td-size-1) 0 0;
+  color: var(--td-text-color-secondary);
+  overflow-wrap: anywhere;
+}
+.knowledge-overview__next :deep(.t-button) { flex: 0 0 auto; }
 
-.knowledge-overview__blockers ul {
+.knowledge-overview__facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--td-size-3) 0;
   margin: 0;
-  padding-left: 18px;
+  padding: var(--td-size-3) var(--td-size-4);
+  border: 1px solid var(--td-component-stroke);
+  border-radius: var(--vicp-radius);
+  background: var(--td-bg-color-secondarycontainer);
+}
+.knowledge-overview__fact {
+  display: flex;
+  align-items: baseline;
+  gap: var(--td-size-2);
+  min-width: 0;
+  padding: 0 var(--td-size-5);
+  border-right: 1px solid var(--td-component-stroke);
+}
+.knowledge-overview__fact:first-child { padding-left: 0; }
+.knowledge-overview__fact:last-child { border-right: 0; }
+.knowledge-overview__fact dt {
   color: var(--td-text-color-secondary);
   font-size: var(--td-font-size-body-small);
 }
+.knowledge-overview__fact dd {
+  margin: 0;
+  color: var(--td-text-color-primary);
+  font-size: var(--td-font-size-title-medium);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.knowledge-overview__fact.is-warning dd { color: var(--td-warning-color); }
 
-@media (max-width: 1366px) {
-  .knowledge-overview__flow {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
+.knowledge-overview__details {
+  min-width: 0;
+  padding: 0 var(--td-size-4);
+  border: 1px solid var(--td-component-stroke);
+  border-radius: var(--vicp-radius);
+  background: var(--td-bg-color-secondarycontainer);
+}
+.knowledge-overview__details summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--td-size-2) var(--td-size-4);
+  padding: var(--td-size-3) 0;
+  color: var(--td-brand-color);
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+.knowledge-overview__details summary::-webkit-details-marker { display: none; }
+.knowledge-overview__details summary::after {
+  content: '▸';
+  margin-left: auto;
+  transition: transform 0.2s ease;
+}
+.knowledge-overview__details[open] summary::after { transform: rotate(90deg); }
+.knowledge-overview__details summary:focus-visible {
+  outline: 2px solid var(--td-brand-color);
+  outline-offset: 2px;
+}
+.knowledge-overview__details[open] summary { border-bottom: 1px solid var(--td-component-stroke); }
+.knowledge-overview__details-content {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(250px, 34%);
+  gap: var(--td-size-6);
+  padding: var(--td-size-4) 0;
+}
+.knowledge-overview__section { min-width: 0; }
+.knowledge-overview__section h3 { margin-bottom: var(--td-size-3); }
+.knowledge-overview__flow,
+.knowledge-overview__blockers ul { margin: 0; padding: 0; list-style: none; }
+.knowledge-overview__flow-step {
+  display: grid;
+  grid-template-columns: var(--td-size-4) minmax(0, 1fr) minmax(80px, auto);
+  align-items: center;
+  gap: var(--td-size-3);
+  min-height: var(--td-comp-size-m);
+  border-bottom: 1px solid var(--td-component-stroke);
+}
+.knowledge-overview__flow-step strong { font-weight: 500; }
+.knowledge-overview__flow-detail {
+  color: var(--td-text-color-secondary);
+  font-size: var(--td-font-size-body-small);
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+.knowledge-overview__flow-step.is-error .knowledge-overview__flow-detail { color: var(--td-error-color); }
+.knowledge-overview__flow-step.is-active .knowledge-overview__flow-detail { color: var(--td-brand-color); }
+.knowledge-overview__flow-mark {
+  width: var(--td-size-2);
+  height: var(--td-size-2);
+  border-radius: var(--td-radius-circle);
+  background: var(--td-text-color-placeholder);
+}
+.knowledge-overview__flow-step.is-done .knowledge-overview__flow-mark { background: var(--td-success-color); }
+.knowledge-overview__flow-step.is-active .knowledge-overview__flow-mark { background: var(--td-brand-color); }
+.knowledge-overview__flow-step.is-error .knowledge-overview__flow-mark { background: var(--td-error-color); }
+.knowledge-overview__readiness-list { margin: 0; }
+.knowledge-overview__readiness-list div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--td-size-3);
+  padding: var(--td-size-2) 0;
+  border-bottom: 1px solid var(--td-component-stroke);
+}
+.knowledge-overview__readiness-list dt { color: var(--td-text-color-secondary); }
+.knowledge-overview__readiness-list dd { margin: 0; text-align: right; }
+.knowledge-overview__blockers { margin-top: var(--td-size-4); }
+.knowledge-overview__blockers h4 { margin-bottom: var(--td-size-2); }
+.knowledge-overview__blockers li {
+  padding: var(--td-size-1) 0;
+  color: var(--td-text-color-secondary);
+  overflow-wrap: anywhere;
+}
+.knowledge-overview__updated {
+  margin: var(--td-size-4) 0 var(--td-size-2);
+  color: var(--td-text-color-secondary);
+  font-size: var(--td-font-size-body-small);
+}
+.knowledge-overview__readiness :deep(.t-button) { margin-top: var(--td-size-3); }
 
-  .knowledge-overview__grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
+@container (max-width: 760px) {
+  .knowledge-overview__details-content { grid-template-columns: minmax(0, 1fr); }
+}
+@container (max-width: 580px) {
+  .knowledge-overview__next { align-items: flex-start; flex-direction: column; }
+  .knowledge-overview__fact { padding: 0 var(--td-size-3); }
+  .knowledge-overview__flow-step { grid-template-columns: var(--td-size-4) minmax(0, 1fr); }
+  .knowledge-overview__flow-detail { grid-column: 2; text-align: left; padding-bottom: var(--td-size-2); }
 }
 </style>

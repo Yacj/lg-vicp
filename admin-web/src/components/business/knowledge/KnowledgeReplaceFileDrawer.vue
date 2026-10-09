@@ -1,15 +1,14 @@
 <script setup lang="ts">
 import type { UploadFile } from 'tdesign-vue-next'
-import { ref, watch } from 'vue'
+import type { CompleteUploadResult, FileCenterItem } from '@/types/file'
+import type { KnowledgeSelectedFile } from '@/types/knowledge'
 import { MessagePlugin } from 'tdesign-vue-next'
+import { ref, watch } from 'vue'
 import { replaceKnowledgeDocumentFile } from '@/api/modules/knowledge'
 import AppFilePicker from '@/components/business/AppFilePicker.vue'
 import AppFileUploader from '@/components/business/AppFileUploader.vue'
 import KnowledgeFileCard from '@/components/business/knowledge/KnowledgeFileCard.vue'
-import { normalizeFeedbackError } from '@/composables/useAppFeedback'
-import type { CompleteUploadResult, FileCenterItem } from '@/types/file'
-import type { KnowledgeSelectedFile } from '@/types/knowledge'
-import { knowledgeUserMessage } from '@/utils/knowledge-user'
+import { businessUserError } from '@/utils/business-error'
 
 const props = defineProps<{
   visible: boolean
@@ -45,7 +44,7 @@ async function submit(): Promise<void> {
     emit('update:visible', false)
   }
   catch (cause) {
-    MessagePlugin.error(knowledgeUserMessage(normalizeFeedbackError(cause).message))
+    MessagePlugin.error(businessUserError(cause))
   }
   finally {
     submitting.value = false
@@ -86,11 +85,12 @@ watch(
     />
     <div v-else class="knowledge-replace__upload">
       <AppFileUploader
+        v-model="uploaderFiles"
         accept=".pdf,.docx"
+        purpose="KNOWLEDGE_SOURCE"
         :max="1"
         :multiple="false"
         placeholder="上传新文件"
-        v-model="uploaderFiles"
         @success="(file: File, result: CompleteUploadResult) => { selectedFile = { fileId: result.fileId, name: file.name, mimeType: file.type, sizeBytes: file.size } }"
       />
       <t-button theme="default" variant="outline" @click="pickerVisible = true">

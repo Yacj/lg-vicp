@@ -1,19 +1,9 @@
 <script setup lang="ts">
 import type { PrimaryTableCol, TableRowData } from 'tdesign-vue-next'
+import type { AppTableAction } from '@/types/crud'
+import type { ThermalCalcRule, ThermalCalcRuleInput, ThermalCalcRuleQuery, ValidationResult } from '@/types/thermal'
 import { AddIcon } from 'tdesign-icons-vue-next'
 import { computed, h, reactive } from 'vue'
-import AppCrudFormDialog from '@/components/business/AppCrudFormDialog.vue'
-import AppVersionMeta from '@/components/business/AppVersionMeta.vue'
-import AppTableActions from '@/components/business/AppTableActions.vue'
-import AppDataTable from '@/components/ui/AppDataTable.vue'
-import AppSearchPanel from '@/components/ui/AppSearchPanel.vue'
-import AppStatusTag from '@/components/ui/AppStatusTag.vue'
-import { normalizeFeedbackError, useAppFeedback } from '@/composables/useAppFeedback'
-import { useConfirmedCrudAction } from '@/composables/useCrudActions'
-import { useCrudDrawer } from '@/composables/useCrudDrawer'
-import { useCrudList } from '@/composables/useCrudList'
-import { usePermissionAccess } from '@/composables/usePermissionAccess'
-import { useWorkflowActions, workflowActionsForStatus } from '@/composables/useWorkflowActions'
 import {
   createThermalCalcRule,
   deleteThermalCalcRule,
@@ -22,9 +12,19 @@ import {
   updateThermalCalcRule,
   validateThermalCalcRule,
 } from '@/api/modules/thermal'
-import type { AppTableAction } from '@/types/crud'
-import type { ThermalCalcRule, ThermalCalcRuleInput, ThermalCalcRuleQuery } from '@/types/thermal'
-import type { ValidationResult } from '@/types/thermal'
+import AppCrudFormDialog from '@/components/business/AppCrudFormDialog.vue'
+import AppTableActions from '@/components/business/AppTableActions.vue'
+import AppVersionMeta from '@/components/business/AppVersionMeta.vue'
+import AppDataTable from '@/components/ui/AppDataTable.vue'
+import AppSearchPanel from '@/components/ui/AppSearchPanel.vue'
+import AppStatusTag from '@/components/ui/AppStatusTag.vue'
+import { useAppFeedback } from '@/composables/useAppFeedback'
+import { useConfirmedCrudAction } from '@/composables/useCrudActions'
+import { useCrudDrawer } from '@/composables/useCrudDrawer'
+import { useCrudList } from '@/composables/useCrudList'
+import { usePermissionAccess } from '@/composables/usePermissionAccess'
+import { useWorkflowActions, workflowActionsForStatus } from '@/composables/useWorkflowActions'
+import { businessUserError } from '@/utils/business-error'
 import { formatDate } from '@/utils/day'
 import { evidenceLevelLabels, mdReviewStatusMetaFor } from '@/utils/professional-status'
 
@@ -88,7 +88,7 @@ const drawer = useCrudDrawer<ThermalCalcRuleInput, ThermalCalcRule>({
     evidenceRef: '',
     evidenceLevel: undefined,
   }),
-  editForm: (entity) => ({
+  editForm: entity => ({
     code: entity.code,
     name: entity.name,
     formulaVersion: entity.formulaVersion,
@@ -128,15 +128,15 @@ const drawer = useCrudDrawer<ThermalCalcRuleInput, ThermalCalcRule>({
 })
 
 const deleteAction = useConfirmedCrudAction<ThermalCalcRule, unknown>({
-  action: (row) => deleteThermalCalcRule(row.id),
-  confirm: (row) => ({ title: '删除草稿', content: `确定删除「${row.name}」？仅草稿可删除。`, danger: true }),
+  action: row => deleteThermalCalcRule(row.id),
+  confirm: row => ({ title: '删除草稿', content: `确定删除「${row.name}」？仅草稿可删除。`, danger: true }),
   successMessage: '已删除',
   onSuccess: () => list.refresh(),
 })
 
 const workflow = useWorkflowActions<ThermalCalcRule>({
   entityName: '计算规则',
-  run: (id, action) => runThermalCalcRuleWorkflow(id, action).then((r) => r.item),
+  run: (id, action) => runThermalCalcRuleWorkflow(id, action).then(r => r.item),
   onSuccess: () => list.refresh(),
 })
 
@@ -168,9 +168,7 @@ async function runValidate(entity: ThermalCalcRule): Promise<void> {
   }
 }
 
-const errorDescription = computed(() => list.error.value
-  ? normalizeFeedbackError(list.error.value).message
-  : '请检查网络连接后重试')
+const errorDescription = computed(() => businessUserError(list.error.value))
 
 const statusOptions = [
   { label: '全部状态', value: 'all' },
@@ -207,41 +205,58 @@ function getActions(row: TableRowData): AppTableAction[] {
   }
   if (canAdd.value && available.includes('submit')) {
     actions.push({
-      key: 'submit', label: '提交审核', loading: workflow.submit.running.value,
+      key: 'submit',
+      label: '提交审核',
+      loading: workflow.submit.running.value,
       handler: () => workflow.submit.run({ id: entity.id, label: entity.name }),
     })
   }
   if (canApprove.value && available.includes('approve')) {
     actions.push({
-      key: 'approve', label: '通过', loading: workflow.approveRunning.value,
+      key: 'approve',
+      label: '通过',
+      loading: workflow.approveRunning.value,
       handler: () => workflow.openApprove({ id: entity.id, label: entity.name }),
     })
     actions.push({
-      key: 'reject', label: '驳回', loading: workflow.rejectRunning.value, theme: 'danger',
+      key: 'reject',
+      label: '驳回',
+      loading: workflow.rejectRunning.value,
+      theme: 'danger',
       handler: () => workflow.openReject({ id: entity.id, label: entity.name }),
     })
   }
   if (canPublish.value && available.includes('publish')) {
     actions.push({
-      key: 'publish', label: '发布', loading: workflow.publish.running.value,
+      key: 'publish',
+      label: '发布',
+      loading: workflow.publish.running.value,
       handler: () => workflow.publish.run({ id: entity.id, label: entity.name }),
     })
   }
   if (canPublish.value && available.includes('disable')) {
     actions.push({
-      key: 'disable', label: '停用', loading: workflow.disable.running.value, theme: 'warning',
+      key: 'disable',
+      label: '停用',
+      loading: workflow.disable.running.value,
+      theme: 'warning',
       handler: () => workflow.disable.run({ id: entity.id, label: entity.name }),
     })
   }
   if (canPublish.value && available.includes('new-version')) {
     actions.push({
-      key: 'new-version', label: '新版本', loading: workflow.newVersion.running.value,
+      key: 'new-version',
+      label: '新版本',
+      loading: workflow.newVersion.running.value,
       handler: () => workflow.newVersion.run({ id: entity.id, label: entity.name }),
     })
   }
   if (canRemove.value && entity.status === 'DRAFT') {
     actions.push({
-      key: 'remove', label: '删除', loading: deleteAction.running.value, theme: 'danger',
+      key: 'remove',
+      label: '删除',
+      loading: deleteAction.running.value,
+      theme: 'danger',
       handler: () => deleteAction.run(entity),
     })
   }
@@ -278,7 +293,9 @@ function getActions(row: TableRowData): AppTableAction[] {
     >
       <template #toolbar>
         <t-button v-if="canAdd" theme="primary" @click="drawer.openCreate">
-          <template #icon><AddIcon /></template>
+          <template #icon>
+            <AddIcon />
+          </template>
           新增计算规则
         </t-button>
       </template>
@@ -294,7 +311,7 @@ function getActions(row: TableRowData): AppTableAction[] {
       :submitting="drawer.isSubmitting.value"
       :title="drawer.mode.value === 'create' ? '新增计算规则' : '编辑计算规则'"
       :visible="drawer.visible.value"
-      :width="'min(800px, 94vw)'"
+      width="min(800px, 94vw)"
       @cancel="drawer.close"
       @submit="drawer.submit"
       @update:visible="drawer.setVisible"

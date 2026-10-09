@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import type { PageInfo, PrimaryTableCol, TableRowData } from 'tdesign-vue-next'
+import type { KnowledgeSearchLog } from '@/types/knowledge'
 import { computed, h, onMounted, reactive, ref } from 'vue'
+import { fetchKnowledgeSearchLogs } from '@/api/modules/knowledge'
 import AppDataTable from '@/components/ui/AppDataTable.vue'
 import AppPage from '@/components/ui/AppPage.vue'
 import AppSearchPanel from '@/components/ui/AppSearchPanel.vue'
-import { normalizeFeedbackError } from '@/composables/useAppFeedback'
 import { usePermissionAccess } from '@/composables/usePermissionAccess'
-import { fetchKnowledgeSearchLogs } from '@/api/modules/knowledge'
-import type { KnowledgeSearchLog } from '@/types/knowledge'
+import { businessUserError } from '@/utils/business-error'
 import { formatDate } from '@/utils/day'
 
 const { canAccess } = usePermissionAccess()
@@ -68,9 +68,7 @@ function onPageSizeChange(pageSize: number): void {
   void load()
 }
 
-const errorDescription = computed(() => error.value
-  ? normalizeFeedbackError(error.value).message
-  : '请检查网络连接后重试')
+const errorDescription = computed(() => businessUserError(error.value))
 
 function matchModesText(row: KnowledgeSearchLog): string {
   const labels: Record<string, string> = {
@@ -94,13 +92,13 @@ function topHit(row: KnowledgeSearchLog): string {
   }
   const first = row.topResults[0]
   const title = (first as Record<string, unknown>).title ?? (first as Record<string, unknown>).documentTitle ?? ''
-  return `#1 ${String(title)}`
+  return String(title)
 }
 
 const columns: PrimaryTableCol<TableRowData>[] = [
   { cell: (_, { row }) => h('div', [
     h('div', { class: 'vicp-log-query' }, row.query),
-    h('div', { class: 'vicp-log-normalized' }, `处理后：${row.normalizedQuery}`),
+    ...(row.normalizedQuery && row.normalizedQuery !== row.query ? [h('div', { class: 'vicp-log-normalized' }, `实际查找：${row.normalizedQuery}`)] : []),
   ]), colKey: 'query', minWidth: 260, title: '查找内容' },
   { cell: (_, { row }) => matchModesText(row as KnowledgeSearchLog), colKey: 'matchModes', minWidth: 120, title: '怎么找到的' },
   { cell: (_, { row }) => row.resultCount, colKey: 'resultCount', minWidth: 80, title: '找到几条' },
@@ -114,7 +112,7 @@ onMounted(load)
 </script>
 
 <template>
-  <AppPage title="查找记录" description="查看找过哪些资料，方便检查有没有找对。">
+  <AppPage title="资料查找记录" description="查看用户查找过什么，以及系统找到的资料是否相关。">
     <template #search>
       <AppSearchPanel :loading="isLoading" @reset="reset" @search="search">
         <t-form-item label="关键词">
@@ -126,8 +124,8 @@ onMounted(load)
     <AppDataTable
       :columns="columns"
       :data="logs"
-      empty-description="还没有查找记录"
-      empty-title="暂无记录"
+      empty-description="有人查找资料后，记录会显示在这里。"
+      empty-title="还没有查找记录"
       :error-description="errorDescription"
       :show-operations="false"
       row-key="id"

@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import type { UploadFile } from 'tdesign-vue-next'
+import type { CompleteUploadResult, FileCenterItem } from '@/types/file'
+import type { KnowledgeSelectedFile } from '@/types/knowledge'
 import { ref } from 'vue'
 import AppFilePicker from '@/components/business/AppFilePicker.vue'
 import AppFileUploader from '@/components/business/AppFileUploader.vue'
 import KnowledgeFileCard from '@/components/business/knowledge/KnowledgeFileCard.vue'
-import type { CompleteUploadResult, FileCenterItem } from '@/types/file'
-import type { KnowledgeSelectedFile } from '@/types/knowledge'
 
-const props = withDefaults(defineProps<{
+withDefaults(defineProps<{
   file?: KnowledgeSelectedFile | null
 }>(), {
   file: null,
@@ -63,12 +63,13 @@ function onPicked(file: FileCenterItem): void {
         从文件中心选择
       </t-button>
       <AppFileUploader
+        v-model="uploaderFiles"
         accept=".pdf,.docx"
+        purpose="KNOWLEDGE_SOURCE"
         :draggable="false"
         :max="1"
         :multiple="false"
         placeholder="上传文字版本"
-        v-model="uploaderFiles"
         @success="onUploaded"
       />
       <t-button theme="default" variant="text" @click="emit('browseOnly')">

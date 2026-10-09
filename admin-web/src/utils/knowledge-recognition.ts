@@ -1,10 +1,14 @@
 import type { AppStatus } from '@/components/ui/AppStatusTag.vue'
+import type { ConstructionScheme } from '@/types/construction'
 import type {
+  KnowledgePageRecognition,
   PageRecognitionMappingIssue,
   PageRecognitionProductSpecCandidate,
+  PageRecognitionResult,
   PageRecognitionSchemeCandidate,
   PageRecognitionStatus,
 } from '@/types/knowledge'
+import type { ProductSpec } from '@/types/masterdata'
 import { BusinessError } from '@/types/error'
 
 export interface RecognitionStatusMeta {
@@ -19,7 +23,7 @@ export interface RecognitionStatusMeta {
 export const PAGE_RECOGNITION_STATUS_META: Record<PageRecognitionStatus, RecognitionStatusMeta> = {
   PENDING: { label: '排队中', status: 'default' },
   PROCESSING: { label: '识别中', status: 'processing' },
-  REVIEW_REQUIRED: { label: '待确认', status: 'warning' },
+  REVIEW_REQUIRED: { label: '待核对', status: 'warning' },
   CONFIRMED: { label: '已确认', status: 'success' },
   FAILED: { label: '识别失败', status: 'error' },
 }
@@ -31,6 +35,20 @@ export function pageRecognitionStatusMeta(status: PageRecognitionStatus | null |
     return PAGE_RECOGNITION_STATUS_META[status]
   }
   return PAGE_RECOGNITION_UNRECOGNIZED_META
+}
+
+/** 重新识别排队期间后端保留旧确认快照；它不能作为本轮待校验内容展示。 */
+export function currentRecognitionCandidate(
+  detail: Pick<KnowledgePageRecognition, 'structuredData' | 'draftStructuredData' | 'confirmedStructuredData'>,
+  status: PageRecognitionStatus | null,
+): PageRecognitionResult | null {
+  if (status === 'PENDING' || status === 'PROCESSING' || status == null) {
+    return null
+  }
+  if (status === 'FAILED' && detail.confirmedStructuredData) {
+    return null
+  }
+  return detail.structuredData ?? detail.draftStructuredData ?? (status === 'CONFIRMED' ? detail.confirmedStructuredData : null)
 }
 
 /** 可编辑版本 = DRAFT；非 DRAFT 一律只读。 */
@@ -186,4 +204,54 @@ export function formatProductSpecCandidateLabel(candidate: PageRecognitionProduc
   ]
     .filter(Boolean)
     .join(' · ') || candidate.id
+}
+
+export interface RecognitionSelectOption {
+  label: string
+  value: string
+}
+
+/**
+ * 正式构造方案候选：合并后端 AMBIGUOUS 候选与已发布构造方案字典，
+ * 按构造编号收窄；接口失败时（publishedSchemes 为空）仍保留候选可用。
+ */
+export function buildSchemeOptions(
+  system: { constructionCode?: string | null },
+  mappingState: RecognitionMappingCandidateState,
+  publishedSchemes: readonly ConstructionScheme[],
+): RecognitionSelectOption[] {
+  const map = new Map<string, RecognitionSelectOption>()
+  const code = system.constructionCode?.trim()
+  const candidates = mappingState.schemeCandidates.filter(item => !code || !item.schemeCode || item.schemeCode === code)
+  candidates.forEach(item => map.set(item.id, { label: formatSchemeCandidateLabel(item), value: item.id }))
+  publishedSchemes
+    .filter(item => !code || item.schemeCode === code)
+    .forEach((item) => {
+      if (!map.has(item.id)) {
+        map.set(item.id, { label: `${item.name} · ${item.schemeCode}`, value: item.id })
+      }
+    })
+  return [...map.values()]
+}
+
+/** 正式产品规格候选：按厚度与规格类型收窄，同样优先展示后端候选。 */
+export function buildSpecOptions(
+  system: { specClass?: 'I' | 'II' | 'III' | null },
+  option: { thicknessMm?: number | null },
+  mappingState: RecognitionMappingCandidateState,
+  publishedSpecs: readonly ProductSpec[],
+): RecognitionSelectOption[] {
+  const map = new Map<string, RecognitionSelectOption>()
+  const thickness = option.thicknessMm
+  const candidates = mappingState.productSpecCandidates
+    .filter(item => thickness == null || item.thicknessMm == null || item.thicknessMm === thickness)
+  candidates.forEach(item => map.set(item.id, { label: formatProductSpecCandidateLabel(item), value: item.id }))
+  publishedSpecs
+    .filter(item => (thickness == null || item.thicknessMm === thickness) && (!system.specClass || item.specClass === system.specClass))
+    .forEach((item) => {
+      if (!map.has(item.id)) {
+        map.set(item.id, { label: `${item.specCode} · ${item.specClass}型 · ${item.thicknessMm}mm`, value: item.id })
+      }
+    })
+  return [...map.values()]
 }

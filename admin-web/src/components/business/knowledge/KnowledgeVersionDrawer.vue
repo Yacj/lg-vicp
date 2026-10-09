@@ -1,7 +1,7 @@
 <script setup lang="ts">
+import type { KnowledgeDocumentVersion } from '@/types/knowledge'
 import { computed } from 'vue'
 import AppStatusTag from '@/components/ui/AppStatusTag.vue'
-import type { KnowledgeDocumentVersion } from '@/types/knowledge'
 import { formatDate } from '@/utils/day'
 import { knowledgeUserStatusMetaFor } from '@/utils/knowledge-user'
 import { knowledgeVersionStatusMetaFor } from '@/utils/professional-status'
