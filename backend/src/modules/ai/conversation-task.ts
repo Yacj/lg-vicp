@@ -4,6 +4,8 @@
  */
 import { wrapContextForReasoning } from "../../shared/ai-response-policy.js";
 import { z } from "zod";
+import { pageRecognitionLayerSchema } from "../../shared/page-recognition.js";
+import { THERMAL_FACT_RULES } from "./thermal-answer-facts.js";
 import { normalizedThermalLookupFilterSchema } from "../thermal/thermal-lookup.schemas.js";
 import { formatLookupThickness } from "../thermal/thermal-lookup-thickness.js";
 import { THERMAL_LOOKUP_METRICS, THERMAL_LOOKUP_MODES, type ThermalLookupMetric, type ThermalLookupMode } from "../thermal/thermal-lookup-mode.js";
@@ -46,6 +48,9 @@ export const referenceLookupCandidateSchema = z.object({
   specClass: z.enum(["I", "II", "III"]).optional(),
   thicknessMm: z.number().finite().optional(),
   kValue: z.number().finite().optional(),
+  lambda: z.number().finite().optional(),
+  alpha: z.number().finite().optional(),
+  layers: z.array(pageRecognitionLayerSchema).optional(),
   systemId: z.string().optional(),
   systemCode: z.string().nullable().optional(),
   systemName: z.string().optional(),
@@ -328,8 +333,10 @@ function formatLastReferenceLookupContext(lookup: LastReferenceLookup): string {
   const candidateLines = lookup.candidates.slice(0, 12).map((item) => {
     const bits = [
       item.schemeCode ? `方案 ${item.schemeCode}` : null,
+      item.lambda !== undefined ? `λ=${item.lambda}` : null,
+      item.alpha !== undefined ? `α=${item.alpha}` : null,
       item.productThermalResistance !== undefined ? `产品层热阻 ${item.productThermalResistance}` : null,
-      item.totalThermalResistance !== undefined ? `总热阻 ${item.totalThermalResistance}` : null,
+      item.totalThermalResistance !== undefined ? `外墙主断面总热阻 R₀ ${item.totalThermalResistance}` : null,
       item.sourcePageId ? `sourcePageId=${item.sourcePageId}，原页标签 ${item.sourcePageLabel ?? "未标注"}` : null,
       item.specClass ? `${item.specClass}型` : null,
       item.kValue !== undefined ? `K=${item.kValue}` : null,
@@ -337,8 +344,8 @@ function formatLastReferenceLookupContext(lookup: LastReferenceLookup): string {
       item.systemName ?? null,
       item.schemeId ? `schemeId=${item.schemeId}` : null,
       item.productSpecId ? `productSpecId=${item.productSpecId}` : null,
-      item.atlasPage || item.evidenceSource || item.evidenceRef
-        ? `出处：${[item.evidenceSource, item.atlasPage, item.evidenceRef].filter(Boolean).join(" / ")}`
+      item.evidenceSource
+        ? `出处：${item.evidenceSource}`
         : null
     ].filter(Boolean);
     return `- ${bits.join("，")}`;
@@ -349,6 +356,7 @@ function formatLastReferenceLookupContext(lookup: LastReferenceLookup): string {
     lookup.candidates.length === 0 ? "上一轮参考表未命中，仍保留查询条件；新的条件需要重新查询。" : null,
     queryBits.length > 0 ? `查询：${queryBits.join("；")}` : null,
     ...candidateLines,
+    THERMAL_FACT_RULES,
     "纯参数或原页指代可复用上述历史结果；K、模式、热阻、厚度、型号、体系、方案或规格条件变化时必须重新查已发布数据库，历史候选仅用于理解指代与补全缺省条件。不要用知识检索片段覆盖上述数值。"
   ].filter(Boolean).join("\n");
 }

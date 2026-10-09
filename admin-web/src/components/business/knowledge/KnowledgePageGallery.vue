@@ -997,17 +997,19 @@ defineExpose({ reload: load, openPhysicalPage: (physicalPageNumber: number) => {
               @error="markPageImageUnavailable(page.id)"
             >
             <span v-else>页面图片暂不可用</span>
+            <div class="knowledge-page-card__status">
+              <AppStatusTag :label="recognitionStatus(page).label" :status="recognitionStatus(page).status" />
+            </div>
             <div v-if="selectable" class="knowledge-page-card__check" @click.stop>
               <t-checkbox :checked="isSelected(page)" @change="toggleSelect(page)" />
             </div>
           </div>
           <div class="knowledge-page-card__body">
             <div class="knowledge-page-card__title">
-              <strong>文件第 {{ page.physicalPageNumber }} 页</strong>
-              <span>印刷页码 {{ page.pageLabel || '—' }}</span>
+              <strong>第 {{ page.physicalPageNumber }} 页</strong>
+              <span>{{ page.pageLabel ? `资料页码 ${page.pageLabel}` : '资料页码未确认' }}</span>
               <span v-if="page.pageTitle">{{ page.pageTitle }}</span>
             </div>
-            <AppStatusTag :label="recognitionStatus(page).label" :status="recognitionStatus(page).status" />
             <p v-if="page.recognitionStatus === 'FAILED' && page.lastRecognitionError" class="knowledge-page-card__warning is-error">
               识别失败（{{ page.lastRecognitionErrorCode || '旧任务未记录错误码' }}）。请到“核对识别结果”查看原因和任务编号。
             </p>
@@ -1433,6 +1435,17 @@ defineExpose({ reload: load, openPhysicalPage: (physicalPageNumber: number) => {
   padding: 2px 6px;
   border-radius: var(--td-radius-default);
   background: var(--td-bg-color-container);
+}
+
+.knowledge-page-card__status {
+  position: absolute;
+  top: var(--td-size-3);
+  right: var(--td-size-3);
+  display: inline-flex;
+  max-width: calc(100% - var(--td-size-10));
+  border-radius: var(--td-radius-small);
+  background: var(--td-bg-color-container);
+  pointer-events: none;
 }
 
 .knowledge-page-card__body {

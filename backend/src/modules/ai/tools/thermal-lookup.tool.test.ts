@@ -55,6 +55,32 @@ beforeEach(() => {
 });
 
 describe("thermal Tool 最终收口回归", () => {
+  it("真实失败问句传热8.3先澄清，模型猜PRODUCT_R或TOTAL_R也不执行查询", async () => {
+    for (const metric of ["PRODUCT_R", "TOTAL_R", "K"]) {
+      const result = await execute(context("有传热8.3的保温板么"), { metric, targetValue: 8.3 });
+      expect(result.data.interpretation).toEqual({ metric: "AMBIGUOUS", needsClarification: true });
+      expect(result.data.primaryCandidate).toBeNull();
+      expect(result.data.instruction).toContain("板自身热阻与整墙总热阻不同");
+    }
+    expect(mocks.query).not.toHaveBeenCalled();
+    expect(mocks.save).not.toHaveBeenCalled();
+  });
+  it("A4-1 60mm同档事实及PRODUCT_R/TOTAL_R/K绝不互相冒充", async () => {
+    publishedRows = [{ ...real, rowId: "a4", schemeCode: "A4-1", thicknessMm: 60,
+      productThermalResistance: 8, totalThermalResistance: 8.313, kValue: 0.12 }];
+    const direct = await execute(context("A4-1 60mm是多少？"), { schemeCode: "A4-1", thicknessMm: 60 });
+    expect(direct.data.primaryCandidate).toMatchObject({ schemeCode: "A4-1", thicknessMm: 60, productThermalResistance: 8, totalThermalResistance: 8.313, kValue: 0.12 });
+    const product = await execute(context("产品热阻8.3左右有吗？"), { metric: "TOTAL_R", targetValue: 8.3 });
+    expect(product.data.metric).toBe("PRODUCT_R");
+    expect(product.data.found).toBe(false);
+    const total = await execute(context("总热阻8.3左右呢？"));
+    expect(total.data).toMatchObject({ metric: "TOTAL_R", lookupMode: "APPROX", found: true });
+    expect(total.data.primaryCandidate.totalThermalResistance).toBe(8.313);
+    const k = await execute(context("K 0.12左右有什么？"));
+    expect(k.data).toMatchObject({ metric: "K", lookupMode: "APPROX", targetValue: 0.12, found: true });
+    const exact = await execute(context("产品热阻就是8.3，等于8.3的有吗？"));
+    expect(exact.data).toMatchObject({ metric: "PRODUCT_R", lookupMode: "EXACT", found: false });
+  });
   it("销售20mm以内近似K命中A1-3，原页和双R及范围经过保存与二次归一", async () => {
     const ctx = context("客户想做薄一点，20mm以内有没有K 0.3左右的？");
     const result = await execute(ctx, { thicknessMm: 20 });

@@ -10,7 +10,7 @@ vi.hoisted(() => {
   process.env.BOOTSTRAP_ADMIN_PASSWORD = "test-admin-password";
 });
 
-import { formatKnowledgeContext, type WikiHit } from "./knowledge.service.js";
+import { formatKnowledgeContext, formatKnowledgeHitsForModel, type WikiHit } from "./knowledge.service.js";
 
 const hit: WikiHit = {
   sourceId: "section-1",
@@ -27,6 +27,12 @@ const hit: WikiHit = {
 };
 
 describe("formatKnowledgeContext", () => {
+  it("physicalPageNumber=1/pageLabel=21只显示21，标签null不回退物理5", () => {
+    expect(formatKnowledgeContext([{ ...hit, sourcePage: 1, physicalPageNumber: 1, pageLabel: "21" }])).toContain("21 页");
+    const missing = { ...hit, sourcePage: 5, physicalPageNumber: 5, pageLabel: null };
+    expect(formatKnowledgeHitsForModel([missing])[0]?.pageLabel).toBeNull();
+    expect(formatKnowledgeContext([missing])).not.toContain("5 页");
+  });
   it("检索失败时给出可理解的降级说明，不抛错", () => {
     const text = formatKnowledgeContext([], { retrievalFailed: true });
     expect(text).toContain("现有资料还不足以确定这一点");

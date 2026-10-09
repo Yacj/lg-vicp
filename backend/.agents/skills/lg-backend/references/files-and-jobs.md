@@ -24,7 +24,7 @@ MinIO 内部连接地址与返回浏览器的预签名公开地址必须分开�
 
 页面资产安全：batch-upload 必须把临时 File 内容复制到 `knowledge/page-images/{documentId}/{versionId}/` 专属对象；ZIP 在解压前检查 central directory，限制最多 200 张图片、单张 15MB、解压总量 300MB、manifest 1MB，并拒绝路径穿越、非图片扩展名与扩展名/签名不匹配。Knowledge Version 仅 DRAFT 可改页图、顺序、识别、TOC、资产、解析与分块；PENDING_REVIEW/APPROVED/PUBLISHED/DISABLED 只读。batch/ZIP 先校验整批文件、页号和 manifest，再写 OSS 与 DB；DB 事务失败清理本次新对象，事务成功后再删旧对象。AI_ENABLED 离线页图版本要求每页有原页图且识别已 CONFIRMED。正式热工行只可写入 DRAFT 参考集。识别任务使用稳定 page jobId + `recognitionRunId` 单飞，Worker 仅允许当前 run 写回；Confirm 在事务内锁页且只接受 REVIEW_REQUIRED。识别草稿同步结构化候选与页面展示字段；确认只消费 draftStructuredData，并须在同一数据库事务重建当前页 chunks、同步当前 pageId 的热工行、固化 confirmed snapshot 与页面字段。
 
-批量页面识别复用逐页队列并报告提交失败；批量确认逐页独立执行，无风险页须通过全文、热工字段、厚度异常、可编辑参考集和已发布方案/规格映射校验。模型解释性备注仅供核对，任务失败保留稳定错误码和 runId 供排障。阅读端优先已确认 TOC、其次正文章节，文件页导航始终可用。
+批量页面识别复用逐页队列并报告提交失败；批量确认逐页独立执行，无风险页须通过全文、热工字段、厚度异常、可编辑参考集和已发布方案/规格映射校验。备注仅抄录原图注/备注，模型字段解释不进入备注，任务失败保留稳定错误码和 runId 供排障。阅读端优先已确认 TOC、其次正文章节，文件页导航始终可用。
   - XLSX 使用 ExcelJS（每工作表一个页面，表格按行产出结构化 TABLE 分块，metadata 保留行列与合并单元格）；`.doc`/`.xls` 老格式不支持，标记 `OCR_REQUIRED` 并提示转换后重传。
 - 保存文档版本、页码、章节和切片序号。
 - 可提取文本进入 PostgreSQL 全文索引。
@@ -35,3 +35,5 @@ MinIO 内部连接地址与返回浏览器的预签名公开地址必须分开�
 知识库多来源入库统一走 `src/modules/knowledge/knowledge-ingest.service.ts`：B 端单文件预签名直传、批量导入（`/imports/batch`）、爬虫（`knowledge_crawler_sources` + maintenance 队列 `knowledge_crawler` 任务）、内部受控 API（`/api/v1/internal/knowledge/ingest`，`x-internal-key` 服务密钥，未配置 `INTERNAL_API_KEY` 时整体禁用）。插入 `files` 前按 SHA-256 查重：命中已发布版本抛 409，命中未发布草稿提示先处理，服务端直写场景幂等跳过。
 
 任务必须具备幂等 Job ID、最多三次指数退避、进度落库、中文错误信息和最终状态。API 不能等待解析或报告导出完成。
+
+页面识别备注（2026-10-09）：notes 仅逐条抄录原图明确出现的注/备注，无原文备注返回空数组；禁止混入字段映射、null 原因与多厚度拆分解释。正常多厚度留空说明不再从 warnings 移入 notes；真实歧义/数值冲突保留 warnings。存量识别结果需在可编辑草稿重新识别或人工修订，不自动改写已确认数据。

@@ -127,63 +127,58 @@ async function rebuild(): Promise<void> {
     </div>
 
     <dl v-if="facts.length" class="knowledge-overview__facts" aria-label="资料处理概况">
-      <div v-for="fact in facts" :key="fact.key" class="knowledge-overview__fact" :class="`is-${fact.tone}`">
+      <div v-for="fact in facts" :key="fact.key" class="knowledge-overview__fact" :class="[`is-${fact.tone}`, `is-${fact.key}`]">
         <dt>{{ fact.label }}</dt>
         <dd>{{ fact.value }}</dd>
       </div>
     </dl>
-    <details class="knowledge-overview__details">
-      <summary>
-        <span>处理进度与发布条件</span>
-      </summary>
-      <div class="knowledge-overview__details-content">
-        <section class="knowledge-overview__section" aria-label="资料处理步骤">
-          <h3>处理步骤</h3>
-          <ol class="knowledge-overview__flow">
-            <li v-for="step in flowSteps" :key="step.label" class="knowledge-overview__flow-step" :class="`is-${step.state}`">
-              <span class="knowledge-overview__flow-mark" aria-hidden="true" />
-              <strong>{{ step.label }}</strong>
-              <span class="knowledge-overview__flow-detail">{{ step.state === 'done' ? '已完成' : step.detail }}</span>
-            </li>
-          </ol>
-        </section>
+    <div class="knowledge-overview__details-content">
+      <section class="knowledge-overview__section" aria-label="资料处理步骤">
+        <h3>处理步骤</h3>
+        <ol class="knowledge-overview__flow">
+          <li v-for="step in flowSteps" :key="step.label" class="knowledge-overview__flow-step" :class="`is-${step.state}`">
+            <span class="knowledge-overview__flow-mark" aria-hidden="true" />
+            <strong>{{ step.label }}</strong>
+            <span class="knowledge-overview__flow-detail">{{ step.state === 'done' ? '已完成' : step.detail }}</span>
+          </li>
+        </ol>
+      </section>
 
-        <section class="knowledge-overview__section knowledge-overview__readiness" aria-label="发布与问答条件">
-          <h3>发布与问答</h3>
-          <dl class="knowledge-overview__readiness-list">
-            <div>
-              <dt>发布</dt>
-              <dd>{{ published ? '已发布' : canPublish ? '可以发布' : '尚未满足条件' }}</dd>
-            </div>
-            <div>
-              <dt>问答</dt>
-              <dd>{{ canAskAi ? '可以使用' : '暂不能使用' }}</dd>
-            </div>
-          </dl>
-          <div v-if="remainingBlockers.length" class="knowledge-overview__blockers">
-            <h4>还需完成</h4>
-            <ul>
-              <li v-for="(blocker, blockerIndex) in remainingBlockers" :key="blockerIndex">
-                {{ blocker }}
-              </li>
-            </ul>
+      <section class="knowledge-overview__section knowledge-overview__readiness" aria-label="发布与问答条件">
+        <h3>发布与问答</h3>
+        <dl class="knowledge-overview__readiness-list">
+          <div>
+            <dt>发布</dt>
+            <dd :class="published || canPublish ? 'is-ready' : 'is-pending'">{{ published ? '已发布' : canPublish ? '可以发布' : '尚未满足条件' }}</dd>
           </div>
-          <p v-if="index?.indexBuiltAt" class="knowledge-overview__updated">
-            问答内容上次更新：{{ builtAtLabel }}
-          </p>
-          <t-button
-            v-if="canRebuildIndex && nextStep.reason !== 'index'"
-            :disabled="!versionId || rebuilding || index?.indexStatus === 'INDEXING'"
-            :loading="rebuilding"
-            size="small"
-            variant="outline"
-            @click="rebuild"
-          >
-            更新问答内容
-          </t-button>
-        </section>
-      </div>
-    </details>
+          <div>
+            <dt>问答</dt>
+            <dd :class="canAskAi ? 'is-ready' : 'is-pending'">{{ canAskAi ? '可以使用' : '暂不能使用' }}</dd>
+          </div>
+        </dl>
+        <div v-if="remainingBlockers.length" class="knowledge-overview__blockers">
+          <h4>还需完成</h4>
+          <ul>
+            <li v-for="(blocker, blockerIndex) in remainingBlockers" :key="blockerIndex">
+              {{ blocker }}
+            </li>
+          </ul>
+        </div>
+        <p v-if="index?.indexBuiltAt" class="knowledge-overview__updated">
+          问答内容上次更新：{{ builtAtLabel }}
+        </p>
+        <t-button
+          v-if="canRebuildIndex && nextStep.reason !== 'index'"
+          :disabled="!versionId || rebuilding || index?.indexStatus === 'INDEXING'"
+          :loading="rebuilding"
+          size="small"
+          variant="outline"
+          @click="rebuild"
+        >
+          更新问答内容
+        </t-button>
+      </section>
+    </div>
   </section>
 </template>
 
@@ -223,78 +218,68 @@ async function rebuild(): Promise<void> {
 }
 .knowledge-overview__next :deep(.t-button) { flex: 0 0 auto; }
 
+
 .knowledge-overview__facts {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--td-size-3) 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--td-size-4);
   margin: 0;
-  padding: var(--td-size-3) var(--td-size-4);
-  border: 1px solid var(--td-component-stroke);
-  border-radius: var(--vicp-radius);
-  background: var(--td-bg-color-secondarycontainer);
 }
 .knowledge-overview__fact {
   display: flex;
-  align-items: baseline;
-  gap: var(--td-size-2);
   min-width: 0;
-  padding: 0 var(--td-size-5);
-  border-right: 1px solid var(--td-component-stroke);
+  flex-direction: column;
+  gap: var(--td-size-3);
+  padding: var(--td-size-5);
+  border: 1px solid var(--td-component-stroke);
+  border-radius: var(--vicp-radius);
+  background: var(--td-bg-color-container);
 }
-.knowledge-overview__fact:first-child { padding-left: 0; }
-.knowledge-overview__fact:last-child { border-right: 0; }
 .knowledge-overview__fact dt {
+  display: flex;
+  align-items: center;
+  gap: var(--td-size-2);
   color: var(--td-text-color-secondary);
-  font-size: var(--td-font-size-body-small);
+  font-size: var(--td-font-size-body-medium);
+}
+.knowledge-overview__fact dt::before {
+  content: '';
+  width: var(--td-size-2);
+  height: var(--td-size-2);
+  border-radius: var(--td-radius-circle);
+  background: var(--td-brand-color);
 }
 .knowledge-overview__fact dd {
   margin: 0;
   color: var(--td-text-color-primary);
-  font-size: var(--td-font-size-title-medium);
+  font-size: var(--vicp-metric-value-size);
   font-weight: 600;
+  line-height: 1.2;
   white-space: nowrap;
 }
 .knowledge-overview__fact.is-warning dd { color: var(--td-warning-color); }
-
-.knowledge-overview__details {
-  min-width: 0;
-  padding: 0 var(--td-size-4);
-  border: 1px solid var(--td-component-stroke);
-  border-radius: var(--vicp-radius);
-  background: var(--td-bg-color-secondarycontainer);
-}
-.knowledge-overview__details summary {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--td-size-2) var(--td-size-4);
-  padding: var(--td-size-3) 0;
-  color: var(--td-brand-color);
-  font-weight: 600;
-  cursor: pointer;
-  list-style: none;
-}
-.knowledge-overview__details summary::-webkit-details-marker { display: none; }
-.knowledge-overview__details summary::after {
-  content: '▸';
-  margin-left: auto;
-  transition: transform 0.2s ease;
-}
-.knowledge-overview__details[open] summary::after { transform: rotate(90deg); }
-.knowledge-overview__details summary:focus-visible {
-  outline: 2px solid var(--td-brand-color);
-  outline-offset: 2px;
-}
-.knowledge-overview__details[open] summary { border-bottom: 1px solid var(--td-component-stroke); }
+.knowledge-overview__fact.is-warning dt::before { background: var(--td-warning-color); }
+.knowledge-overview__fact.is-confirmed dd { color: var(--td-success-color); }
+.knowledge-overview__fact.is-confirmed dt::before { background: var(--td-success-color); }
 .knowledge-overview__details-content {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(250px, 34%);
-  gap: var(--td-size-6);
-  padding: var(--td-size-4) 0;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  align-items: stretch;
+  gap: var(--td-size-4);
 }
-.knowledge-overview__section { min-width: 0; }
-.knowledge-overview__section h3 { margin-bottom: var(--td-size-3); }
+.knowledge-overview__section {
+  min-width: 0;
+  padding: var(--td-size-5);
+  border: 1px solid var(--td-component-stroke);
+  border-radius: var(--vicp-radius);
+  background: var(--td-bg-color-container);
+}
+.knowledge-overview__section h3 {
+  margin-bottom: var(--td-size-4);
+  padding-bottom: var(--td-size-3);
+  border-bottom: 1px solid var(--td-component-stroke);
+  font-size: var(--td-font-size-title-medium);
+}
 .knowledge-overview__flow,
 .knowledge-overview__blockers ul { margin: 0; padding: 0; list-style: none; }
 .knowledge-overview__flow-step {
@@ -303,7 +288,6 @@ async function rebuild(): Promise<void> {
   align-items: center;
   gap: var(--td-size-3);
   min-height: var(--td-comp-size-m);
-  border-bottom: 1px solid var(--td-component-stroke);
 }
 .knowledge-overview__flow-step strong { font-weight: 500; }
 .knowledge-overview__flow-detail {
@@ -329,10 +313,11 @@ async function rebuild(): Promise<void> {
   justify-content: space-between;
   gap: var(--td-size-3);
   padding: var(--td-size-2) 0;
-  border-bottom: 1px solid var(--td-component-stroke);
 }
 .knowledge-overview__readiness-list dt { color: var(--td-text-color-secondary); }
-.knowledge-overview__readiness-list dd { margin: 0; text-align: right; }
+.knowledge-overview__readiness-list dd { margin: 0; text-align: right; font-weight: 500; }
+.knowledge-overview__readiness-list .is-ready { color: var(--td-success-color); }
+.knowledge-overview__readiness-list .is-pending { color: var(--td-warning-color); }
 .knowledge-overview__blockers { margin-top: var(--td-size-4); }
 .knowledge-overview__blockers h4 { margin-bottom: var(--td-size-2); }
 .knowledge-overview__blockers li {
@@ -352,7 +337,9 @@ async function rebuild(): Promise<void> {
 }
 @container (max-width: 580px) {
   .knowledge-overview__next { align-items: flex-start; flex-direction: column; }
-  .knowledge-overview__fact { padding: 0 var(--td-size-3); }
+  .knowledge-overview__facts { gap: var(--td-size-2); }
+  .knowledge-overview__fact { padding: var(--td-size-3); }
+  .knowledge-overview__fact dd { font-size: var(--td-font-size-title-large); }
   .knowledge-overview__flow-step { grid-template-columns: var(--td-size-4) minmax(0, 1fr); }
   .knowledge-overview__flow-detail { grid-column: 2; text-align: left; padding-bottom: var(--td-size-2); }
 }

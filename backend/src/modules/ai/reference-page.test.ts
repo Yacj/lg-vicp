@@ -61,7 +61,7 @@ describe("REFERENCE_PAGE", () => {
       "thicknessMm", "productR", "rValue", "kValue"
     ]);
     expect(built.blocks[0]?.matches[1]?.summary.thicknessMm).toBe(35);
-    expect(built.blocks[0]?.highlights.length).toBeGreaterThan(4);
+    expect(built.blocks[0]?.highlights).toEqual(built.blocks[0]?.matches[0]?.highlights);
     expect(built.stored[0]?.matches).toHaveLength(2);
   });
 

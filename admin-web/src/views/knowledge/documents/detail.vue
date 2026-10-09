@@ -2,10 +2,8 @@
 import type { KnowledgeHeaderAction } from '@/components/business/knowledge/KnowledgeWorkspaceHeader.vue'
 import type {
   KnowledgeCategory,
-  KnowledgeChapterTreeNode,
   KnowledgeDocument,
   KnowledgeDocumentVersion,
-  KnowledgePage,
   KnowledgeSelectedFile,
 } from '@/types/knowledge'
 import { MessagePlugin } from 'tdesign-vue-next'
@@ -18,23 +16,17 @@ import {
   disableKnowledgeVersion,
   fetchKnowledgeCategories,
   fetchKnowledgeDocumentDetail,
-  fetchVersionChapterTree,
-  fetchVersionExtractedText,
-  fetchVersionPageWindow,
-  fetchVersionPages,
   publishKnowledgeVersion,
   restartKnowledgeParse,
   updateVersionUsageMode,
 } from '@/api/modules/knowledge'
 import AppFilePreview from '@/components/business/AppFilePreview.vue'
 import KnowledgeAdvancedDrawer from '@/components/business/knowledge/KnowledgeAdvancedDrawer.vue'
-import KnowledgeChapterTree from '@/components/business/knowledge/KnowledgeChapterTree.vue'
 import KnowledgeCreateDrawer from '@/components/business/knowledge/KnowledgeCreateDrawer.vue'
 import KnowledgeFailurePanel from '@/components/business/knowledge/KnowledgeFailurePanel.vue'
 import KnowledgeLifecycleBar from '@/components/business/knowledge/KnowledgeLifecycleBar.vue'
 import KnowledgeOverviewPanel from '@/components/business/knowledge/KnowledgeOverviewPanel.vue'
 import KnowledgePageGallery from '@/components/business/knowledge/KnowledgePageGallery.vue'
-import KnowledgeParsedContent from '@/components/business/knowledge/KnowledgeParsedContent.vue'
 import KnowledgeParseStatus from '@/components/business/knowledge/KnowledgeParseStatus.vue'
 import KnowledgeRecognitionReview from '@/components/business/knowledge/KnowledgeRecognitionReview.vue'
 import KnowledgeReplaceFileDrawer from '@/components/business/knowledge/KnowledgeReplaceFileDrawer.vue'
@@ -71,11 +63,6 @@ const canHandleRecognition = computed(() => canAccess({ permissions: ['system:kn
 const documentMeta = ref<KnowledgeDocument | null>(null)
 const versions = ref<KnowledgeDocumentVersion[]>([])
 const categories = ref<KnowledgeCategory[]>([])
-const chapters = ref<KnowledgeChapterTreeNode[]>([])
-const readingPages = ref<KnowledgePage[]>([])
-const selectedChapterId = ref<string | null>(null)
-const currentPage = ref<KnowledgePage | null>(null)
-const readingLoading = ref(false)
 const previewVisible = ref(false)
 const previewPage = ref<number | null>(null)
 const versionVisible = ref(false)
@@ -85,15 +72,13 @@ const replaceVisible = ref(false)
 const publishVisible = ref(false)
 const activeTab = ref<string>('overview')
 const activeSection = computed(() => {
-  if (activeTab.value === 'gallery' || activeTab.value === 'recognition') return 'processing'
-  if (activeTab.value === 'content' || activeTab.value === 'structured') return 'reading'
+  if (['gallery', 'recognition', 'structured'].includes(activeTab.value)) return 'processing'
   return activeTab.value
 })
 const focusPhysicalPageNumber = ref<number | null>(null)
 const galleryKey = ref(0)
 /** 上一次 workspace 的页面数：变化时重挂图库，确保页序调整后重新拉取。 */
 const previousPageCount = ref(0)
-const previousChapterVersionId = ref<string | null>(null)
 
 /**
  * 页面级唯一生命周期轮询：workspace / 知识索引 / 识别汇总三处共用一个 3s 定时器。
@@ -117,11 +102,7 @@ const {
       previousPageCount.value = next.summary.pageCount
       galleryKey.value += 1
     }
-    if (isKnowledgeReadyStatus(next.currentVersion?.userStatus) && next.currentVersion?.id
-      && (previousChapterVersionId.value !== next.currentVersion.id || pageCountChanged)) {
-      previousChapterVersionId.value = next.currentVersion.id
-      await loadChapters(next.currentVersion.id)
-    }
+
   },
 })
 
@@ -135,9 +116,6 @@ const categoryName = computed(() => {
   const id = workspace.value?.document.categoryId ?? documentMeta.value?.categoryId
   return categories.value.find(item => item.id === id)?.name ?? ''
 })
-const selectedChapter = computed(() => findChapter(chapters.value, selectedChapterId.value))
-const currentReadingPage = computed(() => readingPages.value.find(page => page.physicalPageNumber === currentPage.value?.physicalPageNumber))
-const currentPageUnconfirmed = computed(() => currentReadingPage.value?.recognitionStatus != null && currentReadingPage.value.recognitionStatus !== 'CONFIRMED')
 const previewFile = computed(() => {
   const file = workspace.value?.primaryFile
   if (!file) {
@@ -178,138 +156,6 @@ const showWorkspaceTabs = computed(() => Boolean(workspace.value) && (
     && userStatus.value !== 'SEARCHABLE_FILE_REQUIRED'
     && !isKnowledgeParsingStatus(userStatus.value))
 ))
-
-function findChapter(items: KnowledgeChapterTreeNode[], id: string | null): KnowledgeChapterTreeNode | null {
-  if (!id) {
-    return null
-  }
-  for (const item of items) {
-    if (item.id === id) {
-      return item
-    }
-    const child = findChapter(item.children ?? [], id)
-    if (child) {
-      return child
-    }
-  }
-  return null
-}
-
-async function loadChapters(id: string): Promise<void> {
-  try {
-    const [tree, firstPage] = await Promise.all([fetchVersionChapterTree(id), fetchVersionPages(id, 1, 100)])
-    const pages = [...firstPage.items]
-    for (let page = 2; page <= Math.ceil(firstPage.total / 100); page += 1) {
-      pages.push(...(await fetchVersionPages(id, page, 100)).items)
-    }
-    if (versionId.value !== id) return
-    readingPages.value = pages.sort((a, b) => a.physicalPageNumber - b.physicalPageNumber)
-    chapters.value = tree.items
-    const first = chapters.value[0]
-    if (first) {
-      selectedChapterId.value = first.id
-      await openChapter(first)
-    }
-    else {
-      selectedChapterId.value = null
-      if (hasPages.value) {
-        await openPage(readingPages.value[0]?.physicalPageNumber ?? 1)
-      }
-      else {
-        await loadExtractedText()
-      }
-    }
-  }
-  catch {
-    chapters.value = []
-    readingPages.value = []
-  }
-}
-
-async function openChapter(node: KnowledgeChapterTreeNode): Promise<void> {
-  selectedChapterId.value = node.id
-  if (!hasPages.value) {
-    await loadExtractedText()
-    return
-  }
-  await openPage(node.physicalPageNumber ?? readingPages.value[0]?.physicalPageNumber ?? 1)
-}
-
-async function loadExtractedText(): Promise<void> {
-  if (!versionId.value) {
-    return
-  }
-  readingLoading.value = true
-  try {
-    const result = await fetchVersionExtractedText(versionId.value)
-    currentPage.value = {
-      id: `extracted-${versionId.value}`,
-      documentId: documentId.value,
-      versionId: versionId.value,
-      pageNumber: 0,
-      physicalPageNumber: 0,
-      pageLabel: '机器提取文本',
-      pageTitle: '机器提取文本（非页面视觉）',
-      parsedText: result.text,
-      extractedText: result.text,
-      pageImageObjectKey: null,
-      pageImageUrl: null,
-      sectionPath: null,
-      blocks: result.blocks,
-      hasTables: result.blocks.some(block => block.contentType === 'TABLE'),
-      hasImages: false,
-      parseStatus: 'PARSED',
-      createdAt: new Date().toISOString(),
-    }
-  }
-  catch (cause) {
-    MessagePlugin.error(businessUserError(cause))
-  }
-  finally {
-    readingLoading.value = false
-  }
-}
-
-async function openPage(physicalPageNumber: number): Promise<void> {
-  if (!versionId.value) {
-    return
-  }
-  readingLoading.value = true
-  currentPage.value = null
-  try {
-    const result = await fetchVersionPageWindow(versionId.value, physicalPageNumber, 1, 1)
-    currentPage.value = {
-      id: result.page.id,
-      documentId: documentId.value,
-      versionId: versionId.value,
-      pageNumber: result.page.pageNumber,
-      physicalPageNumber: result.page.physicalPageNumber,
-      pageLabel: result.page.pageLabel,
-      pageTitle: result.page.pageTitle,
-      parsedText: result.page.fullText,
-      extractedText: result.page.extractedText,
-      pageImageObjectKey: null,
-      pageImageUrl: result.page.pageImageUrl,
-      sectionPath: null,
-      blocks: result.page.blocks,
-      hasTables: result.page.blocks.some(block => block.contentType === 'TABLE'),
-      hasImages: false,
-      parseStatus: 'PARSED',
-      createdAt: new Date().toISOString(),
-    }
-  }
-  catch (cause) {
-    MessagePlugin.error(businessUserError(cause))
-  }
-  finally {
-    readingLoading.value = false
-  }
-}
-
-function openReadingPage(physicalPageNumber: number): void {
-  selectedChapterId.value = null
-  void openPage(physicalPageNumber)
-}
 
 async function loadVersions(): Promise<void> {
   try {
@@ -437,14 +283,12 @@ function openRecognitionPage(physicalPageNumber: number): void {
 }
 
 function onTabChange(value: string | number | boolean): void {
-  activeTab.value = String(value)
-  if (activeTab.value === 'content' && versionId.value) {
-    void loadChapters(versionId.value)
-  }
+  const tab = String(value)
+  activeTab.value = tab === 'content' || tab === 'reading' ? 'gallery' : tab
 }
 function onSectionChange(value: string | number): void {
   const section = String(value)
-  onTabChange(section === 'processing' ? 'gallery' : section === 'reading' ? 'content' : section)
+  onTabChange(section === 'processing' || section === 'reading' ? 'gallery' : section)
 }
 
 async function approve(): Promise<void> {
@@ -496,10 +340,6 @@ watch(documentId, () => {
   activeTab.value = 'overview'
   focusPhysicalPageNumber.value = null
   previousPageCount.value = 0
-  previousChapterVersionId.value = null
-  readingPages.value = []
-  chapters.value = []
-  currentPage.value = null
   void loadVersions()
 })
 
@@ -565,7 +405,7 @@ onMounted(() => {
 
       <template v-else-if="showWorkspaceTabs || isKnowledgeReadyStatus(userStatus)">
         <KnowledgeLifecycleBar
-          v-if="['gallery', 'content', 'structured'].includes(activeTab)"
+          v-if="['gallery', 'structured'].includes(activeTab)"
           :index="index"
           :recognition-summary="recognitionSummary"
           :workspace="workspace"
@@ -597,8 +437,9 @@ onMounted(() => {
           <t-tab-panel label="处理资料" value="processing">
             <div class="knowledge-workspace__subnav" aria-label="资料处理内容">
               <t-radio-group :value="activeTab" variant="default-filled" @change="onTabChange">
-                <t-radio-button value="gallery">资料页面</t-radio-button>
+                <t-radio-button value="gallery">原文页面</t-radio-button>
                 <t-radio-button value="recognition">核对识别结果</t-radio-button>
+                <t-radio-button value="structured">已确认热工数据</t-radio-button>
               </t-radio-group>
             </div>
             <KnowledgePageGallery
@@ -615,7 +456,7 @@ onMounted(() => {
               @review-page="openRecognitionPage"
             />
             <KnowledgeRecognitionReview
-              v-else
+              v-else-if="activeTab === 'recognition'"
               :key="`recognition-${versionId}`"
               :document-id="documentId"
               :version-id="versionId"
@@ -626,43 +467,12 @@ onMounted(() => {
               @open-gallery-page="openGalleryPage"
               @refresh="refresh()"
             />
-          </t-tab-panel>
-
-          <t-tab-panel label="查看内容" value="reading">
-            <div class="knowledge-workspace__subnav" aria-label="资料内容类型">
-              <t-radio-group :value="activeTab" variant="default-filled" @change="onTabChange">
-                <t-radio-button value="content">正文与目录</t-radio-button>
-                <t-radio-button value="structured">热工信息</t-radio-button>
-              </t-radio-group>
-            </div>
             <KnowledgeStructuredDataPanel
-              v-if="activeTab === 'structured'"
+              v-else-if="activeTab === 'structured'"
               :document-id="documentId"
               :version-id="versionId"
               @open-source-page="openGalleryPage($event.physicalPageNumber, $event.pageId)"
             />
-            <div v-else class="knowledge-workspace__result">
-              <KnowledgeChapterTree
-                :items="chapters"
-                :pages="readingPages"
-                :loading="readingLoading && chapters.length === 0"
-                :selected-id="selectedChapterId"
-                :selected-physical-page-number="currentPage?.physicalPageNumber"
-                @select="openChapter"
-                @select-page="openReadingPage"
-              />
-              <KnowledgeParsedContent
-                :can-preview="Boolean(previewFile) && hasPages"
-                :loading="readingLoading"
-                :machine-text="!hasPages || currentPage?.pageLabel === '机器提取文本'"
-                :page="currentPage"
-                :unconfirmed="currentPageUnconfirmed"
-                :title="selectedChapter?.title"
-                @preview-page="openOriginal(currentPage?.physicalPageNumber)"
-                @open-gallery="openGalleryPage(currentPage?.physicalPageNumber)"
-                @open-recognition="currentPage?.physicalPageNumber && openRecognitionPage(currentPage.physicalPageNumber)"
-              />
-            </div>
           </t-tab-panel>
 
           <t-tab-panel v-if="canTest" label="问答测试" value="test">

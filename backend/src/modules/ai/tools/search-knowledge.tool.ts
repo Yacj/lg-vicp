@@ -17,6 +17,7 @@ import {
   shouldForceReselectKnowledgeSource
 } from "../knowledge-source-selection.js";
 import { USER_LANGUAGE_NOTES } from "../../../shared/ai-response-policy.js";
+import { interpretThermalQuestion, thermalMetricClarification } from "../thermal-answer-facts.js";
 
 export const searchKnowledgeInput = z.object({
   query: z
@@ -41,6 +42,9 @@ export function createSearchKnowledgeTool(ctx: ToolRuntimeContext) {
     `,
     inputSchema: searchKnowledgeInput,
     execute: async ({ query, scope }, options) => runRegisteredTool(ctx, "search_knowledge", { query, scope }, options, async () => {
+      if (interpretThermalQuestion(ctx.userMessage ?? "", ctx.taskState?.lastReferenceLookup?.query.metric).needsClarification) {
+        return toolOk(thermalMetricClarification());
+      }
       const scopedQuery = scope === "ALL"
         ? query
         : `${scope === "ATLAS" ? "图集构造" : "标准规范"} ${query}`;

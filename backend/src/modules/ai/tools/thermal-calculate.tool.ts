@@ -27,6 +27,8 @@ import {
 } from "../../thermal/thermal-lookup-mode.js";
 import { parseConversationTaskState, mergeConversationTaskState, type LastReferenceLookup } from "../conversation-task.js";
 import { saveConversationTaskState } from "../ai-conversation-state.service.js";
+import { bindConfirmedPageFacts, interpretThermalQuestion, thermalMetricClarification, THERMAL_FACT_RULES } from "../thermal-answer-facts.js";
+import type { ReferenceLookupCandidate } from "../conversation-task.js";
 
 const specClassSchema = z.enum(["I", "II", "III"]);
 
@@ -140,6 +142,7 @@ export function createThermalTool(ctx: ToolRuntimeContext) {
       多轮仅更新用户明确改变的指标，保留其他条件；取消条件从用户原话识别。厚度18mm是精确档，20mm以内用thicknessMax，18mm以上用thicknessMin，18～25mm同时传上下限。尽量薄不猜数字，在满足硬条件后按厚度升序展示。
       CALCULATE：对已确定的方案、规格和厚度做正式确定性计算；合规判断才需要地区。
       项目归属以当前会话为准，不要传入 projectId。
+      ${THERMAL_FACT_RULES}
     `,
     inputSchema: thermalInput,
     execute: async (args, options) => {
@@ -162,6 +165,9 @@ export function createThermalTool(ctx: ToolRuntimeContext) {
         }
         if (args.operation !== "CALCULATE") {
           const last = ctx.taskState?.lastReferenceLookup;
+          if (interpretThermalQuestion(ctx.userMessage ?? "", last?.query.metric).needsClarification) {
+            return toolOk(thermalMetricClarification());
+          }
           const resolution = normalizeConversationLookupQuery({
             filters: args.filters,
             metric: args.metric,
@@ -257,6 +263,9 @@ export function createThermalTool(ctx: ToolRuntimeContext) {
           if (inherited.filters?.some((filter) => filter.toleranceAdjusted) && !notes.includes(TOLERANCE_ADJUSTED_NOTE)) {
             notes.push(TOLERANCE_ADJUSTED_NOTE);
           }
+          const pageOutcome = await emitReferencePages(ctx, candidates);
+          candidates = pageOutcome.candidates;
+          notes = [...notes, ...pageOutcome.warnings];
           {
             const snapshot: LastReferenceLookup = {
               query: { ...inherited, mode: effectiveMode },
@@ -267,7 +276,6 @@ export function createThermalTool(ctx: ToolRuntimeContext) {
             };
             await persistLastReferenceLookup(ctx, snapshot);
           }
-          const pageOutcome = await emitReferencePages(ctx, candidates);
           if (pageOutcome.missingPage && candidates.length > 0) {
             notes = [...notes, REFERENCE_PAGE_MISSING_NOTE];
           }
@@ -351,21 +359,11 @@ export function isReferencePageConsumable(row: {
 
 export async function emitReferencePages(
   ctx: ToolRuntimeContext,
-  candidates: Array<{
-    id: string;
-    systemName?: string;
-    schemeCode?: string;
-    thicknessMm?: number;
-    productThermalResistance?: number;
-    totalThermalResistance?: number;
-    kValue?: number;
-    sourceDocumentId?: string | null;
-    sourcePageId?: string | null;
-    sourcePageLabel?: string | null;
-  }>
+  candidates: ReferenceLookupCandidate[]
 ) {
+  const warnings: string[] = [];
   const pageIds = [...new Set(candidates.map((item) => item.sourcePageId).filter((id): id is string => Boolean(id)))];
-  if (pageIds.length === 0) return { missingPage: candidates.length > 0, sources: [] as unknown[] };
+  if (pageIds.length === 0) return { missingPage: candidates.length > 0, sources: [] as unknown[], candidates, warnings };
   const rows = await ctx.app.db.select({
     pageId: knowledgePages.id,
     documentId: knowledgePages.documentId,
@@ -373,6 +371,7 @@ export async function emitReferencePages(
     pageNumber: knowledgePages.pageNumber,
     physicalPageNumber: knowledgePages.physicalPageNumber,
     pageLabel: knowledgePages.pageLabel,
+    metadata: knowledgePages.metadata,
     pageImageObjectKey: knowledgePages.pageImageObjectKey,
     versionId: knowledgeDocumentVersions.id,
     versionStatus: knowledgeDocumentVersions.status,
@@ -387,6 +386,16 @@ export async function emitReferencePages(
     .where(inArray(knowledgePages.id, pageIds));
   const today = new Date().toISOString().slice(0, 10);
   const validRows = rows.filter((row) => isReferencePageConsumable(row, today));
+  candidates = candidates.map((candidate) => {
+    const page = validRows.find((row) => row.pageId === candidate.sourcePageId);
+    if (!page) return candidate;
+    const bound = bindConfirmedPageFacts(candidate, page);
+    if (bound.warnings.length) {
+      ctx.app.log.warn({ candidateId: candidate.id, pageId: page.pageId, warnings: bound.warnings }, "热工候选来源一致性警告");
+      warnings.push(...bound.warnings);
+    }
+    return bound.candidate;
+  });
   const rejectedPageIds = pageIds.filter((pageId) => !validRows.some((row) => row.pageId === pageId));
   if (rejectedPageIds.length > 0) {
     ctx.app.log.warn({ pageIds: rejectedPageIds }, "热工参考页当前不满足正式知识版本访问条件，已跳过签名输出");
@@ -418,9 +427,9 @@ export async function emitReferencePages(
       physicalPageNumber: block.page.physicalPageNumber ?? block.page.pageNumber
     }));
     ctx.onEvent?.("sources", { sources });
-    return { missingPage: false, sources };
+    return { missingPage: false, sources, candidates, warnings };
   }
-  return { missingPage: true, sources: [] as unknown[] };
+  return { missingPage: true, sources: [] as unknown[], candidates, warnings };
 }
 
 /** 兼容旧导出名 */

@@ -3,6 +3,22 @@ import { describe, expect, it, vi } from "vitest";
 import { emitReferencePages, isReferencePageConsumable } from "./thermal-calculate.tool.js";
 
 describe("REFERENCE_PAGE 正式知识页防御", () => {
+  it.each(["21", null])("来源页标签%s经过Tool/SSE仍与物理页序1分开", async (pageLabel) => {
+    const rows = [{ pageId: "page", documentId: "doc", documentTitle: "图集", pageNumber: 1, physicalPageNumber: 1,
+      pageLabel, pageImageObjectKey: "p.png", versionId: "v", currentVersionId: "v", versionStatus: "PUBLISHED",
+      documentStatus: "ACTIVE", documentDeletedAt: null, effectiveDate: null, expiryDate: null }];
+    const query: any = { from: () => query, innerJoin: () => query, where: () => query,
+      then: (resolve: (value: unknown) => void) => Promise.resolve(rows).then(resolve) };
+    const onEvent = vi.fn();
+    const result = await emitReferencePages({ app: { db: { select: () => query }, log: { warn: vi.fn() },
+      storage: { createDownloadUrl: async () => "https://example.test/p.png" } }, onEvent } as any,
+    [{ id: "c", sourceDocumentId: "doc", sourcePageId: "page", sourcePageLabel: "1", thicknessMm: 60, productThermalResistance: 8, totalThermalResistance: 8.313, kValue: 0.12 }]);
+    expect(result.candidates[0]?.sourcePageLabel).toBe(pageLabel);
+    const block = onEvent.mock.calls.find(([name]) => name === "reference_pages")?.[1].referencePages[0];
+    expect(block.page.pageLabel ?? null).toBe(pageLabel);
+    expect(block.page.physicalPageNumber).toBe(1);
+    expect(result.sources[0]).toMatchObject({ physicalPageNumber: 1 });
+  });
   it("仅允许已发布、有效且未删除的知识页", () => {
     const base = {
       versionId: "version-1",
@@ -61,7 +77,8 @@ describe("REFERENCE_PAGE 正式知识页防御", () => {
       totalThermalResistance: 3.297,
       kValue: 0.303
     }]);
-    expect(outcome).toEqual({ missingPage: true, sources: [] });
+    expect(outcome).toMatchObject({ missingPage: true, sources: [], warnings: [] });
+    expect(outcome.candidates[0]?.kValue).toBe(0.303);
     expect(createDownloadUrl).not.toHaveBeenCalled();
     expect(onEvent).not.toHaveBeenCalled();
   });

@@ -4,6 +4,8 @@ globs: src/modules/ai*/**/*.ts,src/modules/knowledge/**/*.ts,src/modules/reports
 alwaysApply: false
 ---
 
+- 热工回答质量（2026-10-09）：同一Candidate绑定厚度/λ/α/双R/K/构造/来源，禁止跨候选/Chunk拼字段和以top-N宣称全量极值。模糊传热8.3保温板先澄清产品R/总R；「就是」为EXACT。默认3～8行一个主方案。印刷页码只用pageLabel，禁止物理页序fallback。λ/α只读同页同构造同厚度且双R/K一致的人工确认快照，冲突记warning。详见`docs/ai/thermal-answer-quality-2026-10-09.md`。
+
 - 最终交互与UAT（2026-10-07）：方案查询动作不能被「限值/这个墙体」抢入计算；明确重新算走热工，合规仍走标准链。活跃厚度无metric词的省略追问更新厚度；取消厚度清三字段和preferThinner。Parser/Matcher主结构冻结，后续先新增真实失败Case再修复。`pnpm uat:ai`40场景123轮真实HTTP/SSE，独立临时库/用户/Redis队列/对象，禁止写生产会话或修改正式发布数据；工程数值/来源全部程序断言，AI Judge仅体验，环境失败为BLOCKED。详见`docs/ai/business-uat.md`。
 
 - 日常表达与局部条件收口（2026-10-07）：指标定位、数字抽取、比较语义分开；在/控制在/要求/达到/做到/目标等连接词不决定模式。多轮 filters 按 metric 增改删，未提及条件保留，同 metric 默认替换（含 mode），仅明确再加范围条件可追加同指标边界；取消条件不得由旧摘要或模型重复参数复活。厚度精确档 thicknessMm、单边/双边 thicknessMin/thicknessMax 独立解析与持久化，签名覆盖三字段；放宽单边厚度继承原边界含义，取消厚度清除三字段。尽量薄只在满足硬条件后按厚度升序展示，不编造范围。所有条件变化重查正式已发布数据，纯参数/原页指代可复用。无数据库结构变化，Thermal Engine 与 Knowledge 流程不变。
@@ -57,3 +59,5 @@ alwaysApply: false
 - 只有 DRAFT knowledge version 可修改页面、识别、TOC、资产、解析或分块；审核中和已审核版本须创建新草稿。热工参考行只允许写入 DRAFT 集，集发布前来源页必须属于当前有效的 PUBLISHED Knowledge Version；ReferencePage 输出前再次校验且不得签名草稿/失效页。识别任务按 pageId 使用稳定 jobId + recognitionRunId 单飞，旧 run 不得覆盖新结果；Confirm 锁页且仅 REVIEW_REQUIRED 可执行。方案/规格映射为 0=NOT_FOUND、1=自动绑定、多候选=AMBIGUOUS，显式 ID 仍须校验发布状态、厚度、规格类别和方案归属。识别草稿将结构化候选与 pageLabel/pageTitle/parsedText 同步，确认只消费 draftStructuredData，并事务化重建当前页 chunks、同步当前 pageId rows、固化 confirmed snapshot 与页面字段。AI_ENABLED 离线页图版本发布前每页必须有原页图且识别为 CONFIRMED。batch/ZIP 导入全量 preflight，DB 事务失败清理本次新增对象，成功提交后才删除旧对象；ZIP 解压前做数量、单图、总解压量、manifest、路径和签名校验。
 
 2026-10-07 收口：参考候选 exact/neighbor 仍需满足其余硬条件；用户明确 K 语义优先于 Tool 参数，再继承历史，首次默认 APPROX。候选状态共用 Zod schema，完整保留双 R 与来源原页；查询条件变化重查完整已发布数据，纯参数/原页指代才可复用历史。跨体系 fallback 首句说明未命中，历史也保留标记；未命中查询条件仍须持久化。STRICT 与空 BROWSE_ONLY 发布判断统一进入 readiness。迁移验证先检查 SQL/journal/snapshot，使用隔离库，不对生产试跑。
+
+页面识别备注（2026-10-09）：notes 仅逐条抄录原图明确出现的注/备注，无原文备注返回空数组；禁止混入字段映射、null 原因与多厚度拆分解释。正常多厚度留空说明不再从 warnings 移入 notes；真实歧义/数值冲突保留 warnings。存量识别结果需在可编辑草稿重新识别或人工修订，不自动改写已确认数据。

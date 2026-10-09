@@ -79,7 +79,11 @@ function onPageChange(info: PageInfo): void {
   }
   void load()
 }
-function openDetail(id: string): void { void router.push({ name: 'KnowledgeDocumentDetail', params: { id } }) }
+function openDetail(id: string): void {
+  if (canViewDetail.value) {
+    void router.push({ name: 'KnowledgeDocumentDetail', params: { id } })
+  }
+}
 const deleteAction = useConfirmedCrudAction<KnowledgeDocument, unknown>({
   action: row => deleteKnowledgeDocument(row.id),
   confirm: row => ({ title: '删除知识库', content: `确定删除「${row.title}」？解析内容和历史版本将一并清理。`, danger: true }),
@@ -163,7 +167,8 @@ function markCoverUnavailable(id: string): void {
     </div>
     <t-loading v-else-if="viewMode === 'card' && isLoading" loading text="正在加载知识库" />
     <div v-else-if="viewMode === 'card'" class="knowledge-card-grid">
-      <div v-for="document in documents" :key="document.id" class="knowledge-card" role="button" tabindex="0" @click="openDetail(document.id)" @keydown.enter="openDetail(document.id)" @keydown.space.prevent="openDetail(document.id)">
+      <article v-for="document in documents" :key="document.id" class="knowledge-card">
+        <div class="knowledge-card__content" :role="canViewDetail ? 'button' : undefined" :tabindex="canViewDetail ? 0 : undefined" @click="openDetail(document.id)" @keydown.enter.self="openDetail(document.id)" @keydown.space.self.prevent="openDetail(document.id)">
         <div class="knowledge-card__cover">
           <img v-if="document.coverImageUrl && !failedCoverIds.has(document.id)" :alt="`${document.title}封面`" :src="document.coverImageUrl" @error="markCoverUnavailable(document.id)">
           <div v-else class="knowledge-card__placeholder">
@@ -181,7 +186,11 @@ function markCoverUnavailable(id: string): void {
             <AppStatusTag :label="statusMeta(document).label" :status="statusMeta(document).status" /><span>{{ formatDate(new Date(document.updatedAt), 'YYYY-MM-DD') }}</span>
           </div>
         </div>
-      </div>
+        </div>
+        <div v-if="canViewDetail || canRemove" class="knowledge-card__actions">
+          <AppTableActions :actions="getActions(document)" :max-visible="2" />
+        </div>
+      </article>
       <div v-if="!isLoading && documents.length === 0" class="knowledge-card-grid__empty">
         {{ canAdd ? '还没有知识库。点击“新建知识库”添加第一份资料。' : '还没有知识库，请联系有权限的管理员添加资料。' }}
       </div>
@@ -201,15 +210,17 @@ function markCoverUnavailable(id: string): void {
 <style scoped>
 .knowledge-list-toolbar { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:16px; }
 .knowledge-list-toolbar__actions { display:flex; align-items:center; gap:12px; }
-.knowledge-card-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(min(100%, 250px), 1fr)); gap:var(--td-size-4); }
+.knowledge-card-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap:var(--td-size-5); }
 .knowledge-card { display:flex; min-width:0; flex-direction:column; padding:0; border:1px solid var(--td-component-stroke); border-radius:var(--td-radius-medium); background:var(--td-bg-color-container); color:var(--td-text-color-primary); text-align:left; cursor:pointer; overflow:hidden; transition:border-color .2s, transform .2s; }
 .knowledge-card:hover { border-color:var(--td-brand-color); transform:translateY(-2px); }
-.knowledge-card:focus-visible { outline:2px solid var(--td-brand-color); outline-offset:2px; }
+.knowledge-card__content { flex:1; min-width:0; }
+.knowledge-card__content:focus-visible { outline:2px solid var(--td-brand-color); outline-offset:-2px; }
+.knowledge-card__actions { display:flex; justify-content:flex-end; padding:var(--td-size-3) var(--td-size-5); border-top:1px solid var(--td-component-stroke); cursor:default; }
 .knowledge-card__cover { height:96px; display:grid; place-items:center; overflow:hidden; background:var(--td-bg-color-secondarycontainer); }
 .knowledge-card__cover img { width:100%; height:100%; object-fit:cover; }
 .knowledge-card__placeholder { color:var(--td-brand-color); display:grid; place-items:center; width:100%; height:100%; }
 .knowledge-card__placeholder-kind { display:inline-flex; min-width:64px; justify-content:center; padding:8px 12px; border-radius:var(--td-radius-small); background:var(--td-brand-color-light); color:var(--td-brand-color); font-size:14px; font-weight:600; opacity:1; }
-.knowledge-card__body { display:flex; flex-direction:column; gap:var(--td-size-2); padding:var(--td-size-3); }
+.knowledge-card__body { display:flex; flex-direction:column; gap:var(--td-size-3); padding:var(--td-size-5); }
 .knowledge-card__title { overflow:hidden; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; font-weight:var(--td-font-weight-medium); overflow-wrap:anywhere; }
 .knowledge-card__meta, .knowledge-card__footer { display:flex; align-items:center; justify-content:space-between; gap:8px; color:var(--td-text-color-secondary); font-size:var(--td-font-size-body-small); }
 .knowledge-card__footer :deep(.t-tag) { flex:none; }

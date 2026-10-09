@@ -1,19 +1,19 @@
 import { pageRecognitionResultSchema, type PageRecognitionResult } from "../../shared/page-recognition.js";
 
-/** 模型偶尔把多厚度表格的正常存储方式写成告警；仅在确有多档选项时降为说明。 */
+/** 备注保留原图文字；剔除模型泄漏的结构化字段解释，正常多厚度留空不作为风险。 */
 export function normalizePageRecognitionAnnotations(result: PageRecognitionResult): PageRecognitionResult {
   const hasMultiThickness = result.systems.some((system) =>
     (system.options?.length ?? 0) > 1
     && system.options?.every((option) => option.thicknessMm != null && option.productThermalResistance != null)
     && system.layers?.some((layer) => layer.thicknessMm == null && layer.rValue == null)
   );
-  if (!hasMultiThickness) return result;
-  const notes = [...(result.notes ?? [])];
+  const notes = (result.notes ?? []).filter((note) => !(
+    /\b(?:layers|options|thicknessMm|rValue|productThermalResistance|totalThermalResistance)\b/i.test(note)
+    && /(?:null|留空|为空|填写|填入|写入|字段|对应|选项|不同厚度|多厚度)/i.test(note)
+  ));
   const warnings: string[] = [];
   for (const warning of result.warnings ?? []) {
-    if (/(?:layers|构造层).*?(?:留空|为空|null).*?(?:多厚度|不同厚度).*?(?:options|选项).*?(?:提供|列出)/i.test(warning)) {
-      notes.push(warning);
-    } else {
+    if (!(hasMultiThickness && /(?:layers|构造层).*?(?:留空|为空|null).*?(?:多厚度|不同厚度).*?(?:options|选项).*?(?:提供|列出)/i.test(warning))) {
       warnings.push(warning);
     }
   }

@@ -1,5 +1,7 @@
 # 蓝格 VICP 后端
 
+2026-10-09 热工回答质量：Candidate原子事实绑定、产品R/总R歧义澄清、真实印刷页码、销售简短回答与专业追问展开；无DB迁移或计算公式变化。实现、测试与真实UAT阻塞记录见[热工回答质量](docs/ai/thermal-answer-quality-2026-10-09.md)。
+
 2026-10-07 最终交互 + 真实业务UAT：四个边界收口（查询/计算/合规路由、厚度省略追问、厚度口语与取消、指标省略连接词）。`pnpm uat:ai`运行销售20+设计院20、123轮真实HTTP/SSE场景；`pnpm uat:check`只做类型/结构检查。UAT使用独立临时库/用户/Redis队列/页图，事实全部确定性断言，默认规则体验评审，可用`--judge`启用只评价回答体验的AI Judge。Parser/Matcher主结构冻结，后续变更必须有真实失败Case。场景列表、运行依赖、报告及验收限制见[销售与设计院业务UAT](docs/ai/business-uat.md)。
 
 日常表达与局部条件收口（2026-10-07）：指标定位、数字抽取、比较语义分开；在/控制在/要求/达到/做到/目标等连接词不决定模式。多轮 filters 按 metric 增改删，未提及条件保留，同 metric 默认替换（含 mode），仅明确再加范围条件可追加同指标边界；取消条件不得由旧摘要或模型重复参数复活。厚度精确档 thicknessMm、单边/双边 thicknessMin/thicknessMax 独立解析与持久化，签名覆盖三字段；放宽单边厚度继承原边界含义，取消厚度清除三字段。尽量薄只在满足硬条件后按厚度升序展示，不编造范围。所有条件变化重查正式已发布数据，纯参数/原页指代可复用。无数据库结构变化，Thermal Engine 与 Knowledge 流程不变。 本轮实现与验证见 [日常表达与多轮条件验收](docs/thermal/daily-language-closeout-2026-10-07.md)。
@@ -242,3 +244,5 @@ pnpm pm2:logs   # 服务器：查看 PM2 日志
 - `.agents/skills/lg-backend/references/permissions-and-projects.md`
 - `.agents/skills/lg-backend/references/ai-and-reports.md`
 - `.agents/skills/lg-backend/references/files-and-jobs.md`
+
+页面识别备注（2026-10-09）：notes 仅逐条抄录原图明确出现的注/备注，无原文备注返回空数组；禁止混入字段映射、null 原因与多厚度拆分解释。正常多厚度留空说明不再从 warnings 移入 notes；真实歧义/数值冲突保留 warnings。存量识别结果需在可编辑草稿重新识别或人工修订，不自动改写已确认数据。

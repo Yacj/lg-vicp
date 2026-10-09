@@ -25,6 +25,8 @@ export interface ReferencePageBlock {
     productName?: string;
     productSpecName?: string;
     thicknessMm?: number;
+    lambda?: number;
+    alpha?: number;
     productThermalResistance?: number;
     totalThermalResistance?: number;
     /** @deprecated 兼容旧客户端，值等于 totalThermalResistance。 */
@@ -42,7 +44,7 @@ export interface ReferencePageBlock {
   };
   /** 同一原始页上的多个候选，页面图片只出现一次。 */
   matches: ReferencePageMatch[];
-  /** 兼容现有客户端的扁平参数条；新客户端优先使用 matches。 */
+  /** 兼容现有客户端：仅主候选的参数条，全部候选分别在 matches 中。 */
   highlights: ReferencePageHighlight[];
 }
 
@@ -53,6 +55,8 @@ export interface ReferencePageCandidate {
   productName?: string;
   specCode?: string;
   thicknessMm?: number;
+  lambda?: number;
+  alpha?: number;
   productThermalResistance?: number;
   totalThermalResistance?: number;
   kValue?: number;
@@ -100,7 +104,7 @@ export function buildHighlights(candidate: ReferencePageCandidate): ReferencePag
     highlights.push({ field: "productR", label: "产品层热阻 R", value: formatNumber(candidate.productThermalResistance) });
   }
   if (candidate.totalThermalResistance != null) {
-    highlights.push({ field: "rValue", label: "总热阻 R", value: formatNumber(candidate.totalThermalResistance) });
+    highlights.push({ field: "rValue", label: "外墙主断面总热阻 R₀", value: formatNumber(candidate.totalThermalResistance) });
   }
   if (candidate.kValue != null) {
     highlights.push({ field: "kValue", label: "传热系数 K", value: formatNumber(candidate.kValue) });
@@ -115,6 +119,8 @@ function buildSummary(candidate: ReferencePageCandidate): ReferencePageBlock["su
     productName: candidate.productName,
     productSpecName: candidate.specCode,
     thicknessMm: candidate.thicknessMm,
+    lambda: candidate.lambda,
+    alpha: candidate.alpha,
     productThermalResistance: candidate.productThermalResistance,
     totalThermalResistance: candidate.totalThermalResistance,
     rValue: candidate.totalThermalResistance,
@@ -136,7 +142,7 @@ export function buildReferencePageBlocks(
   let missingPage = false;
   for (const candidate of candidates) {
     const page = candidate.sourcePageId ? pageById.get(candidate.sourcePageId) : undefined;
-    if (!page?.pageImageObjectKey || !page.imageUrl) {
+    if (!page?.pageImageObjectKey || !page.imageUrl || candidate.sourceDocumentId && candidate.sourceDocumentId !== page.documentId) {
       missingPage = true;
       continue;
     }
@@ -145,7 +151,6 @@ export function buildReferencePageBlocks(
     const match: ReferencePageMatch = { candidateId: candidate.id, summary, highlights };
     const existing = groups.get(page.pageId);
     if (existing) {
-      existing.highlights.push(...highlights);
       existing.matches.push(match);
       continue;
     }
@@ -165,7 +170,7 @@ export function buildReferencePageBlocks(
         documentTitle: group.page.documentTitle,
         pageNumber: physicalPageNumber ?? 0,
         ...(physicalPageNumber != null ? { physicalPageNumber } : {}),
-        ...(group.page.pageLabel ? { pageLabel: group.page.pageLabel } : {}),
+        ...(group.page.pageLabel?.trim() ? { pageLabel: group.page.pageLabel.trim() } : {}),
         imageUrl: group.page.imageUrl!
       },
       matches: group.matches,

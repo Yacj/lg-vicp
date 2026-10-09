@@ -13,7 +13,7 @@ import type {
 import type { ProductSpec } from '@/types/masterdata'
 import type { ThermalSet } from '@/types/thermal'
 import { DialogPlugin, MessagePlugin } from 'tdesign-vue-next'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import { fetchPublishedConstructionSchemes } from '@/api/modules/construction'
 import {
   batchConfirmVersionPages,
@@ -32,6 +32,7 @@ import RecognitionTextSection from '@/components/business/knowledge/recognition/
 import RecognitionThermalSection from '@/components/business/knowledge/recognition/RecognitionThermalSection.vue'
 import RecognitionWarningsSection from '@/components/business/knowledge/recognition/RecognitionWarningsSection.vue'
 import { KNOWLEDGE_VERSION_LOCKED_HINT, useKnowledgeVersionEditable } from '@/composables/useKnowledgeVersionEditable'
+import { useKnowledgeReviewNavigation } from '@/composables/useKnowledgeReviewNavigation'
 import { usePermissionAccess } from '@/composables/usePermissionAccess'
 import { businessUserError, businessUserMessage } from '@/utils/business-error'
 import {
@@ -70,7 +71,7 @@ const canReview = computed(() => canAccess({ permissions: ['system:knowledge:pag
 const canConfirm = computed(() => canAccess({ permissions: ['system:knowledge:page:confirm'] }))
 const canDebug = computed(() => canAccess({ permissions: ['system:knowledge:debug'] }))
 
-const pages = ref<KnowledgePage[]>([])
+const pages = shallowRef<KnowledgePage[]>([])
 const failedImageIds = ref<Set<string>>(new Set())
 function markImageUnavailable(id: string): void {
   failedImageIds.value = new Set([...failedImageIds.value, id])
@@ -93,7 +94,9 @@ const batchSubmitFailures = ref<Array<{ pageId: string, physicalPageNumber: numb
 const confirming = ref(false)
 const batchConfirming = ref(false)
 const batchResult = ref<BatchConfirmResult | null>(null)
-const statusFilter = ref<'ALL' | 'REVIEW_REQUIRED' | 'CONFIRMED' | 'FAILED' | 'UNPROCESSED'>('ALL')
+const pageListElement = ref<HTMLElement | null>(null)
+const detailLoading = ref(false)
+let detailController: AbortController | null = null
 let loadSequence = 0
 let detailSequence = 0
 let savedDraftSnapshot = ''
@@ -188,20 +191,20 @@ const recognitionTargets = computed(() => pages.value.filter(page => page.pageIm
 )))
 const recognitionNotes = computed(() => [...new Set([
   ...(draft.value.notes ?? []),
+].map(item => item.trim()).filter(Boolean))])
+const recognitionWarnings = computed(() => [...new Set([
   ...(draft.value.warnings ?? []),
   ...(recognition.value?.recognitionWarnings ?? []),
 ].map(item => item.trim()).filter(Boolean))])
 
-const filteredPages = computed(() => {
-  const filter = statusFilter.value
-  if (filter === 'ALL') {
-    return pages.value
-  }
-  if (filter === 'UNPROCESSED') {
-    return pages.value.filter(page => !page.recognitionStatus || page.recognitionStatus === 'PENDING' || page.recognitionStatus === 'PROCESSING')
-  }
-  return pages.value.filter(page => page.recognitionStatus === filter)
-})
+const { statusFilter, filteredPages, selectFirstFilteredPage } = useKnowledgeReviewNavigation(pages, selectPage)
+
+function changeFilter(value: unknown): void {
+  if (value !== 'ALL' && value !== 'REVIEW_REQUIRED' && value !== 'CONFIRMED' && value !== 'FAILED' && value !== 'UNPROCESSED') return
+  statusFilter.value = value
+  pageListElement.value?.scrollTo({ top: 0 })
+  void selectFirstFilteredPage()
+}
 
 const filterOptions = [
   { label: '全部页面', value: 'ALL' },
@@ -230,6 +233,7 @@ async function load(silent = false): Promise<void> {
   if (versionId !== loadedVersionId) {
     loadedVersionId = versionId
     detailSequence += 1
+    detailController?.abort()
     pages.value = []
     selected.value = null
     recognition.value = null
@@ -252,9 +256,10 @@ async function load(silent = false): Promise<void> {
     // 无需逐页再请求 GET /pages/:pageId/recognition（旧实现为 N+1 请求风暴）。
     pages.value = list.sort((a, b) => a.pageNumber - b.pageNumber)
     summary.value = first.pageRecognitionSummary
-    const requested = props.focusPhysicalPageNumber == null ? null : pages.value.find(page => page.physicalPageNumber === props.focusPhysicalPageNumber)
+    const requested = props.focusPhysicalPageNumber == null ? null : filteredPages.value.find(page => page.physicalPageNumber === props.focusPhysicalPageNumber)
     const current = selected.value && pages.value.find(page => page.id === selected.value?.id)
-    const target = requested ?? current ?? pages.value[0] ?? null
+    const visibleCurrent = current && filteredPages.value.some(page => page.id === current.id) ? current : null
+    const target = requested ?? visibleCurrent ?? filteredPages.value[0] ?? null
     const statusChanged = Boolean(current && selected.value?.recognitionStatus !== current.recognitionStatus)
     if (silent && current && target?.id === current.id) {
       selected.value = current
@@ -281,6 +286,10 @@ async function load(silent = false): Promise<void> {
 
 async function selectPage(page: KnowledgePage | null): Promise<void> {
   const request = ++detailSequence
+  detailController?.abort()
+  const controller = new AbortController()
+  detailController = controller
+  detailLoading.value = Boolean(page)
   selected.value = page
   recognition.value = null
   draft.value = emptyResult()
@@ -292,7 +301,7 @@ async function selectPage(page: KnowledgePage | null): Promise<void> {
     return
   }
   try {
-    const detail = await fetchKnowledgePageRecognition(page.id)
+    const detail = await fetchKnowledgePageRecognition(page.id, controller.signal)
     if (request !== detailSequence || selected.value?.id !== page.id) return
     recognition.value = detail
     const currentCandidate = currentRecognitionCandidate(detail, selected.value?.recognitionStatus ?? null)
@@ -305,7 +314,10 @@ async function selectPage(page: KnowledgePage | null): Promise<void> {
     savedDraftSnapshot = JSON.stringify(draft.value)
   }
   catch (error) {
-    if (request === detailSequence) MessagePlugin.error(businessUserError(error))
+    if (request === detailSequence && !controller.signal.aborted) MessagePlugin.error(businessUserError(error))
+  }
+  finally {
+    if (request === detailSequence) detailLoading.value = false
   }
 }
 
@@ -525,7 +537,7 @@ function recognize(page = selected.value): void {
 }
 
 async function recognizePending(): Promise<void> {
-  if (batchRecognizing.value || versionLocked.value || !canRecognize.value) return
+  if (batchRecognizing.value || batchConfirming.value || versionLocked.value || !canRecognize.value) return
   if (!pages.value.length) await load()
   const targets = recognitionTargets.value
   if (!targets.length) {
@@ -561,8 +573,8 @@ async function recognizePending(): Promise<void> {
  * 批量确认：后端逐页独立确认，返回 success / failed / skipped 三段结果。
  * 前端必须分别消费，不得只看请求成功就提示「全部确认成功」。
  */
-async function confirmSafePages(): Promise<void> {
-  if (!props.versionId || versionLocked.value || batchConfirming.value) {
+async function confirmPages(safeOnly = true, pageIds?: string[], versionId = props.versionId): Promise<void> {
+  if (!versionId || versionId !== props.versionId || !canConfirm.value || versionLocked.value || batchConfirming.value || batchRecognizing.value) {
     return
   }
   if (!pages.value.length) await load()
@@ -573,10 +585,14 @@ async function confirmSafePages(): Promise<void> {
   batchConfirming.value = true
   batchResult.value = null
   try {
-    const result = await batchConfirmVersionPages(props.versionId, {
-      confirmSafeOnly: true,
+    if (recognition.value && JSON.stringify(draft.value) !== savedDraftSnapshot && !await saveDraft()) return
+    if (versionId !== props.versionId || versionLocked.value || !canConfirm.value) return
+    const result = await batchConfirmVersionPages(versionId, {
+      confirmSafeOnly: safeOnly,
+      ...(pageIds ? { pageIds } : {}),
       ...(thermalSetId.value ? { thermalSetId: thermalSetId.value } : {}),
     })
+    if (versionId !== props.versionId) return
     batchResult.value = result
     if (result.confirmed > 0) {
       MessagePlugin.success(`批量确认完成：成功 ${result.confirmed} 页`)
@@ -593,6 +609,21 @@ async function confirmSafePages(): Promise<void> {
   finally {
     batchConfirming.value = false
   }
+}
+
+function confirmAllPending(): void {
+  const versionId = props.versionId
+  const targets = pages.value.filter(page => page.recognitionStatus === 'REVIEW_REQUIRED').map(page => page.id)
+  if (!targets.length || !canConfirm.value || versionLocked.value || batchConfirming.value || batchRecognizing.value) return
+  const dialog = DialogPlugin.confirm({
+    header: '批量确认待核对页',
+    body: `将确认 ${targets.length} 页已保存的识别结果。请确保已核对内容；未满足确认条件的页面会保留并显示原因。`,
+    confirmBtn: `确认 ${targets.length} 页`,
+    onConfirm: () => {
+      dialog.hide()
+      void confirmPages(false, targets, versionId)
+    },
+  })
 }
 
 function focusFailedPages(): void {
@@ -645,6 +676,12 @@ watch(() => props.pollTick, () => {
   }
 })
 
+onBeforeUnmount(() => {
+  loadSequence += 1
+  detailSequence += 1
+  detailController?.abort()
+})
+
 onMounted(() => {
   void load()
   void loadThermalSets()
@@ -659,17 +696,21 @@ onMounted(() => {
         <h2>核对识别结果</h2>
         <p>对照原图核对文字和热工信息，确认后才能用于后续处理。</p>
       </div>
-      <div v-if="!versionLocked && ((canRecognize && recognitionTargets.length) || (canConfirm && counts.reviewPending))" class="knowledge-review__toolbar">
-        <t-button v-if="canRecognize && recognitionTargets.length" :disabled="batchRecognizing" :loading="batchRecognizing" variant="outline" @click="recognizePending">
-          识别待处理页（{{ recognitionTargets.length }}）
+      <div v-if="!versionLocked && (canRecognize || canConfirm)" class="knowledge-review__toolbar">
+        <t-button v-if="canRecognize" :disabled="!recognitionTargets.length || batchRecognizing || batchConfirming" :loading="batchRecognizing" variant="outline" @click="recognizePending">
+          一键识别（{{ recognitionTargets.length }} 页）
         </t-button>
         <t-button
-          v-if="canConfirm && counts.reviewPending"
+          v-if="canConfirm"
+          :disabled="!counts.reviewPending || batchConfirming || batchRecognizing"
           :loading="batchConfirming"
           variant="outline"
-          @click="confirmSafePages"
+          @click="confirmPages()"
         >
-          确认无风险页
+          一键确认无风险页
+        </t-button>
+        <t-button v-if="canConfirm" :disabled="!counts.reviewPending || batchConfirming || batchRecognizing" :loading="batchConfirming" theme="primary" @click="confirmAllPending">
+          批量确认待核对页（{{ counts.reviewPending }}）
         </t-button>
       </div>
     </header>
@@ -725,15 +766,17 @@ onMounted(() => {
 
     <t-loading v-if="loading && !pages.length" loading text="正在加载页面识别状态" />
     <div v-else class="knowledge-review__layout">
-      <nav class="knowledge-review__pages">
+      <nav ref="pageListElement" class="knowledge-review__pages">
         <div class="knowledge-review__filter">
-          <t-select v-model="statusFilter" size="small" :options="filterOptions" />
+          <t-select v-model="statusFilter" size="small" :options="filterOptions" @change="changeFilter" />
         </div>
-        <t-button
+        <button
           v-for="page in filteredPages"
           :key="page.id"
-          variant="text"
-          theme="default"
+          v-memo="[page, selected?.id === page.id, failedImageIds.has(page.id)]"
+          type="button"
+          class="knowledge-review__page-button"
+          :aria-current="selected?.id === page.id ? 'page' : undefined"
           :class="{ 'is-selected': selected?.id === page.id }"
           @click="selectPage(page)"
         >
@@ -745,7 +788,7 @@ onMounted(() => {
             <small v-if="page.pageTitle">{{ page.pageTitle }}</small>
             <small>{{ statusMeta(page).label }}</small>
           </span>
-        </t-button>
+        </button>
       </nav>
 
       <div v-if="selected" class="knowledge-review__editor">
@@ -759,7 +802,8 @@ onMounted(() => {
           <span v-else>页面图片不可用</span>
         </div>
 
-        <div class="knowledge-review__fields">
+        <div class="knowledge-review__fields" :aria-busy="detailLoading">
+          <t-loading v-if="detailLoading" loading text="正在加载识别结果" />
           <div class="knowledge-review__page-heading">
             <div>
               <strong>文件页序：{{ selected.physicalPageNumber }}</strong>
@@ -839,9 +883,15 @@ onMounted(() => {
             />
           </section>
           <details v-if="recognitionNotes.length" class="knowledge-review__notes">
-            <summary>识别备注（{{ recognitionNotes.length }}）</summary>
+            <summary>原图备注（{{ recognitionNotes.length }}）</summary>
             <ul>
               <li v-for="(note, index) in recognitionNotes" :key="index">{{ note }}</li>
+            </ul>
+          </details>
+          <details v-if="recognitionWarnings.length" open class="knowledge-review__notes">
+            <summary>需人工核对（{{ recognitionWarnings.length }}）</summary>
+            <ul>
+              <li v-for="(warning, index) in recognitionWarnings" :key="index">{{ warning }}</li>
             </ul>
           </details>
         </div>
@@ -888,7 +938,7 @@ onMounted(() => {
 .knowledge-review {
   display: flex;
   flex-direction: column;
-  height: clamp(520px, calc(100dvh - 220px), 840px);
+  height: clamp(600px, calc(100dvh - 220px), 840px);
   min-height: 0;
   overflow: hidden;
   padding: var(--td-size-5);
@@ -983,8 +1033,13 @@ onMounted(() => {
   width: 100%;
 }
 
-.knowledge-review__pages :deep(.t-button) {
-  display: block;
+.knowledge-review__page-button {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: var(--td-size-2);
+  align-items: start;
+  color: var(--td-text-color-primary);
+  font: inherit;
   flex: 0 0 auto;
   width: 100%;
   height: auto;
@@ -997,17 +1052,12 @@ onMounted(() => {
   cursor: pointer;
 }
 
-.knowledge-review__pages :deep(.t-button__text) {
-  display: grid;
-  width: 100%;
-  grid-template-columns: 58px minmax(0, 1fr);
-  gap: 9px;
-  align-items: start;
-}
-
-.knowledge-review__pages :deep(.t-button.is-selected) {
+.knowledge-review__page-button.is-selected {
   border-color: var(--td-brand-color);
 }
+
+.knowledge-review__page-button:hover { background: var(--td-bg-color-container-hover); }
+.knowledge-review__page-button:focus-visible { outline: 2px solid var(--td-brand-color); outline-offset: -2px; }
 
 .knowledge-review__pages img,
 .knowledge-review__no-image {
@@ -1134,7 +1184,6 @@ onMounted(() => {
   border: 1px solid var(--td-component-stroke);
   border-radius: var(--vicp-radius);
   background: var(--td-bg-color-container);
-  box-shadow: var(--td-shadow-1);
 }
 
 .knowledge-review__actionbar-hint {

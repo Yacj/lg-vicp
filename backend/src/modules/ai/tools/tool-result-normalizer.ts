@@ -10,6 +10,7 @@ import type { ProductComparisonResult } from "../compare-product.js";
 import type { ReferenceLookupCandidate } from "../conversation-task.js";
 import { formatLookupThickness, type LookupThickness } from "../../thermal/thermal-lookup-thickness.js";
 import type { ThermalLookupFilter } from "../../thermal/thermal-lookup-mode.js";
+import { THERMAL_FACT_RULES } from "../thermal-answer-facts.js";
 
 export type KnowledgeHitForModel = {
   title: string;
@@ -22,6 +23,7 @@ export type NormalizedSearchKnowledge = {
   hits: KnowledgeHitForModel[];
   available: boolean;
   note?: string;
+  instruction?: string;
 };
 
 export type NormalizedProductData = {
@@ -65,6 +67,13 @@ export type NormalizedThermal = {
 };
 
 export type NormalizedReferenceLookup = LookupThickness & {
+  answerIntent: "REFERENCE_LOOKUP";
+  interpretation: { metric: "K" | "TOTAL_R" | "PRODUCT_R" | "AMBIGUOUS"; needsClarification: boolean };
+  primaryCandidate: ReferenceLookupCandidate | null;
+  alternativeCandidates: ReferenceLookupCandidate[];
+  sourcePages: Array<{ sourcePageId?: string | null; sourceDocumentId?: string | null; pageLabel: string | null }>;
+  warnings: string[];
+  scope: "CURRENT_MATCHES";
   filters?: ThermalLookupFilter[];
   requestedTolerance?: number;
   effectiveTolerance?: number;
@@ -118,7 +127,7 @@ export function normalizeSearchKnowledgeForModel(input: {
   if (hits.length === 0) {
     return { hits: [], available: false, note: USER_LANGUAGE_NOTES.missingVerifiableSource };
   }
-  return { hits, available: true };
+  return { hits, available: true, instruction: "来源仅使用印刷页码标签，缺失时提示查看原始页面。热工数值关系以同一条已确认结构化候选为准；文字只补充说明，禁止跨构造拼参数或根据几个命中宣称最高、唯一。" };
 }
 
 export function normalizeProductDataForModel(input: {
@@ -206,7 +215,7 @@ export function normalizeReferenceLookupForModel(input: LookupThickness & {
 }): NormalizedReferenceLookup {
   const mode = input.lookupMode;
   const multiple = (input.filters?.length ?? 0) > 1;
-  const metricLabel = input.metric === "TOTAL_R" ? "总热阻 R" : input.metric === "PRODUCT_R" ? "产品层热阻 R" : "传热系数 K";
+  const metricLabel = input.metric === "TOTAL_R" ? "外墙主断面总热阻 R₀" : input.metric === "PRODUCT_R" ? "产品层热阻 R" : "传热系数 K";
   const modeInstruction = input.filters?.length === 0 && input.targetValue == null ? "" : multiple
     ? "本次包含多个热工条件，候选必须同时满足全部条件。有结果时说明找到同时符合这些筛选条件的参考方案；无结果时说明没有找到同时满足全部条件的正式参考方案。列出 K、总热阻、产品层热阻、厚度、构造与原始页，不得输出内部条件数组、枚举或宣称规范达标。"
     : mode === "APPROX"
@@ -223,9 +232,16 @@ export function normalizeReferenceLookupForModel(input: LookupThickness & {
     ? "注意：没有找到符合用户所述保温体系的正式方案，下方是其他体系中接近目标的参考结果。必须先用一句话说明「没有找到符合该体系的正式方案」，再说明下面是其他体系的接近结果，禁止让用户误以为这些就是该体系方案。"
     : "";
   const base = input.found
-    ? `${fallback ? "第一句说明没有找到符合用户所述体系条件的正式参考方案，随后说明其他体系的参考结果。" : "第一行直接回答有。"}只使用本结果中的数值。不要把整张构造表再用 Markdown 重写。页面图片由系统单独返回。不要把地区、气候区、基层、建筑类型当成查询前置，也不要展开热工公式。不要暴露内部字段名（如 thermal_reference_rows、systemHint、candidate score）。`
+    ? `${fallback ? "第一句说明没有找到符合用户所述体系条件的正式参考方案，随后说明其他体系的参考结果。" : "指标明确且候选满足全部条件时第一行直接回答有。指标歧义先澄清。"}只使用本结果中的数值。不要把整张构造表再用 Markdown 重写。页面图片由系统单独返回。不要把地区、气候区、基层、建筑类型当成查询前置，也不要展开热工公式。不要暴露内部字段名（如 thermal_reference_rows、systemHint、candidate score）。`
     : "这只说明当前已发布选用表没有匹配行，不代表知识库或图集原文没有方案。必须继续检索知识库/图集后再回答；有出处才能列方案。不要对用户说没有方案，也不要编造档位或 K 值。";
   return {
+    answerIntent: "REFERENCE_LOOKUP",
+    interpretation: { metric: input.metric ?? "AMBIGUOUS", needsClarification: false },
+    primaryCandidate: input.candidates[0] ?? null,
+    alternativeCandidates: input.candidates.slice(1, 3),
+    sourcePages: input.candidates.map((candidate) => ({ sourceDocumentId: candidate.sourceDocumentId, sourcePageId: candidate.sourcePageId, pageLabel: candidate.sourcePageLabel?.trim() || null })),
+    warnings: input.notes ?? [],
+    scope: "CURRENT_MATCHES",
     thicknessMm: input.thicknessMm,
     thicknessMin: input.thicknessMin,
     thicknessMax: input.thicknessMax,
@@ -244,7 +260,7 @@ export function normalizeReferenceLookupForModel(input: LookupThickness & {
     matchedSystemHint: input.matchedSystemHint ?? null,
     isFallback: input.isFallback ?? false,
     notes: input.notes ?? [],
-    instruction: [base, modeInstruction, fallbackInstruction,
+    instruction: [THERMAL_FACT_RULES, base, modeInstruction, fallbackInstruction,
       formatLookupThickness(input) ? `用简单中文说明本次同时按「${formatLookupThickness(input)}」和热工条件筛选；无结果时复述当前条件，不得偷偷放宽厚度或编造接近方案，不输出内部字段名。` : "",
       input.preferThinner ? "用户希望薄一点；在满足全部硬条件的结果中按厚度升序展示，不宣称唯一最优，不编造厚度范围。" : "",
       input.toleranceAdjusted || input.filters?.some((filter) => filter.toleranceAdjusted)

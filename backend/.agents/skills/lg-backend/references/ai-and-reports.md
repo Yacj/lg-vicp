@@ -8,6 +8,8 @@
 
 # AI 与报告
 
+2026-10-09 热工回答质量：正式Candidate原子绑定全部参数及来源；不可跨候选或Chunk补值，不把top-N当全量极值。模糊传热8.3保温板先澄清产品层R/整墙总R，「就是」使用EXACT。默认3～8行一个主方案；专业详细追问再展开。pageLabel缺失不回退物理页序。λ/α只读同页同构造同档且双R/K一致的人工确认快照，冲突记录warning并保留正式值。详见`docs/ai/thermal-answer-quality-2026-10-09.md`。
+
 最终交互与UAT（2026-10-07）：方案查询不因「限值/这个墙体」进入计算；明确算/重新算走热工，合规继续正式标准链，metadata验收intent区分COMPLIANCE。活跃厚度无metric词的省略追问更新厚度，取消厚度清除三字段及preferThinner。Parser/Matcher主结构冻结，后续自然语言变更须真实失败Case驱动。真实验收`pnpm uat:ai`覆盖销售20+设计院20共123轮，独立HTTP/SSE会话、临时库/用户/Redis队列/页图，工程条件/数值/来源程序断言，AI Judge只体验；BLOCKED不得冒充通过。类型与结构检查`pnpm uat:check`不是业务验收。详见`docs/ai/business-uat.md`。
 
 日常表达与局部条件收口（2026-10-07）：指标定位、数字抽取、比较语义分开；在/控制在/要求/达到/做到/目标等连接词不决定模式。多轮 filters 按 metric 增改删，未提及条件保留，同 metric 默认替换（含 mode），仅明确再加范围条件可追加同指标边界；取消条件不得由旧摘要或模型重复参数复活。厚度精确档 thicknessMm、单边/双边 thicknessMin/thicknessMax 独立解析与持久化，签名覆盖三字段；放宽单边厚度继承原边界含义，取消厚度清除三字段。尽量薄只在满足硬条件后按厚度升序展示，不编造范围。所有条件变化重查正式已发布数据，纯参数/原页指代可复用。无数据库结构变化，Thermal Engine 与 Knowledge 流程不变。

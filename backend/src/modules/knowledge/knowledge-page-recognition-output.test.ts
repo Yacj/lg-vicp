@@ -44,7 +44,7 @@ describe("页面识别输出格式修复", () => {
     });
     const normalized = normalizePageRecognitionAnnotations(candidate);
     expect(normalized.warnings).toEqual([]);
-    expect(normalized.notes).toEqual(candidate.warnings);
+    expect(normalized.notes).toEqual([]);
     expect(assessBatchConfirmSafety(normalized)).toEqual({ safe: true, reasons: [] });
     expect(normalized.systems[1]?.options?.[5]).toMatchObject({
       thicknessMm: 90,
@@ -52,6 +52,25 @@ describe("页面识别输出格式修复", () => {
       totalThermalResistance: 3.393,
       kValue: 0.295
     });
+  });
+
+  it("原图两条备注保留，模型字段解释剔除，真实风险保留", () => {
+    const originalNotes = [
+      "1. 内表面换热阻0.11(m²·K)/W，外表面换热阻0.04(m²·K)/W。",
+      "2. 加气混凝土砌块热工性能参照华北标图集13BJ2-12建筑外保温（节能75%）。"
+    ];
+    const result = pageRecognitionResultSchema.parse({
+      fullText: "建筑外墙热工计算参考选用表",
+      systems: [],
+      notes: [...originalNotes,
+        "构造层7在layers[]中的thicknessMm、rValue为null，因为其厚度、热阻随options[]中的不同厚度选项变化。",
+        "options[]中的productThermalResistance填写的是该保温层自身的行热阻；totalThermalResistance填写的是外墙主断面传热阻。这两个字段分别对应页面列。"],
+      warnings: ["50mm 档总热阻不清晰，请核对原图"]
+    });
+    const normalized = normalizePageRecognitionAnnotations(result);
+    expect(normalized.notes).toEqual(originalNotes);
+    expect(normalized.warnings).toEqual(result.warnings);
+    expect(normalized.systems).toEqual(result.systems);
   });
 
   it("多厚度数值缺失时保留真实告警", () => {

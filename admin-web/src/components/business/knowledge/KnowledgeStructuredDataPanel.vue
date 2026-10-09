@@ -116,7 +116,7 @@ async function load(): Promise<void> {
       }
     }
     const setMap = new Map(setPool.map(set => [set.id, set]))
-    rows.value = collected.map((row) => {
+    rows.value = collected.filter(row => row.sourcePageId != null && pageById.get(row.sourcePageId)?.recognitionStatus === 'CONFIRMED').map((row) => {
       const scheme = schemes.find(item => item.id === row.schemeId)
       const system = scheme ? systems.find(item => item.id === scheme.systemId) : undefined
       const spec = specs.find(item => item.id === row.productSpecId)
@@ -190,16 +190,16 @@ const columns = computed<PrimaryTableCol<TableRowData>[]>(() => [
   <section class="knowledge-structured">
     <header class="knowledge-structured__header">
       <div>
-        <h2>热工信息</h2>
-        <p>查看这份资料关联的热工参考方案。点击来源页可核对原始页面。</p>
+        <h2>已确认热工数据</h2>
+        <p>仅展示当前版本已确认页面关联的热工参考数据；参考集的审核和发布状态见下表。点击来源页可查看原图。</p>
       </div>
     </header>
     <AppDataTable
       :columns="columns"
       :current="1"
       :data="rows"
-      empty-title="还没有关联热工信息"
-      empty-description="如需在问答中引用热工数据，请先到热工中心建立并关联参考方案。"
+      empty-title="还没有已确认热工数据"
+      empty-description="请先核对识别结果，并将热工数据同步到参考集。"
       :error-description="businessUserError(error)"
       row-key="id"
       :total="rows.length"

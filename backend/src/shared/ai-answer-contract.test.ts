@@ -31,12 +31,12 @@ describe("参考查询 Answer Contract 收口", () => {
   });
   it("系统与Tool文案同时规定跨体系回退必须先说未命中", () => {
     const contract = formatAnswerContractPrompt("REFERENCE_LOOKUP");
-    expect(contract).toContain("符合用户指定体系且有命中时");
+    expect(contract).toContain("指标明确且结构化参考表符合全部条件时");
     expect(contract).toContain("禁止开头回答“有”");
     const normalized = normalizeReferenceLookupForModel({ found: true, candidates: [{ id: "other" }], isFallback: true, matchedSystemHint: false, metric: "TOTAL_R", targetValue: 3.3, tolerance: 0.05, lookupMode: "APPROX" });
     expect(normalized.instruction).toContain("没有找到符合");
     expect(normalized.instruction).not.toContain("第一行直接回答有");
-    expect(normalized.instruction).toContain("总热阻 R近似查询");
+    expect(normalized.instruction).toContain("总热阻 R₀近似查询");
     expect(normalized.instruction).toContain("不能称为规范达标");
     const again = normalizeToolResultForModel("thermal", { ok: true, data: normalized }) as typeof normalized;
     expect(again).toMatchObject({ metric: "TOTAL_R", targetValue: 3.3, tolerance: 0.05, isFallback: true });
@@ -44,7 +44,7 @@ describe("参考查询 Answer Contract 收口", () => {
   });
   it.each(["TOTAL_R", "PRODUCT_R"] as const)("%s 上下限提示使用正确指标", (metric) => {
     const result = normalizeReferenceLookupForModel({ found: true, candidates: [{ id: "r" }], metric, lookupMode: "MIN_LIMIT" });
-    expect(result.instruction).toContain(metric === "TOTAL_R" ? "总热阻 R ≥" : "产品层热阻 R ≥");
+    expect(result.instruction).toContain(metric === "TOTAL_R" ? "总热阻 R₀ ≥" : "产品层热阻 R ≥");
     expect(result.instruction).not.toContain("K ≥");
   });
 });

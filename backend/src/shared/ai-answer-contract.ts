@@ -1,3 +1,4 @@
+import { interpretThermalQuestion, THERMAL_FACT_RULES } from "../modules/ai/thermal-answer-facts.js";
 /**
  * Answer Contract：只约束最终答案形态，不是 Agent 类型。
  * 安全/权限硬约束仍在 HARD_RESPONSE_CONSTRAINTS。
@@ -60,6 +61,7 @@ export function isReferenceLookupIntent(
   lastReferenceLookup?: { candidates?: unknown[]; query?: object } | null
 ): boolean {
   if (isThermalCalculateIntent(message)) return false;
+  if (interpretThermalQuestion(message).needsClarification) return true;
   if (REFERENCE_LOOKUP_PATTERN.test(message)) return true;
   if (THERMAL_VALUE_PATTERN.test(message)) return true;
   const hasLookup = Boolean(lastReferenceLookup?.query) || Array.isArray(lastReferenceLookup?.candidates) && lastReferenceLookup.candidates.length > 0;
@@ -114,7 +116,8 @@ const CONTRACT_SHAPES: Record<AnswerContract, string> = {
   ].join(""),
   REFERENCE_LOOKUP: [
     "REFERENCE_LOOKUP：查询已发布图集 / 参考选用表 / 已知档位，不是正式热工计算。",
-    "结构化参考表符合用户指定体系且有命中时：第一行回答“有”，只使用表中的数值。",
+    "指标明确且结构化参考表符合全部条件时：第一行给出结论，只使用同一候选中的数值。指标歧义时先简短区分，再问一个短问题，不直接回答有8.3的保温板。",
+    THERMAL_FACT_RULES,
     "多个热工条件默认全部同时满足；只有满足全部条件才可回答“有”。无完整命中时说明未找到同时满足全部条件的正式参考方案，继续检索图集原文。若列接近结果，逐项说明不满足的条件，不得冒充完整命中。不要向用户输出条件数组或查询模式枚举。",
     "若结果标记 isFallback=true 或 matchedSystemHint=false：第一句必须说明“没有找到符合该体系条件的正式参考方案”，随后说明其他体系的参考结果，禁止开头回答“有”。",
     "近似查询只说接近目标，不得称为满足上限、下限或规范达标；上下限筛选也不等同规范合规。总热阻与产品层热阻必须区分。不要把构造层表格再用 Markdown 重写，页面由系统单独展示。",
@@ -124,6 +127,7 @@ const CONTRACT_SHAPES: Record<AnswerContract, string> = {
     "后续若要判断是否达标，再进入正式热工计算。"
   ].join(""),
   THERMAL: [
+    THERMAL_FACT_RULES,
     "THERMAL：正式计算、项目级判断或限值/合规判断。有结果时先给核心结果，再给最多 2～3 个解释点；详细计算过程只有用户要求时展开。",
     "没有结果时写：目前还没有热工计算结果，这部分暂时不参与比较。",
     "只有当前计算确实缺少方案、规格、厚度或合规所需地区时才追问；不要把查已有参考方案所需条件与计算前置条件混用。",
