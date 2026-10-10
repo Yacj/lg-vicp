@@ -19,6 +19,8 @@ import {
   locateHighlight,
   resolveSourceDetail
 } from "./knowledge-wiki-read.service.js";
+import { getPublicDocumentPageByLabel } from "./knowledge-wiki-read.service.js";
+import { getPageRecognition } from "./knowledge-page-recognition.service.js";
 import { NotFoundError } from "../../shared/errors.js";
 
 /**
@@ -216,7 +218,7 @@ describe("来源详情：无 ORIGINAL 的页面驱动知识", () => {
       from: () => target,
       where: () => target,
       innerJoin: () => target,
-      orderBy: () => Promise.resolve(next()),
+      orderBy: () => target,
       limit: () => Promise.resolve(next()),
       then: (resolve: (value: unknown[]) => void) => resolve(next())
     };
@@ -262,5 +264,20 @@ describe("来源详情：无 ORIGINAL 的页面驱动知识", () => {
     expect(detail.page?.id).toBe("page-9");
     expect(detail.original.pageImageUrl).toContain("page-3.png");
     expect(detail.location.physicalPageNumber).toBe(3);
+  });
+
+  it("B端识别详情/C端按页签读取/AI来源详情复用相同确认渲染契约", async () => {
+    const confirmedPage = { ...page, metadata: { confirmedStructuredData: { fullText: "确认全文",
+      systems: [{ constructionCode: "A1-3", options: [{ thicknessMm: 18, productThermalResistance: 2.88,
+        totalThermalResistance: 3.297, kValue: 0.303 }] }] } } };
+    const b = await getPageRecognition(scriptedApp([[confirmedPage], [version], []]), page.id);
+    const c = await getPublicDocumentPageByLabel(scriptedApp([[document], [version], [confirmedPage], blocks]), document.id, page.pageLabel);
+    const source = await resolveSourceDetail(scriptedApp([[confirmedPage], [document], [version], blocks, [], []]),
+      { id: "u1", role: "NORMAL_USER" } as never, { pageId: page.id });
+    expect(b.renderModel).not.toBeNull();
+    expect(c.renderModel).toEqual(b.renderModel);
+    expect(source.page?.renderModel).toEqual(b.renderModel);
+    expect(b.renderModel?.pageLabel).toBe("3");
+    expect(c.extractedText).toBe(page.parsedText);
   });
 });

@@ -40,6 +40,7 @@ import AppErrorState from '@/components/ui/AppErrorState.vue'
 import AppPage from '@/components/ui/AppPage.vue'
 import { useConfirmedCrudAction } from '@/composables/useCrudActions'
 import { useKnowledgeLifecycle } from '@/composables/useKnowledgeLifecycle'
+import { useKnowledgeVersionActivation } from '@/composables/useKnowledgeVersionActivation'
 import { usePermissionAccess } from '@/composables/usePermissionAccess'
 import { businessUserError, businessUserMessage } from '@/utils/business-error'
 import { isKnowledgeFileParsingInProgress, isKnowledgePageDrivenWorkspace, isKnowledgePageRenderingInProgress, isKnowledgeParsingStatus, isKnowledgeReadyStatus } from '@/utils/knowledge-user'
@@ -86,6 +87,7 @@ const previousPageCount = ref(0)
  */
 const {
   workspace,
+  retainedVersion,
   index,
   recognitionSummary,
   versionId,
@@ -102,7 +104,9 @@ const {
       previousPageCount.value = next.summary.pageCount
       galleryKey.value += 1
     }
-
+    if (!next.currentVersion && activeTab.value === 'test') {
+      activeTab.value = 'gallery'
+    }
   },
 })
 
@@ -336,6 +340,14 @@ async function disable(): Promise<void> {
   }
 }
 
+const { run: enable, running: enabling } = useKnowledgeVersionActivation({
+  onEnabled: async () => {
+    publishVisible.value = false
+    versionVisible.value = false
+    await Promise.all([refresh(), loadVersions()])
+  },
+})
+
 watch(documentId, () => {
   activeTab.value = 'overview'
   focusPhysicalPageNumber.value = null
@@ -360,6 +372,7 @@ onMounted(() => {
         :more-actions="moreActions"
         :title="workspace?.document.title || documentMeta?.title || '知识库'"
         :user-status="userStatus"
+        :version-status="retainedVersion?.status"
         @back="router.push({ path: '/knowledge/documents' })"
         @more="onMore"
         @preview="openOriginal(null)"
@@ -404,8 +417,14 @@ onMounted(() => {
       />
 
       <template v-else-if="showWorkspaceTabs || isKnowledgeReadyStatus(userStatus)">
+        <t-alert
+          v-if="retainedVersion"
+          theme="info"
+          title="已停止发布"
+          message="原文页面和已确认资料仍保留，可在此只读查看。"
+        />
         <KnowledgeLifecycleBar
-          v-if="['gallery', 'structured'].includes(activeTab)"
+          v-if="!retainedVersion && ['gallery', 'structured'].includes(activeTab)"
           :index="index"
           :recognition-summary="recognitionSummary"
           :workspace="workspace"
@@ -417,7 +436,12 @@ onMounted(() => {
           @change="onSectionChange"
         >
           <t-tab-panel label="概览" value="overview">
+            <template v-if="retainedVersion">
+              <p>保留版本：v{{ retainedVersion.version }} · 资料页面：{{ recognitionSummary?.total ?? retainedVersion.pageCount ?? '—' }}</p>
+              <t-button variant="outline" @click="activeTab = 'gallery'">查看原文页面</t-button>
+            </template>
             <KnowledgeOverviewPanel
+              v-else
               :can-rebuild-index="canParse"
               :can-test="canTest"
               :can-open-publish="canApprove || canPublish"
@@ -475,7 +499,7 @@ onMounted(() => {
             />
           </t-tab-panel>
 
-          <t-tab-panel v-if="canTest" label="问答测试" value="test">
+          <t-tab-panel v-if="canTest && !retainedVersion" label="问答测试" value="test">
             <KnowledgeTestPanel
               :can-debug="canDebug"
               :version-id="versionId"
@@ -505,8 +529,11 @@ onMounted(() => {
     />
     <KnowledgeVersionDrawer
       v-model:visible="versionVisible"
+      :can-enable="canPublish"
+      :enabling="enabling"
       :current-version-id="versionId"
       :versions="versions"
+      @enable="enable"
     />
     <KnowledgeAdvancedDrawer
       v-model:visible="advancedVisible"
@@ -531,12 +558,18 @@ onMounted(() => {
       @close="publishVisible = false"
       @update:visible="(value: boolean) => publishVisible = value"
     >
-      <p class="knowledge-publish-hint">
+      <p v-if="!retainedVersion" class="knowledge-publish-hint">
         发布后，这份资料可用于问答。发布前请核对资料页面，并更新问答内容。
       </p>
 
       <t-alert
-        v-if="!workspace?.summary.canPublish"
+        v-if="retainedVersion"
+        theme="info"
+        title="已停止发布"
+        message="该版本的原文页面仍保留，可在“处理资料”中只读查看。"
+      />
+      <t-alert
+        v-else-if="!workspace?.summary.canPublish"
         class="knowledge-publish-blockers"
         theme="warning"
         title="暂时无法发布"
@@ -562,11 +595,14 @@ onMounted(() => {
       </t-alert>
 
       <t-space>
+        <t-button v-if="canPublish && retainedVersion" theme="primary" :loading="enabling" @click="enable(retainedVersion)">
+          重新启用
+        </t-button>
         <t-button v-if="canApprove && workspace?.currentVersion?.status === 'DRAFT'" theme="primary" variant="outline" @click="approve">
           审核通过
         </t-button>
         <t-button
-          v-if="canPublish"
+          v-if="canPublish && !retainedVersion"
           :disabled="!workspace?.summary.canPublish"
           :title="workspace?.summary.canPublish ? '发布后可用于提问' : '请先完成上方列出的发布条件'"
           theme="primary"

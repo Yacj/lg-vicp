@@ -88,14 +88,15 @@ describe("Tool Result Normalizer", () => {
     expect(JSON.stringify(data)).not.toContain("K=1/R");
   });
 
-  it("选用表未命中时要求继续检索知识库，不宣布没有方案", async () => {
+  it("选用表未命中时如实说明当前范围，可以建议继续查原文", async () => {
     const { normalizeReferenceLookupForModel } = await import("./tool-result-normalizer.js");
     const data = normalizeReferenceLookupForModel({
       found: false,
       candidates: [],
       notes: ["没有已发布且生效中的图集参考集，无法查表（请先在后台导入并审核发布）"]
     });
-    expect(data.instruction).toContain("继续检索知识库");
+    expect(data.instruction).toContain("继续查图集原文");
+    expect(data.instruction).toContain("没有完全满足条件");
     expect(data.instruction).not.toContain("暂未找到");
   });
 

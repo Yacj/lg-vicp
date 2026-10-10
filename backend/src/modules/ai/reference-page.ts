@@ -2,6 +2,9 @@
  * REFERENCE_PAGE：查表命中后由后端组装。模型不输出 HTML，也不重画原表。
  * 没有来源页或没有页图时不伪造该结构。
  */
+import { resolveReferenceHighlight, type ReferenceHighlight } from "../knowledge/knowledge-page-renderer.js";
+export type { ReferenceHighlight } from "../knowledge/knowledge-page-renderer.js";
+
 export const REFERENCE_PAGE_MISSING_NOTE = "当前参考方案尚未关联原始页面。";
 export const REFERENCE_PAGE_LIMIT = 3;
 
@@ -13,12 +16,15 @@ export interface ReferencePageHighlight {
 
 export interface ReferencePageMatch {
   candidateId?: string;
+  optionId?: string;
+  semanticHighlights?: ReferenceHighlight[];
   summary: ReferencePageBlock["summary"];
   highlights: ReferencePageHighlight[];
 }
 
 export interface ReferencePageBlock {
   type: "REFERENCE_PAGE";
+  semanticHighlights?: ReferenceHighlight[];
   summary: {
     systemType?: string;
     constructionCode?: string;
@@ -50,6 +56,10 @@ export interface ReferencePageBlock {
 
 export interface ReferencePageCandidate {
   id: string;
+  schemeId?: string;
+  productSpecId?: string;
+  catalogProductId?: string | null;
+  specClass?: string;
   systemName?: string;
   schemeCode?: string;
   productName?: string;
@@ -67,6 +77,7 @@ export interface ReferencePageCandidate {
 
 export interface ReferencePageSource {
   pageId: string;
+  metadata?: unknown;
   documentId: string;
   documentTitle: string;
   /** 兼容旧调用方；现在该值必须来自 knowledge_pages.physicalPageNumber。 */
@@ -79,6 +90,7 @@ export interface ReferencePageSource {
 
 export interface StoredReferencePage {
   documentId: string;
+  semanticHighlights?: ReferenceHighlight[];
   pageId: string;
   documentTitle?: string;
   pageNumber?: number | null;
@@ -148,7 +160,9 @@ export function buildReferencePageBlocks(
     }
     const highlights = buildHighlights(candidate);
     const summary = buildSummary(candidate);
-    const match: ReferencePageMatch = { candidateId: candidate.id, summary, highlights };
+    const semantic = resolveReferenceHighlight(candidate, page);
+    const match: ReferencePageMatch = { candidateId: candidate.id, summary, highlights,
+      semanticHighlights: semantic ? [semantic] : [], ...(semantic ? { optionId: semantic.optionId } : {}) };
     const existing = groups.get(page.pageId);
     if (existing) {
       existing.matches.push(match);
@@ -174,6 +188,7 @@ export function buildReferencePageBlocks(
         imageUrl: group.page.imageUrl!
       },
       matches: group.matches,
+      semanticHighlights: group.matches.flatMap(match => match.semanticHighlights ?? []),
       highlights: group.highlights
     };
     blocks.push(block);
@@ -186,9 +201,12 @@ export function buildReferencePageBlocks(
       pageLabel: group.page.pageLabel ?? null,
       pageImageObjectKey: group.page.pageImageObjectKey ?? null,
       summary: { ...group.summary },
+      semanticHighlights: structuredClone(block.semanticHighlights),
       highlights: group.highlights.map((highlight) => ({ ...highlight })),
       matches: group.matches.map((match) => ({
         candidateId: match.candidateId,
+        optionId: match.optionId,
+        semanticHighlights: structuredClone(match.semanticHighlights),
         summary: { ...match.summary },
         highlights: match.highlights.map((highlight) => ({ ...highlight }))
       }))

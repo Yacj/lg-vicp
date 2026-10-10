@@ -121,6 +121,8 @@ export const BUSINESS_ERROR_CODE_MESSAGES: Record<string, string> = {
   KNOWLEDGE_NOT_READY_FOR_TEST: '知识库还在解析中，完成后就可以测试。',
   KNOWLEDGE_SEARCH_SOURCE_REQUIRED: '当前文件读不出文字，请先补充可搜索文字版本。',
   KNOWLEDGE_VERSION_EMPTY: '当前知识库还没有资料页面，请先上传页面后再发布。',
+  KNOWLEDGE_VERSION_NOT_DISABLED: '只有已停用的版本可以重新启用。',
+  KNOWLEDGE_PUBLISHED_VERSION_CONFLICT: '知识库已有发布版本，请先停用当前发布版本，再启用此版本。',
   KNOWLEDGE_VERSION_NOT_APPROVED: '当前版本还没有审核通过，请先审核再发布。',
   KNOWLEDGE_VERSION_ALREADY_PUBLISHED: '这份知识库已经发布过了，不需要重复发布。',
   KNOWLEDGE_VERSION_PAGES_UNCONFIRMED: '还有资料页面没有完成识别确认，请先确认后再发布。',

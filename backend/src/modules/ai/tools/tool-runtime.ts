@@ -85,6 +85,14 @@ export interface ToolRuntimeContext {
   answerContract?: string | null;
   /** 本轮用户原始提问：用于工具在模型未显式给参数时做确定性兜底（如 K 查询语义） */
   userMessage?: string | null;
+  thermalCanonicalAnswers?: string[];
+  /**
+   * 本轮热工回答的 Allowed Fact Set（结构化事实快照）。
+   * 有它时事实门禁做「语义事实校验」，允许模型自然表达；只有它缺省时才退回「全文严格相等」。
+   * 类型用 import type 引入，避免与 thermal-answer-validation 形成运行期循环依赖。
+   */
+  thermalAllowedFacts?: import("../thermal-answer-validation.js").AllowedAnswerFacts;
+  thermalFactValidation?: { repaired: boolean; fallback: boolean };
   onWait?: (signal: AgentWaitSignal) => void;
   onEvent?: (event: string, data: unknown) => void;
 }

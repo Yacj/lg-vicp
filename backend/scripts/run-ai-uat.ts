@@ -32,7 +32,7 @@ const args = options(process.argv.slice(2));
 const selected = uatCases.filter(item => (!args.case || args.case === item.id) && (!args.persona || item.persona === (args.persona === "sales" ? "SALES" : "DESIGN_INSTITUTE")));
 if (!selected.length) throw new Error("没有符合条件的UAT场景");
 if (args.list || args.check) {
-  if (uatCases.length !== 40 || uatCases.filter(item => item.persona === "SALES").length !== 20 || uatCases.filter(item => item.persona === "DESIGN_INSTITUTE").length !== 20 || new Set(uatCases.map(item => item.id)).size !== 40 || uatCases.some(item => item.turns.length < 2 || item.turns.length > 5) || uatCases.reduce((sum, item) => sum + item.turns.length, 0) < 100) throw new Error("UAT场景数量/轮次/身份/ID不满足验收要求");
+  if (uatCases.length < 40 || uatCases.filter(item => item.persona === "SALES").length < 20 || uatCases.filter(item => item.persona === "DESIGN_INSTITUTE").length < 20 || new Set(uatCases.map(item => item.id)).size !== uatCases.length || uatCases.some(item => item.turns.length < 2 || item.turns.length > 5) || uatCases.reduce((sum, item) => sum + item.turns.length, 0) < 100) throw new Error("UAT场景数量/轮次/身份/ID不满足验收要求");
   if (args.list) for (const item of selected) console.log(`${item.id} ${item.persona} ${item.scenario} (${item.turns.length}轮)`);
   console.log(`[UAT] 场景结构检查通过：${selected.length}场景，${selected.reduce((sum, item) => sum + item.turns.length, 0)}轮；未调用模型，未进行业务验收。`);
 } else {

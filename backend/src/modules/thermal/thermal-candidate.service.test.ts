@@ -32,6 +32,7 @@ function makeDb(rows: Array<Array<Record<string, unknown>>>): {
   });
   const from = () => ({
     innerJoin: () => from(),
+    leftJoin: () => from(),
     where: () => chain(),
     orderBy: () => chain(),
     then: (resolve: (value: unknown) => void) => Promise.resolve(next()).then(resolve)
@@ -98,7 +99,7 @@ describe("候选查询 queryThermalCandidates", () => {
     ], neighborTolerance: 1 });
     expect(result.candidates.map((c) => c.candidateId)).toEqual(["both"]);
     expect(result.filters).toHaveLength(2);
-    expect(result.candidates[0]?.compliant).toBe(false);
+    expect(result.candidates[0]?.compliant).toBeNull();
     const empty = makeDb([[]]);
     const adjusted = await queryThermalCandidates(app(empty.db), request, actor, { metric: "TOTAL_R", targetValue: 3.3, tolerance: 5, neighborTolerance: 1 });
     expect(adjusted).toMatchObject({ requestedTolerance: 5, effectiveTolerance: 0.2, toleranceAdjusted: true });
@@ -128,7 +129,7 @@ describe("候选查询 queryThermalCandidates", () => {
     const { db } = makeDb([[{ ...limitRow, limitKValue: 0.2 }], [setRow], [a13]]);
     const result = await queryThermalCandidates(app(db), request, actor, { regionCode: "BJ", metric: "TOTAL_R", targetValue: 3.3, mode: "APPROX", neighborTolerance: 1 });
     expect(result.candidates).toHaveLength(1);
-    expect(result.candidates[0]?.compliant).toBe(false);
+    expect(result.candidates[0]?.compliant).toBeNull();
     expect(result.lookupMode).toBe("APPROX");
   });
 
@@ -171,7 +172,7 @@ describe("候选查询 queryThermalCandidates", () => {
     expect(result.limit).toMatchObject({ regionCode: "BJ", limitKValue: 0.25 });
     expect(result.limitCandidates).toBeNull();
     expect(result.candidates.map((c) => c.result.thicknessMm)).toEqual([25, 30]);
-    expect(result.candidates.every((c) => c.compliant === true)).toBe(true);
+    expect(result.candidates.every((c) => c.compliant === null)).toBe(true);
   });
 
   it("多标准并存：limit 置空 + limitCandidates 返回全部 + K 条件标缺失，不隐式选最严格", async () => {
@@ -203,7 +204,9 @@ describe("候选查询 queryThermalCandidates", () => {
     expect(result.limit).toBeNull();
     expect(result.limitCandidates).toHaveLength(2);
     expect(result.missingConditions).not.toContain("targetK");
-    expect(result.candidates.map((c) => c.result.thicknessMm)).toEqual([25, 30]);
+    expect(result.candidates).toEqual([]);
+    expect(result.nearbyCandidates?.map(c => c.result.thicknessMm)).toEqual([25, 30]);
+    expect(result.nearbyCandidates?.every(c => c.constraintMatch?.passed === false)).toBe(true);
   });
 
   it("asOfDate：按项目时点解析生效中限值（参数通路）", async () => {
@@ -322,5 +325,21 @@ describe("候选确认记录分页 listCandidateSelections", () => {
     const result = await listCandidateSelections(app(db), { page: 1, pageSize: 20, projectId: "p-1" });
     expect(result.total).toBe(1);
     expect(result.items[0]).toMatchObject({ id: "sel-1", query: {}, candidate: {} });
+  });
+});
+
+
+describe("统一服务偏好与 AI 普通查表标准边界", () => {
+  it("软偏好在所有硬条件满足后排序，API 与 Tool 使用相同规则", async () => {
+    const { db } = makeDb([[setRow], [row25, row30, { ...row25, rowId: "bad", thicknessMm: 60, kValue: 0.9 }]]);
+    const result = await queryThermalCandidates(app(db), request, actor, { targetK: 0.3, neighborTolerance: 0, preferences: { preferThicker: true } });
+    expect(result.candidates.map(candidate => candidate.candidateId)).toEqual(["r-30", "r-25"]);
+    expect(result.candidates.every(candidate => candidate.constraintMatch?.passed)).toBe(true);
+  });
+  it("AI 普通查表给地区但未问合规时，不从单个标准插入 K 条件", async () => {
+    const { db } = makeDb([[limitRow], [setRow], [row25, row30]]);
+    const result = await queryThermalCandidates(app(db), request, actor, { intent: "REFERENCE_LOOKUP", regionCode: "BJ", neighborTolerance: 0 });
+    expect(result.filters).toEqual([]); expect(result.candidates).toHaveLength(2);
+    expect(result.candidates.every(candidate => candidate.compliant === null)).toBe(true);
   });
 });

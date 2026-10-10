@@ -69,12 +69,15 @@ export function isReferenceLookupIntent(
 }
 
 export function resolveAnswerContract(input: {
+  /** 调用方已限定检索范围并提供原文；空结果同样不能转为全库查表或计算。 */
+  knowledgeContextProvided?: boolean;
   taskType?: AnswerContractTaskType | null;
   capabilities?: AnswerContractCapabilities | null;
   skipToolLoop?: boolean;
   message?: string | null;
   lastReferenceLookup?: { candidates?: unknown[]; query?: object } | null;
 }): AnswerContract {
+  if (input.knowledgeContextProvided) return "KNOWLEDGE";
   const capabilities = input.capabilities;
   const message = input.message?.trim() ?? "";
   if (input.skipToolLoop || capabilities?.idle) return "DIRECT";

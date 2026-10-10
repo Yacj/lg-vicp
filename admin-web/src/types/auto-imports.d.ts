@@ -238,6 +238,7 @@ declare global {
   const useKeyModifier: typeof import('@vueuse/core').useKeyModifier
   const useKnowledgeLifecycle: typeof import('../composables/useKnowledgeLifecycle').useKnowledgeLifecycle
   const useKnowledgeReviewNavigation: typeof import('../composables/useKnowledgeReviewNavigation').useKnowledgeReviewNavigation
+  const useKnowledgeVersionActivation: typeof import('../composables/useKnowledgeVersionActivation').useKnowledgeVersionActivation
   const useKnowledgeVersionEditable: typeof import('../composables/useKnowledgeVersionEditable').useKnowledgeVersionEditable
   const useLastChanged: typeof import('@vueuse/core').useLastChanged
   const useLink: typeof import('vue-router').useLink
@@ -444,6 +445,9 @@ declare global {
   // @ts-ignore
   export type { UseKnowledgeLifecycleOptions, KnowledgeLifecycleRefreshOptions, UseKnowledgeLifecycleReturn } from '../composables/useKnowledgeLifecycle'
   import('../composables/useKnowledgeLifecycle')
+  // @ts-ignore
+  export type { KnowledgeReviewFilter } from '../composables/useKnowledgeReviewNavigation'
+  import('../composables/useKnowledgeReviewNavigation')
   // @ts-ignore
   export type { KnowledgeVersionEditableInput, KnowledgeVersionEditableState } from '../composables/useKnowledgeVersionEditable'
   import('../composables/useKnowledgeVersionEditable')

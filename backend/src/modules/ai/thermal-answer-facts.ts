@@ -1,6 +1,7 @@
 import { pageRecognitionResultSchema, type PageRecognitionMetadata } from "../../shared/page-recognition.js";
 import { THERMAL_LOOKUP_METRIC_PATTERN, type ThermalLookupMetric } from "../thermal/thermal-lookup-mode.js";
 import type { ReferenceLookupCandidate } from "./conversation-task.js";
+import { resolveReferenceHighlight } from "../knowledge/knowledge-page-renderer.js";
 
 export const THERMAL_FACT_RULES = [
   "【热工数据硬规则】",
@@ -20,16 +21,18 @@ export const THERMAL_FACT_RULES = [
 export function interpretThermalQuestion(message: string, previousMetric?: ThermalLookupMetric) {
   const text = message.normalize("NFKC").replace(/\s+/g, "");
   const explicit = [...text.matchAll(new RegExp(THERMAL_LOOKUP_METRIC_PATTERN))];
-  const vague = /(?:传热(?!系数)|保温系数|保温板|热阻R?)[=:≈]?\d+(?:\.\d+)?(?![\d.]|mm|毫米|cm|厘米|元)/i.test(text)
-    || /\d+(?:\.\d+)?的?(?:保温板|热阻)/i.test(text);
-  const needsClarification = explicit.length === 0 && vague && (!previousMetric || previousMetric === "K" || /传热|保温系数|保温板/.test(text));
+  const vague = /(?:传热(?!系数)|保温系数|保温性能|保温板|热阻R?)[=:≈]?\d+(?:\.\d+)?(?![\d.]|mm|毫米|cm|厘米|元)/i.test(text)
+    || /\d+(?:\.\d+)?的?(?:保温板|热阻)/i.test(text)
+    || /(?:^|[,，;；])R[=:≈]?\d+(?:\.\d+)?/i.test(text);
+  const needsClarification = explicit.length === 0 && (vague && (!previousMetric || previousMetric === "K" || /传热|保温系数|保温性能|保温板/.test(text))
+    || !previousMetric && /差不多[=:≈]?\d+(?:\.\d+)?(?:左右|附近)?(?!mm|毫米)/i.test(text));
   return { needsClarification, metric: needsClarification ? "AMBIGUOUS" as const : previousMetric };
 }
 
 export function thermalMetricClarification() {
   return { answerIntent: "REFERENCE_LOOKUP" as const, interpretation: { metric: "AMBIGUOUS" as const, needsClarification: true },
     needsClarification: true, primaryCandidate: null, alternativeCandidates: [], sourcePages: [], warnings: [],
-    instruction: "先简短说明板自身热阻与整墙总热阻不同，再只问：你要找保温板自身的产品层热阻 R，还是整墙总热阻 R₀（如果指传热系数 K 请说明）？不要根据8.3猜指标、列无依据方案或声称最高值。" };
+    instruction: "先简短说明板自身热阻与整墙总热阻不同，再只问：你要找保温板自身的产品层热阻 R，还是整墙总热阻 R₀（如果指传热系数 K 请说明）？不要根据数值大小猜指标、列无依据方案或声称最高值。" };
 }
 
 /** 仅同一来源页、同一构造、同一档位的人工确认快照可补充 λ/α。 */
@@ -37,10 +40,10 @@ export function bindConfirmedPageFacts(candidate: ReferenceLookupCandidate, page
   pageId: string; documentId: string; pageLabel?: string | null; metadata?: unknown;
 }): { candidate: ReferenceLookupCandidate; warnings: string[] } {
   if (candidate.sourcePageId !== page.pageId || candidate.sourceDocumentId && candidate.sourceDocumentId !== page.documentId) {
-    return { candidate, warnings: ["候选与来源文档不一致，未合并页面参数。"] };
+    return { candidate: { ...candidate, optionId: undefined }, warnings: ["候选与来源文档不一致，未合并页面参数。"] };
   }
   // 页面派生参数在每次读取时重新绑定，不能让历史补充参数跨确认版本复活。
-  const bound = { ...candidate, lambda: undefined, alpha: undefined, layers: undefined, sourcePageLabel: page.pageLabel?.trim() || null };
+  const bound = { ...candidate, optionId: undefined, lambda: undefined, alpha: undefined, layers: undefined, sourcePageLabel: page.pageLabel?.trim() || null };
   const warnings: string[] = [];
   if (candidate.sourcePageLabel && candidate.sourcePageLabel !== bound.sourcePageLabel) warnings.push("候选页码与当前来源页标签不一致，已采用来源页印刷页码。");
   const metadata = page.metadata as PageRecognitionMetadata | undefined;
@@ -63,6 +66,6 @@ export function bindConfirmedPageFacts(candidate: ReferenceLookupCandidate, page
     return { candidate: bound, warnings: [...warnings, "来源页确认参数与正式候选冲突，保留正式候选数值，未合并页面参数。"] };
   }
   const productLayers = (system.layers ?? []).filter((layer) => /VICP|保温板/i.test(layer.name));
-  return { candidate: { ...bound, layers: system.layers,
+  return { candidate: { ...bound, optionId: resolveReferenceHighlight(candidate, page)?.optionId, layers: system.layers,
     ...(productLayers.length === 1 ? { lambda: productLayers[0]!.lambda ?? undefined, alpha: productLayers[0]!.alpha ?? undefined } : {}) }, warnings };
 }

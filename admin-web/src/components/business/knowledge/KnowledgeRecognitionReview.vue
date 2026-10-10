@@ -770,25 +770,29 @@ onMounted(() => {
         <div class="knowledge-review__filter">
           <t-select v-model="statusFilter" size="small" :options="filterOptions" @change="changeFilter" />
         </div>
-        <button
+        <t-button
           v-for="page in filteredPages"
           :key="page.id"
           v-memo="[page, selected?.id === page.id, failedImageIds.has(page.id)]"
           type="button"
+          theme="default"
+          variant="outline"
           class="knowledge-review__page-button"
           :aria-current="selected?.id === page.id ? 'page' : undefined"
           :class="{ 'is-selected': selected?.id === page.id }"
           @click="selectPage(page)"
         >
-          <img v-if="page.pageImageUrl && !failedImageIds.has(page.id)" :src="page.pageImageUrl" :alt="`文件第 ${page.physicalPageNumber} 页`" loading="lazy" @error="markImageUnavailable(page.id)">
-          <span v-else class="knowledge-review__no-image">原图暂不可用</span>
-          <span class="knowledge-review__page-meta">
-            <strong>文件第 {{ page.physicalPageNumber }} 页</strong>
-            <small>资料页码 {{ page.pageLabel || '—' }}</small>
-            <small v-if="page.pageTitle">{{ page.pageTitle }}</small>
-            <small>{{ statusMeta(page).label }}</small>
+          <span class="knowledge-review__page-content">
+            <img v-if="page.pageImageUrl && !failedImageIds.has(page.id)" :src="page.pageImageUrl" :alt="`文件第 ${page.physicalPageNumber} 页`" loading="lazy" @error="markImageUnavailable(page.id)">
+            <span v-else class="knowledge-review__no-image">原图暂不可用</span>
+            <span class="knowledge-review__page-meta">
+              <strong>文件第 {{ page.physicalPageNumber }} 页</strong>
+              <small>资料页码 {{ page.pageLabel || '—' }}</small>
+              <small v-if="page.pageTitle">{{ page.pageTitle }}</small>
+              <small>{{ statusMeta(page).label }}</small>
+            </span>
           </span>
-        </button>
+        </t-button>
       </nav>
 
       <div v-if="selected" class="knowledge-review__editor">
@@ -1034,10 +1038,7 @@ onMounted(() => {
 }
 
 .knowledge-review__page-button {
-  display: grid;
-  grid-template-columns: 58px minmax(0, 1fr);
-  gap: var(--td-size-2);
-  align-items: start;
+  display: block;
   color: var(--td-text-color-primary);
   font: inherit;
   flex: 0 0 auto;
@@ -1050,6 +1051,18 @@ onMounted(() => {
   text-align: left;
   white-space: normal;
   cursor: pointer;
+}
+
+.knowledge-review__page-button :deep(.t-button__text) {
+  display: block;
+  width: 100%;
+}
+
+.knowledge-review__page-content {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: var(--td-size-2);
+  align-items: start;
 }
 
 .knowledge-review__page-button.is-selected {

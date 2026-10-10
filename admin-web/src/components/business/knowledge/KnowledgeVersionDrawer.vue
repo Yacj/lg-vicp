@@ -10,16 +10,22 @@ const props = defineProps<{
   visible: boolean
   versions: KnowledgeDocumentVersion[]
   currentVersionId?: string | null
+  canEnable?: boolean
+  enabling?: boolean
 }>()
 
 const emit = defineEmits<{
   'update:visible': [visible: boolean]
   'select': [version: KnowledgeDocumentVersion]
+  'enable': [version: KnowledgeDocumentVersion]
 }>()
 
 const sorted = computed(() => [...props.versions].sort((a, b) => b.version - a.version))
 
 function versionUserLabel(version: KnowledgeDocumentVersion): string {
+  if (version.status === 'DISABLED') {
+    return knowledgeVersionStatusMetaFor(version.status).label
+  }
   if (version.parseStatus === 'FAILED') {
     return knowledgeUserStatusMetaFor('PARSE_FAILED').label
   }
@@ -62,7 +68,18 @@ function versionUserLabel(version: KnowledgeDocumentVersion): string {
           </strong>
           <span>{{ formatDate(new Date(version.updatedAt), 'YYYY-MM-DD') }}</span>
         </div>
-        <AppStatusTag :label="versionUserLabel(version)" size="small" />
+        <t-space size="small">
+          <AppStatusTag :label="versionUserLabel(version)" size="small" />
+          <t-button
+            v-if="canEnable && version.status === 'DISABLED'"
+            size="small"
+            variant="outline"
+            :loading="enabling"
+            @click.stop="emit('enable', version)"
+          >
+            重新启用
+          </t-button>
+        </t-space>
       </li>
     </ol>
   </t-drawer>

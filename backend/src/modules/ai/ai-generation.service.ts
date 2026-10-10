@@ -1,3 +1,5 @@
+import { resolveReferenceQueryWithoutAgent } from "./reference-query.service.js";
+import { REFERENCE_LOOKUP_ANSWER_SYSTEM_PROMPT, renderAllowedFactsForModel, validateOrRepairThermalAnswer } from "./thermal-answer-validation.js";
 /**
  * AI 对话生成共享服务：敏感词围栏 → 限流/配额 → 生成锁 → 场景运行时解析 →
  * 消息落库 → 知识检索注入 → 提示词组装 → SSE 流式生成（主/备用模型降级）→ 审计与引用出参。
@@ -5,7 +7,7 @@
  * 未传入 knowledgeChunks 时由能力路由决定是否检索已发布知识库，不再依赖用户选择 scene。
  */
 import { randomUUID } from "node:crypto";
-import { streamText, type LanguageModelUsage, type ModelMessage } from "ai";
+import { streamText, generateText, type LanguageModelUsage, type ModelMessage } from "ai";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { and, count, eq, inArray, isNull } from "drizzle-orm";
 import { env } from "../../config/env.js";
@@ -398,8 +400,12 @@ export async function streamConversationReply(options: {
     || chunks.length > 0
     || retrievalFailed
     || (capabilities.needKnowledgeSearch && capabilities.explicitKnowledgeRequest));
-  const knowledgeContext = shouldInjectKnowledge ? formatKnowledgeContext(chunks, { retrievalFailed }) : null;
+  const knowledgeContext = shouldInjectKnowledge ? formatKnowledgeContext(chunks, {
+    retrievalFailed,
+    sourceOnly: providedChunks !== undefined
+  }) : null;
   const answerContract = resolveAnswerContract({
+    knowledgeContextProvided: providedChunks !== undefined,
     taskType: taskDecision.state.taskType,
     capabilities,
     skipToolLoop: taskDecision.skipToolLoop,
@@ -467,6 +473,53 @@ export async function streamConversationReply(options: {
   let finishReason: "COMPLETED" | "WAITING_USER_INPUT" = "COMPLETED";
 
   const streamBody = async (modelConfig: typeof runtime.primary) => {
+    if (answerContract === "REFERENCE_LOOKUP") {
+      const resolved = await resolveReferenceQueryWithoutAgent({ app, request, user, conversation,
+        userMessage: content, taskState: taskDecision.state, onEvent: (event, data) => {
+          writeSse(reply, event, data);
+          if (event === "reference_pages") referencePages = (data as { stored: unknown[] }).stored;
+        } });
+      if (generation.controller.signal.aborted) throw Object.assign(new Error("AI 回答已停止"), { name: "AbortError" });
+      agentSources = resolved.sources;
+      // 事实正确性由 Allowed Fact Set 保证；最终表达交给 LLM，允许自然复述。
+      // 固定模板只在生成失败或事实校验连续失败时作为 fallback，不再是默认回答。
+      const { facts } = resolved;
+      const factSystem = `${REFERENCE_LOOKUP_ANSWER_SYSTEM_PROMPT}\n\n${renderAllowedFactsForModel(facts)}`;
+      const callModel = async (extra = "") => {
+        const draft = await generateText({
+          model: modelConfig.languageModel,
+          system: factSystem,
+          messages: extra ? [...messages, { role: "user" as const, content: extra }] : messages,
+          ...languageModelCallOptions("CHAT"),
+          timeout: env.AI_AGENT_OVERALL_TIMEOUT_MS,
+          abortSignal: generation.controller.signal,
+          providerOptions: runtime.providerOptions
+        });
+        streamUsage = draft.usage;
+        return draft.text;
+      };
+      let checked: Awaited<ReturnType<typeof validateOrRepairThermalAnswer>>;
+      try {
+        const draft = await callModel();
+        checked = await validateOrRepairThermalAnswer(draft, facts.canonicalAnswers, () => callModel(
+          "请只用上面的事实，换一种自然的中文说法重新回答同一个问题；数值、厚度、页码、方案编码必须与事实完全一致。"), facts);
+      } catch (error) {
+        if (generation.controller.signal.aborted || isAbortError(error)) throw error;
+        // 模型不可用时退化为确定性答案，而不是让事实门禁失效。
+        request.log.warn({ err: toAiError(error) }, "REFERENCE_LOOKUP 自然语言生成失败，使用确定性答案");
+        checked = { text: facts.canonicalAnswers[0]!, repaired: true, fallback: true };
+      }
+      if (generation.controller.signal.aborted) throw Object.assign(new Error("AI 回答已停止"), { name: "AbortError" });
+      fullText = checked.text;
+      if (checked.fallback) request.log.warn({ conversationId: conversation.id }, "REFERENCE_LOOKUP 事实校验未通过，已回退确定性答案");
+      writeSse(reply, "delta", { text: fullText });
+      return fullText;
+    }
+    if (answerContract === "THERMAL") {
+      fullText = "请先确认计算方案、产品规格和厚度，并启用热工能力后继续核验。";
+      writeSse(reply, "delta", { text: fullText });
+      return fullText;
+    }
     const result = streamText({
       model: modelConfig.languageModel,
       system,

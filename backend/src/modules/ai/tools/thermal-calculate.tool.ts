@@ -1,3 +1,10 @@
+import { resolveScopedThermalStandard } from "../../thermal/thermal-standard-scope.service.js";
+import { isThermalComplianceIntent } from "../../../shared/ai-answer-contract.js";
+import { loadThermalQueryDictionary } from "../../thermal/thermal-query-dictionary.service.js";
+import { queryStateExtraFields, validateCandidateAgainstQueryState, rankByPreferences, traceQueryState, type ConstraintMatch, type ThermalQueryState } from "../../thermal/thermal-query-state.js";
+import { buildThermalQueryDebug, logThermalQueryDebug, toRejectedCandidateDebug, type ThermalQueryDebugSnapshot } from "../../thermal/thermal-query-debug.js";
+import { buildAllowedAnswerFacts, buildCalculationAnswer, renderClarification, setThermalAnswerFacts } from "../thermal-answer-validation.js";
+import { buildThermalCalcPresentation } from "../../thermal/thermal-calc-presentation.js";
 import { tool } from "ai";
 import { z } from "zod";
 import { executeThermalCalc } from "../../thermal/thermal-calc.service.js";
@@ -13,11 +20,9 @@ import { eq, inArray } from "drizzle-orm";
 import { normalizeReferenceLookupForModel, normalizeThermalForModel } from "./tool-result-normalizer.js";
 import {
   compactCandidateResult,
-  filterCandidatesBySystemHint,
   filterReusableCandidates,
   normalizeConversationLookupQuery,
-  LOOKUP_LIMIT,
-  sanitizeSystemHint
+  LOOKUP_LIMIT
 } from "./thermal-lookup.js";
 import {
   resolveMetricTolerance,
@@ -30,6 +35,8 @@ import { saveConversationTaskState } from "../ai-conversation-state.service.js";
 import { bindConfirmedPageFacts, interpretThermalQuestion, thermalMetricClarification, THERMAL_FACT_RULES } from "../thermal-answer-facts.js";
 import type { ReferenceLookupCandidate } from "../conversation-task.js";
 
+const { conditionTrace: _trace, unresolved: _unresolved, removedFields: _removed, removedMetrics: _removedMetrics, ...thermalConstraintInputFields } = queryStateExtraFields;
+
 const specClassSchema = z.enum(["I", "II", "III"]);
 
 /**
@@ -37,6 +44,7 @@ const specClassSchema = z.enum(["I", "II", "III"]);
  * OpenAI 兼容网关（含 DeepSeek）对 oneOf/anyOf Tool JSON Schema 经常卡住或死循环重试。
  */
 export const thermalInput = z.object({
+  ...thermalConstraintInputFields,
   filters: z.array(thermalLookupFilterSchema).min(1).max(12).optional().describe("多个热工指标条件，默认全部同时满足（AND）；不得只传其中一项"),
   metric: z.enum(THERMAL_LOOKUP_METRICS).optional().describe("查表指标：K 传热系数，TOTAL_R 总热阻，PRODUCT_R 产品层热阻"),
   targetValue: z.number().positive().max(100).optional().describe("查表指标目标值，与 metric 配合使用"),
@@ -97,15 +105,7 @@ export const thermalInput = z.object({
   if (!data.mode) {
     ctx.addIssue({ code: "custom", path: ["mode"], message: "正式计算必须指定计算模式" });
   }
-  if (!data.schemeId) {
-    ctx.addIssue({ code: "custom", path: ["schemeId"], message: "正式计算必须指定构造方案" });
-  }
-  if (!data.productSpecId) {
-    ctx.addIssue({ code: "custom", path: ["productSpecId"], message: "正式计算必须指定产品规格" });
-  }
-  if (data.thicknessMm == null) {
-    ctx.addIssue({ code: "custom", path: ["thicknessMm"], message: "正式计算必须指定保温厚度" });
-  }
+
 });
 
 export const thermalLookupInput = thermalInput;
@@ -131,6 +131,7 @@ async function persistLastReferenceLookup(ctx: ToolRuntimeContext, snapshot: Las
     lastReferenceLookup: snapshot
   });
   if (ctx.taskState) ctx.taskState.lastReferenceLookup = snapshot;
+  else ctx.taskState = taskState;
   await saveConversationTaskState(ctx.app, ctx.conversation.id, taskState);
 }
 
@@ -165,14 +166,22 @@ export function createThermalTool(ctx: ToolRuntimeContext) {
         }
         if (args.operation !== "CALCULATE") {
           const last = ctx.taskState?.lastReferenceLookup;
+          const dictionary = await loadThermalQueryDictionary(ctx.app.db);
           if (interpretThermalQuestion(ctx.userMessage ?? "", last?.query.metric).needsClarification) {
+            const parsed = normalizeConversationLookupQuery({ ...args, filters: undefined, metric: undefined, targetValue: undefined,
+              targetK: undefined, targetR: undefined, mode: undefined }, ctx.userMessage ?? "", last, dictionary);
+            const query = traceQueryState({ ...parsed.query, unresolved: [...(parsed.query.unresolved ?? []),
+              { field: "metric", reason: "请确认保温板自身的产品层热阻 R、整墙总热阻 R₀ 或传热系数 K。" }] }, last?.query);
+            await persistLastReferenceLookup(ctx, { query, candidates: [], createdAt: new Date().toISOString() });
+            setThermalAnswerFacts(ctx, buildAllowedAnswerFacts(query, [], ctx.userMessage ?? ""));
             return toolOk(thermalMetricClarification());
           }
           const resolution = normalizeConversationLookupQuery({
+            ...args,
+            systemId: args.systemId ?? ctx.conversation.insulationSystemId ?? undefined,
             filters: args.filters,
             metric: args.metric,
             targetValue: args.targetValue,
-            systemId: args.systemId,
             schemeId: args.schemeId,
             schemeCode: args.schemeCode,
             productSpecId: args.productSpecId,
@@ -186,11 +195,15 @@ export function createThermalTool(ctx: ToolRuntimeContext) {
             specClass: args.specClass,
             mode: args.lookupMode,
             tolerance: args.tolerance ?? args.kTolerance
-          }, ctx.userMessage ?? "", last);
-          if (resolution.needsClarification) {
+          }, ctx.userMessage ?? "", last, dictionary);
+          if (resolution.needsClarification || resolution.query.unresolved?.length) {
+            const query = traceQueryState({ ...resolution.query, unresolved: [...(resolution.query.unresolved ?? []),
+              ...(resolution.needsClarification && !resolution.query.unresolved?.length ? [{ field: "query", reason: "不明确的热工指标、目标值、厚度或多条件关系。" }] : [])] }, last?.query);
+            await persistLastReferenceLookup(ctx, { query, candidates: [], createdAt: new Date().toISOString() });
+            setThermalAnswerFacts(ctx, buildAllowedAnswerFacts(query, [], ctx.userMessage ?? ""));
             return toolOk({ needsClarification: true, instruction: "请用一个短问题确认不明确的热工指标、目标值及多条件关系；已明确的条件全部保留，禁止只取一项或猜测工程指标。" });
           }
-          const inherited = resolution.query;
+          let inherited: ThermalQueryState = { ...resolution.query, intent: "REFERENCE_LOOKUP" as const };
           const requestedMode = inherited.mode;
           if (resolution.conflict) {
             ctx.app.log.warn({ toolMode: args.lookupMode, resolvedMode: requestedMode }, "热工查询模式冲突：以用户明确语义为准");
@@ -204,13 +217,15 @@ export function createThermalTool(ctx: ToolRuntimeContext) {
             candidateIds: reusable?.map(candidate => candidate.id) ?? []
           };
           let candidates = reusable;
+          let nearbyFacts: ReferenceLookupCandidate[] = [];
           let notes: string[] = [];
-          let effectiveMode: ThermalLookupMode = inherited.mode ?? requestedMode;
+          let effectiveMode: ThermalLookupMode = inherited.mode ?? requestedMode ?? "APPROX";
           let effectiveTolerance: number | null = inherited.metric ? resolveMetricTolerance(inherited.metric, effectiveMode, inherited.tolerance) ?? null : null;
           let matchedSystemHint: boolean | null = reusable ? last?.matchedSystemHint ?? null : inherited.systemHint ? true : null;
           let isFallback = reusable ? last?.isFallback ?? false : false;
           if (!candidates) {
             const outcome = await queryThermalCandidates(ctx.app, ctx.request, ctx.user, {
+              ...inherited,
               filters: inherited.filters?.length ? inherited.filters : undefined,
               metric: inherited.metric,
               targetValue: inherited.targetValue,
@@ -234,26 +249,20 @@ export function createThermalTool(ctx: ToolRuntimeContext) {
             });
             effectiveMode = outcome.lookupMode;
             effectiveTolerance = outcome.tolerance ?? null;
-            // 顺序必须是「DB 候选 → 状态/语义过滤 → 体系过滤 → 排序 → limit」：
-            // 先在完整候选集上按体系收窄，再截断，避免真实命中被全局前 12 条挤掉。
-            const all = outcome.candidates.map(compactCandidateResult);
-            if (inherited.preferThinner) all.sort((a, b) => (a.thicknessMm ?? Infinity) - (b.thicknessMm ?? Infinity));
-            const hint = sanitizeSystemHint(inherited.systemHint);
-            const strict = inherited.systemId ? all : filterCandidatesBySystemHint(all, hint);
-            if (!inherited.systemId && hint && strict.length === 0 && all.length > 0) {
-              // 明确的二级回退：不得静默把其他体系当成「薄抹灰」命中结果
-              candidates = all.slice(0, LOOKUP_LIMIT);
-              matchedSystemHint = false;
-              isFallback = true;
-              notes = [
-                ...outcome.notes,
-                `没有找到符合「${hint}」条件的正式方案，下面是其他体系中接近目标的参考结果。`
-              ];
-            } else {
-              candidates = strict.slice(0, LOOKUP_LIMIT);
-              matchedSystemHint = hint ? strict.length > 0 : null;
-              notes = outcome.notes;
-            }
+            inherited = traceQueryState({ ...inherited, ...(outcome.queryState ?? {}) }, last?.query);
+            const all = [...outcome.candidates, ...(outcome.nearbyCandidates ?? [])].map(compactCandidateResult);
+            const validated = all.map(candidate => ({ ...candidate,
+              constraintMatch: validateCandidateAgainstQueryState(candidate, inherited) }));
+            candidates = rankByPreferences(validated.filter(candidate => candidate.constraintMatch.passed), inherited).slice(0, LOOKUP_LIMIT);
+            nearbyFacts = validated.filter(candidate => !candidate.constraintMatch.passed).slice(0, LOOKUP_LIMIT);
+            matchedSystemHint = inherited.systemHint ? candidates.length > 0 : null;
+            isFallback = false;
+            notes = outcome.notes;
+            lookupDecision = { ...lookupDecision, query: inherited, matchedCount: validated.filter(candidate => candidate.constraintMatch.passed).length,
+              stageCounts: outcome.stageCounts,
+              candidateIds: candidates.map(candidate => candidate.id),
+              nearbyCandidates: validated.filter(candidate => !candidate.constraintMatch.passed).map(candidate => ({ id: candidate.id, status: "NOT_FULLY_MATCHED", constraintMatch: candidate.constraintMatch })) };
+
           }
           if (candidates.length === 0) {
             const thicknessLabel = formatLookupThickness(inherited);
@@ -265,6 +274,10 @@ export function createThermalTool(ctx: ToolRuntimeContext) {
           }
           const pageOutcome = await emitReferencePages(ctx, candidates);
           candidates = pageOutcome.candidates;
+          const nearbyPages = await emitReferencePages({ app: ctx.app }, nearbyFacts);
+          nearbyFacts = nearbyPages.candidates;
+          ctx.thermalCanonicalAnswers = setThermalAnswerFacts(ctx, buildAllowedAnswerFacts(inherited, candidates, ctx.userMessage ?? "", lookupDecision?.matchedCount as number | undefined,
+            { nearbyCandidates: nearbyFacts }));
           notes = [...notes, ...pageOutcome.warnings];
           {
             const snapshot: LastReferenceLookup = {
@@ -279,7 +292,24 @@ export function createThermalTool(ctx: ToolRuntimeContext) {
           if (pageOutcome.missingPage && candidates.length > 0) {
             notes = [...notes, REFERENCE_PAGE_MISSING_NOTE];
           }
+          // 查询诊断：matched=0 但 nearby>0 时必须能看出具体是哪个条件把候选挡掉了。
+          {
+            const nearby = (lookupDecision?.nearbyCandidates as Array<{ id: string; constraintMatch: ConstraintMatch }> | undefined) ?? [];
+            const debug = buildThermalQueryDebug({
+              query: inherited,
+              rawText: ctx.userMessage ?? "",
+              lifecycle: resolution.lifecycle,
+              matchedCount: lookupDecision?.matchedCount as number | undefined,
+              returnedCandidateIds: candidates.map(candidate => candidate.id),
+              nearby: nearby.map(item => toRejectedCandidateDebug(item.id, item.constraintMatch)),
+              toolFilters: inherited.filters,
+              stageCounts: lookupDecision?.stageCounts as ThermalQueryDebugSnapshot["stageCounts"] | undefined
+            });
+            logThermalQueryDebug(ctx.app.log, debug);
+          }
           const data = normalizeReferenceLookupForModel({
+            canonicalAnswers: ctx.thermalCanonicalAnswers, queryState: inherited,
+            allowedFacts: ctx.thermalAllowedFacts,
             thicknessMm: inherited.thicknessMm,
             thicknessMin: inherited.thicknessMin,
             thicknessMax: inherited.thicknessMax,
@@ -307,19 +337,91 @@ export function createThermalTool(ctx: ToolRuntimeContext) {
           });
         }
 
-        if (!args.mode || !args.schemeId || !args.productSpecId || args.thicknessMm == null) {
-          throw new Error("正式热工计算缺少方案、规格或厚度");
+        const last = ctx.taskState?.lastReferenceLookup;
+        const dictionary = await loadThermalQueryDictionary(ctx.app.db);
+        const calculation = normalizeConversationLookupQuery({ ...args, mode: args.lookupMode }, ctx.userMessage ?? "", last, dictionary);
+        const single = last?.selectedCandidateIds?.length === 1 ? last.candidates.find(candidate => candidate.id === last.selectedCandidateIds![0]) : last?.candidates.length === 1 ? last.candidates[0] : undefined;
+        let query: ThermalQueryState = { ...calculation.query, intent: isThermalComplianceIntent(ctx.userMessage ?? "") ? "COMPLIANCE" as const : "THERMAL" as const };
+        const requiresStandardScope = isThermalComplianceIntent(ctx.userMessage ?? "") || !!query.regionCode || !!query.standardLimitId;
+        if (requiresStandardScope) {
+          const scoped = await resolveScopedThermalStandard(ctx.app.db, query);
+          if (!scoped.limit) query = { ...query, unresolved: [...(query.unresolved ?? []).filter(item => item.field !== "standardLimitId"), { field: "standardLimitId", reason: scoped.reason! }] };
+          else query.unresolved = query.unresolved?.filter(item => item.field !== "standardLimitId");
+        }
+        const schemeId = query.schemeId ?? single?.schemeId;
+        const productSpecId = query.productSpecId ?? single?.productSpecId;
+        const thicknessMm = query.thicknessMm ?? single?.thicknessMm;
+        query = traceQueryState({ ...query, schemeId, productSpecId, thicknessMm }, last?.query);
+        await persistLastReferenceLookup(ctx, { query, candidates: (last?.candidates ?? []).filter(candidate => validateCandidateAgainstQueryState(candidate, query).passed), createdAt: new Date().toISOString() });
+        if (!args.mode || !schemeId || !productSpecId || thicknessMm == null || calculation.needsClarification || query.unresolved?.length) {
+          ctx.thermalCanonicalAnswers = [query.unresolved?.length
+            ? renderClarification(query, ctx.userMessage ?? "")
+            : "这次计算还差构造方案、产品规格或精确厚度，帮我确认一下（已明确的条件都保留）。"];
+          return toolOk({ needsClarification: true, queryState: query, instruction: ctx.thermalCanonicalAnswers[0] });
+        }
+        const scheme = dictionary.selectionFacts.find(item => item.schemeId === schemeId);
+        const spec = dictionary.selectionFacts.find(item => item.productSpecId === productSpecId);
+        const system = dictionary.selectionFacts.find(item => item.systemId === scheme?.systemId && item.systemName);
+        const selectionMatch = validateCandidateAgainstQueryState({ ...system, ...scheme, ...spec, thicknessMm,
+          regionCode: requiresStandardScope ? query.regionCode : undefined,
+          standardLimitId: requiresStandardScope ? query.standardLimitId : undefined,
+          structureType: requiresStandardScope ? query.structureType : undefined,
+          setBuildingTypes: requiresStandardScope && query.buildingType ? [query.buildingType] : []
+        }, { ...query, filters: [], metric: undefined, targetValue: undefined, targetK: undefined, targetR: undefined });
+        if (!scheme || !spec || !selectionMatch.passed) {
+          ctx.thermalCanonicalAnswers = ["当前方案、产品规格或材料关系无法证明同时满足已明确的条件，请确认计算对象。"];
+          return toolOk({ needsClarification: true, constraintMatch: selectionMatch, queryState: query, instruction: ctx.thermalCanonicalAnswers[0] });
         }
         const result = await executeThermalCalc(ctx.app, ctx.request, ctx.user, {
-          mode: args.mode,
-          schemeId: args.schemeId,
-          productSpecId: args.productSpecId,
-          thicknessMm: args.thicknessMm,
-          regionCode: args.regionCode,
+          mode: args.mode, schemeId, productSpecId, thicknessMm,
+          regionCode: query.regionCode, standardLimitId: query.standardLimitId, buildingType: query.buildingType, structureType: query.structureType,
           ruleCode: args.ruleCode,
           projectId: ctx.conversation.projectId ?? null
         });
         const record = result.record;
+        const presentation = record ? buildThermalCalcPresentation(record) : null;
+        let answer = presentation ? buildCalculationAnswer(presentation, /详细|怎么算|计算过程/.test(ctx.userMessage ?? ""), requiresStandardScope) : "本次热工计算未形成可核验结果，请确认方案、规格和厚度。";
+        if (record && requiresStandardScope) {
+          const standard = record.standard as Record<string, unknown> | null;
+          if (standard) answer += `\n标准依据：${standard.basisName ?? standard.basisCode ?? "已确认正式标准"}${standard.clauseRef ? `，${standard.clauseRef}` : ""}。`;
+        }
+        if (presentation) {
+          const calculatedMatch = validateCandidateAgainstQueryState({ ...system, ...scheme, ...spec, thicknessMm,
+            productThermalResistance: args.mode === "REFERENCE_TABLE" ? ((record?.result as { candidates?: Array<{ productThermalResistance?: number }> })?.candidates?.[0]?.productThermalResistance) : undefined,
+            kValue: presentation.resultK ?? undefined, totalThermalResistance: presentation.totalResistance ?? undefined,
+            regionCode: query.regionCode, standardLimitId: query.standardLimitId, structureType: query.structureType,
+            setBuildingTypes: query.buildingType ? [query.buildingType] : [] }, query);
+          if (!calculatedMatch.passed) answer += "\n该计算结果不能证明满足全部既有筛选条件，请确认是否调整条件。";
+          lookupDecision = { query, selectionMatch, calculatedMatch };
+        }
+        // 计算结果同样冻结成 Allowed Fact Set：K / R₀ / 产品层 R / λ / α / 厚度 / 标准限值 / 合规判定
+        // 全部走同一套语义事实校验，回答可以自然表达但不能改数。
+        const frozenStandard = record?.standard as Record<string, unknown> | null | undefined;
+        setThermalAnswerFacts(ctx, {
+          query,
+          candidates: [],
+          canonicalAnswers: [answer],
+          calculation: {
+            systemName: system?.systemName,
+            schemeId,
+            schemeCode: scheme?.schemeCode,
+            productSpecId,
+            specCode: spec?.specCode,
+            thicknessMm,
+            sourcePageLabel: (scheme as { sourcePageLabel?: string | null } | undefined)?.sourcePageLabel ?? undefined,
+            kValue: presentation?.resultK ?? null,
+            totalResistance: presentation?.totalResistance ?? null,
+            productThermalResistance: args.mode === "REFERENCE_TABLE"
+              ? (record?.result as { candidates?: Array<{ productThermalResistance?: number }> })?.candidates?.[0]?.productThermalResistance
+              : undefined,
+            standardLimitK: presentation?.limitKValue ?? null,
+            complianceAuthorized: requiresStandardScope,
+            compliant: presentation?.compliant ?? null,
+            standardNames: [frozenStandard?.basisName, frozenStandard?.basisCode].filter((name): name is string => typeof name === "string" && !!name),
+            layers: (presentation?.layers ?? []).map(layer => ({ materialName: layer.materialName, thicknessMm: layer.thicknessMm,
+              lambda: layer.lambda, correctionFactor: layer.correctionFactor }))
+          }
+        });
         const calcResult = (record?.result ?? {}) as Record<string, unknown>;
         const data = normalizeThermalForModel({
           valid: result.valid,
@@ -358,12 +460,12 @@ export function isReferencePageConsumable(row: {
 }
 
 export async function emitReferencePages(
-  ctx: ToolRuntimeContext,
+  ctx: Pick<ToolRuntimeContext, "app" | "onEvent">,
   candidates: ReferenceLookupCandidate[]
 ) {
   const warnings: string[] = [];
   const pageIds = [...new Set(candidates.map((item) => item.sourcePageId).filter((id): id is string => Boolean(id)))];
-  if (pageIds.length === 0) return { missingPage: candidates.length > 0, sources: [] as unknown[], candidates, warnings };
+  if (pageIds.length === 0) return { missingPage: candidates.length > 0, sources: [] as unknown[], candidates: candidates.map(candidate => ({ ...candidate, optionId: undefined, lambda: undefined, alpha: undefined, layers: undefined })), warnings };
   const rows = await ctx.app.db.select({
     pageId: knowledgePages.id,
     documentId: knowledgePages.documentId,
@@ -388,7 +490,7 @@ export async function emitReferencePages(
   const validRows = rows.filter((row) => isReferencePageConsumable(row, today));
   candidates = candidates.map((candidate) => {
     const page = validRows.find((row) => row.pageId === candidate.sourcePageId);
-    if (!page) return candidate;
+    if (!page) return { ...candidate, optionId: undefined, lambda: undefined, alpha: undefined, layers: undefined, sourcePageLabel: null };
     const bound = bindConfirmedPageFacts(candidate, page);
     if (bound.warnings.length) {
       ctx.app.log.warn({ candidateId: candidate.id, pageId: page.pageId, warnings: bound.warnings }, "热工候选来源一致性警告");
@@ -410,6 +512,7 @@ export async function emitReferencePages(
       physicalPageNumber,
       pageLabel: row.pageLabel,
       pageImageObjectKey: row.pageImageObjectKey,
+      metadata: row.metadata,
       imageUrl: row.pageImageObjectKey
         ? await ctx.app.storage.createDownloadUrl(row.pageImageObjectKey, `page-${physicalPageNumber}.png`, 3600)
         : null

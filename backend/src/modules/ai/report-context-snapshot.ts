@@ -4,6 +4,7 @@
  */
 import type { ComparisonContext, ComparisonSourceRef, ProductComparisonResult } from "./compare-product.js";
 import type { ReferencePageHighlight, ReferencePageMatch } from "./reference-page.js";
+import { referenceHighlightSchema, type ReferenceHighlight } from "../knowledge/knowledge-page-renderer.js";
 import { normalizeReportTypeCode } from "./report-type-inference.js";
 
 export const REPORT_CONTEXT_REPORT_TYPE = "PRODUCT_COMPARISON" as const;
@@ -19,6 +20,7 @@ export type ReportContextReferencePage = {
   summary?: Record<string, unknown>;
   highlights?: ReferencePageHighlight[];
   matches?: ReferencePageMatch[];
+  semanticHighlights?: ReferenceHighlight[];
 };
 
 export type ReportContextSnapshot = {
@@ -44,6 +46,8 @@ function cloneHighlight(highlight: ReferencePageHighlight): ReferencePageHighlig
 
 function cloneMatch(match: ReferencePageMatch): ReferencePageMatch {
   return {
+    ...(match.optionId ? { optionId: match.optionId } : {}),
+    ...(match.semanticHighlights ? { semanticHighlights: structuredClone(match.semanticHighlights) } : {}),
     ...(match.candidateId ? { candidateId: match.candidateId } : {}),
     summary: { ...(match.summary ?? {}) },
     highlights: (match.highlights ?? []).map(cloneHighlight)
@@ -61,12 +65,20 @@ function cloneReferencePage(page: ReportContextReferencePage): ReportContextRefe
     pageImageObjectKey: page.pageImageObjectKey ?? null,
     summary: page.summary ? { ...page.summary } : undefined,
     highlights: (page.highlights ?? []).map(cloneHighlight),
-    matches: (page.matches ?? []).map(cloneMatch)
+    matches: (page.matches ?? []).map(cloneMatch),
+    ...(page.semanticHighlights ? { semanticHighlights: structuredClone(page.semanticHighlights) } : {})
   };
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" ? value as Record<string, unknown> : null;
+}
+function asSemanticHighlights(value: unknown): ReferenceHighlight[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap(item => {
+    const parsed = referenceHighlightSchema.safeParse(item);
+    return parsed.success ? [parsed.data] : [];
+  });
 }
 
 function asHighlights(value: unknown): ReferencePageHighlight[] {
@@ -91,6 +103,8 @@ function asMatches(value: unknown, fallback?: { summary?: Record<string, unknown
       const highlights = asHighlights(row.highlights);
       return [{
         ...(typeof row.candidateId === "string" ? { candidateId: row.candidateId } : {}),
+        ...(typeof row.optionId === "string" ? { optionId: row.optionId } : {}),
+        ...(Array.isArray(row.semanticHighlights) ? { semanticHighlights: asSemanticHighlights(row.semanticHighlights) } : {}),
         summary,
         highlights
       }];
@@ -112,6 +126,8 @@ function highlightKey(highlight: ReferencePageHighlight): string {
 function matchKey(match: ReferencePageMatch): string {
   return [
     match.candidateId ?? "",
+    match.optionId ?? "",
+    JSON.stringify(match.semanticHighlights ?? []),
     JSON.stringify(match.summary ?? {}),
     (match.highlights ?? []).map(highlightKey).join("|")
   ].join("\0");
@@ -180,7 +196,8 @@ export function normalizeStoredReferencePage(input: unknown): ReportContextRefer
     highlights: highlights.length > 0
       ? highlights.map(cloneHighlight)
       : matches.flatMap((match) => match.highlights.map(cloneHighlight)),
-    matches: matches.map(cloneMatch)
+    matches: matches.map(cloneMatch),
+    ...(Array.isArray(root.semanticHighlights) ? { semanticHighlights: asSemanticHighlights(root.semanticHighlights) } : {})
   };
 }
 
@@ -201,6 +218,10 @@ export function mergeReferencePages(input: unknown[]): ReportContextReferencePag
     existing.physicalPageNumber = existing.physicalPageNumber ?? page.physicalPageNumber ?? null;
     existing.pageImageObjectKey = existing.pageImageObjectKey || page.pageImageObjectKey || null;
     if (!existing.summary && page.summary) existing.summary = { ...page.summary };
+    if (page.semanticHighlights) {
+      existing.semanticHighlights = [...new Map([...(existing.semanticHighlights ?? []), ...page.semanticHighlights]
+        .map(highlight => [JSON.stringify(highlight), structuredClone(highlight)])).values()];
+    }
 
     const highlightSeen = new Set((existing.highlights ?? []).map(highlightKey));
     for (const highlight of page.highlights ?? []) {

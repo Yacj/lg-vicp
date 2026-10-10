@@ -1,5 +1,16 @@
 # 蓝格 VICP 后端 AI 开发规则
 
+知识页结构化全文与语义高亮（2026-10-10）：B/C/AI 共用运行时 `renderModel`，仅从 `confirmedStructuredData` 派生，不存 HTML、不将 HTML 用作查询事实源。公共 λ/α 保留于 layers，档位双 R/K 位于 options；optionId 不依赖数组 index。referencePages 增量 `semanticHighlights` 使用 optionId + 正式 fieldKeys（λ/α 用 commonLayerId），仅同页同构造唯一确认档位且双 R/K 核验一致才生成，冲突/歧义不定位；旧 highlights 参数条保留。无迁移、无识别主链/公式改动；接入与回归见 `docs/knowledge/page-render-highlight-contract.md`。
+
+限定原文问答路由（2026-10-10）：调用方传入 `knowledgeChunks` 时（包括空数组），`knowledgeContextProvided` 优先返回 KNOWLEDGE，问题文字不得改道正式参考表、计算或扩大资料范围。版本测试仍从入口限定 versionId；同一命中页的 pageContext 仅补充表头/构造归属，按版本与页去重，不跨页拼参数。热工行数 0 不等于原文没有方案；原文数值照录，近似不等于精确或合规。正式对话的 Allowed Facts 门禁不变。修复记录见 `docs/ai/knowledge-test-routing-fix-2026-10-10.md`。
+
+热工自然对话最终优化（2026-10-10）：NEW_QUERY清历史及模型重复旧摘要，CONTINUE/REFINE保留未操作条件与取消tombstone，COMPARE_SELECTED只读用户所选冻结记录。明确指标不重复澄清，正式实体族/类别及族别名以systemIds执行硬约束。REFERENCE_LOOKUP由Allowed Facts交给LLM自然表达，首个delta前按实际出现事实逐段同记录核验；禁止全文相等快路径、回答数值容差、目标冒充实值、跨行换绑定、来源串用及相邻冒充命中。标准限值与合规布尔结果冻结核验，失败重生成一次，仍失败才fallback。无迁移/公式/多选协议修改；真实UAT环境失败为BLOCKED。详见`docs/ai/thermal-natural-dialogue-final-2026-10-10.md`。
+
+知识版本启用（2026-10-10）：`POST /api/v1/platform/knowledge/versions/:versionId/enable` 复用 `system:knowledge:doc:publish`，只允许 DISABLED → PUBLISHED，重新执行统一发布门禁；同文档已有发布版本或受控指针时拒绝，不隐式覆盖。保留版本号、审核和原文，修改内容仍创建新 DRAFT。发布/停用/启用共用文档行锁，状态、受控指针及审计同事务更新；启用写 `knowledge.version_enabled`。验证入口 `scripts/verify-knowledge-activation.ts` 使用本机临时 PostgreSQL 随机数据库及真实 JWT/HTTP 调用前端 API，验证停用原文保留、重新进入、同版本启用及并发唯一发布，结束清理临时库。
+
+热工统一约束与事实门禁（2026-10-10）：会话 `lastReferenceLookup.query` 采用统一 Zod QueryState，硬条件/软偏好/歧义与 conditionTrace 分开；正式业务名称和启用别名解析实体，统一 Constraint Engine 对候选逐项 AND 校验，缺事实不能证明通过。未操作条件继承，取消指标/实体持久化 tombstone，模型重复摘要不得复活；相邻候选独立 nearbyCandidates/NOT_FULLY_MATCHED，不再进入正式 candidates。查表与计算切换保留状态，计算继承唯一或单选记录并校验正式对象关系；候选对比只读取所选冻结记录。热工正文在首个 SSE delta 前按后端完整事实句契约校验，失败重生成一次，仍失败使用确定性模板；不把数值白名单当字段/候选绑定证明。印刷页码只取 pageLabel，λ/α 继续严格确认快照绑定。合规必须证明所选标准、地区、建筑类型及必要结构类型。无数据库迁移、无公式变化；API 结构为增量字段，但 candidates 不再包含违规/缺事实/相邻项的行为变化需联调。详见 `docs/ai/thermal-constraint-closeout-2026-10-10.md`。
+
+
 热工回答质量（2026-10-09）：热工数值关系以同一正式Candidate为原子事实，不跨候选/Chunk拼字段，不以top-N宣称全量极值。模糊「传热8.3的保温板」先区分产品层R/整墙总R；「就是」按EXACT。默认3～8行、一个主方案，详细追问才展开。印刷页码仅pageLabel，禁止物理页序fallback。λ/α仅从同页同构造同厚度且双R/K一致的人工确认快照透传，冲突记录warning。详见`docs/ai/thermal-answer-quality-2026-10-09.md`。
 
 最终交互与真实业务UAT（2026-10-07）：方案查询不因「限值/这个墙体」抢入计算，明确重新算进入热工，合规判断仍走正式标准链。活跃厚度条件下无metric词的25以内/以上/改成/放宽/调到更新厚度，取消厚度同时清除三字段和preferThinner（明确只取消某端则保留其他限制）。省略控制/做到连接词照常解析。Parser/Matcher主结构冻结，后续修改必须先有真实失败UAT Case。`pnpm uat:ai`为销售20+设计院20、123轮真实HTTP/SSE会话验收；工程数值/条件/来源由程序断言，AI Judge仅评体验。随机隔离库、Redis/队列/对象命名空间，独立测试用户，不写生产会话或发布资料。环境失败记录BLOCKED，不算通过。详见`docs/ai/business-uat.md`。

@@ -15,6 +15,8 @@ export const KNOWLEDGE_ERROR_CODES = {
   KNOWLEDGE_VERSION_NOT_APPROVED: "KNOWLEDGE_VERSION_NOT_APPROVED",
   /** 重复发布：版本已经是 PUBLISHED */
   KNOWLEDGE_VERSION_ALREADY_PUBLISHED: "KNOWLEDGE_VERSION_ALREADY_PUBLISHED",
+  KNOWLEDGE_VERSION_NOT_DISABLED: "KNOWLEDGE_VERSION_NOT_DISABLED",
+  KNOWLEDGE_PUBLISHED_VERSION_CONFLICT: "KNOWLEDGE_PUBLISHED_VERSION_CONFLICT",
   /** 页面确认门禁：离线页图版本的视觉识别尚未 CONFIRMED */
   KNOWLEDGE_VERSION_PAGES_UNCONFIRMED: "KNOWLEDGE_VERSION_PAGES_UNCONFIRMED",
   /** 页面门禁：离线页图版本存在缺少原页图片的页面 */
@@ -39,6 +41,8 @@ export const KNOWLEDGE_ERROR_SPECS: Record<KnowledgeErrorCode, KnowledgeErrorSpe
   KNOWLEDGE_VERSION_EMPTY: { statusCode: 400, message: "当前知识库还没有资料页面，请先上传页面后再发布。" },
   KNOWLEDGE_VERSION_NOT_APPROVED: { statusCode: 400, message: "当前版本尚未审核通过，不能发布。" },
   KNOWLEDGE_VERSION_ALREADY_PUBLISHED: { statusCode: 400, message: "当前版本已发布，无需重复发布。" },
+  KNOWLEDGE_VERSION_NOT_DISABLED: { statusCode: 400, message: "只有已停用的版本可以重新启用。" },
+  KNOWLEDGE_PUBLISHED_VERSION_CONFLICT: { statusCode: 400, message: "知识库已有发布版本，请先停用当前发布版本，再启用此版本。" },
   KNOWLEDGE_VERSION_PAGES_UNCONFIRMED: { statusCode: 400, message: "存在尚未完成识别确认的资料页面，请先完成确认后再发布。" },
   KNOWLEDGE_VERSION_PAGES_MISSING_IMAGE: { statusCode: 400, message: "存在缺少原页图片的资料页面，请先补齐页面图片后再发布。" },
   KNOWLEDGE_VERSION_PAGES_RECOGNITION_FAILED: { statusCode: 400, message: "存在识别失败的资料页面，请重新识别并确认后再发布。" },

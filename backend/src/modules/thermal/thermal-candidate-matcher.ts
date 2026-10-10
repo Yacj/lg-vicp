@@ -1,3 +1,4 @@
+import type { ConstraintMatch } from "./thermal-query-state.js";
 /**
  * 候选方案条件匹配引擎——纯函数（无 IO、无随机、无外部依赖）。
  * - 条件匹配返回命中/未命中/数据缺失三态明细，不抛异常、不吞来源与版本信息。
@@ -44,6 +45,8 @@ export interface CandidateQueryConditions extends ThermalLookupQuery {
   substrateMaterial?: string;
   substrateThickness?: number;
   systemId?: string;
+  /** 体系族/类别命中：候选必须属于该集合（硬约束，不唯一） */
+  systemIds?: string[];
   specClass?: SpecClass;
   /** 精确厚度（与 thicknessMin/Max 互斥，Zod 层约束） */
   thicknessMm?: number;
@@ -95,9 +98,12 @@ export interface CandidateRow {
   sourcePageId?: string | null;
   sourcePageLabel?: string | null;
   catalogProductId?: string | null;
+  sourceVersionId?: string | null;
 }
 
 export interface CandidateResult {
+  constraintMatch?: ConstraintMatch;
+  structureType?: string; regionCode?: string; standardLimitId?: string; sourceVersionId?: string | null;
   candidateId: string;
   matchType: MatchType;
   /** 相邻档位距离（matchType=NEIGHBOR 时有值；同组厚度升序序列中与目标厚度的档位间隔） */
@@ -202,6 +208,9 @@ export function evaluateConditions(row: CandidateRow, q: CandidateQueryCondition
   if (q.systemId !== undefined) {
     row.systemId === q.systemId ? matched.push("system") : unmatched.push("system");
   }
+  if (q.systemIds !== undefined && q.systemIds.length > 0) {
+    q.systemIds.includes(row.systemId) ? matched.push("system") : unmatched.push("system");
+  }
   if (q.specClass !== undefined) {
     // 未指定型号（null）不得被 I/II/III 查询命中
     row.specClass != null && row.specClass === q.specClass
@@ -264,6 +273,7 @@ function toCandidateResult(row: CandidateRow, matchType: MatchType, state: Condi
     evidence: { source: row.evidenceSource, ref: row.evidenceRef },
     sourceDocumentId: row.sourceDocumentId ?? null,
     sourcePageId: row.sourcePageId ?? null,
+    sourceVersionId: row.sourceVersionId ?? null,
     sourcePageLabel: row.sourcePageLabel ?? null
     ,catalogProductId: row.catalogProductId ?? null
   };

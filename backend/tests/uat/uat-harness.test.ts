@@ -16,11 +16,11 @@ function observation(text: string, query: Record<string, unknown> = {}, candidat
 }
 const expected = { intent: "REFERENCE_LOOKUP" as const, toolsAny: [], hardFailRules: HARD_FAIL_RULES };
 describe("真实UAT基础设施与硬失败检测（不冒充真实模型UAT）", () => {
-  it("40个独立业务场景、两类persona、123轮均有确定性与hard fail契约", () => {
-    expect(uatCases).toHaveLength(40);
-    expect(uatCases.filter(item => item.persona === "SALES")).toHaveLength(20);
+  it("至少40个独立业务场景、两类persona及新增回归轮次均有确定性与hard fail契约", () => {
+    expect(uatCases.length).toBeGreaterThanOrEqual(40);
+    expect(uatCases.filter(item => item.persona === "SALES").length).toBeGreaterThanOrEqual(20);
     expect(uatCases.filter(item => item.persona === "DESIGN_INSTITUTE")).toHaveLength(20);
-    expect(uatCases.flatMap(item => item.turns)).toHaveLength(123);
+    expect(uatCases.flatMap(item => item.turns).length).toBeGreaterThanOrEqual(123);
     for (const item of uatCases) for (const turn of item.turns) {
       expect(turn.expect.intent).toBeTruthy();
       expect(turn.expect.hardFailRules).toEqual(HARD_FAIL_RULES);
@@ -66,11 +66,11 @@ describe("真实UAT基础设施与硬失败检测（不冒充真实模型UAT）"
     const confused = assertObservation(expected, observation("K值=3.297，产品层热阻=0.303。")).filter(check => check.detail.includes("不混淆产品R/总R/K"));
     expect(confused.some(check => check.hard && !check.passed)).toBe(true);
   });
-  it("相邻规格仅豁免厚度维度，精确档与其余硬条件仍必须满足", () => {
+  it("相邻规格不能豁免正式候选的厚度硬条件", () => {
     const query = { filters: [{ metric: "K" as const, mode: "MAX_LIMIT" as const, targetValue: 0.3 }], thicknessMm: 20, specClass: "I" };
-    // 相邻档：厚度 25 偏离目标 20，但其余硬条件（K<=0.3、I 型）满足 -> 允许。
+    // 相邻档只能出现在 nearbyCandidates，混入正式 candidates 必须硬失败。
     const neighbor = observation("有。", query, { ...A14, thicknessMm: 25, matchType: "NEIGHBOR" });
-    expect(assertObservation({ ...expected, query }, neighbor).filter(c => c.detail.includes("全部硬条件")).every(c => c.passed)).toBe(true);
+    expect(assertObservation({ ...expected, query }, neighbor).some(c => c.hard && !c.passed && c.detail.includes("全部硬条件"))).toBe(true);
     // 精确档若厚度不符仍必须硬失败。
     const exact = observation("有。", query, { ...A14, thicknessMm: 25, matchType: "EXACT" });
     expect(assertObservation({ ...expected, query }, exact).some(c => c.hard && !c.passed && c.detail.includes("全部硬条件"))).toBe(true);

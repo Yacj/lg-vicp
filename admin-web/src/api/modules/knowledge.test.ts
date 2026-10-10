@@ -12,6 +12,7 @@ import {
   createKnowledgeVersion,
   createKnowledgeWithFile,
   disableKnowledgeVersion,
+  enableKnowledgeVersion,
   fetchChunkTerms,
   fetchKnowledgeDocumentDetail,
   fetchKnowledgeDocuments,
@@ -161,10 +162,13 @@ describe('knowledge version workflow contracts', () => {
     })
 
     await publishKnowledgeVersion('version-1')
-    expect(mockedApi.post).toHaveBeenCalledWith('/api/v1/platform/knowledge/versions/version-1/publish')
+    expect(mockedApi.post).toHaveBeenCalledWith('/api/v1/platform/knowledge/versions/version-1/publish', {})
 
     await disableKnowledgeVersion('version-1')
-    expect(mockedApi.post).toHaveBeenCalledWith('/api/v1/platform/knowledge/versions/version-1/disable')
+    expect(mockedApi.post).toHaveBeenCalledWith('/api/v1/platform/knowledge/versions/version-1/disable', {})
+
+    await enableKnowledgeVersion('version-1')
+    expect(mockedApi.post).toHaveBeenCalledWith('/api/v1/platform/knowledge/versions/version-1/enable', {})
 
     await rollbackKnowledgeVersion('document-1', 'version-1')
     expect(mockedApi.post).toHaveBeenCalledWith(

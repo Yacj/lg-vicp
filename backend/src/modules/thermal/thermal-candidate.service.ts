@@ -1,7 +1,10 @@
+import { resolveScopedThermalStandard } from "./thermal-standard-scope.service.js";
+import { rankByPreferences, validateCandidateAgainstQueryState, traceQueryState, type ConstraintCandidate, type ThermalQueryState } from "./thermal-query-state.js";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { and, count, desc, eq, inArray, isNull, or } from "drizzle-orm";
 import {
   constructionSchemes,
+  knowledgePages,
   insulationSystems,
   productSpecs,
   projects,
@@ -93,11 +96,13 @@ const toLimitSnapshot = (limit: LimitSnapshot | null) =>
       }
     : null;
 
-interface CandidateQueryInput extends ThermalLookupQuery {
+interface CandidateQueryInput extends ThermalLookupQuery, Omit<ThermalQueryState, "filters"> {
   regionCode?: string;
   standardLimitId?: string;
   buildingType?: string;
   systemId?: string;
+  /** 体系族/类别命中：候选必须属于该集合（硬约束，不唯一） */
+  systemIds?: string[];
   schemeId?: string;
   schemeCode?: string;
   productSpecId?: string;
@@ -120,6 +125,11 @@ interface CandidateQueryInput extends ThermalLookupQuery {
 }
 
 export interface CandidateQueryOutcome {
+  queryState?: ThermalQueryState;
+  matchedCandidates?: Array<CandidateResult & { compliant: boolean | null }>;
+  nearbyCandidates?: Array<CandidateResult & { compliant: boolean | null; status?: "NOT_FULLY_MATCHED" }>;
+  /** 分阶段过滤计数：全量 → 体系 → 指标 → 厚度 → 全部硬条件；用于定位 False Negative。 */
+  stageCounts?: { beforeAll: number; afterFamily: number; afterMetric: number; afterThickness: number; afterAllHard: number };
   filters: ThermalLookupFilter[];
   requestedTolerance?: number;
   effectiveTolerance?: number;
@@ -170,6 +180,7 @@ function toCandidateRow(row: Record<string, unknown>): CandidateRow {
     evidenceRef: String(row.evidenceRef),
     sourceDocumentId: row.sourceDocumentId == null ? null : String(row.sourceDocumentId),
     sourcePageId: row.sourcePageId == null ? null : String(row.sourcePageId),
+    sourceVersionId: row.sourceVersionId == null ? null : String(row.sourceVersionId),
     sourcePageLabel: row.sourcePageLabel == null ? null : String(row.sourcePageLabel)
     ,catalogProductId: row.catalogProductId == null ? null : String(row.catalogProductId)
   };
@@ -209,9 +220,11 @@ export async function queryThermalCandidates(
     }
   }
 
+  // AI 普通查表不隐式插入标准 K；旧 API 无结构化指标时保留原缺省阈值兼容。
+  const derivedTargetK = !input.intent && input.filters === undefined && !input.metric && input.targetResistance === undefined ? limit?.limitKValue : undefined;
   // R 指标查询不隐式附加 K 限值；限值仍单独用于合规标注。
   const lookup = normalizeThermalLookupQuery({ ...input,
-    targetK: input.targetK ?? (!input.filters?.length && !input.metric && input.targetResistance === undefined ? limit?.limitKValue : undefined)
+    targetK: input.targetK ?? derivedTargetK
   });
   const lookupMode = lookup.mode;
   const kTolerance = lookup.metric === "K" ? lookup.tolerance ?? null : null;
@@ -226,11 +239,12 @@ export async function queryThermalCandidates(
     substrateMaterial: input.substrateMaterial,
     substrateThickness: input.substrateThickness,
     systemId: input.systemId,
+    systemIds: input.systemIds,
     specClass: input.specClass,
     thicknessMm: input.thicknessMm,
     thicknessMin: input.thicknessMin,
     thicknessMax: input.thicknessMax,
-    targetK: input.targetK ?? (!input.metric && input.targetResistance === undefined ? limit?.limitKValue : undefined),
+    targetK: input.targetK ?? derivedTargetK,
     kMode: lookupMode,
     kTolerance: kTolerance ?? undefined,
     targetResistance: input.targetResistance,
@@ -258,6 +272,7 @@ export async function queryThermalCandidates(
   const rows = await app.db
     .select({
       rowId: thermalReferenceRows.id,
+      sourceVersionId: knowledgePages.versionId,
       thicknessMm: thermalReferenceRows.thicknessMm,
       productThermalResistance: thermalReferenceRows.productThermalResistance,
       totalThermalResistance: thermalReferenceRows.totalThermalResistance,
@@ -288,6 +303,7 @@ export async function queryThermalCandidates(
       setBuildingTypes: thermalReferenceSets.buildingTypes
     })
     .from(thermalReferenceRows)
+    .leftJoin(knowledgePages, eq(thermalReferenceRows.sourcePageId, knowledgePages.id))
     .innerJoin(constructionSchemes, eq(thermalReferenceRows.schemeId, constructionSchemes.id))
     .innerJoin(insulationSystems, eq(constructionSchemes.systemId, insulationSystems.id))
     .innerJoin(productSpecs, eq(thermalReferenceRows.productSpecId, productSpecs.id))
@@ -298,6 +314,14 @@ export async function queryThermalCandidates(
       ...publishedReferenceConditions(insulationSystems),
       ...publishedReferenceConditions(productSpecs)
     ));
+
+  if (input.regionCode && (!limit || limit.regionCode !== input.regionCode) || input.standardLimitId && !limit) {
+    input.unresolved = [...(input.unresolved ?? []), { field: "standardLimitId", reason: "地区与标准尚未唯一匹配，不能证明适用条件。" }];
+  }
+  const scopedStandard = input.standardLimitId && input.regionCode && input.buildingType ? await resolveScopedThermalStandard(app.db, input) : null;
+  if (scopedStandard?.limit) input.unresolved = input.unresolved?.filter(item => item.field !== "standardLimitId");
+  if (scopedStandard && !scopedStandard.limit) input.unresolved = [...(input.unresolved ?? []), { field: "standardLimitId", reason: scopedStandard.reason! }];
+  const queryState = traceQueryState({ ...input, ...lookup });
 
   // 5) 纯函数匹配（含相邻规格与排序）
   // 正式标识条件先收窄全量行，不能被 EXACT 厚度绕过。
@@ -310,11 +334,45 @@ export async function queryThermalCandidates(
     neighborTolerance: input.neighborTolerance
   });
 
+  // 分阶段过滤计数（诊断用，纯统计，不改变匹配行为）：
+  // 依次叠加强约束，看 N 究竟在哪一步掉到 0，避免「模型只说查不到」而无法定位。
+  const allRows = scopedRows.map(toCandidateRow);
+  const asConstraint = (row: CandidateRow): ConstraintCandidate => ({ ...row, systemName: row.systemName ?? undefined, specClass: row.specClass ?? undefined });
+  const withoutMetric = { ...queryState, filters: [], metric: undefined, targetValue: undefined, targetK: undefined, targetR: undefined };
+  const withoutThickness = { ...withoutMetric, thicknessMm: undefined, thicknessMin: undefined, thicknessMax: undefined };
+  const withoutFamily = { ...queryState, systemIds: undefined, systemId: undefined, systemHint: undefined };
+  const stageCounts = {
+    beforeAll: allRows.length,
+    // 只保留体系族约束（去掉指标与厚度）：体系过滤本身是否把真实候选误杀
+    afterFamily: allRows.filter((candidate) => validateCandidateAgainstQueryState(asConstraint(candidate), withoutMetric).passed).length,
+    // 体系族 + 指标（去掉厚度）：指标（K≈0.3）是否把候选误杀
+    afterMetric: allRows.filter((candidate) => validateCandidateAgainstQueryState(asConstraint(candidate), { ...withoutThickness }).passed).length,
+    // 体系族 + 指标 + 厚度
+    afterThickness: allRows.filter((candidate) => validateCandidateAgainstQueryState(asConstraint(candidate), withoutFamily).passed).length,
+    afterAllHard: outcome.candidates.length
+  };
+
   // 6) 合规标注（与解析出的限值比较，K 判定口径）与提示
   const candidates = outcome.candidates.map((c) => ({
     ...c,
-    compliant: limit ? c.result.kValue <= limit.limitKValue : null
+    regionCode: limit?.regionCode, standardLimitId: limit?.id, structureType: scopedStandard?.limit ? input.structureType : undefined,
+    constraintMatch: validateCandidateAgainstQueryState({
+      ...c.result, systemId: c.system.id, systemName: c.system.name ?? undefined,
+      schemeId: c.scheme.id, schemeCode: c.scheme.code, substrateMaterial: c.scheme.substrateMaterial, substrateThickness: c.scheme.substrateThickness,
+      productSpecId: c.productSpec.id, specClass: c.productSpec.specClass ?? undefined, catalogProductId: c.catalogProductId,
+      setBuildingTypes: c.set.buildingTypes, sourceDocumentId: c.sourceDocumentId, sourceVersionId: c.sourceVersionId,
+      regionCode: limit?.regionCode, standardLimitId: limit?.id, structureType: scopedStandard?.limit ? input.structureType : undefined
+    }, queryState),
+    compliant: scopedStandard?.limit ? c.result.kValue <= scopedStandard.limit.limitKValue : null
   }));
+  const orderedCandidates = rankByPreferences(candidates.map(candidate => ({
+    ...candidate.result, systemId: candidate.system.id, systemName: candidate.system.name ?? undefined,
+    schemeId: candidate.scheme.id, schemeCode: candidate.scheme.code, productSpecId: candidate.productSpec.id,
+    catalogProductId: candidate.catalogProductId, specClass: candidate.productSpec.specClass ?? undefined,
+    substrateMaterial: candidate.scheme.substrateMaterial, setBuildingTypes: candidate.set.buildingTypes,
+    regionCode: candidate.regionCode, standardLimitId: candidate.standardLimitId, structureType: candidate.structureType,
+    candidate
+  })), queryState).map(item => item.candidate);
   const hasThicknessCondition = input.thicknessMm !== undefined || input.thicknessMin !== undefined || input.thicknessMax !== undefined;
   if (candidates.length === 0) {
     if (hasThicknessCondition && input.thicknessMm !== undefined && input.neighborTolerance > 0) {
@@ -345,8 +403,8 @@ export async function queryThermalCandidates(
     tolerance: lookup.tolerance ?? null,
     filters: lookup.filters,
     candidateCountBeforeFilter: rows.length,
-    candidateCountAfterFilter: candidates.length,
-    selectedCandidateIds: candidates.slice(0, 12).map((candidate) => candidate.candidateId)
+    candidateCountAfterFilter: orderedCandidates.filter(candidate => candidate.constraintMatch.passed).length,
+    selectedCandidateIds: orderedCandidates.filter(candidate => candidate.constraintMatch.passed).slice(0, 12).map((candidate) => candidate.candidateId)
   }, "热工参考查询");
 
   return {
@@ -354,7 +412,11 @@ export async function queryThermalCandidates(
     ...lookupFields,
     lookupMode,
     kTolerance,
-    candidates,
+    queryState,
+    stageCounts,
+    matchedCandidates: orderedCandidates.filter(candidate => candidate.constraintMatch.passed),
+    nearbyCandidates: orderedCandidates.filter(candidate => !candidate.constraintMatch.passed).map(candidate => ({ ...candidate, status: "NOT_FULLY_MATCHED" as const })),
+    candidates: orderedCandidates.filter(candidate => candidate.constraintMatch.passed),
     missingConditions,
     notes,
     limit: toLimitSnapshot(limit),

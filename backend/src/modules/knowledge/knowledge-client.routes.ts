@@ -155,7 +155,7 @@ export async function knowledgeClientRoutes(app: FastifyInstance) {
     preHandler: [...clientGuard],
     schema: {
       tags: ["C端 / 公开文库"],
-      summary: "公开文库单页完整内容（按物理页序号定位；机器提取文本仅作检索文本，原文以页面预览为准）",
+      summary: "公开文库单页完整内容与确认页面渲染模型（物理页序定位；用户页码使用 pageLabel）",
       params: pageParamsSchema
     }
   }, async (request) => {

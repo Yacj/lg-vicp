@@ -1,5 +1,16 @@
 # 蓝格 VICP 后端
 
+2026-10-10 知识页全文渲染与语义高亮：现有 B/C/AI 页面详情增量返回确认快照派生的 `renderModel`，保留公共 λ/α 与多厚度档位；AI `referencePages.semanticHighlights` 使用稳定 optionId 和正式字段名定位，严格同页同构造同档位核验，保留旧参数条与页图。无迁移，不改识别主链或热工公式。[后端契约与 B/C 接入说明](docs/knowledge/page-render-highlight-contract.md)。
+
+2026-10-10 知识版本原文问答修复：传入检索文段的问答固定走 KNOWLEDGE，避免“有么/传热系数”抢入正式参考表；补充同页上下文以辨认表头和构造档位，原文数值保留，参考行未绑定不作为无方案结论。详见[修复记录](docs/ai/knowledge-test-routing-fix-2026-10-10.md)。
+
+2026-10-10 热工自然对话最终优化：独立新问题清历史，追问局部增改删，族名按正式ID集合严格匹配，候选对比只读所选冻结记录。LLM基于Allowed Facts自然表达，实际出现事实逐段核验，不使用全文相等或回答数值容差；失败重生成一次再fallback。无迁移、公式或客户端协议修改。实现、回归与真实UAT阻塞记录见[最终优化报告](docs/ai/thermal-natural-dialogue-final-2026-10-10.md)。
+
+知识库停用后可直接重新启用原版本：`POST /api/v1/platform/knowledge/versions/:versionId/enable`，要求 B_ADMIN 与知识库发布权限，重新校验发布门禁。版本号、审核记录、正文及页面保留；已有其他发布版本时需先停用。发布、停用和启用由文档行锁串行执行并同事务写审计，无数据库结构变更。真实前后端联调：向本机临时 PostgreSQL 设置 `KNOWLEDGE_ACTIVATION_DATABASE_URL`，在 backend 执行 `pnpm exec tsx scripts/verify-knowledge-activation.ts`；脚本只使用随机临时库并自动清理，不写既有数据库。
+
+热工统一约束与事实门禁（2026-10-10）：会话 `lastReferenceLookup.query` 采用统一 Zod QueryState，硬条件/软偏好/歧义与 conditionTrace 分开；正式业务名称和启用别名解析实体，统一 Constraint Engine 对候选逐项 AND 校验，缺事实不能证明通过。未操作条件继承，取消指标/实体持久化 tombstone，模型重复摘要不得复活；相邻候选独立 nearbyCandidates/NOT_FULLY_MATCHED，不再进入正式 candidates。查表与计算切换保留状态，计算继承唯一或单选记录并校验正式对象关系；候选对比只读取所选冻结记录。热工正文在首个 SSE delta 前按后端完整事实句契约校验，失败重生成一次，仍失败使用确定性模板；不把数值白名单当字段/候选绑定证明。印刷页码只取 pageLabel，λ/α 继续严格确认快照绑定。合规必须证明所选标准、地区、建筑类型及必要结构类型。无数据库迁移、无公式变化；API 结构为增量字段，但 candidates 不再包含违规/缺事实/相邻项的行为变化需联调。详见 `docs/ai/thermal-constraint-closeout-2026-10-10.md`。
+
+
 2026-10-09 热工回答质量：Candidate原子事实绑定、产品R/总R歧义澄清、真实印刷页码、销售简短回答与专业追问展开；无DB迁移或计算公式变化。实现、测试与真实UAT阻塞记录见[热工回答质量](docs/ai/thermal-answer-quality-2026-10-09.md)。
 
 2026-10-07 最终交互 + 真实业务UAT：四个边界收口（查询/计算/合规路由、厚度省略追问、厚度口语与取消、指标省略连接词）。`pnpm uat:ai`运行销售20+设计院20、123轮真实HTTP/SSE场景；`pnpm uat:check`只做类型/结构检查。UAT使用独立临时库/用户/Redis队列/页图，事实全部确定性断言，默认规则体验评审，可用`--judge`启用只评价回答体验的AI Judge。Parser/Matcher主结构冻结，后续变更必须有真实失败Case。场景列表、运行依赖、报告及验收限制见[销售与设计院业务UAT](docs/ai/business-uat.md)。

@@ -11,6 +11,7 @@ import type { ReferenceLookupCandidate } from "../conversation-task.js";
 import { formatLookupThickness, type LookupThickness } from "../../thermal/thermal-lookup-thickness.js";
 import type { ThermalLookupFilter } from "../../thermal/thermal-lookup-mode.js";
 import { THERMAL_FACT_RULES } from "../thermal-answer-facts.js";
+import { renderAllowedFactsForModel, type AllowedAnswerFacts } from "../thermal-answer-validation.js";
 
 export type KnowledgeHitForModel = {
   title: string;
@@ -67,6 +68,9 @@ export type NormalizedThermal = {
 };
 
 export type NormalizedReferenceLookup = LookupThickness & {
+  allowedFacts?: AllowedAnswerFacts;
+  canonicalAnswers?: string[];
+  queryState?: import("../../thermal/thermal-query-state.js").ThermalQueryState;
   answerIntent: "REFERENCE_LOOKUP";
   interpretation: { metric: "K" | "TOTAL_R" | "PRODUCT_R" | "AMBIGUOUS"; needsClarification: boolean };
   primaryCandidate: ReferenceLookupCandidate | null;
@@ -198,6 +202,9 @@ export function normalizeComparisonForModel(
 }
 
 export function normalizeReferenceLookupForModel(input: LookupThickness & {
+  allowedFacts?: AllowedAnswerFacts;
+  canonicalAnswers?: string[];
+  queryState?: import("../../thermal/thermal-query-state.js").ThermalQueryState;
   filters?: ThermalLookupFilter[];
   requestedTolerance?: number;
   effectiveTolerance?: number;
@@ -233,8 +240,9 @@ export function normalizeReferenceLookupForModel(input: LookupThickness & {
     : "";
   const base = input.found
     ? `${fallback ? "第一句说明没有找到符合用户所述体系条件的正式参考方案，随后说明其他体系的参考结果。" : "指标明确且候选满足全部条件时第一行直接回答有。指标歧义先澄清。"}只使用本结果中的数值。不要把整张构造表再用 Markdown 重写。页面图片由系统单独返回。不要把地区、气候区、基层、建筑类型当成查询前置，也不要展开热工公式。不要暴露内部字段名（如 thermal_reference_rows、systemHint、candidate score）。`
-    : "这只说明当前已发布选用表没有匹配行，不代表知识库或图集原文没有方案。必须继续检索知识库/图集后再回答；有出处才能列方案。不要对用户说没有方案，也不要编造档位或 K 值。";
+    : "当前已发布参考表没有完全满足条件的正式方案，如实说明即可；可以建议继续查图集原文。相邻项必须说明未满足哪些条件，不得冒充命中或宣称全量最接近。";
   return {
+    canonicalAnswers: input.canonicalAnswers, queryState: input.queryState, allowedFacts: input.allowedFacts,
     answerIntent: "REFERENCE_LOOKUP",
     interpretation: { metric: input.metric ?? "AMBIGUOUS", needsClarification: false },
     primaryCandidate: input.candidates[0] ?? null,
@@ -260,12 +268,14 @@ export function normalizeReferenceLookupForModel(input: LookupThickness & {
     matchedSystemHint: input.matchedSystemHint ?? null,
     isFallback: input.isFallback ?? false,
     notes: input.notes ?? [],
-    instruction: [THERMAL_FACT_RULES, base, modeInstruction, fallbackInstruction,
+    instruction: [input.allowedFacts ? renderAllowedFactsForModel(input.allowedFacts) : input.canonicalAnswers
+      ? `后端已核验以下事实，请基于它自然作答：数值、厚度、页码、方案编码必须与事实完全一致，不得新增、改写、换算或推算；允许使用自然的同义说法。参考表述：\n${input.canonicalAnswers[0]}\n`
+      : "", THERMAL_FACT_RULES, base, modeInstruction, fallbackInstruction,
       formatLookupThickness(input) ? `用简单中文说明本次同时按「${formatLookupThickness(input)}」和热工条件筛选；无结果时复述当前条件，不得偷偷放宽厚度或编造接近方案，不输出内部字段名。` : "",
       input.preferThinner ? "用户希望薄一点；在满足全部硬条件的结果中按厚度升序展示，不宣称唯一最优，不编造厚度范围。" : "",
       input.toleranceAdjusted || input.filters?.some((filter) => filter.toleranceAdjusted)
         ? "请说明用户给出的查询范围较大，已按允许的最大范围筛选，并标明实际采用的范围。" : ""
-    ].filter(Boolean).join("")
+    ].filter(Boolean).join("\n")
   };
 }
 
@@ -361,6 +371,8 @@ export function normalizeToolResultForModel(toolName: AgentToolName | string, ra
   }
   if (toolName === "thermal" || toolName === "thermal_calculate") {
     const data = (record.data ?? record) as LookupThickness & {
+      canonicalAnswers?: string[];
+      queryState?: import("../../thermal/thermal-query-state.js").ThermalQueryState;
       valid?: boolean;
       found?: boolean;
       filters?: ThermalLookupFilter[];
@@ -383,6 +395,7 @@ export function normalizeToolResultForModel(toolName: AgentToolName | string, ra
     };
     if (Array.isArray(data.candidates) || typeof data.found === "boolean") {
       return normalizeReferenceLookupForModel({
+        canonicalAnswers: data.canonicalAnswers, queryState: data.queryState,
         thicknessMm: data.thicknessMm,
         thicknessMin: data.thicknessMin,
         thicknessMax: data.thicknessMax,

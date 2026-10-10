@@ -21,6 +21,7 @@ import {
   deleteDocument,
   deleteDocumentVersion,
   disableVersion,
+  enableVersion,
   enqueueChunkRebuild,
   enqueueParsing,
   getDocumentDetail,
@@ -521,6 +522,18 @@ export async function knowledgeRoutes(app: FastifyInstance) {
   }, async (request) => {
     const actor = requirePermission(request, KNOWLEDGE_PERMISSIONS.DOC_PUBLISH);
     return ok(request, await disableVersion(app, request, actor, request.params.versionId));
+  });
+
+  route.post("/versions/:versionId/enable", {
+    preHandler: [app.authenticate, requireClient(AUTH_CLIENTS.B_ADMIN)],
+    schema: {
+      tags: ["B端 / 平台 / 知识库"],
+      summary: "重新启用停用版本（保留原版本号与正文，重新校验发布条件）",
+      params: versionParams
+    }
+  }, async (request) => {
+    const actor = requirePermission(request, KNOWLEDGE_PERMISSIONS.DOC_PUBLISH);
+    return ok(request, await enableVersion(app, request, actor, request.params.versionId));
   });
 
   route.post("/documents/:id/rollback-to/:versionId", {
@@ -1354,7 +1367,7 @@ export async function knowledgeRoutes(app: FastifyInstance) {
     preHandler: [app.authenticate, requireClient(AUTH_CLIENTS.B_ADMIN)],
     schema: {
       tags: ["B端 / 平台 / 知识库"],
-      summary: "查看页面识别状态与候选/已确认结构化数据",
+      summary: "查看页面识别状态、候选/已确认数据与确认页面渲染模型",
       params: z.object({ pageId: z.uuid() })
     }
   }, async (request) => {

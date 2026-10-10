@@ -296,9 +296,9 @@ describe("多轮指标与正式 ID 依赖收口 F—I", () => {
   });
 
   it("切体系清旧方案、规格、产品，模型重复旧ID也不能带回", () => {
-    const next = normalizeConversationLookupQuery({ systemId: "sys-i", schemeId: "scheme-a1-3", schemeCode: "A1-3", productSpecId: "spec-i-18" }, "那屋面系统呢？", previous);
-    expect(next.query).toMatchObject({ systemHint: "屋面", metric: "TOTAL_R", targetValue: 3.3 });
-    for (const key of ["systemId", "schemeId", "schemeCode", "productSpecId", "catalogProductId"] as const) expect(next.query[key]).toBeUndefined();
+    const next = normalizeConversationLookupQuery({ systemId: "sys-i", schemeId: "scheme-a1-3", schemeCode: "A1-3", productSpecId: "spec-i-18" }, "那屋面系统呢？", previous, { entities: [{ field: "systemId", value: "roof-system", names: ["屋面系统"] }], aliases: [] });
+    expect(next.query).toMatchObject({ systemId: "roof-system", metric: "TOTAL_R", targetValue: 3.3 });
+    for (const key of ["schemeId", "schemeCode", "productSpecId", "catalogProductId"] as const) expect(next.query[key]).toBeUndefined();
   });
 
   it("切Ⅱ型清旧规格/产品，保留独立的方案及指标", () => {

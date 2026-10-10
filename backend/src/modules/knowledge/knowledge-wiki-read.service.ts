@@ -18,6 +18,7 @@ import type { AuthUser } from "../../shared/auth-user.js";
 import { canViewProject } from "../../shared/permissions.js";
 import { ForbiddenError, NotFoundError } from "../../shared/errors.js";
 import { getPageImageDownloadName } from "./knowledge-page-image.js";
+import { renderKnowledgePage, type PageRenderModel } from "./knowledge-page-renderer.js";
 
 /**
  * Wiki 原文阅读统一读取服务（C 端公开文库与 AI 来源详情共用，不写第二套逻辑）。
@@ -79,6 +80,7 @@ export interface WikiPageWindow {
 }
 
 export interface WikiPageDto {
+  renderModel: PageRenderModel | null;
   id: string;
   /** 兼容过渡字段：等价 physicalPageNumber（一期页码） */
   pageNumber: number;
@@ -285,6 +287,7 @@ async function toPageDto(app: FastifyInstance, page: typeof knowledgePages.$infe
     pageTitle: page.pageTitle,
     fullText: text,
     extractedText: text,
+    renderModel: renderKnowledgePage(page),
     blocks,
     pageImageUrl
   };
