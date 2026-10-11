@@ -1,3 +1,4 @@
+import { resolveQueryEntities } from "../../thermal/thermal-entity-resolver.js";
 import "dotenv/config";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createThermalTool, thermalInput } from "./thermal-calculate.tool.js";
@@ -7,6 +8,11 @@ import { parseConversationTaskState, type LastReferenceLookup } from "../convers
 import type { ToolRuntimeContext } from "./tool-runtime.js";
 
 const mocks = vi.hoisted(() => ({ query: vi.fn(), save: vi.fn() }));
+vi.mock("../../thermal/thermal-query-dictionary.service.js", () => ({ loadThermalQueryDictionary: async () => ({ entities: [
+  { field: "systemId", value: "system-i", names: ["薄抹灰外保温"] },
+  { field: "systemId", value: "system-roof", names: ["屋面保温系统"] },
+  { field: "productSpecId", value: "11111111-1111-4111-8111-111111111111", names: ["规格乙"] }
+], aliases: [] }) }));
 vi.mock("../../thermal/thermal-candidate.service.js", () => ({ queryThermalCandidates: mocks.query }));
 vi.mock("../ai-conversation-state.service.js", () => ({ saveConversationTaskState: mocks.save }));
 vi.mock("./tool-runtime.js", () => ({ runRegisteredTool: async (_ctx: unknown, _name: unknown, _args: unknown, _options: unknown, run: () => unknown) => run() }));
@@ -63,7 +69,7 @@ describe("thermal Tool 最终收口回归", () => {
       expect(result.data.instruction).toContain("板自身热阻与整墙总热阻不同");
     }
     expect(mocks.query).not.toHaveBeenCalled();
-    expect(mocks.save).not.toHaveBeenCalled();
+    expect(mocks.save).toHaveBeenCalledTimes(3);
   });
   it("A4-1 60mm同档事实及PRODUCT_R/TOTAL_R/K绝不互相冒充", async () => {
     publishedRows = [{ ...real, rowId: "a4", schemeCode: "A4-1", thicknessMm: 60,
@@ -196,7 +202,7 @@ describe("thermal Tool 最终收口回归", () => {
   it("第二轮只传新 productSpecId 时不保留旧 catalogProductId", async () => {
     const newSpec = "11111111-1111-4111-8111-111111111111";
     const last: LastReferenceLookup = { query: { productSpecId: "old-spec", catalogProductId: "old-product", metric: "K", targetValue: 0.3, mode: "APPROX" }, candidates: [], createdAt: new Date().toISOString() };
-    await execute(context("换这个规格", last), { productSpecId: newSpec });
+    await execute(context("换规格乙", last), { productSpecId: newSpec });
     expect(mocks.query.mock.calls[0]?.[3]).toMatchObject({ productSpecId: newSpec, catalogProductId: undefined });
   });
   it.each([
@@ -216,7 +222,7 @@ describe("thermal Tool 最终收口回归", () => {
       expect(ctx.onEvent).toHaveBeenCalledWith("reference_pages", expect.objectContaining({ referencePages: expect.any(Array) }));
     } else {
       expect(ctx.taskState?.lastReferenceLookup?.candidates).toEqual([]);
-      expect(result.data.instruction).toContain("继续检索知识库");
+      expect(result.data.instruction).toContain("继续查图集原文");
     }
   });
 
@@ -243,21 +249,20 @@ describe("thermal Tool 最终收口回归", () => {
     last.query = { ...last.query, systemId: "sys-old", schemeId: "scheme-old", schemeCode: "A1-3", specClass: "I", productSpecId: "spec-old", catalogProductId: "catalog-old" };
     await execute(context("那屋面系统呢？", last));
     const changedSystem = mocks.query.mock.calls[1]![3];
-    expect(changedSystem.schemeId).toBeUndefined(); expect(changedSystem.schemeCode).toBeUndefined(); expect(changedSystem.productSpecId).toBeUndefined();
+    expect(changedSystem.systemId).toBe("system-roof"); expect(changedSystem.schemeId).toBeUndefined(); expect(changedSystem.schemeCode).toBeUndefined(); expect(changedSystem.productSpecId).toBeUndefined();
     await execute(context("Ⅱ型呢？", last));
     const changedSpec = mocks.query.mock.calls[2]![3];
     expect(changedSpec.specClass).toBe("II"); expect(changedSpec.productSpecId).toBeUndefined(); expect(changedSpec.catalogProductId).toBeUndefined();
   });
 
-  it("J：其他体系回退先说明未命中，双R、原页、fallback标志往返保留", async () => {
-    publishedRows = [{ ...real, systemName: "屋面保温系统" }];
+  it("J：其他体系不能混入正式候选，无命中仍保留体系硬条件", async () => {
+    publishedRows = [{ ...real, systemId: "system-roof", systemName: "屋面保温系统" }];
     const ctx = context("薄抹灰 K0.3左右");
     const result = await execute(ctx);
-    expect(result.data).toMatchObject({ found: true, isFallback: true, matchedSystemHint: false });
-    expect(result.data.instruction).not.toContain("第一行直接回答有");
-    expect(result.data.instruction).toContain("第一句说明没有找到");
+    expect(result.data).toMatchObject({ found: false, isFallback: false, candidates: [] });
+    expect(ctx.thermalCanonicalAnswers?.[0]).toContain("没有找到同时满足");
     const restored = parseConversationTaskState(JSON.parse(JSON.stringify(ctx.taskState)));
-    expect(restored.lastReferenceLookup).toMatchObject({ isFallback: true, matchedSystemHint: false, candidates: [{ sourcePageLabel: "22", productThermalResistance: 2.88, totalThermalResistance: 3.297 }] });
+    expect(restored.lastReferenceLookup).toMatchObject({ isFallback: false, query: { systemId: "system-i" }, candidates: [] });
   });
 
   it("用户原页/参数指代可复用；普通相同查询仍重新核对正式发布数据", async () => {
@@ -293,5 +298,56 @@ describe("thermal Tool 最终收口回归", () => {
     const result = await execute(context("查已有参考档位"), { targetK: 0.3, targetR: 3.3, lookupMode: "APPROX" });
     expect(mocks.query.mock.calls[0]?.[3]).toMatchObject({ metric: "K", targetValue: 0.3, targetResistance: 3.3 });
     expect(result.data.found).toBe(false);
+  });
+});
+
+
+it("明确 AND 后只解除关系歧义，不再重复澄清已明确的两个指标", async () => {
+  const first = context("K≤0.3或者总R≥3.3");
+  expect((await execute(first)).data.needsClarification).toBe(true);
+  const next = context("两个条件都要满足", first.taskState?.lastReferenceLookup);
+  const result = await execute(next);
+  expect(next.taskState?.lastReferenceLookup?.query.unresolved).toEqual([]);
+  expect(result.data.needsClarification).toBeUndefined();
+  expect(next.taskState?.lastReferenceLookup?.query.filters).toHaveLength(2);
+});
+
+describe("本轮验收：显式指标绑定 + False Negative（第四十五～四十六条 / 第五十九条）", () => {
+  it("「保温板自身热阻 有传热8.3的保温板么」→ 不再澄清，绑定 PRODUCT_R≈8.3", async () => {
+    const result = await execute(context("保温板自身热阻 有传热8.3的保温板么"));
+    expect(mocks.query).toHaveBeenCalledTimes(1);
+    expect(mocks.query.mock.calls[0]?.[3]).toMatchObject({ filters: [{ metric: "PRODUCT_R", targetValue: 8.3, mode: "APPROX" }] });
+    expect(result.data.needsClarification).toBeUndefined();
+    expect(result.data.metric).toBe("PRODUCT_R");
+  });
+
+  it("「有传热8.3的保温板么」→ 允许澄清指标（不得猜测）", async () => {
+    const result = await execute(context("有传热8.3的保温板么"));
+    expect(result.data.needsClarification).toBe(true);
+    expect(mocks.query).not.toHaveBeenCalled();
+  });
+
+  it("「保温薄抹灰传热系数0.3方案有么」→ 不再误判没有，能查到 K≈0.3 的真实薄抹灰方案", async () => {
+    const result = await execute(context("保温薄抹灰传热系数0.3方案有么"));
+    expect(mocks.query).toHaveBeenCalledTimes(1);
+    expect(mocks.query.mock.calls[0]?.[3]).toMatchObject({
+      filters: [{ metric: "K", targetValue: 0.3, mode: "APPROX" }]
+    });
+    // 词典只有单一薄抹灰体系时，族名收敛为唯一 systemId；多体系时才用 systemIds 集合。
+    const query = mocks.query.mock.calls[0]?.[3] as { systemId?: string; systemIds?: string[] };
+    expect(query.systemId ?? query.systemIds?.[0]).toBe("system-i");
+    expect(result.data.found).toBe(true);
+    expect(result.data.primaryCandidate).toMatchObject({ id: "a1-3", kValue: 0.303 });
+  });
+
+  it("新问题不继承旧条件：上一轮 PRODUCT_R≈8.3，下一轮薄抹灰 K≈0.3", async () => {
+    const first = context("产品层热阻8.3左右有吗");
+    await execute(first);
+    const second = context("保温薄抹灰传热系数0.3方案有么", first.taskState?.lastReferenceLookup);
+    const result = await execute(second);
+    const filters = second.taskState?.lastReferenceLookup?.query.filters ?? [];
+    expect(filters.some((filter) => filter.metric === "PRODUCT_R")).toBe(false);
+    expect(filters).toMatchObject([{ metric: "K", targetValue: 0.3 }]);
+    expect(result.data.found).toBe(true);
   });
 });

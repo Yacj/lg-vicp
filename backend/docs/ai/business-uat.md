@@ -115,3 +115,6 @@ pnpm uat:ai --out logs/ai-uat/current
 | 真实AI UAT | `pnpm uat:ai` | 连接ECONNREFUSED，全部BLOCKED，未调用模型 |
 
 当前真实UAT阻塞报告：`logs/ai-uat/final-closeout/report.md`及同目录`report.json`。失败报告内完整列出40场景123轮的预期和阻塞归因，准确率为未执行。`uat:check`另已在不加载.env的情况下验证通过，不需要数据库/模型密钥。
+
+
+2026-10-10 增加 SALES-021/022，当前矩阵为销售22 + 设计院20，共42场景、128轮。新增真实问题回归覆盖产品自身R/整墙R与体系、厚度冲突更新。结构检查不再硬编码40场景，要求至少40且每类至少20；真实执行记录见 `thermal-constraint-closeout-2026-10-10.md`。本轮测试数据库配置只读加载发生 ECONNREFUSED，全部128轮 BLOCKED，未调用模型，不能计为业务验收通过。

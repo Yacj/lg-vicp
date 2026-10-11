@@ -46,7 +46,7 @@ const MIN_LIMIT_PLAIN_PATTERN = /高于|大于|>/;
 const MAX_LIMIT_PLAIN_PATTERN = /低于|小于|</;
 
 /** 精确相等语义：严格等于 / 刚好等于 / 精确等于。 */
-const EXACT_PATTERN = /精确|恰好|等于|正好是|就是|(?<![<>≤≥])=(?!=)/;
+const EXACT_PATTERN = /精确|恰好|正好|等于|就是|(?<![<>≤≥])=(?!=)/;
 
 /** 近似语义：左右、接近、约、大概、附近 等。 */
 const APPROX_PATTERN = /左右|接近|靠近|约|大概|大约|差不多|附近|上下|近似|大约为|约为|≈|±/;
@@ -199,23 +199,95 @@ export function metricRankingGap(value: number, target: number, mode: ThermalLoo
   return mode === "MAX_LIMIT" ? target - value : mode === "MIN_LIMIT" ? value - target : Math.abs(value - target);
 }
 
-export const THERMAL_LOOKUP_METRIC_PATTERN = /product_r|产品层?热阻|保温板热阻|vicp热阻|产品r|total_r|总热阻(?:r[0₀]?)?|总r|r[0₀]|(?:外墙)?主断面传热阻|传热系数(?:k值?)?|k(?:值)?/gi;
+/** 指标词优先级：产品层 R > 总 R > K，避免「总传热系数」被 bare K 抢先。 */
+export const THERMAL_LOOKUP_METRIC_PATTERN = /product_r|产品层?热阻|产品r|保温板(?:自身|本身)?热阻|板(?:子|材)?(?:自身|本身)?的?(?:热阻|r)(?![a-z])|自身(?:热阻|r)(?![a-z])|vicp热阻|total_r|整墙(?:总)?热阻|总热阻(?:r[0₀]?)?|总r|r[0₀]|(?:外墙)?主断面(?:传)?热阻|传热系数(?:k值?)?|传热(?:做到|是|为|大概|约|左右)|k值|k(?![a-z])/gi;
+
+/** 模糊「系数」只在没有任何其他明确指标时兜底解析为 K（禁止据此猜 R）。 */
+export const THERMAL_LOOKUP_FALLBACK_METRIC_PATTERN = /系数(?=\d|做到|是|为|大概|左右|约|能)/g;
 
 function metricFromWord(word: string): ThermalLookupMetric {
-  if (/product_r|产品|保温板|vicp/i.test(word)) return "PRODUCT_R";
-  if (/total_r|总|r[0₀]|主断面/i.test(word)) return "TOTAL_R";
+  // 顺序敏感：「总传热系数」等含「总」的 K 词不能先落进 TOTAL_R；产品层 R 优先级最高。
+  if (/product_r|产品层?|保温板|板自身|板子|板材|自身热阻|自身r|vicp/i.test(word)) return "PRODUCT_R";
+  if (/total_r|整墙|主断面|总热阻|总r|r[0₀]/i.test(word)) return "TOTAL_R";
   return "K";
 }
 
-// 连接词只负责连接指标和数字；比较语义仍由 inferThermalLookupMode 独立判断。
-const TARGET_BRIDGE = /^(?:(?:[:：=≈<>≤≥])|(?:不应|不得|不能|不要|别|不)(?:低于|小于|少于|超过|高于|大于)|(?:大于等于|小于等于|至少|至多|最多|最大|最小|最低|上限|下限|限值|高于|低于|大于|小于|以内)|(?:控制|调整|提高|降低|放宽|收紧)(?:在|到)?|(?:改|换)(?:成|为)|降到|变成|(?:希望|尽量|最好|要求|需要|目标|要|达到|做到|大概|大约|约|接近|正好|等于|就是|严格|精确|恰好|为|是|在|到|左右|附近))*$/;
+/**
+ * 数字角色分类（Number Role Classification）。
+ * 每个候选数字先判定它「可能是什么」，只有 THERMAL_TARGET 才允许绑定到已解析指标。
+ * 严格排除厚度 / 页码 / 型号编号 / 年份 / 数量 / 金额，避免「只要句里有数字就绑给 metric」。
+ */
+export type NumberRole =
+  | "THERMAL_TARGET"
+  | "THICKNESS"
+  | "PAGE_NUMBER"
+  | "MODEL_CODE_PART"
+  | "YEAR"
+  | "COUNT"
+  | "UNKNOWN";
+
+export interface NumberCandidate {
+  raw: string;
+  index: number;
+  role: NumberRole;
+}
+
+const THICKNESS_UNIT = /(?:mm|毫米|cm|厘米|公分)/i;
+const PAGE_PREFIX = /(?:第|p\.?|page|页)\s*$/i;
+/** 数字前 4 字符内出现拉丁字母或编码分隔符（A1、XPS-3、/2）→ 属于型号/规格编码。 */
+const MODEL_TOKEN_BEFORE = /(?:[a-z][-_/]?\d*|[-_/])$/i;
+const YEAR_PATTERN = /^(?:19|20)\d{2}$/;
+const COUNT_SUFFIX = /^(?:\s*)(?:个|条|款|种|组|页|张|块|mm|毫米)/;
+const MONEY_SUFFIX = /^(?:\s*)(?:元|块|万元|亿元|rmb|人民币)/i;
+
+/** 判定单个数字在句中的角色；纯确定性、无外部依赖。 */
+export function classifyNumberRole(text: string, raw: string, index: number): NumberRole {
+  const end = index + raw.length;
+  const before = text.slice(Math.max(0, index - 4), index);
+  const after = text.slice(end);
+  if (THICKNESS_UNIT.test(after)) return "THICKNESS";
+  if (PAGE_PREFIX.test(before)) return "PAGE_NUMBER";
+  if (MONEY_SUFFIX.test(after)) return "COUNT";
+  if (COUNT_SUFFIX.test(after)) return "COUNT";
+  // 型号编码：前有拉丁字母（A1、K2）或编码分隔符（A1-3 的 3、XPS/2 的 2）。
+  if (MODEL_TOKEN_BEFORE.test(before)) return "MODEL_CODE_PART";
+  if (YEAR_PATTERN.test(raw) && !/(?:热阻|传热|系数|k值?|r0|r₀)/i.test(before)) return "YEAR";
+  return "UNKNOWN";
+}
+
+/** 指标词与数字之间允许出现的连接 / 冗余 / 倒装片段（不改变语义，只说明「这个数字属于本指标」）。 */
+const METRIC_NUMBER_BRIDGE = /(?:[:：=≈<>≤≥]|不应|不得|不能|不要|别|低于|小于|少于|超过|高于|大于|大于等于|小于等于|至少|至多|最多|最大|最小|最低|上限|下限|限值|以内|以上|以下|控制|调整|提高|降低|放宽|收紧|改成|改为|换成|换到|调到|改到|降到|变成|希望|尽量|最好|要求|需要|目标|达到|做到|大概|大约|接近|靠近|正好|等于|就是|严格|精确|恰好|左右|附近|上下|差不多|约|为|是|在|到|的|有|能|可以|有没有|有么|有吗|吗|么|呢|传热|自身|板子?|热阻|系数|值|对应|那种|这种|哪|哪些|什么|推荐|找|查|看|给|来|一个|个|档|级别|档位|以及|和|与|也|还|就|都|要|能到|可用|符合|满足)+$/;
+
+// 比较语义仍由 inferThermalLookupMode 独立判断；bridge 只负责判定「这个数字是否属于本指标」。
+const TARGET_BRIDGE = METRIC_NUMBER_BRIDGE;
 const REMOVE_CONDITION = /取消|不限制|不用限制|先不看|去掉/;
 const KEEP_CONDITION = /条件保留|保留|不变|照旧/;
+
+/**
+ * 判定指标词与数字之间的片段是否允许「该数字属于本指标」。
+ * - 纯连接词（K做到0.3 → 「做到」）直接通过；
+ * - 包含冗余/倒装词（保温板自身热阻有传热8.3 → 「有传热」）时，只要去掉本指标同义词
+ *   （metricWord 中的字）后剩余部分仍全部是连接/冗余词，也通过。
+ * 禁止把「18mm」「第21页」「A1-3」这类数字误绑到指标。
+ */
+export function isMetricBridge(bridge: string, metricWord: string): boolean {
+  if (!bridge) return true;
+  if (TARGET_BRIDGE.test(bridge)) return true;
+  // 把指标同义词中的汉字从 bridge 中剔除，剩余仍需全部是连接词。
+  const metricChars = new Set([...metricWord.toLowerCase()].filter((ch) => /[\u4e00-\u9fa5a-z]/.test(ch)));
+  const residual = [...bridge].filter((ch) => !metricChars.has(ch)).join("");
+  return TARGET_BRIDGE.test(residual);
+}
 
 /** 模糊术语只在已有明确指标上下文时解析，禁止根据数值大小猜工程指标。 */
 export function parseThermalLookupMessage(message: string, previousMetric?: ThermalLookupMetric) {
   const text = message.normalize("NFKC").replace(/(?<=\d)\s+(?=\d)/g, ",").replace(/\s+/g, "");
   const mentions = [...text.matchAll(THERMAL_LOOKUP_METRIC_PATTERN)].map((match) => ({ word: match[0], index: match.index, metric: metricFromWord(match[0]) }));
+  // 模糊「系数」兜底：无其他明确指标、且不是「传热阻系数/保温系数」这类歧义词时才按 K 解析。
+  if (!mentions.length && !/传热阻系数|保温系数/.test(text)) {
+    const fallback = [...text.matchAll(THERMAL_LOOKUP_FALLBACK_METRIC_PATTERN)];
+    if (fallback.length) mentions.push({ word: fallback[0]![0], index: fallback[0]!.index!, metric: "K" });
+  }
   const ambiguousWord = /传热阻系数|保温系数/.exec(text)?.[0];
   const ambiguous = ambiguousWord !== undefined;
   if (!mentions.length && ambiguousWord && previousMetric) mentions.push({ word: ambiguousWord, index: text.indexOf(ambiguousWord), metric: previousMetric });
@@ -226,12 +298,17 @@ export function parseThermalLookupMessage(message: string, previousMetric?: Ther
   const removedMetrics: ThermalLookupMetric[] = [];
   const retainedMetrics: ThermalLookupMetric[] = [];
   const modeMessages: string[] = [];
+  const numberCandidates: NumberCandidate[] = [];
   let unresolved = false;
   let firstModeMessage = "";
+  const boundNumberIndexes = new Set<number>();
   for (const [index, mention] of mentions.entries()) {
     // 每个指标只解析自己的片段，不能让另一指标或厚度的比较词/容差污染本指标。
-    const suffix = text.slice(mention.index + mention.word.length, mentions[index + 1]?.index ?? text.length)
-      .split(/[,，;；]|厚度/)[0]!;
+    // 指标词后紧跟分隔符（如「R0 3.3」被归一成「R0,3.3」）时先剥掉前导分隔符，
+    // 否则本指标的目标值会落进被切掉的首个空片段而丢失。
+    const clauseEnd = mentions[index + 1]?.index ?? text.length;
+    const suffix = text.slice(mention.index + mention.word.length, clauseEnd)
+      .replace(/^[,，;；]+/, "").split(/[,，;；]|厚度/)[0]!;
     const before = text.slice(index ? mentions[index - 1]!.index + mentions[index - 1]!.word.length : 0, mention.index);
     const localPrefix = before.split(/[,，;；]/).at(-1) ?? "";
     if (REMOVE_CONDITION.test(localPrefix) || REMOVE_CONDITION.test(suffix) && !/\d/.test(suffix)) {
@@ -241,7 +318,9 @@ export function parseThermalLookupMessage(message: string, previousMetric?: Ther
       retainedMetrics.push(mention.metric); continue;
     }
     const rawNumber = /([0-9]+(?:\.[0-9]+)?)/.exec(suffix);
-    const number = rawNumber && TARGET_BRIDGE.test(suffix.slice(0, rawNumber.index)) ? rawNumber : null;
+    // 兼容扩展：当 bridge 不是纯连接词（如「有传热8.3」）时，只要 bridge 片段全部由
+    // 「允许的连接/冗余/倒装词 + 本指标同义词」组成，仍视为本指标的目标值。
+    const number = rawNumber && isMetricBridge(suffix.slice(0, rawNumber.index), mention.word) ? rawNumber : null;
     const prefixNumber = /([0-9]+(?:\.[0-9]+)?)(?:左右|附近|的|约|接近)*$/.exec(before);
     const targetValue = number ? Number(number[1]) : prefixNumber ? Number(prefixNumber[1]) : undefined;
     const toleranceMatch = /(?:±|上下|正负|误差(?:不超过|为)?|容差(?:为)?)([0-9]+(?:\.[0-9]+)?)/.exec(suffix);
@@ -251,10 +330,43 @@ export function parseThermalLookupMessage(message: string, previousMetric?: Ther
     const metricSuffix = number ? suffix.replace(/\d+(?:\.\d+)?(?:mm|毫米).*$/i, "") : suffix;
     const modeMessage = number ? `${modePrefix}${mention.word}${metricSuffix}` : prefixNumber ? `${prefixNumber[0]}${mention.word}` : "";
     if (targetValue === undefined) { unresolved = true; continue; }
+    if (number) boundNumberIndexes.add(mention.index + mention.word.length + number.index);
     if (!filters.length) firstModeMessage = modeMessage;
     modeMessages.push(modeMessage);
     filters.push({ metric: mention.metric, targetValue, mode: inferThermalLookupMode(modeMessage) ?? "APPROX",
       tolerance: toleranceMatch && !toleranceIsThickness ? Number(toleranceMatch[1]) : undefined });
+  }
+  // 通用 target 绑定（语义层兜底）：只有一个已解析指标、且本句存在唯一尚未归属、
+  // 角色为 THERMAL_TARGET/UNKNOWN 的数值时，绑定给它；厚度/页码/型号/年份/数量/金额一律排除。
+  // 纯「取消/保留条件」语句（无待绑定目标）不进入兜底，避免把取消条件误判成澄清。
+  const actionableMentions = mentions.filter((mention) => !removedMetrics.includes(mention.metric) && !retainedMetrics.includes(mention.metric));
+  if (!filters.length && actionableMentions.length && !removedMetrics.length) {
+    const soleMetric = new Set(actionableMentions.map((mention) => mention.metric)).size === 1 ? actionableMentions[0]!.metric : undefined;
+    if (soleMetric) {
+      const numbers = [...text.matchAll(/([0-9]+(?:\.[0-9]+)?)/g)]
+        .filter((match) => !boundNumberIndexes.has(match.index!))
+        .map((match) => ({ raw: match[1]!, index: match.index!, role: classifyNumberRole(text, match[1]!, match.index!) }))
+        // 已被认定为厚度/页码/型号/年份/数量的数值优先排除；UNKNOWN 保留待升格。
+        .filter((candidate) => candidate.role === "UNKNOWN" || candidate.role === "THERMAL_TARGET");
+      numbers.forEach((candidate) => { if (!numberCandidates.some((item) => item.index === candidate.index)) numberCandidates.push(candidate); });
+      if (numbers.length === 1) {
+        const only = numbers[0]!;
+        const targetValue = Number(only.raw);
+        if (Number.isFinite(targetValue) && targetValue > 0) {
+          const modeMessage = `${actionableMentions[0]!.word}${text.slice(actionableMentions[0]!.index + actionableMentions[0]!.word.length, only.index)}${only.raw}`;
+          firstModeMessage = modeMessage;
+          modeMessages.push(modeMessage);
+          filters.push({ metric: soleMetric, targetValue, mode: inferThermalLookupMode(modeMessage) ?? "APPROX" });
+          // 主循环因 bridge 过严而暂时置 unresolved；语义层兜底已成功绑定，必须清除该澄清。
+          unresolved = false;
+        } else unresolved = true;
+      } else if (numbers.length > 1) {
+        // 多个可能数值 → 必须澄清具体值（不能随便第一个）。
+        unresolved = true;
+      } else {
+        unresolved = true;
+      }
+    }
   }
   // 无指标的纯追问仍可继承模式/用户容差，但厚度容差不授权热工容差。
   const looseTolerance = !mentions.length && !/厚度|\d+(?:\.\d+)?(?:mm|毫米)/i.test(text)
@@ -269,6 +381,7 @@ export function parseThermalLookupMessage(message: string, previousMetric?: Ther
     modeMessages,
     removedMetrics,
     retainedMetrics,
+    numberCandidates,
     appendRange: /再加(?:一个)?范围条件/.test(text),
     needsClarification: ambiguous && !previousMetric || !!implicitTarget && !previousMetric || unresolved || (filters.length > 0 || removedMetrics.length > 0) && /或者|或|\bor\b/i.test(message)
   };

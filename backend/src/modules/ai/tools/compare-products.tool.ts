@@ -24,8 +24,9 @@ export function createCompareProductsTool(ctx: ToolRuntimeContext) {
     inputSchema: compareProductsInput,
     execute: async (args, options) => runRegisteredTool(ctx, "compare_products", args, options, async () => {
       const taskState = ctx.taskState ?? parseConversationTaskState(null);
+      const productIds = taskState.selectedProductIds?.length ? taskState.selectedProductIds : args.productIds;
       const { result } = await compareProducts(ctx.app, {
-        productIds: args.productIds,
+        productIds,
         focus: args.focus,
         userGoal: taskState.userGoal,
         conversationId: ctx.conversation.id,
@@ -36,7 +37,7 @@ export function createCompareProductsTool(ctx: ToolRuntimeContext) {
       const comparison = normalizeComparisonForModel(result);
       ctx.onEvent?.("comparison_ready", {
         conversationId: ctx.conversation.id,
-        productIds: args.productIds,
+        productIds,
         dimensionCount: result.dimensions.length,
         thermalStatus: result.thermal.status,
         missingNotes: result.missingNotes,

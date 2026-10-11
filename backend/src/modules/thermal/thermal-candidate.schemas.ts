@@ -1,3 +1,4 @@
+import { constraintMatchSchema, queryExclusionSchema, queryStateExtraFields } from "./thermal-query-state.js";
 import { z } from "zod";
 import { paginationQuerySchema } from "../../shared/pagination.js";
 import { THERMAL_LOOKUP_METRICS, THERMAL_LOOKUP_MODES } from "./thermal-lookup-mode.js";
@@ -15,6 +16,9 @@ import { thermalLookupFilterSchema, normalizedThermalLookupFilterSchema } from "
 
 /** 候选查询字段（单一事实源）：AI 端组合必填 projectId 时复用，避免对带 refine 的 schema 再 extend */
 export const thermalCandidateQueryFields = {
+  documentIds: z.array(z.uuid()).optional(), knowledgeVersionIds: z.array(z.uuid()).optional(),
+  structureType: z.string().optional(),
+  exclusions: z.array(queryExclusionSchema).optional(), preferences: queryStateExtraFields.preferences,
   filters: z.array(thermalLookupFilterSchema).min(1).max(12).optional().describe("多个热工指标条件全部同时满足（AND）；提供时优先于单指标及旧字段"),
   metric: z.enum(THERMAL_LOOKUP_METRICS).optional().describe("K 传热系数 / TOTAL_R 总热阻 / PRODUCT_R 产品层热阻"),
   targetValue: z.coerce.number().positive().max(100).optional(),
@@ -90,6 +94,8 @@ export const thermalCandidateQuerySchema = withCandidateQueryRefines(
 
 export const thermalCandidateDto = z.object({
   candidateId: z.uuid(),
+  constraintMatch: constraintMatchSchema.optional(),
+  structureType: z.string().optional(), regionCode: z.string().optional(), standardLimitId: z.string().optional(), sourceVersionId: z.string().nullable().optional(),
   matchType: z.enum(["EXACT", "NEIGHBOR"]),
   /** 相邻档位距离（NEIGHBOR 时有值） */
   neighborGap: z.number().int().nullable(),
@@ -155,6 +161,8 @@ export const thermalCandidateQueryResponseSchema = z.object({
   /** 实际生效的 K 容差（APPROX/EXACT）；其余模式为 null */
   kTolerance: z.number().nullable().optional(),
   candidates: z.array(thermalCandidateDto),
+  matchedCandidates: z.array(thermalCandidateDto).optional(),
+  nearbyCandidates: z.array(thermalCandidateDto.extend({ status: z.literal("NOT_FULLY_MATCHED").optional() })).optional(),
   /** 查询提供了但全部数据缺失的条件（如所有方案未填基层厚度） */
   missingConditions: z.array(z.string()),
   notes: z.array(z.string()),

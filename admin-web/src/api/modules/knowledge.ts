@@ -320,11 +320,15 @@ export function approveKnowledgeVersion(versionId: string, approvalNote?: string
 }
 
 export function publishKnowledgeVersion(versionId: string): Promise<{ version: KnowledgeDocumentVersion }> {
-  return api.post<{ version: KnowledgeDocumentVersion }>(`${KNOWLEDGE_PREFIX}/versions/${encodeURIComponent(versionId)}/publish`)
+  return api.post<{ version: KnowledgeDocumentVersion }>(`${KNOWLEDGE_PREFIX}/versions/${encodeURIComponent(versionId)}/publish`, {})
 }
 
 export function disableKnowledgeVersion(versionId: string): Promise<{ version: KnowledgeDocumentVersion }> {
-  return api.post<{ version: KnowledgeDocumentVersion }>(`${KNOWLEDGE_PREFIX}/versions/${encodeURIComponent(versionId)}/disable`)
+  return api.post<{ version: KnowledgeDocumentVersion }>(`${KNOWLEDGE_PREFIX}/versions/${encodeURIComponent(versionId)}/disable`, {})
+}
+
+export function enableKnowledgeVersion(versionId: string): Promise<{ message: string, version: KnowledgeDocumentVersion, warnings: string[] }> {
+  return api.post(`${KNOWLEDGE_PREFIX}/versions/${encodeURIComponent(versionId)}/enable`, {})
 }
 
 export function rollbackKnowledgeVersion(documentId: string, versionId: string): Promise<{ version: KnowledgeDocumentVersion }> {

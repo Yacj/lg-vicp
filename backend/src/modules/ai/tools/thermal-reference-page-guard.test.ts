@@ -3,6 +3,26 @@ import { describe, expect, it, vi } from "vitest";
 import { emitReferencePages, isReferencePageConsumable } from "./thermal-calculate.tool.js";
 
 describe("REFERENCE_PAGE 正式知识页防御", () => {
+  it("正式页面确认快照经过Tool/SSE绑定与renderModel一致的optionId", async () => {
+    const rows = [{ pageId: "page", documentId: "doc", documentTitle: "图集", physicalPageNumber: 1,
+      pageLabel: "22", pageImageObjectKey: "page.png", versionId: "v", currentVersionId: "v", versionStatus: "PUBLISHED",
+      documentStatus: "ACTIVE", documentDeletedAt: null, effectiveDate: null, expiryDate: null,
+      metadata: { confirmedStructuredData: { systems: [{ constructionCode: "A1-3",
+        layers: [{ name: "I型VICP复合保温板", lambda: 0.005, alpha: 1.25 }],
+        options: [{ thicknessMm: 18, productThermalResistance: 2.88, totalThermalResistance: 3.297, kValue: 0.303 }] }] } } }];
+    const query: any = { from: () => query, innerJoin: () => query, where: () => query,
+      then: (resolve: (value: unknown) => void) => Promise.resolve(rows).then(resolve) };
+    const onEvent = vi.fn();
+    const result = await emitReferencePages({ app: { db: { select: () => query },
+      storage: { createDownloadUrl: async () => "https://example.test/signed" }, log: { warn: vi.fn() } }, onEvent } as any,
+    [{ id: "row", schemeCode: "A1-3", sourceDocumentId: "doc", sourcePageId: "page", thicknessMm: 18,
+      productThermalResistance: 2.88, totalThermalResistance: 3.297, kValue: 0.303 }]);
+    const event = onEvent.mock.calls.find(([name]) => name === "reference_pages")![1];
+    expect(result.candidates[0]?.optionId).toBe(event.referencePages[0].matches[0].optionId);
+    expect(event.referencePages[0].semanticHighlights[0].facts).toMatchObject({ thicknessMm: 18, kValue: 0.303, lambda: 0.005, alpha: 1.25 });
+    expect(event.stored[0].semanticHighlights).toEqual(event.referencePages[0].semanticHighlights);
+    expect(JSON.stringify(event.stored)).not.toContain("https://");
+  });
   it.each(["21", null])("来源页标签%s经过Tool/SSE仍与物理页序1分开", async (pageLabel) => {
     const rows = [{ pageId: "page", documentId: "doc", documentTitle: "图集", pageNumber: 1, physicalPageNumber: 1,
       pageLabel, pageImageObjectKey: "p.png", versionId: "v", currentVersionId: "v", versionStatus: "PUBLISHED",

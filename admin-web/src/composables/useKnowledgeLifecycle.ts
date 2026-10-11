@@ -1,11 +1,12 @@
 import type { ComputedRef, MaybeRefOrGetter, Ref } from 'vue'
 import type {
+  KnowledgeDocumentVersion,
   KnowledgePageRecognitionSummary,
   KnowledgeVersionIndex,
   KnowledgeWorkspace,
 } from '@/types/knowledge'
 import { computed, onMounted, onUnmounted, ref, toValue, watch } from 'vue'
-import { fetchKnowledgeWorkspace, fetchVersionIndex, fetchVersionPages } from '@/api/modules/knowledge'
+import { fetchKnowledgeDocumentDetail, fetchKnowledgeWorkspace, fetchVersionIndex, fetchVersionPages } from '@/api/modules/knowledge'
 import { isKnowledgeFileParsingInProgress, isKnowledgePageRenderingInProgress } from '@/utils/knowledge-user'
 
 /** 默认轮询间隔：与后端解析 / 识别 / 索引任务的回写节奏对齐。 */
@@ -37,11 +38,13 @@ export interface KnowledgeLifecycleRefreshOptions {
 export interface UseKnowledgeLifecycleReturn {
   /** 知识库工作区：页面状态 / 发布门禁 / AI 可用性的唯一事实源。 */
   workspace: Ref<KnowledgeWorkspace | null>
+  /** 无工作版本时保留最近的停用版本供管理端只读浏览，不改变发布门禁。 */
+  retainedVersion: Ref<KnowledgeDocumentVersion | null>
   /** 当前版本知识索引状态。 */
   index: Ref<KnowledgeVersionIndex | null>
   /** 后端页面列表返回的识别进度汇总（不按页面列表自行统计）。 */
   recognitionSummary: Ref<KnowledgePageRecognitionSummary | null>
-  /** 当前版本 ID：由 workspace 派生，避免多处重复推导。 */
+  /** 浏览版本 ID：优先工作版本，否则读取保留的停用版本。 */
   versionId: ComputedRef<string | null>
   /** 首次 / 手动刷新 loading（静默刷新不置位）。 */
   loading: Ref<boolean>
@@ -89,6 +92,7 @@ export function useKnowledgeLifecycle(
   const maxPollMs = options.maxPollMs ?? DEFAULT_MAX_POLL_MS
 
   const workspace = ref<KnowledgeWorkspace | null>(null)
+  const retainedVersion = ref<KnowledgeDocumentVersion | null>(null)
   const index = ref<KnowledgeVersionIndex | null>(null)
   const recognitionSummary = ref<KnowledgePageRecognitionSummary | null>(null)
   const loading = ref(false)
@@ -98,7 +102,7 @@ export function useKnowledgeLifecycle(
   const isPolling = ref(false)
   const pollTick = ref(0)
 
-  const versionId = computed(() => workspace.value?.currentVersion?.id ?? null)
+  const versionId = computed(() => workspace.value?.currentVersion?.id ?? retainedVersion.value?.id ?? null)
 
   const isBusy = computed(() => {
     const current = workspace.value
@@ -217,6 +221,7 @@ export function useKnowledgeLifecycle(
     const id = toValue(options.documentId)
     if (!id) {
       workspace.value = null
+      retainedVersion.value = null
       index.value = null
       recognitionSummary.value = null
       return
@@ -229,7 +234,24 @@ export function useKnowledgeLifecycle(
     try {
       const next = await fetchKnowledgeWorkspace(id)
       if (request !== refreshSequence || id !== toValue(options.documentId)) return
+      // workspace 仅返回非 DISABLED 的工作版本；停用不会删除历史页面。
+      // 重新进入或刷新页面时也从真实版本列表恢复浏览，不依赖停用前的内存状态。
+      let retained: KnowledgeDocumentVersion | null = null
+      if (!next.currentVersion) {
+        const detail = await fetchKnowledgeDocumentDetail(id)
+        if (request !== refreshSequence || id !== toValue(options.documentId)) return
+        retained = detail.versions
+          .filter(version => version.documentId === id && version.status === 'DISABLED')
+          .reduce<KnowledgeDocumentVersion | null>((latest, version) =>
+            !latest || version.version > latest.version ? version : latest, null)
+      }
+      const previousVersionId = versionId.value
+      retainedVersion.value = retained
       workspace.value = next
+      if (previousVersionId !== versionId.value) {
+        index.value = null
+        recognitionSummary.value = null
+      }
       await options.onWorkspace?.(next)
     }
     catch (cause) {
@@ -261,6 +283,7 @@ export function useKnowledgeLifecycle(
     recognitionSequence += 1
     refreshInFlight = false
     workspace.value = null
+    retainedVersion.value = null
     index.value = null
     recognitionSummary.value = null
     void refresh()
@@ -276,6 +299,7 @@ export function useKnowledgeLifecycle(
 
   return {
     workspace,
+    retainedVersion,
     index,
     recognitionSummary,
     versionId,

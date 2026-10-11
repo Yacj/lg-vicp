@@ -5,6 +5,7 @@ import { ArrowLeftIcon, ChevronDownIcon } from 'tdesign-icons-vue-next'
 import { computed } from 'vue'
 import AppStatusTag from '@/components/ui/AppStatusTag.vue'
 import { knowledgeDocTypeLabel, knowledgeUserStatusMetaFor } from '@/utils/knowledge-user'
+import { knowledgeVersionStatusMetaFor } from '@/utils/professional-status'
 
 export interface KnowledgeHeaderAction {
   key: string
@@ -18,6 +19,7 @@ const props = withDefaults(defineProps<{
   docType?: string | null
   categoryName?: string | null
   userStatus?: KnowledgeUserStatus | string | null
+  versionStatus?: string | null
   canPreview?: boolean
   canTest?: boolean
   moreActions?: KnowledgeHeaderAction[]
@@ -25,6 +27,7 @@ const props = withDefaults(defineProps<{
   docType: '',
   categoryName: '',
   userStatus: null,
+  versionStatus: null,
   canPreview: false,
   canTest: false,
   moreActions: () => [],
@@ -37,7 +40,9 @@ const emit = defineEmits<{
   more: [key: string]
 }>()
 
-const statusMeta = computed(() => knowledgeUserStatusMetaFor(props.userStatus))
+const statusMeta = computed(() => props.versionStatus === 'DISABLED'
+  ? knowledgeVersionStatusMetaFor(props.versionStatus)
+  : knowledgeUserStatusMetaFor(props.userStatus))
 const subtitle = computed(() => [knowledgeDocTypeLabel(props.docType), props.categoryName].filter(Boolean).join(' · '))
 const dropdownOptions = computed<DropdownOption[]>(() => props.moreActions.map(action => ({
   content: action.label,

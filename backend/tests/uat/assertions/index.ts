@@ -57,10 +57,7 @@ export function assertObservation(expect: UatExpect, actual: Observation, previo
     add("facts", !!fact && matchesPartial(row, fact), "HALLUCINATION", `核验图集真值 ${row.schemeCode} ${row.thicknessMm}mm 双R/K/页码`, true);
     if (expect.intent === "REFERENCE_LOOKUP" && lookup) {
       const active = { ...lookup.query, ...expect.query };
-      // 相邻已发布规格（matchType=NEIGHBOR）允许在被相邻的厚度维度上偏离目标厚度，
-      // 但不得绕过其余硬条件（指标、体系、规格型号等）。精确档仍必须完全满足全部硬条件。
-      const scoped = row.matchType === "NEIGHBOR" ? { ...active, thicknessMm: undefined, thicknessMin: undefined, thicknessMax: undefined } : active;
-      add("facts", satisfies(row, scoped), "FILTER", "返回正式候选必须满足全部硬条件", true);
+      add("facts", satisfies(row, active), "FILTER", "返回正式候选必须满足全部硬条件", true);
     }
   }
   if (expect.resultType === "CALCULATED") {

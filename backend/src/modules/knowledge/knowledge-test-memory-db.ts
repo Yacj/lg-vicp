@@ -8,9 +8,11 @@
  * 覆盖算子：eq / and / or / inArray / 原始 sql（JSON ->> 提取、<> 字面量比较、col + 1 自增）/ count()。
  */
 import {
+  auditLogs,
   knowledgeAliases,
   knowledgeChunks,
   knowledgeDocumentVersions,
+  knowledgeDocuments,
   knowledgePageBlocks,
   knowledgePages,
   knowledgeSections,
@@ -155,6 +157,8 @@ export type MemoryStore = Record<string, Record<string, unknown>[]>;
 /** 内存版 drizzle 桩：按表对象分派，支持 select/insert/update/delete/transaction，并按条件过滤。 */
 export function createMemoryDb(store: MemoryStore) {
   const tableKey = new Map<unknown, string>([
+    [auditLogs, "auditLogs"],
+    [knowledgeDocuments, "knowledgeDocuments"],
     [knowledgeDocumentVersions, "knowledgeDocumentVersions"],
     [knowledgePages, "knowledgePages"],
     [knowledgeSections, "knowledgeSections"],

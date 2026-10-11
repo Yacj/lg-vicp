@@ -1,3 +1,4 @@
+import { resolveScopedThermalStandard } from "./thermal-standard-scope.service.js";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { and, count, desc, eq, inArray, or, ilike, isNull } from "drizzle-orm";
 import type { DbExecutor } from "../../db/client.js";
@@ -508,6 +509,9 @@ export interface ThermalCalcInput {
   productSpecId: string;
   thicknessMm: number;
   regionCode?: string;
+  standardLimitId?: string;
+  buildingType?: string;
+  structureType?: string;
   ruleCode?: string;
   projectId?: string | null;
 }
@@ -573,7 +577,9 @@ export async function executeThermalCalc(
       notes, record: null
     };
   }
-  const limit = await resolvePublishedLimit(app, input.regionCode);
+  const scoped = input.standardLimitId ? await resolveScopedThermalStandard(app.db, input) : null;
+  if (scoped && !scoped.limit) return { valid: false, errors: [{ field: "standardLimitId", code: "THERMAL_STANDARD_SCOPE_UNRESOLVED", message: scoped.reason! }], notes, record: null };
+  const limit = scoped?.limit ?? await resolvePublishedLimit(app, input.regionCode);
   if (input.regionCode && !limit) {
     notes.push(`地区 ${input.regionCode} 没有已发布且生效中的标准限值，合格判定暂缺`);
   }
@@ -775,6 +781,7 @@ export async function executeThermalCalc(
         productSpecId: input.productSpecId,
         thicknessMm: input.thicknessMm,
         regionCode: input.regionCode ?? null,
+        standardLimitId: input.standardLimitId ?? null, buildingType: input.buildingType ?? null, structureType: input.structureType ?? null,
         ruleCode: input.ruleCode ?? null,
         projectId: input.projectId ?? null
       },
@@ -909,6 +916,7 @@ async function executeReferenceTable(
         productSpecId: input.productSpecId,
         thicknessMm: input.thicknessMm,
         regionCode: input.regionCode ?? null,
+        standardLimitId: input.standardLimitId ?? null, buildingType: input.buildingType ?? null, structureType: input.structureType ?? null,
         ruleCode: input.ruleCode ?? null,
         projectId: input.projectId ?? null
       },

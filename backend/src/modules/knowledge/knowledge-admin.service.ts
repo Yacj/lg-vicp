@@ -45,7 +45,7 @@ import { getPageImageDownloadName } from "./knowledge-page-image.js";
 /**
  * 知识库管理服务：分类、文档、版本（上传/解析/审核/发布/停用/版本替代）、
  * 别名词典与解析任务。版本状态机：
- * DRAFT -> APPROVED -> PUBLISHED -> DISABLED；回滚复制历史版本为新草稿，历史版本不删除。
+ * DRAFT -> APPROVED -> PUBLISHED <-> DISABLED；重新启用保留正文与版本号，内容修改仍建新草稿。
  */
 
 export type KnowledgeDocType =
@@ -1016,6 +1016,22 @@ export async function approveVersion(
   return { message: "版本已审核通过", version: approved };
 }
 
+/** 同一文档的发布/停用/启用共用行锁，避免并发产生多个受控版本或清空新版本指针。 */
+async function lockPublicationDocument(tx: DbExecutor, documentId: string) {
+  await tx.execute(sql`select id from ${knowledgeDocuments} where id = ${documentId} for update`);
+  const [document] = await tx.select().from(knowledgeDocuments)
+    .where(and(eq(knowledgeDocuments.id, documentId), isNull(knowledgeDocuments.deletedAt))).limit(1);
+  if (!document) throw new NotFoundError("知识文档不存在");
+  return document;
+}
+
+async function readPublicationVersion(tx: DbExecutor, versionId: string) {
+  const [version] = await tx.select().from(knowledgeDocumentVersions)
+    .where(eq(knowledgeDocumentVersions.id, versionId)).limit(1);
+  if (!version) throw new NotFoundError("文档版本不存在");
+  return version;
+}
+
 /** 发布：APPROVED -> PUBLISHED，同文档其他已发布版本置 DISABLED，并更新文档当前受控版本 */
 export async function publishVersion(app: FastifyInstance, request: FastifyRequest, actor: AuthUser, versionId: string) {
   const version = await requireVersion(app, versionId);
@@ -1025,6 +1041,10 @@ export async function publishVersion(app: FastifyInstance, request: FastifyReque
   // 发布门禁（P1）：空版本 / 离线页图未确认（硬拦截，稳定业务错误）；AI_ENABLED 必须存在可搜索文本源；TOC/页面映射未核验为软提示
   const readiness = await assertVersionPublishable(app, version);
   await app.db.transaction(async (tx) => {
+    await lockPublicationDocument(tx, version.documentId);
+    const current = await readPublicationVersion(tx, versionId);
+    if (current.status === "PUBLISHED") throw new KnowledgeError("KNOWLEDGE_VERSION_ALREADY_PUBLISHED");
+    if (current.status !== "APPROVED") throw new KnowledgeError("KNOWLEDGE_VERSION_NOT_APPROVED");
     await tx.update(knowledgeDocumentVersions)
       .set({ status: "DISABLED", updatedAt: new Date() })
       .where(and(
@@ -1065,12 +1085,17 @@ export async function disableVersion(app: FastifyInstance, request: FastifyReque
   const version = await requireVersion(app, versionId);
   if (version.status !== "PUBLISHED") throw new ConflictError("仅已发布版本可以停用");
   await app.db.transaction(async (tx) => {
+    const document = await lockPublicationDocument(tx, version.documentId);
+    const current = await readPublicationVersion(tx, versionId);
+    if (current.status !== "PUBLISHED") throw new ConflictError("仅已发布版本可以停用");
     await tx.update(knowledgeDocumentVersions).set({
       status: "DISABLED", updatedById: actor.id, updatedAt: new Date()
     }).where(eq(knowledgeDocumentVersions.id, versionId));
-    await tx.update(knowledgeDocuments).set({
-      currentVersionId: null, updatedById: actor.id, updatedAt: new Date()
-    }).where(eq(knowledgeDocuments.id, version.documentId));
+    if (document.currentVersionId === versionId) {
+      await tx.update(knowledgeDocuments).set({
+        currentVersionId: null, updatedById: actor.id, updatedAt: new Date()
+      }).where(eq(knowledgeDocuments.id, version.documentId));
+    }
     await writeAuditLog({
       db: tx, request, actor,
       action: AUDIT_ACTIONS.KNOWLEDGE_VERSION_DISABLED, targetType: "knowledge_document_version", targetId: versionId,
@@ -1079,6 +1104,39 @@ export async function disableVersion(app: FastifyInstance, request: FastifyReque
     });
   });
   return { message: "版本已停用" };
+}
+
+/** 重新启用：保留原版本号/审核/页面/正文，不替换其他发布版本，也不创建新草稿。 */
+export async function enableVersion(app: FastifyInstance, request: FastifyRequest, actor: AuthUser, versionId: string) {
+  const version = await requireVersion(app, versionId);
+  if (version.status !== "DISABLED") throw new KnowledgeError("KNOWLEDGE_VERSION_NOT_DISABLED");
+  const readiness = await assertVersionPublishable(app, version);
+  const enabled = await app.db.transaction(async (tx) => {
+    const document = await lockPublicationDocument(tx, version.documentId);
+    const current = await readPublicationVersion(tx, versionId);
+    if (current.status !== "DISABLED") throw new KnowledgeError("KNOWLEDGE_VERSION_NOT_DISABLED");
+    const published = await tx.select({ id: knowledgeDocumentVersions.id }).from(knowledgeDocumentVersions)
+      .where(and(eq(knowledgeDocumentVersions.documentId, version.documentId), eq(knowledgeDocumentVersions.status, "PUBLISHED"))).limit(1);
+    if (document.currentVersionId || published.length > 0) {
+      throw new KnowledgeError("KNOWLEDGE_PUBLISHED_VERSION_CONFLICT");
+    }
+    const now = new Date();
+    const [updated] = await tx.update(knowledgeDocumentVersions).set({
+      status: "PUBLISHED", pipelineStatus: "PUBLISHED", publishedById: actor.id, publishedAt: now,
+      updatedById: actor.id, updatedAt: now
+    }).where(eq(knowledgeDocumentVersions.id, versionId)).returning();
+    await tx.update(knowledgeDocuments).set({
+      currentVersionId: versionId, status: "ACTIVE", updatedById: actor.id, updatedAt: now
+    }).where(eq(knowledgeDocuments.id, version.documentId));
+    await writeAuditLog({
+      db: tx, request, actor,
+      action: AUDIT_ACTIONS.KNOWLEDGE_VERSION_ENABLED, targetType: "knowledge_document_version", targetId: versionId,
+      beforeJson: { status: current.status, publishedAt: current.publishedAt, currentVersionId: document.currentVersionId },
+      afterJson: { status: "PUBLISHED", version: current.version, currentVersionId: versionId, warnings: readiness.warnings }
+    });
+    return updated!;
+  });
+  return { message: "版本已重新启用", version: enabled, warnings: readiness.warnings };
 }
 
 /** 版本替代：从历史版本复制为新草稿，历史版本保留 */

@@ -5,10 +5,10 @@
 import { wrapContextForReasoning } from "../../shared/ai-response-policy.js";
 import { z } from "zod";
 import { pageRecognitionLayerSchema } from "../../shared/page-recognition.js";
+import { thermalQueryStateSchema, constraintMatchSchema, type ThermalQueryState } from "../thermal/thermal-query-state.js";
 import { THERMAL_FACT_RULES } from "./thermal-answer-facts.js";
-import { normalizedThermalLookupFilterSchema } from "../thermal/thermal-lookup.schemas.js";
 import { formatLookupThickness } from "../thermal/thermal-lookup-thickness.js";
-import { THERMAL_LOOKUP_METRICS, THERMAL_LOOKUP_MODES, type ThermalLookupMetric, type ThermalLookupMode } from "../thermal/thermal-lookup-mode.js";
+import { THERMAL_LOOKUP_METRICS, type ThermalLookupMode } from "../thermal/thermal-lookup-mode.js";
 export const CONVERSATION_TASK_TYPES = [
   "GENERAL",
   "PRODUCT_CONSULTATION",
@@ -34,17 +34,12 @@ export type ReferenceLookupSpecClass = "I" | "II" | "III";
 /** 所有指标共用同一查询语义。 */
 export type ReferenceLookupMode = ThermalLookupMode;
 
-const REFERENCE_LOOKUP_MODES: readonly ReferenceLookupMode[] = THERMAL_LOOKUP_MODES;
-
-function parseReferenceLookupMode(raw: unknown): ReferenceLookupMode | undefined {
-  return REFERENCE_LOOKUP_MODES.includes(raw as ReferenceLookupMode)
-    ? raw as ReferenceLookupMode
-    : undefined;
-}
-
 /** 候选类型与状态解析共用 schema；新增正式字段只在此登记。 */
 export const referenceLookupCandidateSchema = z.object({
   id: z.string().trim().min(1),
+  constraintMatch: constraintMatchSchema.optional(),
+  structureType: z.string().optional(), regionCode: z.string().optional(), standardLimitId: z.string().optional(),
+  sourceVersionId: z.string().nullable().optional(),
   specClass: z.enum(["I", "II", "III"]).optional(),
   thicknessMm: z.number().finite().optional(),
   kValue: z.number().finite().optional(),
@@ -82,37 +77,14 @@ export const referenceLookupCandidateSchema = z.object({
   totalThermalResistance: z.number().finite().optional(),
   sourceDocumentId: z.string().nullable().optional(),
   sourcePageId: z.string().nullable().optional(),
-  sourcePageLabel: z.string().nullable().optional()
+  sourcePageLabel: z.string().nullable().optional(),
+  optionId: z.string().optional()
 });
 export type ReferenceLookupCandidate = z.infer<typeof referenceLookupCandidateSchema>;
 
 export type LastReferenceLookup = {
-  query: {
-    filters?: import("../thermal/thermal-lookup-mode.js").ThermalLookupFilter[];
-    requestedTolerance?: number;
-    effectiveTolerance?: number;
-    toleranceAdjusted?: boolean;
-    metric?: ThermalLookupMetric;
-    targetValue?: number;
-    targetK?: number;
-    targetR?: number;
-    thicknessMm?: number;
-    thicknessMin?: number;
-    thicknessMax?: number;
-    preferThinner?: boolean;
-    systemHint?: string;
-    specClass?: ReferenceLookupSpecClass;
-    systemId?: string;
-    schemeId?: string;
-    schemeCode?: string;
-    productSpecId?: string;
-    catalogProductId?: string;
-    /** 指标查询语义：跨轮继承，近似查询不混成上下限 */
-    mode?: ReferenceLookupMode;
-    /** 指标容差；USER 仅表示从用户原话确认过的近似窗口 */
-    tolerance?: number;
-    toleranceSource?: "USER" | "DEFAULT";
-  };
+  query: ThermalQueryState;
+  selectedCandidateIds?: string[];
   candidates: ReferenceLookupCandidate[];
   createdAt: string;
   matchedSystemHint?: boolean | null;
@@ -211,12 +183,6 @@ export function parseConversationTaskState(raw: unknown): ConversationTaskState 
   };
 }
 
-const SPEC_CLASSES: ReferenceLookupSpecClass[] = ["I", "II", "III"];
-
-function parseSpecClassValue(raw: unknown): ReferenceLookupSpecClass | undefined {
-  return SPEC_CLASSES.includes(raw as ReferenceLookupSpecClass) ? raw as ReferenceLookupSpecClass : undefined;
-}
-
 function parseLastReferenceLookup(raw: unknown): LastReferenceLookup | undefined {
   if (!raw || typeof raw !== "object") return undefined;
   const value = raw as Record<string, unknown>;
@@ -229,34 +195,23 @@ function parseLastReferenceLookup(raw: unknown): LastReferenceLookup | undefined
     })
     : [];
   if (candidates.length === 0 && typeof value.createdAt !== "string") return undefined;
+  // 历史 JSON 单字段损坏不能让整个会话崩溃，也不能静默丢掉硬条件后放宽查询。
+  const parsedQuery = thermalQueryStateSchema.safeParse(queryRaw);
+  const repairedQuery: Record<string, unknown> = {};
+  const invalidFields: string[] = [];
+  if (!parsedQuery.success) for (const [field, schema] of Object.entries(thermalQueryStateSchema.shape)) {
+    const parsed = schema.safeParse(queryRaw[field]);
+    if (parsed.success) repairedQuery[field] = parsed.data;
+    else invalidFields.push(field);
+  }
+  const query: ThermalQueryState = parsedQuery.success ? parsedQuery.data : {
+    ...thermalQueryStateSchema.parse(repairedQuery),
+    unresolved: [...((repairedQuery.unresolved ?? []) as NonNullable<ThermalQueryState["unresolved"]>),
+      ...invalidFields.map(field => ({ field, reason: "历史条件数据无法校验，请重新确认该条件。" }))]
+  };
   return {
-    query: {
-      filters: Array.isArray(queryRaw.filters) ? queryRaw.filters.flatMap((filter) => {
-        const parsed = normalizedThermalLookupFilterSchema.safeParse(filter);
-        return parsed.success ? [parsed.data] : [];
-      }) : undefined,
-      requestedTolerance: typeof queryRaw.requestedTolerance === "number" && Number.isFinite(queryRaw.requestedTolerance) ? queryRaw.requestedTolerance : undefined,
-      effectiveTolerance: typeof queryRaw.effectiveTolerance === "number" && Number.isFinite(queryRaw.effectiveTolerance) ? queryRaw.effectiveTolerance : undefined,
-      toleranceAdjusted: typeof queryRaw.toleranceAdjusted === "boolean" ? queryRaw.toleranceAdjusted : undefined,
-      metric: queryRaw.metric === "K" || queryRaw.metric === "TOTAL_R" || queryRaw.metric === "PRODUCT_R" ? queryRaw.metric : undefined,
-      targetValue: typeof queryRaw.targetValue === "number" && Number.isFinite(queryRaw.targetValue) && queryRaw.targetValue > 0 ? queryRaw.targetValue : undefined,
-      targetR: typeof queryRaw.targetR === "number" ? queryRaw.targetR : undefined,
-      thicknessMm: typeof queryRaw.thicknessMm === "number" ? queryRaw.thicknessMm : undefined,
-      thicknessMin: typeof queryRaw.thicknessMin === "number" ? queryRaw.thicknessMin : undefined,
-      thicknessMax: typeof queryRaw.thicknessMax === "number" ? queryRaw.thicknessMax : undefined,
-      preferThinner: typeof queryRaw.preferThinner === "boolean" ? queryRaw.preferThinner : undefined,
-      schemeId: typeof queryRaw.schemeId === "string" ? queryRaw.schemeId : undefined,
-      schemeCode: typeof queryRaw.schemeCode === "string" ? queryRaw.schemeCode : undefined,
-      productSpecId: typeof queryRaw.productSpecId === "string" ? queryRaw.productSpecId : undefined,
-      catalogProductId: typeof queryRaw.catalogProductId === "string" ? queryRaw.catalogProductId : undefined,
-      targetK: typeof queryRaw.targetK === "number" ? queryRaw.targetK : undefined,
-      systemHint: typeof queryRaw.systemHint === "string" ? queryRaw.systemHint : undefined,
-      specClass: parseSpecClassValue(queryRaw.specClass),
-      systemId: typeof queryRaw.systemId === "string" ? queryRaw.systemId : undefined,
-      mode: parseReferenceLookupMode(queryRaw.mode),
-      tolerance: typeof queryRaw.tolerance === "number" ? queryRaw.tolerance : undefined,
-      toleranceSource: queryRaw.toleranceSource === "USER" || queryRaw.toleranceSource === "DEFAULT" ? queryRaw.toleranceSource : undefined
-    },
+    query,
+    selectedCandidateIds: Array.isArray(value.selectedCandidateIds) ? value.selectedCandidateIds.filter((id): id is string => typeof id === "string") : undefined,
     candidates,
     matchedSystemHint: typeof value.matchedSystemHint === "boolean" || value.matchedSystemHint === null ? value.matchedSystemHint : undefined,
     isFallback: typeof value.isFallback === "boolean" ? value.isFallback : undefined,
