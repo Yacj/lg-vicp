@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import type { KnowledgePage } from '@/types/knowledge'
-import KnowledgePageView from '@/components/business/KnowledgePageView.vue'
+import KnowledgePageViewer from '@/components/business/knowledge/KnowledgePageViewer.vue'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
-import { knowledgePageLabel } from '@/utils/knowledge-user'
 
 withDefaults(defineProps<{
   title?: string
@@ -37,7 +36,7 @@ const emit = defineEmits<{
           机器提取文本 · 非页面视觉
         </p>
         <p v-else-if="page">
-          {{ knowledgePageLabel(page.pageLabel, page.physicalPageNumber) }}
+          印刷页码：{{ page.pageLabel || '未标注' }}
         </p>
       </div>
       <t-space>
@@ -71,12 +70,19 @@ const emit = defineEmits<{
       >
         <template #action><t-button theme="primary" @click="emit('openRecognition')">前往核对</t-button></template>
       </AppEmptyState>
-      <KnowledgePageView
+      <KnowledgePageViewer
         v-else-if="page"
-        :blocks="page.blocks"
-        :full-text="page.extractedText ?? page.parsedText ?? ''"
-        :page-image-url="null"
-        :page-number="page.physicalPageNumber"
+        :page-id="page.id"
+        :page-label="page.pageLabel"
+        :page-title="page.pageTitle"
+        :parsed-text="page.parsedText ?? page.extractedText ?? ''"
+        :render-model="page.renderModel"
+        :confirmed-structured-data="page.confirmedStructuredData"
+        :reference-highlight="page.referenceHighlight"
+        :matches="page.matches"
+        :page-image-url="page.pageImageUrl"
+        :can-review="unconfirmed"
+        @review="emit('openRecognition')"
       />
       <AppEmptyState
         v-else-if="!loading"
@@ -135,7 +141,7 @@ const emit = defineEmits<{
   font-size: var(--td-font-size-body-small);
 }
 
-.knowledge-parsed-content :deep(.ks-page-view) {
+.knowledge-parsed-content :deep(.knowledge-page-viewer) {
   padding: var(--td-comp-paddingTB-l) var(--td-comp-paddingLR-xl);
 }
 </style>

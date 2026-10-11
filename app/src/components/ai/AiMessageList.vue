@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import type { AiFeedbackReaction, AiMessageFeedback, AiSourceRef, ApiEnvelope, DownloadUrlResult, MessageAttachment } from '@/api/types'
 import type { LocalMessage } from '@/store/assistant'
+import type { AiReferencePage, ReferenceHighlight } from '@/api/reference-page'
 import { fileApi } from '@/api/modules/files'
 import AiAgentStatus from '@/components/ai/AiAgentStatus.vue'
 import AiComparisonCard from '@/components/ai/AiComparisonCard.vue'
 import AiProductCard from '@/components/ai/AiProductCard.vue'
 import AiSourceCard from '@/components/ai/AiSourceCard.vue'
+import AiReferenceAnswer from '@/components/ai/AiReferenceAnswer.vue'
 import { CHAT_IMAGE_ONLY_CONTENT, VISION_FAILURE_MESSAGE } from '@/constants/chatImage'
 import { isSourceInquiry, previousUserText, splitAnswerLayers } from '@/utils/aiAnswerUx'
 import { markdownTagStyle, markdownToPlainText, renderMarkdown } from '@/utils/markdown'
@@ -27,6 +29,7 @@ const emit = defineEmits<{
   share: []
   toggleSelect: [messageId: string]
   openSource: [source: AiSourceRef]
+  openReference: [page: AiReferencePage, messageId: string, match?: ReferenceHighlight]
 }>()
 
 const { info: toastInfo } = useGlobalToast()
@@ -35,6 +38,7 @@ const { info: toastInfo } = useGlobalToast()
 const htmlCache = reactive<Record<string, string>>({})
 /** 流式消息的节流渲染结果 */
 const streamingHtml = ref('')
+const streamingReferenceText = ref('')
 let streamingTimer: ReturnType<typeof setTimeout> | null = null
 
 const visibleMessages = computed(() => props.messages.filter(item => item.role !== 'SYSTEM'))
@@ -56,7 +60,9 @@ watch(
       streamingTimer = null
     }
     streamingHtml.value = ''
+    streamingReferenceText.value = ''
     if (streaming && streamingContent.value) {
+      streamingReferenceText.value = streamingContent.value
       streamingHtml.value = renderMarkdown(streamingContent.value)
     }
   },
@@ -70,9 +76,11 @@ watch(streamingContent, (content) => {
   }
   if (!content) {
     streamingHtml.value = ''
+    streamingReferenceText.value = ''
     return
   }
   streamingTimer = setTimeout(() => {
+    streamingReferenceText.value = content
     streamingHtml.value = renderMarkdown(content)
   }, 150)
 })
@@ -111,7 +119,7 @@ function expandDetails(messageId: string) {
 }
 
 function hasStructuredContent(message: LocalMessage) {
-  return Boolean(message.comparison || message.products?.length)
+  return Boolean(message.comparison || message.products?.length || message.referencePages?.length)
 }
 
 /** 思考中且尚无正文时不渲染空气泡，只保留下方「正在思考」 */
@@ -231,6 +239,16 @@ function expandSources(message: LocalMessage) {
   const index = visibleMessages.value.findIndex(item => item.id === message.id)
   return isSourceInquiry(previousUserText(visibleMessages.value, index))
 }
+
+function openMessageSource(message: LocalMessage, source: AiSourceRef) {
+  const page = message.referencePages?.find(item => item.page.pageId === source.pageId && (!source.documentId || item.page.documentId === source.documentId))
+  if (page) {
+    emit('openReference', page, message.id)
+  }
+  else {
+    emit('openSource', source)
+  }
+}
 </script>
 
 <template>
@@ -295,6 +313,12 @@ function expandSources(message: LocalMessage) {
             :comparison="message.comparison"
             :explanation="message.content"
           />
+          <AiReferenceAnswer
+            v-else-if="message.referencePages?.length"
+            :answer="isStreaming && message.id === streamingMessageId ? streamingReferenceText : message.content"
+            :pages="message.referencePages"
+            @open="(page, match) => emit('openReference', page, message.id, match)"
+          />
           <template v-else-if="getHtml(message, 'summary')">
             <mp-html
               :content="getHtml(message, 'summary')"
@@ -349,7 +373,7 @@ function expandSources(message: LocalMessage) {
             v-if="message.status === 'COMPLETED' && messageSources(message).length"
             :sources="messageSources(message)"
             :default-expanded="expandSources(message)"
-            @open="emit('openSource', $event)"
+            @open="openMessageSource(message, $event)"
           />
 
           <!-- 操作行：重新生成 / 复制 / 点赞 / 点踩 / 分享 -->

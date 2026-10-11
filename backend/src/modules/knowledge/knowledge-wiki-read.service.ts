@@ -18,6 +18,9 @@ import type { AuthUser } from "../../shared/auth-user.js";
 import { canViewProject } from "../../shared/permissions.js";
 import { ForbiddenError, NotFoundError } from "../../shared/errors.js";
 import { getPageImageDownloadName } from "./knowledge-page-image.js";
+import { readPageRecognitionMeta } from "../../shared/page-recognition.js";
+import { buildKnowledgePageRenderModel, type KnowledgePageRenderModel } from "../../shared/knowledge-page-render.js";
+import { isReferencePageConsumable } from "../ai/reference-page-access.js";
 
 /**
  * Wiki 原文阅读统一读取服务（C 端公开文库与 AI 来源详情共用，不写第二套逻辑）。
@@ -79,6 +82,7 @@ export interface WikiPageWindow {
 }
 
 export interface WikiPageDto {
+  renderModel: KnowledgePageRenderModel | null;
   id: string;
   /** 兼容过渡字段：等价 physicalPageNumber（一期页码） */
   pageNumber: number;
@@ -284,6 +288,7 @@ async function toPageDto(app: FastifyInstance, page: typeof knowledgePages.$infe
     pageLabelVerified: page.pageLabelVerified,
     pageTitle: page.pageTitle,
     fullText: text,
+    renderModel: buildKnowledgePageRenderModel(page.id, readPageRecognitionMeta(page.metadata).confirmedStructuredData),
     extractedText: text,
     blocks,
     pageImageUrl
@@ -418,6 +423,12 @@ export async function resolveSourceDetail(
     context = await resolveReadableVersion(app, input.documentId!);
   }
 
+  if (!isReferencePageConsumable({ versionId: context.version.id, versionStatus: context.version.status,
+    usageMode: context.version.usageMode, documentStatus: context.document.status,
+    documentDeletedAt: context.document.deletedAt, currentVersionId: context.document.currentVersionId,
+    effectiveDate: context.version.effectiveDate, expiryDate: context.version.expiryDate })) {
+    throw new NotFoundError("来源资料当前不可用于 AI 引用");
+  }
   // 项目内文档执行项目可见性守卫
   if (context.document.projectId) {
     const [project] = await app.db.select({ createdById: projects.createdById, visibility: projects.visibility })

@@ -5,6 +5,12 @@ description: 开发和维护蓝格 VICP Fastify 后端。用于修改 Drizzle �
 
 # 蓝格 VICP 后端
 
+C端查表阅读遵循 `docs/ai/c-reference-pages.md`：销售/设计院优先厚度和所问指标；只有确定性摘要才给 answerStyle=THERMAL_SOLUTIONS，primaryFieldKeys 来自 filters；普通解释和结论不删，完整页/匹配算法不变。
+
+C端完整参考页遵循 `docs/ai/c-reference-pages.md`：当前发布确认快照与正式ID同源，消息不保存签名URL，历史重新授权、重签，完整模型不裁成命中片段；查表事实不交给模型重新拼数值。
+
+B端完整原页引用见 `references/ai-and-reports.md` 和 `docs/knowledge/answer-page-references.md`：明确数值查表从同版本全部确认档位复用现有Parser/Matcher，确定性生成回答与引用；普通问答确认记录优先完整预算。仅确认快照、完整表格、正式ID定位、缺坐标不伪造框选。
+
 修改代码前，按任务读取对应参考：
 
 - 了解产品目标和一期范围时，读取 `references/project-brief.md`。

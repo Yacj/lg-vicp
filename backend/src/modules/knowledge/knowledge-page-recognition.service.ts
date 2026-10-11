@@ -4,6 +4,7 @@
  */
 import { generateObject, NoObjectGeneratedError } from "ai";
 import { randomUUID } from "node:crypto";
+import { buildKnowledgePageRenderModel } from "../../shared/knowledge-page-render.js";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import type { AuthUser } from "../../shared/auth-user.js";
@@ -251,6 +252,7 @@ export async function getPageRecognition(app: FastifyInstance, pageId: string) {
     structuredData: meta.structuredData ?? null,
     draftStructuredData: meta.draftStructuredData ?? meta.structuredData ?? null,
     confirmedStructuredData: meta.confirmedStructuredData ?? null,
+    renderModel: buildKnowledgePageRenderModel(page.id, meta.confirmedStructuredData),
     confirmedAt: meta.confirmedAt ?? null,
     confirmedById: meta.confirmedById ?? null,
     confirmedBy: meta.confirmedById ?? null,

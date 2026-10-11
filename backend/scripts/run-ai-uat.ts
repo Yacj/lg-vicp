@@ -11,6 +11,7 @@ import { FIXTURE_VERSION } from "../tests/uat/fixtures/facts.js";
 import { parseConversationTaskState } from "../src/modules/ai/conversation-task.js";
 import { CLIENT_APPS } from "../src/shared/constants.js";
 import { aiAgentRuns, aiConversationStates, aiMessages, aiToolCalls, thermalCalcRecords } from "../src/db/schema.js";
+import type { ReferencePageBlock } from "../src/modules/ai/reference-page.js";
 import type { Observation, SseEvent, TurnResult } from "../tests/uat/schema.js";
 
 function options(args: string[]) {
@@ -91,10 +92,18 @@ if (args.list || args.check) {
           }
           const detail = await api(`/api/v1/ai/conversations/${conversationId}`, user.token);
           result.checks.push({ group: "state", passed: Array.isArray(detail.messages) && detail.messages.some((row: Record<string, unknown>) => row.id === messageId && row.content === message.content), type: "STATE", detail: "SSE完成后客户端详情返回同一最终消息" });
-          const blocks = events.filter(event => event.event === "reference_pages").flatMap(event => (event.data.referencePages ?? []) as { page: { pageId: string; pageLabel: string; imageUrl: string } }[]);
+          const blocks = events.filter(event => event.event === "reference_pages").flatMap(event => (event.data.referencePages ?? []) as ReferencePageBlock[]);
           for (const block of blocks) {
             const source = await api(`/api/v1/ai/knowledge/source-detail?pageId=${encodeURIComponent(block.page.pageId)}`, user.token);
-            result.checks.push({ group: "source", passed: JSON.stringify(source).includes(block.page.pageId) && environment.fixture.pageIds.get(block.page.pageLabel) === block.page.pageId, type: "SOURCE", detail: "真实来源详情定位到fixture原页", hard: true });
+            result.checks.push({ group: "source", passed: JSON.stringify(source).includes(block.page.pageId) && environment.fixture.pageIds.get(block.page.pageLabel ?? "") === block.page.pageId, type: "SOURCE", detail: "真实来源详情定位到fixture原页", hard: true });
+            const history = (detail.messages as Record<string, any>[]).find(row => row.id === messageId)?.referencePages as ReferencePageBlock[] | undefined;
+            result.checks.push({ group: "source", passed: Boolean(block.renderModel && (source.page as Record<string, unknown>)?.renderModel), type: "SOURCE", detail: "SSE及来源详情均包含完整确认页面模型", hard: true });
+            for (const match of block.matches) {
+              const construction = block.renderModel?.constructions.find(row => row.constructionId === match.constructionId);
+              const option = construction?.options.find(row => row.optionId === match.optionId);
+              result.checks.push({ group: "source", passed: Boolean(option && option.thicknessMm === match.summary.thicknessMm && option.productThermalResistance === match.summary.productThermalResistance && option.totalThermalResistance === match.summary.totalThermalResistance && option.kValue === match.summary.kValue && history?.some(page => page.matches.some(row => row.optionId === match.optionId))), type: "SOURCE", detail: "正式ID、卡片四项参数、整页档位及历史来源完全一致", hard: true });
+            }
+            result.checks.push({ group: "state", passed: !JSON.stringify(message.metadata).includes("imageUrl") && !JSON.stringify(message.metadata).includes("pageImageUrl"), type: "STATE", detail: "消息元数据不保存过期签名URL" });
             const image = await fetch(block.page.imageUrl, { signal: AbortSignal.timeout(15_000) });
             const bytes = Buffer.from(await image.arrayBuffer());
             result.checks.push({ group: "source", passed: image.ok && bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])), type: "SOURCE", detail: "ReferencePage签名地址实际可下载PNG原页" });

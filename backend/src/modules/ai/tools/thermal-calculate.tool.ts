@@ -9,7 +9,7 @@ import { runRegisteredTool, type ToolRuntimeContext } from "./tool-runtime.js";
 import { toolError, toolOk } from "./tool-output.js";
 import { buildReferencePageBlocks, REFERENCE_PAGE_MISSING_NOTE, type ReferencePageCandidate } from "../reference-page.js";
 import { knowledgeDocumentVersions, knowledgeDocuments, knowledgePages } from "../../../db/schema.js";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { normalizeReferenceLookupForModel, normalizeThermalForModel } from "./tool-result-normalizer.js";
 import {
   compactCandidateResult,
@@ -29,6 +29,11 @@ import { parseConversationTaskState, mergeConversationTaskState, type LastRefere
 import { saveConversationTaskState } from "../ai-conversation-state.service.js";
 import { bindConfirmedPageFacts, interpretThermalQuestion, thermalMetricClarification, THERMAL_FACT_RULES } from "../thermal-answer-facts.js";
 import type { ReferenceLookupCandidate } from "../conversation-task.js";
+import { isReferencePageConsumable } from "../reference-page-access.js";
+export { isReferencePageConsumable } from "../reference-page-access.js";
+import { buildKnowledgePageRenderModel } from "../../../shared/knowledge-page-render.js";
+import { readPageRecognitionMeta } from "../../../shared/page-recognition.js";
+import { formatConfirmedLookupAnswer, thermalLookupPrimaryFields } from "../../knowledge/knowledge-test-reference.js";
 
 const specClassSchema = z.enum(["I", "II", "III"]);
 
@@ -264,6 +269,13 @@ export function createThermalTool(ctx: ToolRuntimeContext) {
             notes.push(TOLERANCE_ADJUSTED_NOTE);
           }
           const pageOutcome = await emitReferencePages(ctx, candidates);
+          if (ctx.answerContract === "REFERENCE_LOOKUP" && !attributeQuestion && (inherited.filters?.length ?? 0) > 0 && pageOutcome.blocks?.length
+            && pageOutcome.blocks.every(block => block.matches.every(match => Boolean(match.optionId)))) {
+            const optionIds = pageOutcome.blocks.flatMap(block => block.matches.flatMap(match => match.optionId ? [match.optionId] : []));
+            const answer = formatConfirmedLookupAnswer(pageOutcome.blocks, optionIds, inherited.filters ?? [], { compact: true });
+            pageOutcome.blocks.forEach(block => { block.primaryFieldKeys = thermalLookupPrimaryFields(inherited.filters ?? []); });
+            ctx.onReferenceAnswer?.(`${isFallback ? `${notes[0]}\n\n` : ""}${answer}`, pageOutcome.blocks);
+          }
           candidates = pageOutcome.candidates;
           notes = [...notes, ...pageOutcome.warnings];
           {
@@ -340,23 +352,6 @@ export function createThermalTool(ctx: ToolRuntimeContext) {
   });
 }
 
-export function isReferencePageConsumable(row: {
-  versionId: string;
-  versionStatus: string;
-  documentStatus: string;
-  documentDeletedAt: Date | null;
-  currentVersionId: string | null;
-  effectiveDate: string | null;
-  expiryDate: string | null;
-}, today = new Date().toISOString().slice(0, 10)): boolean {
-  return row.versionStatus === "PUBLISHED"
-    && row.documentStatus === "ACTIVE"
-    && row.documentDeletedAt == null
-    && row.currentVersionId === row.versionId
-    && (!row.effectiveDate || row.effectiveDate <= today)
-    && (!row.expiryDate || row.expiryDate >= today);
-}
-
 export async function emitReferencePages(
   ctx: ToolRuntimeContext,
   candidates: ReferenceLookupCandidate[]
@@ -368,6 +363,7 @@ export async function emitReferencePages(
     pageId: knowledgePages.id,
     documentId: knowledgePages.documentId,
     documentTitle: knowledgeDocuments.title,
+    docNumber: knowledgeDocuments.docNumber,
     pageNumber: knowledgePages.pageNumber,
     physicalPageNumber: knowledgePages.physicalPageNumber,
     pageLabel: knowledgePages.pageLabel,
@@ -379,13 +375,15 @@ export async function emitReferencePages(
     expiryDate: knowledgeDocumentVersions.expiryDate,
     documentStatus: knowledgeDocuments.status,
     documentDeletedAt: knowledgeDocuments.deletedAt,
-    currentVersionId: knowledgeDocuments.currentVersionId
+    currentVersionId: knowledgeDocuments.currentVersionId,
+    usageMode: knowledgeDocumentVersions.usageMode,
+    projectId: knowledgeDocuments.projectId
   }).from(knowledgePages)
     .innerJoin(knowledgeDocuments, eq(knowledgeDocuments.id, knowledgePages.documentId))
-    .innerJoin(knowledgeDocumentVersions, eq(knowledgeDocumentVersions.id, knowledgePages.versionId))
+    .innerJoin(knowledgeDocumentVersions, and(eq(knowledgeDocumentVersions.id, knowledgePages.versionId), eq(knowledgeDocumentVersions.documentId, knowledgePages.documentId)))
     .where(inArray(knowledgePages.id, pageIds));
   const today = new Date().toISOString().slice(0, 10);
-  const validRows = rows.filter((row) => isReferencePageConsumable(row, today));
+  const validRows = rows.filter((row) => isReferencePageConsumable(row, today, ctx.conversation.projectId));
   candidates = candidates.map((candidate) => {
     const page = validRows.find((row) => row.pageId === candidate.sourcePageId);
     if (!page) return candidate;
@@ -406,12 +404,14 @@ export async function emitReferencePages(
       pageId: row.pageId,
       documentId: row.documentId,
       documentTitle: row.documentTitle,
+      docNumber: row.docNumber,
       pageNumber: physicalPageNumber,
       physicalPageNumber,
       pageLabel: row.pageLabel,
       pageImageObjectKey: row.pageImageObjectKey,
+      renderModel: buildKnowledgePageRenderModel(row.pageId, readPageRecognitionMeta(row.metadata).confirmedStructuredData),
       imageUrl: row.pageImageObjectKey
-        ? await ctx.app.storage.createDownloadUrl(row.pageImageObjectKey, `page-${physicalPageNumber}.png`, 3600)
+        ? await ctx.app.storage.createDownloadUrl(row.pageImageObjectKey, `page-${physicalPageNumber}.png`, 3600).catch(() => null)
         : null
     };
   }));
@@ -427,7 +427,7 @@ export async function emitReferencePages(
       physicalPageNumber: block.page.physicalPageNumber ?? block.page.pageNumber
     }));
     ctx.onEvent?.("sources", { sources });
-    return { missingPage: false, sources, candidates, warnings };
+    return { missingPage: false, sources, candidates, warnings, blocks: built.blocks };
   }
   return { missingPage: true, sources: [] as unknown[], candidates, warnings };
 }

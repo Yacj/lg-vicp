@@ -1,10 +1,15 @@
 <script setup lang="ts">
+import type { AiReferencePage, ReferenceHighlight } from '@/api/reference-page'
 import type { AiSourceDetail, AiSourceLocatorQuery, ApiEnvelope, DownloadUrlResult } from '@/api/types'
 import { aiApi } from '@/api/modules/ai'
 import { fileApi } from '@/api/modules/files'
+import ReferencePageViewer from '@/components/ai/ReferencePageViewer.vue'
 import { useAuthGate } from '@/composables/useAuthGate'
 import { useBackNavigation } from '@/composables/useBackNavigation'
+import { useReferencePageResource } from '@/composables/useReferencePageResource'
 import { openOriginalFile } from '@/services/files/openOriginalFile'
+import { useAssistantStore } from '@/store/assistant'
+import { normalizeReferencePages, referencePageInitialView } from '@/utils/referencePage'
 
 definePage({
   name: 'knowledge-source',
@@ -24,10 +29,19 @@ const fallbackPageLabel = ref('')
 const fallbackOriginalFileId = ref('')
 const fallbackPhysicalPage = ref<number | null>(null)
 
-const detail = ref<AiSourceDetail | null>(null)
-const status = ref<'idle' | 'loading' | 'ready' | 'error'>('loading')
+const assistant = useAssistantStore()
+const referenceMessageId = ref('')
+const preferred = ref<ReferenceHighlight>()
+const initialView = ref<'原始页面' | '页面内容'>('页面内容')
+const scrollTarget = ref('')
+const context = computed(() => normalizeReferencePages(assistant.messages.find(message => message.id === referenceMessageId.value)?.referencePages)
+  .find(page => page.page.pageId === locator.value.pageId && (!locator.value.documentId || page.page.documentId === locator.value.documentId)))
+const resource = useReferencePageResource(() => ({ locator: locator.value, context: context.value }), async (query) => {
+  const response = await aiApi.getSourceDetail(query).send(true) as ApiEnvelope<AiSourceDetail>
+  return response.data
+})
+const { detail, status, pageImageUrl } = resource
 const opening = ref(false)
-let requestSequence = 0
 
 const documentTitle = computed(() => detail.value?.document.title || fallbackTitle.value || '知识原文')
 const pageLabel = computed(() => detail.value?.location.pageLabel || detail.value?.page?.pageLabel || fallbackPageLabel.value || '')
@@ -42,9 +56,7 @@ const chapterPath = computed(() => {
   }
   return [detail.value?.location.chapter, detail.value?.location.section].filter(Boolean).join(' · ')
 })
-const pageImageUrl = computed(() => detail.value?.original.pageImageUrl || detail.value?.page?.pageImageUrl || '')
 const extractedText = computed(() => detail.value?.page?.fullText || detail.value?.extracted.text || '')
-const highlightText = computed(() => detail.value?.highlights[0]?.text || '')
 const originalFileId = computed(() => detail.value?.original.fileId || fallbackOriginalFileId.value || '')
 const physicalPageNumber = computed(() =>
   detail.value?.location.physicalPageNumber
@@ -52,6 +64,23 @@ const physicalPageNumber = computed(() =>
   ?? fallbackPhysicalPage.value,
 )
 const canOpenFile = computed(() => Boolean(detail.value?.original.previewUrl || originalFileId.value))
+const referencePage = computed<AiReferencePage>(() => ({
+  type: 'REFERENCE_PAGE',
+  page: {
+    documentId: detail.value?.document.id || locator.value.documentId || '',
+    pageId: detail.value?.page?.id || locator.value.pageId || '',
+    documentTitle: documentTitle.value,
+    docNumber: detail.value?.document.docNumber,
+    pageLabel: pageLabel.value,
+    imageUrl: pageImageUrl.value,
+  },
+  renderModel: context.value?.renderModel ?? detail.value?.page?.renderModel,
+  matches: [
+    ...(context.value?.matches || []),
+    ...(detail.value?.page?.matches || []),
+    ...(detail.value?.page?.referenceHighlight ? [detail.value.page.referenceHighlight] : []),
+  ],
+}))
 
 function parseLocator(options: Record<string, string | undefined> = {}) {
   locator.value = {
@@ -64,6 +93,9 @@ function parseLocator(options: Record<string, string | undefined> = {}) {
   fallbackTitle.value = options.title || ''
   fallbackPageLabel.value = options.pageLabel || ''
   fallbackOriginalFileId.value = options.originalFileId || ''
+  referenceMessageId.value = options.referenceMessageId || ''
+  initialView.value = referencePageInitialView(options.view)
+  preferred.value = options.constructionId || options.optionId ? { constructionId: options.constructionId, optionId: options.optionId } : undefined
   const page = Number(options.physicalPageNumber)
   fallbackPhysicalPage.value = Number.isFinite(page) && page > 0 ? page : null
 }
@@ -83,22 +115,7 @@ async function load() {
     return
   }
 
-  const sequence = ++requestSequence
-  status.value = 'loading'
-  try {
-    const response = await aiApi.getSourceDetail(locator.value).send() as ApiEnvelope<AiSourceDetail>
-    if (sequence !== requestSequence) {
-      return
-    }
-    detail.value = response.data
-    status.value = 'ready'
-  }
-  catch {
-    if (sequence !== requestSequence) {
-      return
-    }
-    status.value = 'error'
-  }
+  await resource.load()
 }
 
 async function handleOpenOriginal() {
@@ -138,37 +155,48 @@ function previewPageImage() {
   if (!pageImageUrl.value) {
     return
   }
-  void openOriginalFile({ url: pageImageUrl.value })
+  uni.previewImage({
+    urls: [pageImageUrl.value],
+    current: pageImageUrl.value,
+    fail: () => { void resource.recoverImage() },
+  })
+}
+
+async function locate(id: string) {
+  scrollTarget.value = ''
+  await nextTick()
+  scrollTarget.value = id
 }
 
 onLoad((options) => {
   parseLocator((options || {}) as Record<string, string | undefined>)
   void load()
 })
+onUnload(resource.cancel)
 </script>
 
 <template>
   <view class="app-page knowledge-source box-border flex flex-col">
     <wd-navbar
-      title="查看原文"
+      title="参考页"
       left-arrow
       safe-area-inset-top
       custom-class="!bg-transparent"
       @click-left="goBack"
     />
 
-    <scroll-view scroll-y class="knowledge-source__body min-h-0 flex-1 px-4">
+    <scroll-view scroll-y :scroll-into-view="scrollTarget" scroll-with-animation class="knowledge-source__body min-h-0 flex-1 px-4">
       <view v-if="status === 'loading'" class="flex flex-col items-center justify-center py-20">
         <wd-loading size="44rpx" color="var(--app-action-primary)" />
         <text class="app-muted mt-3 text-3">
-          正在加载原文
+          正在加载参考页
         </text>
       </view>
 
       <view v-else-if="status === 'error'" class="flex flex-col items-center px-6 py-20 text-center">
         <wd-icon name="warning" size="64rpx" color="var(--app-danger)" />
         <text class="mt-3 text-3.5 font-medium">
-          原文加载失败
+          参考页加载失败
         </text>
         <text class="app-muted mt-1 text-2.5">
           请检查网络后重试。若资料仍可打开，也可以直接查看原文件。
@@ -196,7 +224,10 @@ onLoad((options) => {
           {{ chapterPath }}
         </view>
         <view v-if="pageLabel" class="app-primary-text mt-2 text-3.5 font-semibold">
-          {{ pageLabel }}
+          来源：第{{ pageLabel }}页
+        </view>
+        <view v-if="detail?.document.docNumber" class="app-muted mt-1 text-3">
+          图集号：{{ detail.document.docNumber }}
         </view>
 
         <view
@@ -215,30 +246,14 @@ onLoad((options) => {
           <wd-icon name="arrow-right" size="28rpx" color="var(--app-text-tertiary)" />
         </view>
 
-        <image
-          v-if="pageImageUrl"
-          class="knowledge-source__image mt-4 w-full"
-          :src="pageImageUrl"
-          mode="widthFix"
-          @click="previewPageImage"
+        <ReferencePageViewer
+          v-if="detail?.page || context" class="mt-4" :page="referencePage" :preferred="preferred" :initial-view="initialView" :fallback-text="extractedText" :image-failed="resource.imageFailed.value" :image-revision="resource.imageRevision.value" :refreshing-image="resource.refreshingImage.value"
+          @locate="locate" @image-error="resource.recoverImage()" @image-load="resource.imageLoaded" @retry-image="resource.recoverImage(true)" @preview-image="previewPageImage"
         />
-
-        <view v-if="highlightText" class="ai-quote app-panel-flat mt-4 rounded-3 px-3 py-3">
-          <view class="app-tertiary text-2.5">
-            引用摘要
-          </view>
-          <view class="mt-1 text-3 leading-5">
-            “{{ highlightText }}”
-          </view>
+        <view v-else-if="extractedText" class="app-panel-flat mt-4 whitespace-pre-wrap rounded-3 p-4 text-3 leading-6">
+          {{ extractedText }}
         </view>
-
-        <view v-if="extractedText" class="mt-4 text-3.5 leading-6">
-          <text class="whitespace-pre-wrap break-words">
-            {{ extractedText }}
-          </text>
-        </view>
-
-        <view v-else-if="!pageImageUrl && !canOpenFile" class="app-muted mt-10 text-center text-3">
+        <view v-else-if="!canOpenFile" class="app-muted mt-10 text-center text-3">
           该资料还没有可阅读的页面内容
         </view>
       </view>
@@ -256,15 +271,5 @@ onLoad((options) => {
 
 .knowledge-source__body {
   height: 0;
-}
-
-.knowledge-source__image {
-  border-radius: 24rpx;
-  border: 1px solid var(--app-border-default);
-  background: var(--app-bg-elevated);
-}
-
-.ai-quote {
-  background: var(--app-bg-elevated);
 }
 </style>

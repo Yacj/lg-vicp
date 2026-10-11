@@ -4,6 +4,12 @@ globs: src/modules/ai*/**/*.ts,src/modules/knowledge/**/*.ts,src/modules/reports
 alwaysApply: false
 ---
 
+- C端销售/设计院阅读：确定性查表摘要带 answerStyle=THERMAL_SOLUTIONS，primaryFieldKeys 由正式 filters 投影；客户端只替换可定位摘要，普通说明和结论保留。默认两方案、其余展开，完整页表格不裁剪；标记及主字段随无URL元数据恢复，B端默认文案不变。
+
+- C端完整参考页（2026-10-11）：候选唯一绑定同页同构造四项一致的确认档位；知识回退只在已选当前发布资料中读取确认快照，复用Parser/Matcher。查表正文/卡片/完整renderModel/optionId/fieldKeys/answerOffset同源；最终正文不采纳模型错误数值复述，保留人工选择等待。历史重验发布/项目权限并重签，不存签名URL，不复活过期ID；来源详情返回完整模型。见 `docs/ai/c-reference-pages.md`。
+
+- B端完整原页引用（2026-10-11）：test-qa普通问答消费同版本检索确认快照；明确数值查表从同版本全部确认档位复用现有Parser/Matcher，确定性生成回答与引用，零命中不回退旧文本猜数值。确认上下文优先按完整记录预算，仅已发送ID可引用；renderModel保留全部构造/档位。内部标记发delta前隐藏，仅接受快照optionId/fieldKeys，返回回答位置；不按数字猜高亮，缺图片坐标不伪造框选。见 `docs/knowledge/answer-page-references.md`。
+
 - 热工回答质量（2026-10-09）：同一Candidate绑定厚度/λ/α/双R/K/构造/来源，禁止跨候选/Chunk拼字段和以top-N宣称全量极值。模糊传热8.3保温板先澄清产品R/总R；「就是」为EXACT。默认3～8行一个主方案。印刷页码只用pageLabel，禁止物理页序fallback。λ/α只读同页同构造同厚度且双R/K一致的人工确认快照，冲突记warning。详见`docs/ai/thermal-answer-quality-2026-10-09.md`。
 
 - 最终交互与UAT（2026-10-07）：方案查询动作不能被「限值/这个墙体」抢入计算；明确重新算走热工，合规仍走标准链。活跃厚度无metric词的省略追问更新厚度；取消厚度清三字段和preferThinner。Parser/Matcher主结构冻结，后续先新增真实失败Case再修复。`pnpm uat:ai`40场景123轮真实HTTP/SSE，独立临时库/用户/Redis队列/对象，禁止写生产会话或修改正式发布数据；工程数值/来源全部程序断言，AI Judge仅体验，环境失败为BLOCKED。详见`docs/ai/business-uat.md`。

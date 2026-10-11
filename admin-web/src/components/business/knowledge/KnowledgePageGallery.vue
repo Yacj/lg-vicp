@@ -15,7 +15,7 @@ import {
   reorderVersionPages,
   updateVersionPage,
 } from '@/api/modules/knowledge'
-import KnowledgePageReferenceRows from '@/components/business/knowledge/KnowledgePageReferenceRows.vue'
+import KnowledgeOriginalPageViewer from '@/components/business/knowledge/KnowledgeOriginalPageViewer.vue'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
 import AppStatusTag from '@/components/ui/AppStatusTag.vue'
 import { usePermissionAccess } from '@/composables/usePermissionAccess'
@@ -88,10 +88,6 @@ const previewPage = ref<KnowledgePage | null>(null)
 const previewVisible = ref(false)
 const removeTarget = ref<KnowledgePage | null>(null)
 const removeConfirmVisible = ref(false)
-const previewScale = ref(1)
-const previewOffset = ref({ x: 0, y: 0 })
-const dragging = ref(false)
-const dragOrigin = ref({ x: 0, y: 0, ox: 0, oy: 0 })
 
 const batchVisible = ref(false)
 const batchFiles = ref<Array<{ file: File, pageLabel: string, pageTitle: string, physicalPageNumber: number, warning: string }>>([])
@@ -816,14 +812,8 @@ onUnmounted(() => {
   objectUrls.forEach(url => URL.revokeObjectURL(url))
 })
 
-function resetPreviewTransform(): void {
-  previewScale.value = 1
-  previewOffset.value = { x: 0, y: 0 }
-}
-
 function openPreview(page: KnowledgePage): void {
   previewPage.value = page
-  resetPreviewTransform()
   previewVisible.value = true
   emit('preview', page)
 }
@@ -835,7 +825,6 @@ function goPreview(offset: number): void {
     return
   }
   previewPage.value = next
-  resetPreviewTransform()
 }
 
 function pageImage(page: KnowledgePage): string | null {
@@ -845,39 +834,6 @@ function pageImage(page: KnowledgePage): string | null {
 function recognitionStatus(page: KnowledgePage): { label: string, status: 'default' | 'disabled' | 'processing' | 'warning' | 'success' | 'error' } {
   const meta = pageRecognitionStatusMeta(page.recognitionStatus)
   return { label: meta.label, status: meta.status === 'info' ? 'default' : meta.status }
-}
-
-function onPreviewWheel(event: WheelEvent): void {
-  event.preventDefault()
-  const delta = event.deltaY > 0 ? -0.1 : 0.1
-  previewScale.value = Math.min(3, Math.max(0.5, Number((previewScale.value + delta).toFixed(2))))
-}
-
-function onDragStart(event: MouseEvent): void {
-  if (previewScale.value <= 1) {
-    return
-  }
-  dragging.value = true
-  dragOrigin.value = {
-    x: event.clientX,
-    y: event.clientY,
-    ox: previewOffset.value.x,
-    oy: previewOffset.value.y,
-  }
-}
-
-function onDragMove(event: MouseEvent): void {
-  if (!dragging.value) {
-    return
-  }
-  previewOffset.value = {
-    x: dragOrigin.value.ox + (event.clientX - dragOrigin.value.x),
-    y: dragOrigin.value.oy + (event.clientY - dragOrigin.value.y),
-  }
-}
-
-function onDragEnd(): void {
-  dragging.value = false
 }
 
 defineExpose({ reload: load, openPhysicalPage: (physicalPageNumber: number) => {
@@ -1194,67 +1150,26 @@ defineExpose({ reload: load, openPhysicalPage: (physicalPageNumber: number) => {
       确认删除第 {{ removeTarget ? knowledgePageLabel(removeTarget.pageLabel, removeTarget.physicalPageNumber) : '' }} 页吗？删除后不可恢复。
     </t-dialog>
 
-    <t-dialog
+    <KnowledgeOriginalPageViewer
       v-model:visible="previewVisible"
-      header="完整页预览"
-      width="min(1080px, 94vw)"
-      destroy-on-close
-      :footer="false"
+      :page="previewPage"
+      :page-id="previewPage?.id"
+      :version-id="versionId"
+      :physical-page-number="previewPage?.physicalPageNumber"
+      :image-url="previewPage?.pageImageUrl"
+      :page-label="previewPage?.pageLabel"
+      :can-review="canReviewPages"
+      initial-tab="structured"
+      title="页面详情"
+      @review="previewVisible = false; previewPage && emit('reviewPage', previewPage.physicalPageNumber)"
     >
-      <div class="knowledge-page-preview">
-        <div class="knowledge-page-preview__toolbar">
-          <span>
-            系统页序 第 {{ previewPage?.pageNumber ?? '—' }} 页 · 印刷页码
-            {{ previewPage ? knowledgePageLabel(previewPage.pageLabel, previewPage.physicalPageNumber) : '' }}
-            {{ previewPage?.pageTitle ? `· ${previewPage.pageTitle}` : '' }}
-          </span>
-          <t-space>
-            <t-button size="small" :disabled="previewIndex <= 0" @click="goPreview(-1)">
-              上一页
-            </t-button>
-            <t-button size="small" :disabled="previewIndex < 0 || previewIndex >= filteredPages.length - 1" @click="goPreview(1)">
-              下一页
-            </t-button>
-            <t-button size="small" @click="previewScale = Math.max(0.5, Number((previewScale - 0.1).toFixed(2)))">
-              缩小
-            </t-button>
-            <t-button size="small" @click="previewScale = Math.min(3, Number((previewScale + 0.1).toFixed(2)))">
-              放大
-            </t-button>
-            <t-button size="small" variant="outline" @click="resetPreviewTransform">
-              复位
-            </t-button>
-          </t-space>
-        </div>
-        <div
-          class="knowledge-page-preview__scroll"
-          @wheel="onPreviewWheel"
-          @mousedown="onDragStart"
-          @mousemove="onDragMove"
-          @mouseup="onDragEnd"
-          @mouseleave="onDragEnd"
-        >
-          <img
-            v-if="previewPage && pageImage(previewPage) && !failedPageImages.has(previewPage.id)"
-            :src="pageImage(previewPage)!"
-            :style="{
-              transform: `translate(${previewOffset.x}px, ${previewOffset.y}px) scale(${previewScale})`,
-              cursor: previewScale > 1 ? (dragging ? 'grabbing' : 'grab') : 'default',
-            }"
-            alt="完整页面预览"
-            draggable="false"
-            @error="previewPage && markPageImageUnavailable(previewPage.id)"
-          >
-          <p v-else>
-            原始页面图片暂不可用，请检查资料页面的图片来源。
-          </p>
-        </div>
-        <KnowledgePageReferenceRows
-          :version-id="props.versionId"
-          :physical-page-number="previewPage?.physicalPageNumber ?? null"
-        />
-      </div>
-    </t-dialog>
+      <template #navigation>
+        <t-space class="knowledge-page-preview__toolbar">
+          <t-button size="small" :disabled="previewIndex <= 0" @click="goPreview(-1)">上一页</t-button>
+          <t-button size="small" :disabled="previewIndex < 0 || previewIndex >= filteredPages.length - 1" @click="goPreview(1)">下一页</t-button>
+        </t-space>
+      </template>
+    </KnowledgeOriginalPageViewer>
   </section>
 </template>
 
@@ -1501,25 +1416,9 @@ defineExpose({ reload: load, openPhysicalPage: (physicalPageNumber: number) => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: var(--td-size-3);
+  margin-bottom: var(--td-size-3);
   color: var(--td-text-color-secondary);
-}
-
-.knowledge-page-preview__scroll {
-  max-height: 70vh;
-  overflow: hidden;
-  background: var(--td-bg-color-secondarycontainer);
-  text-align: center;
-  user-select: none;
-}
-
-.knowledge-page-preview__scroll img {
-  max-width: 100%;
-  max-height: 70vh;
-  object-fit: contain;
-  transform-origin: center center;
-  transition: transform 0.08s linear;
 }
 
 .knowledge-gallery__batch-head {

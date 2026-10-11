@@ -1,5 +1,6 @@
 import type { AiStreamEventPayload } from '@/api/types'
 import { normalizeAiSources } from './aiSource.ts'
+import { normalizeReferencePages } from './referencePage'
 
 function asText(value: unknown) {
   return typeof value === 'string' ? value : ''
@@ -200,6 +201,9 @@ export function parseStreamEvent(event: string, data: Record<string, unknown>): 
         },
       }
     }
+    case 'reference_pages': {
+      return { event: 'reference_pages', data: { referencePages: normalizeReferencePages(data.referencePages) } }
+    }
     case 'sources': {
       return {
         event: 'sources',
@@ -223,6 +227,7 @@ export function parseStreamEvent(event: string, data: Record<string, unknown>): 
           conversationId: data.conversationId,
           finishReason: typeof data.finishReason === 'string' ? data.finishReason : 'COMPLETED',
           sources: normalizeAiSources(data.sources),
+          ...(Array.isArray(data.referencePages) ? { referencePages: normalizeReferencePages(data.referencePages) } : {}),
           model: data.model && typeof data.model === 'object' ? (data.model as { id: string }) : null,
           regeneratedMessageId: typeof data.regeneratedMessageId === 'string' ? data.regeneratedMessageId : undefined,
         },

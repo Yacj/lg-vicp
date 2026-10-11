@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { hydrateMessageReferencePages } from "./ai-reference-pages.service.js";
 import { generateObject, streamText, type LanguageModelUsage, type ModelMessage } from "ai";
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
@@ -451,6 +452,7 @@ export async function aiRoutes(app: FastifyInstance) {
       })),
       sources: reportSourcesRows.filter((source) => source.reportId === report.id)
     }));
+    const messageReferences = await hydrateMessageReferencePages(app, messages, conversation.projectId);
     const visibleMessages = messages.map((message) => ({
       id: message.id,
       conversationId: message.conversationId,
@@ -458,6 +460,7 @@ export async function aiRoutes(app: FastifyInstance) {
       role: message.role,
       status: message.status,
       content: message.content,
+      referencePages: messageReferences.get(message.id) ?? [],
       reasoningMode: message.reasoningMode,
       model: message.model,
       durationMs: message.durationMs,

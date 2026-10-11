@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { AiSourceRef, ApiEnvelope, CreateShareResult, ProjectRecord } from '@/api/types'
+import type { AiReferencePage, ReferenceHighlight } from '@/api/reference-page'
 import type { SessionReport } from '@/utils/aiAgentUi'
 import { projectApi } from '@/api/modules/projects'
 import AiComparisonSelection from '@/components/ai/AiComparisonSelection.vue'
@@ -220,6 +221,25 @@ function openKnowledgeSource(source: AiSourceRef) {
       physicalPageNumber: source.physicalPageNumber,
       title: source.title,
       pageLabel: source.pageLabel,
+    }),
+  })
+}
+
+function openReferencePage(page: AiReferencePage, messageId: string, match?: ReferenceHighlight) {
+  if (!requireLogin()) {
+    return
+  }
+  router.push({
+    name: 'knowledge-source',
+    query: compactQuery({
+      documentId: page.page.documentId,
+      pageId: page.page.pageId,
+      title: page.page.documentTitle,
+      pageLabel: page.page.pageLabel,
+      referenceMessageId: messageId,
+      view: 'image',
+      constructionId: match?.constructionId,
+      optionId: match?.optionId,
     }),
   })
 }
@@ -586,6 +606,7 @@ onShareAppMessage(() => {
           @share="enterSelectMode"
           @toggle-select="toggleSelect"
           @open-source="openKnowledgeSource"
+          @open-reference="openReferencePage"
         />
         <AiComparisonSelection
           v-if="productSelection && !loadingConversation && !failedConversationId"

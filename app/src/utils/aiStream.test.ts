@@ -1,4 +1,5 @@
 import { parseStreamEvent } from './aiStream.ts'
+import { referenceFixture } from '../test/fixtures/referencePage'
 
 let failed = 0
 let passed = 0
@@ -95,6 +96,13 @@ assert(statusOnly?.event === 'agent_status' && statusOnly.data.toolName === 'sea
 
 const progressAlias = parseStreamEvent('agent_status', { stage: 'analyzing', message: '正在分析' })
 assert(progressAlias === null, '带 stage 的 agent_status 不重复进入聊天状态')
+
+const referenceEvent = parseStreamEvent('reference_pages', { referencePages: [referenceFixture(), referenceFixture()] })
+assert(referenceEvent?.event === 'reference_pages' && referenceEvent.data.referencePages.length === 1, '同页引用在 SSE 边界合并')
+assert(referenceEvent?.event === 'reference_pages' && referenceEvent.data.referencePages[0]?.matches[0]?.optionId === 'A1-3-18', 'SSE 保留正式档位标识')
+const completedReference = parseStreamEvent('done', { messageId: 'message', conversationId: 'conversation', referencePages: [referenceFixture()] })
+assert(completedReference?.event === 'done' && completedReference.data.referencePages?.[0]?.renderModel?.constructions.length === 2, 'done 保留完整模型及全部构造')
+assert(parseStreamEvent('message_done', { referencePages: [referenceFixture()] }) === null, 'done 别名不重复处理引用')
 
 console.log(`\n${passed} passed, ${failed} failed`)
 if (failed) {

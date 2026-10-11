@@ -8,6 +8,12 @@
 
 # AI 与报告
 
+C端销售/设计院阅读：确定性查表摘要以 answerStyle=THERMAL_SOLUTIONS 标记，primaryFieldKeys 仅从正式 filters 投影。客户端可替换正式关联摘要为简洁卡片，普通引用及结论不得删；默认两项候选，其余展开，整页完整表格高亮。新字段持久化不带签名URL并随来源重新校验，B端默认文案不变。
+
+2026-10-11 C端完整参考页：参见 `docs/ai/c-reference-pages.md`。正式候选唯一绑定同页同构造四项一致的确认行；知识回退仅使用已选当前发布资料确认快照及既有Parser/Matcher。查表正文/卡片/完整页/正式ID/回答位置同源，最终输出不采用模型错误复述。保留人工选择/正式计算/报告流程。消息只保存来源标识/objectKey/快照，无签名URL；历史重新授权及重签，失效ID不猜测，来源详情返回完整模型，失败原图仍有表格。
+
+2026-10-11 B端 test-qa 完整原页引用：普通问答用同版本检索确认快照，明确数值查表读取同版本全部确认档位并复用现有Parser/Matcher，确定性抄录匹配记录生成回答和引用，零命中不从旧文本猜值；普通问答确认上下文优先预算且保留完整记录，只接受已发送ID。renderModel保留全部构造和档位；快照摘要使过期定位失效。服务端流式隐藏内部标记，按真实optionId/fieldKeys返回matches与回答位置，不按数值字符串猜测。原图缺坐标时精准高亮在完整HTML表格。详见 `docs/knowledge/answer-page-references.md`。
+
 2026-10-09 热工回答质量：正式Candidate原子绑定全部参数及来源；不可跨候选或Chunk补值，不把top-N当全量极值。模糊传热8.3保温板先澄清产品层R/整墙总R，「就是」使用EXACT。默认3～8行一个主方案；专业详细追问再展开。pageLabel缺失不回退物理页序。λ/α只读同页同构造同档且双R/K一致的人工确认快照，冲突记录warning并保留正式值。详见`docs/ai/thermal-answer-quality-2026-10-09.md`。
 
 最终交互与UAT（2026-10-07）：方案查询不因「限值/这个墙体」进入计算；明确算/重新算走热工，合规继续正式标准链，metadata验收intent区分COMPLIANCE。活跃厚度无metric词的省略追问更新厚度，取消厚度清除三字段及preferThinner。Parser/Matcher主结构冻结，后续自然语言变更须真实失败Case驱动。真实验收`pnpm uat:ai`覆盖销售20+设计院20共123轮，独立HTTP/SSE会话、临时库/用户/Redis队列/页图，工程条件/数值/来源程序断言，AI Judge只体验；BLOCKED不得冒充通过。类型与结构检查`pnpm uat:check`不是业务验收。详见`docs/ai/business-uat.md`。

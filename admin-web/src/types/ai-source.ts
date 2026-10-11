@@ -1,3 +1,6 @@
+import type { KnowledgePagePresentation, ReferenceHighlight } from './knowledge-page-render'
+import { normalizeReferenceHighlights } from '@/utils/knowledge-page-render'
+
 /**
  * AI 原文溯源统一 Source 契约（与后端 src/modules/ai/ai-source.mapper.ts 一一对齐）。
  * 所有 AI 会话来源、检索命中、来源详情查看统一复用本类型，禁止各页面自定义 source 结构。
@@ -17,7 +20,8 @@ export interface AiSourceHighlight {
   text?: string
 }
 
-export interface AiSourceRef {
+export interface AiSourceRef extends ReferenceHighlight {
+  matches?: ReferenceHighlight[]
   sourceType: AiSourceType
   retrievalUnit?: AiRetrievalUnit
   documentId?: string
@@ -95,7 +99,7 @@ export interface AiSourcePageBlock {
   metadata: Record<string, unknown> | null
 }
 
-export interface AiSourcePage {
+export interface AiSourcePage extends KnowledgePagePresentation {
   id: string
   pageNumber: number
   physicalPageNumber: number
@@ -108,7 +112,7 @@ export interface AiSourcePage {
   pageImageUrl: string | null
 }
 
-export interface AiSourceDetailHighlight {
+export interface AiSourceDetailHighlight extends ReferenceHighlight {
   pageId: string
   pageNumber: number
   physicalPageNumber: number
@@ -183,9 +187,17 @@ export function aiSourceRefFromSearchHit(hit: {
   citationAnchor?: string | null
   score?: number | null
   evidenceLevel?: string | null
+  constructionId?: string | null
+  optionId?: string | null
+  fieldKeys?: string[]
+  matches?: ReferenceHighlight[]
 }): AiSourceRef {
   return {
     sourceType: 'KNOWLEDGE',
+    constructionId: hit.constructionId,
+    optionId: hit.optionId,
+    fieldKeys: hit.fieldKeys,
+    matches: hit.matches,
     retrievalUnit: 'CHUNK',
     documentId: hit.documentId,
     ...(hit.versionId ? { versionId: hit.versionId } : {}),
@@ -266,6 +278,10 @@ export function normalizeAiSource(value: unknown): AiSourceRef | null {
     pageEnd: pageNumber,
     matchedText,
     snippet,
+    constructionId: typeof raw.constructionId === 'string' ? raw.constructionId : undefined,
+    optionId: typeof raw.optionId === 'string' ? raw.optionId : undefined,
+    fieldKeys: Array.isArray(raw.fieldKeys) ? raw.fieldKeys.filter((key): key is string => typeof key === 'string') : undefined,
+    matches: normalizeReferenceHighlights(raw.matches),
     ...(score !== null ? { score } : {}),
     ...(evidenceLevel ? { evidenceLevel } : {}),
   }

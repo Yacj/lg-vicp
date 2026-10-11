@@ -30,6 +30,7 @@ import {
   summarizePageReadiness
 } from "./knowledge-readiness.js";
 import { searchWikiHierarchy } from "./knowledge.service.js";
+import { loadKnowledgeTestReferences } from "./knowledge-test-reference.js";
 import { getPageImageDownloadName } from "./knowledge-page-image.js";
 import {
   addParsingJobToQueue,
@@ -791,7 +792,7 @@ export async function streamVersionTestQa(
   versionId: string,
   body: { query: string; reasoningMode?: "OFF" | "ON"; limit?: number }
 ) {
-  await assertVersionTestable(app, versionId);
+  const { document } = await assertVersionTestable(app, versionId);
   const limit = Math.min(10, Math.max(1, body.limit ?? 5));
   const chunks = await searchWikiHierarchy(app, body.query, { versionId, limit });
   const conversation = await app.db.transaction(async (tx) => {
@@ -820,6 +821,7 @@ export async function streamVersionTestQa(
     conversation,
     content: body.query,
     knowledgeChunks: chunks,
+    loadPageReferences: () => loadKnowledgeTestReferences(app, versionId, document.title, chunks, body.query),
     mapSources: hasDebugPermission(actor) ? toAiSources : toUserTestSources
   });
 }

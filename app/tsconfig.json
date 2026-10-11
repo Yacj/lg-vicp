@@ -44,6 +44,11 @@
     "src/utils/clientRegister.test.ts",
     "src/utils/authRedirect.test.ts",
     "src/utils/wechatPhoneLogin.test.ts",
-    "src/utils/clientPassword.test.ts"
+    "src/utils/clientPassword.test.ts",
+    "src/utils/referencePage.test.ts",
+    "src/utils/aiReferenceAnswer.test.ts",
+    "src/components/ai/ReferencePageViewer.test.ts",
+    "src/composables/useReferencePageResource.test.ts",
+    "src/composables/useReferencePageHighlight.test.ts"
   ]
 }

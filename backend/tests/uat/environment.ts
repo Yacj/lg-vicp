@@ -169,6 +169,25 @@ export async function createUatEnvironment() {
       const { specClass: _specClass, schemeCode: _schemeCode, ...values } = fact;
       await db.insert(s.thermalReferenceRows).values({ ...values, catalogProductId: fact.specClass === "I" ? catalog.id : catalogII.id, rawThickness: String(fact.thicknessMm), rawProductResistance: fact.productThermalResistance.toFixed(3), rawTotalResistance: fact.totalThermalResistance.toFixed(3), rawKValue: fact.kValue.toFixed(3), setId: set.id, schemeId: schemeIds.get(fact.schemeCode)!, productSpecId: specIds.get(specKey)!, sourceDocumentId: doc.id, sourcePageId: pageIds.get(fact.sourcePageLabel)!, evidenceSource: doc.title, evidenceRef: `${fact.sourcePageLabel}页 ${fact.schemeCode}` });
     }
+    // 所有规格/方案ID创建完成后固化整页确认快照，验证C端ID高亮而非只有旧参数条。
+    for (const [label, id] of pageIds) {
+      const facts = REFERENCE_FACTS.filter(fact => fact.sourcePageLabel === label);
+      const codes = [...new Set(facts.map(fact => fact.schemeCode))];
+      await db.update(s.knowledgePages).set({ metadata: { recognitionStatus: "CONFIRMED", uploadSource: "PNG",
+        confirmedStructuredData: { pageLabel: label, pageTitle: "通用UAT热工测试页", fullText: FIXTURE_TEXT,
+          systems: codes.map(code => {
+            const own = facts.filter(fact => fact.schemeCode === code), first = own[0]!;
+            return { schemeId: schemeIds.get(code)!, constructionCode: code, specClass: first.specClass,
+              systemName: `${first.specClass}型 VICP薄抹灰外保温系统`,
+              layers: [{ order: 1, name: "测试基层", thicknessMm: code === "A1-4" ? 100 : 240, lambda: 0.9, alpha: 1 },
+                { order: 2, name: "VICP测试保温板", thicknessMm: null, rValue: null, lambda: first.specClass === "I" ? 0.005 : 0.006, alpha: first.specClass === "I" ? 1.25 : 1.2 }],
+              options: own.map(fact => ({ productSpecId: specIds.get(`${fact.specClass}-${fact.thicknessMm}`)!,
+                catalogProductId: fact.specClass === "I" ? catalog.id : catalogII.id,
+                thicknessMm: fact.thicknessMm, productThermalResistance: fact.productThermalResistance,
+                totalThermalResistance: fact.totalThermalResistance, kValue: fact.kValue })) };
+          }) }
+      } }).where(eq(s.knowledgePages.id, id));
+    }
     await db.insert(s.thermalCalcRules).values({ code: "UAT-CALC", name: "UAT确定性规则", formulaVersion: "VICP-CALC-1", interiorSurfaceResistance: 0.11, exteriorSurfaceResistance: 0.04, precision: 3, roundingMode: "HALF_UP", parameterCodes: { equivalentConductivity: "lambda_eq", correctionFactor: "a_eq" }, ...published });
     stage = "启动本机独立测试API";
     const baseUrl = await app.listen({ host: "127.0.0.1", port: 0 });

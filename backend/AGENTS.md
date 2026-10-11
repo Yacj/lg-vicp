@@ -1,5 +1,11 @@
 # 蓝格 VICP 后端 AI 开发规则
 
+C端阅读（2026-10-11）：正式查表摘要使用简洁销售/设计院文案，所问指标由 filters 投影到 primaryFieldKeys。仅 answerStyle=THERMAL_SOLUTIONS 且正式模型ID/answerOffset可定位时允许客户端以方案卡替换摘要；普通解释及限制条件保留。完整页不裁剪，前端默认两方案、其他展开；B端文案保持兼容。详见 docs/ai/c-reference-pages.md。
+
+C端完整参考页（2026-10-11）：正式查表候选唯一绑定同页同构造四项一致的确认档位；知识回退仅在已选且有权访问的当前发布版本读取确认快照，复用既有Parser/Matcher，不并入B端草稿范围。确认查表正文、卡片、完整renderModel、optionId/fieldKeys/answerOffset同源；Agent最终输出不采纳模型错误数值复述，保留原人工选择等待。消息不存签名URL，历史重验发布/项目权限并重签；换版/撤回/旧快照ID失效不复活缓存。来源详情返回完整模型，图片失败保留表格。详见 `docs/ai/c-reference-pages.md`。
+
+完整原页引用（2026-10-11）：B端版本 test-qa 普通问答只消费同版本检索确认快照；明确数值查表读取同版本全部确认档位并复用现有Parser/Matcher，以匹配记录确定性生成回答，不回退旧文本拼数字。确认上下文按完整记录优先预算，仅已发送ID可引用；renderModel保留所有构造/档位，快照变化使旧ID失效。内部引用标记在发delta前隐藏，matches只接受当前快照optionId/fieldKeys；禁止按回答数字猜测高亮。表格/原图二选一，缺坐标不伪造框选。详见 `docs/knowledge/answer-page-references.md`。
+
 热工回答质量（2026-10-09）：热工数值关系以同一正式Candidate为原子事实，不跨候选/Chunk拼字段，不以top-N宣称全量极值。模糊「传热8.3的保温板」先区分产品层R/整墙总R；「就是」按EXACT。默认3～8行、一个主方案，详细追问才展开。印刷页码仅pageLabel，禁止物理页序fallback。λ/α仅从同页同构造同厚度且双R/K一致的人工确认快照透传，冲突记录warning。详见`docs/ai/thermal-answer-quality-2026-10-09.md`。
 
 最终交互与真实业务UAT（2026-10-07）：方案查询不因「限值/这个墙体」抢入计算，明确重新算进入热工，合规判断仍走正式标准链。活跃厚度条件下无metric词的25以内/以上/改成/放宽/调到更新厚度，取消厚度同时清除三字段和preferThinner（明确只取消某端则保留其他限制）。省略控制/做到连接词照常解析。Parser/Matcher主结构冻结，后续修改必须先有真实失败UAT Case。`pnpm uat:ai`为销售20+设计院20、123轮真实HTTP/SSE会话验收；工程数值/条件/来源由程序断言，AI Judge仅评体验。随机隔离库、Redis/队列/对象命名空间，独立测试用户，不写生产会话或发布资料。环境失败记录BLOCKED，不算通过。详见`docs/ai/business-uat.md`。

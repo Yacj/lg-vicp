@@ -5,6 +5,9 @@
  * 未传入 knowledgeChunks 时由能力路由决定是否检索已发布知识库，不再依赖用户选择 scene。
  */
 import { randomUUID } from "node:crypto";
+import { KNOWLEDGE_PAGE_REFERENCE_INSTRUCTIONS, KnowledgeReferenceCitationStream, type KnowledgeTestReferenceContext } from "../knowledge/knowledge-test-reference.js";
+import { loadPublishedKnowledgeReferences, persistMessageReferencePages } from "./ai-reference-pages.service.js";
+import { storeReferencePageBlocks, type ReferencePageBlock } from "./reference-page.js";
 import { streamText, type LanguageModelUsage, type ModelMessage } from "ai";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { and, count, eq, inArray, isNull } from "drizzle-orm";
@@ -185,6 +188,8 @@ export async function streamConversationReply(options: {
   selectionKind?: "KNOWLEDGE_SOURCE" | "REPORT_TYPE" | "PRODUCT" | "GENERIC";
   /** 传入时跳过场景内自动检索，直接使用该检索结果（知识问答场景；空数组表示无检索结果） */
   knowledgeChunks?: WikiHit[];
+  /** B 端版本测试的已确认页面；权限范围由调用方限定，不进入生产检索。 */
+  loadPageReferences?: () => Promise<KnowledgeTestReferenceContext>;
   /** 覆盖 done.sources 映射（B 端版本测试可裁剪调试字段） */
   mapSources?: (hits: readonly WikiHit[]) => unknown;
 }): Promise<void> {
@@ -398,7 +403,11 @@ export async function streamConversationReply(options: {
     || chunks.length > 0
     || retrievalFailed
     || (capabilities.needKnowledgeSearch && capabilities.explicitKnowledgeRequest));
-  const knowledgeContext = shouldInjectKnowledge ? formatKnowledgeContext(chunks, { retrievalFailed }) : null;
+  const pageReferences = providedChunks !== undefined && options.loadPageReferences ? await options.loadPageReferences()
+    : !agentEnabled && capabilities.needReferenceLookup
+      ? await loadPublishedKnowledgeReferences(app, chunks, conversation.projectId, content) : undefined;
+  const knowledgeContext = shouldInjectKnowledge
+    ? (pageReferences?.authoritative ? null : formatKnowledgeContext(chunks, { retrievalFailed })) : null;
   const answerContract = resolveAnswerContract({
     taskType: taskDecision.state.taskType,
     capabilities,
@@ -416,6 +425,7 @@ export async function streamConversationReply(options: {
       ? formatInsulationSystemContext({ name: insulationSystem.name, code: insulationSystem.code, systemType: insulationSystem.systemType })
       : null,
     knowledgeContext,
+    knowledgeReferenceContext: pageReferences?.context,
     ruleContext: comparisonRules.length > 0 ? formatComparisonRuleContext(comparisonRules) : null,
     thermalContext: !agentEnabled && capabilities.needThermalTool ? formatThermalCapabilityContext() : null,
     visionContext,
@@ -423,7 +433,7 @@ export async function streamConversationReply(options: {
     answerContract,
     excludeMessageIds: [userMessage.id, assistantMessage.id]
   });
-  const system = built.system;
+  const system = pageReferences?.context ? `${built.system}\n\n${KNOWLEDGE_PAGE_REFERENCE_INSTRUCTIONS}` : built.system;
   const messages: ModelMessage[] = built.messages;
 
   const stopKey = `ai:message:${assistantMessage.id}:stop`;
@@ -467,6 +477,17 @@ export async function streamConversationReply(options: {
   let finishReason: "COMPLETED" | "WAITING_USER_INPUT" = "COMPLETED";
 
   const streamBody = async (modelConfig: typeof runtime.primary) => {
+    const citations = pageReferences?.pages.length ? new KnowledgeReferenceCitationStream() : undefined;
+    if (pageReferences?.answer !== undefined) {
+      const visible = citations ? citations.push(pageReferences.answer, true) : pageReferences.answer;
+      fullText += visible;
+      if (visible) writeSse(reply, "delta", { text: visible });
+      if (citations) {
+        referencePages = citations.resolve(pageReferences.pages, pageReferences.citationOptionIds);
+        if (referencePages.length) writeSse(reply, "reference_pages", { referencePages });
+      }
+      return;
+    }
     const result = streamText({
       model: modelConfig.languageModel,
       system,
@@ -485,9 +506,18 @@ export async function streamConversationReply(options: {
         stopError.name = "AbortError";
         throw stopError;
       }
-      text += delta;
-      fullText += delta;
-      writeSse(reply, "delta", { text: delta });
+      const visible = citations ? citations.push(delta) : delta;
+      text += visible;
+      fullText += visible;
+      if (visible) writeSse(reply, "delta", { text: visible });
+    }
+    if (citations) {
+      const tail = citations.push("", true);
+      text += tail;
+      fullText += tail;
+      if (tail) writeSse(reply, "delta", { text: tail });
+      referencePages = citations.resolve(pageReferences!.pages, pageReferences!.citationOptionIds);
+      if (referencePages.length) writeSse(reply, "reference_pages", { referencePages });
     }
     streamUsage = await result.usage;
     return text;
@@ -806,7 +836,10 @@ export async function streamConversationReply(options: {
       throw stopError;
     }
 
-    const doneSources = agentSources ?? (mapSources ?? toAiSources)(chunks);
+    const doneSources = pageReferences?.authoritative ? [] : agentSources ?? (mapSources ?? toAiSources)(chunks);
+    const storedReferences = providedChunks !== undefined && options.loadPageReferences
+      ? referencePages.map(value => storeReferencePageBlocks([value as ReferencePageBlock])[0])
+      : await persistMessageReferencePages(app, referencePages, conversation.projectId);
     const metadata = {
       reasoningMode: conversation.reasoningMode,
       reasoning: runtime.reasoning,
@@ -821,7 +854,7 @@ export async function streamConversationReply(options: {
       allowedTools,
       agentEnabled,
       finishReason,
-      ...(referencePages.length > 0 ? { referencePages } : {}),
+      ...(storedReferences.length > 0 ? { referencePages: storedReferences } : {}),
       ...(usedFallback ? { fallbackUsed: true, originalFailedModel, actualModel: actualModelId } : {})
     };
     await app.db.transaction(async (tx) => {

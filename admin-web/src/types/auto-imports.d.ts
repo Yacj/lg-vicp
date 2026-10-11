@@ -90,6 +90,7 @@ declare global {
   const onUnmounted: typeof import('vue').onUnmounted
   const onUpdated: typeof import('vue').onUpdated
   const onWatcherCleanup: typeof import('vue').onWatcherCleanup
+  const pageReferenceMatches: typeof import('../composables/useKnowledgePageViewer').pageReferenceMatches
   const pausableWatch: typeof import('@vueuse/core').pausableWatch
   const projectFileTaskState: typeof import('../composables/useAsyncTask').projectFileTaskState
   const provide: typeof import('vue').provide
@@ -237,7 +238,12 @@ declare global {
   const useIntervalFn: typeof import('@vueuse/core').useIntervalFn
   const useKeyModifier: typeof import('@vueuse/core').useKeyModifier
   const useKnowledgeLifecycle: typeof import('../composables/useKnowledgeLifecycle').useKnowledgeLifecycle
+  const useKnowledgePageImage: typeof import('../composables/useKnowledgePageImage').useKnowledgePageImage
+  const useKnowledgePageTab: typeof import('../composables/useKnowledgePageViewer').useKnowledgePageTab
+  const useKnowledgePageViewer: typeof import('../composables/useKnowledgePageViewer').useKnowledgePageViewer
+  const useKnowledgePageWarnings: typeof import('../composables/useKnowledgePageViewer').useKnowledgePageWarnings
   const useKnowledgeReviewNavigation: typeof import('../composables/useKnowledgeReviewNavigation').useKnowledgeReviewNavigation
+  const useKnowledgeTextPreview: typeof import('../composables/useKnowledgeTextPreview').useKnowledgeTextPreview
   const useKnowledgeVersionEditable: typeof import('../composables/useKnowledgeVersionEditable').useKnowledgeVersionEditable
   const useLastChanged: typeof import('@vueuse/core').useLastChanged
   const useLink: typeof import('vue-router').useLink
@@ -284,6 +290,7 @@ declare global {
   const useProjectDetail: typeof import('../composables/useProjectDetail').useProjectDetail
   const useRafFn: typeof import('@vueuse/core').useRafFn
   const useRefHistory: typeof import('@vueuse/core').useRefHistory
+  const useReferenceHighlight: typeof import('../composables/useReferenceHighlight').useReferenceHighlight
   const useReportActions: typeof import('../composables/useReportActions').useReportActions
   const useReportCenter: typeof import('../composables/useReportCenter').useReportCenter
   const useReportDetail: typeof import('../composables/useReportDetail').useReportDetail
@@ -444,6 +451,9 @@ declare global {
   // @ts-ignore
   export type { UseKnowledgeLifecycleOptions, KnowledgeLifecycleRefreshOptions, UseKnowledgeLifecycleReturn } from '../composables/useKnowledgeLifecycle'
   import('../composables/useKnowledgeLifecycle')
+  // @ts-ignore
+  export type { KnowledgeReviewFilter } from '../composables/useKnowledgeReviewNavigation'
+  import('../composables/useKnowledgeReviewNavigation')
   // @ts-ignore
   export type { KnowledgeVersionEditableInput, KnowledgeVersionEditableState } from '../composables/useKnowledgeVersionEditable'
   import('../composables/useKnowledgeVersionEditable')

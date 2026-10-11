@@ -435,11 +435,11 @@ onMounted(() => {
           </t-tab-panel>
 
           <t-tab-panel label="处理资料" value="processing">
-            <div class="knowledge-workspace__subnav" aria-label="资料处理内容">
+            <div class="knowledge-workspace__subnav mb-3" aria-label="资料处理内容">
               <t-radio-group :value="activeTab" variant="default-filled" @change="onTabChange">
                 <t-radio-button value="gallery">原文页面</t-radio-button>
                 <t-radio-button value="recognition">核对识别结果</t-radio-button>
-                <t-radio-button value="structured">已确认热工数据</t-radio-button>
+                <!-- <t-radio-button value="structured">已确认热工数据</t-radio-button> -->
               </t-radio-group>
             </div>
             <KnowledgePageGallery
@@ -600,7 +600,7 @@ onMounted(() => {
   background: var(--td-bg-color-page);
 }
 .knowledge-workspace__subnav {
-  padding: var(--td-size-4) var(--td-size-4) 0;
+  padding: var(--td-size-4) 0;
   background: transparent;
 }
 

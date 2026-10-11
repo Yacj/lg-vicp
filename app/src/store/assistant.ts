@@ -14,6 +14,7 @@ import type {
   MessageAttachment,
   ReportDetail,
   ReportItem,
+  ReportTaskStatus,
 } from '@/api/types'
 import type { AiStreamEvent } from '@/services/platform'
 import type { AgentToolStep, ParsedNeedInput, SessionReport } from '@/utils/aiAgentUi'
@@ -58,6 +59,7 @@ import {
   shouldPollReportStatus,
 } from '@/utils/aiReportTask'
 import { normalizeAiSources, sourceFromRetrieval } from '@/utils/aiSource'
+import { normalizeReferencePages, restoreMessageReferences } from '@/utils/referencePage'
 import { parseStreamEvent } from '@/utils/aiStream'
 import {
   canConfirmSelection,
@@ -191,6 +193,7 @@ function attachSourcesFromRetrievals(messages: ConversationMessage[], retrievals
       return {
         ...message,
         content,
+        referencePages: normalizeReferencePages(message.referencePages),
         ...(sources?.length ? { sources: normalizeAiSources(sources) } : {}),
       }
     })
@@ -344,6 +347,7 @@ export const useAssistantStore = defineStore('assistant', {
         return
       }
 
+      const previousMessages = this.conversation?.id === id ? this.messages : []
       if (this.conversation?.id !== id) {
         this.cancelActiveStream(true)
         this.selectionSelectedIds = []
@@ -371,7 +375,7 @@ export const useAssistantStore = defineStore('assistant', {
           return
         }
         this.conversation = response.data.conversation
-        this.messages = attachSourcesFromRetrievals(response.data.messages, response.data.retrievals || [])
+        this.messages = attachSourcesFromRetrievals(restoreMessageReferences(response.data.messages, previousMessages), response.data.retrievals || [])
         this.feedbacks = indexFeedbacks(response.data.feedbacks)
         this.pendingProjectId = response.data.conversation.projectId
         this.loadState = 'ready'
@@ -1254,6 +1258,13 @@ export const useAssistantStore = defineStore('assistant', {
           this.stopReportPolling()
           break
         }
+        case 'reference_pages': {
+          const message = this.messages.find(item => item.id === this.streamingMessageId)
+          if (message) {
+            message.referencePages = normalizeReferencePages([...(message.referencePages || []), ...payload.data.referencePages])
+          }
+          break
+        }
         case 'sources': {
           const message = this.messages.find(item => item.id === this.streamingMessageId)
           if (message) {
@@ -1281,6 +1292,9 @@ export const useAssistantStore = defineStore('assistant', {
             message.finishedAt = new Date().toISOString()
             message.sources = normalizeAiSources([...(message.sources || []), ...payload.data.sources])
             message.model = payload.data.model?.id ?? null
+            if (payload.data.referencePages) {
+              message.referencePages = normalizeReferencePages([...(message.referencePages || []), ...payload.data.referencePages])
+            }
           }
           if (payload.data.finishReason !== 'WAITING_USER_INPUT') {
             this.pendingUserInput = null

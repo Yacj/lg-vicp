@@ -11,7 +11,7 @@ describe("REFERENCE_PAGE 正式知识页防御", () => {
       then: (resolve: (value: unknown) => void) => Promise.resolve(rows).then(resolve) };
     const onEvent = vi.fn();
     const result = await emitReferencePages({ app: { db: { select: () => query }, log: { warn: vi.fn() },
-      storage: { createDownloadUrl: async () => "https://example.test/p.png" } }, onEvent } as any,
+      storage: { createDownloadUrl: async () => "https://example.test/p.png" } }, conversation: { projectId: null }, onEvent } as any,
     [{ id: "c", sourceDocumentId: "doc", sourcePageId: "page", sourcePageLabel: "1", thicknessMm: 60, productThermalResistance: 8, totalThermalResistance: 8.313, kValue: 0.12 }]);
     expect(result.candidates[0]?.sourcePageLabel).toBe(pageLabel);
     const block = onEvent.mock.calls.find(([name]) => name === "reference_pages")?.[1].referencePages[0];
@@ -61,6 +61,7 @@ describe("REFERENCE_PAGE 正式知识页防御", () => {
       then: (resolve: (value: unknown) => void) => Promise.resolve(rows).then(resolve)
     };
     const outcome = await emitReferencePages({
+      conversation: { projectId: null },
       app: {
         db: { select: () => query },
         storage: { createDownloadUrl },
@@ -110,6 +111,7 @@ describe("REFERENCE_PAGE 正式知识页防御", () => {
       then: (resolve: (value: unknown) => void) => Promise.resolve(rows).then(resolve)
     };
     const outcome = await emitReferencePages({
+      conversation: { projectId: null },
       app: {
         db: { select: () => query },
         storage: { createDownloadUrl },

@@ -1,3 +1,5 @@
+import type { AiReferencePage, KnowledgePageRenderModel, ReferenceHighlight } from './reference-page'
+
 export interface ApiEnvelope<T> {
   success: true
   data: T
@@ -409,6 +411,10 @@ export interface AiSourcePage {
   extractedText: string
   blocks: AiSourcePageBlock[]
   pageImageUrl: string | null
+  /** 来源详情可能提供页面模型；旧响应没有这些字段。 */
+  renderModel?: KnowledgePageRenderModel | null
+  matches?: ReferenceHighlight[]
+  referenceHighlight?: ReferenceHighlight | null
 }
 
 export interface AiSourceDetailHighlight {
@@ -605,6 +611,10 @@ export type AiStreamEventPayload
     }
   }
   | {
+    event: 'reference_pages'
+    data: { referencePages: AiReferencePage[] }
+  }
+  | {
     event: 'delta'
     data: { text: string }
   }
@@ -615,6 +625,7 @@ export type AiStreamEventPayload
       conversationId: string
       finishReason: string
       sources: AiSourceRef[]
+      referencePages?: AiReferencePage[]
       model?: { id: string } | null
       regeneratedMessageId?: string
     }
@@ -673,6 +684,7 @@ export interface ConversationMessage {
   stopReason?: string | null
   createdAt: string
   attachments?: MessageAttachment[]
+  referencePages?: AiReferencePage[]
 }
 
 export interface AiMessageFeedback {

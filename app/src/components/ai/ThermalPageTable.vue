@@ -1,0 +1,141 @@
+<script setup lang="ts">
+import type { KnowledgeRenderConstruction, ReferenceHighlight, ThermalFieldKey } from '@/api/reference-page'
+import type { ThermalTableRow } from '@/utils/thermalPageTable'
+import { computed, onMounted, ref, watch } from 'vue'
+import { formatReferenceNumber } from '@/utils/referencePage'
+import { thermalConstructionRows } from '@/utils/thermalPageTable'
+
+const props = withDefaults(defineProps<{ constructions: KnowledgeRenderConstruction[], matches: ReferenceHighlight[], active?: ReferenceHighlight, highlightEnabled?: boolean, anchorPrefix?: string }>(), { highlightEnabled: true, anchorPrefix: 'reference' })
+const anchor = (constructionIndex: number, optionIndex?: number) => `${props.anchorPrefix}-construction-${constructionIndex}${optionIndex == null ? '' : `-option-${optionIndex}`}`
+const groups = computed(() => props.constructions.map((construction, index) => {
+  const label = construction.constructionCode?.trim() || construction.title?.trim() || '参考构造'
+  const system = construction.systemName?.trim() || ''
+  return { construction, index, label, system: system !== label && system !== construction.title?.trim() ? system : '', rows: thermalConstructionRows(construction) }
+}))
+const bodyHeight = computed(() => `min(60vh, ${Math.max(1, groups.value.reduce((count, group) => count + Math.max(1, group.rows.length), 0)) * 34 + groups.value.length}px)`)
+const activeAnchor = computed(() => {
+  const group = groups.value.find(item => item.construction.constructionId === props.active?.constructionId)
+  if (!group)
+    return ''
+  const index = group.construction.options.findIndex(option => option.optionId === props.active?.optionId)
+  return anchor(group.index, index >= 0 ? index : undefined)
+})
+const scrollLeft = ref(0)
+const scrollTarget = ref('')
+onMounted(() => {
+  scrollTarget.value = activeAnchor.value
+})
+watch(activeAnchor, (target) => {
+  scrollTarget.value = target
+})
+function syncScroll(event: { detail: { scrollLeft: number } }) {
+  scrollLeft.value = event.detail.scrollLeft
+}
+watch(() => `${props.active?.constructionId || ''}:${props.active?.optionId || ''}`, () => {
+  scrollLeft.value = props.active?.optionId && props.active.fieldKeys?.some(key => key === 'kValue' || key === 'totalThermalResistance') ? 10000 : 0
+}, { immediate: true })
+const fields: ThermalFieldKey[] = ['thicknessMm', 'productThermalResistance', 'totalThermalResistance', 'kValue']
+const columns = [3, 6, 7, 8]
+const ownedMatches = (construction: KnowledgeRenderConstruction, row: ThermalTableRow) => props.matches.filter(match => match.constructionId === construction.constructionId && (!match.optionId || match.optionId === row.option?.optionId))
+const isHit = (construction: KnowledgeRenderConstruction, row: ThermalTableRow) => props.highlightEnabled && ownedMatches(construction, row).length > 0
+const fieldHit = (construction: KnowledgeRenderConstruction, row: ThermalTableRow, field: ThermalFieldKey) => isHit(construction, row) && ownedMatches(construction, row).some(match => match.fieldKeys?.includes(field))
+const cellPosition = (column: number, start: number, length = 1) => ({ gridColumn: String(column), gridRow: `${start + 1} / span ${length}` })
+const value = (row: ThermalTableRow, field: ThermalFieldKey) => formatReferenceNumber(row.option ? row.option[field] : field === 'thicknessMm' ? row.layer?.thicknessMm : field === 'productThermalResistance' ? row.layer?.rValue : null, field === 'thicknessMm' ? undefined : 3)
+</script>
+
+<template>
+  <view class="thermal-table-scroll" role="table" aria-label="完整构造热工表，可左右滑动">
+    <scroll-view scroll-x :scroll-left="scrollLeft" class="thermal-table__scroll" @scroll="syncScroll">
+      <view class="thermal-table">
+        <view class="thermal-table__header" role="rowgroup">
+          <view class="thermal-table__cell thermal-table__heading thermal-table__code-heading" style="grid-column: 1; grid-row: 1 / span 2">
+            编号
+          </view>
+          <view class="thermal-table__cell thermal-table__heading" style="grid-column: 2; grid-row: 1 / span 2">
+            构造层 / 材料
+          </view>
+          <view class="thermal-table__cell thermal-table__heading" style="grid-column: 3; grid-row: 1 / span 2">
+            分层厚度<text>mm</text>
+          </view>
+          <view class="thermal-table__cell thermal-table__heading" style="grid-column: 4; grid-row: 1 / span 2">
+            导热系数 λ<text>W/(m·K)</text>
+          </view>
+          <view class="thermal-table__cell thermal-table__heading" style="grid-column: 5; grid-row: 1 / span 2">
+            修正系数 α
+          </view>
+          <view class="thermal-table__cell thermal-table__heading" style="grid-column: 6; grid-row: 1 / span 2">
+            热阻 R<text>(m²·K)/W</text>
+          </view>
+          <view class="thermal-table__cell thermal-table__heading" style="grid-column: 7 / span 2; grid-row: 1">
+            外墙主断面
+          </view>
+          <view class="thermal-table__cell thermal-table__heading" style="grid-column: 7; grid-row: 2">
+            传热阻 R₀<text>(m²·K)/W</text>
+          </view>
+          <view class="thermal-table__cell thermal-table__heading" style="grid-column: 8; grid-row: 2">
+            传热系数 K<text>W/(m²·K)</text>
+          </view>
+        </view>
+      </view>
+    </scroll-view>
+    <scroll-view scroll-x scroll-y :scroll-left="scrollLeft" :scroll-into-view="scrollTarget" class="thermal-table__scroll" :style="{ height: bodyHeight }" @scroll="syncScroll">
+      <view v-if="!groups.length" class="thermal-table__cell">
+        暂无热工表，请查看原始页面。
+      </view>
+      <view v-for="group in groups" :id="anchor(group.index)" :key="group.construction.constructionId" class="thermal-table__body" :style="{ gridTemplateRows: `repeat(${Math.max(1, group.rows.length)}, minmax(34px, auto))` }" role="rowgroup">
+        <view class="thermal-table__cell thermal-table__code" :style="cellPosition(1, 0, Math.max(1, group.rows.length))">
+          <text>{{ group.label }}</text>
+          <text v-if="group.system" class="app-muted mt-1 text-2.5">
+            {{ group.system }}
+          </text>
+        </view>
+        <template v-for="(row, rowIndex) in group.rows" :key="row.key">
+          <view :id="row.option ? anchor(group.index, row.optionIndex) : undefined" class="thermal-table__row-marker" :class="{ 'thermal-table__row--hit': isHit(group.construction, row), 'thermal-table__row--active': highlightEnabled && active?.constructionId === group.construction.constructionId && active.optionId === row.option?.optionId }" :style="{ gridColumn: '1 / -1', gridRow: String(rowIndex + 1) }" />
+          <template v-if="!row.option || rowIndex === row.groupStart">
+            <view class="thermal-table__cell thermal-table__material" :style="cellPosition(2, rowIndex, row.groupLength)">
+              {{ row.order != null ? `${row.order}. ` : '' }}{{ row.layer?.name || group.construction.material?.name || '厚度档位' }}
+            </view>
+            <view class="thermal-table__cell" :style="cellPosition(4, rowIndex, row.groupLength)">
+              {{ formatReferenceNumber(row.layer?.lambda ?? (row.option ? group.construction.material?.lambda : null), 3) }}
+            </view>
+            <view class="thermal-table__cell" :style="cellPosition(5, rowIndex, row.groupLength)">
+              {{ formatReferenceNumber(row.layer?.alpha ?? (row.option ? group.construction.material?.alpha : null), 2) }}
+            </view>
+          </template>
+          <view v-for="(field, index) in fields" :key="field" class="thermal-table__cell" :class="{ 'thermal-table__wall': index > 1, 'thermal-table__last': rowIndex === group.rows.length - 1 }" :style="cellPosition(columns[index]!, rowIndex)">
+            <text :class="{ 'thermal-table__field--hit': fieldHit(group.construction, row, field) }">
+              {{ row.option || index < 2 ? value(row, field) : '' }}
+            </text>
+            <text v-if="field === 'kValue' && row.option?.warnings?.length" class="app-warning text-2.5">
+              需核对
+            </text>
+          </view>
+        </template>
+        <view v-if="!group.rows.length" class="thermal-table__cell" style="grid-column: 2 / -1; grid-row: 1">
+          暂无构造参数，请查看原始页面。
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+</template>
+
+<style scoped lang="scss">
+.thermal-table-scroll { width: 100%; font-variant-numeric: tabular-nums; font-size: 13px; color: var(--app-text-primary); }
+.thermal-table__scroll :deep(.uni-scroll-view::-webkit-scrollbar) { display: none; width: 0; height: 0; }
+.thermal-table { width: 930px; border-top: 1px solid var(--app-border-strong); border-left: 1px solid var(--app-border-strong); font-variant-numeric: tabular-nums; font-size: 13px; color: var(--app-text-primary); }
+.thermal-table__header, .thermal-table__body { display: grid; width: 930px; grid-template-columns: 90px 200px 80px 110px 90px 110px 125px 125px; }
+.thermal-table__header { position: sticky; top: 0; z-index: 3; background: var(--app-bg-canvas); }
+.thermal-table__cell { display: flex; align-items: center; justify-content: center; flex-direction: column; padding: var(--app-space-1); border-right: 1px solid var(--app-border-strong); border-bottom: 1px solid var(--app-border-default); box-sizing: border-box; white-space: nowrap; position: relative; z-index: 1; }
+.thermal-table__heading { min-height: 32px; font-weight: 500; }
+.thermal-table__heading text { color: var(--app-text-tertiary); font-weight: 400; font-size: 11px; }
+.thermal-table__code-heading { position: sticky; left: 0; z-index: 4; background: var(--app-bg-canvas); }
+.thermal-table__code { position: sticky; left: 0; z-index: 2; background: var(--app-bg-surface); font-weight: 600; white-space: normal; text-align: center; }
+.thermal-table__material { align-items: flex-start; white-space: normal; }
+.thermal-table__body { border-bottom: 1px solid var(--app-border-strong); }
+.thermal-table__wall { border-bottom-color: transparent; }
+.thermal-table__last { border-bottom-color: var(--app-border-strong); }
+.thermal-table__row-marker { pointer-events: none; z-index: 0; }
+.thermal-table__row--hit { background: var(--app-warning-soft); }
+.thermal-table__row--active { box-shadow: inset 0 -2px var(--app-warning); }
+.thermal-table__field--hit { font-weight: 700; color: var(--app-action-primary); background: var(--app-bg-surface); border-radius: var(--app-radius-xs); padding: 0 var(--app-space-1); }
+</style>

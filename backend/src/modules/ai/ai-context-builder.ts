@@ -52,6 +52,8 @@ export interface BuildAiContextInput {
   projectContext?: string | null;
   insulationSystemContext?: string | null;
   knowledgeContext?: string | null;
+  /** 已按完整记录预算的确认档位，不能按字符再次裁剪。 */
+  knowledgeReferenceContext?: string | null;
   ruleContext?: string | null;
   thermalContext?: string | null;
   visionContext?: string | null;
@@ -143,6 +145,14 @@ export async function loadHistoricalAttachmentContext(
   });
 }
 
+export function prioritizeKnowledgeReferenceContext(text: string | null | undefined, reference: string | null | undefined, maxTokens: number): string {
+  const facts = reference?.trim() ?? "";
+  if (!facts) return compressToolOrKnowledgeText(text, maxTokens);
+  const remaining = maxTokens - estimateTokens(facts) - 2;
+  const prose = remaining > 0 ? compressToolOrKnowledgeText(text, remaining) : "";
+  return [facts, prose].filter(Boolean).join("\n\n");
+}
+
 export async function buildAiContext(input: BuildAiContextInput): Promise<BuiltAiContext> {
   const excludeIds = input.excludeMessageIds ?? [];
   const [stateRow] = await input.app.db.select().from(aiConversationStates)
@@ -165,10 +175,7 @@ export async function buildAiContext(input: BuildAiContextInput): Promise<BuiltA
     formatAttachmentContext(attachments),
     env.AI_CONTEXT_BUCKET_ATTACHMENT_TOKENS
   );
-  const knowledgeContext = compressToolOrKnowledgeText(
-    input.knowledgeContext,
-    env.AI_CONTEXT_BUCKET_KNOWLEDGE_TOKENS
-  );
+  const knowledgeContext = prioritizeKnowledgeReferenceContext(input.knowledgeContext, input.knowledgeReferenceContext, env.AI_CONTEXT_BUCKET_KNOWLEDGE_TOKENS);
   const agentToolContext = compressToolOrKnowledgeText(
     input.agentToolContext,
     env.AI_CONTEXT_BUCKET_TOOL_TOKENS

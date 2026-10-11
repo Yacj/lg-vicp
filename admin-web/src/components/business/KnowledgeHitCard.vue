@@ -153,7 +153,7 @@ function openReader(): void {
       size="min(760px, 96vw)"
       :footer="false"
     >
-      <KnowledgeSourceReader v-if="locator && readerVisible" :locator="locator" />
+      <KnowledgeSourceReader v-if="locator && readerVisible" :locator="locator" :highlights="[source, ...(source.matches ?? [])]" />
     </t-drawer>
   </div>
 </template>

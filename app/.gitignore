@@ -12,6 +12,9 @@ node_modules
 dist
 *.local
 
+# 本地 AI 参考页样式验证截图
+/.reference-*-preview.png
+
 # Editor directories and files
 .idea
 *.suo

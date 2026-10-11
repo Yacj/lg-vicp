@@ -18,6 +18,8 @@ import {
 } from "../knowledge-source-selection.js";
 import { USER_LANGUAGE_NOTES } from "../../../shared/ai-response-policy.js";
 import { interpretThermalQuestion, thermalMetricClarification } from "../thermal-answer-facts.js";
+import { loadPublishedKnowledgeReferences } from "../ai-reference-pages.service.js";
+import { normalizeConversationLookupQuery } from "./thermal-lookup.js";
 
 export const searchKnowledgeInput = z.object({
   query: z
@@ -118,6 +120,16 @@ export function createSearchKnowledgeTool(ctx: ToolRuntimeContext) {
 
       const selected = new Set(decision.selectedIds);
       const filteredChunks = chunks.filter((chunk) => selected.has(chunk.documentId));
+      const lookup = normalizeConversationLookupQuery({}, ctx.userMessage ?? query, ctx.taskState?.lastReferenceLookup);
+      const references = ctx.answerContract === "REFERENCE_LOOKUP" && !lookup.needsClarification
+        ? await loadPublishedKnowledgeReferences(ctx.app, filteredChunks, ctx.conversation.projectId, ctx.userMessage ?? query, lookup.query)
+        : { answer: undefined, pages: [], context: "" };
+      if (references.answer !== undefined && ctx.answerContract === "REFERENCE_LOOKUP") {
+        ctx.onReferenceAnswer?.(references.answer, references.pages);
+        return toolOk({ available: true, authoritative: true, confirmedFacts: references.context,
+          instruction: "已由后端按同一确认档位生成回答及完整来源页，不得从其他文字补充或改写数值。",
+          selectedSourceIds: decision.selectedIds });
+      }
       const hits = formatKnowledgeHitsForModel(filteredChunks);
       const sources = toAiSources(filteredChunks);
       ctx.onEvent?.("sources", { sources });

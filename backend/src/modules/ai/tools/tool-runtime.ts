@@ -87,6 +87,8 @@ export interface ToolRuntimeContext {
   userMessage?: string | null;
   onWait?: (signal: AgentWaitSignal) => void;
   onEvent?: (event: string, data: unknown) => void;
+  /** 仅后端已确认查表事实可提供确定性回答，内部标记不进入客户端事件。 */
+  onReferenceAnswer?: (answer: string, pages: import("../reference-page.js").ReferencePageBlock[]) => void;
 }
 
 function detectDuplicateFromCtx(ctx: ToolRuntimeContext, nextHash: string): boolean {

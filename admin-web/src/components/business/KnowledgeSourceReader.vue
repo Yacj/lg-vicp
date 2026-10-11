@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import type { AiSourceDetail, AiSourceLocatorQuery } from '@/types/ai-source'
+import type { ReferenceHighlight } from '@/types/knowledge-page-render'
 import { computed, ref, watch } from 'vue'
 import { api } from '@/api/http/client'
 import { fetchAiSourceDetail, fetchSourcePageIdIndex } from '@/api/modules/ai-source'
-import KnowledgePageView from './KnowledgePageView.vue'
+import KnowledgePageViewer from './knowledge/KnowledgePageViewer.vue'
 
 /**
  * Wiki 原文阅读器（AI 来源溯源 / 知识详情 / 公开文库共用同一阅读核心）：
@@ -16,6 +17,7 @@ import KnowledgePageView from './KnowledgePageView.vue'
 const props = defineProps<{
   locator: AiSourceLocatorQuery
   fileId?: string | null
+  highlights?: ReferenceHighlight[]
 }>()
 
 const detail = ref<AiSourceDetail | null>(null)
@@ -150,15 +152,6 @@ const locationPath = computed(() => {
     .join(' / ')
 })
 
-const readerHighlights = computed(() =>
-  (detail.value?.highlights ?? []).map(highlight => ({
-    blockId: highlight.blockId,
-    charStart: highlight.charStart,
-    charEnd: highlight.charEnd,
-    text: highlight.text,
-  })),
-)
-
 defineExpose({ reload: load })
 </script>
 
@@ -210,13 +203,19 @@ defineExpose({ reload: load })
         <t-loading size="small" text="翻页中..." />
       </div>
 
-      <KnowledgePageView
+      <KnowledgePageViewer
         v-else-if="detail.page"
-        :full-text="detail.page.fullText"
-        :highlights="readerHighlights"
+        :page-id="detail.page.id"
+        :page-title="detail.page.pageTitle"
+        :page-label="detail.page.pageLabel"
+        :parsed-text="detail.page.fullText"
+        :render-model="detail.page.renderModel"
+        :confirmed-structured-data="detail.page.confirmedStructuredData"
+        :reference-highlight="detail.page.referenceHighlight"
+        :matches="detail.page.matches"
+        :highlights="[...(highlights ?? []), ...detail.highlights]"
+        :text-highlights="detail.highlights.map(highlight => ({ charStart: highlight.charStart, charEnd: highlight.charEnd }))"
         :page-image-url="detail.page.pageImageUrl"
-        :page-number="detail.page.pageNumber"
-        :blocks="detail.page.blocks"
       />
       <p v-else class="ks-reader__empty">
         该资料还没有可阅读的页面内容

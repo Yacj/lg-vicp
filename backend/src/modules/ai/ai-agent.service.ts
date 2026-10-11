@@ -21,6 +21,8 @@ import { normalizeAllowedToolNames, type AgentToolName } from "./ai-capability-r
 import type { ConversationRow } from "./ai-context-builder.js";
 import { createAgentTools, type ToolRuntimeContext } from "./ai-tools.js";
 import { writeSse } from "./ai-sse.js";
+import { resolveConfirmedReferenceAnswer } from "./ai-reference-pages.service.js";
+import { storeReferencePageBlocks, type ReferencePageBlock } from "./reference-page.js";
 import type { SceneRuntime } from "./ai-runtime.service.js";
 import {
   attachUserSelectionRequest,
@@ -375,6 +377,8 @@ export async function runAgentLoop(options: {
   let usage: LanguageModelUsage | undefined;
   let sources: unknown[] = state.sources;
   let referencePages: unknown[] = [];
+  let confirmedAnswer: { text: string; pages: ReferencePageBlock[] } | undefined;
+  let confirmedAnswerEmitted = false;
   const waitingRef: { current: AgentWaitState | null } = { current: null };
   let step = 0;
   const toolCallCount = { value: 0 };
@@ -388,8 +392,18 @@ export async function runAgentLoop(options: {
   };
 
   const flushVisible = (text: string) => {
-    const formatted = formatUserVisibleAnswer(text);
+    if (confirmedAnswer && abortSignal.aborted) return;
+    if (confirmedAnswer && confirmedAnswerEmitted) return;
+    const formatted = confirmedAnswer && !waitingRef.current ? confirmedAnswer.text : formatUserVisibleAnswer(text);
     if (!formatted) return;
+    if (confirmedAnswer && !waitingRef.current) {
+      confirmedAnswerEmitted = true;
+      referencePages = storeReferencePageBlocks(confirmedAnswer.pages);
+      writeSse(reply, "reference_pages", { referencePages: confirmedAnswer.pages });
+      sources = confirmedAnswer.pages.map(page => ({ documentId: page.page.documentId, pageId: page.page.pageId,
+        title: page.page.documentTitle, pageLabel: page.page.pageLabel }));
+      writeSse(reply, "sources", { sources });
+    }
     userVisibleText = userVisibleText ? `${userVisibleText}\n\n${formatted}` : formatted;
     for (const chunk of splitVisibleAnswerChunks(formatted)) {
       writeSse(reply, "delta", { text: chunk });
@@ -423,6 +437,9 @@ export async function runAgentLoop(options: {
     taskState: options.taskState ?? null,
     answerContract: options.answerContract ?? null,
     userMessage: options.userMessage ?? null,
+    onReferenceAnswer: (answer, pages) => {
+      confirmedAnswer = resolveConfirmedReferenceAnswer(answer, pages);
+    },
     onWait: (signal) => {
       const type = signal.type === "APPROVAL"
         ? "APPROVAL"
@@ -463,7 +480,8 @@ export async function runAgentLoop(options: {
       waitingRef.current = type === "APPROVAL" ? waiting : attachUserSelectionRequest(waiting);
     },
     onEvent: (event, data) => {
-      writeSse(reply, event, data);
+      writeSse(reply, event, event === "reference_pages" && data && typeof data === "object" && "referencePages" in data
+        ? { referencePages: (data as { referencePages: unknown[] }).referencePages } : data);
       if (event === "sources" && data && typeof data === "object" && "sources" in (data as Record<string, unknown>)) {
         sources = (data as { sources: unknown[] }).sources;
       }
@@ -572,6 +590,8 @@ export async function runAgentLoop(options: {
       stepBuffer = createAgentStepBuffer();
     }
     if (!abortSignal.aborted) {
+      // 模型最终步无正文也发送已核验的查表结果；等待/停止不能抢占交互。
+      if (confirmedAnswer && !confirmedAnswerEmitted && !waitingRef.current) flushVisible(confirmedAnswer.text);
       usage = await Promise.resolve(result.usage);
       const responseMessages = await result.responseMessages;
       state.messages = applyResponseMessages(baseMessages, responseMessages);

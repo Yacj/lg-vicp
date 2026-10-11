@@ -1,5 +1,6 @@
 import type { AiSourceRef } from '@/types/ai-source'
 import type { PageResult } from '@/types/api'
+import type { KnowledgePagePresentation, ReferenceHighlight } from '@/types/knowledge-page-render'
 import type { EvidenceLevel } from '@/types/professional'
 
 /** 知识中心类型。文档/版本审核状态与专业主数据不同：文档 ACTIVE|DISABLED，版本 DRAFT|APPROVED|PUBLISHED|DISABLED。 */
@@ -644,7 +645,8 @@ export interface KnowledgeVersionTestInspectResult {
 }
 
 /** 普通用户测试知识库引用来源（后端 toUserTestSources，不含 score/chunkId）。 */
-export interface KnowledgeUserTestSource {
+export interface KnowledgeUserTestSource extends ReferenceHighlight {
+  matches?: ReferenceHighlight[]
   documentId: string
   versionId?: string
   title: string
@@ -664,8 +666,10 @@ export interface KnowledgeReferencePageHighlight {
   value: string
 }
 
-export interface KnowledgeReferencePageMatch {
+export interface KnowledgeReferencePageMatch extends ReferenceHighlight {
   candidateId?: string
+  /** 后端确认的回答位置，不从回答中的数值猜测档位。 */
+  answerOffset?: number
   summary: {
     systemType?: string
     constructionCode?: string
@@ -683,7 +687,7 @@ export interface KnowledgeReferencePageMatch {
   highlights: KnowledgeReferencePageHighlight[]
 }
 
-export interface KnowledgeReferencePageBlock {
+export interface KnowledgeReferencePageBlock extends ReferenceHighlight, KnowledgePagePresentation {
   type?: 'REFERENCE_PAGE'
   summary: KnowledgeReferencePageMatch['summary']
   page: {
@@ -737,7 +741,7 @@ export interface KnowledgePageBlock {
   metadata?: Record<string, unknown> | null
 }
 
-export interface KnowledgePage {
+export interface KnowledgePage extends KnowledgePagePresentation {
   id: string
   documentId: string
   versionId: string
@@ -866,7 +870,7 @@ export interface PageRecognitionResult {
   warnings?: string[]
 }
 
-export interface KnowledgePageRecognition {
+export interface KnowledgePageRecognition extends KnowledgePagePresentation {
   pageId: string
   versionId: string
   documentId: string
@@ -950,7 +954,7 @@ export interface KnowledgePageWindowItem {
 export interface KnowledgePageWindow {
   current: number
   total: number
-  page: {
+  page: KnowledgePagePresentation & {
     id: string
     pageNumber: number
     physicalPageNumber: number
@@ -1032,7 +1036,8 @@ export interface KnowledgeChunkEditInput {
  * 检索命中（Wiki 级层级检索：体系 → 文档 → 章节 → 页面 → 内容块，Chunk 辅助）。
  * 与后端 knowledge.service.ts SearchHit（继承 WikiHit）对齐。
  */
-export interface KnowledgeSearchHit {
+export interface KnowledgeSearchHit extends ReferenceHighlight {
+  matches?: ReferenceHighlight[]
   sourceId?: string
   chunkId?: string
   documentId: string

@@ -10,10 +10,10 @@ import { MessagePlugin } from 'tdesign-vue-next'
 import { computed, ref, watch } from 'vue'
 import { inspectKnowledgeVersionTest, postKnowledgeVersionTestQa } from '@/api/modules/knowledge'
 import KnowledgeOriginalPageViewer from '@/components/business/knowledge/KnowledgeOriginalPageViewer.vue'
-import AppMarkdown from '@/components/ui/AppMarkdown.vue'
+import KnowledgeAnswerContent from '@/components/business/knowledge/KnowledgeAnswerContent.vue'
 import { usePermissionAccess } from '@/composables/usePermissionAccess'
 import { businessUserError } from '@/utils/business-error'
-import { knowledgePageLabel } from '@/utils/knowledge-user'
+import type { ReferenceHighlight } from '@/types/knowledge-page-render'
 
 interface TestResult {
   query: string
@@ -43,6 +43,7 @@ const debugLoading = ref(false)
 const debugResult = ref<KnowledgeVersionTestInspectResult | null>(null)
 const debugError = ref<unknown>(null)
 const viewerVisible = ref(false)
+const viewerHighlights = ref<ReferenceHighlight[]>([])
 const viewerPage = ref<{ imageUrl: string | null, pageId: string | null, versionId: string | null, physicalPageNumber: number | null, pageLabel: string | null, title: string }>({ imageUrl: null, pageId: null, versionId: null, physicalPageNumber: null, pageLabel: null, title: '原始页面' })
 let abortController: AbortController | null = null
 
@@ -64,6 +65,10 @@ function toUserTestSource(item: KnowledgeQaSource | KnowledgeUserTestSource): Kn
     matchedText: item.matchedText ?? debugSource.snippet ?? null,
     pageId: debugSource.pageId ?? userSource.pageId ?? null,
     pageImageUrl: userSource.pageImageUrl ?? null,
+    optionId: item.optionId,
+    constructionId: item.constructionId,
+    fieldKeys: item.fieldKeys,
+    matches: item.matches,
   }
 }
 
@@ -79,25 +84,6 @@ function inferRetrievalType(referencePages: KnowledgeReferencePageBlock[], sourc
 
 function retrievalTypeLabel(value: string): string {
   return { REFERENCE_LOOKUP: '图集参考方案', KNOWLEDGE: '知识内容', DIRECT: '直接回答' }[value] ?? '检索中'
-}
-
-/** 匹配方案标签：优先展示产品层热阻 / 总热阻双 R，仅在缺失时兼容旧 R。 */
-function matchSchemeLabel(block: KnowledgeReferencePageBlock): string {
-  const matches = block.matches?.length ? block.matches : [{ summary: block.summary, highlights: block.highlights ?? [] }]
-  return matches.map((match) => {
-    const summary = match.summary
-    const totalR = summary.totalThermalResistance ?? summary.rValue ?? null
-    const parts = [
-      summary.systemType,
-      summary.constructionCode,
-      summary.productSpecName,
-      summary.thicknessMm != null ? `${summary.thicknessMm}mm` : null,
-      summary.productThermalResistance != null ? `产品层 R=${summary.productThermalResistance}` : null,
-      totalR != null ? `总 R=${totalR}` : null,
-      summary.kValue != null ? `K=${summary.kValue}` : null,
-    ].filter(Boolean)
-    return parts.join(' / ') || '匹配方案'
-  }).join('；')
 }
 
 async function send(): Promise<void> {
@@ -201,13 +187,16 @@ function clearResult(): void {
 }
 
 function openSource(source: KnowledgeUserTestSource): void {
+  viewerHighlights.value = [...(source.matches ?? []), ...(source.optionId || source.constructionId ? [source] : [])]
   viewerPage.value = { imageUrl: source.pageImageUrl ?? null, pageId: source.pageId ?? null, versionId: source.versionId || null, physicalPageNumber: source.physicalPageNumber ?? null, pageLabel: source.pageLabel ?? null, title: source.title || '引用原页' }
   viewerVisible.value = true
 }
 
 function openReferencePage(block: KnowledgeReferencePageBlock): void {
-  if (!block.page.imageUrl && !canViewOriginal.value) return
-  viewerPage.value = { imageUrl: block.page.imageUrl ?? null, pageId: block.page.pageId, versionId: null, physicalPageNumber: block.page.physicalPageNumber ?? block.page.pageNumber ?? null, pageLabel: block.page.pageLabel ?? null, title: block.page.documentTitle || '参考原页' }
+  viewerHighlights.value = (block.matches?.length ? block.matches : [block]).map(match => ({
+    pageId: block.page.pageId, constructionId: match.constructionId, optionId: match.optionId, fieldKeys: match.fieldKeys,
+  }))
+  viewerPage.value = { imageUrl: block.page.imageUrl, pageId: block.page.pageId, versionId: null, physicalPageNumber: block.page.physicalPageNumber ?? block.page.pageNumber, pageLabel: block.page.pageLabel ?? null, title: block.page.documentTitle }
   viewerVisible.value = true
 }
 
@@ -269,7 +258,7 @@ watch(() => props.canDebug, (value) => {
           <p v-if="!result.answer && sending" class="knowledge-test-panel__muted">
             正在生成…
           </p>
-          <AppMarkdown v-else-if="result.answer" :content="result.answer" />
+          <KnowledgeAnswerContent v-else-if="result.answer" :answer="result.answer" :reference-pages="result.referencePages" :complete="!sending" :has-sources="!!result.sources.length" />
           <p v-else class="knowledge-test-panel__muted">
             未生成回答。请检查问题和资料内容后重试。
           </p>
@@ -282,27 +271,13 @@ watch(() => props.canDebug, (value) => {
           </t-tag>
         </section>
 
-        <section v-if="result.referencePages.length" class="knowledge-test-panel__block">
-          <h3>匹配方案</h3>
-          <div class="knowledge-test-panel__schemes">
-            <article v-for="(block, index) in result.referencePages" :key="`${block.page.pageId}-${index}`" class="knowledge-test-panel__scheme">
-              <header>{{ matchSchemeLabel(block) }}</header>
-              <div class="knowledge-test-panel__scheme-meta">
-                <span>{{ block.page.documentTitle }}</span>
-                <em>{{ knowledgePageLabel(block.page.pageLabel, block.page.physicalPageNumber ?? block.page.pageNumber) }}</em>
-              </div>
-            </article>
-          </div>
-        </section>
-
         <section v-if="result.sources.length" class="knowledge-test-panel__block">
           <h3>引用来源</h3>
           <div class="knowledge-test-panel__sources">
             <article v-for="(source, index) in result.sources" :key="`${source.documentId}-${index}`" class="knowledge-test-panel__source">
               <header>
                 <strong>{{ source.title }}</strong>
-                <span>资料页码 {{ source.pageLabel || '—' }}</span>
-                <span>文件页序 {{ source.physicalPageNumber ?? '—' }}</span>
+                <span>印刷页码 {{ source.pageLabel || '未标注' }}</span>
               </header>
               <blockquote v-if="source.matchedText">
                 {{ source.matchedText }}
@@ -321,33 +296,15 @@ watch(() => props.canDebug, (value) => {
           </div>
         </section>
 
-        <section v-if="result.referencePages.length" class="knowledge-test-panel__block">
-          <h3>原始页面</h3>
-          <div class="knowledge-test-panel__pages">
-            <figure
-              v-for="(block, index) in result.referencePages"
-              :key="`page-${block.page.pageId}-${index}`"
-              class="knowledge-test-panel__page"
-              role="button"
-              tabindex="0"
-              @click="openReferencePage(block)"
-              @keydown.enter="openReferencePage(block)"
-            >
-              <img
-                v-if="block.page.imageUrl"
-                :alt="knowledgePageLabel(block.page.pageLabel, block.page.physicalPageNumber)"
-                :src="block.page.imageUrl"
-                loading="lazy"
-              >
-              <div v-else class="knowledge-test-panel__page-empty">
-                暂无页面图
-              </div>
-              <figcaption>
-                {{ knowledgePageLabel(block.page.pageLabel, block.page.physicalPageNumber ?? block.page.pageNumber) }}
-              </figcaption>
-            </figure>
+        <section v-if="result.referencePages.length && !result.sources.length" class="knowledge-test-panel__block">
+          <h3>引用来源</h3>
+          <div v-for="(block, index) in result.referencePages" :key="`${block.page.pageId}-${index}`" class="knowledge-test-panel__source">
+            <header><strong>{{ block.page.documentTitle }}</strong><span>印刷页码 {{ block.page.pageLabel || '未标注' }}</span></header>
+            <t-button v-if="block.page.imageUrl || canViewOriginal" size="small" theme="primary" variant="text" @click="openReferencePage(block)">查看来源原页</t-button>
+            <span v-else class="knowledge-test-panel__muted">当前账号无原页查看权限</span>
           </div>
         </section>
+
       </div>
     </template>
 
@@ -415,6 +372,9 @@ watch(() => props.canDebug, (value) => {
       :physical-page-number="viewerPage.physicalPageNumber"
       :page-label="viewerPage.pageLabel"
       :title="viewerPage.title"
+      :highlights="viewerHighlights"
+      :load-content="canViewOriginal"
+      initial-tab="image"
     />
   </section>
 </template>
@@ -478,27 +438,23 @@ watch(() => props.canDebug, (value) => {
   font-size: 15px;
 }
 
-.knowledge-test-panel__schemes,
 .knowledge-test-panel__sources,
 .knowledge-test-panel__chunks {
   display: grid;
   gap: 10px;
 }
 
-.knowledge-test-panel__scheme,
 .knowledge-test-panel__source,
 .knowledge-test-panel__chunk {
   padding: var(--td-size-3) 0;
   border-bottom: 1px solid var(--td-component-stroke);
 }
 
-.knowledge-test-panel__scheme header,
 .knowledge-test-panel__source header,
 .knowledge-test-panel__chunk strong {
   color: var(--td-text-color-primary);
 }
 
-.knowledge-test-panel__scheme-meta,
 .knowledge-test-panel__source header,
 .knowledge-test-panel__chunk span {
   display: flex;
@@ -509,10 +465,6 @@ watch(() => props.canDebug, (value) => {
   font-size: var(--td-font-size-body-small);
 }
 
-.knowledge-test-panel__scheme-meta em {
-  font-style: normal;
-}
-
 .knowledge-test-panel__source blockquote,
 .knowledge-test-panel__chunk p {
   margin: 8px 0 0;
@@ -521,43 +473,4 @@ watch(() => props.canDebug, (value) => {
   white-space: pre-wrap;
 }
 
-.knowledge-test-panel__pages {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.knowledge-test-panel__page {
-  margin: 0;
-  overflow: hidden;
-  border: 1px solid var(--td-component-stroke);
-  border-radius: var(--td-radius-medium);
-  cursor: pointer;
-}
-
-.knowledge-test-panel__page img,
-.knowledge-test-panel__page-empty {
-  display: grid;
-  width: 100%;
-  aspect-ratio: 0.76;
-  place-items: center;
-  object-fit: contain;
-  background: var(--td-bg-color-secondarycontainer);
-}
-
-.knowledge-test-panel__page-empty {
-  color: var(--td-text-color-placeholder);
-}
-
-.knowledge-test-panel__page figcaption {
-  padding: 8px 10px;
-  color: var(--td-text-color-secondary);
-  font-size: var(--td-font-size-body-small);
-}
-
-@media (max-width: 900px) {
-  .knowledge-test-panel__pages {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
 </style>

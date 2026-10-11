@@ -770,11 +770,12 @@ onMounted(() => {
         <div class="knowledge-review__filter">
           <t-select v-model="statusFilter" size="small" :options="filterOptions" @change="changeFilter" />
         </div>
-        <button
+        <t-button
           v-for="page in filteredPages"
           :key="page.id"
           v-memo="[page, selected?.id === page.id, failedImageIds.has(page.id)]"
           type="button"
+          variant="text"
           class="knowledge-review__page-button"
           :aria-current="selected?.id === page.id ? 'page' : undefined"
           :class="{ 'is-selected': selected?.id === page.id }"
@@ -788,7 +789,7 @@ onMounted(() => {
             <small v-if="page.pageTitle">{{ page.pageTitle }}</small>
             <small>{{ statusMeta(page).label }}</small>
           </span>
-        </button>
+        </t-button>
       </nav>
 
       <div v-if="selected" class="knowledge-review__editor">
@@ -848,7 +849,7 @@ onMounted(() => {
             :readonly="!reviewAllowed"
           />
 
-          <RecognitionTextSection v-model:full-text="draft.fullText" :readonly="!reviewAllowed" />
+          <RecognitionTextSection v-model:full-text="draft.fullText" :page-id="selected.id" :systems="draft.systems" :notes="draft.notes" :readonly="!reviewAllowed" />
 
           <RecognitionThermalSection v-model:systems="draft.systems" :readonly="!reviewAllowed" />
 
@@ -929,6 +930,8 @@ onMounted(() => {
       :version-id="versionId"
       :physical-page-number="selected?.physicalPageNumber"
       :page-label="draft.pageLabel"
+      :page="recognition"
+      initial-tab="image"
       title="原图核对"
     />
   </section>
@@ -1034,10 +1037,7 @@ onMounted(() => {
 }
 
 .knowledge-review__page-button {
-  display: grid;
-  grid-template-columns: 58px minmax(0, 1fr);
-  gap: var(--td-size-2);
-  align-items: start;
+  display: block;
   color: var(--td-text-color-primary);
   font: inherit;
   flex: 0 0 auto;
@@ -1050,6 +1050,14 @@ onMounted(() => {
   text-align: left;
   white-space: normal;
   cursor: pointer;
+}
+
+.knowledge-review__page-button :deep(.t-button__text) {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: var(--td-size-2);
+  align-items: start;
+  width: 100%;
 }
 
 .knowledge-review__page-button.is-selected {
