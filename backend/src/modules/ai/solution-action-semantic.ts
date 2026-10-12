@@ -7,6 +7,7 @@ export const candidateReferenceSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("CONSTRUCTION_CODE"), value: z.string().trim().min(1), evidence }).strict(),
   z.object({ type: z.literal("THICKNESS"), value: z.number().positive(), evidence }).strict(),
   z.object({ type: z.literal("CURRENT_SELECTION"), evidence }).strict(),
+  z.object({ type: z.literal("CURRENT_POOL"), evidence }).strict(),
   z.object({ type: z.literal("POOL_PREFIX"), value: z.number().int().positive().max(100), evidence }).strict()
 ]);
 export type CandidateReference = z.infer<typeof candidateReferenceSchema>;
@@ -33,8 +34,8 @@ export function isSolutionAcknowledgement(text: string) { return acknowledgement
 export function parseSolutionActionFastPath(message: string): SolutionSelectionIntent | null {
   const text = normalizeSolutionActionText(message);
   if (confirmationCommands.has(text)) return { type: "USER_SELECTION", action: "CONFIRM", parserSource: "FAST_PATH" };
-  if (new Set(["重新选一套", "重新开始", "新方案"]).has(text)) return { type: "USER_SELECTION", action: "START_NEW", parserSource: "FAST_PATH" };
-  if (text === "我又想改成另一个") return { type: "USER_SELECTION", action: "REVISE", parserSource: "FAST_PATH" };
+  if (new Set(["重新选一套", "重新开始", "新方案", "重新做一套方案", "开始智配", "开始做方案", "帮我按这些条件选方案"]).has(text)) return { type: "USER_SELECTION", action: "START_NEW", parserSource: "FAST_PATH" };
+  if (new Set(["我又想改成另一个", "继续调整"]).has(text)) return { type: "USER_SELECTION", action: "REVISE", parserSource: "FAST_PATH" };
   return null;
 }
 const actionMap = { SELECT: "SELECT", ADD: "ADD", REMOVE: "REMOVE", SET_FINAL: "SET_FINAL", COMPARE_SELECTED: "COMPARE",
@@ -54,6 +55,7 @@ export function groundSolutionAction(message: string, raw: unknown, state: Solut
   const action = parsed.data;
   if (isSolutionAcknowledgement(message)) return null;
   if (action.type === "NONE") return null;
+  if (!state.candidates.length) return unresolved("请先查询或选择一个候选方案。", action);
   if (action.type === "CLARIFY" || action.confidence < .85 || action.unresolved.length)
     return unresolved("方案动作或引用不明确，请确认要操作的候选和动作。", action);
   if (!action.evidence.trim() || !message.normalize("NFKC").includes(action.evidence.normalize("NFKC")))
@@ -78,6 +80,8 @@ export function groundSolutionAction(message: string, raw: unknown, state: Solut
       if (!evidenceHasNumber(ref.evidence, ref.value)) return unresolved("候选序号不符合用户原话。", action);
       ids = ref.type === "POSITION" ? [state.poolCandidateIds[ref.value - 1] ?? ""] : state.poolCandidateIds.slice(0, ref.value);
       if (ref.value > state.poolCandidateIds.length || ids.some(id => !id)) return unresolved("候选序号超出当前列表。", action);
+    } else if (ref.type === "CURRENT_POOL") {
+      ids = [...state.poolCandidateIds];
     } else if (ref.type === "CURRENT_SELECTION") {
       ids = operation === "KEEP_FOR_COMPARISON" || operation === "REMOVE_CONFLICT"
         ? unique(state.conflicts.map(conflict => conflict.candidateId)) : [...state.selectedCandidateIds];

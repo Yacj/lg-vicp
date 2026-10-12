@@ -124,18 +124,15 @@ function summarizeProcess(steps: unknown): Array<{ title?: string; formula?: str
 }
 
 async function persistLastReferenceLookup(ctx: ToolRuntimeContext, snapshot: LastReferenceLookup) {
-  if (ctx.user.clientType === "C_APP" || ctx.user.clientType === "PC_AI") {
-    const { recordSolutionCandidates } = await import("../solution-state.service.js");
-    const { referenceSolutionCandidate } = await import("../solution-workflow.js");
-    const state = await recordSolutionCandidates(ctx, snapshot.query, snapshot.candidates.map(referenceSolutionCandidate));
-    snapshot.selectedCandidateIds = state.selectedCandidateIds;
-    ctx.onEvent?.("solution_state", { solutionState: state });
-  }
-  const taskState = mergeConversationTaskState(ctx.taskState ?? parseConversationTaskState(null), {
-    lastReferenceLookup: snapshot
-  });
-  if (ctx.taskState) ctx.taskState.lastReferenceLookup = snapshot;
-  await saveConversationTaskState(ctx.app, ctx.conversation.id, taskState);
+  const { publishCandidateResult } = await import("../candidate-result.service.js");
+  await publishCandidateResult(ctx, snapshot);
+}
+/** 计算参数澄清不是一次新的候选查询，不刷新方案池或伪造新的可见revision。 */
+async function saveCalculationQuery(ctx: ToolRuntimeContext, last: LastReferenceLookup | undefined, query: LastReferenceLookup["query"]) {
+  if (!last) return;
+  const task = mergeConversationTaskState(ctx.taskState ?? parseConversationTaskState(null), { lastReferenceLookup: { ...last, query } });
+  if (ctx.taskState) ctx.taskState.lastReferenceLookup = task.lastReferenceLookup;
+  await saveConversationTaskState(ctx.app, ctx.conversation.id, task);
 }
 
 export function createThermalTool(ctx: ToolRuntimeContext) {
@@ -315,12 +312,12 @@ export function createThermalTool(ctx: ToolRuntimeContext) {
           if (!scoped.limit) query.unresolved = [{ field: "standardLimitId", reason: scoped.reason ?? "请确认地区、建筑类型和标准" }];
           else complianceAuthorized = true;
         }
-        if (!args.mode || !args.schemeId || !args.productSpecId || args.thicknessMm == null || frozen && !validateCandidateAgainstQueryState(frozen, query).passed || query.unresolved?.length) {
+        if (!args.mode || !args.schemeId || !args.productSpecId || args.thicknessMm == null || frozen && !validateCandidateAgainstQueryState({ ...frozen, thicknessMm: args.thicknessMm }, query).passed || query.unresolved?.length) {
           const missing = { ...traceQueryState(query), intent: "THERMAL" as const };
-          if (last) await persistLastReferenceLookup(ctx, { ...last, query: missing });
+          await saveCalculationQuery(ctx, last, missing);
           return toolOk({ needsClarification: true, instruction: "请明确一个满足当前硬条件的正式方案、规格与厚度后计算。" });
         }
-        if (last) await persistLastReferenceLookup(ctx, { ...last, query: { ...query, intent: "THERMAL", thicknessMm: args.thicknessMm } });
+        await saveCalculationQuery(ctx, last, { ...query, intent: "THERMAL", thicknessMm: args.thicknessMm });
         const result = await executeThermalCalc(ctx.app, ctx.request, ctx.user, {
           mode: args.mode,
           schemeId: args.schemeId,
@@ -333,8 +330,10 @@ export function createThermalTool(ctx: ToolRuntimeContext) {
         });
         const record = result.record;
         if (result.valid && record && (ctx.user.clientType === "C_APP" || ctx.user.clientType === "PC_AI")) {
-          const { recordCalculatedSolution } = await import("../solution-state.service.js");
-          ctx.onEvent?.("solution_state", { solutionState: await recordCalculatedSolution(ctx, record.id) });
+          const { loadCalculatedCandidates } = await import("../solution-state.service.js");
+          const { publishCandidateResult } = await import("../candidate-result.service.js");
+          const calculated = await loadCalculatedCandidates(ctx, record.id);
+          await publishCandidateResult(ctx, { query: { ...query, intent: "THERMAL" }, candidates: calculated, createdAt: new Date().toISOString() }, true);
         }
         const calcResult = (record?.result ?? {}) as Record<string, unknown>;
         const calculationFacts = { ...frozen, thicknessMm: args.thicknessMm,

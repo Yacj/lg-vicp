@@ -5,11 +5,11 @@
  * 未传入 knowledgeChunks 时由能力路由决定是否检索已发布知识库，不再依赖用户选择 scene。
  */
 import { randomUUID } from "node:crypto";
-import { loadActiveSolution, actOnSolution, solutionDto, recordSolutionCandidates } from "./solution-state.service.js";
+import { loadActiveSolution, actOnSolution, solutionDto, isEditableSolution, solutionPayloadFromLookup, activateSolutionFromLastLookup, startSolution } from "./solution-state.service.js";
+import { publishCandidateResult, candidateResultDto } from "./candidate-result.service.js";
 import { solutionComparisonText } from "./solution-selection.js";
 import { parseSolutionAction } from "./solution-action-semantic.service.js";
 import { AppError } from "../../shared/errors.js";
-import { emptySolution } from "./solution-workflow.js";
 import { KNOWLEDGE_PAGE_REFERENCE_INSTRUCTIONS, KnowledgeReferenceCitationStream, type KnowledgeTestReferenceContext } from "../knowledge/knowledge-test-reference.js";
 import { loadPublishedKnowledgeReferences, persistMessageReferencePages } from "./ai-reference-pages.service.js";
 import { storeReferencePageBlocks, type ReferencePageBlock } from "./reference-page.js";
@@ -189,6 +189,7 @@ export async function streamConversationReply(options: {
   /** 统一 USER_SELECTION / 兼容旧多选 */
   optionIds?: string[];
   selectedIds?: string[];
+  candidateQueryRevision?: number;
   selectedProductIds?: string[];
   action?: ConversationUiAction;
   confirmAction?: "GENERATE_REPORT" | "CONTINUE";
@@ -349,12 +350,14 @@ export async function streamConversationReply(options: {
   const solutionContext = { app, request, user, conversation };
   const solutionEnabled = providedChunks === undefined && (user.clientType === "C_APP" || user.clientType === "PC_AI");
   const activeSolution = solutionEnabled ? await loadActiveSolution(solutionContext) : null;
-  if (activeSolution) {
-    currentTaskState.lastReferenceLookup = { query: activeSolution.payload.queryStateSnapshot,
-      candidates: activeSolution.payload.poolCandidateIds.flatMap(id => activeSolution.payload.candidates.filter(item => item.candidate.candidateId === id).map(item => item.candidate)),
-      selectedCandidateIds: activeSolution.payload.selectedCandidateIds, createdAt: activeSolution.updatedAt.toISOString() };
-  }
-  const solutionIntent = solutionEnabled ? await parseSolutionAction(solutionContext, content, activeSolution?.payload ?? emptySolution()) : null;
+  const editableSolution = isEditableSolution(activeSolution) && activeSolution.projectId === conversation.projectId ? activeSolution : null;
+  if (editableSolution && currentTaskState.lastReferenceLookup?.projectId === conversation.projectId)
+    currentTaskState.lastReferenceLookup.selectedCandidateIds = [...editableSolution.payload.selectedCandidateIds];
+  const lookupRevision = currentTaskState.lastReferenceLookup?.candidateQueryRevision;
+  const solutionIntent = solutionEnabled ? await parseSolutionAction(solutionContext, content,
+    solutionPayloadFromLookup(currentTaskState.lastReferenceLookup, editableSolution)) : null;
+  if (solutionIntent && options.candidateQueryRevision != null && options.candidateQueryRevision !== lookupRevision)
+    solutionIntent.clarification = "候选列表已变化，请重新查询或选择当前候选。";
   const taskDecision = resolveConversationTask({
     uiAction: action,
     currentState: currentTaskState,
@@ -423,8 +426,10 @@ export async function streamConversationReply(options: {
     || chunks.length > 0
     || retrievalFailed
     || (capabilities.needKnowledgeSearch && capabilities.explicitKnowledgeRequest));
+  const candidateEvents: Array<{ event: string; data: unknown }> = [];
+  const onCandidateEvent = (event: string, data: unknown) => { candidateEvents.push({ event, data }); };
   const referenceQuery = !solutionIntent && providedChunks === undefined && !agentEnabled && capabilities.needReferenceLookup && !waitingRunPreview
-    ? await resolveReferenceQueryWithoutAgent({ app, request, user, conversation, userMessage: content, taskState: taskDecision.state }) : undefined;
+    ? await resolveReferenceQueryWithoutAgent({ app, request, user, conversation, userMessage: content, taskState: taskDecision.state, onEvent: onCandidateEvent }) : undefined;
   const referenceFacts = referenceQuery && (referenceQuery.needsClarification || referenceQuery.facts.candidates.length || referenceQuery.facts.identityMatchedButMetricFailed?.length)
     ? referenceQuery.facts : undefined;
   const pageReferences = solutionIntent ? undefined : providedChunks !== undefined && options.loadPageReferences ? await options.loadPageReferences()
@@ -435,7 +440,8 @@ export async function streamConversationReply(options: {
   const knowledgeSolutionCandidates = pageReferences && "solutionCandidates" in pageReferences && Array.isArray(pageReferences.solutionCandidates)
     ? pageReferences.solutionCandidates as import("./solution-workflow.js").SolutionCandidateSnapshot[] : [];
   if (solutionEnabled && knowledgeSolutionCandidates.length)
-    await recordSolutionCandidates(solutionContext, referenceQuery?.facts.query ?? taskDecision.state.lastReferenceLookup?.query ?? {}, knowledgeSolutionCandidates);
+    await publishCandidateResult({ ...solutionContext, taskState: taskDecision.state, onEvent: onCandidateEvent }, {
+      query: referenceQuery?.facts.query ?? taskDecision.state.lastReferenceLookup?.query ?? {}, candidates: knowledgeSolutionCandidates, createdAt: new Date().toISOString() });
   const answerContract = resolveAnswerContract({
     taskType: taskDecision.state.taskType,
     capabilities,
@@ -486,6 +492,7 @@ export async function streamConversationReply(options: {
 
   startSseStream(reply, request.id);
   writeSse(reply, "message", { messageId: assistantMessage.id, userMessageId: userMessage.id, conversationId: conversation.id, requestId });
+  for (const { event, data } of candidateEvents) writeSse(reply, event, data);
   writeProgress(reply, "analyzing", chatImages.length > 0
     ? "正在识别图片并分析问题..."
     : conversation.projectId ? "正在分析项目资料..." : "正在分析问题...");
@@ -571,14 +578,21 @@ export async function streamConversationReply(options: {
     const waitingRun = waitingRunPreview ?? await getActiveAgentRun(app, conversation.id);
     const resumeModel = agentModel ?? runtime.primary;
     if (solutionIntent) {
-      if (!activeSolution) fullText = "请先查询候选方案并选择最终候选，再明确确认。";
-      else if (solutionIntent.clarification) fullText = solutionIntent.clarification;
+      if (solutionIntent.clarification) fullText = solutionIntent.clarification;
       else {
         try {
-          const result = await actOnSolution(solutionContext, activeSolution.id, { action: solutionIntent.action,
-            expectedVersion: activeSolution.version, candidateSetRevision: activeSolution.candidateSetRevision, candidateIds: solutionIntent.candidateIds });
+          const result = solutionIntent.action === "START_NEW"
+            ? lookupRevision && currentTaskState.lastReferenceLookup?.candidates.length
+              ? await activateSolutionFromLastLookup(solutionContext, lookupRevision, { action: "START_NEW" })
+              : { solutionState: await startSolution(solutionContext, activeSolution?.version) }
+            : (!editableSolution || solutionIntent.candidateIds?.some(id => !editableSolution.payload.candidates.some(item => item.candidate.candidateId === id)))
+              && ["SELECT", "ADD", "SET_FINAL"].includes(solutionIntent.action)
+              ? await activateSolutionFromLastLookup(solutionContext, lookupRevision ?? 0, { action: solutionIntent.action, candidateIds: solutionIntent.candidateIds })
+              : activeSolution && (editableSolution || ["REVISE", "CONFIRM"].includes(solutionIntent.action)) ? await actOnSolution(solutionContext, activeSolution.id, { action: solutionIntent.action,
+                expectedVersion: activeSolution.version, candidateSetRevision: activeSolution.candidateSetRevision, candidateIds: solutionIntent.candidateIds })
+                : (() => { throw new AppError("SOLUTION_LOOKUP_REQUIRED", "请先查询或选择一个候选方案", 400); })();
           writeSse(reply, "solution_state", result);
-          fullText = result.comparison ? solutionComparisonText(result.comparison)
+          fullText = "comparison" in result && result.comparison ? solutionComparisonText(result.comparison as Parameters<typeof solutionComparisonText>[0])
             : solutionIntent.action === "CONFIRM" ? "最终方案已确认，方案快照已保存。"
             : solutionIntent.action === "SET_FINAL" ? "最终候选已指定。请明确回复“确认最终方案”后保存方案快照。"
             : solutionIntent.action === "START_NEW" ? "已开始新一轮方案选择。"
@@ -905,8 +919,12 @@ export async function streamConversationReply(options: {
       ? referencePages.map(value => storeReferencePageBlocks([value as ReferencePageBlock])[0])
       : await persistMessageReferencePages(app, referencePages, conversation.projectId);
     const currentSolution = solutionEnabled ? await loadActiveSolution(solutionContext) : null;
-    const solutionState = currentSolution ? solutionDto(currentSolution) : null;
+    const solutionState = currentSolution && (solutionIntent || isEditableSolution(currentSolution)) ? solutionDto(currentSolution) : null;
+    const lookupResult = taskDecision.state.lastReferenceLookup;
+    const referenceCandidates = lookupResult?.candidateQueryRevision && lookupResult.candidateQueryRevision !== lookupRevision
+      ? candidateResultDto(lookupResult) : undefined;
     const metadata = {
+      ...(referenceCandidates ? { candidateQueryRevision: referenceCandidates.queryRevision } : {}),
       ...(solutionState ? { solutionStateId: solutionState.id, candidateSetRevision: solutionState.candidateSetRevision,
         selectedCandidateIds: solutionState.selectedCandidateIds, solutionStage: solutionState.stage } : {}),
       reasoningMode: conversation.reasoningMode,
@@ -983,6 +1001,7 @@ export async function streamConversationReply(options: {
       model: { id: actualModelId },
       promptVersion: { id: runtime.promptVersionId, version: runtime.promptVersionNumber },
       ...(solutionState ? { solutionState } : {}),
+      ...(referenceCandidates ? { referenceCandidates } : {}),
       sources: doneSources,
       ...(referencePages.length > 0 ? { referencePages } : {}),
       latencyMs: Date.now() - startedAt

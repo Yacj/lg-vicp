@@ -5,7 +5,7 @@ import { formatReferenceNumber, hasPageRenderModel, referenceSolutions } from '@
 import ReferencePageViewer from './ReferencePageViewer.vue'
 
 const props = defineProps<{ page: AiReferencePage, anchorPrefix: string }>()
-const emit = defineEmits<{ open: [match?: ReferenceHighlight] }>()
+const emit = defineEmits<{ open: [match?: ReferenceHighlight], openTable: [match: ReferenceHighlight | undefined, highlightEnabled: boolean] }>()
 const hasTable = computed(() => hasPageRenderModel(props.page.renderModel) && props.page.renderModel.constructions.length > 0)
 const solutions = computed(() => referenceSolutions(props.page).slice(0, 2))
 const imageFailed = ref(false)
@@ -16,7 +16,7 @@ watch(() => props.page.page.imageUrl, () => {
 
 <template>
   <view class="answer-reference">
-    <ReferencePageViewer v-if="hasTable" :page="page" inline :anchor-prefix="anchorPrefix" @open-source="emit('open', $event)">
+    <ReferencePageViewer v-if="hasTable" :page="page" inline :anchor-prefix="anchorPrefix" @open-source="emit('open', $event)" @open-table="(match, enabled) => emit('openTable', match, enabled)">
       <template #summary>
         <view class="my-3">
           <view v-for="solution in solutions" :key="solution.key" class="text-3 leading-6">

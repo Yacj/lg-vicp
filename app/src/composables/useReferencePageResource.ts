@@ -6,6 +6,7 @@ import { computed, ref } from 'vue'
 export function useReferencePageResource(input: () => { locator: AiSourceLocatorQuery, context?: AiReferencePage }, request: (locator: AiSourceLocatorQuery) => Promise<AiSourceDetail>) {
   const detail = ref<AiSourceDetail | null>(null)
   const status = ref<'loading' | 'ready' | 'error'>('loading')
+  const errorMessage = ref('')
   const refreshingImage = ref(false)
   const imageFailed = ref(false)
   const imageRevision = ref(0)
@@ -25,14 +26,23 @@ export function useReferencePageResource(input: () => { locator: AiSourceLocator
       if (context && response.document.id !== context.page.documentId)
         throw new Error('引用资料不一致')
       detail.value = response
+      errorMessage.value = ''
       return 'ready'
     }
-    catch {
-      return revision === sequence ? 'error' : 'stale'
+    catch (error) {
+      if (revision !== sequence)
+        return 'stale'
+      const failure = error as { message?: unknown, data?: { requestId?: unknown, error?: { message?: unknown, code?: unknown } } }
+      const message = failure?.data?.error?.message || failure?.message
+      errorMessage.value = typeof message === 'string' ? message : '请求失败，请稍后重试'
+      // 只记录来源定位和错误摘要，不输出令牌、完整响应或签名图片地址。
+      console.warn('[ReferencePage] 来源详情加载失败', { documentId: locator.documentId, pageId: locator.pageId, sectionId: locator.sectionId, blockId: locator.blockId, chunkId: locator.chunkId, message: errorMessage.value, code: failure?.data?.error?.code, requestId: failure?.data?.requestId })
+      return 'error'
     }
   }
   async function load(): Promise<void> {
     status.value = 'loading'
+    errorMessage.value = ''
     const result = await fetchDetail()
     if (result === 'stale')
       return
@@ -69,5 +79,5 @@ export function useReferencePageResource(input: () => { locator: AiSourceLocator
   function cancel(): void {
     sequence++
   }
-  return { detail, status, pageImageUrl, refreshingImage, imageFailed, imageRevision, load, recoverImage, imageLoaded, cancel }
+  return { detail, status, errorMessage, pageImageUrl, refreshingImage, imageFailed, imageRevision, load, recoverImage, imageLoaded, cancel }
 }

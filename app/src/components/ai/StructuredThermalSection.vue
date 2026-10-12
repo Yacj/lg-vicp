@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { KnowledgeRenderConstruction, ReferenceHighlight } from '@/api/reference-page'
 import { computed, ref } from 'vue'
+import { readableReferenceAnnotations } from '@/utils/referenceAnnotations'
 import { formatReferenceNumber } from '@/utils/referencePage'
 import ThermalOptionCard from './ThermalOptionCard.vue'
 
@@ -54,10 +55,10 @@ const hasHidden = computed(() => visibleOptions.value.length < props.constructio
     <wd-button v-if="hasHidden || allThicknesses" size="small" plain custom-class="mt-3!" @click="allThicknesses = !allThicknesses">
       {{ allThicknesses ? '收起其他厚度' : `查看其他厚度（共 ${construction.options.length} 档）` }}
     </wd-button>
-    <view v-for="(note, index) in construction.notes" :key="index" class="app-muted mt-3 text-3 leading-5">
+    <view v-for="(note, index) in readableReferenceAnnotations(construction.notes)" :key="index" class="app-muted mt-3 text-3 leading-5">
       {{ note }}
     </view>
-    <view v-if="construction.warnings?.length" class="app-muted mt-3 text-3 leading-5">
+    <view v-if="readableReferenceAnnotations(construction.warnings).length" class="app-muted mt-3 text-3 leading-5">
       构造参数需要核对，请以原始页面为准。
     </view>
   </view>

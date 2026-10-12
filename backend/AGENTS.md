@@ -1,5 +1,13 @@
 # 蓝格 VICP 后端 AI 开发规则
 
+2026-10-12 普通问答回归修复：无可定位候选时不调用 Solution Action 模型，交还正常问答；lastReferenceLookup 候选仍支持首次懒激活。动作分类提示词必须包含 JSON 与从正式 Zod schema 派生的完整字段合同，兼容只支持 json_object 的模型网关；失败日志只记录错误类型/HTTP码。
+
+Candidate 生命周期（2026-10-12）：查到候选不等于开始方案。普通查表/知识回退/计算仅保存 lastReferenceLookup（query、candidates、createdAt、candidateQueryRevision、projectId）并发 reference_candidates；只有已有 editable active state 才刷新方案池。Confirmed 后普通查询不创建新 state。显式选择/加入/开始/修订才激活；首次选择事务核验权限、24h 有效期、revision、当前来源，seed 后执行既有 mutation。/solution/activate 单请求 ADD/SELECT/SET_FINAL；序号基于最近可见查询 revision，旧列表拒绝。无新迁移，不改 Matcher/QueryState/快照/报告或前端。
+
+会话来源校验（2026-10-12）：JWT `clientType` 使用 `C_APP/PC_AI/B_ADMIN`，会话 `clientApp` 使用 `c_app/pc_ai/b_admin`；创建和方案访问共用 `clientAppForClient` 显式映射后比较，不直接比较两种枚举。测试会话必须使用真实小写存储值，仍校验本人归属、有效状态、软删除与项目权限。
+
+统一错误序列化（2026-10-12）：错误处理器独立序列化 `{ success:false, error, requestId }`，不得套用路由的成功响应 schema。业务错误继续 HTTP 200 + 数值语义码，未登录/无效/过期令牌为 401；正常成功响应仍按路由 schema 校验。
+
 Solution Loop Contract 冻结（2026-10-12）：开放动作走 Solution Action Semantic Parser→原话/候选引用/revision Grounding→既有 mutation；LLM不输出正式ID或Confirm，确认仅明确命令。Hard Constraints有效指纹变化清旧keep确认；Chat/REST/Agent/refine/refresh共用候选Query Service/Policy（邻档1、正式/nearby各12，偏好排序、来源校验同源）。本轮无新迁移，不改Snapshot/DocumentModel/报告流程。详见 `docs/ai/solution-workflow-2026-10-12.md` 的冻结补充。
 
 智配方案闭环（2026-10-12）：`solution_states` 是方案流程 SSOT，重查保留已选并标记硬冲突，偏好只排序，序号绑定候选 revision。明确 Final 后仍需显式 CONFIRM，同事务来源验证/不可变值快照/状态/审计；已确认后修改创建新 state。Snapshot 禁止 UPDATE/DELETE、不存签名URL；后续方案文档只消费 Snapshot→DocumentModel，不重查或重算候选。本轮不生成PDF/Word。详见 `docs/ai/solution-workflow-2026-10-12.md`。

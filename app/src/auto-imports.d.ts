@@ -136,6 +136,7 @@ declare global {
   const isVisibleSelection: typeof import('./utils/aiAgentUi')['isVisibleSelection']
   const isVisionFailure: typeof import('./utils/aiVision')['isVisionFailure']
   const isWriteVisibility: typeof import('./utils/projectVisibility')['isWriteVisibility']
+  const knowledgeSourceLocation: typeof import('./utils/aiSource')['knowledgeSourceLocation']
   const makeDestructurable: typeof import('@vueuse/core')['makeDestructurable']
   const mapActions: typeof import('pinia')['mapActions']
   const mapGetters: typeof import('pinia')['mapGetters']
@@ -224,6 +225,7 @@ declare global {
   const reactiveOmit: typeof import('@vueuse/core')['reactiveOmit']
   const reactivePick: typeof import('@vueuse/core')['reactivePick']
   const readPersistedAuthUserId: typeof import('./store/user-scoped-state')['readPersistedAuthUserId']
+  const readableReferenceAnnotations: typeof import('./utils/referenceAnnotations')['readableReferenceAnnotations']
   const readonly: typeof import('vue')['readonly']
   const ref: typeof import('vue')['ref']
   const refAutoReset: typeof import('@vueuse/core')['refAutoReset']
@@ -234,9 +236,11 @@ declare global {
   const referenceAnswerContent: typeof import('./utils/aiReferenceAnswer')['referenceAnswerContent']
   const referenceAnswerPageContent: typeof import('./utils/aiReferenceAnswer')['referenceAnswerPageContent']
   const referencePageHeading: typeof import('./utils/referencePage')['referencePageHeading']
+  const referencePageImageTitle: typeof import('./utils/referencePage')['referencePageImageTitle']
   const referencePageInitialView: typeof import('./utils/referencePage')['referencePageInitialView']
   const referencePersistenceSnapshot: typeof import('./utils/referencePage')['referencePersistenceSnapshot']
   const referenceSolutions: typeof import('./utils/referencePage')['referenceSolutions']
+  const referenceTableLocation: typeof import('./utils/referenceTable')['referenceTableLocation']
   const rememberLoginRedirect: typeof import('./utils/authRedirect')['rememberLoginRedirect']
   const renderMarkdown: typeof import('./utils/markdown')['renderMarkdown']
   const reportApi: typeof import('./api/index')['reportApi']
@@ -250,6 +254,7 @@ declare global {
   const resolvePageHighlights: typeof import('./utils/referencePage')['resolvePageHighlights']
   const resolveProjectListKind: typeof import('./utils/projectVisibility')['resolveProjectListKind']
   const resolveRef: typeof import('@vueuse/core')['resolveRef']
+  const resolveReferenceTablePage: typeof import('./utils/referenceTable')['resolveReferenceTablePage']
   const resolveUnref: typeof import('@vueuse/core')['resolveUnref']
   const restoreAssistantContent: typeof import('./utils/aiAnswerUx')['restoreAssistantContent']
   const restoreMessageReferences: typeof import('./utils/referencePage')['restoreMessageReferences']
@@ -270,6 +275,7 @@ declare global {
   const shouldExposeWechatQuickLogin: typeof import('./utils/wechatPhoneLogin')['shouldExposeWechatQuickLogin']
   const shouldPollReportStatus: typeof import('./utils/aiReportTask')['shouldPollReportStatus']
   const snapshotCandidateCard: typeof import('./utils/aiSolution')['snapshotCandidateCard']
+  const snapshotReferencePages: typeof import('./utils/referenceTable')['snapshotReferencePages']
   const solutionActionBody: typeof import('./utils/aiSolution')['solutionActionBody']
   const solutionClientState: typeof import('./utils/aiSolution')['solutionClientState']
   const solutionErrorCode: typeof import('./utils/aiSolution')['solutionErrorCode']
@@ -441,6 +447,7 @@ declare global {
   const useRafFn: typeof import('@vueuse/core')['useRafFn']
   const useRefHistory: typeof import('@vueuse/core')['useRefHistory']
   const useReferencePageHighlight: typeof import('./composables/useReferencePageHighlight')['useReferencePageHighlight']
+  const useReferencePageImage: typeof import('./composables/useReferencePageImage')['useReferencePageImage']
   const useReferencePageResource: typeof import('./composables/useReferencePageResource')['useReferencePageResource']
   const useReportTypeStore: typeof import('./store/reportTypes')['useReportTypeStore']
   const useRequest: typeof import('alova/client')['useRequest']
@@ -666,6 +673,7 @@ declare module 'vue' {
     readonly isVisibleSelection: UnwrapRef<typeof import('./utils/aiAgentUi')['isVisibleSelection']>
     readonly isVisionFailure: UnwrapRef<typeof import('./utils/aiVision')['isVisionFailure']>
     readonly isWriteVisibility: UnwrapRef<typeof import('./utils/projectVisibility')['isWriteVisibility']>
+    readonly knowledgeSourceLocation: UnwrapRef<typeof import('./utils/aiSource')['knowledgeSourceLocation']>
     readonly makeDestructurable: UnwrapRef<typeof import('@vueuse/core')['makeDestructurable']>
     readonly mapActions: UnwrapRef<typeof import('pinia')['mapActions']>
     readonly mapGetters: UnwrapRef<typeof import('pinia')['mapGetters']>
@@ -754,6 +762,7 @@ declare module 'vue' {
     readonly reactiveOmit: UnwrapRef<typeof import('@vueuse/core')['reactiveOmit']>
     readonly reactivePick: UnwrapRef<typeof import('@vueuse/core')['reactivePick']>
     readonly readPersistedAuthUserId: UnwrapRef<typeof import('./store/user-scoped-state')['readPersistedAuthUserId']>
+    readonly readableReferenceAnnotations: UnwrapRef<typeof import('./utils/referenceAnnotations')['readableReferenceAnnotations']>
     readonly readonly: UnwrapRef<typeof import('vue')['readonly']>
     readonly ref: UnwrapRef<typeof import('vue')['ref']>
     readonly refAutoReset: UnwrapRef<typeof import('@vueuse/core')['refAutoReset']>
@@ -764,9 +773,11 @@ declare module 'vue' {
     readonly referenceAnswerContent: UnwrapRef<typeof import('./utils/aiReferenceAnswer')['referenceAnswerContent']>
     readonly referenceAnswerPageContent: UnwrapRef<typeof import('./utils/aiReferenceAnswer')['referenceAnswerPageContent']>
     readonly referencePageHeading: UnwrapRef<typeof import('./utils/referencePage')['referencePageHeading']>
+    readonly referencePageImageTitle: UnwrapRef<typeof import('./utils/referencePage')['referencePageImageTitle']>
     readonly referencePageInitialView: UnwrapRef<typeof import('./utils/referencePage')['referencePageInitialView']>
     readonly referencePersistenceSnapshot: UnwrapRef<typeof import('./utils/referencePage')['referencePersistenceSnapshot']>
     readonly referenceSolutions: UnwrapRef<typeof import('./utils/referencePage')['referenceSolutions']>
+    readonly referenceTableLocation: UnwrapRef<typeof import('./utils/referenceTable')['referenceTableLocation']>
     readonly rememberLoginRedirect: UnwrapRef<typeof import('./utils/authRedirect')['rememberLoginRedirect']>
     readonly renderMarkdown: UnwrapRef<typeof import('./utils/markdown')['renderMarkdown']>
     readonly reportApi: UnwrapRef<typeof import('./api/index')['reportApi']>
@@ -780,6 +791,7 @@ declare module 'vue' {
     readonly resolvePageHighlights: UnwrapRef<typeof import('./utils/referencePage')['resolvePageHighlights']>
     readonly resolveProjectListKind: UnwrapRef<typeof import('./utils/projectVisibility')['resolveProjectListKind']>
     readonly resolveRef: UnwrapRef<typeof import('@vueuse/core')['resolveRef']>
+    readonly resolveReferenceTablePage: UnwrapRef<typeof import('./utils/referenceTable')['resolveReferenceTablePage']>
     readonly resolveUnref: UnwrapRef<typeof import('@vueuse/core')['resolveUnref']>
     readonly restoreAssistantContent: UnwrapRef<typeof import('./utils/aiAnswerUx')['restoreAssistantContent']>
     readonly restoreMessageReferences: UnwrapRef<typeof import('./utils/referencePage')['restoreMessageReferences']>
@@ -800,6 +812,7 @@ declare module 'vue' {
     readonly shouldExposeWechatQuickLogin: UnwrapRef<typeof import('./utils/wechatPhoneLogin')['shouldExposeWechatQuickLogin']>
     readonly shouldPollReportStatus: UnwrapRef<typeof import('./utils/aiReportTask')['shouldPollReportStatus']>
     readonly snapshotCandidateCard: UnwrapRef<typeof import('./utils/aiSolution')['snapshotCandidateCard']>
+    readonly snapshotReferencePages: UnwrapRef<typeof import('./utils/referenceTable')['snapshotReferencePages']>
     readonly solutionActionBody: UnwrapRef<typeof import('./utils/aiSolution')['solutionActionBody']>
     readonly solutionClientState: UnwrapRef<typeof import('./utils/aiSolution')['solutionClientState']>
     readonly solutionErrorCode: UnwrapRef<typeof import('./utils/aiSolution')['solutionErrorCode']>
@@ -971,6 +984,7 @@ declare module 'vue' {
     readonly useRafFn: UnwrapRef<typeof import('@vueuse/core')['useRafFn']>
     readonly useRefHistory: UnwrapRef<typeof import('@vueuse/core')['useRefHistory']>
     readonly useReferencePageHighlight: UnwrapRef<typeof import('./composables/useReferencePageHighlight')['useReferencePageHighlight']>
+    readonly useReferencePageImage: UnwrapRef<typeof import('./composables/useReferencePageImage')['useReferencePageImage']>
     readonly useReferencePageResource: UnwrapRef<typeof import('./composables/useReferencePageResource')['useReferencePageResource']>
     readonly useReportTypeStore: UnwrapRef<typeof import('./store/reportTypes')['useReportTypeStore']>
     readonly useRequest: UnwrapRef<typeof import('alova/client')['useRequest']>

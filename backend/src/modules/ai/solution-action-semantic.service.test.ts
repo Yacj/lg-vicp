@@ -49,6 +49,49 @@ describe("Solution Action Semantic Parser → Grounding → 既有mutation", () 
     const parsed = await parseSolutionAction(ctx, message, pool());
     expect(parsed).toMatchObject({ action: "COMPARE" }); expect(parsed).not.toHaveProperty("candidateIds");
   });
+  it("这几个帮我做方案显式SELECT当前全部查询候选", async () => {
+    const message = "这几个帮我做方案";
+    mocks.generate.mockResolvedValue({ object: semantic("SELECT", message, [{ type: "CURRENT_POOL", evidence: "这几个" }]) });
+    expect(await parseSolutionAction(ctx, message, pool())).toMatchObject({ action: "SELECT", candidateIds: ["A", "B", "C"] });
+  });
+  it.each(["保温0.3有材料么", "薄抹灰K0.3左右有方案么", "你好", "保温板有哪些特点"])("没有候选时普通提问%s不调用方案动作模型", async message => {
+    mocks.generate.mockRejectedValue(new Error("JSON模式请求被拒绝"));
+    expect(await parseSolutionAction(ctx, message, emptySolution())).toBeNull();
+    expect(mocks.runtime).not.toHaveBeenCalled(); expect(mocks.generate).not.toHaveBeenCalled();
+  });
+  it("真实UAT回归：有候选时JSON模式提示词兼容要求，普通查询NONE不拦截问答", async () => {
+    const message = "保温0.3有材料么";
+    mocks.generate.mockImplementation(async input => {
+      if (!/json/i.test(`${input.system}\n${input.prompt}`))
+        throw new Error("Prompt must contain the word 'json' in some form to use 'response_format' of type 'json_object'.");
+      const schema = JSON.parse(input.system.split("JSON Schema：")[1].split("\n")[0]);
+      expect(schema.properties.type.enum).toContain("NONE");
+      expect(schema.properties.evidence.type).toBe("string");
+      expect(schema.properties.unresolved.type).toBe("array");
+      expect(schema.properties).not.toHaveProperty("action");
+      return { object: semantic("NONE", message) };
+    });
+    expect(await parseSolutionAction(ctx, message, pool())).toBeNull();
+    expect(mocks.generate).toHaveBeenCalledTimes(1);
+  });
+  it("有lookup候选的首次选择保留LLM与Grounding，不被无active守卫跳过", async () => {
+    const message = "第一个和第三个留下";
+    mocks.generate.mockImplementation(async input => {
+      expect(input.system).toMatch(/JSON/i);
+      return { object: semantic("SELECT", message, [position(1, "第一个"), position(3, "第三个")]) };
+    });
+    const state = pool(), before = structuredClone(state);
+    expect(await parseSolutionAction(ctx, message, state)).toMatchObject({ action: "SELECT", candidateIds: ["A", "C"] });
+    expect(state).toEqual(before);
+  });
+  it("JSON网关失败日志仅记录错误类型和HTTP码，不记录用户原话或响应正文", async () => {
+    const error = Object.assign(new Error("私密响应正文"), { statusCode: 400 });
+    mocks.generate.mockRejectedValue(error);
+    expect(await parseSolutionAction(ctx, "第一个留下", pool())).toMatchObject({ parserSource: "UNAVAILABLE", clarification: expect.any(String) });
+    expect(ctx.app.log.warn).toHaveBeenCalledWith({ parserSource: "UNAVAILABLE", errorType: "Error", statusCode: 400 }, expect.any(String));
+    expect(JSON.stringify(ctx.app.log.warn.mock.calls)).not.toContain("私密响应正文");
+    expect(JSON.stringify(ctx.app.log.warn.mock.calls)).not.toContain("第一个留下");
+  });
   it.each(["candidateId", "thermalReferenceRowId", "schemeId"])("结构化输出伪造%s被schema拒绝，State不变", async field => {
     const state = pool(), frozen = structuredClone(state), message = "1和3先留着";
     mocks.generate.mockResolvedValue({ object: { ...semantic("SELECT", message, [position(1, "1")]), [field]: "invented" } });

@@ -220,22 +220,16 @@ export async function saveConversationTaskState(
   conversationId: string,
   state: ConversationTaskState
 ): Promise<void> {
-  const [existing] = await app.db.select({ conversationId: aiConversationStates.conversationId })
-    .from(aiConversationStates)
-    .where(eq(aiConversationStates.conversationId, conversationId))
-    .limit(1);
-  const payload = {
-    taskStateJson: state as unknown as Record<string, unknown>,
-    updatedAt: new Date()
-  };
-  if (existing) {
-    await app.db.update(aiConversationStates).set(payload)
-      .where(eq(aiConversationStates.conversationId, conversationId));
-    return;
-  }
-  await app.db.insert(aiConversationStates).values({
-    conversationId,
-    ...payload
+  await app.db.transaction(async tx => {
+    // 与候选发布/激活共用会话锁，旧任务保存不得复活旧可见列表revision。
+    await tx.select({ id: aiConversations.id }).from(aiConversations).where(eq(aiConversations.id, conversationId)).for("update");
+    const [existing] = await tx.select().from(aiConversationStates).where(eq(aiConversationStates.conversationId, conversationId)).limit(1);
+    const storedLookup = parseConversationTaskState(existing?.taskStateJson).lastReferenceLookup;
+    if ((storedLookup?.candidateQueryRevision ?? 0) > (state.lastReferenceLookup?.candidateQueryRevision ?? 0))
+      state.lastReferenceLookup = storedLookup;
+    const payload = { taskStateJson: state as unknown as Record<string, unknown>, updatedAt: new Date() };
+    if (existing) await tx.update(aiConversationStates).set(payload).where(eq(aiConversationStates.conversationId, conversationId));
+    else await tx.insert(aiConversationStates).values({ conversationId, ...payload });
   });
 }
 

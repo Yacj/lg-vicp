@@ -449,7 +449,9 @@
 .app-navbar .wd-navbar__arrow {
   color: inherit;
 }
-
+.wd-navbar__left{
+  padding-left: 2px !important;
+}
 .page-wraper .wd-button {
   transition: transform var(--app-transition-fast) ease, filter var(--app-transition-fast) ease, box-shadow var(--app-transition-base) ease;
 }

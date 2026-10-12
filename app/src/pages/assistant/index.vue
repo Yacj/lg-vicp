@@ -24,8 +24,9 @@ import { useAssistantStore } from '@/store/assistant'
 import { useReportTypeStore } from '@/store/reportTypes'
 import { isProductSelection, isVisibleSelection } from '@/utils/aiAgentUi'
 import { solutionSourceQuery } from '@/utils/aiSolution'
-import { compactQuery, resolveAiSourceLocator } from '@/utils/aiSource'
+import { knowledgeSourceLocation, resolveAiSourceLocator } from '@/utils/aiSource'
 import { fromParsedWaiting } from '@/utils/aiUserSelection'
+import { referenceTableLocation } from '@/utils/referenceTable'
 
 definePage({
   name: 'assistant',
@@ -180,7 +181,7 @@ async function refreshSolution() {
 
 function openSolutionSource(candidate: SolutionCandidate) {
   if (requireLogin() && candidate.sourcePageId)
-    router.push({ name: 'knowledge-source', query: compactQuery(solutionSourceQuery(candidate)) })
+    router.push(knowledgeSourceLocation(solutionSourceQuery(candidate)))
 }
 
 function openGeneratedReport(report: SessionReport) {
@@ -241,39 +242,42 @@ function openKnowledgeSource(source: AiSourceRef) {
     showError('当前来源暂不支持查看原文')
     return
   }
-  router.push({
-    name: 'knowledge-source',
-    query: compactQuery({
-      documentId: locator?.documentId,
-      sectionId: locator?.sectionId,
-      pageId: locator?.pageId,
-      blockId: locator?.blockId,
-      chunkId: locator?.chunkId,
-      originalFileId: source.originalFileId,
-      physicalPageNumber: source.physicalPageNumber,
-      title: source.title,
-      pageLabel: source.pageLabel,
-    }),
-  })
+  router.push(knowledgeSourceLocation({
+    documentId: locator?.documentId,
+    sectionId: locator?.sectionId,
+    pageId: locator?.pageId,
+    blockId: locator?.blockId,
+    chunkId: locator?.chunkId,
+    originalFileId: source.originalFileId,
+    physicalPageNumber: source.physicalPageNumber,
+    title: source.title,
+    pageLabel: source.pageLabel,
+  }))
 }
 
 function openReferencePage(page: AiReferencePage, messageId: string, match?: ReferenceHighlight) {
   if (!requireLogin()) {
     return
   }
-  router.push({
-    name: 'knowledge-source',
-    query: compactQuery({
-      documentId: page.page.documentId,
-      pageId: page.page.pageId,
-      title: page.page.documentTitle,
-      pageLabel: page.page.pageLabel,
-      referenceMessageId: messageId,
-      view: 'image',
-      constructionId: match?.constructionId,
-      optionId: match?.optionId,
-    }),
-  })
+  router.push(knowledgeSourceLocation({
+    documentId: page.page.documentId,
+    pageId: page.page.pageId,
+    title: page.page.documentTitle,
+    pageLabel: page.page.pageLabel,
+    referenceMessageId: messageId,
+    view: 'image',
+    constructionId: match?.constructionId,
+    optionId: match?.optionId,
+  }))
+}
+
+function openReferenceTable(page: AiReferencePage, messageId: string | undefined, match?: ReferenceHighlight, highlightEnabled = true) {
+  if (!requireLogin())
+    return
+  const origin = messageId
+    ? { referenceMessageId: messageId }
+    : { referenceSnapshotId: assistantStore.solutionSnapshot?.id }
+  router.push(referenceTableLocation(page, origin, match, highlightEnabled)).catch(() => showError('打开表格失败，请重试'))
 }
 
 watch(latestMessageFingerprint, () => {
@@ -581,7 +585,7 @@ onShareAppMessage(() => {
       </template>
     </wd-navbar>
 
-    <view class="app-enter assistant-page__body relative min-h-0 flex flex-1 flex-col px-4">
+    <view class="assistant-page__body relative min-h-0 flex flex-1 flex-col px-3">
       <view v-if="activeProjectId" class="app-panel-flat mb-3 flex items-center gap-2 rounded-3 px-3 py-2">
         <wd-icon name="home" size="30rpx" color="var(--app-action-primary)" />
         <text class="app-muted min-w-0 flex-1 truncate text-2.5">
@@ -639,6 +643,7 @@ onShareAppMessage(() => {
           @toggle-select="toggleSelect"
           @open-source="openKnowledgeSource"
           @open-reference="openReferencePage"
+          @open-table="openReferenceTable"
         />
         <AiSolutionWorkspace
           v-if="assistantStore.solutionState && !loadingConversation && !failedConversationId"
@@ -654,6 +659,7 @@ onShareAppMessage(() => {
           @source="openSolutionSource"
           @snapshot="assistantStore.loadSolutionSnapshot()"
           @refresh="refreshSolution"
+          @open-table="(page, match, enabled) => openReferenceTable(page, undefined, match, enabled)"
         />
         <AiComparisonSelection
           v-if="productSelection && !loadingConversation && !failedConversationId"

@@ -137,3 +137,39 @@ B端调试读取 `GET /api/v1/platform/ai/debug/conversations/:id/solution`，�
 - 规则/说明：`AGENTS.md`、`README.md`、`.cursor/rules/30-ai-and-reports.mdc`、`.agents/skills/lg-backend/references/ai-and-reports.md`、本文。
 
 本次最终验证：`pnpm test --maxWorkers=4`为169个文件通过、1773项测试通过、1项原有跳过；`pnpm lint`、`pnpm build`、`tsconfig.uat.json`类型检查、`pnpm db:check`与diff空白检查通过。本轮未增加或改写迁移文件。
+
+## Candidate Result 与 Solution Workflow 生命周期补充（2026-10-12）
+
+本节覆盖前文查询自动创建状态的旧行为。`recordSolutionCandidates` 的隐式创建职责已移除；`refreshActiveSolutionCandidates` 只刷新同项目、active、editable、未确认的现有状态，无可编辑状态返回 null。查表（非 Agent/thermal Tool）、知识确认页回退（普通生成/search_knowledge Tool）与正式计算共用 `publishCandidateResult`。无 active 或旧方案已 Confirmed 时，仅发布结果，不创建新 state，也不发 `solution_state` 或在 done 中附旧确认状态。
+
+Candidate Result 事件为 `reference_candidates`：`{ queryRevision, candidates: [{ candidateId, position, sourceType, constructionCode?, systemName?, productName?, thicknessMm?, productThermalResistance?, totalThermalResistance?, kValue?, sourcePageId?, sourcePageLabel?, optionId?, calculationId? }] }`。该 contract 不包含 Selected、Conflict、Final 或方案 stage，不能作为已进入 Workspace 的信号。`reference_pages` 继续采用既有完整页合同；done 可附同一 `referenceCandidates`，消息 metadata 只保存 query revision 定位。
+
+复用 `ai_conversation_states.taskStateJson.lastReferenceLookup`，保存 query/candidates/createdAt 与 `candidateQueryRevision`、projectId；计算候选也在此保存同一计算记录的 input/result/provenance，知识候选保留 KNOWLEDGE_PAGE 身份。不建重复候选缓存。候选发布与方案刷新在会话行锁内提交，query revision 单调增加；其他任务状态保存使用同一锁，不能覆盖更高 revision。历史候选解析损坏时拒绝激活，避免过滤坏记录后改变序号。
+
+自然语言仍走 Solution Action Semantic Parser → Backend Grounding；没有可编辑方案时使用最近 lookup 构建只用于 Grounding 的视图，不持久化 SolutionState。CURRENT_SELECTION 仍只定位真实已选，CURRENT_POOL 可定位用户原话“这些/这几个”。首次 SELECT/ADD/SET_FINAL 通过 `activateSolutionFromLastLookup` 事务重验本人会话、客户端、项目、完整候选来源、24h 有效期及 query revision，再创建/seed/执行原 applySolutionAction/写审计。过期、版本失配、来源变更或权限失败都拒绝；查不到候选时提示先查询或选择。
+
+按钮使用新增 `POST /api/v1/ai/conversations/:conversationId/solution/activate`，body 为 `{ candidateQueryRevision, action: ADD|SELECT|SET_FINAL, candidateIds?: string[], positions?: number[] }`，正式ID与序号二选一，不接受事实值。返回 `{ solutionState }`，与聊天 SSE 结构一致。现有 actions/版本锁保留。已有 start 接口可选传 candidateQueryRevision，一次开始并 seed；不传时保留开始空工作流的行为。聊天 send-message/knowledge-qa 新增可选 candidateQueryRevision：从旧卡片发起自然语言动作时须回传其 revision；不带时按最近结果解释，无法推断客户端未发送的旧 UI 状态。
+
+已有可编辑方案的查询继续刷新并推进 candidateSetRevision，保留 Selected/Rejected，重算 Conflict、清除旧 Final，所有既有 Keep/Compare/Final/Explicit Confirm/不可变 Snapshot 合同不变。计算只追加当前池；没有可编辑方案时计算只返回 calculated Candidate Result，明确加入才激活。计算结果的序号按本次可见结果解释，与整个方案池的序号分开。Confirmed 后普通查询继续只返回 Candidate Result；显式 START_NEW/REVISE/加入才创建新 editable 状态。
+
+本轮无数据库 schema/migration、计算公式、Semantic Query、QueryState、Matcher、Snapshot/DocumentModel/报告或前端改动。REST 为新增路径/可选字段；SSE 的自动进入方案行为有意改变，依赖旧自动 solution_state 的调用方需接入 reference_candidates 和显式激活。
+
+自动测试覆盖用户要求的九类生命周期及来源/项目/权限/审计回滚、坏缓存序号、并发任务保存、当前可见计算序号；服务事务使用内存 Drizzle 替身，动作模型用结构化替身，不能等同真实 PostgreSQL/模型 HTTP-SSE UAT。`uat:solutions` 更新为13轮，首轮及 Confirmed 后普通查询断言无状态创建/事件，首次选择懒激活，再验收原 Loop。
+
+本轮修改文件：
+
+- 新增：`src/modules/ai/candidate-result.service.ts`。
+- 入口：`src/modules/ai/reference-query.service.ts`、`ai-generation.service.ts`、`ai.routes.ts`、`tools/thermal-calculate.tool.ts`、`tools/search-knowledge.tool.ts`、`tools/compare-solutions.tool.ts`。
+- 生命周期与Grounding：`src/modules/ai/solution-state.service.ts`、`solution.routes.ts`、`conversation-task.ts`、`ai-conversation-state.service.ts`、`solution-action-semantic.ts`、`solution-action-semantic.service.ts`。
+- 测试：`src/modules/ai/solution-state.service.test.ts`、`solution.routes.test.ts`、`solution-action-semantic.service.test.ts`；真实验收脚本：`scripts/run-solution-uat.ts`。
+- 规则与说明：`AGENTS.md`、`README.md`、`.cursor/rules/30-ai-and-reports.mdc`、`.agents/skills/lg-backend/references/ai-and-reports.md`、本文。
+
+本轮最终实跑：`pnpm test --maxWorkers=4` 为170个文件通过、1个文件跳过，1809项测试通过、1项跳过；`pnpm lint`、`pnpm build`、`pnpm exec tsc -p tsconfig.uat.json --noEmit`、`pnpm db:check`、`git diff --check` 通过。`pnpm uat:solutions` 在只读加载模型/提示词配置时因数据库 ECONNREFUSED 而 BLOCKED，实际0/13轮；报告 `logs/solution-uat/2026-10-12T11-28-46-945Z/report.json`。没有宣称真实模型或 PostgreSQL/HTTP-SSE 生命周期验收通过。
+
+## 普通问答动作误拦截回归修复（2026-10-12）
+
+真实失败case：会话 `edebf5ce-6a99-45cb-ba60-88e6dc0c7526` 首轮“保温0.3有材料么”无任何候选，却输出“暂时无法可靠理解方案动作”。只读线上核对确认未进入正式问答；原动作提示词不含 JSON，配置模型使用 json_object 时直接 HTTP 400。仅补 JSON 仍不够：网关不支持传入 responseFormat.schema，模型会猜错 type/evidence/unresolved 字段。修复为无候选普通提问直接交还原 Runtime；有效 lookup 视图仍保留动作解析与懒激活。动作提示词明确 JSON，并从 `parsedSolutionActionSchema` 派生完整 JSON Schema 注入，保持正式输出校验、原话Grounding与mutation不变。失败日志附安全的errorType/statusCode，禁止记录原话/模型正文。
+
+真实已配置模型的独立分类调用验证：“保温0.3有材料么”输出 NONE；“第一个和第三个留下”输出 SELECT，经Grounding为 A/C。只读模型配置、使用内存候选，不写生产会话、方案或发布数据。这是模型分类兼容性验证，不等同完整HTTP/SSE UAT。补充自动测试覆盖无候选普通查询/寒暄/产品问答不调用动作模型、JSON与完整字段合同、lookup首次选择及安全错误日志。无迁移、前端或Semantic Query/Matcher改动。
+
+回归修复实跑结果：`pnpm test --maxWorkers=4` 为1815项通过、1项跳过；`pnpm lint`、`pnpm db:check`、diff检查通过。`pnpm deploy` 构建/数据库备份/迁移检查/PM2重载成功；公网live/ready通过（Redis、数据库、存储均正常），线上动作解析产物SHA-256与本地构建一致。

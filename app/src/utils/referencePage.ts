@@ -51,6 +51,13 @@ export function referencePageInitialView(view: unknown): '原始页面' | '页�
   return view === 'image' ? '原始页面' : '页面内容'
 }
 
+/** 来源图片页只显示正式页标题，将选用表名称放在构造名称之后。 */
+export function referencePageImageTitle(title: string): string {
+  const value = title.trim()
+  const parts = value.match(/^(.+参考选用表)\s*[（(]([^（）()]+)[）)]\s*$/)
+  return parts ? `${parts[2]!.trim()}（${parts[1]!.trim()}）` : value
+}
+
 export function resolvePageHighlights(model: KnowledgePageRenderModel | null | undefined, matches: ReferenceHighlight[], pageId: string): ReferenceHighlight[] {
   if (!hasPageRenderModel(model))
     return []

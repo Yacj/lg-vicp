@@ -1,5 +1,9 @@
 <!-- 2026-08 原文导航收口：CHUNK_REBUILD 仅重建派生 Section/Block/Chunk，保留 Page ID、预览、人工页签、CONFIRMED TOC 与人工映射；双源只从 SEARCH_SOURCE 读取并且未映射页不索引。检索统一限制当前 PUBLISHED、未过期、AI_ENABLED 版本；BROWSE_ONLY 仅浏览；来源详情通过映射返回 ORIGINAL，未映射时不伪造页码。B 端草稿验证走 `POST /api/v1/platform/knowledge/versions/:versionId/test-qa`（`searchWikiHierarchy({ versionId })`，允许 DRAFT），不得把该限定并入生产 `/api/v1/ai/knowledge-qa`。 -->
 
+2026-10-12 普通问答回归修复：无可定位候选时不调用 Solution Action 模型，交还正常问答；lastReferenceLookup 候选仍支持首次懒激活。动作分类提示词必须包含 JSON 与从正式 Zod schema 派生的完整字段合同，兼容只支持 json_object 的模型网关；失败日志只记录错误类型/HTTP码。
+
+Candidate 生命周期（2026-10-12）：查到候选不等于开始方案。普通查表/知识回退/计算仅保存 lastReferenceLookup（query、candidates、createdAt、candidateQueryRevision、projectId）并发 reference_candidates；只有已有 editable active state 才刷新方案池。Confirmed 后普通查询不创建新 state。显式选择/加入/开始/修订才激活；首次选择事务核验权限、24h 有效期、revision、当前来源，seed 后执行既有 mutation。/solution/activate 单请求 ADD/SELECT/SET_FINAL；序号基于最近可见查询 revision，旧列表拒绝。无新迁移，不改 Matcher/QueryState/快照/报告或前端。
+
 <!-- 2026-08 二次优化增量：原文档导航模型（knowledge_document_assets 双源 / knowledge_toc_items 人工确认 TOC / knowledge_page_mappings 检索页→原文页映射 / pages 拆 physical_page_number+page_label）；转曲件 NO_TEXT_LAYER/SEARCH_SOURCE_REQUIRED + usageMode(AI_ENABLED/BROWSE_ONLY) 发布门禁；页面预览 pdf-page-renderer（concurrency=1）；块级 Section 归属 parsePageToBlocks；UPGRADE_PARSE 升级解析；B 端 assets/toc/page-mappings/usage-mode/upgrade-parse 路由；C 端公开文库 toc + pages/by-label。 -->
 
 <!-- 2026-08 Wiki 层级知识体系改造增量：AI 来源契约统一 ai-source.mapper.ts；知识检索为 searchWikiHierarchy 层级检索（Section/Page/Block 优先，Chunk 辅助）；专业会话必须选保温体系（AI_INSULATION_SYSTEM_REQUIRED）；公开文库 /api/v1/client/knowledge/*、企业介绍 /api/v1/company/about（旧路径 /api/v1/client/content/enterprise-profile）；B 端通知 /api/v1/platform/notifications（system:notification:*）。 -->
@@ -7,6 +11,8 @@
 正式生产检索中，同一版本存在 page-aware chunks 时必须排除 `metadata.source=DOCUMENT_TEXT` 且 `visualPage=false` 的 Mammoth 无页定位块；只有 B 端 DRAFT 测试可使用该文本回退，并将不可追溯标记返回调试结果。
 
 # AI 与报告
+
+会话来源校验：令牌 `clientType=C_APP/PC_AI/B_ADMIN` 与会话 `clientApp=c_app/pc_ai/b_admin` 不是同一枚举。创建和方案访问统一通过 `clientAppForClient` 映射，不直接比较原值；服务事务/权限测试使用真实小写来源，覆盖本人空状态、创建/恢复、跨用户/跨端拒绝、失效/删除会话及私有项目拒绝。
 
 Solution Loop Contract冻结：动作模型复用semantic_query场景/准入/预算，只产出action与原话引用，不产出ID/Confirm；Grounding校验当前池/序号revision/构造或厚度唯一性。Hard有效条件变化清keptForComparisonIds，软偏好与解析元数据不清。候选查询入口统一邻档/limit/排序/nearby/来源Policy，共用Query Service；Confirm原值全量核验保持独立。无新迁移，REST schema不变。见 `docs/ai/solution-workflow-2026-10-12.md` 冻结补充。
 

@@ -43,7 +43,7 @@ export function createCompareSolutionsTool(ctx: ToolRuntimeContext) {
     execute: async (args, options) => runRegisteredTool(ctx, "compare_solutions", args, options, async () => {
       if (ctx.user.clientType === "C_APP" || ctx.user.clientType === "PC_AI") {
         const state = await loadActiveSolution(ctx);
-        if (state && !args.productIds?.length) {
+        if (state && !state.confirmedSnapshotId && !args.productIds?.length) {
           const intent = await parseSolutionAction(ctx, ctx.userMessage ?? "", state.payload);
           if (args.operation && args.operation !== "COMPARE") {
             if (!intent || intent.action !== args.operation || intent.clarification) return toolError({ code: "SOLUTION_USER_ACTION_REQUIRED", message: intent?.clarification ?? "该操作需要用户明确选择或确认" });

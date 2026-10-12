@@ -1,18 +1,35 @@
 <script setup lang="ts">
 import type { KnowledgeRenderConstruction, ReferenceHighlight, ThermalFieldKey } from '@/api/reference-page'
 import type { ThermalTableRow } from '@/utils/thermalPageTable'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, getCurrentInstance, nextTick, onMounted, ref, watch } from 'vue'
+import { readableReferenceAnnotations } from '@/utils/referenceAnnotations'
 import { formatReferenceNumber } from '@/utils/referencePage'
 import { thermalConstructionRows } from '@/utils/thermalPageTable'
 
-const props = withDefaults(defineProps<{ constructions: KnowledgeRenderConstruction[], matches: ReferenceHighlight[], active?: ReferenceHighlight, highlightEnabled?: boolean, anchorPrefix?: string }>(), { highlightEnabled: true, anchorPrefix: 'reference' })
+defineOptions({ options: { virtualHost: true } })
+const props = withDefaults(defineProps<{ constructions: KnowledgeRenderConstruction[], matches: ReferenceHighlight[], active?: ReferenceHighlight, highlightEnabled?: boolean, anchorPrefix?: string, viewportHeight?: number }>(), { highlightEnabled: true, anchorPrefix: 'reference' })
+const instance = getCurrentInstance()
+const headerHeight = ref(0)
+async function measureHeader() {
+  if (!props.viewportHeight)
+    return
+  await nextTick()
+  uni.createSelectorQuery().in(instance?.proxy).select('.thermal-table__head-scroll').boundingClientRect((rect) => {
+    if (rect && !Array.isArray(rect) && typeof rect.height === 'number')
+      headerHeight.value = rect.height
+  }).exec()
+}
+onMounted(measureHeader)
+watch(() => props.viewportHeight, measureHeader, { flush: 'post' })
 const anchor = (constructionIndex: number, optionIndex?: number) => `${props.anchorPrefix}-construction-${constructionIndex}${optionIndex == null ? '' : `-option-${optionIndex}`}`
 const groups = computed(() => props.constructions.map((construction, index) => {
   const label = construction.constructionCode?.trim() || construction.title?.trim() || '参考构造'
   const system = construction.systemName?.trim() || ''
   return { construction, index, label, system: system !== label && system !== construction.title?.trim() ? system : '', rows: thermalConstructionRows(construction) }
 }))
-const bodyHeight = computed(() => `min(60vh, ${Math.max(1, groups.value.reduce((count, group) => count + Math.max(1, group.rows.length), 0)) * 34 + groups.value.length}px)`)
+const bodyHeight = computed(() => props.viewportHeight
+  ? `${Math.max(1, props.viewportHeight - headerHeight.value)}px`
+  : `min(60vh, ${Math.max(1, groups.value.reduce((count, group) => count + Math.max(1, group.rows.length), 0)) * 34 + groups.value.length}px)`)
 const activeAnchor = computed(() => {
   const group = groups.value.find(item => item.construction.constructionId === props.active?.constructionId)
   if (!group)
@@ -29,7 +46,8 @@ watch(activeAnchor, (target) => {
   scrollTarget.value = target
 })
 function syncScroll(event: { detail: { scrollLeft: number } }) {
-  scrollLeft.value = event.detail.scrollLeft
+  if (Math.abs(scrollLeft.value - event.detail.scrollLeft) > 1)
+    scrollLeft.value = event.detail.scrollLeft
 }
 watch(() => `${props.active?.constructionId || ''}:${props.active?.optionId || ''}`, () => {
   scrollLeft.value = props.active?.optionId && props.active.fieldKeys?.some(key => key === 'kValue' || key === 'totalThermalResistance') ? 10000 : 0
@@ -44,8 +62,8 @@ const value = (row: ThermalTableRow, field: ThermalFieldKey) => formatReferenceN
 </script>
 
 <template>
-  <view class="thermal-table-scroll" role="table" aria-label="完整构造热工表，可左右滑动">
-    <scroll-view scroll-x :scroll-left="scrollLeft" class="thermal-table__scroll" @scroll="syncScroll">
+  <view class="thermal-table-scroll" :style="viewportHeight ? { height: `${viewportHeight}px` } : undefined" role="table" aria-label="完整构造热工表，可左右滑动">
+    <scroll-view scroll-x :scroll-left="scrollLeft" class="thermal-table__scroll thermal-table__head-scroll" @scroll="syncScroll">
       <view class="thermal-table">
         <view class="thermal-table__header" role="rowgroup">
           <view class="thermal-table__cell thermal-table__heading thermal-table__code-heading" style="grid-column: 1; grid-row: 1 / span 2">
@@ -78,7 +96,7 @@ const value = (row: ThermalTableRow, field: ThermalFieldKey) => formatReferenceN
         </view>
       </view>
     </scroll-view>
-    <scroll-view scroll-x scroll-y :scroll-left="scrollLeft" :scroll-into-view="scrollTarget" class="thermal-table__scroll" :style="{ height: bodyHeight }" @scroll="syncScroll">
+    <scroll-view scroll-x scroll-y :scroll-left="scrollLeft" :scroll-into-view="scrollTarget" class="thermal-table__scroll thermal-table__body-scroll" :style="{ height: bodyHeight }" @scroll="syncScroll">
       <view v-if="!groups.length" class="thermal-table__cell">
         暂无热工表，请查看原始页面。
       </view>
@@ -106,7 +124,7 @@ const value = (row: ThermalTableRow, field: ThermalFieldKey) => formatReferenceN
             <text :class="{ 'thermal-table__field--hit': fieldHit(group.construction, row, field) }">
               {{ row.option || index < 2 ? value(row, field) : '' }}
             </text>
-            <text v-if="field === 'kValue' && row.option?.warnings?.length" class="app-warning text-2.5">
+            <text v-if="field === 'kValue' && readableReferenceAnnotations(row.option?.warnings).length" class="app-warning text-2.5">
               需核对
             </text>
           </view>
@@ -120,17 +138,29 @@ const value = (row: ThermalTableRow, field: ThermalFieldKey) => formatReferenceN
 </template>
 
 <style scoped lang="scss">
-.thermal-table-scroll { width: 100%; font-variant-numeric: tabular-nums; font-size: 13px; color: var(--app-text-primary); }
+.thermal-table-scroll {
+  // 固定上限控制宽屏列宽，rpx 使窄屏更紧凑；八列保留可读的最小宽度。
+  --thermal-table-width: max(100%, min(1280rpx, 640px));
+  --thermal-table-columns: 0.65fr 1.7fr 0.8fr 0.95fr 0.7fr 0.9fr 1.15fr 1.15fr;
+  width: 100%;
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(12px, 26rpx, 13px);
+  color: var(--app-text-primary);
+}
+.thermal-table__head-scroll { flex-shrink: 0; }
+.thermal-table__scroll { width: 100%; min-width: 0; }
 .thermal-table__scroll :deep(.uni-scroll-view::-webkit-scrollbar) { display: none; width: 0; height: 0; }
-.thermal-table { width: 930px; border-top: 1px solid var(--app-border-strong); border-left: 1px solid var(--app-border-strong); font-variant-numeric: tabular-nums; font-size: 13px; color: var(--app-text-primary); }
-.thermal-table__header, .thermal-table__body { display: grid; width: 930px; grid-template-columns: 90px 200px 80px 110px 90px 110px 125px 125px; }
+.thermal-table { width: var(--thermal-table-width); }
+.thermal-table__header, .thermal-table__body { display: grid; width: var(--thermal-table-width); grid-template-columns: var(--thermal-table-columns); border-left: 1px solid var(--app-border-default); }
+.thermal-table__header { width: 100%; }
 .thermal-table__header { position: sticky; top: 0; z-index: 3; background: var(--app-bg-canvas); }
-.thermal-table__cell { display: flex; align-items: center; justify-content: center; flex-direction: column; padding: var(--app-space-1); border-right: 1px solid var(--app-border-strong); border-bottom: 1px solid var(--app-border-default); box-sizing: border-box; white-space: nowrap; position: relative; z-index: 1; }
-.thermal-table__heading { min-height: 32px; font-weight: 500; }
-.thermal-table__heading text { color: var(--app-text-tertiary); font-weight: 400; font-size: 11px; }
+.thermal-table__cell { min-width: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; padding: min(8rpx, 4px); border-right: 1px solid var(--app-border-default); border-bottom: 1px solid var(--app-border-default); box-sizing: border-box; white-space: nowrap; position: relative; z-index: 1; }
+.thermal-table__heading { min-height: min(64rpx, 32px); font-weight: 600; white-space: normal; overflow-wrap: anywhere; text-align: center; line-height: 1.45; }
+.thermal-table__heading text { color: var(--app-text-tertiary); font-weight: 400; font-size: 11px; white-space: nowrap; }
 .thermal-table__code-heading { position: sticky; left: 0; z-index: 4; background: var(--app-bg-canvas); }
 .thermal-table__code { position: sticky; left: 0; z-index: 2; background: var(--app-bg-surface); font-weight: 600; white-space: normal; text-align: center; }
-.thermal-table__material { align-items: flex-start; white-space: normal; }
+.thermal-table__material { align-items: flex-start; white-space: normal; overflow-wrap: anywhere; }
 .thermal-table__body { border-bottom: 1px solid var(--app-border-strong); }
 .thermal-table__wall { border-bottom-color: transparent; }
 .thermal-table__last { border-bottom-color: var(--app-border-strong); }

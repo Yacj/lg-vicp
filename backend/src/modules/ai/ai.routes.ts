@@ -56,7 +56,7 @@ import { loadKnowledgeForGeneration } from "./ai-knowledge-load.js";
 import { formatKnowledgeContext, runSearch, searchProjectKnowledge } from "../knowledge/knowledge.service.js";
 import { KNOWLEDGE_PERMISSIONS } from "../../shared/knowledge-permissions.js";
 import { requirePermission } from "../../shared/permission-guard.js";
-import { requireClient } from "../../shared/client-guard.js";
+import { clientAppForClient, requireClient } from "../../shared/client-guard.js";
 import { formatComparisonRuleContext, loadApprovedComparisonRules, logComparisonRuleUsage } from "../comparison/material-compare.service.js";
 import {
   createConcurrencyRelease,
@@ -115,6 +115,7 @@ const sendMessageBodySchema = z.object({
   selectedProductIds: z.array(z.string().trim().min(1).max(120)).min(1).max(20).optional(),
   selectionKind: z.enum(["KNOWLEDGE_SOURCE", "REPORT_TYPE", "PRODUCT", "GENERIC"]).optional(),
   action: z.enum(["SELECT_PRODUCTS", "GENERATE_REPORT", "SELECT_KNOWLEDGE_SOURCES"]).optional(),
+  candidateQueryRevision: z.number().int().positive().optional(),
   confirmAction: z.enum(["CONTINUE", "GENERATE_REPORT"]).optional()
 }).refine((value) => Boolean(
   value.content?.trim()
@@ -180,12 +181,6 @@ function ensureConversationOwner(user: ReturnType<typeof getCurrentUser>, conver
   if (user.role !== "SUPER_ADMIN" && conversation.userId !== user.id) {
     throw new NotFoundError("AI 会话不存在或无权查看");
   }
-}
-
-function expectedClientApp(clientType: ReturnType<typeof getCurrentUser>["clientType"]) {
-  if (clientType === AUTH_CLIENTS.B_ADMIN) return CLIENT_APPS.B_ADMIN;
-  if (clientType === AUTH_CLIENTS.PC_AI) return CLIENT_APPS.PC_AI;
-  return CLIENT_APPS.C_APP;
 }
 
 /** 专业场景（非 general_chat）在进入技术问答前必须选择保温体系 */
@@ -275,7 +270,7 @@ export async function aiRoutes(app: FastifyInstance) {
     schema: { tags: ["共用 / AI对话"], summary: "创建 AI 会话", body: createConversationBodySchema }
   }, async (request) => {
     const user = getCurrentUser(request);
-    if (request.body.clientApp !== expectedClientApp(user.clientType)) {
+    if (request.body.clientApp !== clientAppForClient(user.clientType)) {
       throw new ForbiddenError("当前登录端不能创建其他来源的 AI 会话");
     }
     if (request.body.projectId) {
@@ -857,6 +852,7 @@ export async function aiRoutes(app: FastifyInstance) {
         selectedProductIds: z.array(z.string().trim().min(1).max(120)).min(1).max(20).optional(),
         selectionKind: z.enum(["KNOWLEDGE_SOURCE", "REPORT_TYPE", "PRODUCT", "GENERIC"]).optional(),
         action: z.enum(["SELECT_PRODUCTS", "GENERATE_REPORT", "SELECT_KNOWLEDGE_SOURCES"]).optional(),
+        candidateQueryRevision: z.number().int().positive().optional(),
         confirmAction: z.enum(["CONTINUE", "GENERATE_REPORT"]).optional()
       }).refine((value) => Boolean(
         value.content?.trim()
@@ -888,6 +884,7 @@ export async function aiRoutes(app: FastifyInstance) {
       selectedProductIds: request.body.selectedProductIds ?? request.body.optionIds,
       selectionKind: request.body.selectionKind,
       action: request.body.action,
+      candidateQueryRevision: request.body.candidateQueryRevision,
       confirmAction: request.body.confirmAction ?? (request.body.action === "GENERATE_REPORT" ? "GENERATE_REPORT" : undefined)
     });
   });
@@ -924,6 +921,7 @@ export async function aiRoutes(app: FastifyInstance) {
       selectedProductIds: request.body.selectedProductIds ?? request.body.optionIds,
       selectionKind: request.body.selectionKind,
       action: request.body.action,
+      candidateQueryRevision: request.body.candidateQueryRevision,
       confirmAction: request.body.confirmAction ?? (request.body.action === "GENERATE_REPORT" ? "GENERATE_REPORT" : undefined)
     });
   });

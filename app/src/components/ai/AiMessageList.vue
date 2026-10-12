@@ -1,13 +1,13 @@
 <script setup lang="ts">
+import type { AiReferencePage, ReferenceHighlight } from '@/api/reference-page'
 import type { AiFeedbackReaction, AiMessageFeedback, AiSourceRef, ApiEnvelope, DownloadUrlResult, MessageAttachment } from '@/api/types'
 import type { LocalMessage } from '@/store/assistant'
-import type { AiReferencePage, ReferenceHighlight } from '@/api/reference-page'
 import { fileApi } from '@/api/modules/files'
 import AiAgentStatus from '@/components/ai/AiAgentStatus.vue'
 import AiComparisonCard from '@/components/ai/AiComparisonCard.vue'
 import AiProductCard from '@/components/ai/AiProductCard.vue'
-import AiSourceCard from '@/components/ai/AiSourceCard.vue'
 import AiReferenceAnswer from '@/components/ai/AiReferenceAnswer.vue'
+import AiSourceCard from '@/components/ai/AiSourceCard.vue'
 import { CHAT_IMAGE_ONLY_CONTENT, VISION_FAILURE_MESSAGE } from '@/constants/chatImage'
 import { isSourceInquiry, previousUserText, splitAnswerLayers } from '@/utils/aiAnswerUx'
 import { markdownTagStyle, markdownToPlainText, renderMarkdown } from '@/utils/markdown'
@@ -30,6 +30,7 @@ const emit = defineEmits<{
   toggleSelect: [messageId: string]
   openSource: [source: AiSourceRef]
   openReference: [page: AiReferencePage, messageId: string, match?: ReferenceHighlight]
+  openTable: [page: AiReferencePage, messageId: string, match: ReferenceHighlight | undefined, highlightEnabled: boolean]
 }>()
 
 const { info: toastInfo } = useGlobalToast()
@@ -271,10 +272,6 @@ function openMessageSource(message: LocalMessage, source: AiSourceRef) {
         <wd-icon v-if="isSelected(message.id)" name="check" size="28rpx" color="var(--app-text-inverse)" />
       </view>
 
-      <view v-if="!isUser(message)" class="ai-avatar flex shrink-0 items-center justify-center rounded-full">
-        <image class="ai-avatar__logo" src="/static/cover.png" mode="aspectFit" />
-      </view>
-
       <view
         class="min-w-0"
         :class="isUser(message) ? 'max-w-[82%]' : 'ai-message__assistant flex-1'"
@@ -302,7 +299,7 @@ function openMessageSource(message: LocalMessage, source: AiSourceRef) {
         <!-- AI 消息：思考中无正文时隐藏气泡，避免空对话框 -->
         <view
           v-else-if="hasAnswerBubble(message)"
-          class="ai-message__answer app-panel-flat px-3.5 py-3"
+          class="ai-message__answer"
         >
           <AiProductCard
             v-if="message.products?.length && !message.comparison"
@@ -318,6 +315,7 @@ function openMessageSource(message: LocalMessage, source: AiSourceRef) {
             :answer="isStreaming && message.id === streamingMessageId ? streamingReferenceText : message.content"
             :pages="message.referencePages"
             @open="(page, match) => emit('openReference', page, message.id, match)"
+            @open-table="(page, match, enabled) => emit('openTable', page, message.id, match, enabled)"
           />
           <template v-else-if="getHtml(message, 'summary')">
             <mp-html
@@ -418,21 +416,8 @@ function openMessageSource(message: LocalMessage, source: AiSourceRef) {
 </template>
 
 <style lang="scss" scoped>
-.ai-avatar {
-  width: 56rpx;
-  height: 56rpx;
-  margin-top: 4rpx;
-  background: var(--app-bg-elevated);
-  border: 1px solid var(--app-border-default);
-}
-
-.ai-avatar__logo {
-  width: 55px;
-  height: 55rpx;
-}
-
 .ai-message__assistant {
-  max-width: calc(100% - 72rpx);
+  max-width: 100%;
 }
 
 .ai-message__user {
@@ -456,8 +441,8 @@ function openMessageSource(message: LocalMessage, source: AiSourceRef) {
 
 .ai-message__answer {
   width: 100%;
-  border-radius: 8rpx 28rpx 28rpx;
-  background: var(--app-bg-elevated);
+  min-width: 0;
+  color: var(--app-text-secondary);
 }
 
 .ai-action {

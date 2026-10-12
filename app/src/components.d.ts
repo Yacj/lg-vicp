@@ -29,6 +29,7 @@ declare module 'vue' {
     AiAiSourceCard: typeof import('./components/ai/AiSourceCard.vue')['default']
     AiAiThermalSolutionCard: typeof import('./components/ai/AiThermalSolutionCard.vue')['default']
     AiAiWelcomeHero: typeof import('./components/ai/AiWelcomeHero.vue')['default']
+    AiReferencePageImage: typeof import('./components/ai/ReferencePageImage.vue')['default']
     AiReferencePageViewer: typeof import('./components/ai/ReferencePageViewer.vue')['default']
     AiStructuredThermalSection: typeof import('./components/ai/StructuredThermalSection.vue')['default']
     AiThermalOptionCard: typeof import('./components/ai/ThermalOptionCard.vue')['default']

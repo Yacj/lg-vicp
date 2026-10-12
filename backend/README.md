@@ -1,5 +1,13 @@
 # 蓝格 VICP 后端
 
+2026-10-12 普通问答回归修复：无可定位候选时不调用 Solution Action 模型，交还正常问答；lastReferenceLookup 候选仍支持首次懒激活。动作分类提示词必须包含 JSON 与从正式 Zod schema 派生的完整字段合同，兼容只支持 json_object 的模型网关；失败日志只记录错误类型/HTTP码。
+
+Candidate 生命周期（2026-10-12）：查到候选不等于开始方案。普通查表/知识回退/计算仅保存 lastReferenceLookup（query、candidates、createdAt、candidateQueryRevision、projectId）并发 reference_candidates；只有已有 editable active state 才刷新方案池。Confirmed 后普通查询不创建新 state。显式选择/加入/开始/修订才激活；首次选择事务核验权限、24h 有效期、revision、当前来源，seed 后执行既有 mutation。/solution/activate 单请求 ADD/SELECT/SET_FINAL；序号基于最近可见查询 revision，旧列表拒绝。无新迁移，不改 Matcher/QueryState/快照/报告或前端。
+
+2026-10-12 修复会话详情和发送消息误报“AI 会话不存在或无权访问”：方案访问将令牌大写 `clientType` 映射为会话小写 `clientApp`，与创建入口共用 `clientAppForClient`。保留会话归属、客户端隔离和项目权限；回归测试使用真实 `c_app/pc_ai`，无需数据迁移。
+
+2026-10-12 修复 `/api/v1/reports/types` 未登录返回 500：统一错误处理器独立序列化失败响应，避免 HTTP 200 业务错误被成功响应 schema 拒绝。未登录、无效或过期令牌返回 HTTP 200 + `error.code=401`；成功响应仍受路由 schema 校验。
+
 2026-10-12 Solution Loop Contract 冻结：仅收口开放动作语义解析、硬条件变化后冲突确认失效、各入口统一候选查询策略。复用既有状态/确认/快照服务，无新增迁移或REST协议破坏；未开发PDF/Word或C端。见[闭环说明与冻结补充](docs/ai/solution-workflow-2026-10-12.md)。
 
 2026-10-12 智配方案闭环：独立 SolutionState 保存正式候选池、多选、偏好、冲突与 Final；明确确认后事务冻结不可变 SolutionSnapshot。聊天、REST 和工具共用服务，恢复会话直接读正式状态。新增0054迁移，预留 Snapshot→DocumentModel；本轮不生成PDF/Word。设计、接口、验收与环境限制见[智配方案闭环](docs/ai/solution-workflow-2026-10-12.md)。

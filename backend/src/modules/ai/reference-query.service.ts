@@ -8,6 +8,7 @@ import { saveConversationTaskState } from "./ai-conversation-state.service.js";
 import type { ToolRuntimeContext } from "./tools/tool-runtime.js";
 import { selectFrozenReferenceCandidateIds } from "./reference-candidate-selection.js";
 import { parseSemanticQuery } from "./semantic-query.service.js";
+import { publishCandidateResult } from "./candidate-result.service.js";
 
 /**
  * 未启用 Agent 的查表仍走同一查询状态与约束服务，不能让普通 streamText 绕过事实门禁。
@@ -21,11 +22,11 @@ export async function resolveReferenceQueryWithoutAgent(ctx: Pick<ToolRuntimeCon
   const preliminary = normalizeConversationLookupQuery({}, ctx.userMessage ?? "", last);
   if (preliminary.lifecycle === "COMPARE_SELECTED" && last) {
     if (ctx.user.clientType === "C_APP" || ctx.user.clientType === "PC_AI") {
-      const { loadActiveSolution } = await import("./solution-state.service.js");
+      const { loadActiveSolution, isEditableSolution } = await import("./solution-state.service.js");
       const { compareSelectedSolution } = await import("./solution-workflow.js");
       const { solutionComparisonText } = await import("./solution-selection.js");
       const active = await loadActiveSolution(ctx);
-      if (active) {
+      if (isEditableSolution(active)) {
         if (active.payload.selectedCandidateIds.length < 2) {
           const facts = buildAllowedAnswerFacts({ ...active.payload.queryStateSnapshot, unresolved: [{ field: "selection", reason: "请至少选择两个方案" }] }, []);
           return { facts, sources: [], needsClarification: true };
@@ -71,15 +72,8 @@ export async function resolveReferenceQueryWithoutAgent(ctx: Pick<ToolRuntimeCon
   }
   const { pages, nearbyPages, identityPages } = result;
   const state = ctx.taskState ?? { taskType: "GENERAL" as const };
-  state.lastReferenceLookup = { query, candidates: pages.candidates, createdAt: new Date().toISOString() };
-  if (ctx.user.clientType === "C_APP" || ctx.user.clientType === "PC_AI") {
-    const { recordSolutionCandidates } = await import("./solution-state.service.js");
-    const { referenceSolutionCandidate } = await import("./solution-workflow.js");
-    const solution = await recordSolutionCandidates(ctx, query, pages.candidates.map(referenceSolutionCandidate));
-    state.lastReferenceLookup.selectedCandidateIds = solution.selectedCandidateIds;
-    ctx.onEvent?.("solution_state", { solutionState: solution });
-  }
-  await saveConversationTaskState(ctx.app, ctx.conversation.id, state);
+  ctx.taskState = state;
+  await publishCandidateResult(ctx, { query, candidates: pages.candidates, createdAt: new Date().toISOString() });
   const facts = buildAllowedAnswerFacts(query, pages.candidates, ctx.userMessage ?? "", outcome?.matchedCandidates?.length, {
     nearbyCandidates: nearbyPages.candidates, identityMatchedButMetricFailed: identityPages.candidates, sourcePages: [...pages.sources, ...identityPages.sources] as Array<{ pageLabel?: string | null }>
   });

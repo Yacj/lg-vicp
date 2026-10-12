@@ -4,6 +4,11 @@ globs: src/modules/ai*/**/*.ts,src/modules/knowledge/**/*.ts,src/modules/reports
 alwaysApply: false
 ---
 
+2026-10-12 普通问答回归修复：无可定位候选时不调用 Solution Action 模型，交还正常问答；lastReferenceLookup 候选仍支持首次懒激活。动作分类提示词必须包含 JSON 与从正式 Zod schema 派生的完整字段合同，兼容只支持 json_object 的模型网关；失败日志只记录错误类型/HTTP码。
+
+Candidate 生命周期（2026-10-12）：查到候选不等于开始方案。普通查表/知识回退/计算仅保存 lastReferenceLookup（query、candidates、createdAt、candidateQueryRevision、projectId）并发 reference_candidates；只有已有 editable active state 才刷新方案池。Confirmed 后普通查询不创建新 state。显式选择/加入/开始/修订才激活；首次选择事务核验权限、24h 有效期、revision、当前来源，seed 后执行既有 mutation。/solution/activate 单请求 ADD/SELECT/SET_FINAL；序号基于最近可见查询 revision，旧列表拒绝。无新迁移，不改 Matcher/QueryState/快照/报告或前端。
+
+- 会话创建/方案访问共用 `clientAppForClient`：令牌 `C_APP/PC_AI/B_ADMIN` 映射到存储值 `c_app/pc_ai/b_admin` 后比较；测试使用真实小写来源，不绕过会话归属、状态、软删除及项目权限。
 - Solution Loop Contract冻结：开放动作只允许结构化action/reference并按原话、当前池/revision做Grounding，再走既有mutation；LLM不能生成正式ID或Confirm。Hard条件有效指纹变化清keep确认，偏好与追踪变化不清；Chat/REST/Agent/refine/refresh共用solution-candidate-query.service/policy。见 `docs/ai/solution-workflow-2026-10-12.md` 冻结补充。
 - 智配流程以 solution_states 为 SSOT；重查保留 selected 并标记硬冲突，序号绑定 candidateSetRevision，偏好不改硬条件。Final 与明确 CONFIRM 分开；事务写入不可变 solution_snapshots 并审计，不存签名URL。确认后修改创建新 state；未来方案文档只消费 Snapshot→DocumentModel。见 `docs/ai/solution-workflow-2026-10-12.md`。
 - 语义查表统一走 `semantic-query.service.ts`：格式归一/符号规则→正式实体目录与GLOBAL别名/Fuzzy建议→受控LLM分类→原话依据与目录验证→QueryState。新问题清历史，追问局部更新；构造编号按体系消歧，行ID唯一。EXACT身份匹配但指标失败独立返回，不能替换成其他体系/厚度。确认页同步状态进入readiness；印刷页码未核验不展示；候选optionId与完整renderModel同源。见 `docs/ai/semantic-query-refactor-2026-10-12.md`。

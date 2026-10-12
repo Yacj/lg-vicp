@@ -37,6 +37,12 @@ export type ReferenceLookupMode = ThermalLookupMode;
 /** 候选类型与状态解析共用 schema；新增正式字段只在此登记。 */
 export const referenceLookupCandidateSchema = z.object({
   id: z.string().trim().min(1),
+  sourceType: z.enum(["REFERENCE", "CALCULATED", "PRODUCT"]).optional(),
+  referenceKind: z.enum(["THERMAL_ROW", "KNOWLEDGE_PAGE"]).optional(),
+  constructionCode: z.string().optional(), productName: z.string().optional(),
+  calculationId: z.string().optional(), calcMode: z.string().optional(), ruleVersion: z.unknown().optional(),
+  inputSnapshot: z.record(z.string(), z.unknown()).optional(), resultSnapshot: z.record(z.string(), z.unknown()).optional(),
+  provenanceSnapshot: z.record(z.string(), z.unknown()).optional(),
   constraintMatch: constraintMatchSchema.optional(),
   structureType: z.string().optional(), regionCode: z.string().optional(), standardLimitId: z.string().optional(),
   sourceVersionId: z.string().nullable().optional(),
@@ -83,6 +89,9 @@ export const referenceLookupCandidateSchema = z.object({
 export type ReferenceLookupCandidate = z.infer<typeof referenceLookupCandidateSchema>;
 
 export type LastReferenceLookup = {
+  candidateQueryRevision?: number;
+  candidateResultInvalid?: boolean;
+  projectId?: string | null;
   query: ThermalQueryState;
   selectedCandidateIds?: string[];
   candidates: ReferenceLookupCandidate[];
@@ -211,6 +220,10 @@ function parseLastReferenceLookup(raw: unknown): LastReferenceLookup | undefined
   };
   return {
     query,
+    candidateQueryRevision: typeof value.candidateQueryRevision === "number" && Number.isSafeInteger(value.candidateQueryRevision) && value.candidateQueryRevision > 0 ? value.candidateQueryRevision : undefined,
+    candidateResultInvalid: value.candidateResultInvalid === true || candidates.length !== (Array.isArray(value.candidates) ? value.candidates.length : 0)
+      || new Set(candidates.map(candidate => candidate.id)).size !== candidates.length ? true : undefined,
+    projectId: typeof value.projectId === "string" || value.projectId === null ? value.projectId : undefined,
     selectedCandidateIds: Array.isArray(value.selectedCandidateIds) ? value.selectedCandidateIds.filter((id): id is string => typeof id === "string") : undefined,
     candidates,
     matchedSystemHint: typeof value.matchedSystemHint === "boolean" || value.matchedSystemHint === null ? value.matchedSystemHint : undefined,

@@ -8,7 +8,7 @@ import { sendTurn } from "../tests/uat/sse.js";
 import type { createUatEnvironment } from "../tests/uat/environment.js";
 import type { SolutionPayload } from "../src/modules/ai/solution-workflow.js";
 
-const turns = ["薄抹灰K不超过0.35有哪些方案？", "第一个和第三个留下", "25mm那个也加入方案", "有没有更薄一点的？", "厚度必须20以内", "25那个不要了", "这两个比较一下", "就这两个", "确认生成方案", "确认生成方案", "我又想改成另一个"];
+const turns = ["薄抹灰K不超过0.35有哪些方案？", "第一个和第三个留下", "25mm那个也加入方案", "有没有更薄一点的？", "厚度必须20以内", "25那个不要了", "这两个比较一下", "就这两个", "确认生成方案", "确认生成方案", "K0.25有哪些方案？", "我又想改成另一个", "重新做一套方案"];
 if (process.argv.includes("--check")) {
   console.log(`[智配UAT] ${turns.length}轮真实HTTP/SSE流程定义检查通过；未进行业务验收。`);
 } else {
@@ -35,9 +35,13 @@ if (process.argv.includes("--check")) {
       report.turns.push({ user: text, stage: state.stage, revision: state.candidateSetRevision });
       return state;
     };
-    let state = await turn(turns[0]!);
-    assert.equal(state.stage, "CANDIDATE_SELECTION"); assert(state.poolCandidateIds.length >= 3);
-    state = await turn(turns[1]!); assert.equal(state.selectedCandidateIds.length, 2);
+    const queryEvents = await sendTurn(environment.baseUrl, user.token, conversationId, turns[0]!, () => {});
+    const candidateResult = [...queryEvents].reverse().find(event => event.event === "reference_candidates");
+    assert(candidateResult && (candidateResult.data.candidates as unknown[]).length >= 3, "普通查询必须返回候选结果");
+    assert(!queryEvents.some(event => event.event === "solution_state"), "普通查询不能自动进入方案");
+    assert.equal(await api(`/conversations/${conversationId}/solution`), null);
+    report.turns.push({ user: turns[0]!, stage: "CANDIDATE_RESULT", revision: Number(candidateResult.data.queryRevision) });
+    let state = await turn(turns[1]!); assert.equal(state.selectedCandidateIds.length, 2); assert(state.poolCandidateIds.length >= 3);
     state = await turn(turns[2]!); assert.equal(state.selectedCandidateIds.length, 3);
     const selected = [...state.selectedCandidateIds], revision = state.candidateSetRevision;
     state = await turn(turns[3]!); assert.equal(state.candidateSetRevision, revision + 1); assert.deepEqual(state.selectedCandidateIds, selected);
@@ -50,12 +54,19 @@ if (process.argv.includes("--check")) {
     const frozen = await api(`/conversations/${conversationId}/solution/snapshots/${snapshotId}`);
     assert.equal(frozen.payload.candidates.length, 2); assert(!JSON.stringify(frozen.payload).includes("imageUrl"));
     state = await turn(turns[9]!); assert.equal(state.confirmedSnapshotId, snapshotId);
-    const originalStateId = state.id; state = await turn(turns[10]!); assert.notEqual(state.id, originalStateId); assert.equal(state.confirmedSnapshotId, null);
+    const originalStateId = state.id;
+    const confirmedQuery = await sendTurn(environment.baseUrl, user.token, conversationId, turns[10]!, () => {});
+    assert(confirmedQuery.some(event => event.event === "reference_candidates"));
+    assert(!confirmedQuery.some(event => event.event === "solution_state"));
+    assert.equal((await api(`/conversations/${conversationId}/solution`)).id, originalStateId);
+    report.turns.push({ user: turns[10]!, stage: "CANDIDATE_RESULT", revision: Number([...confirmedQuery].reverse().find(event => event.event === "reference_candidates")!.data.queryRevision) });
+    state = await turn(turns[11]!); assert.notEqual(state.id, originalStateId); assert.equal(state.confirmedSnapshotId, null);
+    const revisedId = state.id; state = await turn(turns[12]!); assert.notEqual(state.id, revisedId);
     const after = await api(`/conversations/${conversationId}/solution/snapshots/${snapshotId}`); assert.deepEqual(after.payload, frozen.payload);
     const immutableError = (error: unknown) => String((error as { cause?: Error }).cause?.message ?? (error as Error).message).includes("已确认方案快照不可修改或删除");
     await assert.rejects(async () => { await environment!.db.update(solutionSnapshots).set({ version: 99 }).where(eq(solutionSnapshots.id, snapshotId)); }, immutableError, "数据库触发器必须拒绝snapshot UPDATE");
     await assert.rejects(async () => { await environment!.db.delete(solutionSnapshots).where(eq(solutionSnapshots.id, snapshotId)); }, immutableError, "数据库触发器必须拒绝snapshot DELETE");
-    report.checks.push("完整多轮选择/重查/冲突/比较/明确确认/幂等/修订/不可变值", "真实PostgreSQL UPDATE/DELETE触发器");
+    report.checks.push("普通查询与Confirmed后查询只返回Candidate Result；首次选择懒激活；START_NEW显式创建", "完整多轮选择/重查/冲突/比较/明确确认/幂等/修订/不可变值", "真实PostgreSQL UPDATE/DELETE触发器");
     report.status = "PASS";
   } catch (error) {
     report.status = environment ? "FAIL" : "BLOCKED";

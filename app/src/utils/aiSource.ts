@@ -145,3 +145,8 @@ export function compactQuery(query: Record<string, string | number | null | unde
   }
   return params
 }
+
+/** @wot-ui/router 命名跳转使用 params 序列化 URL，query 仅适用于 path 跳转。 */
+export function knowledgeSourceLocation(query: Record<string, string | number | null | undefined>) {
+  return { name: 'knowledge-source', params: compactQuery(query) }
+}

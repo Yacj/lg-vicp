@@ -1,8 +1,10 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { and, eq, isNull } from "drizzle-orm";
-import { aiConversations, projects, solutionStates, solutionSnapshots, thermalCalcRecords, constructionSchemes, insulationSystems, catalogProducts } from "../../db/schema.js";
+import { aiConversationStates, aiConversations, projects, solutionStates, solutionSnapshots, thermalCalcRecords, constructionSchemes, insulationSystems, catalogProducts } from "../../db/schema.js";
+import { parseConversationTaskState, type LastReferenceLookup, type ConversationTaskState } from "./conversation-task.js";
 import type { DbExecutor } from "../../db/client.js";
 import type { AuthUser } from "../../shared/auth-user.js";
+import { clientAppForClient } from "../../shared/client-guard.js";
 import { NotFoundError } from "../../shared/errors.js";
 import { canViewProject } from "../../shared/permissions.js";
 import { writeAuditLog } from "../audit-logs/audit-log.service.js";
@@ -19,7 +21,7 @@ import { buildKnowledgePageRenderModel } from "../../shared/knowledge-page-rende
 import { matchConfirmedPageOptions } from "../knowledge/knowledge-test-reference.js";
 import type { ThermalQueryState } from "../thermal/thermal-query-state.js";
 import { emptySolution, refreshSolution, applySolutionAction, compareSelectedSolution, referenceSolutionCandidate, solutionCards,
-  solutionError, validateFinalSolution, type SolutionAction, type SolutionCandidateSnapshot, type SolutionStage } from "./solution-workflow.js";
+  solutionError, solutionCandidateSchema, resolveActionCandidateIds, validateFinalSolution, type SolutionAction, type SolutionCandidateSnapshot, type SolutionStage } from "./solution-workflow.js";
 
 export type SolutionContext = { app: FastifyInstance; request: FastifyRequest; user: AuthUser; conversation: { id: string; projectId: string | null } };
 export type SolutionStateRow = typeof solutionStates.$inferSelect;
@@ -33,7 +35,7 @@ export function solutionDto(row: SolutionStateRow) {
 export async function assertSolutionAccess(db: DbExecutor, user: AuthUser, conversationId: string) {
   const [conversation] = await db.select().from(aiConversations).where(and(eq(aiConversations.id, conversationId),
     eq(aiConversations.userId, user.id), eq(aiConversations.status, "active"), isNull(aiConversations.deletedAt))).limit(1);
-  if (!conversation || conversation.clientApp !== user.clientType) throw new NotFoundError("AI 会话不存在或无权访问");
+  if (!conversation || conversation.clientApp !== clientAppForClient(user.clientType)) throw new NotFoundError("AI 会话不存在或无权访问");
   if (conversation.projectId) {
     const [project] = await db.select().from(projects).where(and(eq(projects.id, conversation.projectId), isNull(projects.deletedAt))).limit(1);
     if (!project || !canViewProject(user, project)) throw new NotFoundError("项目不存在或无权访问");
@@ -75,30 +77,134 @@ export async function startSolution(ctx: SolutionContext, expectedVersion?: numb
     return solutionDto(await createState(ctx, tx, current));
   });
 }
-/** 仅后端正式查询/计算适配器调用；REST/模型均不能提交事实值。 */
-export async function recordSolutionCandidates(ctx: SolutionContext, query: ThermalQueryState, candidates: SolutionCandidateSnapshot[], expectedVersion?: number) {
+export function isEditableSolution(state: SolutionStateRow | null | undefined): state is SolutionStateRow {
+  return Boolean(state?.active && !state.confirmedSnapshotId && !["CONFIRMED", "GENERATING", "GENERATED"].includes(state.stage));
+}
+/** 刷新只消费已有可编辑状态，绝不隐式创建。 */
+export function refreshActiveSolutionCandidates(ctx: SolutionContext, query: ThermalQueryState, candidates: SolutionCandidateSnapshot[], expectedVersion: number): Promise<ReturnType<typeof solutionDto>>;
+export function refreshActiveSolutionCandidates(ctx: SolutionContext, query: ThermalQueryState, candidates: SolutionCandidateSnapshot[], expectedVersion?: number): Promise<ReturnType<typeof solutionDto> | null>;
+export async function refreshActiveSolutionCandidates(ctx: SolutionContext, query: ThermalQueryState, candidates: SolutionCandidateSnapshot[], expectedVersion?: number) {
   return ctx.app.db.transaction(async tx => {
     await lockConversation(ctx, tx);
-    let state = await loadActiveSolution(ctx, tx);
+    const state = await loadActiveSolution(ctx, tx);
     if (expectedVersion != null && state?.version !== expectedVersion) solutionError("SOLUTION_VERSION_CONFLICT", "查询期间方案已变化，请刷新后重试");
     const conversation = await assertSolutionAccess(tx, ctx.user, ctx.conversation.id);
-    if (!state || state.confirmedSnapshotId || state.projectId !== conversation.projectId)
-      state = await createState(ctx, tx, state, Boolean(state && state.projectId === conversation.projectId));
-    const payload = refreshSolution(state.payload, query, candidates);
-    const stage: SolutionStage = query.unresolved?.length ? "COLLECTING_REQUIREMENTS" : payload.selectedCandidateIds.length ? "REFINING"
-      : candidates.length ? "CANDIDATE_SELECTION" : "COLLECTING_REQUIREMENTS";
-    const [updated] = await tx.update(solutionStates).set({ payload, stage, candidateSetRevision: payload.candidateSetRevision,
-      version: state.version + 1, updatedAt: new Date() }).where(and(eq(solutionStates.id, state.id), eq(solutionStates.version, state.version))).returning();
-    if (!updated) solutionError("SOLUTION_VERSION_CONFLICT", "方案已变化，请刷新");
-    await audit(ctx, tx, updated, "refreshed");
-    return solutionDto(updated);
+    if (!isEditableSolution(state) || state.projectId !== conversation.projectId) {
+      if (expectedVersion != null) solutionError("SOLUTION_NOT_EDITABLE", "请先开始或调整方案");
+      return null;
+    }
+    return refreshState(ctx, tx, state, query, candidates);
   });
+}
+async function refreshState(ctx: SolutionContext, tx: DbExecutor, state: SolutionStateRow, query: ThermalQueryState, candidates: SolutionCandidateSnapshot[]) {
+  const payload = refreshSolution(state.payload, query, candidates);
+  const stage: SolutionStage = query.unresolved?.length ? "COLLECTING_REQUIREMENTS" : payload.selectedCandidateIds.length ? "REFINING"
+    : candidates.length ? "CANDIDATE_SELECTION" : "COLLECTING_REQUIREMENTS";
+  const [updated] = await tx.update(solutionStates).set({ payload, stage, candidateSetRevision: payload.candidateSetRevision,
+    version: state.version + 1, updatedAt: new Date() }).where(and(eq(solutionStates.id, state.id), eq(solutionStates.version, state.version))).returning();
+  if (!updated) solutionError("SOLUTION_VERSION_CONFLICT", "方案已变化，请刷新");
+  await audit(ctx, tx, updated, "refreshed");
+  return solutionDto(updated);
 }
 export async function querySolution(ctx: SolutionContext, query: ThermalQueryState, expectedVersion: number) {
   const current = await loadActiveSolution(ctx);
   if (current?.version !== expectedVersion) solutionError("SOLUTION_VERSION_CONFLICT", "方案已变化，请刷新");
+  if (!isEditableSolution(current)) solutionError("SOLUTION_NOT_EDITABLE", "请先开始或调整方案");
   const result = await querySolutionCandidates(ctx, query);
-  return recordSolutionCandidates(ctx, result.queryState, result.matchedCandidates.map(referenceSolutionCandidate), expectedVersion);
+  const recorded = await recordCandidateResult(ctx, { query: result.queryState, candidates: result.matchedCandidates, createdAt: new Date().toISOString() }, false, expectedVersion);
+  return recorded.solutionState!;
+}
+function asSolutionCandidate(candidate: LastReferenceLookup["candidates"][number]) {
+  return candidate.sourceType ? solutionCandidateSchema.parse({ ...candidate, candidateId: candidate.id,
+    ...(candidate.sourceType === "REFERENCE" ? { thermalReferenceRowId: candidate.id } : {}) }) : referenceSolutionCandidate(candidate);
+}
+async function readLookupTask(db: DbExecutor, conversationId: string) {
+  const [row] = await db.select().from(aiConversationStates).where(eq(aiConversationStates.conversationId, conversationId)).limit(1);
+  return { row, task: parseConversationTaskState(row?.taskStateJson) };
+}
+/** 查询结果与可编辑方案刷新在同一会话锁内保存；revision只属于可见查询结果。 */
+export async function recordCandidateResult(ctx: SolutionContext & { taskState?: ConversationTaskState | null }, snapshot: LastReferenceLookup, append = false, expectedVersion?: number, executor?: DbExecutor) {
+  const persist = async (tx: DbExecutor) => {
+    await lockConversation(ctx, tx);
+    const conversation = await assertSolutionAccess(tx, ctx.user, ctx.conversation.id);
+    const { row, task } = await readLookupTask(tx, conversation.id);
+    const lookup = { ...snapshot, projectId: conversation.projectId,
+      candidateQueryRevision: Math.max(task.lastReferenceLookup?.candidateQueryRevision ?? 0, ctx.taskState?.lastReferenceLookup?.candidateQueryRevision ?? 0) + 1 };
+    const active = await loadActiveSolution(ctx, tx);
+    if (expectedVersion != null && (active?.version !== expectedVersion || !isEditableSolution(active)))
+      solutionError("SOLUTION_VERSION_CONFLICT", "查询期间方案已变化，请刷新后重试");
+    let solutionState: ReturnType<typeof solutionDto> | null = null;
+    if (isEditableSolution(active) && active.projectId === conversation.projectId) {
+      const candidates = lookup.candidates.map(asSolutionCandidate);
+      const ids = new Set(candidates.map(candidate => candidate.candidateId));
+      const retained = append ? active.payload.candidates.filter(item => active.payload.poolCandidateIds.includes(item.candidate.candidateId)
+        && !ids.has(item.candidate.candidateId)).map(item => item.candidate) : [];
+      solutionState = await refreshState(ctx, tx, active, lookup.query, [...retained, ...candidates]);
+      lookup.selectedCandidateIds = solutionState.selectedCandidateIds;
+    }
+    const state = { ...(ctx.taskState ?? task), lastReferenceLookup: lookup };
+    const values = { taskStateJson: state as unknown as Record<string, unknown>, updatedAt: new Date() };
+    if (row) await tx.update(aiConversationStates).set(values).where(eq(aiConversationStates.conversationId, conversation.id));
+    else await tx.insert(aiConversationStates).values({ conversationId: conversation.id, ...values });
+    return { lookup, solutionState };
+  };
+  return executor ? persist(executor) : ctx.app.db.transaction(persist);
+}
+export const CANDIDATE_RESULT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+export function solutionPayloadFromLookup(lookup?: LastReferenceLookup, active?: SolutionStateRow | null) {
+  if (lookup?.candidateResultInvalid) return emptySolution();
+  if (!lookup?.candidateQueryRevision) return active?.payload ?? emptySolution();
+  if (isEditableSolution(active)) {
+    const payload = structuredClone(active.payload);
+    const ids = new Set(payload.candidates.map(item => item.candidate.candidateId));
+    payload.candidates.push(...lookup.candidates.filter(candidate => !ids.has(candidate.id)).map(candidate => ({ candidate: asSolutionCandidate(candidate),
+      sourceRevision: lookup.candidateQueryRevision!, status: "AVAILABLE" as const })));
+    payload.poolCandidateIds = lookup.candidates.map(candidate => candidate.id);
+    payload.candidateSetRevision = lookup.candidateQueryRevision;
+    return payload;
+  }
+  const payload = refreshSolution(emptySolution(), lookup.query, lookup.candidates.map(asSolutionCandidate));
+  payload.candidateSetRevision = lookup.candidateQueryRevision;
+  return payload;
+}
+/** 只接收用户动作与正式引用；创建、来源核验、seed、初始mutation、审计一起提交。 */
+export async function activateSolutionFromLastLookup(ctx: SolutionContext, candidateQueryRevision: number,
+  action: Pick<SolutionAction, "action" | "candidateIds" | "positions">, expectedVersion?: number, executor?: DbExecutor) {
+  const activate = async (tx: DbExecutor) => {
+    await lockConversation(ctx, tx);
+    const conversation = await assertSolutionAccess(tx, ctx.user, ctx.conversation.id);
+    const { task } = await readLookupTask(tx, conversation.id);
+    const lookup = task.lastReferenceLookup;
+    if (lookup?.candidateResultInvalid) solutionError("SOLUTION_SOURCE_CHANGED", "候选结果无法完整校验，请重新查询");
+    if (!lookup?.candidates.length) solutionError("SOLUTION_LOOKUP_REQUIRED", "请先查询或选择一个候选方案");
+    if (lookup.candidateQueryRevision !== candidateQueryRevision || !candidateQueryRevision)
+      solutionError("SOLUTION_REVISION_CONFLICT", "候选列表已变化，请重新查询或选择当前候选");
+    const age = Date.now() - Date.parse(lookup.createdAt);
+    if (!Number.isFinite(age) || age < 0 || age > CANDIDATE_RESULT_MAX_AGE_MS || lookup.projectId !== conversation.projectId)
+      solutionError("SOLUTION_SOURCE_CHANGED", "候选结果已过期或项目已变化，请重新查询");
+    if (!["SELECT", "ADD", "SET_FINAL", "START_NEW"].includes(action.action))
+      solutionError("SOLUTION_LOOKUP_REQUIRED", "请先加入或选择候选方案");
+    const candidates = lookup.candidates.map(asSolutionCandidate);
+    await validateCurrentSources(ctx, tx, candidates, conversation.projectId, lookup.query);
+    const current = await loadActiveSolution(ctx, tx);
+    if (expectedVersion != null && current?.version !== expectedVersion) solutionError("SOLUTION_VERSION_CONFLICT", "方案已变化，请刷新");
+    const state = action.action !== "START_NEW" && isEditableSolution(current) && current.projectId === conversation.projectId ? current : await createState(ctx, tx, current);
+    const seeded = isEditableSolution(current) && state.id === current.id && candidates.every(candidate =>
+      current.payload.poolCandidateIds.includes(candidate.candidateId) && current.payload.candidates.some(item =>
+        item.candidate.candidateId === candidate.candidateId && JSON.stringify(solutionCandidateSchema.parse(item.candidate)) === JSON.stringify(candidate)))
+      ? state.payload : refreshSolution(state.payload, lookup.query, candidates);
+    // Query revision已在上面核验；序号只映射此lookup，mutation继续使用既有方案revision。
+    const candidateIds = resolveActionCandidateIds(solutionPayloadFromLookup(lookup), { ...action, expectedVersion: state.version,
+      candidateSetRevision: lookup.candidateQueryRevision });
+    const payload = applySolutionAction(seeded, { action: action.action, candidateIds, expectedVersion: state.version });
+    const [updated] = await tx.update(solutionStates).set({ payload, candidateSetRevision: payload.candidateSetRevision,
+      stage: payload.finalCandidateIds.length ? "READY_TO_CONFIRM" : payload.selectedCandidateIds.length ? "REFINING" : "CANDIDATE_SELECTION", version: state.version + 1, updatedAt: new Date() })
+      .where(and(eq(solutionStates.id, state.id), eq(solutionStates.version, state.version))).returning();
+    if (!updated) solutionError("SOLUTION_VERSION_CONFLICT", "方案已变化，请刷新");
+    await audit(ctx, tx, updated, action.action.toLowerCase());
+    return { solutionState: solutionDto(updated) };
+  };
+  return executor ? activate(executor) : ctx.app.db.transaction(activate);
 }
 /** 冻结前确认正式发布行仍存在且值未变化，原页 optionId 仍来自当前确认快照。 */
 async function validateCurrentSources(ctx: SolutionContext, db: DbExecutor, candidates: SolutionCandidateSnapshot[], projectId: string | null, conditions: ThermalQueryState) {
@@ -219,13 +325,13 @@ export async function getSolutionSnapshot(ctx: SolutionContext, snapshotId: stri
   return { ...snapshot, referenceImages };
 }
 /** 计算候选完整保存同一次确定性引擎记录，不与参考行拼数值。 */
-export async function recordCalculatedSolution(ctx: SolutionContext, calculationId: string) {
-  await assertSolutionAccess(ctx.app.db, ctx.user, ctx.conversation.id);
-  const [record] = await ctx.app.db.select().from(thermalCalcRecords).where(and(eq(thermalCalcRecords.id, calculationId), eq(thermalCalcRecords.createdById, ctx.user.id))).limit(1);
-  if (!record || record.projectId !== ctx.conversation.projectId) throw new NotFoundError("计算记录不存在或无权访问");
+export async function loadCalculatedCandidates(ctx: SolutionContext, calculationId: string, db: DbExecutor = ctx.app.db) {
+  const conversation = await assertSolutionAccess(db, ctx.user, ctx.conversation.id);
+  const [record] = await db.select().from(thermalCalcRecords).where(and(eq(thermalCalcRecords.id, calculationId), eq(thermalCalcRecords.createdById, ctx.user.id))).limit(1);
+  if (!record || record.projectId !== conversation.projectId) throw new NotFoundError("计算记录不存在或无权访问");
   const input = record.inputJson;
-  const [scheme] = typeof input.schemeId === "string" ? await ctx.app.db.select().from(constructionSchemes).where(and(eq(constructionSchemes.id, input.schemeId), ...publishedReferenceConditions(constructionSchemes))).limit(1) : [];
-  const [system] = scheme ? await ctx.app.db.select().from(insulationSystems).where(eq(insulationSystems.id, scheme.systemId)).limit(1) : [];
+  const [scheme] = typeof input.schemeId === "string" ? await db.select().from(constructionSchemes).where(and(eq(constructionSchemes.id, input.schemeId), ...publishedReferenceConditions(constructionSchemes))).limit(1) : [];
+  const [system] = scheme ? await db.select().from(insulationSystems).where(eq(insulationSystems.id, scheme.systemId)).limit(1) : [];
   const results = record.mode === "REFERENCE_TABLE" && Array.isArray(record.resultJson.candidates)
     ? record.resultJson.candidates.filter((item): item is Record<string, unknown> => !!item && typeof item === "object") : [record.resultJson];
   const calculated: SolutionCandidateSnapshot[] = results.map(result => {
@@ -244,10 +350,18 @@ export async function recordCalculatedSolution(ctx: SolutionContext, calculation
     productThermalResistance: typeof (result.productResistance ?? result.productThermalResistance) === "number" ? (result.productResistance ?? result.productThermalResistance) as number : undefined,
     totalThermalResistance: typeof (result.totalResistance ?? result.totalThermalResistance) === "number" ? (result.totalResistance ?? result.totalThermalResistance) as number : undefined };
   });
-  const active = await loadActiveSolution(ctx);
-  const ids = new Set(calculated.map(candidate => candidate.candidateId));
-  const retained = active?.payload.candidates.filter(item => active.payload.poolCandidateIds.includes(item.candidate.candidateId) && !ids.has(item.candidate.candidateId)).map(item => item.candidate) ?? [];
-  return recordSolutionCandidates(ctx, active?.payload.queryStateSnapshot ?? {}, [...retained, ...calculated], active?.version);
+  return calculated;
+}
+/** REST明确加入计算结果：与按钮/聊天共用懒激活与初始ADD。 */
+export async function recordCalculatedSolution(ctx: SolutionContext, calculationId: string) {
+  return ctx.app.db.transaction(async tx => {
+    await lockConversation(ctx, tx);
+    const calculated = await loadCalculatedCandidates(ctx, calculationId, tx);
+    const active = await loadActiveSolution(ctx, tx);
+    const result = await recordCandidateResult(ctx, { query: active?.payload.queryStateSnapshot ?? {}, candidates: calculated, createdAt: new Date().toISOString() }, true, undefined, tx);
+    return (await activateSolutionFromLastLookup(ctx, result.lookup.candidateQueryRevision,
+      { action: "ADD", candidateIds: calculated.map(candidate => candidate.id) }, undefined, tx)).solutionState;
+  });
 }
 
 /** 产品目录仅提供其自身正式字段；不与其他构造拼热工数值。缺少构造事实时不能确认。 */
@@ -263,5 +377,5 @@ export async function recordProductSolutions(ctx: SolutionContext, productIds: s
     lambda: product.thermalConductivity ?? undefined, alpha: product.correctionFactor ?? undefined,
     provenanceSnapshot: { product: structuredClone(product) } }));
   const retained = current.payload.candidates.filter(item => current.payload.poolCandidateIds.includes(item.candidate.candidateId) && !ids.includes(item.candidate.candidateId)).map(item => item.candidate);
-  return recordSolutionCandidates(ctx, current.payload.queryStateSnapshot, [...retained, ...candidates], expectedVersion);
+  return refreshActiveSolutionCandidates(ctx, current.payload.queryStateSnapshot, [...retained, ...candidates], expectedVersion);
 }

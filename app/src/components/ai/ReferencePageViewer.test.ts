@@ -37,6 +37,48 @@ test('默认同页一张完整表格，公共层和所有厚度保留，命中�
   assert.equal((html.match(/class="[^"]*thermal-table__field--hit/g) || []).length, 4)
   assert.ok(!html.includes('<image'))
 })
+
+test('历史表格的识别字段说明不出现在对话或参考页，也不触发虚假告警', async () => {
+  const page = referenceFixture()
+  const internal = [
+    '按构造编号分为外墙H1-1和外墙H1-2两个系统。',
+    'VICP复合保温板为多厚度档，layers中厚度和热阻填null，各档厚度及产品层热阻、外墙主断面总传热阻和传热系数分别写入options。',
+    '岩棉层热阻0.593为构造层自身热阻，只保留在layers中。',
+    '板材主断面传热阻R和传热系数K分别逐档写入options对应字段。',
+    '金属面板行未给出厚度、导热系数、修正系数和热阻，填null。',
+  ]
+  const model = page.renderModel!
+  model.notes = internal
+  model.paragraphs = [internal[0]!]
+  model.warnings = [internal[1]!]
+  model.constructions[0]!.notes = [internal[2]!]
+  model.constructions[0]!.options[1]!.warnings = [internal[3]!]
+  const snapshot = JSON.stringify(page)
+  for (const inline of [true, false]) {
+    const html = await render(ReferencePageViewer, { page, inline })
+    for (const text of [...internal, '识别参数可能存在异常', '需核对']) assert.ok(!html.includes(text), text)
+    for (const text of ['全屏看表格', '2.880', '3.297', '0.303']) assert.ok(html.includes(text), text)
+    assert.equal((html.match(/class="[^\"]*thermal-table__field--hit/g) || []).length, 4)
+  }
+  assert.equal(JSON.stringify(page), snapshot)
+})
+
+test('原页业务备注和具体缺失提示保留，缺省备注可正常展示表格', async () => {
+  const page = referenceFixture()
+  const model = page.renderModel!
+  model.paragraphs = ['本表适用于混凝土夹心外墙板。']
+  model.notes = ['内表面换热阻0.11(m²·K)/W，外表面换热阻0.04(m²·K)/W。']
+  model.constructions[0]!.notes = ['岩棉层自身热阻为0.593。']
+  model.warnings = ['50mm档总热阻不清晰，请核对原图。']
+  model.constructions[0]!.options[1]!.warnings = ['传热系数不清晰，请核对原图。']
+  const html = await render(ReferencePageViewer, { page, inline: true })
+  for (const text of [...model.paragraphs, ...model.notes, ...model.constructions[0]!.notes, ...model.warnings, '需核对']) assert.ok(html.includes(text), text)
+  assert.ok(!html.includes('识别参数可能存在异常'))
+  delete model.paragraphs
+  delete model.notes
+  delete model.warnings
+  assert.ok((await render(ReferencePageViewer, { page })).includes('thermal-table__header'))
+})
 test('无 renderModel 老消息默认完整 contain 原图及全屏入口，图片错误可重试', async () => {
   const page: AiReferencePage = { ...referenceFixture(), renderModel: null, matches: [] }
   const html = await render(ReferencePageViewer, { page })
@@ -115,7 +157,7 @@ test('查询双 R 时所问指标直接可见，正式字段不因简洁模式�
   assert.ok(!html.includes('查看热阻参数'))
 })
 
-test('系统名是主标题，表名括号小字，中文参数在标题下，两个并排操作保留完整表格高亮', async () => {
+test('系统名是主标题，表名括号小字，中文参数在标题下，表格工具栏保留完整表格高亮', async () => {
   const page = referenceFixture()
   page.renderModel!.pageTitle = '建筑外墙热工计算参考选用表（II型VICP薄抹灰外保温系统）'
   const html = await render(AiAnswerReferencePage, { page, anchorPrefix: 'heading' })

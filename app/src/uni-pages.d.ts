@@ -22,6 +22,7 @@ type _LocationUrl =
   "/pages/project-memory/index" |
   "/pages/projects/index" |
   "/pages/public-projects/index" |
+  "/pages/reference-table/index" |
   "/pages/register/index" |
   "/pages/report-detail/index" |
   "/pages/reports/index" |

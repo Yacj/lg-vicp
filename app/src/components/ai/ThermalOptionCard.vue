@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ThermalFieldKey, ThermalRenderOption } from '@/api/reference-page'
 import { computed } from 'vue'
+import { readableReferenceAnnotations } from '@/utils/referenceAnnotations'
 import { formatReferenceNumber } from '@/utils/referencePage'
 
 const props = defineProps<{ option: Omit<ThermalRenderOption, 'optionId'>, highlighted?: boolean, active?: boolean, fieldKeys?: string[] }>()
@@ -9,7 +10,7 @@ const fields = computed(() => [
   { key: 'totalThermalResistance' as ThermalFieldKey, label: '总热阻 R₀', unit: '(m²·K)/W' },
   { key: 'kValue' as ThermalFieldKey, label: '传热系数 K', unit: 'W/(m²·K)' },
 ])
-const hasWarning = computed(() => !!props.option.warnings?.length || ['thicknessMm', 'productThermalResistance', 'totalThermalResistance', 'kValue'].some((key) => {
+const hasWarning = computed(() => !!readableReferenceAnnotations(props.option.warnings).length || ['thicknessMm', 'productThermalResistance', 'totalThermalResistance', 'kValue'].some((key) => {
   const value = props.option[key as ThermalFieldKey]
   return value == null || value === '' || !Number.isFinite(Number(value)) || Number(value) <= 0
 }))

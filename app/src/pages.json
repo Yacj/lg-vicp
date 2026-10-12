@@ -193,6 +193,16 @@
       }
     },
     {
+      "path": "pages/reference-table/index",
+      "type": "page",
+      "name": "reference-table",
+      "layout": "default",
+      "style": {
+        "navigationStyle": "custom",
+        "disableScroll": true
+      }
+    },
+    {
       "path": "pages/register/index",
       "type": "page",
       "name": "register",

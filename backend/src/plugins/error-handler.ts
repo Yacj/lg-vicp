@@ -6,7 +6,12 @@ import { uniqueViolationMessage } from "../shared/database-errors.js";
 import { fail } from "../shared/response.js";
 
 function sendBusinessError(reply: FastifyReply, requestId: string, statusCode: number, message: string, details?: unknown) {
-  return reply.status(200).send(fail(requestId, statusCode, message, details));
+  return sendErrorResponse(reply, 200, fail(requestId, statusCode, message, details));
+}
+
+function sendErrorResponse(reply: FastifyReply, httpStatusCode: number, payload: ReturnType<typeof fail>) {
+  // 业务错误也使用 HTTP 200，不能套用路由仅描述成功 data 的响应 schema。
+  return reply.status(httpStatusCode).type("application/json; charset=utf-8").serializer(JSON.stringify).send(payload);
 }
 
 export const errorHandlerPlugin = fp(async (app) => {
@@ -49,7 +54,7 @@ export const errorHandlerPlugin = fp(async (app) => {
         errorName: err?.name,
         errorMessage: err?.message ?? String(error)
       }, "请求处理失败");
-      return reply.status(statusCode).send(fail(request.id, statusCode, message));
+      return sendErrorResponse(reply, statusCode, fail(request.id, statusCode, message));
     }
 
     return sendBusinessError(reply, request.id, statusCode, message);

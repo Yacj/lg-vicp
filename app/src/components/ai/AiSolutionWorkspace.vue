@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import type { AiReferencePage } from '@/api/reference-page'
+import type { AiReferencePage, ReferenceHighlight } from '@/api/reference-page'
 import type { SolutionAction, SolutionCandidate, SolutionComparisonResult, SolutionSnapshotDto, SolutionStateDto } from '@/api/solution-types'
 import { computed, ref, watch } from 'vue'
 import { snapshotCandidateCard, solutionPool, solutionSelected, solutionStageLabels, visibleSolutionPool } from '@/utils/aiSolution'
+import { snapshotReferencePages } from '@/utils/referenceTable'
 import AiSolutionCandidateCard from './AiSolutionCandidateCard.vue'
 import AiSolutionComparisonCard from './AiSolutionComparisonCard.vue'
 import ReferencePageViewer from './ReferencePageViewer.vue'
@@ -22,6 +23,7 @@ const emit = defineEmits<{
   source: [candidate: SolutionCandidate]
   snapshot: []
   refresh: []
+  openTable: [page: AiReferencePage, match: ReferenceHighlight | undefined, highlightEnabled: boolean]
 }>()
 const expanded = ref(false)
 const snapshotExpanded = ref(false)
@@ -35,14 +37,7 @@ const unhandledConflicts = computed(() => props.state.conflicts.some(conflict =>
 const finalDraftChanged = computed(() => draftFinalIds.value.length !== props.state.finalCandidateIds.length
   || draftFinalIds.value.some(id => !props.state.finalCandidateIds.includes(id)))
 const confirmBlocked = computed(() => props.loading || finalDraftChanged.value || !finals.value.length || unhandledConflicts.value || finals.value.some(card => card.conflict))
-const snapshotPages = computed<AiReferencePage[]>(() => (props.snapshot?.payload.referencePages || []).map(page => ({
-  type: 'REFERENCE_PAGE',
-  page: { documentId: page.documentId, pageId: page.sourcePageId, documentTitle: page.documentTitle || '冻结来源', pageLabel: page.pageLabel, imageUrl: props.snapshot?.referenceImages?.find(image => image.sourcePageId === page.sourcePageId)?.imageUrl || '' },
-  renderModel: page.renderModel,
-  matches: [...(props.snapshot?.payload.candidates || []), ...(props.snapshot?.payload.alternatives || [])]
-    .filter(candidate => candidate.sourcePageId === page.sourcePageId)
-    .map(candidate => ({ pageId: page.sourcePageId, optionId: candidate.optionId, candidateId: candidate.candidateId })),
-})))
+const snapshotPages = computed(() => snapshotReferencePages(props.snapshot))
 
 watch(() => props.state, (state, previous) => {
   draftFinalIds.value = [...state.finalCandidateIds]
@@ -132,7 +127,7 @@ function viewSnapshot() {
           <view class="app-muted mb-2 text-2.5">
             冻结来源：{{ page.page.documentTitle }}{{ page.page.pageLabel ? ` · 第${page.page.pageLabel}页` : '' }}
           </view>
-          <ReferencePageViewer :page="page" inline :anchor-prefix="`snapshot-${snapshot.id}-${page.page.pageId}`" initial-view="页面内容" @open-source="emit('source', { candidateId: '', sourceType: 'REFERENCE', sourceDocumentId: page.page.documentId, sourcePageId: page.page.pageId, sourcePageLabel: page.page.pageLabel, optionId: $event?.optionId || undefined })" />
+          <ReferencePageViewer :page="page" inline :anchor-prefix="`snapshot-${snapshot.id}-${page.page.pageId}`" initial-view="页面内容" @open-source="emit('source', { candidateId: '', sourceType: 'REFERENCE', sourceDocumentId: page.page.documentId, sourcePageId: page.page.pageId, sourcePageLabel: page.page.pageLabel, optionId: $event?.optionId || undefined })" @open-table="(match, enabled) => emit('openTable', page, match, enabled)" />
         </view>
       </view>
     </template>
