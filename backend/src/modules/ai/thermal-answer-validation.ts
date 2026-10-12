@@ -38,6 +38,7 @@ export interface AllowedAnswerFacts {
   candidates: ReadonlyArray<Readonly<ReferenceLookupCandidate>>;
   /** 未完全满足硬条件、仅作「最接近」说明的候选；数值真实但不得称为命中 */
   nearbyCandidates?: ReadonlyArray<Readonly<ReferenceLookupCandidate>>;
+  identityMatchedButMetricFailed?: ReadonlyArray<Readonly<ReferenceLookupCandidate>>;
   /** 允许引用的来源页（只认印刷页码 pageLabel） */
   sourcePages?: ReadonlyArray<{ sourcePageLabel?: string | null; pageLabel?: string | null }>;
   /** 本次热工计算的冻结结果（与 candidates 互不影响） */
@@ -48,6 +49,7 @@ export interface AllowedAnswerFacts {
 }
 
 export interface BuildAllowedFactsOptions {
+  identityMatchedButMetricFailed?: ReferenceLookupCandidate[];
   nearbyCandidates?: ReferenceLookupCandidate[];
   sourcePages?: Array<{ sourcePageLabel?: string | null; pageLabel?: string | null }>;
 }
@@ -112,10 +114,12 @@ export function buildAllowedAnswerFacts(
   const facts = candidates.filter(candidate => validateCandidateAgainstQueryState(candidate, query).passed)
     .map(candidate => Object.freeze(structuredClone(candidate)));
   const nearby = (options.nearbyCandidates ?? []).map(candidate => Object.freeze(structuredClone(candidate)));
+  const identity = (options.identityMatchedButMetricFailed ?? []).map(candidate => Object.freeze(structuredClone(candidate)));
   const detail = /详细|参数|怎么算|计算过程|技术字段/.test(message);
   const scope = describeQuery(query);
   let answer: string;
   if (query.unresolved?.length) answer = renderClarification(query, message);
+  else if (!facts.length && identity.length) answer = `不满足所问热工指标条件。指定方案和厚度的实际正式值如下：\n${identity.slice(0, 3).map(candidate => renderCandidate(candidate, detail)).join("\n")}`;
   else if (!facts.length) answer = `当前已发布参考表中没有找到同时满足${scope ? `「${scope}」` : "当前条件"}的正式方案。\n如需，我可以继续查图集原文或按你指定的新条件筛选。`;
   else {
     const number = /第([一二三四五六七八九十]|\d+)个/.exec(message);
@@ -127,6 +131,7 @@ export function buildAllowedAnswerFacts(
     answer = `${approx ? "有接近目标且满足当前筛选条件的正式参考方案。" : "有满足当前筛选条件的正式参考方案。"}\n${selected.map(candidate => renderCandidate(candidate, detail)).join("\n")}\n可继续按厚度或热工指标筛选。`;
   }
   return { query: structuredClone(query), candidates: Object.freeze(facts), nearbyCandidates: Object.freeze(nearby),
+    identityMatchedButMetricFailed: Object.freeze(identity),
     sourcePages: options.sourcePages, matchedCount, canonicalAnswers: [answer] };
 }
 
@@ -192,7 +197,11 @@ export function renderAllowedFactsForModel(facts: AllowedAnswerFacts, detailed =
       lines.push(`已核验适用范围及所选标准，判定：${calculation.compliant ? "符合" : "不符合"}该标准限值。`);
     else lines.push("尚未证明标准全部适用条件，不能给出合规结论。");
   }
-  const pages = [...new Set([...facts.candidates, ...(facts.nearbyCandidates ?? [])]
+  if (facts.identityMatchedButMetricFailed?.length) {
+    lines.push("以下只匹配方案身份与厚度，指标未满足，不得当成正式命中：");
+    facts.identityMatchedButMetricFailed.forEach(candidate => lines.push(`${factLine(candidate, detailed)}；未满足条件：${validateCandidateAgainstQueryState(candidate, query).failed.join("、")}`));
+  }
+  const pages = [...new Set([...facts.candidates, ...(facts.nearbyCandidates ?? []), ...(facts.identityMatchedButMetricFailed ?? [])]
     .map(candidate => candidate.sourcePageLabel?.trim()).filter((item): item is string => Boolean(item)))];
   lines.push(`可引用的印刷页码：${pages.length ? pages.join("、") : "无"}`);
   return lines.join("\n");
@@ -320,7 +329,7 @@ function factMatches(fact: SemanticFact, candidate: Readonly<ReferenceLookupCand
  *    无编码片段的事实须由候选池中任意一条满足；越界数字、被改写的指标、编造页码一律拒绝。
  * 只校验带语义标签的事实；没有标签的裸数字不参与判定，因此自然表达不同也能通过。
  */
-export function validateAnswerFacts(answer: string, allowedFacts: Pick<AllowedAnswerFacts, "canonicalAnswers"> & Partial<Pick<AllowedAnswerFacts, "candidates" | "nearbyCandidates" | "sourcePages" | "query" | "calculation">>) {
+export function validateAnswerFacts(answer: string, allowedFacts: Pick<AllowedAnswerFacts, "canonicalAnswers"> & Partial<Pick<AllowedAnswerFacts, "candidates" | "nearbyCandidates" | "identityMatchedButMetricFailed" | "sourcePages" | "query" | "calculation">>) {
   // 没有事实集时无法核验任何生成文本，调用方直接使用已构造的fallback。
   const hasFactContext = allowedFacts.query !== undefined || allowedFacts.candidates !== undefined
     || allowedFacts.nearbyCandidates !== undefined || allowedFacts.sourcePages !== undefined
@@ -332,6 +341,7 @@ export function validateAnswerFacts(answer: string, allowedFacts: Pick<AllowedAn
 
   const query = allowedFacts.query ?? {};
   const pool = [...(allowedFacts.candidates ?? []), ...(allowedFacts.nearbyCandidates ?? []),
+    ...(allowedFacts.identityMatchedButMetricFailed ?? []),
     ...(allowedFacts.calculation ? calculationAsCandidates(allowedFacts.calculation) : [])];
   const allowed: AllowedAnswerFacts = {
     query, candidates: allowedFacts.candidates ?? [], nearbyCandidates: allowedFacts.nearbyCandidates,
@@ -386,7 +396,7 @@ export function validateAnswerFacts(answer: string, allowedFacts: Pick<AllowedAn
 }
 
 export async function validateOrRepairThermalAnswer(answer: string, canonicalAnswers: string[], retry: (canonical: string) => Promise<string>,
-  allowedFacts?: Partial<Pick<AllowedAnswerFacts, "candidates" | "nearbyCandidates" | "sourcePages" | "query" | "calculation">>) {
+  allowedFacts?: Partial<Pick<AllowedAnswerFacts, "candidates" | "nearbyCandidates" | "identityMatchedButMetricFailed" | "sourcePages" | "query" | "calculation">>) {
   const allowed = { canonicalAnswers, ...allowedFacts };
   if (!allowedFacts) return { text: canonicalAnswers[0]!, repaired: false, fallback: true };
   if (validateAnswerFacts(answer, allowed).passed) return { text: answer.trim(), repaired: false, fallback: false };

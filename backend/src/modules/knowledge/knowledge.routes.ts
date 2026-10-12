@@ -1397,7 +1397,7 @@ export async function knowledgeRoutes(app: FastifyInstance) {
     preHandler: [app.authenticate, requireClient(AUTH_CLIENTS.B_ADMIN)],
     schema: {
       tags: ["B端 / 平台 / 知识库"],
-      summary: "确认页面识别：生成 page-aware chunks，可选同步 thermal_reference_rows",
+      summary: "确认页面识别并可选同步热工参考集；已确认草稿页可显式补同步，返回独立同步状态",
       params: z.object({ pageId: z.uuid() }),
       body: z.object({
         thermalSetId: z.uuid().nullable().optional()

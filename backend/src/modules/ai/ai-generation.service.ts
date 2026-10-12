@@ -19,7 +19,7 @@ import type { AuthUser } from "../../shared/auth-user.js";
 import { ConflictError, NotFoundError, TooManyRequestsError } from "../../shared/errors.js";
 import { canViewProject } from "../../shared/permissions.js";
 import { formatInsulationSystemContext, formatThermalCapabilityContext } from "../../shared/prompt-assembly.js";
-import { isThermalComplianceIntent, resolveAnswerContract } from "../../shared/ai-answer-contract.js";
+import { isReferenceLookupIntent, isThermalComplianceIntent, resolveAnswerContract } from "../../shared/ai-answer-contract.js";
 import { isAbortError, startSseStream, writeProgress, writeSse } from "./ai-sse.js";
 import { checkContentFiltered } from "./ai-content-filter.service.js";
 import { writeAuditLog } from "../audit-logs/audit-log.service.js";
@@ -31,6 +31,8 @@ import { createConcurrencyRelease, enforceAiQuota, resolveSceneRuntime, type Sce
 import { languageModelCallOptions } from "../ai-config/ai-task-runtime-policy.js";
 import { loadKnowledgeForGeneration } from "./ai-knowledge-load.js";
 import { normalizeAllowedToolNames, resolveAiCapabilities, selectAllowedToolNames } from "./ai-capability-router.js";
+import { resolveReferenceQueryWithoutAgent } from "./reference-query.service.js";
+import { renderAllowedFactsForModel, validateAnswerFacts } from "./thermal-answer-validation.js";
 import { resolveProjectContext } from "./ai-project-profile.js";
 import { buildAiContext } from "./ai-context-builder.js";
 import {
@@ -372,6 +374,10 @@ export async function streamConversationReply(options: {
       scene: conversation.scene
     });
 
+  if (providedChunks === undefined && isReferenceLookupIntent(content, taskDecision.state.lastReferenceLookup)) {
+    capabilities.needReferenceLookup = true;
+    capabilities.needKnowledgeSearch = true;
+  }
   const allowedTools = selectAllowedToolNames({
     capabilities,
     hasProject: Boolean(conversation.projectId),
@@ -403,9 +409,13 @@ export async function streamConversationReply(options: {
     || chunks.length > 0
     || retrievalFailed
     || (capabilities.needKnowledgeSearch && capabilities.explicitKnowledgeRequest));
+  const referenceQuery = providedChunks === undefined && !agentEnabled && capabilities.needReferenceLookup && !waitingRunPreview
+    ? await resolveReferenceQueryWithoutAgent({ app, request, user, conversation, userMessage: content, taskState: taskDecision.state }) : undefined;
+  const referenceFacts = referenceQuery && (referenceQuery.needsClarification || referenceQuery.facts.candidates.length || referenceQuery.facts.identityMatchedButMetricFailed?.length)
+    ? referenceQuery.facts : undefined;
   const pageReferences = providedChunks !== undefined && options.loadPageReferences ? await options.loadPageReferences()
     : !agentEnabled && capabilities.needReferenceLookup
-      ? await loadPublishedKnowledgeReferences(app, chunks, conversation.projectId, content) : undefined;
+      ? referenceFacts ? undefined : await loadPublishedKnowledgeReferences(app, chunks, conversation.projectId, content, referenceQuery?.facts.query) : undefined;
   const knowledgeContext = shouldInjectKnowledge
     ? (pageReferences?.authoritative ? null : formatKnowledgeContext(chunks, { retrievalFailed })) : null;
   const answerContract = resolveAnswerContract({
@@ -427,7 +437,7 @@ export async function streamConversationReply(options: {
     knowledgeContext,
     knowledgeReferenceContext: pageReferences?.context,
     ruleContext: comparisonRules.length > 0 ? formatComparisonRuleContext(comparisonRules) : null,
-    thermalContext: !agentEnabled && capabilities.needThermalTool ? formatThermalCapabilityContext() : null,
+    thermalContext: referenceFacts ? renderAllowedFactsForModel(referenceFacts) : !agentEnabled && capabilities.needThermalTool ? formatThermalCapabilityContext() : null,
     visionContext,
     taskContext,
     answerContract,
@@ -477,11 +487,18 @@ export async function streamConversationReply(options: {
   let finishReason: "COMPLETED" | "WAITING_USER_INPUT" = "COMPLETED";
 
   const streamBody = async (modelConfig: typeof runtime.primary) => {
+    if (referenceFacts?.query.unresolved?.length) {
+      fullText = referenceFacts.canonicalAnswers[0]!;
+      writeSse(reply, "delta", { text: fullText });
+      return;
+    }
     const citations = pageReferences?.pages.length ? new KnowledgeReferenceCitationStream() : undefined;
     if (pageReferences?.answer !== undefined) {
       const visible = citations ? citations.push(pageReferences.answer, true) : pageReferences.answer;
-      fullText += visible;
-      if (visible) writeSse(reply, "delta", { text: visible });
+      if (!referenceFacts) {
+        fullText += visible;
+        if (visible) writeSse(reply, "delta", { text: visible });
+      }
       if (citations) {
         referencePages = citations.resolve(pageReferences.pages, pageReferences.citationOptionIds);
         if (referencePages.length) writeSse(reply, "reference_pages", { referencePages });
@@ -508,8 +525,10 @@ export async function streamConversationReply(options: {
       }
       const visible = citations ? citations.push(delta) : delta;
       text += visible;
-      fullText += visible;
-      if (visible) writeSse(reply, "delta", { text: visible });
+      if (!referenceFacts) {
+        fullText += visible;
+        if (visible) writeSse(reply, "delta", { text: visible });
+      }
     }
     if (citations) {
       const tail = citations.push("", true);
@@ -520,6 +539,13 @@ export async function streamConversationReply(options: {
       if (referencePages.length) writeSse(reply, "reference_pages", { referencePages });
     }
     streamUsage = await result.usage;
+    if (referenceFacts) {
+      fullText = validateAnswerFacts(text, referenceFacts).passed ? text : referenceFacts.canonicalAnswers[0]!;
+      writeSse(reply, "delta", { text: fullText });
+      referencePages = referenceQuery?.referencePages ?? [];
+      if (referencePages.length) writeSse(reply, "reference_pages", { referencePages });
+      agentSources = referenceQuery?.sources ?? null;
+    }
     return text;
   };
 

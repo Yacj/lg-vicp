@@ -1,7 +1,7 @@
 import { pageRecognitionResultSchema, type PageRecognitionMetadata } from "../../shared/page-recognition.js";
 import { THERMAL_LOOKUP_METRIC_PATTERN, type ThermalLookupMetric } from "../thermal/thermal-lookup-mode.js";
 import type { ReferenceLookupCandidate } from "./conversation-task.js";
-import { resolveReferenceHighlight } from "../knowledge/knowledge-page-renderer.js";
+import { buildKnowledgePageRenderModel } from "../../shared/knowledge-page-render.js";
 
 export const THERMAL_FACT_RULES = [
   "【热工数据硬规则】",
@@ -66,6 +66,8 @@ export function bindConfirmedPageFacts(candidate: ReferenceLookupCandidate, page
     return { candidate: bound, warnings: [...warnings, "来源页确认参数与正式候选冲突，保留正式候选数值，未合并页面参数。"] };
   }
   const productLayers = (system.layers ?? []).filter((layer) => /VICP|保温板/i.test(layer.name));
-  return { candidate: { ...bound, optionId: resolveReferenceHighlight(candidate, page)?.optionId, layers: system.layers,
+  const model = buildKnowledgePageRenderModel(page.pageId, metadata?.confirmedStructuredData);
+  const systemIndex = parsed.data.systems.indexOf(system), optionIndex = (system.options ?? []).indexOf(option);
+  return { candidate: { ...bound, optionId: model?.constructions[systemIndex]?.options[optionIndex]?.optionId, layers: system.layers,
     ...(productLayers.length === 1 ? { lambda: productLayers[0]!.lambda ?? undefined, alpha: productLayers[0]!.alpha ?? undefined } : {}) }, warnings };
 }

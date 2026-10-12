@@ -1,10 +1,12 @@
 import { resolveScopedThermalStandard } from "./thermal-standard-scope.service.js";
 import { rankByPreferences, validateCandidateAgainstQueryState, traceQueryState, type ConstraintCandidate, type ThermalQueryState } from "./thermal-query-state.js";
 import type { FastifyInstance, FastifyRequest } from "fastify";
-import { and, count, desc, eq, inArray, isNull, or } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNull, or, lte, gte } from "drizzle-orm";
 import {
   constructionSchemes,
   knowledgePages,
+  knowledgeDocuments,
+  knowledgeDocumentVersions,
   insulationSystems,
   productSpecs,
   projects,
@@ -35,6 +37,7 @@ import {
   type ThermalLookupMode
 } from "./thermal-lookup-mode.js";
 import type { AuthUser } from "../../shared/auth-user.js";
+import { identityMetricFailures } from "./thermal-candidate-identity.js";
 
 /**
  * 候选方案查询与条件匹配服务。
@@ -125,6 +128,7 @@ interface CandidateQueryInput extends ThermalLookupQuery, Omit<ThermalQueryState
 }
 
 export interface CandidateQueryOutcome {
+  identityMatchedButMetricFailed?: Array<CandidateResult & { compliant: boolean | null; failedConstraints: ThermalLookupFilter[] }>;
   queryState?: ThermalQueryState;
   matchedCandidates?: Array<CandidateResult & { compliant: boolean | null }>;
   nearbyCandidates?: Array<CandidateResult & { compliant: boolean | null; status?: "NOT_FULLY_MATCHED" }>;
@@ -269,6 +273,7 @@ export async function queryThermalCandidates(
 
   // 4) 集内行 + 方案/系统/规格 join（行引用的是已发布版本行，不会读到草稿）
   const setIds = sets.map((s) => s.id);
+  const queryDate = (input.asOfDate ?? new Date()).toISOString().slice(0, 10);
   const rows = await app.db
     .select({
       rowId: thermalReferenceRows.id,
@@ -282,6 +287,8 @@ export async function queryThermalCandidates(
       sourceDocumentId: thermalReferenceRows.sourceDocumentId,
       sourcePageId: thermalReferenceRows.sourcePageId,
       sourcePageLabel: thermalReferenceRows.sourcePageLabel,
+      pageLabelVerified: knowledgePages.pageLabelVerified,
+      confirmedPageLabel: knowledgePages.pageLabel,
       catalogProductId: thermalReferenceRows.catalogProductId,
       schemeId: constructionSchemes.id,
       schemeCode: constructionSchemes.schemeCode,
@@ -304,6 +311,8 @@ export async function queryThermalCandidates(
     })
     .from(thermalReferenceRows)
     .leftJoin(knowledgePages, eq(thermalReferenceRows.sourcePageId, knowledgePages.id))
+    .leftJoin(knowledgeDocumentVersions, eq(knowledgePages.versionId, knowledgeDocumentVersions.id))
+    .leftJoin(knowledgeDocuments, eq(knowledgePages.documentId, knowledgeDocuments.id))
     .innerJoin(constructionSchemes, eq(thermalReferenceRows.schemeId, constructionSchemes.id))
     .innerJoin(insulationSystems, eq(constructionSchemes.systemId, insulationSystems.id))
     .innerJoin(productSpecs, eq(thermalReferenceRows.productSpecId, productSpecs.id))
@@ -312,7 +321,15 @@ export async function queryThermalCandidates(
       inArray(thermalReferenceRows.setId, setIds),
       ...publishedReferenceConditions(constructionSchemes),
       ...publishedReferenceConditions(insulationSystems),
-      ...publishedReferenceConditions(productSpecs)
+      ...publishedReferenceConditions(productSpecs),
+      or(isNull(thermalReferenceRows.sourcePageId), and(
+        eq(knowledgeDocumentVersions.status, "PUBLISHED"), eq(knowledgeDocuments.currentVersionId, knowledgeDocumentVersions.id),
+        eq(knowledgeDocuments.status, "ACTIVE"), isNull(knowledgeDocuments.deletedAt),
+        input.intent ? eq(knowledgeDocumentVersions.usageMode, "AI_ENABLED") : undefined,
+        or(isNull(knowledgeDocuments.projectId), input.projectId ? eq(knowledgeDocuments.projectId, input.projectId) : undefined),
+        or(isNull(knowledgeDocumentVersions.effectiveDate), lte(knowledgeDocumentVersions.effectiveDate, queryDate)),
+        or(isNull(knowledgeDocumentVersions.expiryDate), gte(knowledgeDocumentVersions.expiryDate, queryDate))
+      ))
     ));
 
   if (input.regionCode && (!limit || limit.regionCode !== input.regionCode) || input.standardLimitId && !limit) {
@@ -330,27 +347,38 @@ export async function queryThermalCandidates(
     && (!input.schemeCode || row.schemeCode === input.schemeCode)
     && (!input.productSpecId || row.productSpecId === input.productSpecId)
     && (!input.catalogProductId || row.catalogProductId === input.catalogProductId));
-  const outcome = matchThermalCandidates(scopedRows.map(toCandidateRow), conditions, {
+  const outcome = matchThermalCandidates(scopedRows.map(row => toCandidateRow({ ...row,
+    sourcePageLabel: row.sourcePageId ? row.pageLabelVerified ? row.confirmedPageLabel : null : row.sourcePageLabel })), conditions, {
     neighborTolerance: input.neighborTolerance
   });
 
   // 分阶段过滤计数（诊断用，纯统计，不改变匹配行为）：
   // 依次叠加强约束，看 N 究竟在哪一步掉到 0，避免「模型只说查不到」而无法定位。
-  const allRows = scopedRows.map(toCandidateRow);
-  const asConstraint = (row: CandidateRow): ConstraintCandidate => ({ ...row, systemName: row.systemName ?? undefined, specClass: row.specClass ?? undefined });
+  const allRows = rows.map(row => toCandidateRow({ ...row,
+    sourcePageLabel: row.sourcePageId ? row.pageLabelVerified ? row.confirmedPageLabel : null : row.sourcePageLabel }));
+  const asConstraint = (row: CandidateRow): ConstraintCandidate => ({ ...row, systemName: row.systemName ?? undefined, specClass: row.specClass ?? undefined,
+    regionCode: limit?.regionCode, standardLimitId: limit?.id, structureType: scopedStandard?.limit ? input.structureType : undefined });
   const withoutMetric = { ...queryState, filters: [], metric: undefined, targetValue: undefined, targetK: undefined, targetR: undefined };
   const withoutThickness = { ...withoutMetric, thicknessMm: undefined, thicknessMin: undefined, thicknessMax: undefined };
-  const withoutFamily = { ...queryState, systemIds: undefined, systemId: undefined, systemHint: undefined };
   const stageCounts = {
     beforeAll: allRows.length,
     // 只保留体系族约束（去掉指标与厚度）：体系过滤本身是否把真实候选误杀
-    afterFamily: allRows.filter((candidate) => validateCandidateAgainstQueryState(asConstraint(candidate), withoutMetric).passed).length,
+    afterFamily: allRows.filter((candidate) => validateCandidateAgainstQueryState(asConstraint(candidate), withoutThickness).passed).length,
     // 体系族 + 指标（去掉厚度）：指标（K≈0.3）是否把候选误杀
-    afterMetric: allRows.filter((candidate) => validateCandidateAgainstQueryState(asConstraint(candidate), { ...withoutThickness }).passed).length,
+    afterMetric: allRows.filter((candidate) => validateCandidateAgainstQueryState(asConstraint(candidate), { ...queryState, thicknessMm: undefined, thicknessMin: undefined, thicknessMax: undefined }).passed).length,
     // 体系族 + 指标 + 厚度
-    afterThickness: allRows.filter((candidate) => validateCandidateAgainstQueryState(asConstraint(candidate), withoutFamily).passed).length,
+    afterThickness: allRows.filter((candidate) => validateCandidateAgainstQueryState(asConstraint(candidate), queryState).passed).length,
     afterAllHard: outcome.candidates.length
   };
+  const identityFailures = identityMetricFailures(allRows.map(row => ({ ...asConstraint(row), row,
+    regionCode: limit?.regionCode, standardLimitId: limit?.id, structureType: scopedStandard?.limit ? input.structureType : undefined })), queryState);
+  const identityMatchedButMetricFailed = identityFailures.flatMap(({ candidate, failedConstraints }) => {
+    const identityConditions = { ...conditions, filters: [], metric: undefined, targetValue: undefined, targetK: undefined, targetResistance: undefined };
+    return matchThermalCandidates([candidate.row], identityConditions, { neighborTolerance: 0 }).candidates
+      .map(item => ({ ...item, compliant: null, failedConstraints }));
+  });
+  const rejectedReasons = allRows.map(candidate => ({ id: candidate.rowId, ...validateCandidateAgainstQueryState(asConstraint(candidate), queryState) }))
+    .filter(candidate => !candidate.passed);
 
   // 6) 合规标注（与解析出的限值比较，K 判定口径）与提示
   const candidates = outcome.candidates.map((c) => ({
@@ -402,6 +430,9 @@ export async function queryThermalCandidates(
     targetValue: lookup.targetValue ?? null,
     tolerance: lookup.tolerance ?? null,
     filters: lookup.filters,
+    queryState, stageCounts,
+    rejectedReasons: rejectedReasons.slice(0, 50).map(candidate => ({ id: candidate.id, failed: candidate.failed })),
+    identityMatchedButMetricFailed: identityMatchedButMetricFailed.map(candidate => candidate.candidateId),
     candidateCountBeforeFilter: rows.length,
     candidateCountAfterFilter: orderedCandidates.filter(candidate => candidate.constraintMatch.passed).length,
     selectedCandidateIds: orderedCandidates.filter(candidate => candidate.constraintMatch.passed).slice(0, 12).map((candidate) => candidate.candidateId)
@@ -413,6 +444,7 @@ export async function queryThermalCandidates(
     lookupMode,
     kTolerance,
     queryState,
+    identityMatchedButMetricFailed,
     stageCounts,
     matchedCandidates: orderedCandidates.filter(candidate => candidate.constraintMatch.passed),
     nearbyCandidates: orderedCandidates.filter(candidate => !candidate.constraintMatch.passed).map(candidate => ({ ...candidate, status: "NOT_FULLY_MATCHED" as const })),

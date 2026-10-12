@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { renderKnowledgePage, resolveReferenceHighlight, OPTION_FIELD_KEYS } from "./knowledge-page-renderer.js";
 import { buildReferencePageBlocks } from "../ai/reference-page.js";
-import { mergeReferencePages } from "../ai/report-context-snapshot.js";
+import { buildKnowledgePageRenderModel } from "../../shared/knowledge-page-render.js";
 
 // 用户提供的 A1-3 同行数值回归；A1-4 复用数值用于验证不能靠数字文本定位。
 function fixture() {
@@ -104,18 +104,19 @@ describe("确认页面渲染与语义定位", () => {
     expect(resolveReferenceHighlight(candidate, page)).toBeNull();
     expect(resolveReferenceHighlight({ ...candidate, schemeId: system.schemeId, productSpecId: system.options[0].productSpecId }, page)).not.toBeNull();
   });
-  it("SSE同页候选聚合与持久化契约保留语义高亮，不存签名URL", () => {
+  it("SSE同页候选聚合保留完整模型与正式档位引用，不存签名URL", () => {
     const page = fixture();
     const built = buildReferencePageBlocks([candidate, { ...candidate, id: "b", schemeCode: "A1-4" }], [{ ...page,
+      renderModel: buildKnowledgePageRenderModel(page.pageId, page.metadata.confirmedStructuredData),
       documentTitle: "图集", physicalPageNumber: 1, pageImageObjectKey: "page.png", imageUrl: "https://example.test/signed" }]);
     expect(built.blocks).toHaveLength(1);
-    expect(built.blocks[0]!.semanticHighlights).toHaveLength(2);
-    expect(built.blocks[0]!.matches[0]!.optionId).toBe(resolveReferenceHighlight(candidate, page)?.optionId);
-    const stored = mergeReferencePages(built.stored);
-    expect(stored[0]?.semanticHighlights).toEqual(built.blocks[0]?.semanticHighlights);
-    expect(stored[0]?.matches?.[0]?.semanticHighlights).toEqual(built.blocks[0]?.matches[0]?.semanticHighlights);
+    expect(built.blocks[0]!.matches).toHaveLength(2);
+    expect(built.blocks[0]!.matches[0]!.optionId).toBe(built.blocks[0]!.renderModel!.constructions[0]!.options[0]!.optionId);
+    const stored = built.stored;
+    expect(stored[0]?.matches?.[0]?.optionId).toBe(built.blocks[0]?.matches[0]?.optionId);
+    expect(stored[0]?.renderModel).toEqual(built.blocks[0]?.renderModel);
     expect(JSON.stringify(stored)).not.toContain("https://");
-    built.blocks[0]!.semanticHighlights![0]!.facts.kValue = 9;
-    expect(stored[0]?.semanticHighlights?.[0]?.facts.kValue).toBe(0.303);
+    built.blocks[0]!.matches[0]!.summary.kValue = 9;
+    expect(stored[0]?.matches?.[0]?.summary.kValue).toBe(0.303);
   });
 });

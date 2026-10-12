@@ -8,6 +8,7 @@ export type AiTaskType =
   | "CHAT"
   | "KNOWLEDGE"
   | "SUMMARY"
+  | "SEMANTIC_QUERY"
   | "MEMORY_EXTRACTION"
   | "PROJECT_AGENT"
   | "REPORT"
@@ -31,6 +32,10 @@ export interface AiTaskRuntimePolicy {
 }
 
 const POLICIES: Record<AiTaskType, AiTaskRuntimePolicy> = {
+  SEMANTIC_QUERY: {
+    taskType: "SEMANTIC_QUERY", temperature: 0, maxOutputTokens: 4096,
+    timeoutMs: 12_000, tools: false, maxSteps: 1, structuredOutput: true, reasoningOverride: "LOW"
+  },
   CHAT: {
     taskType: "CHAT",
     maxOutputTokens: 4096,

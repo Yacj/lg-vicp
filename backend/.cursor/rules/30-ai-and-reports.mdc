@@ -4,6 +4,8 @@ globs: src/modules/ai*/**/*.ts,src/modules/knowledge/**/*.ts,src/modules/reports
 alwaysApply: false
 ---
 
+- 语义查表统一走 `semantic-query.service.ts`：格式归一/符号规则→正式实体目录与GLOBAL别名/Fuzzy建议→受控LLM分类→原话依据与目录验证→QueryState。新问题清历史，追问局部更新；构造编号按体系消歧，行ID唯一。EXACT身份匹配但指标失败独立返回，不能替换成其他体系/厚度。确认页同步状态进入readiness；印刷页码未核验不展示；候选optionId与完整renderModel同源。见 `docs/ai/semantic-query-refactor-2026-10-12.md`。
+
 - C端销售/设计院阅读：确定性查表摘要带 answerStyle=THERMAL_SOLUTIONS，primaryFieldKeys 由正式 filters 投影；客户端只替换可定位摘要，普通说明和结论保留。默认两方案、其余展开，完整页表格不裁剪；标记及主字段随无URL元数据恢复，B端默认文案不变。
 
 - C端完整参考页（2026-10-11）：候选唯一绑定同页同构造四项一致的确认档位；知识回退只在已选当前发布资料中读取确认快照，复用Parser/Matcher。查表正文/卡片/完整renderModel/optionId/fieldKeys/answerOffset同源；最终正文不采纳模型错误数值复述，保留人工选择等待。历史重验发布/项目权限并重签，不存签名URL，不复活过期ID；来源详情返回完整模型。见 `docs/ai/c-reference-pages.md`。

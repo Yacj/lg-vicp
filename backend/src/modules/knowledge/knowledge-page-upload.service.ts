@@ -123,6 +123,7 @@ export async function upsertPageImage(
   input: {
     physicalPageNumber: number;
     pageLabel: string;
+    pageLabelSource?: "MANUAL" | "FALLBACK";
     pageTitle?: string | null;
     pageImageObjectKey: string;
     metadataPatch: PageRecognitionMetadata;
@@ -163,8 +164,8 @@ export async function upsertPageImage(
     }));
     const [updated] = await db.update(knowledgePages).set({
       pageLabel: input.pageLabel,
-      pageLabelSource: "MANUAL",
-      pageLabelVerified: true,
+      pageLabelSource: input.pageLabelSource ?? "FALLBACK",
+      pageLabelVerified: input.pageLabelSource === "MANUAL" && Boolean(input.pageLabel.trim()),
       pageTitle: input.pageTitle !== undefined ? input.pageTitle : existing.pageTitle,
       pageImageObjectKey: input.pageImageObjectKey,
       hasImages: true,
@@ -190,8 +191,8 @@ export async function upsertPageImage(
     pageNumber: input.physicalPageNumber,
     physicalPageNumber: input.physicalPageNumber,
     pageLabel: input.pageLabel,
-    pageLabelSource: "MANUAL",
-    pageLabelVerified: true,
+    pageLabelSource: input.pageLabelSource ?? "FALLBACK",
+    pageLabelVerified: input.pageLabelSource === "MANUAL" && Boolean(input.pageLabel.trim()),
     pageTitle: input.pageTitle ?? null,
     pageImageObjectKey: input.pageImageObjectKey,
     hasImages: true,
@@ -290,7 +291,7 @@ export async function batchUploadVersionPages(
   const loaded = items.map((item, index) => ({ item, file: fileRows[index]! }));
   const requestedPageNumbers = new Set<number>();
   const planned: Array<{
-    physicalPageNumber: number; pageLabel: string; pageTitle: string | null;
+    physicalPageNumber: number; pageLabel: string; pageLabelSource: "MANUAL" | "FALLBACK"; pageTitle: string | null;
     file: typeof files.$inferSelect;
   }> = [];
   for (const entry of loaded.filter((row) => row.item.physicalPageNumber != null)) {
@@ -309,6 +310,7 @@ export async function batchUploadVersionPages(
     planned.push({
       physicalPageNumber: physical,
       pageLabel: entry.item.pageLabel?.trim() || extractPageLabelFromFileName(entry.file.originalName) || String(physical),
+      pageLabelSource: entry.item.pageLabel?.trim() ? "MANUAL" : "FALLBACK",
       pageTitle: entry.item.pageTitle ?? null,
       file: entry.file
     });
@@ -324,6 +326,7 @@ export async function batchUploadVersionPages(
     planned.push({
       physicalPageNumber: physical,
       pageLabel: entry.item.pageLabel?.trim() || extractPageLabelFromFileName(entry.file.originalName) || String(physical),
+      pageLabelSource: entry.item.pageLabel?.trim() ? "MANUAL" : "FALLBACK",
       pageTitle: entry.item.pageTitle ?? null,
       file: entry.file
     });
@@ -332,7 +335,7 @@ export async function batchUploadVersionPages(
   // 3) 并发受限读取 + 内容校验 + 立即上传，读完即释放 Buffer（不再整批常驻内存）。
   const createdObjectKeys: string[] = [];
   let prepared: Array<{
-    physicalPageNumber: number; pageLabel: string; pageTitle: string | null;
+    physicalPageNumber: number; pageLabel: string; pageLabelSource: "MANUAL" | "FALLBACK"; pageTitle: string | null;
     file: typeof files.$inferSelect; key: string; mimeType: string; warnings: string[];
   }>;
   try {
@@ -374,7 +377,7 @@ export async function batchUploadVersionPages(
       for (const item of prepared) {
         const recognitionRunId = options?.enqueueRecognition === false ? null : randomUUID();
         const upserted = await upsertPageImage(app, version, {
-          physicalPageNumber: item.physicalPageNumber, pageLabel: item.pageLabel, pageTitle: item.pageTitle,
+          physicalPageNumber: item.physicalPageNumber, pageLabel: item.pageLabel, pageLabelSource: item.pageLabelSource, pageTitle: item.pageTitle,
           pageImageObjectKey: item.key,
           metadataPatch: {
             uploadSource: "BATCH",
@@ -476,6 +479,7 @@ export async function importVersionPagesFromZip(
     bytes: Uint8Array;
     physicalPageNumber: number;
     pageLabel: string;
+    pageLabelSource: "MANUAL" | "FALLBACK";
     pageTitle?: string | null;
   };
   const planned: Planned[] = [];
@@ -501,6 +505,7 @@ export async function importVersionPagesFromZip(
         pageLabel: entry.pageLabel?.trim()
           || extractPageLabelFromFileName(entry.file)
           || String(physical),
+        pageLabelSource: entry.pageLabel?.trim() ? "MANUAL" : "FALLBACK",
         pageTitle: entry.pageTitle ?? null
       });
       order += 1;
@@ -518,6 +523,7 @@ export async function importVersionPagesFromZip(
         bytes,
         physicalPageNumber: physical,
         pageLabel: extractPageLabelFromFileName(name) || String(physical),
+        pageLabelSource: "FALLBACK",
         pageTitle: null
       });
       physical += 1;
@@ -593,7 +599,7 @@ export async function importVersionPagesFromZip(
         const key = createdObjectKeys[index]!;
         const recognitionRunId = options?.enqueueRecognition === false ? null : randomUUID();
         const upserted = await upsertPageImage(app, version, {
-          physicalPageNumber: item.physicalPageNumber, pageLabel: item.pageLabel, pageTitle: item.pageTitle,
+          physicalPageNumber: item.physicalPageNumber, pageLabel: item.pageLabel, pageLabelSource: item.pageLabelSource, pageTitle: item.pageTitle,
           pageImageObjectKey: key,
           metadataPatch: {
             uploadSource: "ZIP",

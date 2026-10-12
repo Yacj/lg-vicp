@@ -4,7 +4,9 @@
  */
 import { generateObject, NoObjectGeneratedError } from "ai";
 import { randomUUID } from "node:crypto";
-import { buildKnowledgePageRenderModel } from "../../shared/knowledge-page-render.js";
+import { assessPageThermalSync } from "./knowledge-thermal-sync.js";
+import { visiblePageLabel } from "../../shared/page-label.js";
+import { readableRenderModel } from "../../shared/readable-page-render.js";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import type { AuthUser } from "../../shared/auth-user.js";
@@ -27,6 +29,7 @@ import { assertKnowledgeVersionEditable, isKnowledgeVersionEditable } from "./kn
 import { getPageImageDownloadName } from "./knowledge-page-image.js";
 import {
   constructionSchemes,
+  insulationSystems,
   knowledgeChunks,
   knowledgeDocumentVersions,
   knowledgeDocuments,
@@ -227,8 +230,10 @@ export async function getPageRecognition(app: FastifyInstance, pageId: string) {
     );
   }
   let thermalSetEditable: boolean | null = null;
-  const linkedRows = await app.db.select({ setId: thermalReferenceRows.setId })
-    .from(thermalReferenceRows).where(eq(thermalReferenceRows.sourcePageId, page.id));
+  const linkedRows = await app.db.select().from(thermalReferenceRows).where(eq(thermalReferenceRows.sourcePageId, page.id));
+  const linkedSchemes = linkedRows.length ? await app.db.select({ id: constructionSchemes.id, schemeCode: constructionSchemes.schemeCode,
+    systemName: insulationSystems.name }).from(constructionSchemes).innerJoin(insulationSystems, eq(insulationSystems.id, constructionSchemes.systemId))
+    .where(inArray(constructionSchemes.id, [...new Set(linkedRows.map(row => row.schemeId))])) : [];
   if (linkedRows.length > 0) {
     const setIds = [...new Set(linkedRows.map((row) => row.setId))];
     const linkedSets = await app.db.select({ id: thermalReferenceSets.id, status: thermalReferenceSets.status })
@@ -249,10 +254,13 @@ export async function getPageRecognition(app: FastifyInstance, pageId: string) {
     recognitionModel: meta.recognitionModel ?? null,
     recognitionConfidence: meta.recognitionConfidence ?? null,
     recognitionWarnings: meta.recognitionWarnings ?? [],
+    thermalSync: meta.recognitionStatus === "CONFIRMED" ? assessPageThermalSync(meta.confirmedStructuredData, linkedRows.map(row => ({ ...row,
+      schemeCode: linkedSchemes.find(scheme => scheme.id === row.schemeId)?.schemeCode,
+      systemName: linkedSchemes.find(scheme => scheme.id === row.schemeId)?.systemName }))) : null,
     structuredData: meta.structuredData ?? null,
     draftStructuredData: meta.draftStructuredData ?? meta.structuredData ?? null,
     confirmedStructuredData: meta.confirmedStructuredData ?? null,
-    renderModel: buildKnowledgePageRenderModel(page.id, meta.confirmedStructuredData),
+    renderModel: readableRenderModel(page.id, page.metadata, visiblePageLabel(page)),
     confirmedAt: meta.confirmedAt ?? null,
     confirmedById: meta.confirmedById ?? null,
     confirmedBy: meta.confirmedById ?? null,
@@ -483,7 +491,11 @@ export async function runPageRecognitionJob(
       lastRecognitionErrorCode: null
     });
 
-    await app.db.update(knowledgePages).set({ metadata: nextMeta }).where(and(
+    await app.db.update(knowledgePages).set({ metadata: nextMeta,
+      ...(latestPage.pageLabelSource !== "MANUAL" && candidate.pageLabel?.trim() ? {
+        pageLabel: candidate.pageLabel.trim(), pageLabelSource: "VISUAL_MATCH" as const, pageLabelVerified: false
+      } : {})
+    }).where(and(
       eq(knowledgePages.id, pageId),
       sql`${knowledgePages.metadata}->>'recognitionRunId' = ${recognitionRunId}`
     ));
@@ -758,7 +770,7 @@ export async function syncThermalRowsFromConfirmedPage(
         continue;
       }
 
-      const evidenceRef = `page:${page.pageLabel ?? page.physicalPageNumber}`;
+      const evidenceRef = page.pageLabel ? `page:${page.pageLabel}` : `pageId:${page.id}`;
       await db.insert(thermalReferenceRows).values({
         setId: thermalSetId,
         schemeId: scheme.id,
@@ -815,7 +827,8 @@ export async function confirmPageRecognition(
       assertThermalReferenceSetEditable(lockedSet);
     }
     const currentMeta = readPageRecognitionMeta(lockedPage.metadata);
-    if (currentMeta.recognitionStatus !== "REVIEW_REQUIRED") {
+    const syncOnly = currentMeta.recognitionStatus === "CONFIRMED" && Boolean(input?.thermalSetId);
+    if (currentMeta.recognitionStatus !== "REVIEW_REQUIRED" && !syncOnly) {
       const code = currentMeta.recognitionStatus === "CONFIRMED"
         ? "PAGE_RECOGNITION_ALREADY_CONFIRMED"
         : "PAGE_RECOGNITION_NOT_READY";
@@ -826,7 +839,7 @@ export async function confirmPageRecognition(
         recognitionStatus: currentMeta.recognitionStatus ?? "PENDING"
       });
     }
-    const currentStructured = pageRecognitionResultSchema.parse(currentMeta.draftStructuredData);
+    const currentStructured = pageRecognitionResultSchema.parse(syncOnly ? currentMeta.confirmedStructuredData : currentMeta.draftStructuredData);
     if (!currentStructured.fullText?.trim()) {
       throw new AppError("PAGE_RECOGNITION_INCOMPLETE", "确认前需要页面全文（fullText/parsedText）", 400);
     }
@@ -854,6 +867,12 @@ export async function confirmPageRecognition(
       confirmedStructuredData: currentStructured,
       confirmedAt: new Date().toISOString(),
       confirmedById: actor.id,
+      thermalSync: {
+        status: !currentStructured.systems?.some(system => system.options?.length) ? "NOT_APPLICABLE"
+          : !input?.thermalSetId ? "NOT_SYNCED" : thermal.skipped > 0 ? "PARTIAL" : "SYNCED",
+        setId: input?.thermalSetId ?? null, expectedOptions: currentStructured.systems.reduce((sum, system) => sum + (system.options?.length ?? 0), 0),
+        syncedRows: thermal.upserted, skippedRows: thermal.skipped, checkedAt: new Date().toISOString()
+      },
       recognitionWarnings: [
         ...(currentStructured.warnings ?? []),
         ...thermal.warnings
@@ -864,7 +883,8 @@ export async function confirmPageRecognition(
       parsedText: currentText,
       pageLabel: currentStructured.pageLabel?.trim() ?? null,
       pageTitle: currentStructured.pageTitle?.trim() ?? null,
-      pageLabelVerified: true,
+      pageLabelSource: currentStructured.pageLabel?.trim() ? "MANUAL" : "FALLBACK",
+      pageLabelVerified: Boolean(currentStructured.pageLabel?.trim()),
       metadata: nextMeta
     }).where(eq(knowledgePages.id, pageId));
 

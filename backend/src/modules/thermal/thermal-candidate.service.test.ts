@@ -82,7 +82,22 @@ const limitRow = {
 
 describe("候选查询 queryThermalCandidates", () => {
   const a13 = { ...row25, rowId: "a1-3", schemeCode: "A1-3", thicknessMm: 18,
-    productThermalResistance: 2.88, totalThermalResistance: 3.297, kValue: 0.303, sourcePageId: "page-22", sourcePageLabel: "22" };
+    productThermalResistance: 2.88, totalThermalResistance: 3.297, kValue: 0.303, sourcePageId: "page-22", sourcePageLabel: "22", pageLabelVerified: true, confirmedPageLabel: "22" };
+
+  it("EXACT miss保留同身份同厚度的正式值，重复code和其他厚度不进入身份失败集", async () => {
+    const { db } = makeDb([[setRow], [a13, { ...a13, rowId: "other", schemeId: "other-scheme", systemId: "other-system", kValue: 0.3 }, { ...a13, rowId: "thick", thicknessMm: 70, kValue: 0.3 }]]);
+    const result = await queryThermalCandidates(app(db), request, actor, { systemId: a13.systemId, schemeId: a13.schemeId,
+      thicknessMm: 18, filters: [{ metric: "K", targetValue: 0.3, mode: "EXACT" }], neighborTolerance: 1 });
+    expect(result.matchedCandidates).toEqual([]);
+    expect(result.identityMatchedButMetricFailed?.map(candidate => candidate.candidateId)).toEqual(["a1-3"]);
+    expect(result.identityMatchedButMetricFailed?.[0]?.result.kValue).toBe(0.303);
+  });
+
+  it("未确认印刷页码不从正式参考行缓存复活", async () => {
+    const { db } = makeDb([[setRow], [{ ...a13, pageLabelVerified: false, confirmedPageLabel: "1" }]]);
+    const result = await queryThermalCandidates(app(db), request, actor, { metric: "K", targetValue: 0.3, mode: "APPROX", neighborTolerance: 1 });
+    expect(result.candidates[0]?.sourcePageLabel).toBeNull();
+  });
 
   it.each(["TOTAL_R", "PRODUCT_R", "K"] as const)("多标准下新指标 %s 不错误要求旧 targetK", async (metric) => {
     const { db } = makeDb([[limitRow, { ...limitRow, id: "lim-2" }], [setRow], [a13]]);

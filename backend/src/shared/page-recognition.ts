@@ -89,6 +89,10 @@ export function buildRecognitionDraft(input: {
 
 /** knowledge_pages.metadata 中的页面识别扩展字段 */
 export type PageRecognitionMetadata = {
+  thermalSync?: {
+    status: "NOT_APPLICABLE" | "NOT_SYNCED" | "PARTIAL" | "SYNCED";
+    setId: string | null; expectedOptions: number; syncedRows: number; skippedRows: number; checkedAt: string;
+  } | null;
   recognitionStatus?: PageRecognitionStatus;
   recognitionModel?: string | null;
   recognitionConfidence?: number | null;
@@ -245,6 +249,7 @@ export function emptyRecognitionMetadata(
     recognitionRunId: null,
     recognitionQueuedAt: null,
     imageWarnings: [],
+    thermalSync: null,
     ...overrides
   };
 }
@@ -260,6 +265,8 @@ export function readPageRecognitionMeta(
       ? (metadata.draftStructuredData as PageRecognitionResult)
       : null;
   return {
+    thermalSync: metadata.thermalSync && typeof metadata.thermalSync === "object"
+      ? metadata.thermalSync as PageRecognitionMetadata["thermalSync"] : null,
     recognitionStatus: PAGE_RECOGNITION_STATUSES.includes(status as PageRecognitionStatus)
       ? (status as PageRecognitionStatus)
       : undefined,

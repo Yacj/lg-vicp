@@ -10,6 +10,8 @@ import { env } from "../../config/env.js";
 import { isReferencePageConsumable } from "./reference-page-access.js";
 import { buildHighlights, REFERENCE_PAGE_LIMIT, type ReferencePageBlock, type ReferencePageMatch } from "./reference-page.js";
 import { normalizeConversationLookupQuery } from "./tools/thermal-lookup.js";
+import { visiblePageLabel } from "../../shared/page-label.js";
+import { readableRenderModel } from "../../shared/readable-page-render.js";
 
 export async function readConsumableReferencePages(app: FastifyInstance, pageIds: readonly string[], projectId: string | null) {
   if (!pageIds.length) return [];
@@ -35,8 +37,8 @@ export async function toReferencePageBlock(app: FastifyInstance, { page, documen
   return { type: "REFERENCE_PAGE", page: { documentId: document.id, pageId: page.id, documentTitle: document.title,
     docNumber: document.docNumber,
     pageNumber: page.physicalPageNumber, physicalPageNumber: page.physicalPageNumber,
-    ...(page.pageLabel ? { pageLabel: page.pageLabel } : {}), imageUrl },
-    renderModel: buildKnowledgePageRenderModel(page.id, readPageRecognitionMeta(page.metadata).confirmedStructuredData),
+    ...(visiblePageLabel(page) ? { pageLabel: visiblePageLabel(page)! } : {}), imageUrl },
+    renderModel: readableRenderModel(page.id, page.metadata, visiblePageLabel(page)),
     matches: [], summary: {}, highlights: [] };
 }
 

@@ -15,7 +15,6 @@ import {
   compactCandidateResult,
   filterCandidatesBySystemHint,
   filterReusableCandidates,
-  normalizeConversationLookupQuery,
   LOOKUP_LIMIT,
   sanitizeSystemHint
 } from "./thermal-lookup.js";
@@ -31,9 +30,14 @@ import { bindConfirmedPageFacts, interpretThermalQuestion, thermalMetricClarific
 import type { ReferenceLookupCandidate } from "../conversation-task.js";
 import { isReferencePageConsumable } from "../reference-page-access.js";
 export { isReferencePageConsumable } from "../reference-page-access.js";
-import { buildKnowledgePageRenderModel } from "../../../shared/knowledge-page-render.js";
 import { readPageRecognitionMeta } from "../../../shared/page-recognition.js";
 import { formatConfirmedLookupAnswer, thermalLookupPrimaryFields } from "../../knowledge/knowledge-test-reference.js";
+import { parseSemanticQuery } from "../semantic-query.service.js";
+import { validateCandidateAgainstQueryState } from "../../thermal/thermal-query-state.js";
+import { buildAllowedAnswerFacts, setThermalAnswerFacts } from "../thermal-answer-validation.js";
+import { buildThermalQueryDebug, logThermalQueryDebug, toRejectedCandidateDebug } from "../../thermal/thermal-query-debug.js";
+import { visiblePageLabel } from "../../../shared/page-label.js";
+import { readableRenderModel } from "../../../shared/readable-page-render.js";
 
 const specClassSchema = z.enum(["I", "II", "III"]);
 
@@ -170,10 +174,7 @@ export function createThermalTool(ctx: ToolRuntimeContext) {
         }
         if (args.operation !== "CALCULATE") {
           const last = ctx.taskState?.lastReferenceLookup;
-          if (interpretThermalQuestion(ctx.userMessage ?? "", last?.query.metric).needsClarification) {
-            return toolOk(thermalMetricClarification());
-          }
-          const resolution = normalizeConversationLookupQuery({
+          const resolution = await parseSemanticQuery(ctx, {
             filters: args.filters,
             metric: args.metric,
             targetValue: args.targetValue,
@@ -191,8 +192,12 @@ export function createThermalTool(ctx: ToolRuntimeContext) {
             specClass: args.specClass,
             mode: args.lookupMode,
             tolerance: args.tolerance ?? args.kTolerance
-          }, ctx.userMessage ?? "", last);
+          });
           if (resolution.needsClarification) {
+            await persistLastReferenceLookup(ctx, { query: resolution.query, candidates: [], createdAt: new Date().toISOString() });
+            if (!resolution.semanticParserResult && interpretThermalQuestion(ctx.userMessage ?? "", last?.query.metric).needsClarification) {
+              return toolOk(thermalMetricClarification());
+            }
             return toolOk({ needsClarification: true, instruction: "请用一个短问题确认不明确的热工指标、目标值及多条件关系；已明确的条件全部保留，禁止只取一项或猜测工程指标。" });
           }
           const inherited = resolution.query;
@@ -210,12 +215,15 @@ export function createThermalTool(ctx: ToolRuntimeContext) {
           };
           let candidates = reusable;
           let notes: string[] = [];
-          let effectiveMode: ThermalLookupMode = inherited.mode ?? requestedMode;
+          let effectiveMode: ThermalLookupMode = inherited.mode ?? requestedMode ?? "APPROX";
+          let identityCandidates: ReferenceLookupCandidate[] = [];
+          let nearbyCandidates: ReferenceLookupCandidate[] = [];
           let effectiveTolerance: number | null = inherited.metric ? resolveMetricTolerance(inherited.metric, effectiveMode, inherited.tolerance) ?? null : null;
           let matchedSystemHint: boolean | null = reusable ? last?.matchedSystemHint ?? null : inherited.systemHint ? true : null;
           let isFallback = reusable ? last?.isFallback ?? false : false;
           if (!candidates) {
             const outcome = await queryThermalCandidates(ctx.app, ctx.request, ctx.user, {
+              ...inherited,
               filters: inherited.filters?.length ? inherited.filters : undefined,
               metric: inherited.metric,
               targetValue: inherited.targetValue,
@@ -238,23 +246,21 @@ export function createThermalTool(ctx: ToolRuntimeContext) {
               projectId: ctx.conversation.projectId ?? undefined
             });
             effectiveMode = outcome.lookupMode;
+            identityCandidates = (outcome.identityMatchedButMetricFailed ?? []).map(compactCandidateResult).slice(0, LOOKUP_LIMIT);
+            nearbyCandidates = (outcome.nearbyCandidates ?? []).map(compactCandidateResult).slice(0, LOOKUP_LIMIT);
+            logThermalQueryDebug(ctx.app.log, buildThermalQueryDebug({ query: inherited, lifecycle: resolution.lifecycle,
+              rawText: ctx.userMessage ?? "", semantic: resolution, toolFilters: inherited.filters, stageCounts: outcome.stageCounts,
+              matchedCount: outcome.matchedCandidates?.length, returnedCandidateIds: outcome.candidates.map(item => item.candidateId),
+              nearby: nearbyCandidates.map(item => toRejectedCandidateDebug(item.id, validateCandidateAgainstQueryState(item, inherited))),
+              identityMatchedButMetricFailed: identityCandidates.map(item => item.id) }));
             effectiveTolerance = outcome.tolerance ?? null;
             // 顺序必须是「DB 候选 → 状态/语义过滤 → 体系过滤 → 排序 → limit」：
             // 先在完整候选集上按体系收窄，再截断，避免真实命中被全局前 12 条挤掉。
-            const all = outcome.candidates.map(compactCandidateResult);
+            const all = outcome.candidates.map(compactCandidateResult).filter(candidate => validateCandidateAgainstQueryState(candidate, inherited).passed);
             if (inherited.preferThinner) all.sort((a, b) => (a.thicknessMm ?? Infinity) - (b.thicknessMm ?? Infinity));
             const hint = sanitizeSystemHint(inherited.systemHint);
             const strict = inherited.systemId ? all : filterCandidatesBySystemHint(all, hint);
-            if (!inherited.systemId && hint && strict.length === 0 && all.length > 0) {
-              // 明确的二级回退：不得静默把其他体系当成「薄抹灰」命中结果
-              candidates = all.slice(0, LOOKUP_LIMIT);
-              matchedSystemHint = false;
-              isFallback = true;
-              notes = [
-                ...outcome.notes,
-                `没有找到符合「${hint}」条件的正式方案，下面是其他体系中接近目标的参考结果。`
-              ];
-            } else {
+            {
               candidates = strict.slice(0, LOOKUP_LIMIT);
               matchedSystemHint = hint ? strict.length > 0 : null;
               notes = outcome.notes;
@@ -269,6 +275,7 @@ export function createThermalTool(ctx: ToolRuntimeContext) {
             notes.push(TOLERANCE_ADJUSTED_NOTE);
           }
           const pageOutcome = await emitReferencePages(ctx, candidates);
+          const identityPages = await emitReferencePages({ app: ctx.app, conversation: ctx.conversation }, identityCandidates);
           if (ctx.answerContract === "REFERENCE_LOOKUP" && !attributeQuestion && (inherited.filters?.length ?? 0) > 0 && pageOutcome.blocks?.length
             && pageOutcome.blocks.every(block => block.matches.every(match => Boolean(match.optionId)))) {
             const optionIds = pageOutcome.blocks.flatMap(block => block.matches.flatMap(match => match.optionId ? [match.optionId] : []));
@@ -277,6 +284,10 @@ export function createThermalTool(ctx: ToolRuntimeContext) {
             ctx.onReferenceAnswer?.(`${isFallback ? `${notes[0]}\n\n` : ""}${answer}`, pageOutcome.blocks);
           }
           candidates = pageOutcome.candidates;
+          const allowedFacts = buildAllowedAnswerFacts(inherited, candidates, ctx.userMessage ?? "", undefined,
+            { nearbyCandidates, identityMatchedButMetricFailed: identityPages.candidates });
+          setThermalAnswerFacts(ctx, allowedFacts);
+          if (!candidates.length && identityPages.candidates.length) ctx.onReferenceAnswer?.(allowedFacts.canonicalAnswers[0]!, identityPages.blocks ?? []);
           notes = [...notes, ...pageOutcome.warnings];
           {
             const snapshot: LastReferenceLookup = {
@@ -292,6 +303,7 @@ export function createThermalTool(ctx: ToolRuntimeContext) {
             notes = [...notes, REFERENCE_PAGE_MISSING_NOTE];
           }
           const data = normalizeReferenceLookupForModel({
+            allowedFacts, canonicalAnswers: allowedFacts.canonicalAnswers, queryState: inherited,
             thicknessMm: inherited.thicknessMm,
             thicknessMin: inherited.thicknessMin,
             thicknessMax: inherited.thicknessMax,
@@ -353,7 +365,7 @@ export function createThermalTool(ctx: ToolRuntimeContext) {
 }
 
 export async function emitReferencePages(
-  ctx: ToolRuntimeContext,
+  ctx: Pick<ToolRuntimeContext, "app"> & Partial<Pick<ToolRuntimeContext, "onEvent" | "conversation">>,
   candidates: ReferenceLookupCandidate[]
 ) {
   const warnings: string[] = [];
@@ -367,6 +379,8 @@ export async function emitReferencePages(
     pageNumber: knowledgePages.pageNumber,
     physicalPageNumber: knowledgePages.physicalPageNumber,
     pageLabel: knowledgePages.pageLabel,
+    pageLabelSource: knowledgePages.pageLabelSource,
+    pageLabelVerified: knowledgePages.pageLabelVerified,
     metadata: knowledgePages.metadata,
     pageImageObjectKey: knowledgePages.pageImageObjectKey,
     versionId: knowledgeDocumentVersions.id,
@@ -383,16 +397,23 @@ export async function emitReferencePages(
     .innerJoin(knowledgeDocumentVersions, and(eq(knowledgeDocumentVersions.id, knowledgePages.versionId), eq(knowledgeDocumentVersions.documentId, knowledgePages.documentId)))
     .where(inArray(knowledgePages.id, pageIds));
   const today = new Date().toISOString().slice(0, 10);
-  const validRows = rows.filter((row) => isReferencePageConsumable(row, today, ctx.conversation.projectId));
+  const validRows = rows.filter((row) => isReferencePageConsumable(row, today, ctx.conversation?.projectId ?? null));
+  // 历史参数追问也必须重验来源授权，不能只跳过签名却继续返回失效快照的数值。
+  candidates = candidates.filter(candidate => !candidate.sourcePageId || validRows.some(page => page.pageId === candidate.sourcePageId
+    && (!candidate.sourceDocumentId || candidate.sourceDocumentId === page.documentId)));
   candidates = candidates.map((candidate) => {
     const page = validRows.find((row) => row.pageId === candidate.sourcePageId);
     if (!page) return candidate;
-    const bound = bindConfirmedPageFacts(candidate, page);
+    const bound = bindConfirmedPageFacts({ ...candidate, sourcePageLabel: visiblePageLabel(page) }, { ...page, pageLabel: visiblePageLabel(page) });
     if (bound.warnings.length) {
       ctx.app.log.warn({ candidateId: candidate.id, pageId: page.pageId, warnings: bound.warnings }, "热工候选来源一致性警告");
       warnings.push(...bound.warnings);
     }
     return bound.candidate;
+  });
+  candidates = candidates.filter(candidate => {
+    const page = validRows.find(row => row.pageId === candidate.sourcePageId);
+    return !page || !readPageRecognitionMeta(page.metadata).confirmedStructuredData || Boolean(candidate.optionId);
   });
   const rejectedPageIds = pageIds.filter((pageId) => !validRows.some((row) => row.pageId === pageId));
   if (rejectedPageIds.length > 0) {
@@ -407,9 +428,9 @@ export async function emitReferencePages(
       docNumber: row.docNumber,
       pageNumber: physicalPageNumber,
       physicalPageNumber,
-      pageLabel: row.pageLabel,
+      pageLabel: visiblePageLabel(row),
       pageImageObjectKey: row.pageImageObjectKey,
-      renderModel: buildKnowledgePageRenderModel(row.pageId, readPageRecognitionMeta(row.metadata).confirmedStructuredData),
+      renderModel: readableRenderModel(row.pageId, row.metadata, visiblePageLabel(row)),
       imageUrl: row.pageImageObjectKey
         ? await ctx.app.storage.createDownloadUrl(row.pageImageObjectKey, `page-${physicalPageNumber}.png`, 3600).catch(() => null)
         : null

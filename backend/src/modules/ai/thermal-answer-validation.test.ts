@@ -8,6 +8,17 @@ const candidate: ReferenceLookupCandidate = { id: "row-A", schemeCode: "S-A", pr
   sourcePageLabel: "A-22", evidenceSource: "正式资料" };
 
 describe("发送前原子事实门禁", () => {
+  it("EXACT身份失败允许实际值解释，禁止冒充命中或切换厚度", () => {
+    const query = { systemId: "sys-i", schemeId: "scheme-i", thicknessMm: 18, filters: [{ metric: "K" as const, mode: "EXACT" as const, targetValue: 0.3 }] };
+    const identity = { id: "identity", systemId: "sys-i", schemeId: "scheme-i", schemeCode: "A1-3", thicknessMm: 18, kValue: 0.303,
+      productThermalResistance: 2.88, totalThermalResistance: 3.297 };
+    const facts = buildAllowedAnswerFacts(query, [], "是不是正好0.300", 0, { identityMatchedButMetricFailed: [identity] });
+    expect(facts.candidates).toEqual([]);
+    expect(validateAnswerFacts("不是正好0.300，不满足这个精确条件；A1-3，18mm的实际K=0.303。", facts).passed).toBe(true);
+    expect(validateAnswerFacts("A1-3，18mm，K=0.303，满足全部条件。", facts).passed).toBe(false);
+    expect(validateAnswerFacts("A1-3，70mm，实际K=0.303，不满足条件。", facts).passed).toBe(false);
+    expect(validateAnswerFacts(facts.canonicalAnswers[0]!, facts).passed).toBe(true);
+  });
   it.each(["产品层热阻 R=8.3", "总热阻 R₀=8", "厚度 18 mm", "K=0.3", "λ=0.003", "α=1.5", "方案 S-B", "规格 SP-B", "第7页", "最高", "全部", "唯一", "符合上海标准"])("拒绝不具备完整授权的事实：%s", invalid => {
     const facts = buildAllowedAnswerFacts({}, [candidate], "详细参数");
     expect(validateAnswerFacts(invalid, facts)).toEqual({ passed: false, code: "INVALID_FACT" });

@@ -20,6 +20,7 @@ import { USER_LANGUAGE_NOTES } from "../../../shared/ai-response-policy.js";
 import { interpretThermalQuestion, thermalMetricClarification } from "../thermal-answer-facts.js";
 import { loadPublishedKnowledgeReferences } from "../ai-reference-pages.service.js";
 import { normalizeConversationLookupQuery } from "./thermal-lookup.js";
+import { parseSemanticQuery } from "../semantic-query.service.js";
 
 export const searchKnowledgeInput = z.object({
   query: z
@@ -120,7 +121,8 @@ export function createSearchKnowledgeTool(ctx: ToolRuntimeContext) {
 
       const selected = new Set(decision.selectedIds);
       const filteredChunks = chunks.filter((chunk) => selected.has(chunk.documentId));
-      const lookup = normalizeConversationLookupQuery({}, ctx.userMessage ?? query, ctx.taskState?.lastReferenceLookup);
+      const lookup = ctx.answerContract === "REFERENCE_LOOKUP" ? await parseSemanticQuery(ctx)
+        : normalizeConversationLookupQuery({}, ctx.userMessage ?? query, ctx.taskState?.lastReferenceLookup);
       const references = ctx.answerContract === "REFERENCE_LOOKUP" && !lookup.needsClarification
         ? await loadPublishedKnowledgeReferences(ctx.app, filteredChunks, ctx.conversation.projectId, ctx.userMessage ?? query, lookup.query)
         : { answer: undefined, pages: [], context: "" };

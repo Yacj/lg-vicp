@@ -3,7 +3,7 @@
  * resolveAiCapabilities 只做预路由，不代替模型选 Tool。
  * WAITING_USER_INPUT 必须持久化 SDK 产生的 assistant tool-call / tool result / assistant text。
  */
-import { streamText, stepCountIs, type LanguageModelUsage, type ModelMessage } from "ai";
+import { generateText, streamText, stepCountIs, type LanguageModelUsage, type ModelMessage } from "ai";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { env } from "../../config/env.js";
@@ -23,6 +23,8 @@ import { createAgentTools, type ToolRuntimeContext } from "./ai-tools.js";
 import { writeSse } from "./ai-sse.js";
 import { resolveConfirmedReferenceAnswer } from "./ai-reference-pages.service.js";
 import { storeReferencePageBlocks, type ReferencePageBlock } from "./reference-page.js";
+import { validateOrRepairThermalAnswer, renderAllowedFactsForModel } from "./thermal-answer-validation.js";
+import { normalizeConversationLookupQuery } from "./tools/thermal-lookup.js";
 import type { SceneRuntime } from "./ai-runtime.service.js";
 import {
   attachUserSelectionRequest,
@@ -410,13 +412,26 @@ export async function runAgentLoop(options: {
     }
   };
 
-  const settleStepBuffer = (buffer: AgentStepBuffer, interrupted = false) => {
+  const settleStepBuffer = async (buffer: AgentStepBuffer, interrupted = false) => {
     const kind = interrupted
       ? classifyInterruptedStep(buffer)
       : (buffer.text.trim() ? classifyFinishedStep(buffer) : null);
     if (!kind) return;
     if (kind === "internal") appendInternal(buffer.text);
-    else flushVisible(buffer.text);
+    else {
+      if (ctx.thermalAllowedFacts && !confirmedAnswer && !waitingRef.current) {
+        if (interrupted || abortSignal.aborted) return;
+        const checked = await validateOrRepairThermalAnswer(buffer.text, ctx.thermalCanonicalAnswers ?? ctx.thermalAllowedFacts.canonicalAnswers, async () => {
+          const repair = await generateText({ model: agentModel.languageModel,
+            system: "根据后端已核验事实修正回答。禁止重算、改写数值、跨候选拼字段或新增事实，允许自然表达。",
+            prompt: renderAllowedFactsForModel(ctx.thermalAllowedFacts!),
+            ...languageModelCallOptions("CHAT"), abortSignal, providerOptions: runtime.providerOptions });
+          return repair.text;
+        }, ctx.thermalAllowedFacts);
+        ctx.thermalFactValidation = { repaired: checked.repaired, fallback: checked.fallback };
+        if (!abortSignal.aborted) flushVisible(checked.text);
+      } else flushVisible(buffer.text);
+    }
   };
 
   const ctx: ToolRuntimeContext = {
@@ -531,10 +546,13 @@ export async function runAgentLoop(options: {
         // 否则模型会凭对话上下文直接作答，导致会话权威条件不更新、来源无法核验。
         const ownsReferenceData = ctx.answerContract === "REFERENCE_LOOKUP" || ctx.answerContract === "THERMAL";
         const hasActiveCandidates = (ctx.taskState?.lastReferenceLookup?.candidates?.length ?? 0) > 0;
+        const comparesSelected = hasActiveCandidates && normalizeConversationLookupQuery({}, ctx.userMessage ?? "", ctx.taskState?.lastReferenceLookup).lifecycle === "COMPARE_SELECTED";
         // 已存在候选集的追问（原页/参数/局部改条件）必须回到 thermal 重查并重新给出原页，
         // 不能让模型改用其他工具或凭上下文复述；全新查询只要求至少真实调用一次工具。
         const toolChoice = !ownsReferenceData || allowedTools.length === 0
           ? undefined
+          : comparesSelected && allowedTools.includes("compare_solutions")
+            ? { type: "tool", toolName: "compare_solutions" } as const
           : hasActiveCandidates && allowedTools.includes("thermal")
             ? { type: "tool", toolName: "thermal" } as const
             : "required" as const;
@@ -567,11 +585,11 @@ export async function runAgentLoop(options: {
           for await (const part of result.fullStream) {
             if (abortSignal.aborted) break;
             if (part.type === "start-step" && stepBuffer.text) {
-              settleStepBuffer(stepBuffer);
+              await settleStepBuffer(stepBuffer);
             }
             stepBuffer = applyAgentStreamPart(stepBuffer, part);
             if (part.type === "finish-step") {
-              settleStepBuffer(stepBuffer);
+              await settleStepBuffer(stepBuffer);
               stepBuffer = createAgentStepBuffer();
             }
             if (Date.now() - startedAt > env.AI_AGENT_OVERALL_TIMEOUT_MS) {
@@ -586,7 +604,7 @@ export async function runAgentLoop(options: {
       timeoutWait.cancel();
     }
     if (stepBuffer.text) {
-      settleStepBuffer(stepBuffer, abortSignal.aborted);
+      await settleStepBuffer(stepBuffer, abortSignal.aborted);
       stepBuffer = createAgentStepBuffer();
     }
     if (!abortSignal.aborted) {
@@ -634,7 +652,7 @@ export async function runAgentLoop(options: {
     }).where(and(eq(aiAgentRuns.id, agentRunId), eq(aiAgentRuns.status, "RUNNING")));
     return { text: userVisibleText, usage, finish: "COMPLETED", sources, referencePages };
   } catch (error) {
-    if (stepBuffer.text) settleStepBuffer(stepBuffer, true);
+    if (stepBuffer.text) await settleStepBuffer(stepBuffer, true);
     if (isAbortError(error) || abortSignal.aborted) {
       await cancelAgentRun(app, agentRunId, "用户取消");
       return { text: userVisibleText, usage, finish: "CANCELLED", sources, referencePages };

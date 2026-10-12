@@ -14,6 +14,8 @@ export interface ReferencePageHighlight {
 }
 
 export interface ReferencePageMatch extends Partial<PageReferenceHighlight> {
+  /** 旧报告快照的兼容读取字段，新确认引用使用 optionId/fieldKeys。 */
+  semanticHighlights?: unknown[];
   candidateId?: string;
   summary: ReferencePageBlock["summary"];
   highlights: ReferencePageHighlight[];

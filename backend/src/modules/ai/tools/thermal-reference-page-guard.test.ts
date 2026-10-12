@@ -19,8 +19,12 @@ describe("REFERENCE_PAGE 正式知识页防御", () => {
       productThermalResistance: 2.88, totalThermalResistance: 3.297, kValue: 0.303 }]);
     const event = onEvent.mock.calls.find(([name]) => name === "reference_pages")![1];
     expect(result.candidates[0]?.optionId).toBe(event.referencePages[0].matches[0].optionId);
-    expect(event.referencePages[0].semanticHighlights[0].facts).toMatchObject({ thicknessMm: 18, kValue: 0.303, lambda: 0.005, alpha: 1.25 });
-    expect(event.stored[0].semanticHighlights).toEqual(event.referencePages[0].semanticHighlights);
+    const block = event.referencePages[0];
+    expect(block.matches[0].fieldKeys).toEqual(expect.arrayContaining(["thicknessMm", "kValue", "productThermalResistance", "totalThermalResistance"]));
+    const option = block.renderModel.constructions.flatMap((construction: any) => construction.options).find((item: any) => item.optionId === block.matches[0].optionId);
+    expect(option).toMatchObject({ thicknessMm: 18, kValue: 0.303 });
+    expect(result.candidates[0]).toMatchObject({ lambda: 0.005, alpha: 1.25 });
+    expect(event.stored[0].matches).toEqual(block.matches);
     expect(JSON.stringify(event.stored)).not.toContain("https://");
   });
   it.each(["21", null])("来源页标签%s经过Tool/SSE仍与物理页序1分开", async (pageLabel) => {
@@ -99,7 +103,7 @@ describe("REFERENCE_PAGE 正式知识页防御", () => {
       kValue: 0.303
     }]);
     expect(outcome).toMatchObject({ missingPage: true, sources: [], warnings: [] });
-    expect(outcome.candidates[0]?.kValue).toBe(0.303);
+    expect(outcome.candidates).toEqual([]);
     expect(createDownloadUrl).not.toHaveBeenCalled();
     expect(onEvent).not.toHaveBeenCalled();
   });

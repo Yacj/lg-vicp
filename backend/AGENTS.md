@@ -1,5 +1,7 @@
 # 蓝格 VICP 后端 AI 开发规则
 
+语义查询（2026-10-12）：查表走格式归一→符号 Fast Path→目录/别名/Fuzzy 建议→受控 LLM 分类→确定性验证→QueryState→正式候选；模型仅理解语言，不计算或选择事实。NEW_QUERY清旧条件，追问按metric/厚度局部更新。构造编号不全局唯一，先用体系上下文消歧；EXACT指标失败保留同身份同厚度记录，和命中/相邻结果分开。确认页与热工同步状态独立，已确认DRAFT页可显式补同步到DRAFT参考集，发布readiness观察四项一致性。上传推导页码为FALLBACK未核验，视觉沿用VISUAL_MATCH未核验，人工确认才MANUAL已核验。来源渲染与候选optionId来自同一确认快照。详见 `docs/ai/semantic-query-refactor-2026-10-12.md`。
+
 C端阅读（2026-10-11）：正式查表摘要使用简洁销售/设计院文案，所问指标由 filters 投影到 primaryFieldKeys。仅 answerStyle=THERMAL_SOLUTIONS 且正式模型ID/answerOffset可定位时允许客户端以方案卡替换摘要；普通解释及限制条件保留。完整页不裁剪，前端默认两方案、其他展开；B端文案保持兼容。详见 docs/ai/c-reference-pages.md。
 
 C端完整参考页（2026-10-11）：正式查表候选唯一绑定同页同构造四项一致的确认档位；知识回退仅在已选且有权访问的当前发布版本读取确认快照，复用既有Parser/Matcher，不并入B端草稿范围。确认查表正文、卡片、完整renderModel、optionId/fieldKeys/answerOffset同源；Agent最终输出不采纳模型错误数值复述，保留原人工选择等待。消息不存签名URL，历史重验发布/项目权限并重签；换版/撤回/旧快照ID失效不复活缓存。来源详情返回完整模型，图片失败保留表格。详见 `docs/ai/c-reference-pages.md`。

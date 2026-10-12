@@ -13,7 +13,7 @@
  * 注意：`parseStatus` 语义保持不变（原始文件解析状态）。页面驱动版本没有 ORIGINAL 时保持
  * PENDING，不伪造 PARSED；可用性由 readiness 派生。
  */
-import { and, count, eq } from "drizzle-orm";
+import { and, count, eq, inArray } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { env } from "../../config/env.js";
 import {
@@ -22,9 +22,11 @@ import {
   knowledgeDocumentVersions,
   knowledgePageMappings,
   knowledgePages,
-  knowledgeTocItems
+  knowledgeTocItems,
+  thermalReferenceRows, constructionSchemes, insulationSystems
 } from "../../db/schema.js";
 import { readPageRecognitionMeta } from "../../shared/page-recognition.js";
+import { assessPageThermalSync } from "./knowledge-thermal-sync.js";
 
 /** 离线页图上传来源：这些页面由 PNG/ZIP/人工创建，需要视觉识别与人工确认。 */
 export const KNOWLEDGE_PAGE_OFFLINE_UPLOAD_SOURCES = ["BATCH", "ZIP", "MANUAL"] as const;
@@ -58,6 +60,8 @@ export interface KnowledgeReadinessBlocker {
 
 /** 单个页面的可用性事实（可从 DB 行或 metadata 归一化得到） */
 export interface KnowledgePageReadinessRow {
+  thermalSyncStatus?: string | null;
+  confirmedThermalOptions?: number;
   pageImageObjectKey?: string | null;
   uploadSource?: string | null;
   recognitionStatus?: string | null;
@@ -67,6 +71,7 @@ export interface KnowledgePageReadinessRow {
 
 /** 版本内页面维度的可用性事实（纯统计，不含任何识别原文/URL） */
 export interface KnowledgePageReadinessFacts {
+  unsyncedThermalPageCount?: number;
   pageCount: number;
   /** null = 未采集（调用方未知），0 = 明确无分块 */
   chunkCount: number | null;
@@ -112,6 +117,7 @@ export interface KnowledgeReadinessSource {
 }
 
 export interface KnowledgeVersionReadiness {
+  unsyncedThermalPageCount: number;
   hasOriginalAsset: boolean;
   hasSearchSourceAsset: boolean;
   hasOfflinePageImages: boolean;
@@ -197,10 +203,14 @@ export function toPageReadinessRow(row: {
   recognitionStatus?: string | null;
   recognitionRunId?: string | null;
   metadata?: Record<string, unknown> | null;
+  thermalSyncStatus?: string | null;
+  confirmedThermalOptions?: number;
 }): KnowledgePageReadinessRow {
   const meta = row.metadata ? readPageRecognitionMeta(row.metadata) : null;
   const uploadSource = row.uploadSource ?? meta?.uploadSource ?? null;
   return {
+    thermalSyncStatus: row.thermalSyncStatus ?? meta?.thermalSync?.status ?? null,
+    confirmedThermalOptions: row.confirmedThermalOptions ?? meta?.confirmedStructuredData?.systems?.reduce((sum, system) => sum + (system.options?.length ?? 0), 0) ?? 0,
     pageImageObjectKey: row.pageImageObjectKey ?? null,
     uploadSource,
     recognitionStatus: row.recognitionStatus ?? meta?.recognitionStatus ?? null,
@@ -215,6 +225,7 @@ export function summarizePageReadiness(
   chunkCount: number | null
 ): KnowledgePageReadinessFacts {
   const facts: KnowledgePageReadinessFacts = {
+    unsyncedThermalPageCount: 0,
     pageCount: rows.length,
     chunkCount,
     pagesMissingImageCount: 0,
@@ -228,6 +239,7 @@ export function summarizePageReadiness(
   };
   for (const raw of rows) {
     const row = toPageReadinessRow(raw);
+    if (row.recognitionStatus === "CONFIRMED" && (row.confirmedThermalOptions ?? 0) > 0 && row.thermalSyncStatus !== "SYNCED") facts.unsyncedThermalPageCount! += 1;
     if (row.pageImageObjectKey && isOfflineUploadedPage(row)) facts.hasOfflinePageImages = true;
     if (pageImageMissing(row)) facts.pagesMissingImageCount += 1;
     if (!pageRequiresRecognition(row)) continue;
@@ -516,6 +528,7 @@ export function deriveKnowledgeVersionReadiness(
     warnings.push("页面已上传但尚未生成可检索内容（chunks），AI 检索暂不可用");
   }
 
+  if (aiEnabled && (facts.unsyncedThermalPageCount ?? 0) > 0) warnings.push(`有 ${facts.unsyncedThermalPageCount} 页已确认热工档位尚未完整同步到正式方案查询；资料问答与正式选用表是独立发布流程`);
   if (aiEnabled && (source.strictPublishCheck ?? env.STRICT_KNOWLEDGE_PUBLISH_CHECK) && warnings.length > 0) {
     pushBlocker("STRICT_PUBLISH_WARNING", `严格发布检查未通过：${warnings.join("；")}`, null, ["PUBLISH"]);
   }
@@ -537,6 +550,7 @@ export function deriveKnowledgeVersionReadiness(
   return {
     hasOriginalAsset: source.hasOriginalAsset,
     hasSearchSourceAsset: source.hasSearchSourceAsset,
+    unsyncedThermalPageCount: facts.unsyncedThermalPageCount ?? 0,
     hasOfflinePageImages: facts.hasOfflinePageImages,
     hasFormalKnowledgeSource,
     traditionalContentReady,
@@ -598,13 +612,22 @@ export async function collectAiReadinessContext(
     app.db.select({ status: knowledgeTocItems.status }).from(knowledgeTocItems)
       .where(eq(knowledgeTocItems.versionId, versionId)),
     app.db.select({
+      id: knowledgePages.id,
       pageImageObjectKey: knowledgePages.pageImageObjectKey,
       metadata: knowledgePages.metadata
     }).from(knowledgePages).where(eq(knowledgePages.versionId, versionId)),
     app.db.select({ value: count() }).from(knowledgeChunks)
       .where(eq(knowledgeChunks.versionId, versionId))
   ]);
-  const normalizedPages = pageRows.map((row) => toPageReadinessRow(row));
+  const thermalPageIds = pageRows.filter(row => readPageRecognitionMeta(row.metadata).confirmedStructuredData?.systems?.some(system => system.options?.length)).map(row => row.id);
+  const thermalRows = thermalPageIds.length ? await app.db.select({ sourcePageId: thermalReferenceRows.sourcePageId,
+    schemeId: thermalReferenceRows.schemeId, schemeCode: constructionSchemes.schemeCode, systemName: insulationSystems.name,
+    productSpecId: thermalReferenceRows.productSpecId, thicknessMm: thermalReferenceRows.thicknessMm,
+    productThermalResistance: thermalReferenceRows.productThermalResistance, totalThermalResistance: thermalReferenceRows.totalThermalResistance, kValue: thermalReferenceRows.kValue })
+    .from(thermalReferenceRows).innerJoin(constructionSchemes, eq(thermalReferenceRows.schemeId, constructionSchemes.id))
+    .innerJoin(insulationSystems, eq(constructionSchemes.systemId, insulationSystems.id)).where(inArray(thermalReferenceRows.sourcePageId, thermalPageIds)) : [];
+  const normalizedPages = pageRows.map(row => toPageReadinessRow({ ...row,
+    thermalSyncStatus: assessPageThermalSync(readPageRecognitionMeta(row.metadata).confirmedStructuredData, thermalRows.filter(item => item.sourcePageId === row.id)).status }));
   const facts = summarizePageReadiness(normalizedPages, Number(chunkRows[0]?.value ?? 0));
   return {
     hasOriginalAsset: assetRows.some((row) => row.role === "ORIGINAL"),

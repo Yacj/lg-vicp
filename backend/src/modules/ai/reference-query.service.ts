@@ -5,10 +5,10 @@ import { compactCandidateResult, LOOKUP_LIMIT, normalizeConversationLookupQuery 
 import { emitReferencePages } from "./tools/thermal-calculate.tool.js";
 import { buildAllowedAnswerFacts } from "./thermal-answer-validation.js";
 import { buildThermalQueryDebug, logThermalQueryDebug, toRejectedCandidateDebug } from "../thermal/thermal-query-debug.js";
-import { interpretThermalQuestion } from "./thermal-answer-facts.js";
 import { saveConversationTaskState } from "./ai-conversation-state.service.js";
 import type { ToolRuntimeContext } from "./tools/tool-runtime.js";
 import { selectFrozenReferenceCandidateIds } from "./reference-candidate-selection.js";
+import { parseSemanticQuery } from "./semantic-query.service.js";
 
 /**
  * 未启用 Agent 的查表仍走同一查询状态与约束服务，不能让普通 streamText 绕过事实门禁。
@@ -33,9 +33,9 @@ export async function resolveReferenceQueryWithoutAgent(ctx: Pick<ToolRuntimeCon
     return { facts, sources: [], needsClarification: !valid };
   }
   const dictionary = await loadThermalQueryDictionary(ctx.app.db);
-  const resolution = normalizeConversationLookupQuery({ systemId: ctx.conversation.insulationSystemId ?? undefined }, ctx.userMessage ?? "", last, dictionary);
+  const resolution = await parseSemanticQuery(ctx, { systemId: ctx.conversation.insulationSystemId ?? undefined }, dictionary);
   let query: ThermalQueryState = { ...resolution.query, intent: "REFERENCE_LOOKUP" as const };
-  if (interpretThermalQuestion(ctx.userMessage ?? "", resolution.lifecycle === "NEW_QUERY" ? undefined : last?.query.metric).needsClarification || resolution.needsClarification)
+  if (resolution.needsClarification)
     query = { ...query, unresolved: query.unresolved?.length ? query.unresolved : [{ field: "query", reason: "想查哪个目标值，或这几个条件是否需要同时满足？" }] };
   const outcome = query.unresolved?.length ? null : await queryThermalCandidates(ctx.app, ctx.request, ctx.user, {
     ...query, targetResistance: query.targetR, neighborTolerance: 1, projectId: ctx.conversation.projectId ?? undefined
@@ -46,6 +46,7 @@ export async function resolveReferenceQueryWithoutAgent(ctx: Pick<ToolRuntimeCon
   // 未完全满足硬条件的候选只作「最接近」说明，冻结进事实集后模型才可以引用（但不得称为命中）。
   const nearbyRaw = (outcome?.nearbyCandidates ?? []).map(compactCandidateResult);
   const nearby = nearbyRaw.filter(candidate => !validateCandidateAgainstQueryState(candidate, query).passed).slice(0, LOOKUP_LIMIT);
+  const identity = (outcome?.identityMatchedButMetricFailed ?? []).map(compactCandidateResult).slice(0, LOOKUP_LIMIT);
   // 查询诊断：让「查不到」能定位到具体失败条件。
   {
     const debug = buildThermalQueryDebug({
@@ -54,17 +55,19 @@ export async function resolveReferenceQueryWithoutAgent(ctx: Pick<ToolRuntimeCon
       matchedCount: outcome?.matchedCandidates?.length,
       returnedCandidateIds: candidates.map(candidate => candidate.id),
       nearby: nearbyRaw.map(candidate => toRejectedCandidateDebug(candidate.id, validateCandidateAgainstQueryState(candidate, query))),
-      toolFilters: query.filters
+      toolFilters: query.filters,
+      rawText: ctx.userMessage ?? "", semantic: resolution, stageCounts: outcome?.stageCounts, identityMatchedButMetricFailed: identity.map(candidate => candidate.id)
     });
     logThermalQueryDebug(ctx.app.log, debug);
   }
   const pages = await emitReferencePages(ctx, candidates);
-  const nearbyPages = await emitReferencePages({ app: ctx.app }, nearby);
+  const nearbyPages = await emitReferencePages({ app: ctx.app, conversation: ctx.conversation }, nearby);
+  const identityPages = await emitReferencePages({ app: ctx.app, conversation: ctx.conversation }, identity);
   const state = ctx.taskState ?? { taskType: "GENERAL" as const };
   state.lastReferenceLookup = { query, candidates: pages.candidates, createdAt: new Date().toISOString() };
   await saveConversationTaskState(ctx.app, ctx.conversation.id, state);
   const facts = buildAllowedAnswerFacts(query, pages.candidates, ctx.userMessage ?? "", outcome?.matchedCandidates?.length, {
-    nearbyCandidates: nearbyPages.candidates, sourcePages: pages.sources as Array<{ pageLabel?: string | null }>
+    nearbyCandidates: nearbyPages.candidates, identityMatchedButMetricFailed: identityPages.candidates, sourcePages: [...pages.sources, ...identityPages.sources] as Array<{ pageLabel?: string | null }>
   });
-  return { facts, sources: pages.sources, needsClarification: Boolean(query.unresolved?.length) };
+  return { facts, sources: [...pages.sources, ...identityPages.sources], referencePages: [...(pages.blocks ?? []), ...(identityPages.blocks ?? [])], needsClarification: Boolean(query.unresolved?.length) };
 }

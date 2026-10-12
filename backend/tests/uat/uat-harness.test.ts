@@ -19,7 +19,7 @@ describe("真实UAT基础设施与硬失败检测（不冒充真实模型UAT）"
   it("至少40个独立业务场景、两类persona及新增回归轮次均有确定性与hard fail契约", () => {
     expect(uatCases.length).toBeGreaterThanOrEqual(40);
     expect(uatCases.filter(item => item.persona === "SALES").length).toBeGreaterThanOrEqual(20);
-    expect(uatCases.filter(item => item.persona === "DESIGN_INSTITUTE")).toHaveLength(20);
+    expect(uatCases.filter(item => item.persona === "DESIGN_INSTITUTE").length).toBeGreaterThanOrEqual(20);
     expect(uatCases.flatMap(item => item.turns).length).toBeGreaterThanOrEqual(123);
     for (const item of uatCases) for (const turn of item.turns) {
       expect(turn.expect.intent).toBeTruthy();

@@ -11,6 +11,8 @@ import { estimateTokens } from "../../shared/prompt-assembly.js";
 import { normalizeConversationLookupQuery, normalizeSystemHint } from "../ai/tools/thermal-lookup.js";
 import { matchThermalCandidates, type CandidateRow } from "../thermal/thermal-candidate-matcher.js";
 import type { PageRecognitionResult } from "../../shared/page-recognition.js";
+import { visiblePageLabel } from "../../shared/page-label.js";
+import { readableRenderModel } from "../../shared/readable-page-render.js";
 
 export interface KnowledgeTestReferenceContext { context: string; pages: ReferencePageBlock[]; citationOptionIds?: string[]; authoritative?: boolean; answer?: string }
 
@@ -28,7 +30,7 @@ export const KNOWLEDGE_PAGE_REFERENCE_INSTRUCTIONS = [
 /** 普通问答读取检索原页；明确数值查表读取同版本确认快照，不访问全局热工集。 */
 export async function loadKnowledgeTestReferences(app: FastifyInstance, versionId: string, documentTitle: string, hits: readonly WikiHit[], query?: string): Promise<KnowledgeTestReferenceContext> {
   const normalized = normalizeConversationLookupQuery({}, query ?? "");
-  const numericLookup = !normalized.needsClarification && normalized.query.filters.length > 0;
+  const numericLookup = !normalized.needsClarification && (normalized.query.filters?.length ?? 0) > 0;
   let pageIds = [...new Set(hits.filter(hit => hit.versionId === versionId).map(hit => hit.pageId).filter((id): id is string => Boolean(id)))].slice(0, REFERENCE_PAGE_LIMIT);
   if (!numericLookup && !pageIds.length) return { context: "", pages: [] };
   const rows = await app.db.select().from(knowledgePages).where(and(eq(knowledgePages.versionId, versionId), numericLookup ? undefined : inArray(knowledgePages.id, pageIds)));
@@ -46,7 +48,7 @@ export async function loadKnowledgeTestReferences(app: FastifyInstance, versionI
   for (const id of pageIds) {
     const page = rows.find(row => row.id === id);
     if (!page) continue;
-    const model = buildKnowledgePageRenderModel(page.id, readPageRecognitionMeta(page.metadata).confirmedStructuredData);
+    const model = readableRenderModel(page.id, page.metadata, visiblePageLabel(page));
     if (!model?.constructions.some(item => item.options.length)) continue;
     let imageUrl = "";
     if (page.pageImageObjectKey) {
@@ -55,7 +57,7 @@ export async function loadKnowledgeTestReferences(app: FastifyInstance, versionI
     }
     pages.push({ type: "REFERENCE_PAGE", page: { documentId: page.documentId, pageId: page.id, documentTitle,
       pageNumber: page.physicalPageNumber, physicalPageNumber: page.physicalPageNumber,
-      ...(page.pageLabel ? { pageLabel: page.pageLabel } : {}), imageUrl
+      ...(visiblePageLabel(page) ? { pageLabel: visiblePageLabel(page)! } : {}), imageUrl
     }, renderModel: model, summary: {}, matches: [], highlights: [] });
   }
   if (!pages.length && selectedIds === undefined) return { context: "", pages: [] };
@@ -66,11 +68,12 @@ export async function loadKnowledgeTestReferences(app: FastifyInstance, versionI
 }
 
 /** 数值查表由后端逐条抄录匹配记录，避免模型改厚度、串构造或漏引用标记。 */
-export function thermalLookupPrimaryFields(filters: ReturnType<typeof normalizeConversationLookupQuery>["query"]["filters"]): ThermalPageField[] {
+export function thermalLookupPrimaryFields(filters: ReturnType<typeof normalizeConversationLookupQuery>["query"]["filters"] = []): ThermalPageField[] {
   return [...new Set<ThermalPageField>(["thicknessMm", ...(filters.length ? filters.map(filter => filter.metric === "TOTAL_R" ? "totalThermalResistance" as const : filter.metric === "PRODUCT_R" ? "productThermalResistance" as const : "kValue" as const) : ["kValue" as const])])];
 }
 
 export function formatConfirmedLookupAnswer(pages: readonly ReferencePageBlock[], optionIds: readonly string[], filters: ReturnType<typeof normalizeConversationLookupQuery>["query"]["filters"], copy?: { scopeLabel?: string; emptyHint?: string; compact?: boolean }): string {
+  filters ??= [];
   const target = filters.map(filter => `${filter.metric === "K" ? "传热系数 K" : filter.metric === "TOTAL_R" ? "总热阻 R₀" : "产品层热阻 R"}${filter.mode === "EXACT" ? "等于" : filter.mode === "MAX_LIMIT" ? "不超过" : filter.mode === "MIN_LIMIT" ? "不低于" : "接近"} ${filter.targetValue}`).join("、");
   const records = optionIds.flatMap(id => pages.flatMap(page => page.renderModel?.constructions.flatMap(construction => construction.options.filter(option => option.optionId === id).map(option => ({ page, construction, option }))) ?? [])).slice(0, 3);
   if (!records.length) return `${copy?.scopeLabel ?? "当前版本已确认的完整档位中"}，未找到${target}且同时符合其他查询条件的参考方案。${copy?.emptyHint ?? "请核对页面识别数据；未确认或缺少参数的档位暂不作为匹配依据。"}`;

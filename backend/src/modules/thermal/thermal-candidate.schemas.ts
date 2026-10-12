@@ -162,6 +162,7 @@ export const thermalCandidateQueryResponseSchema = z.object({
   kTolerance: z.number().nullable().optional(),
   candidates: z.array(thermalCandidateDto),
   matchedCandidates: z.array(thermalCandidateDto).optional(),
+  identityMatchedButMetricFailed: z.array(thermalCandidateDto.extend({ failedConstraints: z.array(normalizedThermalLookupFilterSchema) })).optional(),
   nearbyCandidates: z.array(thermalCandidateDto.extend({ status: z.literal("NOT_FULLY_MATCHED").optional() })).optional(),
   /** 查询提供了但全部数据缺失的条件（如所有方案未填基层厚度） */
   missingConditions: z.array(z.string()),

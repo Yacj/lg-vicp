@@ -11,6 +11,9 @@ export const conditionTraceSchema = z.object({
   classification: z.enum(["HARD_CONSTRAINT", "SOFT_PREFERENCE", "AMBIGUOUS"])
 });
 export const queryStateExtraFields = {
+  queryMode: z.enum(["NEW_QUERY", "CONTINUE_QUERY", "REFINE_QUERY", "COMPARE_SELECTED"]).optional(),
+  semanticConfidence: z.number().min(0).max(1).optional(),
+  parserSource: z.enum(["FAST_PATH", "LLM", "LEGACY_FALLBACK", "UNAVAILABLE"]).optional(),
   substrateMaterial: z.string().optional(), substrateThickness: z.number().positive().optional(),
   regionCode: z.string().optional(), standardLimitId: z.string().optional(), buildingType: z.string().optional(), structureType: z.string().optional(),
   documentIds: z.array(z.string()).optional(), knowledgeVersionIds: z.array(z.string()).optional(),

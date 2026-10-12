@@ -26,6 +26,8 @@ export interface QueryEntity {
   family?: string;
   /** 体系类别（systemType）；语义同族提示 */
   category?: string;
+  /** 构造编号仅在所属体系内解释，不能当成全局标识。 */
+  systemId?: string;
 }
 export interface QueryAlias { term: string; alias: string }
 
@@ -99,6 +101,7 @@ function normalizeSystemFamilyFromText(message: string): string {
  */
 export function resolveQueryEntities(message: string, query: ThermalQueryState, entities: QueryEntity[], aliases: QueryAlias[] = [], previous?: ThermalQueryState): ThermalQueryState {
   const text = normalizeEntityText(message);
+  const rawText = message.normalize("NFKC").toLowerCase();
   const next: ThermalQueryState = { ...query, preferences: { ...previous?.preferences, ...query.preferences }, exclusions: query.exclusions ?? previous?.exclusions, unresolved: [...(query.unresolved ?? previous?.unresolved ?? [])], removedFields: [...(query.removedFields ?? previous?.removedFields ?? [])] };
   const hits: EntityHit[] = entities.flatMap(entity => {
     const names: Array<{ name: string; strength: EntityMatchStrength }> = entity.names.map(name => ({ name, strength: "EXACT" as const }));
@@ -113,11 +116,21 @@ export function resolveQueryEntities(message: string, query: ThermalQueryState, 
     }
     for (const alias of aliases) {
       if (entity.names.some(name => normalizeEntityText(name) === normalizeEntityText(alias.term))) names.push({ name: alias.alias, strength: "ALIAS" });
-      else if (entity.field === "systemId" && entity.names.some(name => normalizeSystemFamily(name) === normalizeEntityText(alias.term)))
+      else if (entity.field === "systemId" && (entity.names.some(name => normalizeSystemFamily(name) === normalizeEntityText(alias.term))
+        || normalizeEntityText(entity.family ?? "") === normalizeEntityText(alias.term) || normalizeEntityText(entity.category ?? "") === normalizeEntityText(alias.term)))
         names.push({ name: alias.alias, strength: "FAMILY" });
     }
     return names.flatMap(({ name, strength }) => {
       const normalized = normalizeEntityText(name);
+      // A1-3不能命中A1-30；检查原始空格，不能在去空白后把18mm粘成编号后缀。
+      if (/^[a-z0-9_-]+$/i.test(normalized)) {
+        let rawIndex = rawText.indexOf(normalized), delimited = false;
+        while (rawIndex >= 0) {
+          if (!/[a-z0-9_-]/i.test(rawText[rawIndex - 1] ?? "") && !/[a-z0-9_-]/i.test(rawText[rawIndex + normalized.length] ?? "")) { delimited = true; break; }
+          rawIndex = rawText.indexOf(normalized, rawIndex + 1);
+        }
+        if (!delimited) return [];
+      }
       const index = normalized.length >= 2 ? text.indexOf(normalized) : -1;
       if (index < 0) return [];
       const prefix = text.slice(0, index).split(/[,，;；。]/).at(-1) ?? "";
@@ -129,7 +142,8 @@ export function resolveQueryEntities(message: string, query: ThermalQueryState, 
   const clearedDependencies = new Set<string>();
   let systemTouched = false;
   for (const field of entityFields) {
-    const own = selected.filter(hit => hit.entity.field === field);
+    const own = selected.filter(hit => hit.entity.field === field && (field !== "schemeId" || !hit.entity.systemId
+      || (!next.systemId && !next.systemIds?.length) || hit.entity.systemId === next.systemId || next.systemIds?.includes(hit.entity.systemId)));
     if (!own.length) {
       if (next.removedFields?.includes(field)) { Object.assign(next, { [field]: undefined }); continue; }
       if (!clearedDependencies.has(field) && previous?.[field] !== undefined) Object.assign(next, { [field]: previous[field] });
@@ -142,12 +156,16 @@ export function resolveQueryEntities(message: string, query: ThermalQueryState, 
     if (field === "systemId" && exactOwn.length === 0) {
       const ids = [...new Set(own.filter(hit => hit.operation === "UPDATE").map(hit => hit.entity.value))];
       if (ids.length) {
+        const previousIds = previous?.systemIds ?? (previous?.systemId ? [previous.systemId] : query.systemIds ?? (query.systemId ? [query.systemId] : []));
+        const familyChanged = JSON.stringify([...ids].sort()) !== JSON.stringify([...previousIds].sort());
         next.removedFields = next.removedFields?.filter(item => item !== field);
         next.systemId = ids.length === 1 ? ids[0] : undefined;
         next.systemIds = ids.length > 1 ? ids : undefined;
         next.systemHint = undefined;
-        next.schemeId = undefined; next.schemeCode = undefined; next.productSpecId = undefined; next.catalogProductId = undefined;
-        for (const name of ["systemHint", "schemeId", "schemeCode", "productSpecId", "catalogProductId"]) clearedDependencies.add(name);
+        if (familyChanged) {
+          next.schemeId = undefined; next.schemeCode = undefined; next.productSpecId = undefined; next.catalogProductId = undefined;
+          for (const name of ["systemHint", "schemeId", "schemeCode", "productSpecId", "catalogProductId"]) clearedDependencies.add(name);
+        }
       }
       if (own.some(hit => hit.operation === "REMOVE")) next.systemIds = undefined;
       for (const hit of own) applyEntityOperation(next, hit, field, false);
@@ -179,6 +197,10 @@ export function resolveQueryEntities(message: string, query: ThermalQueryState, 
       }
       if (field === "catalogProductId" && value !== (previous?.catalogProductId ?? query.catalogProductId)) {
         next.productSpecId = undefined; clearedDependencies.add("productSpecId");
+      }
+      if (field === "specClass" && value !== (previous?.specClass ?? query.specClass)) {
+        next.productSpecId = undefined; next.catalogProductId = undefined;
+        clearedDependencies.add("productSpecId"); clearedDependencies.add("catalogProductId");
       }
       Object.assign(next, { [field]: value });
       if (field === "systemId") { next.systemHint = undefined; next.systemIds = undefined; }

@@ -19,7 +19,9 @@ import { canViewProject } from "../../shared/permissions.js";
 import { ForbiddenError, NotFoundError } from "../../shared/errors.js";
 import { getPageImageDownloadName } from "./knowledge-page-image.js";
 import { readPageRecognitionMeta } from "../../shared/page-recognition.js";
-import { buildKnowledgePageRenderModel, type KnowledgePageRenderModel } from "../../shared/knowledge-page-render.js";
+import type { KnowledgePageRenderModel } from "../../shared/knowledge-page-render.js";
+import { visiblePageLabel } from "../../shared/page-label.js";
+import { readableRenderModel } from "../../shared/readable-page-render.js";
 import { isReferencePageConsumable } from "../ai/reference-page-access.js";
 
 /**
@@ -282,13 +284,13 @@ async function toPageDto(app: FastifyInstance, page: typeof knowledgePages.$infe
     id: page.id,
     pageNumber: page.pageNumber,
     physicalPageNumber: page.physicalPageNumber ?? page.pageNumber,
-    pageLabel: page.pageLabel,
+    pageLabel: visiblePageLabel(page),
     pageLabelSource: page.pageLabelSource,
     pageLabelConfidence: page.pageLabelConfidence,
     pageLabelVerified: page.pageLabelVerified,
     pageTitle: page.pageTitle,
     fullText: text,
-    renderModel: buildKnowledgePageRenderModel(page.id, readPageRecognitionMeta(page.metadata).confirmedStructuredData),
+    renderModel: readableRenderModel(page.id, page.metadata, visiblePageLabel(page)),
     extractedText: text,
     blocks,
     pageImageUrl
@@ -301,7 +303,7 @@ function toPageListItem(page: typeof knowledgePages.$inferSelect): WikiPageListI
     id: page.id,
     pageNumber: page.pageNumber,
     physicalPageNumber: page.physicalPageNumber ?? page.pageNumber,
-    pageLabel: page.pageLabel,
+    pageLabel: visiblePageLabel(page),
     pageLabelSource: page.pageLabelSource,
     pageLabelConfidence: page.pageLabelConfidence,
     pageLabelVerified: page.pageLabelVerified,

@@ -66,6 +66,8 @@ export function classifyRejection(field: string): RejectedReason {
 }
 
 export interface ThermalQueryDebugInput {
+  semantic?: { normalizedText: string; confidence: number; semanticParserResult?: unknown; numberRoles: unknown; parserSource: string };
+  identityMatchedButMetricFailed?: string[];
   query: ThermalQueryState;
   lifecycle?: QueryLifecycleMode | null;
   /** 正式命中条数（可能大于实际返回条数） */
@@ -89,6 +91,22 @@ export interface ThermalQueryDebugInput {
 }
 
 export interface ThermalQueryDebugSnapshot {
+  queryMode: QueryLifecycleMode | null;
+  resolvedEntities: Record<string, string | string[]>;
+  resolvedMetric: string | null;
+  operator: ThermalLookupMode;
+  targetValue: number | null;
+  candidateCountBefore: number | null;
+  candidateCountAfter: number;
+  matchedCandidates: string[];
+  nearbyCandidates: string[];
+  normalizedText: string | null;
+  semanticParserResult: unknown;
+  confidence: number | null;
+  numberRoles: unknown;
+  parserSource: string | null;
+  queryState: ThermalQueryState;
+  identityMatchedButMetricFailed: string[];
   /** 原始用户输入 */
   rawText: string | null;
   lifecycle: QueryLifecycleMode | null;
@@ -148,6 +166,15 @@ export function buildThermalQueryDebug(input: ThermalQueryDebugInput): ThermalQu
     ? [...nearby].sort((a, b) => a.failed.length - b.failed.length).slice(0, 5)
     : [];
   return {
+    queryMode: input.lifecycle ?? null, resolvedEntities: pickEntities(query), resolvedMetric: lookup.metric ?? null,
+    operator: lookup.mode, targetValue: lookup.targetValue ?? null,
+    candidateCountBefore: input.stageCounts?.beforeAll ?? null, candidateCountAfter: matchedCount,
+    matchedCandidates: input.returnedCandidateIds ?? [], nearbyCandidates: nearby.map(candidate => candidate.id),
+    normalizedText: input.semantic?.normalizedText ?? null,
+    semanticParserResult: input.semantic?.semanticParserResult ?? null,
+    confidence: input.semantic?.confidence ?? null, numberRoles: input.semantic?.numberRoles ?? [],
+    parserSource: input.semantic?.parserSource ?? null, queryState: query,
+    identityMatchedButMetricFailed: input.identityMatchedButMetricFailed ?? [],
     rawText: input.rawText ?? null,
     lifecycle: input.lifecycle ?? null,
     intent: query.intent ?? null,

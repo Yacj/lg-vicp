@@ -26,10 +26,13 @@ export async function loadThermalQueryDictionary(db: DbExecutor) {
     ...systems.map(item => ({ field: "systemId" as const, value: item.id, names: [item.name, item.code],
       family: normalizeSystemFamily(item.name), category: item.systemType })),
     ...schemes.flatMap(item => [
-      { field: "schemeId" as const, value: item.id, names: [item.name, item.schemeCode] },
+      { field: "schemeId" as const, value: item.id, names: [item.name, item.schemeCode], systemId: item.systemId },
       { field: "substrateMaterial" as const, value: item.substrateMaterial, names: [item.substrateMaterial] }
     ]),
     ...specs.map(item => ({ field: "productSpecId" as const, value: item.id, names: [item.specCode] })),
+    ...[...new Set(specs.map(item => item.specClass).filter((value): value is "I" | "II" | "III" => !!value))]
+      .map(value => ({ field: "specClass" as const, value, names: [value, `${value}型`, `${{ I: "Ⅰ", II: "Ⅱ", III: "Ⅲ" }[value]}型`,
+        `${{ I: "一", II: "二", III: "三" }[value]}型`, `${{ I: "1", II: "2", III: "3" }[value]}型`] })),
     ...products.map(item => ({ field: "catalogProductId" as const, value: item.id, names: [item.name] })),
     ...sets.flatMap(item => item.buildingTypes.map(name => ({ field: "buildingType" as const, value: name, names: [name] }))),
     ...scopes.flatMap(item => [...item.buildingTypes.map(name => ({ field: "buildingType" as const, value: name, names: [name] })),
