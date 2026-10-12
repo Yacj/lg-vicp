@@ -8,7 +8,6 @@
  * 记得注释
  */
 import type { PiniaPluginContext } from 'pinia'
-import { referencePersistenceSnapshot } from '@/utils/referencePage'
 import {
   ASSISTANT_STORE_ID,
   AUTH_STORE_ID,
@@ -16,6 +15,9 @@ import {
   readPersistedAuthUserId,
   shouldDiscardAssistantState,
 } from '@/store/user-scoped-state'
+import { solutionPersistenceSnapshot } from '@/utils/aiSolution'
+import { referencePersistenceSnapshot } from '@/utils/referencePage'
+import { solutionInitialState } from './solution'
 
 function normalizePersistedSessionReport(report: unknown) {
   if (!report || typeof report !== 'object') {
@@ -46,7 +48,7 @@ function persist({ store }: PiniaPluginContext, excludedIds: string[]) {
   if (storageState) {
     persistState = storageState
   }
-  store.$state = store.$id === ASSISTANT_STORE_ID ? referencePersistenceSnapshot(persistState) : persistState
+  store.$state = store.$id === ASSISTANT_STORE_ID ? solutionPersistenceSnapshot(referencePersistenceSnapshot(persistState)) : persistState
   let lastAuthUserId = store.$id === AUTH_STORE_ID
     ? (store.$state as { user?: { id?: string } | null }).user?.id ?? null
     : null
@@ -63,13 +65,14 @@ function persist({ store }: PiniaPluginContext, excludedIds: string[]) {
 
     // 在存储变化的时候将store缓存
     const snapshot = CommonUtil.deepClone(store.$state)
-    uni.setStorageSync(store.$id, store.$id === ASSISTANT_STORE_ID ? referencePersistenceSnapshot(snapshot) : snapshot)
+    uni.setStorageSync(store.$id, store.$id === ASSISTANT_STORE_ID ? solutionPersistenceSnapshot(referencePersistenceSnapshot(snapshot)) : snapshot)
   })
   // 流式锁与进行中状态不可跨启动恢复，否则 sendLock/isStreaming 会把输入框永久禁用
   if (store.$id === ASSISTANT_STORE_ID) {
     if (shouldDiscardAssistantState(store.$state, readPersistedAuthUserId())) {
       store.$patch((state) => {
         Object.assign(state, {
+          ...solutionInitialState(),
           nav: {},
           conversation: null,
           messages: [],

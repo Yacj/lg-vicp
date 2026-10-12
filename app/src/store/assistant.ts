@@ -59,7 +59,6 @@ import {
   shouldPollReportStatus,
 } from '@/utils/aiReportTask'
 import { normalizeAiSources, sourceFromRetrieval } from '@/utils/aiSource'
-import { normalizeReferencePages, restoreMessageReferences } from '@/utils/referencePage'
 import { parseStreamEvent } from '@/utils/aiStream'
 import {
   canConfirmSelection,
@@ -68,6 +67,8 @@ import {
   selectionResumeAction,
 } from '@/utils/aiUserSelection'
 import { isVisionFailure, visionFailureMessage } from '@/utils/aiVision'
+import { normalizeReferencePages, restoreMessageReferences } from '@/utils/referencePage'
+import { createSolutionActions, solutionInitialState } from './solution'
 
 /**
  * 跨 Tab 一次性导航上下文。
@@ -93,7 +94,7 @@ export interface LocalMessage extends ConversationMessage {
 
 type LoadState = 'idle' | 'loading' | 'ready' | 'error'
 
-interface AssistantState {
+interface AssistantState extends ReturnType<typeof solutionInitialState> {
   nav: AssistantNavContext
   conversation: ConversationRecord | null
   messages: LocalMessage[]
@@ -214,6 +215,7 @@ function toSessionReport(report: ReportItem | undefined | null): SessionReport |
 
 export const useAssistantStore = defineStore('assistant', {
   state: (): AssistantState => ({
+    ...solutionInitialState(),
     nav: {},
     conversation: null,
     messages: [],
@@ -265,6 +267,7 @@ export const useAssistantStore = defineStore('assistant', {
   },
 
   actions: {
+    ...createSolutionActions(aiApi),
     setNavContext(context: AssistantNavContext) {
       this.nav = { ...context }
     },
@@ -286,6 +289,7 @@ export const useAssistantStore = defineStore('assistant', {
       const current = this.conversation
       const ownedByCurrentUser = Boolean(current && currentUserId && current.userId === currentUserId)
       if (current && !ownedByCurrentUser) {
+        this.clearSolution()
         this.conversation = null
         this.messages = []
         this.feedbacks = {}
@@ -321,6 +325,7 @@ export const useAssistantStore = defineStore('assistant', {
         }
 
         if (creationRevision === this.loadRevision) {
+          this.clearSolution()
           this.conversation = conversation
           this.pendingProjectId = conversation.projectId
         }
@@ -349,6 +354,7 @@ export const useAssistantStore = defineStore('assistant', {
 
       const previousMessages = this.conversation?.id === id ? this.messages : []
       if (this.conversation?.id !== id) {
+        this.clearSolution()
         this.cancelActiveStream(true)
         this.selectionSelectedIds = []
         this.comparisonView = null
@@ -375,6 +381,7 @@ export const useAssistantStore = defineStore('assistant', {
           return
         }
         this.conversation = response.data.conversation
+        this.restoreSolutionState(response.data.solutionState ?? null)
         this.messages = attachSourcesFromRetrievals(restoreMessageReferences(response.data.messages, previousMessages), response.data.retrievals || [])
         this.feedbacks = indexFeedbacks(response.data.feedbacks)
         this.pendingProjectId = response.data.conversation.projectId
@@ -610,7 +617,12 @@ export const useAssistantStore = defineStore('assistant', {
         return
       }
       try {
-        const response = await aiApi.getActiveAgentRun(conversationId).send() as ApiEnvelope<{ run: AgentRunDto | null }>
+        const [response] = await Promise.all([
+          aiApi.getActiveAgentRun(conversationId).send() as Promise<ApiEnvelope<{ run: AgentRunDto | null }>>,
+          this.refreshSolutionState().catch(() => undefined),
+        ])
+        if (this.conversation?.id !== conversationId)
+          return
         const run = response.data.run
         if (run) {
           this.applyAgentRun(run, { fromHistory: true })
@@ -676,13 +688,17 @@ export const useAssistantStore = defineStore('assistant', {
 
     /** 退出登录或切换账号：丢弃当前会话，避免下一个账号复用 conversationId。 */
     resetForAccountChange() {
+      this.clearSolution()
       this.stopReportPolling()
       this.cancelActiveStream(false)
+      const solutionRequestRevision = this.solutionRequestRevision
       this.$reset()
+      this.solutionRequestRevision = solutionRequestRevision
     },
 
     /** 开始新对话：仅重置本地状态，首次发送时再创建后端会话。 */
     newConversation(options: { projectId?: string, projectName?: string, memoryHint?: boolean } = {}) {
+      this.clearSolution()
       this.cancelActiveStream(true)
       this.loadRevision += 1
       this.conversation = null
@@ -1115,6 +1131,10 @@ export const useAssistantStore = defineStore('assistant', {
       }
 
       switch (payload.event) {
+        case 'solution_state': {
+          this.applySolutionState(payload.data)
+          break
+        }
         case 'message': {
           const { messageId, userMessageId } = payload.data
           const placeholder = this.messages.find(message => message.id === this.streamingMessageId)
@@ -1283,6 +1303,8 @@ export const useAssistantStore = defineStore('assistant', {
           break
         }
         case 'done': {
+          if (payload.data.solutionState)
+            this.applySolutionState({ solutionState: payload.data.solutionState })
           const message = this.messages.find(item => item.id === payload.data.messageId)
           if (message) {
             if (this.sessionReport?.status === 'READY') {

@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import type { AiSourceRef, ApiEnvelope, CreateShareResult, ProjectRecord } from '@/api/types'
 import type { AiReferencePage, ReferenceHighlight } from '@/api/reference-page'
+import type { SolutionAction, SolutionCandidate } from '@/api/solution-types'
+import type { AiSourceRef, ApiEnvelope, CreateShareResult, ProjectRecord } from '@/api/types'
 import type { SessionReport } from '@/utils/aiAgentUi'
 import { projectApi } from '@/api/modules/projects'
 import AiComparisonSelection from '@/components/ai/AiComparisonSelection.vue'
@@ -13,6 +14,7 @@ import AiReportTaskCard from '@/components/ai/AiReportTaskCard.vue'
 import AiSelectionCard from '@/components/ai/AiSelectionCard.vue'
 import AiSharePanel from '@/components/ai/AiSharePanel.vue'
 import AiShareSelectBar from '@/components/ai/AiShareSelectBar.vue'
+import AiSolutionWorkspace from '@/components/ai/AiSolutionWorkspace.vue'
 import AiWelcomeHero from '@/components/ai/AiWelcomeHero.vue'
 import { useChatImageUpload } from '@/composables/useChatImageUpload'
 import { useQuickPrompts } from '@/composables/useQuickPrompts'
@@ -21,6 +23,7 @@ import { CHAT_IMAGE_ONLY_CONTENT } from '@/constants/chatImage'
 import { useAssistantStore } from '@/store/assistant'
 import { useReportTypeStore } from '@/store/reportTypes'
 import { isProductSelection, isVisibleSelection } from '@/utils/aiAgentUi'
+import { solutionSourceQuery } from '@/utils/aiSolution'
 import { compactQuery, resolveAiSourceLocator } from '@/utils/aiSource'
 import { fromParsedWaiting } from '@/utils/aiUserSelection'
 
@@ -150,6 +153,35 @@ const productSelection = computed(() => isProductSelection(visibleSelection.valu
 const genericSelection = computed(() => visibleSelection.value && !isProductSelection(visibleSelection.value) ? visibleSelection.value : null)
 const conflictInput = computed(() => assistantStore.pendingUserInput?.mode === 'conflict' ? assistantStore.pendingUserInput : null)
 const selectionRequest = computed(() => visibleSelection.value ? fromParsedWaiting(visibleSelection.value) : null)
+const composerPlaceholder = computed(() => {
+  switch (assistantStore.solutionState?.stage) {
+    case 'CANDIDATE_SELECTION': return '也可以直接说“第一个和第三个留下”'
+    case 'REFINING': return '可以继续说“再薄一点”或“K再低一点”'
+    case 'READY_TO_CONFIRM': return '可以继续调整，或确认最终方案'
+    default: return assistantStore.waitingForUser ? '也可以直接输入，例如「就用第一个和第三个」' : '输入你的问题...'
+  }
+})
+
+async function handleSolutionAction(action: SolutionAction, ids: string[]) {
+  if (requireLogin())
+    await assistantStore.performSolutionAction(action, ids)
+}
+
+async function refreshSolution() {
+  if (!requireLogin())
+    return
+  try {
+    await assistantStore.refreshSolutionState()
+  }
+  catch (error) {
+    showError(error instanceof Error ? error.message : '方案刷新失败，请重试')
+  }
+}
+
+function openSolutionSource(candidate: SolutionCandidate) {
+  if (requireLogin() && candidate.sourcePageId)
+    router.push({ name: 'knowledge-source', query: compactQuery(solutionSourceQuery(candidate)) })
+}
 
 function openGeneratedReport(report: SessionReport) {
   if (!requireLogin() || !report.id) {
@@ -608,6 +640,21 @@ onShareAppMessage(() => {
           @open-source="openKnowledgeSource"
           @open-reference="openReferencePage"
         />
+        <AiSolutionWorkspace
+          v-if="assistantStore.solutionState && !loadingConversation && !failedConversationId"
+          :state="assistantStore.solutionState"
+          :comparison="assistantStore.solutionComparison"
+          :snapshot="assistantStore.solutionSnapshot"
+          :loading="assistantStore.solutionActionLoading"
+          :action-candidate-ids="assistantStore.solutionActionCandidateIds"
+          :pending-action="assistantStore.solutionPendingAction"
+          :snapshot-loading="assistantStore.solutionSnapshotLoading"
+          :notice="assistantStore.solutionNotice"
+          @action="handleSolutionAction"
+          @source="openSolutionSource"
+          @snapshot="assistantStore.loadSolutionSnapshot()"
+          @refresh="refreshSolution"
+        />
         <AiComparisonSelection
           v-if="productSelection && !loadingConversation && !failedConversationId"
           :title="productSelection.title || '请选择需要纳入报告的产品/方案'"
@@ -685,7 +732,7 @@ onShareAppMessage(() => {
             :disabled="composerDisabled"
             :attachments="pendingImages"
             :uploading="uploadingImages"
-            :placeholder="assistantStore.waitingForUser ? '也可以直接输入，例如「就用第一个和第三个」' : '输入你的问题...'"
+            :placeholder="composerPlaceholder"
             :status-text="assistantStore.reconnecting ? '正在恢复生成…' : ''"
             @pick="pickChatImage"
             @remove-attachment="removeChatImage"

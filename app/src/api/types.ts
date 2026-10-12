@@ -518,6 +518,10 @@ export type AiStreamEventPayload
     }
   }
   | {
+    event: 'solution_state'
+    data: import('./solution-types').SolutionUpdate
+  }
+  | {
     event: 'progress'
     data: {
       stage: 'analyzing' | 'checking' | 'composing' | 'completed'
@@ -628,6 +632,7 @@ export type AiStreamEventPayload
       referencePages?: AiReferencePage[]
       model?: { id: string } | null
       regeneratedMessageId?: string
+      solutionState?: import('./solution-types').SolutionStateDto
     }
   }
   | {
@@ -769,6 +774,7 @@ export interface UpdateProjectMemoryBody {
 }
 
 export interface ConversationDetail {
+  solutionState?: import('./solution-types').SolutionStateDto | null
   conversation: ConversationRecord
   messages: ConversationMessage[]
   activeAgentRun?: AgentRunDto | null

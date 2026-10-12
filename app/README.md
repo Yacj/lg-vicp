@@ -50,6 +50,10 @@ Wot Starter
 
 详细说明见 [快速上手](https://starter.wot-ui.cn/guide/installation.html)。
 
+### Windows 构建依赖
+
+`package.json` 中的 `pnpm.overrides.unconfig = 7.3.2` 是 Windows 构建兼容性配置。UnoCSS 66.0.0 默认依赖的 unconfig 7.0.0 在支持原生 TypeScript 的 Node 下会直接导入盘符路径，导致 `ERR_UNSUPPORTED_ESM_URL_SCHEME`（`Received protocol 'd:'`）。固定版本使用 Jiti 加载配置，避免这一错误。更新依赖时保留该配置和对应锁文件；安装使用 `pnpm install --frozen-lockfile`，验证使用 `pnpm build`。
+
 ## 更新日志
 
 详细日志见 [更新日志](https://starter.wot-ui.cn/guide/changelog.html)。

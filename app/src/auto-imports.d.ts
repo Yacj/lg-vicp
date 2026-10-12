@@ -78,6 +78,7 @@ declare global {
   const createReusableTemplate: typeof import('@vueuse/core')['createReusableTemplate']
   const createRouter: typeof import('@wot-ui/router')['createRouter']
   const createSharedComposable: typeof import('@vueuse/core')['createSharedComposable']
+  const createSolutionActions: typeof import('./store/solution')['createSolutionActions']
   const createTemplatePromise: typeof import('@vueuse/core')['createTemplatePromise']
   const createUnrefFn: typeof import('@vueuse/core')['createUnrefFn']
   const customRef: typeof import('vue')['customRef']
@@ -126,6 +127,7 @@ declare global {
   const isRef: typeof import('vue')['isRef']
   const isReportDump: typeof import('./utils/aiAnswerUx')['isReportDump']
   const isReportTool: typeof import('./utils/aiAgentUi')['isReportTool']
+  const isSolutionState: typeof import('./utils/aiSolution')['isSolutionState']
   const isSourceInquiry: typeof import('./utils/aiAnswerUx')['isSourceInquiry']
   const isTabBarPath: typeof import('./utils/authRedirect')['isTabBarPath']
   const isTerminalReportStatus: typeof import('./utils/aiReportTask')['isTerminalReportStatus']
@@ -199,6 +201,7 @@ declare global {
   const parseProductComparison: typeof import('./utils/aiComparison')['parseProductComparison']
   const parseRedirectTarget: typeof import('./utils/authRedirect')['parseRedirectTarget']
   const parseSelectionOptions: typeof import('./utils/aiUserSelection')['parseSelectionOptions']
+  const parseSolutionUpdate: typeof import('./utils/aiSolution')['parseSolutionUpdate']
   const parseStreamEvent: typeof import('./utils/aiStream')['parseStreamEvent']
   const parseThermalRows: typeof import('./utils/aiComparison')['parseThermalRows']
   const parseUserSelectionRequest: typeof import('./utils/aiUserSelection')['parseUserSelectionRequest']
@@ -266,6 +269,18 @@ declare global {
   const shouldDiscardAssistantState: typeof import('./store/user-scoped-state')['shouldDiscardAssistantState']
   const shouldExposeWechatQuickLogin: typeof import('./utils/wechatPhoneLogin')['shouldExposeWechatQuickLogin']
   const shouldPollReportStatus: typeof import('./utils/aiReportTask')['shouldPollReportStatus']
+  const snapshotCandidateCard: typeof import('./utils/aiSolution')['snapshotCandidateCard']
+  const solutionActionBody: typeof import('./utils/aiSolution')['solutionActionBody']
+  const solutionClientState: typeof import('./utils/aiSolution')['solutionClientState']
+  const solutionErrorCode: typeof import('./utils/aiSolution')['solutionErrorCode']
+  const solutionErrorMessages: typeof import('./utils/aiSolution')['solutionErrorMessages']
+  const solutionInitialState: typeof import('./store/solution')['solutionInitialState']
+  const solutionMetrics: typeof import('./utils/aiSolution')['solutionMetrics']
+  const solutionPersistenceSnapshot: typeof import('./utils/aiSolution')['solutionPersistenceSnapshot']
+  const solutionPool: typeof import('./utils/aiSolution')['solutionPool']
+  const solutionSelected: typeof import('./utils/aiSolution')['solutionSelected']
+  const solutionSourceQuery: typeof import('./utils/aiSolution')['solutionSourceQuery']
+  const solutionStageLabels: typeof import('./utils/aiSolution')['solutionStageLabels']
   const sourceChapterPath: typeof import('./utils/aiSource')['sourceChapterPath']
   const sourceFromRetrieval: typeof import('./utils/aiSource')['sourceFromRetrieval']
   const sourcePageLabel: typeof import('./utils/aiSource')['sourcePageLabel']
@@ -487,6 +502,7 @@ declare global {
   const useWindowFocus: typeof import('@vueuse/core')['useWindowFocus']
   const useWindowScroll: typeof import('@vueuse/core')['useWindowScroll']
   const useWindowSize: typeof import('@vueuse/core')['useWindowSize']
+  const visibleSolutionPool: typeof import('./utils/aiSolution')['visibleSolutionPool']
   const visionFailureMessage: typeof import('./utils/aiVision')['visionFailureMessage']
   const watch: typeof import('vue')['watch']
   const watchArray: typeof import('@vueuse/core')['watchArray']
@@ -592,6 +608,7 @@ declare module 'vue' {
     readonly createReusableTemplate: UnwrapRef<typeof import('@vueuse/core')['createReusableTemplate']>
     readonly createRouter: UnwrapRef<typeof import('@wot-ui/router')['createRouter']>
     readonly createSharedComposable: UnwrapRef<typeof import('@vueuse/core')['createSharedComposable']>
+    readonly createSolutionActions: UnwrapRef<typeof import('./store/solution')['createSolutionActions']>
     readonly createTemplatePromise: UnwrapRef<typeof import('@vueuse/core')['createTemplatePromise']>
     readonly createUnrefFn: UnwrapRef<typeof import('@vueuse/core')['createUnrefFn']>
     readonly customRef: UnwrapRef<typeof import('vue')['customRef']>
@@ -640,6 +657,7 @@ declare module 'vue' {
     readonly isRef: UnwrapRef<typeof import('vue')['isRef']>
     readonly isReportDump: UnwrapRef<typeof import('./utils/aiAnswerUx')['isReportDump']>
     readonly isReportTool: UnwrapRef<typeof import('./utils/aiAgentUi')['isReportTool']>
+    readonly isSolutionState: UnwrapRef<typeof import('./utils/aiSolution')['isSolutionState']>
     readonly isSourceInquiry: UnwrapRef<typeof import('./utils/aiAnswerUx')['isSourceInquiry']>
     readonly isTabBarPath: UnwrapRef<typeof import('./utils/authRedirect')['isTabBarPath']>
     readonly isTerminalReportStatus: UnwrapRef<typeof import('./utils/aiReportTask')['isTerminalReportStatus']>
@@ -713,6 +731,7 @@ declare module 'vue' {
     readonly parseProductComparison: UnwrapRef<typeof import('./utils/aiComparison')['parseProductComparison']>
     readonly parseRedirectTarget: UnwrapRef<typeof import('./utils/authRedirect')['parseRedirectTarget']>
     readonly parseSelectionOptions: UnwrapRef<typeof import('./utils/aiUserSelection')['parseSelectionOptions']>
+    readonly parseSolutionUpdate: UnwrapRef<typeof import('./utils/aiSolution')['parseSolutionUpdate']>
     readonly parseStreamEvent: UnwrapRef<typeof import('./utils/aiStream')['parseStreamEvent']>
     readonly parseThermalRows: UnwrapRef<typeof import('./utils/aiComparison')['parseThermalRows']>
     readonly parseUserSelectionRequest: UnwrapRef<typeof import('./utils/aiUserSelection')['parseUserSelectionRequest']>
@@ -780,6 +799,18 @@ declare module 'vue' {
     readonly shouldDiscardAssistantState: UnwrapRef<typeof import('./store/user-scoped-state')['shouldDiscardAssistantState']>
     readonly shouldExposeWechatQuickLogin: UnwrapRef<typeof import('./utils/wechatPhoneLogin')['shouldExposeWechatQuickLogin']>
     readonly shouldPollReportStatus: UnwrapRef<typeof import('./utils/aiReportTask')['shouldPollReportStatus']>
+    readonly snapshotCandidateCard: UnwrapRef<typeof import('./utils/aiSolution')['snapshotCandidateCard']>
+    readonly solutionActionBody: UnwrapRef<typeof import('./utils/aiSolution')['solutionActionBody']>
+    readonly solutionClientState: UnwrapRef<typeof import('./utils/aiSolution')['solutionClientState']>
+    readonly solutionErrorCode: UnwrapRef<typeof import('./utils/aiSolution')['solutionErrorCode']>
+    readonly solutionErrorMessages: UnwrapRef<typeof import('./utils/aiSolution')['solutionErrorMessages']>
+    readonly solutionInitialState: UnwrapRef<typeof import('./store/solution')['solutionInitialState']>
+    readonly solutionMetrics: UnwrapRef<typeof import('./utils/aiSolution')['solutionMetrics']>
+    readonly solutionPersistenceSnapshot: UnwrapRef<typeof import('./utils/aiSolution')['solutionPersistenceSnapshot']>
+    readonly solutionPool: UnwrapRef<typeof import('./utils/aiSolution')['solutionPool']>
+    readonly solutionSelected: UnwrapRef<typeof import('./utils/aiSolution')['solutionSelected']>
+    readonly solutionSourceQuery: UnwrapRef<typeof import('./utils/aiSolution')['solutionSourceQuery']>
+    readonly solutionStageLabels: UnwrapRef<typeof import('./utils/aiSolution')['solutionStageLabels']>
     readonly sourceChapterPath: UnwrapRef<typeof import('./utils/aiSource')['sourceChapterPath']>
     readonly sourceFromRetrieval: UnwrapRef<typeof import('./utils/aiSource')['sourceFromRetrieval']>
     readonly sourcePageLabel: UnwrapRef<typeof import('./utils/aiSource')['sourcePageLabel']>
@@ -1001,6 +1032,7 @@ declare module 'vue' {
     readonly useWindowFocus: UnwrapRef<typeof import('@vueuse/core')['useWindowFocus']>
     readonly useWindowScroll: UnwrapRef<typeof import('@vueuse/core')['useWindowScroll']>
     readonly useWindowSize: UnwrapRef<typeof import('@vueuse/core')['useWindowSize']>
+    readonly visibleSolutionPool: UnwrapRef<typeof import('./utils/aiSolution')['visibleSolutionPool']>
     readonly visionFailureMessage: UnwrapRef<typeof import('./utils/aiVision')['visionFailureMessage']>
     readonly watch: UnwrapRef<typeof import('vue')['watch']>
     readonly watchArray: UnwrapRef<typeof import('@vueuse/core')['watchArray']>

@@ -1,3 +1,4 @@
+import type { SolutionActionBody, SolutionQueryState } from '../solution-types'
 import type {
   AiSourceLocatorQuery,
   ConversationListQuery,
@@ -16,6 +17,35 @@ import type {
 import { request } from '../request'
 
 export const aiApi = {
+  getSolution(conversationId: string) {
+    return request('GET', '/ai/conversations/{conversationId}/solution', { pathParams: { conversationId } })
+  },
+
+  startSolution(conversationId: string, data: { expectedVersion?: number } = {}) {
+    return request('POST', '/ai/conversations/{conversationId}/solution', { pathParams: { conversationId }, data })
+  },
+
+  querySolution(conversationId: string, data: { expectedVersion: number, query: SolutionQueryState }) {
+    return request('POST', '/ai/conversations/{conversationId}/solution/query', { pathParams: { conversationId }, data })
+  },
+
+  solutionAction(conversationId: string, data: SolutionActionBody) {
+    return request('POST', '/ai/conversations/{conversationId}/solution/actions', { pathParams: { conversationId }, data })
+  },
+
+  addSolutionCalculation(conversationId: string, data: { calculationId: string }) {
+    // 正式计算接口仅接受 calculationId，由后端在事务内读取并校验当前版本。
+    return request('POST', '/ai/conversations/{conversationId}/solution/calculations', { pathParams: { conversationId }, data })
+  },
+
+  addSolutionProducts(conversationId: string, data: { expectedVersion: number, productIds: string[] }) {
+    return request('POST', '/ai/conversations/{conversationId}/solution/products', { pathParams: { conversationId }, data })
+  },
+
+  getSolutionSnapshot(conversationId: string, snapshotId: string) {
+    return request('GET', '/ai/conversations/{conversationId}/solution/snapshots/{snapshotId}', { pathParams: { conversationId, snapshotId } })
+  },
+
   listQuickPrompts(params: QuickPromptListQuery = {}) {
     return request('GET', '/ai/quick-prompts', { params })
   },

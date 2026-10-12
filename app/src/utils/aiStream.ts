@@ -1,4 +1,5 @@
 import type { AiStreamEventPayload } from '@/api/types'
+import { isSolutionState, parseSolutionUpdate } from './aiSolution'
 import { normalizeAiSources } from './aiSource.ts'
 import { normalizeReferencePages } from './referencePage'
 
@@ -8,6 +9,10 @@ function asText(value: unknown) {
 
 export function parseStreamEvent(event: string, data: Record<string, unknown>): AiStreamEventPayload | null {
   switch (event) {
+    case 'solution_state': {
+      const update = parseSolutionUpdate(data)
+      return update ? { event: 'solution_state', data: update } : null
+    }
     // 后端为兼容新旧客户端会双发同内容事件（message/message_start、delta/text_delta、done/message_done）。
     // 只消费旧事件名，忽略别名，否则同一段正文会被拼接两次。
     case 'message_start':
@@ -230,6 +235,7 @@ export function parseStreamEvent(event: string, data: Record<string, unknown>): 
           ...(Array.isArray(data.referencePages) ? { referencePages: normalizeReferencePages(data.referencePages) } : {}),
           model: data.model && typeof data.model === 'object' ? (data.model as { id: string }) : null,
           regeneratedMessageId: typeof data.regeneratedMessageId === 'string' ? data.regeneratedMessageId : undefined,
+          ...(isSolutionState(data.solutionState) ? { solutionState: data.solutionState } : {}),
         },
       }
     }
