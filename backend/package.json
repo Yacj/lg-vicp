@@ -13,6 +13,7 @@
     "lint": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "uat:ai": "tsx scripts/run-ai-uat.ts",
+    "uat:solutions": "tsx scripts/run-solution-uat.ts",
     "uat:check": "tsc -p tsconfig.uat.json --noEmit && tsx scripts/run-ai-uat.ts --check",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",

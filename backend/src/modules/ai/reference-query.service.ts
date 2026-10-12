@@ -1,8 +1,7 @@
 import { loadThermalQueryDictionary } from "../thermal/thermal-query-dictionary.service.js";
-import { queryThermalCandidates } from "../thermal/thermal-candidate.service.js";
-import { rankByPreferences, traceQueryState, validateCandidateAgainstQueryState, type ThermalQueryState } from "../thermal/thermal-query-state.js";
-import { compactCandidateResult, LOOKUP_LIMIT, normalizeConversationLookupQuery } from "./tools/thermal-lookup.js";
-import { emitReferencePages } from "./tools/thermal-calculate.tool.js";
+import { validateCandidateAgainstQueryState, type ThermalQueryState } from "../thermal/thermal-query-state.js";
+import { normalizeConversationLookupQuery } from "./tools/thermal-lookup.js";
+import { querySolutionCandidates } from "./solution-candidate-query.service.js";
 import { buildAllowedAnswerFacts } from "./thermal-answer-validation.js";
 import { buildThermalQueryDebug, logThermalQueryDebug, toRejectedCandidateDebug } from "../thermal/thermal-query-debug.js";
 import { saveConversationTaskState } from "./ai-conversation-state.service.js";
@@ -21,6 +20,23 @@ export async function resolveReferenceQueryWithoutAgent(ctx: Pick<ToolRuntimeCon
   const last = ctx.taskState?.lastReferenceLookup;
   const preliminary = normalizeConversationLookupQuery({}, ctx.userMessage ?? "", last);
   if (preliminary.lifecycle === "COMPARE_SELECTED" && last) {
+    if (ctx.user.clientType === "C_APP" || ctx.user.clientType === "PC_AI") {
+      const { loadActiveSolution } = await import("./solution-state.service.js");
+      const { compareSelectedSolution } = await import("./solution-workflow.js");
+      const { solutionComparisonText } = await import("./solution-selection.js");
+      const active = await loadActiveSolution(ctx);
+      if (active) {
+        if (active.payload.selectedCandidateIds.length < 2) {
+          const facts = buildAllowedAnswerFacts({ ...active.payload.queryStateSnapshot, unresolved: [{ field: "selection", reason: "请至少选择两个方案" }] }, []);
+          return { facts, sources: [], needsClarification: true };
+        }
+        const comparison = compareSelectedSolution(active.payload);
+        const facts = buildAllowedAnswerFacts(active.payload.queryStateSnapshot, comparison.candidates.filter(candidate => !candidate.conflicts.length), "详细参数对比", undefined,
+          { nearbyCandidates: comparison.candidates.filter(candidate => candidate.conflicts.length) });
+        facts.canonicalAnswers = [solutionComparisonText(comparison)];
+        return { facts, sources: [], needsClarification: false };
+      }
+    }
     const selectedIds = selectFrozenReferenceCandidateIds(last, ctx.userMessage ?? "");
     const selected = last.candidates.filter(candidate => selectedIds?.includes(candidate.id));
     const valid = selected.length >= 2 && selected.length === selectedIds?.length && selected.every(candidate => validateCandidateAgainstQueryState(candidate, last.query).passed);
@@ -37,16 +53,9 @@ export async function resolveReferenceQueryWithoutAgent(ctx: Pick<ToolRuntimeCon
   let query: ThermalQueryState = { ...resolution.query, intent: "REFERENCE_LOOKUP" as const };
   if (resolution.needsClarification)
     query = { ...query, unresolved: query.unresolved?.length ? query.unresolved : [{ field: "query", reason: "想查哪个目标值，或这几个条件是否需要同时满足？" }] };
-  const outcome = query.unresolved?.length ? null : await queryThermalCandidates(ctx.app, ctx.request, ctx.user, {
-    ...query, targetResistance: query.targetR, neighborTolerance: 1, projectId: ctx.conversation.projectId ?? undefined
-  });
-  query = traceQueryState({ ...query, ...outcome?.queryState }, last?.query);
-  const candidates = rankByPreferences((outcome?.candidates ?? []).map(compactCandidateResult)
-    .filter(candidate => validateCandidateAgainstQueryState(candidate, query).passed), query).slice(0, LOOKUP_LIMIT);
-  // 未完全满足硬条件的候选只作「最接近」说明，冻结进事实集后模型才可以引用（但不得称为命中）。
-  const nearbyRaw = (outcome?.nearbyCandidates ?? []).map(compactCandidateResult);
-  const nearby = nearbyRaw.filter(candidate => !validateCandidateAgainstQueryState(candidate, query).passed).slice(0, LOOKUP_LIMIT);
-  const identity = (outcome?.identityMatchedButMetricFailed ?? []).map(compactCandidateResult).slice(0, LOOKUP_LIMIT);
+  const result = await querySolutionCandidates(ctx, query);
+  const { outcome, candidates, nearbyRaw, nearbyCandidates: nearby, identityMatchedButMetricFailed: identity } = result;
+  query = result.queryState;
   // 查询诊断：让「查不到」能定位到具体失败条件。
   {
     const debug = buildThermalQueryDebug({
@@ -60,11 +69,16 @@ export async function resolveReferenceQueryWithoutAgent(ctx: Pick<ToolRuntimeCon
     });
     logThermalQueryDebug(ctx.app.log, debug);
   }
-  const pages = await emitReferencePages(ctx, candidates);
-  const nearbyPages = await emitReferencePages({ app: ctx.app, conversation: ctx.conversation }, nearby);
-  const identityPages = await emitReferencePages({ app: ctx.app, conversation: ctx.conversation }, identity);
+  const { pages, nearbyPages, identityPages } = result;
   const state = ctx.taskState ?? { taskType: "GENERAL" as const };
   state.lastReferenceLookup = { query, candidates: pages.candidates, createdAt: new Date().toISOString() };
+  if (ctx.user.clientType === "C_APP" || ctx.user.clientType === "PC_AI") {
+    const { recordSolutionCandidates } = await import("./solution-state.service.js");
+    const { referenceSolutionCandidate } = await import("./solution-workflow.js");
+    const solution = await recordSolutionCandidates(ctx, query, pages.candidates.map(referenceSolutionCandidate));
+    state.lastReferenceLookup.selectedCandidateIds = solution.selectedCandidateIds;
+    ctx.onEvent?.("solution_state", { solutionState: solution });
+  }
   await saveConversationTaskState(ctx.app, ctx.conversation.id, state);
   const facts = buildAllowedAnswerFacts(query, pages.candidates, ctx.userMessage ?? "", outcome?.matchedCandidates?.length, {
     nearbyCandidates: nearbyPages.candidates, identityMatchedButMetricFailed: identityPages.candidates, sourcePages: [...pages.sources, ...identityPages.sources] as Array<{ pageLabel?: string | null }>

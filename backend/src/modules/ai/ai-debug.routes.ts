@@ -8,9 +8,13 @@ import { randomUUID } from "node:crypto";
 import { streamText, type LanguageModelUsage } from "ai";
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
-import { aiScenes, prompts, promptVersions } from "../../db/schema.js";
+import { aiScenes, prompts, promptVersions, solutionStates, projects } from "../../db/schema.js";
+import { solutionDto } from "./solution-state.service.js";
+import { canViewProject } from "../../shared/permissions.js";
+import { requireClient } from "../../shared/client-guard.js";
+import { requirePermission } from "../../shared/permission-guard.js";
 import { AiError, toAiError } from "../../shared/ai-errors.js";
 import { AUDIT_ACTIONS } from "../../shared/constants.js";
 import { getCurrentUser } from "../../shared/current-user.js";
@@ -99,6 +103,19 @@ async function resolveDebugRuntime(
 
 export async function aiDebugRoutes(app: FastifyInstance) {
   const route = app.withTypeProvider<ZodTypeProvider>();
+
+  route.get("/debug/conversations/:id/solution", {
+    preHandler: [app.authenticate, requireClient("B_ADMIN"), requirePermission("system:ai:debug:use")], schema: { tags: ["B端 / 平台 / AI调试"], summary: "查看智配流程正式状态与调试摘要",
+      params: z.object({ id: z.uuid("会话ID格式不正确") }) }
+  }, async request => {
+    const user = requireDebugPermission(request);
+    const [state] = await app.db.select().from(solutionStates).where(and(eq(solutionStates.conversationId, request.params.id), eq(solutionStates.active, true))).limit(1);
+    if (state?.projectId) {
+      const [project] = await app.db.select().from(projects).where(eq(projects.id, state.projectId)).limit(1);
+      if (!project || project.deletedAt || !canViewProject(user, project)) throw new NotFoundError("方案项目不存在或无权访问");
+    }
+    return ok(request, state ? solutionDto(state) : null);
+  });
 
   route.post("/debug/chat", {
     preHandler: [app.authenticate],

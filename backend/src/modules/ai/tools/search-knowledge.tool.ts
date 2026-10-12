@@ -127,6 +127,10 @@ export function createSearchKnowledgeTool(ctx: ToolRuntimeContext) {
         ? await loadPublishedKnowledgeReferences(ctx.app, filteredChunks, ctx.conversation.projectId, ctx.userMessage ?? query, lookup.query)
         : { answer: undefined, pages: [], context: "" };
       if (references.answer !== undefined && ctx.answerContract === "REFERENCE_LOOKUP") {
+        if ("solutionCandidates" in references && references.solutionCandidates?.length && (ctx.user.clientType === "C_APP" || ctx.user.clientType === "PC_AI")) {
+          const { recordSolutionCandidates } = await import("../solution-state.service.js");
+          ctx.onEvent?.("solution_state", { solutionState: await recordSolutionCandidates(ctx, lookup.query, references.solutionCandidates) });
+        }
         ctx.onReferenceAnswer?.(references.answer, references.pages);
         return toolOk({ available: true, authoritative: true, confirmedFacts: references.context,
           instruction: "已由后端按同一确认档位生成回答及完整来源页，不得从其他文字补充或改写数值。",

@@ -16,6 +16,7 @@ import * as s from "../../src/db/schema.js";
 import { authPlugin } from "../../src/plugins/auth.js";
 import { errorHandlerPlugin } from "../../src/plugins/error-handler.js";
 import { aiRoutes } from "../../src/modules/ai/ai.routes.js";
+import { solutionRoutes } from "../../src/modules/ai/solution.routes.js";
 import { aiKnowledgeRoutes } from "../../src/modules/ai/ai-knowledge.routes.js";
 import { aiThermalRoutes } from "../../src/modules/thermal/ai-thermal.routes.js";
 import { createObjectStorage } from "../../src/storage/index.js";
@@ -113,6 +114,7 @@ export async function createUatEnvironment() {
     app.decorate("db", db); app.decorate("sqlClient", client); app.decorate("redis", redis); app.decorate("queues", queues); app.decorate("storage", storage);
     await app.register(errorHandlerPlugin); await app.register(authPlugin);
     await app.register(aiRoutes, { prefix: "/api/v1/ai" });
+    await app.register(solutionRoutes, { prefix: "/api/v1/ai" });
     await app.register(aiKnowledgeRoutes, { prefix: "/api/v1/ai/knowledge" });
     await app.register(aiThermalRoutes, { prefix: "/api/v1/ai/thermal" });
     stage = "创建固定正式业务fixture";

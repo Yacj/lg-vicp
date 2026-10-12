@@ -20,7 +20,9 @@ import {
   type ThermalLookupQuery
 } from "../../thermal/thermal-lookup-mode.js";
 
-export const LOOKUP_LIMIT = 12;
+// 兼容旧导出；Solution Loop 的入口只读取统一 policy。
+import { DEFAULT_SOLUTION_QUERY_POLICY } from "../solution-candidate-query-policy.js";
+export const LOOKUP_LIMIT = DEFAULT_SOLUTION_QUERY_POLICY.maxCandidates;
 
 export function parseSpecClassHint(value: string | null | undefined): ReferenceLookupSpecClass | undefined {
   const text = (value ?? "").replace(/\s+/g, "");

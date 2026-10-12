@@ -8,6 +8,10 @@
 
 # AI 与报告
 
+Solution Loop Contract冻结：动作模型复用semantic_query场景/准入/预算，只产出action与原话引用，不产出ID/Confirm；Grounding校验当前池/序号revision/构造或厚度唯一性。Hard有效条件变化清keptForComparisonIds，软偏好与解析元数据不清。候选查询入口统一邻档/limit/排序/nearby/来源Policy，共用Query Service；Confirm原值全量核验保持独立。无新迁移，REST schema不变。见 `docs/ai/solution-workflow-2026-10-12.md` 冻结补充。
+
+2026-10-12 智配闭环：SolutionState 独立保存池/多选/冲突/Final，聊天 metadata 只定位，不从摘要猜选择。硬条件复用 QueryState 验证、偏好只排序；明确确认事务冻结 solution_snapshots，DB 触发器拒绝 UPDATE/DELETE。原页身份与完整表格同源，无签名URL；已确认后创建新 state。后续方案报告只消费 Snapshot→DocumentModel。见 `docs/ai/solution-workflow-2026-10-12.md`。
+
 语义查询（2026-10-12）：`parseSemanticQuery`将自然语言分类、实体目录验证、QueryState生命周期与候选约束串成统一入口；新问题清旧指标，族名集合仍是硬约束，构造编号必须按体系消歧。EXACT失败可解释同身份同厚度的正式值，不能进入命中集。Agent与普通生成均在输出delta前做事实校验；候选与来源模型使用同一快照optionId。详见 `docs/ai/semantic-query-refactor-2026-10-12.md`。
 
 C端销售/设计院阅读：确定性查表摘要以 answerStyle=THERMAL_SOLUTIONS 标记，primaryFieldKeys 仅从正式 filters 投影。客户端可替换正式关联摘要为简洁卡片，普通引用及结论不得删；默认两项候选，其余展开，整页完整表格高亮。新字段持久化不带签名URL并随来源重新校验，B端默认文案不变。

@@ -5,6 +5,11 @@
  * 未传入 knowledgeChunks 时由能力路由决定是否检索已发布知识库，不再依赖用户选择 scene。
  */
 import { randomUUID } from "node:crypto";
+import { loadActiveSolution, actOnSolution, solutionDto, recordSolutionCandidates } from "./solution-state.service.js";
+import { solutionComparisonText } from "./solution-selection.js";
+import { parseSolutionAction } from "./solution-action-semantic.service.js";
+import { AppError } from "../../shared/errors.js";
+import { emptySolution } from "./solution-workflow.js";
 import { KNOWLEDGE_PAGE_REFERENCE_INSTRUCTIONS, KnowledgeReferenceCitationStream, type KnowledgeTestReferenceContext } from "../knowledge/knowledge-test-reference.js";
 import { loadPublishedKnowledgeReferences, persistMessageReferencePages } from "./ai-reference-pages.service.js";
 import { storeReferencePageBlocks, type ReferencePageBlock } from "./reference-page.js";
@@ -341,6 +346,15 @@ export async function streamConversationReply(options: {
   const waitingRunPreview = await getActiveAgentRun(app, conversation.id);
   const waitingPreviewState = waitingRunPreview ? parseAgentRunState(waitingRunPreview.stateJson) : null;
   const currentTaskState = await getConversationTaskState(app, conversation.id);
+  const solutionContext = { app, request, user, conversation };
+  const solutionEnabled = providedChunks === undefined && (user.clientType === "C_APP" || user.clientType === "PC_AI");
+  const activeSolution = solutionEnabled ? await loadActiveSolution(solutionContext) : null;
+  if (activeSolution) {
+    currentTaskState.lastReferenceLookup = { query: activeSolution.payload.queryStateSnapshot,
+      candidates: activeSolution.payload.poolCandidateIds.flatMap(id => activeSolution.payload.candidates.filter(item => item.candidate.candidateId === id).map(item => item.candidate)),
+      selectedCandidateIds: activeSolution.payload.selectedCandidateIds, createdAt: activeSolution.updatedAt.toISOString() };
+  }
+  const solutionIntent = solutionEnabled ? await parseSolutionAction(solutionContext, content, activeSolution?.payload ?? emptySolution()) : null;
   const taskDecision = resolveConversationTask({
     uiAction: action,
     currentState: currentTaskState,
@@ -409,15 +423,19 @@ export async function streamConversationReply(options: {
     || chunks.length > 0
     || retrievalFailed
     || (capabilities.needKnowledgeSearch && capabilities.explicitKnowledgeRequest));
-  const referenceQuery = providedChunks === undefined && !agentEnabled && capabilities.needReferenceLookup && !waitingRunPreview
+  const referenceQuery = !solutionIntent && providedChunks === undefined && !agentEnabled && capabilities.needReferenceLookup && !waitingRunPreview
     ? await resolveReferenceQueryWithoutAgent({ app, request, user, conversation, userMessage: content, taskState: taskDecision.state }) : undefined;
   const referenceFacts = referenceQuery && (referenceQuery.needsClarification || referenceQuery.facts.candidates.length || referenceQuery.facts.identityMatchedButMetricFailed?.length)
     ? referenceQuery.facts : undefined;
-  const pageReferences = providedChunks !== undefined && options.loadPageReferences ? await options.loadPageReferences()
+  const pageReferences = solutionIntent ? undefined : providedChunks !== undefined && options.loadPageReferences ? await options.loadPageReferences()
     : !agentEnabled && capabilities.needReferenceLookup
       ? referenceFacts ? undefined : await loadPublishedKnowledgeReferences(app, chunks, conversation.projectId, content, referenceQuery?.facts.query) : undefined;
   const knowledgeContext = shouldInjectKnowledge
     ? (pageReferences?.authoritative ? null : formatKnowledgeContext(chunks, { retrievalFailed })) : null;
+  const knowledgeSolutionCandidates = pageReferences && "solutionCandidates" in pageReferences && Array.isArray(pageReferences.solutionCandidates)
+    ? pageReferences.solutionCandidates as import("./solution-workflow.js").SolutionCandidateSnapshot[] : [];
+  if (solutionEnabled && knowledgeSolutionCandidates.length)
+    await recordSolutionCandidates(solutionContext, referenceQuery?.facts.query ?? taskDecision.state.lastReferenceLookup?.query ?? {}, knowledgeSolutionCandidates);
   const answerContract = resolveAnswerContract({
     taskType: taskDecision.state.taskType,
     capabilities,
@@ -552,7 +570,27 @@ export async function streamConversationReply(options: {
   try {
     const waitingRun = waitingRunPreview ?? await getActiveAgentRun(app, conversation.id);
     const resumeModel = agentModel ?? runtime.primary;
-    if (taskDecision.generateReportNow) {
+    if (solutionIntent) {
+      if (!activeSolution) fullText = "请先查询候选方案并选择最终候选，再明确确认。";
+      else if (solutionIntent.clarification) fullText = solutionIntent.clarification;
+      else {
+        try {
+          const result = await actOnSolution(solutionContext, activeSolution.id, { action: solutionIntent.action,
+            expectedVersion: activeSolution.version, candidateSetRevision: activeSolution.candidateSetRevision, candidateIds: solutionIntent.candidateIds });
+          writeSse(reply, "solution_state", result);
+          fullText = result.comparison ? solutionComparisonText(result.comparison)
+            : solutionIntent.action === "CONFIRM" ? "最终方案已确认，方案快照已保存。"
+            : solutionIntent.action === "SET_FINAL" ? "最终候选已指定。请明确回复“确认最终方案”后保存方案快照。"
+            : solutionIntent.action === "START_NEW" ? "已开始新一轮方案选择。"
+            : solutionIntent.action === "REVISE" ? "已开始新的方案调整，原确认快照保留。请明确要加入或移除的候选。"
+            : `已更新方案选择，当前已选 ${result.solutionState.selectedCandidateIds.length} 个方案。${result.solutionState.conflicts.length ? "部分方案与当前条件冲突，请选择移除或保留用于比较。" : ""}`;
+        } catch (error) {
+          if (!(error instanceof AppError)) throw error;
+          fullText = error.message;
+        }
+      }
+      writeSse(reply, "delta", { text: fullText });
+    } else if (taskDecision.generateReportNow) {
       const resumeState = waitingRun?.status === "WAITING_USER_INPUT"
         ? await prepareResumeState(waitingRun, content, optionId, {
           optionIds: optionIds ?? selectedIds,
@@ -866,7 +904,11 @@ export async function streamConversationReply(options: {
     const storedReferences = providedChunks !== undefined && options.loadPageReferences
       ? referencePages.map(value => storeReferencePageBlocks([value as ReferencePageBlock])[0])
       : await persistMessageReferencePages(app, referencePages, conversation.projectId);
+    const currentSolution = solutionEnabled ? await loadActiveSolution(solutionContext) : null;
+    const solutionState = currentSolution ? solutionDto(currentSolution) : null;
     const metadata = {
+      ...(solutionState ? { solutionStateId: solutionState.id, candidateSetRevision: solutionState.candidateSetRevision,
+        selectedCandidateIds: solutionState.selectedCandidateIds, solutionStage: solutionState.stage } : {}),
       reasoningMode: conversation.reasoningMode,
       reasoning: runtime.reasoning,
       backendDecision: {
@@ -940,6 +982,7 @@ export async function streamConversationReply(options: {
       },
       model: { id: actualModelId },
       promptVersion: { id: runtime.promptVersionId, version: runtime.promptVersionNumber },
+      ...(solutionState ? { solutionState } : {}),
       sources: doneSources,
       ...(referencePages.length > 0 ? { referencePages } : {}),
       latencyMs: Date.now() - startedAt

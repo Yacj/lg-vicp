@@ -24,6 +24,8 @@ const timestamps = {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
 };
 
+import type { SolutionPayload, SolutionCandidateSnapshot } from "../modules/ai/solution-workflow.js";
+
 export const userRoleEnum = pgEnum("user_role", ["SUPER_ADMIN", "CHANNEL_USER", "NORMAL_USER"]);
 export const channelTypeEnum = pgEnum("channel_type", ["DEALER", "SALESPERSON"]);
 export const userStatusEnum = pgEnum("user_status", ["ACTIVE", "DISABLED"]);
@@ -1579,6 +1581,43 @@ export const aiConversations = pgTable(
     index("ai_conversations_deleted_idx").on(table.deletedAt)
   ]
 );
+
+/** 智配流程唯一状态源；每个会话仅有一个 active，历史与已确认状态保留。 */
+export const solutionStates = pgTable("solution_states", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  conversationId: uuid("conversation_id").notNull().references(() => aiConversations.id),
+  userId: uuid("user_id").notNull().references(() => users.id),
+  projectId: uuid("project_id").references(() => projects.id),
+  active: boolean("active").notNull().default(true),
+  stage: varchar("stage", { length: 40 }).$type<import("../modules/ai/solution-workflow.js").SolutionStage>().notNull().default("COLLECTING_REQUIREMENTS"),
+  version: integer("version").notNull().default(1),
+  candidateSetRevision: integer("candidate_set_revision").notNull().default(0),
+  payload: jsonb("payload").$type<SolutionPayload>().notNull(),
+  confirmedSnapshotId: uuid("confirmed_snapshot_id").references((): PgColumn => solutionSnapshots.id),
+  ...timestamps
+}, table => [uniqueIndex("solution_states_active_conversation_idx").on(table.conversationId).where(sql`${table.active} = true`),
+  index("solution_states_conversation_created_idx").on(table.conversationId, table.createdAt),
+  index("solution_states_project_idx").on(table.projectId), index("solution_states_user_stage_idx").on(table.userId, table.stage)]);
+
+/** 值快照；迁移中的触发器拒绝 UPDATE/DELETE。 */
+export const solutionSnapshots = pgTable("solution_snapshots", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  solutionStateId: uuid("solution_state_id").notNull().references((): PgColumn => solutionStates.id),
+  conversationId: uuid("conversation_id").notNull().references(() => aiConversations.id),
+  userId: uuid("user_id").notNull().references(() => users.id),
+  projectId: uuid("project_id").references(() => projects.id),
+  version: integer("version").notNull().default(1),
+  payload: jsonb("payload").$type<{
+    schemaVersion: 1; queryStateSnapshot: SolutionPayload["queryStateSnapshot"]; conditionsSnapshot: SolutionPayload["conditions"];
+    preferencesSnapshot: SolutionPayload["preferences"]; candidates: SolutionCandidateSnapshot[]; alternatives: SolutionCandidateSnapshot[];
+    referencePages: Array<Record<string, unknown>>; warnings: string[]; projectSnapshot: Record<string, unknown> | null;
+    selectedCandidateIds: string[]; finalCandidateIds: string[]; recommendedCandidateIds: string[];
+  }>().notNull(),
+  confirmedBy: uuid("confirmed_by").notNull().references(() => users.id),
+  confirmedAt: timestamp("confirmed_at", { withTimezone: true }).notNull().defaultNow()
+}, table => [uniqueIndex("solution_snapshots_state_idx").on(table.solutionStateId),
+  index("solution_snapshots_conversation_idx").on(table.conversationId), index("solution_snapshots_project_idx").on(table.projectId),
+  index("solution_snapshots_user_created_idx").on(table.userId, table.confirmedAt)]);
 
 export const aiMessages = pgTable(
   "ai_messages",

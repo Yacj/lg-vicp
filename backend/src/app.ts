@@ -11,6 +11,7 @@ import { env } from "./config/env.js";
 import { corsPluginOptions } from "./shared/cors.js";
 import { projectAiMemoryRoutes } from "./modules/ai/ai-project-memory.routes.js";
 import { aiRoutes } from "./modules/ai/ai.routes.js";
+import { solutionRoutes } from "./modules/ai/solution.routes.js";
 import { aiKnowledgeRoutes } from "./modules/ai/ai-knowledge.routes.js";
 import { aiVoiceRoutes } from "./modules/ai/ai-voice.routes.js";
 import { aiAdminRoutes } from "./modules/ai/ai-admin.routes.js";
@@ -174,6 +175,7 @@ export async function buildApp() {
   await app.register(aiAdminRoutes, { prefix: "/api/v1/platform/ai" });
   await app.register(aiDebugRoutes, { prefix: "/api/v1/platform/ai" });
   await app.register(aiRoutes, { prefix: "/api/v1/ai" });
+  await app.register(solutionRoutes, { prefix: "/api/v1/ai" });
   await app.register(projectAiMemoryRoutes, { prefix: "/api/v1" });
   await app.register(aiKnowledgeRoutes, { prefix: "/api/v1/ai/knowledge" });
   await app.register(aiVoiceRoutes, { prefix: "/api/v1/ai" });

@@ -12,6 +12,8 @@ import { buildHighlights, REFERENCE_PAGE_LIMIT, type ReferencePageBlock, type Re
 import { normalizeConversationLookupQuery } from "./tools/thermal-lookup.js";
 import { visiblePageLabel } from "../../shared/page-label.js";
 import { readableRenderModel } from "../../shared/readable-page-render.js";
+import { compactCandidateResult } from "./tools/thermal-lookup.js";
+import { referenceSolutionCandidate, type SolutionCandidateSnapshot } from "./solution-workflow.js";
 
 export async function readConsumableReferencePages(app: FastifyInstance, pageIds: readonly string[], projectId: string | null) {
   if (!pageIds.length) return [];
@@ -43,7 +45,7 @@ export async function toReferencePageBlock(app: FastifyInstance, { page, documen
 }
 
 /** C 端只从本轮有权检索/选中的当前发布版本读取确认档位，不复用 B 端草稿接口。 */
-export async function loadPublishedKnowledgeReferences(app: FastifyInstance, hits: readonly WikiHit[], projectId: string | null, message: string, lookup?: ReturnType<typeof normalizeConversationLookupQuery>["query"]): Promise<KnowledgeTestReferenceContext> {
+export async function loadPublishedKnowledgeReferences(app: FastifyInstance, hits: readonly WikiHit[], projectId: string | null, message: string, lookup?: ReturnType<typeof normalizeConversationLookupQuery>["query"]): Promise<KnowledgeTestReferenceContext & { solutionCandidates?: SolutionCandidateSnapshot[] }> {
   const versionIds = [...new Set(hits.map(hit => hit.versionId))];
   if (!versionIds.length) return { context: "", pages: [] };
   const normalized = lookup ? { query: lookup, needsClarification: false } : normalizeConversationLookupQuery({}, message);
@@ -66,7 +68,13 @@ export async function loadPublishedKnowledgeReferences(app: FastifyInstance, hit
   if (numeric) pages.forEach(page => { page.answerStyle = "THERMAL_SOLUTIONS"; page.primaryFieldKeys = thermalLookupPrimaryFields(normalized.query.filters); });
   const selectedIds = matched?.filter(candidate => ids.includes(candidate.sourcePageId!)).map(candidate => candidate.candidateId);
   const budget = budgetKnowledgeTestReferences(pages, selectedIds, env.AI_CONTEXT_BUCKET_KNOWLEDGE_TOKENS);
-  return { pages, ...budget, authoritative: numeric,
+  const solutionCandidates = matched?.filter(candidate => budget.citationOptionIds.includes(candidate.candidateId)).map(candidate => {
+    const page = readable.find(({ page }) => page.id === candidate.sourcePageId)!.page;
+    return { ...referenceSolutionCandidate(compactCandidateResult(candidate)), referenceKind: "KNOWLEDGE_PAGE" as const,
+      thermalReferenceRowId: undefined, optionId: candidate.candidateId, sourceDocumentId: page.documentId, sourceVersionId: page.versionId,
+      sourcePageLabel: visiblePageLabel(page) };
+  });
+  return { pages, ...budget, authoritative: numeric, solutionCandidates,
     ...(numeric ? { answer: formatConfirmedLookupAnswer(pages, budget.citationOptionIds, normalized.query.filters ?? [],
       { scopeLabel: "本次参考资料中", emptyHint: "可以调整厚度或目标值再查询。", compact: true }) } : {}) };
 }

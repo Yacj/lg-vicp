@@ -4,6 +4,7 @@ import swaggerUi from "@fastify/swagger-ui";
 import { jsonSchemaTransform } from "fastify-type-provider-zod";
 
 const swaggerTags = [
+  { name: "共用 / 智配方案", description: "C 端与 PC AI 端方案池、多选、冲突与不可变确认快照" },
   { name: "B端 / 平台 / 用户管理", description: "B 端平台用户管理接口" },
   { name: "B端 / 平台 / 菜单管理", description: "B 端平台菜单和动态路由接口" },
   { name: "B端 / 平台 / 部门管理", description: "B 端平台部门管理接口" },

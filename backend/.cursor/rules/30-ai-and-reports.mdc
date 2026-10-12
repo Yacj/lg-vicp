@@ -4,6 +4,8 @@ globs: src/modules/ai*/**/*.ts,src/modules/knowledge/**/*.ts,src/modules/reports
 alwaysApply: false
 ---
 
+- Solution Loop Contract冻结：开放动作只允许结构化action/reference并按原话、当前池/revision做Grounding，再走既有mutation；LLM不能生成正式ID或Confirm。Hard条件有效指纹变化清keep确认，偏好与追踪变化不清；Chat/REST/Agent/refine/refresh共用solution-candidate-query.service/policy。见 `docs/ai/solution-workflow-2026-10-12.md` 冻结补充。
+- 智配流程以 solution_states 为 SSOT；重查保留 selected 并标记硬冲突，序号绑定 candidateSetRevision，偏好不改硬条件。Final 与明确 CONFIRM 分开；事务写入不可变 solution_snapshots 并审计，不存签名URL。确认后修改创建新 state；未来方案文档只消费 Snapshot→DocumentModel。见 `docs/ai/solution-workflow-2026-10-12.md`。
 - 语义查表统一走 `semantic-query.service.ts`：格式归一/符号规则→正式实体目录与GLOBAL别名/Fuzzy建议→受控LLM分类→原话依据与目录验证→QueryState。新问题清历史，追问局部更新；构造编号按体系消歧，行ID唯一。EXACT身份匹配但指标失败独立返回，不能替换成其他体系/厚度。确认页同步状态进入readiness；印刷页码未核验不展示；候选optionId与完整renderModel同源。见 `docs/ai/semantic-query-refactor-2026-10-12.md`。
 
 - C端销售/设计院阅读：确定性查表摘要带 answerStyle=THERMAL_SOLUTIONS，primaryFieldKeys 由正式 filters 投影；客户端只替换可定位摘要，普通说明和结论保留。默认两方案、其余展开，完整页表格不裁剪；标记及主字段随无URL元数据恢复，B端默认文案不变。

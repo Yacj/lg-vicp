@@ -12,8 +12,15 @@ import { parseConversationTaskState } from "../conversation-task.js";
 import { runRegisteredTool, type ToolRuntimeContext } from "./tool-runtime.js";
 import { normalizeComparisonForModel } from "./tool-result-normalizer.js";
 import { selectFrozenReferenceCandidateIds } from "../reference-candidate-selection.js";
+import { loadActiveSolution, actOnSolution } from "../solution-state.service.js";
+import { compareSelectedSolution } from "../solution-workflow.js";
+import { solutionComparisonText } from "../solution-selection.js";
+import { parseSolutionAction } from "../solution-action-semantic.service.js";
 
 export const compareSolutionsInput = z.object({
+  operation: z.enum(["COMPARE", "ADD", "REMOVE", "REMOVE_CONFLICT", "KEEP_FOR_COMPARISON", "SET_FINAL", "CONFIRM", "START_NEW"]).optional()
+    .describe("智配方案操作；必须来自用户本轮明确动作，CONFIRM 仅限明确确认最终方案"),
+  positions: z.array(z.number().int().positive()).max(100).optional().describe("用户明确的当前候选序号，由后端映射正式身份；模型不得编造候选 ID"),
   candidateIds: z.array(z.string().min(1)).min(2).max(12).optional().describe("已选正式热工候选 ID；只比较这些冻结记录，不重新查询全库"),
   productIds: z.array(z.string().trim().min(1)).min(1).max(12).optional()
     .describe("已明确的产品 ID；产品对比至少 2 个，不强制热工或 targetK"),
@@ -23,9 +30,8 @@ export const compareSolutionsInput = z.object({
     .describe("用户明确关注点"),
   targetK: z.number().positive().max(10).optional()
     .describe("兼容旧逻辑的目标传热系数，产品对比不需要")
-}).refine((value) => (value.productIds?.length ?? 0) >= 2 || (value.solutionIds?.length ?? 0) >= 2 || (value.candidateIds?.length ?? 0) >= 2, {
-  message: "请提供至少 2 个产品 ID 或 2 个方案 ID"
-});
+}).refine(value => Boolean(value.operation) || (value.productIds?.length ?? 0) >= 2 || (value.solutionIds?.length ?? 0) >= 2 || (value.candidateIds?.length ?? 0) >= 2,
+  { message: "请指定智配操作或至少两个产品/方案" });
 
 export function createCompareSolutionsTool(ctx: ToolRuntimeContext) {
   return tool({
@@ -35,6 +41,26 @@ export function createCompareSolutionsTool(ctx: ToolRuntimeContext) {
     `,
     inputSchema: compareSolutionsInput,
     execute: async (args, options) => runRegisteredTool(ctx, "compare_solutions", args, options, async () => {
+      if (ctx.user.clientType === "C_APP" || ctx.user.clientType === "PC_AI") {
+        const state = await loadActiveSolution(ctx);
+        if (state && !args.productIds?.length) {
+          const intent = await parseSolutionAction(ctx, ctx.userMessage ?? "", state.payload);
+          if (args.operation && args.operation !== "COMPARE") {
+            if (!intent || intent.action !== args.operation || intent.clarification) return toolError({ code: "SOLUTION_USER_ACTION_REQUIRED", message: intent?.clarification ?? "该操作需要用户明确选择或确认" });
+            const result = await actOnSolution(ctx, state.id, { action: intent.action, expectedVersion: state.version,
+              candidateSetRevision: state.candidateSetRevision, candidateIds: intent.candidateIds });
+            ctx.onEvent?.("solution_state", result);
+            return toolOk(result);
+          }
+          // 默认只能比较 SSOT 的 selected，忽略模型自由提交的候选 ID。
+          const comparison = compareSelectedSolution(state.payload);
+          const facts = buildAllowedAnswerFacts(state.payload.queryStateSnapshot, comparison.candidates.filter(candidate => !candidate.conflicts.length), "详细参数对比", undefined,
+            { nearbyCandidates: comparison.candidates.filter(candidate => candidate.conflicts.length) });
+          facts.canonicalAnswers = [solutionComparisonText(comparison)];
+          setThermalAnswerFacts(ctx, facts);
+          return toolOk({ ...comparison, canonicalAnswers: ctx.thermalCanonicalAnswers });
+        }
+      }
       const last = ctx.taskState?.lastReferenceLookup;
       const selectedIds = selectFrozenReferenceCandidateIds(last, ctx.userMessage ?? "") ?? args.candidateIds
         ?? (last && args.solutionIds?.length ? last.candidates.filter(candidate => args.solutionIds!.includes(candidate.schemeId ?? "")).map(candidate => candidate.id) : undefined);

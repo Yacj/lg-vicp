@@ -1,5 +1,9 @@
 # 蓝格 VICP 后端
 
+2026-10-12 Solution Loop Contract 冻结：仅收口开放动作语义解析、硬条件变化后冲突确认失效、各入口统一候选查询策略。复用既有状态/确认/快照服务，无新增迁移或REST协议破坏；未开发PDF/Word或C端。见[闭环说明与冻结补充](docs/ai/solution-workflow-2026-10-12.md)。
+
+2026-10-12 智配方案闭环：独立 SolutionState 保存正式候选池、多选、偏好、冲突与 Final；明确确认后事务冻结不可变 SolutionSnapshot。聊天、REST 和工具共用服务，恢复会话直接读正式状态。新增0054迁移，预留 Snapshot→DocumentModel；本轮不生成PDF/Word。设计、接口、验收与环境限制见[智配方案闭环](docs/ai/solution-workflow-2026-10-12.md)。
+
 2026-10-12 语义查询重构：正式查表与知识回退共用 Semantic Query / QueryState；规则只负责格式和高置信符号，口语交由结构化分类模型，实体回查正式目录、数字和硬条件由代码验证。候选行ID作为唯一身份，EXACT未命中保留同身份实际值；页面确认/热工同步独立可观测，页码来源与核验状态分离，候选与完整页optionId统一。无需迁移，计算公式不变。审计、架构、测试和限制见[重构说明](docs/ai/semantic-query-refactor-2026-10-12.md)。
 
 2026-10-11 C端阅读优化：销售/设计院优先厚度与所问指标，正式查表摘要带 answerStyle/primaryFieldKeys，客户端简洁卡片替换可定位摘要并独立展示来源；默认两项、其余展开，参考页保留整页表格高亮。普通解释、工程结论、正式数值与匹配规则不变。详见 [C端完整参考页](docs/ai/c-reference-pages.md)。

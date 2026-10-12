@@ -1,8 +1,10 @@
 import type { FastifyInstance } from "fastify";
+import { solutionDto } from "./solution-state.service.js";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { and, asc, count, desc, eq, ilike, inArray, isNull, or } from "drizzle-orm";import { z } from "zod";
 import {
   aiConversations,
+  solutionStates,
   aiMessageFeedbacks,
   aiMessageRegenerations,
   aiMessages,
@@ -172,7 +174,9 @@ export async function aiAdminRoutes(app: FastifyInstance) {
     const conversationAuditLogs = auditTargetIds.length === 0 ? [] : await app.db.select().from(auditLogs)
       .where(inArray(auditLogs.targetId, auditTargetIds)).orderBy(desc(auditLogs.createdAt));
 
+    const [solutionState] = await app.db.select().from(solutionStates).where(and(eq(solutionStates.conversationId, row.conversation.id), eq(solutionStates.active, true))).limit(1);
     return ok(request, {
+      solutionState: solutionState ? solutionDto(solutionState) : null,
       conversation: row.conversation,
       user: row.user,
       project: row.project,

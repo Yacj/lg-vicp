@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { loadActiveSolution, solutionDto } from "./solution-state.service.js";
 import { hydrateMessageReferencePages } from "./ai-reference-pages.service.js";
 import { generateObject, streamText, type LanguageModelUsage, type ModelMessage } from "ai";
 import type { FastifyInstance } from "fastify";
@@ -485,8 +486,11 @@ export async function aiRoutes(app: FastifyInstance) {
       }))
     }));
     const activeAgentRun = await getActiveAgentRun(app, conversation.id);
+    const currentSolution = user.clientType === "C_APP" || user.clientType === "PC_AI"
+      ? await loadActiveSolution({ app, request, user, conversation }) : null;
     return ok(request, {
       conversation,
+      solutionState: currentSolution ? solutionDto(currentSolution) : null,
       messages: visibleMessages,
       activeAgentRun: activeAgentRun ? toAgentRunDto(activeAgentRun) : null,
       processingSummary: {

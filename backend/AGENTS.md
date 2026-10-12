@@ -1,5 +1,9 @@
 # 蓝格 VICP 后端 AI 开发规则
 
+Solution Loop Contract 冻结（2026-10-12）：开放动作走 Solution Action Semantic Parser→原话/候选引用/revision Grounding→既有 mutation；LLM不输出正式ID或Confirm，确认仅明确命令。Hard Constraints有效指纹变化清旧keep确认；Chat/REST/Agent/refine/refresh共用候选Query Service/Policy（邻档1、正式/nearby各12，偏好排序、来源校验同源）。本轮无新迁移，不改Snapshot/DocumentModel/报告流程。详见 `docs/ai/solution-workflow-2026-10-12.md` 的冻结补充。
+
+智配方案闭环（2026-10-12）：`solution_states` 是方案流程 SSOT，重查保留已选并标记硬冲突，偏好只排序，序号绑定候选 revision。明确 Final 后仍需显式 CONFIRM，同事务来源验证/不可变值快照/状态/审计；已确认后修改创建新 state。Snapshot 禁止 UPDATE/DELETE、不存签名URL；后续方案文档只消费 Snapshot→DocumentModel，不重查或重算候选。本轮不生成PDF/Word。详见 `docs/ai/solution-workflow-2026-10-12.md`。
+
 语义查询（2026-10-12）：查表走格式归一→符号 Fast Path→目录/别名/Fuzzy 建议→受控 LLM 分类→确定性验证→QueryState→正式候选；模型仅理解语言，不计算或选择事实。NEW_QUERY清旧条件，追问按metric/厚度局部更新。构造编号不全局唯一，先用体系上下文消歧；EXACT指标失败保留同身份同厚度记录，和命中/相邻结果分开。确认页与热工同步状态独立，已确认DRAFT页可显式补同步到DRAFT参考集，发布readiness观察四项一致性。上传推导页码为FALLBACK未核验，视觉沿用VISUAL_MATCH未核验，人工确认才MANUAL已核验。来源渲染与候选optionId来自同一确认快照。详见 `docs/ai/semantic-query-refactor-2026-10-12.md`。
 
 C端阅读（2026-10-11）：正式查表摘要使用简洁销售/设计院文案，所问指标由 filters 投影到 primaryFieldKeys。仅 answerStyle=THERMAL_SOLUTIONS 且正式模型ID/answerOffset可定位时允许客户端以方案卡替换摘要；普通解释及限制条件保留。完整页不裁剪，前端默认两方案、其他展开；B端文案保持兼容。详见 docs/ai/c-reference-pages.md。
