@@ -1,0 +1,2025 @@
+{
+  "run": "pnpm test --reporter=json",
+  "passed": 2168,
+  "failed": 0,
+  "skipped": 1,
+  "total": 2169,
+  "fileCount": 194,
+  "files": [
+    {
+      "file": "scripts/check-semantic-matching.test.ts",
+      "status": "passed",
+      "passed": 15,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "scripts/verify-migrations.test.mjs",
+      "status": "passed",
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/db/batch-insert.test.ts",
+      "status": "passed",
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/db/menu-seed-tree.test.ts",
+      "status": "passed",
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/plugins/error-handler.test.ts",
+      "status": "passed",
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/workers/document-job-state.test.ts",
+      "status": "passed",
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/workers/document.worker.test.ts",
+      "status": "passed",
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/workers/docx-page-render-status.test.ts",
+      "status": "passed",
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/workers/docx-to-pdf.test.ts",
+      "status": "passed",
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/workers/pdf-outline.test.ts",
+      "status": "passed",
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/workers/pdf-text-extractor.test.ts",
+      "status": "passed",
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/workers/report-job-state.test.ts",
+      "status": "passed",
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/shared/ai-answer-contract.test.ts",
+      "status": "passed",
+      "passed": 15,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/shared/ai-errors.test.ts",
+      "status": "passed",
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/shared/ai-response-policy.test.ts",
+      "status": "passed",
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/shared/client-guard.test.ts",
+      "status": "passed",
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/shared/cors.test.ts",
+      "status": "passed",
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/shared/data-scope.test.ts",
+      "status": "passed",
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/shared/department-tree.test.ts",
+      "status": "passed",
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/shared/permissions.test.ts",
+      "status": "passed",
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/shared/prompt-assembly.test.ts",
+      "status": "passed",
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/shared/runtime-compat.test.ts",
+      "status": "passed",
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "tests/uat/uat-harness.test.ts",
+      "status": "passed",
+      "passed": 16,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai-config/ai-business-prompt.test.ts",
+      "status": "passed",
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai-config/ai-config.crypto.test.ts",
+      "status": "passed",
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai-config/ai-model-runtime.test.ts",
+      "status": "passed",
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/agent-followup-p0.audit.test.ts",
+      "status": "passed",
+      "passed": 16,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/agent-selection.test.ts",
+      "status": "passed",
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/ai-agent-step-buffer.test.ts",
+      "status": "passed",
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/ai-answer-format.test.ts",
+      "status": "passed",
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/ai-answer-regression.test.ts",
+      "status": "passed",
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/ai-capability-router.test.ts",
+      "status": "passed",
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/ai-content-filter.service.test.ts",
+      "status": "passed",
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/ai-context-builder.test.ts",
+      "status": "passed",
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/ai-conversation-state.test.ts",
+      "status": "passed",
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/ai-domain-policy.test.ts",
+      "status": "passed",
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/ai-domain-turn-decision.service.test.ts",
+      "status": "passed",
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/ai-domain-turn-decision.test.ts",
+      "status": "passed",
+      "passed": 35,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/ai-generation-knowledge.test.ts",
+      "status": "passed",
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/ai-insulation.test.ts",
+      "status": "passed",
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/ai-project-context.test.ts",
+      "status": "passed",
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/ai-project-memory.test.ts",
+      "status": "passed",
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/ai-quick-prompt.service.test.ts",
+      "status": "passed",
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/ai-reference-answer-stream.test.ts",
+      "status": "passed",
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/ai-reference-pages.test.ts",
+      "status": "passed",
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/ai-runtime-agent.test.ts",
+      "status": "passed",
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/ai-runtime.test.ts",
+      "status": "passed",
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/ai-source.mapper.test.ts",
+      "status": "passed",
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/ai-vision.service.test.ts",
+      "status": "passed",
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/compare-product.test.ts",
+      "status": "passed",
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/compliance-read.service.test.ts",
+      "status": "passed",
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/conversation-task.test.ts",
+      "status": "passed",
+      "passed": 13,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/domain-followup-p0.audit.test.ts",
+      "status": "passed",
+      "passed": 15,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/domain-semantic-regression.test.ts",
+      "status": "passed",
+      "passed": 16,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/high-frequency-domain-matrix.test.ts",
+      "status": "passed",
+      "passed": 46,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/knowledge-source-selection.test.ts",
+      "status": "passed",
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/product-read.service.test.ts",
+      "status": "passed",
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/reference-candidate-resolver.service.test.ts",
+      "status": "passed",
+      "passed": 34,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/reference-candidate-source.service.test.ts",
+      "status": "passed",
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/reference-followup-p0.audit.test.ts",
+      "status": "passed",
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/reference-page.test.ts",
+      "status": "passed",
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/reference-query.service.test.ts",
+      "status": "passed",
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/report-context-snapshot.test.ts",
+      "status": "passed",
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/report-type-inference.test.ts",
+      "status": "passed",
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/semantic-query.service.test.ts",
+      "status": "passed",
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.service.test.ts",
+      "status": "passed",
+      "passed": 34,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.test.ts",
+      "status": "passed",
+      "passed": 18,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/solution-advice-context.test.ts",
+      "status": "passed",
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/solution-advice.service.test.ts",
+      "status": "passed",
+      "passed": 30,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/solution-report.service.test.ts",
+      "status": "passed",
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/solution-state.service.test.ts",
+      "status": "passed",
+      "passed": 38,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/solution-workflow.test.ts",
+      "status": "passed",
+      "passed": 16,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/solution.routes.test.ts",
+      "status": "passed",
+      "passed": 13,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/structured-reference-query.test.ts",
+      "status": "passed",
+      "passed": 25,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/thermal-answer-facts.test.ts",
+      "status": "passed",
+      "passed": 18,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/thermal-answer-semantics.test.ts",
+      "status": "passed",
+      "passed": 33,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/thermal-answer-sse.test.ts",
+      "status": "passed",
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/thermal-answer-validation.test.ts",
+      "status": "passed",
+      "passed": 28,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/thermal-natural-dialogue-regression.test.ts",
+      "status": "passed",
+      "passed": 22,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/thermal-substrate-facts.test.ts",
+      "status": "passed",
+      "passed": 14,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/user-selection.test.ts",
+      "status": "passed",
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/auth/auth.client-gate.test.ts",
+      "status": "passed",
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/auth/auth.register.test.ts",
+      "status": "passed",
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/auth/captcha.service.test.ts",
+      "status": "passed",
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/auth/client-password.service.test.ts",
+      "status": "passed",
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/auth/user-app-access.service.test.ts",
+      "status": "passed",
+      "passed": 17,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/auth/wechat-phone-login.service.test.ts",
+      "status": "passed",
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/auth/wechat.service.test.ts",
+      "status": "passed",
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/client-profile/client-profile.service.test.ts",
+      "status": "passed",
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/collection/collection-agent.service.test.ts",
+      "status": "passed",
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/collection/collection-fingerprint.test.ts",
+      "status": "passed",
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/collection/collection.service.test.ts",
+      "status": "passed",
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/company/company.test.ts",
+      "status": "passed",
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/construction/construction-structure.test.ts",
+      "status": "passed",
+      "passed": 13,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/construction/construction-workflow.test.ts",
+      "status": "passed",
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/construction/construction.schemas.test.ts",
+      "status": "passed",
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/comparison/comparison-workflow.test.ts",
+      "status": "passed",
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/comparison/comparison.schemas.test.ts",
+      "status": "passed",
+      "passed": 14,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/comparison/comparison.service.test.ts",
+      "status": "passed",
+      "passed": 21,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/comparison/material-compare.test.ts",
+      "status": "passed",
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/files/file-access.test.ts",
+      "status": "passed",
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/files/file-center.test.ts",
+      "status": "passed",
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/masterdata/md-read.test.ts",
+      "status": "passed",
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/masterdata/md-workflow.test.ts",
+      "status": "passed",
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/masterdata/md.schemas.test.ts",
+      "status": "passed",
+      "passed": 13,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/menus/menu.service.test.ts",
+      "status": "passed",
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/nodes/node-workflow.test.ts",
+      "status": "passed",
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/notifications/notification.service.test.ts",
+      "status": "passed",
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/knowledge/atlas-parse.regression.test.ts",
+      "status": "passed",
+      "passed": 0,
+      "failed": 0,
+      "skipped": 1
+    },
+    {
+      "file": "src/modules/knowledge/knowledge-blocks.test.ts",
+      "status": "passed",
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/knowledge/knowledge-chunking.test.ts",
+      "status": "passed",
+      "passed": 22,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/knowledge/knowledge-context.test.ts",
+      "status": "passed",
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/knowledge/knowledge-create-decoupled.test.ts",
+      "status": "passed",
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/knowledge/knowledge-fact-resolver.test.ts",
+      "status": "passed",
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/knowledge/knowledge-ingest.test.ts",
+      "status": "passed",
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/knowledge/knowledge-page-consistency.test.ts",
+      "status": "passed",
+      "passed": 18,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/knowledge/knowledge-page-driven.test.ts",
+      "status": "passed",
+      "passed": 16,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/knowledge/knowledge-page-gallery.mime.test.ts",
+      "status": "passed",
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/knowledge/knowledge-page-gallery.test.ts",
+      "status": "passed",
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/knowledge/knowledge-page-image.test.ts",
+      "status": "passed",
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/knowledge/knowledge-page-index.test.ts",
+      "status": "passed",
+      "passed": 15,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/knowledge/knowledge-page-label.test.ts",
+      "status": "passed",
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/knowledge/knowledge-page-lifecycle-boundaries.test.ts",
+      "status": "passed",
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/knowledge/knowledge-page-mapping.test.ts",
+      "status": "passed",
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/knowledge/knowledge-page-recognition-output.test.ts",
+      "status": "passed",
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/knowledge/knowledge-page-recognition.mapping.test.ts",
+      "status": "passed",
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/knowledge/knowledge-page-recognition.queue.test.ts",
+      "status": "passed",
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/knowledge/knowledge-page-recognition.test.ts",
+      "status": "passed",
+      "passed": 13,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/knowledge/knowledge-page-recognition.transaction.test.ts",
+      "status": "passed",
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/knowledge/knowledge-page-renderer.test.ts",
+      "status": "passed",
+      "passed": 17,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/knowledge/knowledge-page-upload.ownership.test.ts",
+      "status": "passed",
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/knowledge/knowledge-page-upload.test.ts",
+      "status": "passed",
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/knowledge/knowledge-readiness.test.ts",
+      "status": "passed",
+      "passed": 33,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/knowledge/knowledge-search-scope.test.ts",
+      "status": "passed",
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/knowledge/knowledge-search-traceability.test.ts",
+      "status": "passed",
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/knowledge/knowledge-source-reference.test.ts",
+      "status": "passed",
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/knowledge/knowledge-test-qa.test.ts",
+      "status": "passed",
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/knowledge/knowledge-test-reference.test.ts",
+      "status": "passed",
+      "passed": 13,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/knowledge/knowledge-thermal-sync.test.ts",
+      "status": "passed",
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/knowledge/knowledge-toc-draft.test.ts",
+      "status": "passed",
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/knowledge/knowledge-user-status.test.ts",
+      "status": "passed",
+      "passed": 17,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/knowledge/knowledge-version-activation.test.ts",
+      "status": "passed",
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/knowledge/knowledge-version-guard.test.ts",
+      "status": "passed",
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/knowledge/knowledge-wiki-read.service.test.ts",
+      "status": "passed",
+      "passed": 17,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/knowledge/knowledge-workflow.test.ts",
+      "status": "passed",
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/knowledge/knowledge.normalize.test.ts",
+      "status": "passed",
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/knowledge/pdf-layout-text.test.ts",
+      "status": "passed",
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/knowledge/pdf-outline-quality.test.ts",
+      "status": "passed",
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/knowledge/pdf-toc-page.test.ts",
+      "status": "passed",
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/products/product.schemas.test.ts",
+      "status": "passed",
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/projects/project-statistics.test.ts",
+      "status": "passed",
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/projects/project.schemas.test.ts",
+      "status": "passed",
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/reports/report-access.test.ts",
+      "status": "passed",
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/reports/report-review.test.ts",
+      "status": "passed",
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/reports/report-snapshot.test.ts",
+      "status": "passed",
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/reports/report-template-render.test.ts",
+      "status": "passed",
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/reports/report-types.test.ts",
+      "status": "passed",
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/reports/reports.routes.test.ts",
+      "status": "passed",
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/reports/solution-report-snapshot.test.ts",
+      "status": "passed",
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/review-center/review-center.test.ts",
+      "status": "passed",
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/standard/standard-crawl.test.ts",
+      "status": "passed",
+      "passed": 18,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/standard/standard.schemas.test.ts",
+      "status": "passed",
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/standard/standard.service.test.ts",
+      "status": "passed",
+      "passed": 14,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/users/user-admin.policy.test.ts",
+      "status": "passed",
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/thermal/semantic-query.test.ts",
+      "status": "passed",
+      "passed": 19,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/thermal/thermal-apply.test.ts",
+      "status": "passed",
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/thermal/thermal-calc-presentation.test.ts",
+      "status": "passed",
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/thermal/thermal-calc.service.test.ts",
+      "status": "passed",
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/thermal/thermal-calculator.test.ts",
+      "status": "passed",
+      "passed": 19,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/thermal/thermal-candidate-matcher.test.ts",
+      "status": "passed",
+      "passed": 26,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/thermal/thermal-candidate.service.test.ts",
+      "status": "passed",
+      "passed": 27,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/thermal/thermal-import.test.ts",
+      "status": "passed",
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/thermal/thermal-interaction-closeout.test.ts",
+      "status": "passed",
+      "passed": 31,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/thermal/thermal-lookup-semantics.test.ts",
+      "status": "passed",
+      "passed": 132,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/thermal/thermal-param-source.test.ts",
+      "status": "passed",
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/thermal/thermal-query-debug.test.ts",
+      "status": "passed",
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/thermal/thermal-query-lifecycle.test.ts",
+      "status": "passed",
+      "passed": 30,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/thermal/thermal-query-state.test.ts",
+      "status": "passed",
+      "passed": 58,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/thermal/thermal-regression.test.ts",
+      "status": "passed",
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/thermal/thermal-standard-scope.test.ts",
+      "status": "passed",
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/thermal/thermal-target-binding.test.ts",
+      "status": "passed",
+      "passed": 50,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/thermal/thermal-workflow.test.ts",
+      "status": "passed",
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/thermal/thermal.schemas.test.ts",
+      "status": "passed",
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/tools/ai-tools.schema.test.ts",
+      "status": "passed",
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/tools/generate-report.authorization.test.ts",
+      "status": "passed",
+      "passed": 21,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/tools/product-search.tool.test.ts",
+      "status": "passed",
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/tools/search-knowledge-structured.test.ts",
+      "status": "passed",
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/tools/search-knowledge-thermal-clarification.test.ts",
+      "status": "passed",
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/tools/thermal-constraint-flow.test.ts",
+      "status": "passed",
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/tools/thermal-lookup.test.ts",
+      "status": "passed",
+      "passed": 77,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/tools/thermal-lookup.tool.test.ts",
+      "status": "passed",
+      "passed": 29,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/tools/thermal-reference-page-guard.test.ts",
+      "status": "passed",
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/tools/tool-result-normalizer.test.ts",
+      "status": "passed",
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "file": "src/modules/ai/tools/tool-runtime-audit.test.ts",
+      "status": "passed",
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0
+    }
+  ],
+  "criticalCases": [
+    {
+      "file": "scripts/check-semantic-matching.test.ts",
+      "name": "AST阻断未审核语义规则 /方案/.test(message)",
+      "status": "passed"
+    },
+    {
+      "file": "scripts/check-semantic-matching.test.ts",
+      "name": "AST阻断未审核语义规则 new RegExp('确认').test(message)",
+      "status": "passed"
+    },
+    {
+      "file": "scripts/check-semantic-matching.test.ts",
+      "name": "AST阻断未审核语义规则 message.includes('建议')",
+      "status": "passed"
+    },
+    {
+      "file": "scripts/check-semantic-matching.test.ts",
+      "name": "AST阻断未审核语义规则 message.startsWith('开始')",
+      "status": "passed"
+    },
+    {
+      "file": "scripts/check-semantic-matching.test.ts",
+      "name": "AST阻断未审核语义规则 new Set(['方案']).has(message)",
+      "status": "passed"
+    },
+    {
+      "file": "scripts/check-semantic-matching.test.ts",
+      "name": "AST阻断未审核语义规则 message === '给方案'",
+      "status": "passed"
+    },
+    {
+      "file": "scripts/check-semantic-matching.test.ts",
+      "name": "不全局禁止确定性能力 const intent = proposal.intent;",
+      "status": "passed"
+    },
+    {
+      "file": "scripts/check-semantic-matching.test.ts",
+      "name": "不全局禁止确定性能力 schema.parse(output);",
+      "status": "passed"
+    },
+    {
+      "file": "scripts/check-semantic-matching.test.ts",
+      "name": "不全局禁止确定性能力 parseThermalThicknessMessage(message, query);",
+      "status": "passed"
+    },
+    {
+      "file": "scripts/check-semantic-matching.test.ts",
+      "name": "不全局禁止确定性能力 policy.intent === 'SOLUTION_ADVICE';",
+      "status": "passed"
+    },
+    {
+      "file": "scripts/check-semantic-matching.test.ts",
+      "name": "不全局禁止确定性能力 groundSolutionAction(message, output, state, revision);",
+      "status": "passed"
+    },
+    {
+      "file": "scripts/check-semantic-matching.test.ts",
+      "name": "原话/引用/跨轮数据本身不是词法判定 const message = '不要确认最终方案';",
+      "status": "passed"
+    },
+    {
+      "file": "scripts/check-semantic-matching.test.ts",
+      "name": "原话/引用/跨轮数据本身不是词法判定 const quoted = '他说确认最终方案';",
+      "status": "passed"
+    },
+    {
+      "file": "scripts/check-semantic-matching.test.ts",
+      "name": "原话/引用/跨轮数据本身不是词法判定 const context = { relation: 'CONTINUE', goal: '参考建议' };",
+      "status": "passed"
+    },
+    {
+      "file": "scripts/check-semantic-matching.test.ts",
+      "name": "白名单绑定精确表达式，换词或缺反例证据不能继承豁免",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/ai-domain-policy.test.ts",
+      "name": "SOLUTION_ACTION 语义只提案，低置信/否定/引用/假设/证据伪造均无副作用",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/ai-domain-policy.test.ts",
+      "name": "REPORT_REQUEST 语义只提案，低置信/否定/引用/假设/证据伪造均无副作用",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/ai-domain-policy.test.ts",
+      "name": "THERMAL_CALCULATE 语义只提案，低置信/否定/引用/假设/证据伪造均无副作用",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/ai-domain-policy.test.ts",
+      "name": "REFERENCE_QUERY 语义只提案，低置信/否定/引用/假设/证据伪造均无副作用",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/ai-domain-policy.test.ts",
+      "name": "条件与目标正交：原45mm无需刷新，40mm须查表；伪造40mm值拒绝",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/ai-domain-policy.test.ts",
+      "name": "地区排除仅本次Advice视图，不改项目/Query；CLEAR范围和跨revision拒绝",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/ai-domain-policy.test.ts",
+      "name": "模型不得输出正式ID/Confirm/任意patch字段",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/domain-semantic-regression.test.ts",
+      "name": "开放表达必须经过同一个语义合同：能不能出个方案",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/domain-semantic-regression.test.ts",
+      "name": "开放表达必须经过同一个语义合同：不要出方案，直接列原表",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/domain-semantic-regression.test.ts",
+      "name": "开放表达必须经过同一个语义合同：不要推荐方案",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/domain-semantic-regression.test.ts",
+      "name": "开放表达必须经过同一个语义合同：暂不确认，先给建议",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/domain-semantic-regression.test.ts",
+      "name": "开放表达必须经过同一个语义合同：帮我确认一下 A3-2 的 K",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/domain-semantic-regression.test.ts",
+      "name": "开放表达必须经过同一个语义合同：给我45mm的初步方案，顺便比较基层",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/domain-semantic-regression.test.ts",
+      "name": "开放表达必须经过同一个语义合同：不用生成报告，只给个大致方案",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/domain-semantic-regression.test.ts",
+      "name": "开放表达必须经过同一个语义合同：仅给我报告提纲",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/domain-semantic-regression.test.ts",
+      "name": "开放表达必须经过同一个语义合同：他说‘确认最终方案’，请解释这句话",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/domain-semantic-regression.test.ts",
+      "name": "开放表达必须经过同一个语义合同：假如把第一个加入方案，会有什么变化",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/domain-semantic-regression.test.ts",
+      "name": "开放表达必须经过同一个语义合同：不要把第一个加入方案",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/domain-semantic-regression.test.ts",
+      "name": "开放表达必须经过同一个语义合同：先比较，再给通用建议",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/domain-semantic-regression.test.ts",
+      "name": "开放表达必须经过同一个语义合同：先不考虑地区，来个参考选型",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/domain-semantic-regression.test.ts",
+      "name": "开放表达必须经过同一个语义合同：不需要合规结论，只做参考选型",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/domain-semantic-regression.test.ts",
+      "name": "开放表达必须经过同一个语义合同：上海住宅能达标吗",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/domain-semantic-regression.test.ts",
+      "name": "开放表达必须经过同一个语义合同：正式生成PDF",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.service.test.ts",
+      "name": "Solution Action Semantic Parser → Grounding → 既有mutation 开放自然表达1和3先留着调用LLM并映射正式身份",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.service.test.ts",
+      "name": "Solution Action Semantic Parser → Grounding → 既有mutation 开放自然表达第三套先撤掉调用LLM并映射正式身份",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.service.test.ts",
+      "name": "Solution Action Semantic Parser → Grounding → 既有mutation 开放自然表达18和20厚那两个加进来调用LLM并映射正式身份",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.service.test.ts",
+      "name": "Solution Action Semantic Parser → Grounding → 既有mutation 开放自然表达前两个加进方案调用LLM并映射正式身份",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.service.test.ts",
+      "name": "Solution Action Semantic Parser → Grounding → 既有mutation 开放自然表达最终我就要第一和第三个调用LLM并映射正式身份",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.service.test.ts",
+      "name": "Solution Action Semantic Parser → Grounding → 既有mutation 除了第二个其他都先保留：排除引用由后端做集合运算",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.service.test.ts",
+      "name": "Solution Action Semantic Parser → Grounding → 既有mutation 旧已选厚度引用从Selected定位，不猜新列表序号",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.service.test.ts",
+      "name": "Solution Action Semantic Parser → Grounding → 既有mutation 只读比较交还领域路由，不调用动作模型或选择全池",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.service.test.ts",
+      "name": "Solution Action Semantic Parser → Grounding → 既有mutation 这几个帮我做方案显式SELECT当前全部查询候选",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.service.test.ts",
+      "name": "Solution Action Semantic Parser → Grounding → 既有mutation 没有候选时普通提问保温0.3有材料么不调用方案动作模型",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.service.test.ts",
+      "name": "Solution Action Semantic Parser → Grounding → 既有mutation 没有候选时普通提问薄抹灰K0.3左右有方案么不调用方案动作模型",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.service.test.ts",
+      "name": "Solution Action Semantic Parser → Grounding → 既有mutation 没有候选时普通提问你好不调用方案动作模型",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.service.test.ts",
+      "name": "Solution Action Semantic Parser → Grounding → 既有mutation 没有候选时普通提问保温板有哪些特点不调用方案动作模型",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.service.test.ts",
+      "name": "Solution Action Semantic Parser → Grounding → 既有mutation 真实UAT回归：有候选时JSON模式提示词兼容要求，普通查询NONE不拦截问答",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.service.test.ts",
+      "name": "Solution Action Semantic Parser → Grounding → 既有mutation 有lookup候选的首次选择保留LLM与Grounding，不被无active守卫跳过",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.service.test.ts",
+      "name": "Solution Action Semantic Parser → Grounding → 既有mutation JSON网关失败日志仅记录错误类型和HTTP码，不记录用户原话或响应正文",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.service.test.ts",
+      "name": "Solution Action Semantic Parser → Grounding → 既有mutation 结构化输出伪造candidateId被schema拒绝，State不变",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.service.test.ts",
+      "name": "Solution Action Semantic Parser → Grounding → 既有mutation 结构化输出伪造thermalReferenceRowId被schema拒绝，State不变",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.service.test.ts",
+      "name": "Solution Action Semantic Parser → Grounding → 既有mutation 结构化输出伪造schemeId被schema拒绝，State不变",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.service.test.ts",
+      "name": "Solution Action Semantic Parser → Grounding → 既有mutation 非法/不存在引用第三套先撤掉只澄清",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.service.test.ts",
+      "name": "Solution Action Semantic Parser → Grounding → 既有mutation 非法/不存在引用18厚那个留下只澄清",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.service.test.ts",
+      "name": "Solution Action Semantic Parser → Grounding → 既有mutation 非法/不存在引用A9-9留下只澄清",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.service.test.ts",
+      "name": "Solution Action Semantic Parser → Grounding → 既有mutation 相同厚度多个候选必须澄清；版本变化不能沿用旧序号",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.service.test.ts",
+      "name": "Solution Action Semantic Parser → Grounding → 既有mutation 可以不调用模型且不确认",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.service.test.ts",
+      "name": "Solution Action Semantic Parser → Grounding → 既有mutation 行不调用模型且不确认",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.service.test.ts",
+      "name": "Solution Action Semantic Parser → Grounding → 既有mutation 就这样不调用模型且不确认",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.service.test.ts",
+      "name": "Solution Action Semantic Parser → Grounding → 既有mutation 没问题不调用模型且不确认",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.service.test.ts",
+      "name": "Solution Action Semantic Parser → Grounding → 既有mutation 确认生成方案走确认Fast Path",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.service.test.ts",
+      "name": "Solution Action Semantic Parser → Grounding → 既有mutation 确认最终方案走确认Fast Path",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.service.test.ts",
+      "name": "Solution Action Semantic Parser → Grounding → 既有mutation 确认提交走确认Fast Path",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.service.test.ts",
+      "name": "Solution Action Semantic Parser → Grounding → 既有mutation LLM不能提出CONFIRM_FINAL；普通查询NONE不触发mutation",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.service.test.ts",
+      "name": "Solution Action Semantic Parser → Grounding → 既有mutation 模型故障/低置信度不回退到猜测动作",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.service.test.ts",
+      "name": "Solution Action Semantic Parser → Grounding → 既有mutation 复用既有热工符号Fast Path，不额外依赖动作模型",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.service.test.ts",
+      "name": "Solution Action Semantic Parser → Grounding → 既有mutation 批量引用任一项非法或嵌套伪造ID，整个动作澄清；Prompt不含正式候选ID",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.test.ts",
+      "name": "SM-CLOSED-01 既有完整命令 确认生成方案",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.test.ts",
+      "name": "SM-CLOSED-01 既有完整命令 确认最终方案",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.test.ts",
+      "name": "SM-CLOSED-01 既有完整命令 确认提交",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.test.ts",
+      "name": "SM-CLOSED-01 既有完整命令 开始做方案",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.test.ts",
+      "name": "SM-CLOSED-01 既有完整命令 重新做一套方案",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.test.ts",
+      "name": "SM-CLOSED-01 相似反例 确认一下A3-2的K",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.test.ts",
+      "name": "SM-CLOSED-01 相似反例 确认一下参数",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.test.ts",
+      "name": "SM-CLOSED-01 相似反例 确认最终方案以后怎么修改",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.test.ts",
+      "name": "SM-CLOSED-01 相似反例 开始做方案会怎样",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.test.ts",
+      "name": "SM-CLOSED-01 相似反例 仅给我方案提纲",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.test.ts",
+      "name": "SM-CLOSED-01 否定/引用/复合禁止越级 不要确认最终方案",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.test.ts",
+      "name": "SM-CLOSED-01 否定/引用/复合禁止越级 他说‘确认提交’",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.test.ts",
+      "name": "SM-CLOSED-01 否定/引用/复合禁止越级 假设开始做方案",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.test.ts",
+      "name": "SM-CLOSED-01 否定/引用/复合禁止越级 暂不确认，先给建议",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.test.ts",
+      "name": "SM-CLOSED-01 否定/引用/复合禁止越级 第一套设为Final，确认提交",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.test.ts",
+      "name": "SM-FORMAT-01 只允许末尾标点及首尾空白 确认最终方案！",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.test.ts",
+      "name": "SM-FORMAT-01 只允许末尾标点及首尾空白  开始做方案 ",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.test.ts",
+      "name": "SM-NUMBER/EVIDENCE/ID引用必须来自原话且属于当前revision",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-advice-context.test.ts",
+      "name": "建议目标上下文边界与旧会话兼容 JSON schema可回读目标，不混入QueryState；畸形上下文被丢弃",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-advice-context.test.ts",
+      "name": "建议目标上下文边界与旧会话兼容 revision使pendingGoal失效",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-advice-context.test.ts",
+      "name": "建议目标上下文边界与旧会话兼容 project使pendingGoal失效",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-advice-context.test.ts",
+      "name": "建议目标上下文边界与旧会话兼容 expired使pendingGoal失效",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-advice-context.test.ts",
+      "name": "建议目标上下文边界与旧会话兼容 上下文读取只加载该会话最近两轮目标、Revision，不从内容猜候选ID",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-advice-context.test.ts",
+      "name": "建议目标上下文边界与旧会话兼容 分类输入含两轮目标与助手追问；低置信不能签发写权限",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-advice-context.test.ts",
+      "name": "建议目标上下文边界与旧会话兼容 显式按钮式开始和确认仍为正式动作，不被建议目标覆盖",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-advice-context.test.ts",
+      "name": "建议目标上下文边界与旧会话兼容 切换PRODUCT_DISCOVERY后即使处理失败，旧目标也已中断；普通致谢不中断",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-advice-context.test.ts",
+      "name": "建议目标上下文边界与旧会话兼容 切换REFERENCE_QUERY后即使处理失败，旧目标也已中断；普通致谢不中断",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-advice-context.test.ts",
+      "name": "建议目标上下文边界与旧会话兼容 切换REFERENCE_REFINE后即使处理失败，旧目标也已中断；普通致谢不中断",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-advice-context.test.ts",
+      "name": "建议目标上下文边界与旧会话兼容 PDF请求仍能分类为报告，但建议不能代替其正式快照前提",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-advice.service.test.ts",
+      "name": "方案建议多轮事实门禁（模拟数据库，非线上UAT） 四基层查询→出方案→移除地区建筑范围，建议有四个基层分支和确认来源，业务表零写入",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-advice.service.test.ts",
+      "name": "方案建议多轮事实门禁（模拟数据库，非线上UAT） 同义咨询 帮我整理一个初步方案 使用有效候选",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-advice.service.test.ts",
+      "name": "方案建议多轮事实门禁（模拟数据库，非线上UAT） 同义咨询 按刚才的数据给建议 使用有效候选",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-advice.service.test.ts",
+      "name": "方案建议多轮事实门禁（模拟数据库，非线上UAT） 同义咨询 先不考虑地区，来个参考选型 使用有效候选",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-advice.service.test.ts",
+      "name": "方案建议多轮事实门禁（模拟数据库，非线上UAT） 同义咨询 不用生成报告，只给个大致方案 使用有效候选",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-advice.service.test.ts",
+      "name": "方案建议多轮事实门禁（模拟数据库，非线上UAT） 同义咨询 不需要合规结论，只做参考选型 使用有效候选",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-advice.service.test.ts",
+      "name": "方案建议多轮事实门禁（模拟数据库，非线上UAT） 同义咨询 无需合规结论，给个参考选型 使用有效候选",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-advice.service.test.ts",
+      "name": "方案建议多轮事实门禁（模拟数据库，非线上UAT） 方案目标继续：先不判断达标；历史助手追问地区可用作目标证据，不用作工程事实",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-advice.service.test.ts",
+      "name": "方案建议多轮事实门禁（模拟数据库，非线上UAT） 旧版GENERAL中的建议目标只能由单次语义合同恢复，且仍核验当前来源",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-advice.service.test.ts",
+      "name": "方案建议多轮事实门禁（模拟数据库，非线上UAT） 只读建议点名A3-3复用正式编码提取，前缀不影响同源optionId身份",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-advice.service.test.ts",
+      "name": "方案建议多轮事实门禁（模拟数据库，非线上UAT） 概念问答→请求方案，没有已知候选时仅给框架和必要范围，不编造参数",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-advice.service.test.ts",
+      "name": "方案建议多轮事实门禁（模拟数据库，非线上UAT） 产品话题切换后不得暗用旧候选，过期目标也不能从旧文本恢复",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-advice.service.test.ts",
+      "name": "方案建议多轮事实门禁（模拟数据库，非线上UAT） revision拒绝失效事实",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-advice.service.test.ts",
+      "name": "方案建议多轮事实门禁（模拟数据库，非线上UAT） project拒绝失效事实",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-advice.service.test.ts",
+      "name": "方案建议多轮事实门禁（模拟数据库，非线上UAT） conversation拒绝失效事实",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-advice.service.test.ts",
+      "name": "方案建议多轮事实门禁（模拟数据库，非线上UAT） expiredContext拒绝失效事实",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-advice.service.test.ts",
+      "name": "方案建议多轮事实门禁（模拟数据库，非线上UAT） expiredCandidates拒绝失效事实",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-advice.service.test.ts",
+      "name": "方案建议多轮事实门禁（模拟数据库，非线上UAT） futureCandidates拒绝失效事实",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-advice.service.test.ts",
+      "name": "方案建议多轮事实门禁（模拟数据库，非线上UAT） invalidCandidates拒绝失效事实",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-advice.service.test.ts",
+      "name": "方案建议多轮事实门禁（模拟数据库，非线上UAT） withdrawnSource拒绝失效事实",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-advice.service.test.ts",
+      "name": "方案建议多轮事实门禁（模拟数据库，非线上UAT） changedOption拒绝失效事实",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-advice.service.test.ts",
+      "name": "方案建议多轮事实门禁（模拟数据库，非线上UAT） 用户/客户端无权限时沿用来源Resolver归属拒绝",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-advice.service.test.ts",
+      "name": "方案建议多轮事实门禁（模拟数据库，非线上UAT） 既有地区/建筑字段只从建议校验视图移除，正式QueryState不改变",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-advice.service.test.ts",
+      "name": "方案建议多轮事实门禁（模拟数据库，非线上UAT） 同厚度的建议复用已展示事实；本轮明确改厚度交给Refine，不用旧45mm冒充40mm方案",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-advice.service.test.ts",
+      "name": "方案建议多轮事实门禁（模拟数据库，非线上UAT） 正式加入继续经过动作Grounding，建议不能触发SELECT/Final/Confirm",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-advice.service.test.ts",
+      "name": "方案建议多轮事实门禁（模拟数据库，非线上UAT） 正式报告缺Confirmed Snapshot仍拒绝；上海住宅合规仍独立且无标准不声称达标",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-advice.service.test.ts",
+      "name": "方案建议多轮事实门禁（模拟数据库，非线上UAT） 分类low对咨询安全降级；正式动作不可借低置信变更",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-advice.service.test.ts",
+      "name": "方案建议多轮事实门禁（模拟数据库，非线上UAT） 分类timeout对咨询安全降级；正式动作不可借低置信变更",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-advice.service.test.ts",
+      "name": "方案建议多轮事实门禁（模拟数据库，非线上UAT） 分类parse对咨询安全降级；正式动作不可借低置信变更",
+      "status": "passed"
+    },
+    {
+      "file": "src/modules/ai/solution-advice.service.test.ts",
+      "name": "方案建议多轮事实门禁（模拟数据库，非线上UAT） 真实Fastify inject/SSE协议两轮建议，四个optionId对应页5/6，正文不会暴露内部引用",
+      "status": "passed"
+    }
+  ]
+}

@@ -6,7 +6,6 @@ import { getAiTaskRuntimePolicy, languageModelSamplingOptions } from "../ai-conf
 import { writeAuditLog } from "../audit-logs/audit-log.service.js";
 import type { ToolRuntimeContext } from "./tools/tool-runtime.js";
 import type { SolutionPayload } from "./solution-workflow.js";
-import { parseSemanticFastPath } from "../thermal/semantic-query.js";
 import { parsedSolutionActionSchema, parseSolutionActionFastPath, groundSolutionAction, isSolutionAcknowledgement, type SolutionSelectionIntent } from "./solution-action-semantic.js";
 
 export const SOLUTION_ACTION_SEMANTIC_PROMPT = [
@@ -24,9 +23,10 @@ export const SOLUTION_ACTION_SEMANTIC_PROMPT = [
 type Context = Pick<ToolRuntimeContext, "app" | "request" | "user" | "conversation"> & { abortSignal?: AbortSignal; domainDecision?: DomainTurnDecision };
 /** 复用热工语义分类的模型准入/场景解析/预算，不新增模型配置或业务mutation。 */
 export async function parseSolutionAction(ctx: Context, message: string, state: SolutionPayload): Promise<SolutionSelectionIntent | null> {
+  if (ctx.domainDecision && ctx.domainDecision.intent !== "SOLUTION_ACTION") return null;
   const fast = parseSolutionActionFastPath(message);
   // 无候选上下文时交还普通问答；lastReferenceLookup的候选会通过Grounding视图继续支持首次选择。
-  if (fast || isSolutionAcknowledgement(message) || !state.candidates.length || parseSemanticFastPath(message)) return fast;
+  if (fast || isSolutionAcknowledgement(message) || !state.candidates.length) return fast;
   if ((ctx.domainDecision ?? decideDomainTurn(message, { query: {}, candidates: [] })).intent !== "SOLUTION_ACTION") return null;
   const revision = state.candidateSetRevision;
   try {

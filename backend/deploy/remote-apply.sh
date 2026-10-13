@@ -141,6 +141,9 @@ find_pg_dump() {
   return 1
 }
 
+if [[ "${DEPLOY_SKIP_DATABASE:-0}" == "1" ]]; then
+  info "纯代码发布：跳过数据库备份、迁移和 seed。"
+else
 BACKUP_DB="${DEPLOY_BACKUP_DB:-1}"
 if [[ "$BACKUP_DB" == "1" ]]; then
   mkdir -p logs/db-backups
@@ -179,6 +182,7 @@ if [[ "${DEPLOY_RUN_SEED:-}" == "1" || ! -f .deploy-seeded ]]; then
   fi
 else
   info "跳过 seed（已执行过）。需要补权限种子时设置 DEPLOY_RUN_SEED=1"
+fi
 fi
 
 if pm2 describe dist >/dev/null 2>&1; then

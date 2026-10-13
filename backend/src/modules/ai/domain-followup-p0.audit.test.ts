@@ -1,3 +1,4 @@
+import { domainDecision } from "./ai-domain-turn-decision.js";
 import "dotenv/config";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -36,7 +37,7 @@ describe("P0静态审计：动作故障不得拦截非动作（没有真实模�
   });
   it("真实选择在模型故障时只澄清，不猜测选择", async () => {
     const state = payload(), frozen = structuredClone(state);
-    expect(await parseSolutionAction(ctx, "第一个留下", state)).toMatchObject({ parserSource: "UNAVAILABLE", clarification: expect.any(String) });
+    expect(await parseSolutionAction({ ...ctx, domainDecision: domainDecision("SOLUTION_ACTION", "第一个留下") }, "第一个留下", state)).toMatchObject({ parserSource: "UNAVAILABLE", clarification: expect.any(String) });
     expect(state).toEqual(frozen);
   });
 });

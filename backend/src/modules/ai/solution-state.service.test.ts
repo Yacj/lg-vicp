@@ -1,3 +1,4 @@
+import { domainDecision } from "./ai-domain-turn-decision.js";
 import "dotenv/config";
 import { randomUUID } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -98,7 +99,17 @@ beforeEach(() => {
 
 describe("Candidate Result → 用户动作 → 懒激活生命周期", () => {
   const c = { ...a, id: "candidate-c", candidateId: "candidate-c", thermalReferenceRowId: "candidate-c" };
-  function resultContext() { return { ...ctx, taskState: { taskType: "GENERAL" as const }, userMessage: "薄抹灰K0.3有么？", onEvent: vi.fn() }; }
+  function resultContext() { return { ...ctx, domainDecision: domainDecision("REFERENCE_QUERY", "薄抹灰K0.3有么？"), taskState: { taskType: "GENERAL" as const }, userMessage: "薄抹灰K0.3有么？", onEvent: vi.fn() }; }
+  it.each([false, true])("建议新条件候选查询：editable=%s也不修改正式状态；空结果不能复用旧列表", async editable => {
+    if (editable) await startSolution(ctx);
+    const before = structuredClone(db.rows(solutionStates));
+    const context = { ...resultContext(), candidatePublication: "READ_ONLY_ADVICE" as const };
+    await publishCandidateResult(context, { query: { thicknessMm: 45 }, candidates: [a, b], createdAt: new Date().toISOString() });
+    const refreshed = await publishCandidateResult(context, { query: { thicknessMm: 40 }, candidates: [], createdAt: new Date().toISOString() });
+    expect(refreshed.lookup).toMatchObject({ candidateQueryRevision: 2, query: { thicknessMm: 40 }, candidates: [] });
+    expect(db.rows(solutionStates)).toEqual(before); expect(db.rows(solutionSnapshots)).toEqual([]);
+    expect(context.onEvent.mock.calls.some(([event]) => event === "solution_state")).toBe(false);
+  });
   async function lookup(context = resultContext()) {
     mocks.pages.mockResolvedValue({ candidates: [a, b, c], sources: [], blocks: [], warnings: [] });
     mocks.query.mockResolvedValue({ candidates: [a, b, c].map(snapshot => ({ candidateId: snapshot.id, snapshot })) });
@@ -131,6 +142,7 @@ describe("Candidate Result → 用户动作 → 懒激活生命周期", () => {
   it("矩阵S2：查表→20mm细化→1和3比较→明确选用→就这样，全链状态及revision隔离", async () => {
     const context = { ...resultContext(), taskState: { taskType: "GENERAL" as const } as ConversationTaskState };
     context.userMessage = "外墙K≤0.3，优先做薄一点，给我几套做法";
+    (context as any).domainDecision = domainDecision("REFERENCE_QUERY", context.userMessage);
     const candidates = [a, b, c];
     mocks.query.mockResolvedValue({ candidates: candidates.map(snapshot => ({ candidateId: snapshot.id, snapshot })) });
     mocks.pages.mockResolvedValue({ candidates, sources: [], blocks: [], warnings: [] });
@@ -140,6 +152,7 @@ describe("Candidate Result → 用户动作 → 懒激活生命周期", () => {
     expect(await loadActiveSolution(ctx)).toBeNull();
     expect(context.taskState.lastReferenceLookup?.candidateQueryRevision).toBe(1);
     context.userMessage = "只要20mm以内";
+    (context as any).domainDecision = domainDecision("REFERENCE_REFINE", context.userMessage);
     mocks.semantic.mockResolvedValue({ query: { ...query, thicknessMax: 20 }, lifecycle: "REFINE_QUERY", needsClarification: false });
     await resolveReferenceQueryWithoutAgent(context as any);
     expect(context.taskState.lastReferenceLookup?.candidateQueryRevision).toBe(2);
@@ -147,6 +160,7 @@ describe("Candidate Result → 用户动作 → 懒激活生命周期", () => {
     expect(await loadActiveSolution(ctx)).toBeNull();
     const frozen = structuredClone(context.taskState), queries = mocks.query.mock.calls.length;
     context.userMessage = "第一个和第三个有什么区别";
+    (context as any).domainDecision = domainDecision("COMPARE_CANDIDATES", context.userMessage);
     const compared = await resolveReferenceQueryWithoutAgent(context as any);
     expect(compared.facts.candidates.map(candidate => candidate.id)).toEqual([a.id, c.id]);
     expect(context.taskState).toEqual(frozen); expect(mocks.query).toHaveBeenCalledTimes(queries);
@@ -274,7 +288,7 @@ describe("Candidate Result → 用户动作 → 懒激活生命周期", () => {
     db.rows(insulationSystems).push({ id: a.systemId, name: a.systemName });
     mocks.calc.mockResolvedValue({ valid: true, record: { id: calcId, result: { kValue: .2 }, steps: [] }, notes: [], errors: [] });
     context.onEvent.mockClear();
-    await createThermalTool({ ...context, userMessage: "再算第一个方案55mm的K", answerContract: "THERMAL" } as any).execute!(
+    await createThermalTool({ ...context, domainDecision: domainDecision("THERMAL_CALCULATE", "再算第一个方案55mm的K"), userMessage: "再算第一个方案55mm的K", answerContract: "THERMAL" } as any).execute!(
       thermalInput.parse({ operation: "CALCULATE", mode: "EQUIVALENT", schemeId: a.schemeId, productSpecId: a.productSpecId, thicknessMm: 55 }), { toolCallId: "calc", messages: [] });
     const active = await loadActiveSolution(ctx);
     if (editable) { expect(active?.payload.poolCandidateIds).toContain(calcId); expect(active?.payload.selectedCandidateIds).toEqual([a.id]); }
@@ -383,12 +397,12 @@ describe("SolutionState 服务事务/权限/并发", () => {
     mocks.pages.mockImplementation(async (_ctx: unknown, rows: unknown[]) => ({ candidates: rows, sources: [], warnings: [] }));
     mocks.semantic.mockResolvedValue({ query, needsClarification: false, lifecycle: "REFINE_QUERY" });
     await startSolution(ctx);
-    const chatContext = { ...ctx, taskState: { taskType: "GENERAL" }, userMessage: "刷新方案" } as any;
+    const chatContext = { ...ctx, taskState: { taskType: "GENERAL" }, domainDecision: domainDecision("REFERENCE_REFINE", "刷新方案"), userMessage: "刷新方案" } as any;
     const chat = await resolveReferenceQueryWithoutAgent(chatContext);
     let state = await loadActiveSolution(ctx);
     const rest = await querySolution(ctx, query, state!.version);
     const refreshed = await querySolution(ctx, query, rest.version);
-    const agentContext = { ...ctx, user: { id: ctx.user.id }, taskState: { taskType: "GENERAL" }, userMessage: "刷新方案" } as any;
+    const agentContext = { ...ctx, user: { id: ctx.user.id }, taskState: { taskType: "GENERAL" }, domainDecision: domainDecision("REFERENCE_REFINE", "刷新方案"), userMessage: "刷新方案" } as any;
     const tool = createThermalTool(agentContext);
     const agent: any = await tool.execute!(thermalInput.parse({ operation: "LOOKUP_CANDIDATES" }), { toolCallId: "policy", messages: [] });
     const shared = await querySolutionCandidates(ctx, query);

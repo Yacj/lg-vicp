@@ -1,3 +1,4 @@
+import { domainDecision } from "../ai-domain-turn-decision.js";
 import "dotenv/config";
 import { buildKnowledgePageRenderModel } from "../../../shared/knowledge-page-render.js";
 import { emptySolution, refreshSolution, referenceSolutionCandidate } from "../solution-workflow.js";
@@ -41,9 +42,11 @@ function context(last: LastReferenceLookup, message = "重新算一下") {
 }
 const snapshot = (candidates = [a]): LastReferenceLookup => ({ query: { systemId: "sys-A", metric: "K", targetValue: 0.3, mode: "MAX_LIMIT" }, candidates, candidateQueryRevision: 1, projectId: null, createdAt: new Date().toISOString() });
 async function calculate(ctx: ToolRuntimeContext, input: Record<string, unknown> = {}) {
+  ctx.domainDecision ??= domainDecision("THERMAL_CALCULATE", ctx.userMessage ?? "");
   return await createThermalTool(ctx).execute!(thermalInput.parse({ operation: "CALCULATE", mode: "EQUIVALENT", ...input }), { toolCallId: "calc", messages: [] }) as any;
 }
 async function compare(ctx: ToolRuntimeContext, input: Record<string, unknown>) {
+  ctx.domainDecision ??= domainDecision("COMPARE_CANDIDATES", ctx.userMessage ?? "");
   return await createCompareSolutionsTool(ctx).execute!(compareSolutionsInput.parse(input), { toolCallId: "compare", messages: [] }) as any;
 }
 beforeEach(() => {
@@ -85,6 +88,7 @@ describe("Intent 切换、计算继承与已选候选约束", () => {
   });
   it("合规咨询不授权新计算，不改变查询条件或选择标准", async () => {
     const ctx = context(snapshot(), "按地区甲判断是否达标");
+    ctx.domainDecision = domainDecision("COMPLIANCE_CHECK", ctx.userMessage!);
     const frozen = structuredClone(ctx.taskState);
     expect((await calculate(ctx, { regionCode: "region-A" })).code).toBe("THERMAL_USER_AUTHORIZATION_REQUIRED");
     expect(ctx.taskState).toEqual(frozen); expect(mocks.calc).not.toHaveBeenCalled();

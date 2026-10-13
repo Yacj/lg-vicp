@@ -421,8 +421,8 @@ function openMessageSource(message: LocalMessage, source: AiSourceRef) {
 }
 
 .ai-message__user {
-  color: var(--app-text-inverse);
-  background: var(--app-action-primary);
+  color: var(--app-text-primary);
+  background: var(--app-action-primary-soft);
   border-bottom-right-radius: 8rpx;
 }
 
@@ -442,7 +442,11 @@ function openMessageSource(message: LocalMessage, source: AiSourceRef) {
 .ai-message__answer {
   width: 100%;
   min-width: 0;
+  box-sizing: border-box;
+  padding: var(--app-space-2);
+  border-radius: var(--app-radius-sm);
   color: var(--app-text-secondary);
+  background: var(--app-bg-canvas);
 }
 
 .ai-action {

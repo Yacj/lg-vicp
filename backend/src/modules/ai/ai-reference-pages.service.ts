@@ -14,6 +14,7 @@ import { visiblePageLabel } from "../../shared/page-label.js";
 import { readableRenderModel } from "../../shared/readable-page-render.js";
 import { compactCandidateResult } from "./tools/thermal-lookup.js";
 import { referenceSolutionCandidate, type SolutionCandidateSnapshot } from "./solution-workflow.js";
+import { confirmedReferenceQuery } from "./structured-reference-query.js";
 
 export async function readConsumableReferencePages(app: FastifyInstance, pageIds: readonly string[], projectId: string | null) {
   if (!pageIds.length) return [];
@@ -48,8 +49,8 @@ export async function toReferencePageBlock(app: FastifyInstance, { page, documen
 export async function loadPublishedKnowledgeReferences(app: FastifyInstance, hits: readonly WikiHit[], projectId: string | null, message: string, lookup?: ReturnType<typeof normalizeConversationLookupQuery>["query"]): Promise<KnowledgeTestReferenceContext & { solutionCandidates?: SolutionCandidateSnapshot[] }> {
   const versionIds = [...new Set(hits.map(hit => hit.versionId))];
   if (!versionIds.length) return { context: "", pages: [] };
-  const normalized = lookup ? { query: lookup, needsClarification: false } : normalizeConversationLookupQuery({}, message);
-  const numeric = !normalized.needsClarification && (normalized.query.filters?.length ?? 0) > 0;
+  const normalized = confirmedReferenceQuery(message, lookup);
+  const numeric = normalized.authoritative;
   const sourceIds = [...new Set(hits.map(hit => hit.pageId).filter((id): id is string => Boolean(id)))];
   const rows = await app.db.select({ id: knowledgePages.id }).from(knowledgePages)
     .where(and(inArray(knowledgePages.versionId, versionIds), numeric ? undefined : inArray(knowledgePages.id, sourceIds)));
@@ -58,15 +59,16 @@ export async function loadPublishedKnowledgeReferences(app: FastifyInstance, hit
     const data = readPageRecognitionMeta(page.metadata).confirmedStructuredData;
     return data ? [{ page, data, model: buildKnowledgePageRenderModel(page.id, data)!, systemId: document.insulationSystemId }] : [];
   });
-  if (!snapshots.length) return { context: "", pages: [] };
-  const matched = numeric ? matchConfirmedPageOptions(snapshots, message, normalized.query) : undefined;
+  if (!snapshots.length && !numeric) return { context: "", pages: [] };
+  const matchingDiagnostics = { excludedMissingCoreFields: 0, excludedMissingBaseMaterial: 0 };
+  const matched = numeric ? matchConfirmedPageOptions(snapshots, message, normalized.query, normalized.structured, matchingDiagnostics) : undefined;
   const ids = matched ? [...new Set(matched.map(candidate => candidate.sourcePageId!))].slice(0, REFERENCE_PAGE_LIMIT) : sourceIds.slice(0, REFERENCE_PAGE_LIMIT);
   const pages = await Promise.all(ids.flatMap(id => {
     const row = readable.find(item => item.page.id === id);
     return row ? [toReferencePageBlock(app, row)] : [];
   }));
-  if (numeric) pages.forEach(page => { page.answerStyle = "THERMAL_SOLUTIONS"; page.primaryFieldKeys = thermalLookupPrimaryFields(normalized.query.filters); });
-  const selectedIds = matched?.filter(candidate => ids.includes(candidate.sourcePageId!)).map(candidate => candidate.candidateId);
+  if (numeric) pages.forEach(page => { page.answerStyle = "THERMAL_SOLUTIONS"; page.primaryFieldKeys = thermalLookupPrimaryFields(normalized.query.filters, normalized.structured?.compareMetric); });
+  const selectedIds = matched?.filter(candidate => ids.includes(candidate.sourcePageId!)).map(candidate => candidate.candidateId).slice(0, normalized.structured ? 12 : 3);
   const budget = budgetKnowledgeTestReferences(pages, selectedIds, env.AI_CONTEXT_BUCKET_KNOWLEDGE_TOKENS);
   const solutionCandidates = matched?.filter(candidate => budget.citationOptionIds.includes(candidate.candidateId)).map(candidate => {
     const page = readable.find(({ page }) => page.id === candidate.sourcePageId)!.page;
@@ -74,9 +76,12 @@ export async function loadPublishedKnowledgeReferences(app: FastifyInstance, hit
       thermalReferenceRowId: undefined, optionId: candidate.candidateId, sourceDocumentId: page.documentId, sourceVersionId: page.versionId,
       sourcePageLabel: visiblePageLabel(page) };
   });
-  return { pages, ...budget, authoritative: numeric, solutionCandidates,
+  const totalMatched = matched?.length ?? 0;
+  const totalGroups = new Set(matched?.map(candidate => candidate.scheme.substrateMaterial)).size;
+  return { pages, ...budget, authoritative: numeric, solutionCandidates, totalMatched, totalGroups, matchingDiagnostics, query: normalized.query,
     ...(numeric ? { answer: formatConfirmedLookupAnswer(pages, budget.citationOptionIds, normalized.query.filters ?? [],
-      { scopeLabel: "本次参考资料中", emptyHint: "可以调整厚度或目标值再查询。", compact: true }) } : {}) };
+      { scopeLabel: "本次参考资料中", emptyHint: "当前没有可核验的完整确认档位，可以调整厚度、构造或资料范围再查询。", compact: true,
+        totalMatched, totalGroups, structured: normalized.structured }) } : {}) };
 }
 
 /** 元数据仅取正式标识，数值与表格重读当前确认快照；旧快照 ID 失效就省略引用。 */

@@ -1,12 +1,14 @@
 import "dotenv/config";
 import { describe, expect, it } from "vitest";
-import { decideDomainTurn } from "./ai-domain-turn-decision.js";
+import { domainDecision } from "./ai-domain-turn-decision.js";
 import { parseSolutionAction } from "./solution-action-semantic.service.js";
 import { emptySolution, refreshSolution, referenceSolutionCandidate } from "./solution-workflow.js";
 import { referenceReadFixture } from "./reference-read.fixture.js";
 import { resolveVisibleCandidateIds } from "./reference-candidate-selection.js";
 
 // 32条首轮设计题：GENERAL+semantic表示委托模型，不能据此宣称真实语义分类/业务成功。
+import { applyDomainPolicy } from "./ai-domain-policy.js";
+import { domainSemanticFixture } from "./domain-semantic.fixture.js";
 const cases = [
   { id: "P01", message: "你们主要有哪些保温板？", allowed: ["PRODUCT_DISCOVERY"], semantic: false },
   { id: "P02", message: "VICP板的 I 型、II 型、III 型有什么区别？", allowed: ["PRODUCT_DETAIL", "KNOWLEDGE_EXPLAIN"], semantic: true },
@@ -43,9 +45,9 @@ const cases = [
 ];
 const last = { query: { filters: [{ metric: "K" as const, targetValue: .3, mode: "APPROX" as const }] },
   candidates: referenceReadFixture().candidates };
-describe("高频矩阵A：确定性路由合同，不是远程模型验收", () => {
+describe("高频矩阵A：受控语义提案合同，不是远程模型验收", () => {
   it.each(cases)("$id $message", ({ allowed, message, semantic }) => {
-    const decision = decideDomainTurn(message, undefined);
+    const decision = applyDomainPolicy(message, domainSemanticFixture(message, allowed[0] as any));
     expect(allowed.includes(decision.intent) || semantic && decision.intent === "GENERAL").toBe(true);
   });
 });
@@ -63,7 +65,7 @@ describe("高频矩阵B：有候选时的读取与解释边界", () => {
     ["S5.2", "K值小就一定省钱吗", "KNOWLEDGE_EXPLAIN"],
     ["S5.3", "施工时怎么处理热桥", "KNOWLEDGE_EXPLAIN"],
     ["S5.4", "刚才第三个的完整热工表给我看看", "REFERENCE_VIEW"]
-  ])("%s %s", (_id, message, intent) => expect(decideDomainTurn(message!, last).intent).toBe(intent));
+  ])("%s %s", (_id, message, intent) => expect(applyDomainPolicy(message!, domainSemanticFixture(message!, intent as any)).intent).toBe(intent));
   it("S2.5就这样不允许Confirm，已有状态保持不变", async () => {
     const payload = refreshSolution(emptySolution(), {}, referenceReadFixture().candidates.map(referenceSolutionCandidate));
     const frozen = structuredClone(payload);

@@ -22,6 +22,8 @@ const BACKEND_ROOT = path.resolve(__dirname, "..");
 const DEPLOY_ENV_PATH = path.join(__dirname, ".env.deploy");
 const ENV_PATH = path.join(BACKEND_ROOT, ".env");
 const isWin = process.platform === "win32";
+// 纯代码修复发布：显式跳过数据库备份、迁移与seed，默认部署行为不变。
+const skipDatabase = process.argv.includes("--skip-db");
 
 const fail = (msg) => {
   console.error(`[失败] ${msg}`);
@@ -172,7 +174,7 @@ const applyCmd = [
   `tar -xzf ${bashQuote(remoteTar)} -C ${quotedDir}`,
   `sed -i 's/\\r$//' ${quotedDir}/deploy/remote-apply.sh`,
   `cd ${quotedDir}`,
-  "bash deploy/remote-apply.sh"
+  `${skipDatabase ? "DEPLOY_SKIP_DATABASE=1 " : ""}bash deploy/remote-apply.sh`
 ].join("\n");
 
 let conn;
@@ -182,7 +184,7 @@ try {
   info("上传发布包...");
   await execRemote(conn, "mkdir -p /tmp");
   await uploadFile(conn, archivePath, remoteTar);
-  info("服务器解压并落地（保留 .env，先迁移再重载 PM2）...");
+  info(skipDatabase ? "服务器解压并落地（保留 .env，跳过数据库步骤后重载 PM2）..." : "服务器解压并落地（保留 .env，先迁移再重载 PM2）...");
   const result = await execRemote(conn, `bash -lc ${bashQuote(applyCmd)}`);
   if (result.code === 10) {
     console.warn("\n[警告] 服务器已生成 .env 模板，请先登录填写 DATABASE_URL 等后再执行 pnpm deploy。");

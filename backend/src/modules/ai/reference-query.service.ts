@@ -26,6 +26,10 @@ export async function resolveReferenceQueryWithoutAgent(ctx: ReferenceReadContex
       ?? "请确认适用的地区标准和建筑类型后判断是否达标。" }] }, []);
     return { facts, sources: [], referencePages: [], needsClarification: true };
   }
+  if (decision.mutation !== "QUERY") {
+    const facts = buildAllowedAnswerFacts({ unresolved: [{ field: "intent", reason: "本轮没有已核验的查表目标，请明确要读取的体系、档位或参数。" }] }, []);
+    return { facts, sources: [], referencePages: [], needsClarification: true };
+  }
   const dictionary = await loadThermalQueryDictionary(ctx.app.db);
   const resolution = await parseSemanticQuery(ctx, { systemId: ctx.conversation.insulationSystemId ?? undefined }, dictionary);
   let query: ThermalQueryState = { ...resolution.query, intent: "REFERENCE_LOOKUP" as const };

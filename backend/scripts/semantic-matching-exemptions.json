@@ -1,0 +1,354 @@
+{
+  "version": 1,
+  "note": "仅已审计白名单，不允许OPEN_INTENT。新增灰区须owner审查六项证据，代理更新manifest不代表批准。",
+  "rules": [
+    {
+      "file": "src/modules/ai/ai-capability-router.ts",
+      "fingerprint": "52f466b1678d2700085001e71900a78a226044ad33bb787d6b41276460a9af5d",
+      "ruleId": "SM-ENUM-01",
+      "category": "ENUM_MEMBERSHIP",
+      "reason": "只比较正式Domain/字段/Tool枚举，不读取自然语言词形。",
+      "code": "(AGENT_TOOL_NAMES as readonly string[]).includes(mapped)",
+      "tests": [
+        "src/modules/ai/domain-semantic-regression.test.ts",
+        "scripts/check-semantic-matching.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/ai-capability-router.ts",
+      "fingerprint": "e8ea9e91c62ec4788665de31fc20f4ab694002ee6bebb30d1bf33fc7c68b67c2",
+      "ruleId": "SM-ID-01",
+      "category": "FACT_VALIDATION",
+      "reason": "正式ID或Tool集合成员检查，输入不是用户自然语言。",
+      "code": "selected.has(name)",
+      "tests": [
+        "src/modules/ai/domain-semantic-regression.test.ts",
+        "scripts/check-semantic-matching.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/ai-capability-router.ts",
+      "fingerprint": "dbf8ac9c2a409649911d4abd748dc95b7bd5dd919b143311c7073967fb7a28d0",
+      "ruleId": "SM-ENUM-01",
+      "category": "ENUM_MEMBERSHIP",
+      "reason": "只比较正式Domain/字段/Tool枚举，不读取自然语言词形。",
+      "code": "references.has(intent)",
+      "tests": [
+        "src/modules/ai/domain-semantic-regression.test.ts",
+        "scripts/check-semantic-matching.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/ai-capability-router.ts",
+      "fingerprint": "dbf8ac9c2a409649911d4abd748dc95b7bd5dd919b143311c7073967fb7a28d0",
+      "ruleId": "SM-ENUM-01",
+      "category": "ENUM_MEMBERSHIP",
+      "reason": "只比较正式Domain/字段/Tool枚举，不读取自然语言词形。",
+      "code": "references.has(intent)",
+      "tests": [
+        "src/modules/ai/domain-semantic-regression.test.ts",
+        "scripts/check-semantic-matching.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/ai-capability-router.ts",
+      "fingerprint": "95fb5bcc8846eaf4f29b76424bdd1436dcda17c479dcb8f07b0ed83b0f311bf4",
+      "ruleId": "SM-ENUM-01",
+      "category": "ENUM_MEMBERSHIP",
+      "reason": "只比较正式Domain/字段/Tool枚举，不读取自然语言词形。",
+      "code": "products.has(intent)",
+      "tests": [
+        "src/modules/ai/domain-semantic-regression.test.ts",
+        "scripts/check-semantic-matching.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/ai-domain-policy.ts",
+      "fingerprint": "404702df1e565172f471e5b2d39de4c2bd61e5bbe35bae6fb64327517f4cad3f",
+      "ruleId": "SM-EVIDENCE-01",
+      "category": "EVIDENCE",
+      "reason": "本轮原话连续证据验证，不是词法分类。",
+      "code": "message.includes(evidence)",
+      "tests": [
+        "src/modules/ai/domain-semantic-regression.test.ts",
+        "scripts/check-semantic-matching.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/ai-domain-turn-decision.ts",
+      "fingerprint": "010e7028c3a4c00551a6d7f49cdcbb8d5729fd2bff848c148fa20e8d71305e01",
+      "ruleId": "SM-GREETING-01",
+      "category": "CLOSED_GREETING",
+      "reason": "封闭整句问候/致谢集合；未命中交现有语义模型，不授予副作用。",
+      "code": "greetings.has(normalizeSolutionActionText(message).toLowerCase())",
+      "tests": [
+        "src/modules/ai/domain-semantic-regression.test.ts",
+        "scripts/check-semantic-matching.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.service.ts",
+      "fingerprint": "5f05bdc14f946ef5cef2aa62954b94a161452299db013af6feeff283baa6f0c5",
+      "ruleId": "SM-ID-01",
+      "category": "FACT_VALIDATION",
+      "reason": "正式ID或Tool集合成员检查，输入不是用户自然语言。",
+      "code": "state.selectedCandidateIds.includes(id)",
+      "tests": [
+        "src/modules/ai/domain-semantic-regression.test.ts",
+        "scripts/check-semantic-matching.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.service.ts",
+      "fingerprint": "7fc7ce201dbc0c4c75e23c11a16790f38dd2351380d8de735bebd8b41bda7691",
+      "ruleId": "SM-ID-01",
+      "category": "FACT_VALIDATION",
+      "reason": "正式ID或Tool集合成员检查，输入不是用户自然语言。",
+      "code": "state.selectedCandidateIds.includes(item.candidate.candidateId)",
+      "tests": [
+        "src/modules/ai/domain-semantic-regression.test.ts",
+        "scripts/check-semantic-matching.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.ts",
+      "fingerprint": "330c8a194da6f55ef170563cebe5ba9c4904a3daa4edf86dfda21d2249c2472d",
+      "ruleId": "SM-FORMAT-01",
+      "category": "FORMAT",
+      "reason": "既有NFKC后无损首尾/末尾标点/编码空白归一，不删除否定或实体。",
+      "code": "text.normalize(\"NFKC\").trim().replace(/[。！!？?\\s]+$/u, \"\")",
+      "tests": [
+        "src/modules/ai/solution-action-semantic.test.ts",
+        "src/modules/ai/domain-semantic-regression.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.ts",
+      "fingerprint": "7d0bda26c6bb771891179413707967222ef48465a4acdcb0749839b944de1ee0",
+      "ruleId": "SM-FORMAT-01",
+      "category": "FORMAT",
+      "reason": "既有NFKC后无损首尾/末尾标点/编码空白归一，不删除否定或实体。",
+      "code": "/[。！!？?\\s]+$/u",
+      "tests": [
+        "src/modules/ai/solution-action-semantic.test.ts",
+        "src/modules/ai/domain-semantic-regression.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.ts",
+      "fingerprint": "ad5125313ae035d581a707e5c6d72e1902502737b3651de89bf7cc245b772bfd",
+      "ruleId": "SM-CLOSED-01",
+      "category": "CLOSED_COMMAND",
+      "reason": "既有完整命令集合，整句规范化后相等，复合/否定/引用不能匹配；仍经状态与权限。",
+      "code": "acknowledgementCommands.has(normalizeSolutionActionText(text))",
+      "tests": [
+        "src/modules/ai/solution-action-semantic.test.ts",
+        "src/modules/ai/domain-semantic-regression.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.ts",
+      "fingerprint": "c25bbeb3c37f994992d44cc0cd67de4fd4064e2d43ac7fc5064496cc0acb95cc",
+      "ruleId": "SM-CLOSED-01",
+      "category": "CLOSED_COMMAND",
+      "reason": "既有完整命令集合，整句规范化后相等，复合/否定/引用不能匹配；仍经状态与权限。",
+      "code": "confirmationCommands.has(text)",
+      "tests": [
+        "src/modules/ai/solution-action-semantic.test.ts",
+        "src/modules/ai/domain-semantic-regression.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.ts",
+      "fingerprint": "2eb18c6441196872a2f73249126d5e0cd94fd27536dd27fe328fa52978aea424",
+      "ruleId": "SM-CLOSED-01",
+      "category": "CLOSED_COMMAND",
+      "reason": "既有完整命令集合，整句规范化后相等，复合/否定/引用不能匹配；仍经状态与权限。",
+      "code": "new Set([\"重新选一套\", \"重新开始\", \"新方案\", \"重新做一套方案\", \"开始智配\", \"开始做方案\", \"帮我按这些条件选方案\"]).has(text)",
+      "tests": [
+        "src/modules/ai/solution-action-semantic.test.ts",
+        "src/modules/ai/domain-semantic-regression.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.ts",
+      "fingerprint": "4e784c0ff1fd913cecc573b65bc15ba5dbf24ec64cc8b7fea56514cc5401be4b",
+      "ruleId": "SM-CLOSED-01",
+      "category": "CLOSED_COMMAND",
+      "reason": "既有完整命令集合，整句规范化后相等，复合/否定/引用不能匹配；仍经状态与权限。",
+      "code": "new Set([\"我又想改成另一个\", \"继续调整\"]).has(text)",
+      "tests": [
+        "src/modules/ai/solution-action-semantic.test.ts",
+        "src/modules/ai/domain-semantic-regression.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.ts",
+      "fingerprint": "29d9b0dc10382362b5b3b4291ac1cd166ec0fade2236202714120724568e0ff3",
+      "ruleId": "SM-NUMBER-01",
+      "category": "ENGINEERING_EXTRACTION",
+      "reason": "仅验证引用序号/毫米数值来自原话，不分类动作。",
+      "code": "text.normalize(\"NFKC\").match(/\\d+(?:\\.\\d+)?|[一二两三四五六七八九十]+/g)",
+      "tests": [
+        "src/modules/ai/solution-action-semantic.test.ts",
+        "src/modules/ai/domain-semantic-regression.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.ts",
+      "fingerprint": "3ae1e11e4132d1a5e5cb8031f5b766367d5f993b716f8f637afd599314b06d4a",
+      "ruleId": "SM-NUMBER-01",
+      "category": "ENGINEERING_EXTRACTION",
+      "reason": "仅验证引用序号/毫米数值来自原话，不分类动作。",
+      "code": "/\\d+(?:\\.\\d+)?|[一二两三四五六七八九十]+/g",
+      "tests": [
+        "src/modules/ai/solution-action-semantic.test.ts",
+        "src/modules/ai/domain-semantic-regression.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.ts",
+      "fingerprint": "f89c5c021e929882ee1e347179b8a816c596995df77eb859536c4dd484e2503c",
+      "ruleId": "SM-FORMAT-01",
+      "category": "FORMAT",
+      "reason": "既有NFKC后无损首尾/末尾标点/编码空白归一，不删除否定或实体。",
+      "code": "text.normalize(\"NFKC\").replace(/\\s/g, \"\")",
+      "tests": [
+        "src/modules/ai/solution-action-semantic.test.ts",
+        "src/modules/ai/domain-semantic-regression.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.ts",
+      "fingerprint": "db5bec066aec56f0db37328f17bd7a89a23a72c59497ec2c2a1e6a2b14f28bdd",
+      "ruleId": "SM-FORMAT-01",
+      "category": "FORMAT",
+      "reason": "既有NFKC后无损首尾/末尾标点/编码空白归一，不删除否定或实体。",
+      "code": "/\\s/g",
+      "tests": [
+        "src/modules/ai/solution-action-semantic.test.ts",
+        "src/modules/ai/domain-semantic-regression.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.ts",
+      "fingerprint": "a2d9190d65382fcb3c4d74ac0abb910ed2c873409c4ead2b8627eb8d98fd800f",
+      "ruleId": "SM-EVIDENCE-01",
+      "category": "EVIDENCE",
+      "reason": "只验证原话连续片段/构造编码证据，禁止据此判断意图。",
+      "code": "message.normalize(\"NFKC\").includes(action.evidence.normalize(\"NFKC\"))",
+      "tests": [
+        "src/modules/ai/solution-action-semantic.test.ts",
+        "src/modules/ai/domain-semantic-regression.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.ts",
+      "fingerprint": "d9787f8a30f8cfb57f96c8749882887398e0acad3240bbf84c04357f7d2b3749",
+      "ruleId": "SM-ID-01",
+      "category": "FACT_VALIDATION",
+      "reason": "正式候选ID范围与去重/排除集合运算，不猜用户目标。",
+      "code": "scopeIds.includes(item.candidate.candidateId)",
+      "tests": [
+        "src/modules/ai/solution-action-semantic.test.ts",
+        "src/modules/ai/domain-semantic-regression.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.ts",
+      "fingerprint": "fc336ebe1be91dd1e47462921a0c9fd8824188ab54a49f514e82614e9ea361e7",
+      "ruleId": "SM-EVIDENCE-01",
+      "category": "EVIDENCE",
+      "reason": "只验证原话连续片段/构造编码证据，禁止据此判断意图。",
+      "code": "message.normalize(\"NFKC\").includes(ref.evidence.normalize(\"NFKC\"))",
+      "tests": [
+        "src/modules/ai/solution-action-semantic.test.ts",
+        "src/modules/ai/domain-semantic-regression.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.ts",
+      "fingerprint": "5a505d48bc6d05f01dc44e54bdd7406a07213fe27217faa85a090c3560ff29a3",
+      "ruleId": "SM-EVIDENCE-01",
+      "category": "EVIDENCE",
+      "reason": "只验证原话连续片段/构造编码证据，禁止据此判断意图。",
+      "code": "normalizeCode(ref.evidence).includes(normalizeCode(ref.value))",
+      "tests": [
+        "src/modules/ai/solution-action-semantic.test.ts",
+        "src/modules/ai/domain-semantic-regression.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.ts",
+      "fingerprint": "02224c51c879e94df20176c018859322dd0d85957c84b766503fa044a2e4efbc",
+      "ruleId": "SM-ID-01",
+      "category": "FACT_VALIDATION",
+      "reason": "正式候选ID范围与去重/排除集合运算，不猜用户目标。",
+      "code": "referenced.includes(id)",
+      "tests": [
+        "src/modules/ai/solution-action-semantic.test.ts",
+        "src/modules/ai/domain-semantic-regression.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/solution-advice-context.service.ts",
+      "fingerprint": "0ffcca9192e362f910f89955f4477b7096aa18d03d2c1e1d69a4595e07aee4c0",
+      "ruleId": "SM-ENUM-01",
+      "category": "ENUM_MEMBERSHIP",
+      "reason": "只比较正式Domain/字段/Tool枚举，不读取自然语言词形。",
+      "code": "(DOMAIN_INTENTS as readonly string[]).includes(intent)",
+      "tests": [
+        "src/modules/ai/domain-semantic-regression.test.ts",
+        "scripts/check-semantic-matching.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/solution-advice-context.service.ts",
+      "fingerprint": "6138e1db5b7ad1da87e044d91d996aaf3f2245ac27d3ed0db045e7e861443524",
+      "ruleId": "SM-ENUM-01",
+      "category": "ENUM_MEMBERSHIP",
+      "reason": "只比较正式Domain/字段/Tool枚举，不读取自然语言词形。",
+      "code": "[\"REFERENCE_QUERY\", \"REFERENCE_REFINE\", \"REFERENCE_VIEW\", \"REFERENCE_DETAIL\", \"COMPARE_CANDIDATES\", \"COMPLIANCE_CHECK\", \"SOLUTION_ADVICE\"].includes(latest.intent)",
+      "tests": [
+        "src/modules/ai/domain-semantic-regression.test.ts",
+        "scripts/check-semantic-matching.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/solution-advice-context.ts",
+      "fingerprint": "f5386101b7f4fab1ba8bde5a8feabe435ee974a3c0ffeeda8e368c823727d8e3",
+      "ruleId": "SM-ENUM-01",
+      "category": "ENUM_MEMBERSHIP",
+      "reason": "只比较正式Domain/字段/Tool枚举，不读取自然语言词形。",
+      "code": "[\"GENERAL\", \"PRODUCT_DISCOVERY\", \"PRODUCT_DETAIL\", \"MATERIAL_COMPARE\", \"KNOWLEDGE_EXPLAIN\", \"REPORT_REQUEST\", \"REFERENCE_QUERY\", \"REFERENCE_REFINE\", \"THERMAL_CALCULATE\"].includes(intent ?? \"\")",
+      "tests": [
+        "src/modules/ai/domain-semantic-regression.test.ts",
+        "scripts/check-semantic-matching.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/solution-advice-context.ts",
+      "fingerprint": "ffbc1dd80b0324effcda383c579b7ebb8108849c137652f9221135698200c10a",
+      "ruleId": "SM-ENUM-01",
+      "category": "ENUM_MEMBERSHIP",
+      "reason": "只比较正式Domain/字段/Tool枚举，不读取自然语言词形。",
+      "code": "[\"REFERENCE_QUERY\", \"REFERENCE_REFINE\", \"REFERENCE_VIEW\", \"REFERENCE_DETAIL\", \"COMPARE_CANDIDATES\", \"THERMAL_CALCULATE\", \"COMPLIANCE_CHECK\"].includes(intent)",
+      "tests": [
+        "src/modules/ai/domain-semantic-regression.test.ts",
+        "scripts/check-semantic-matching.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/solution-advice.service.ts",
+      "fingerprint": "8400dc6a64735c6baa699649c82247732ec8b2d6ef98abd80d7a7e0e5a8e58ce",
+      "ruleId": "SM-ENUM-01",
+      "category": "ENUM_MEMBERSHIP",
+      "reason": "只筛选本次合规评估相关字段枚举，结构及基层硬条件继续保留；不分类自然语言。",
+      "code": "[\"regionCode\", \"buildingType\", \"standardLimitId\"].includes(item.field)",
+      "tests": [
+        "src/modules/ai/domain-semantic-regression.test.ts",
+        "scripts/check-semantic-matching.test.ts"
+      ]
+    }
+  ]
+}

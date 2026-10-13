@@ -83,6 +83,7 @@ export function resolveAnswerContract(input: {
   if (input.domainDecision) {
     switch (input.domainDecision.intent) {
       case "CLARIFY": return "CLARIFY";
+      case "SOLUTION_ADVICE": return "REFERENCE_LOOKUP";
       case "REFERENCE_VIEW": case "REFERENCE_DETAIL": case "REFERENCE_QUERY": case "REFERENCE_REFINE": return "REFERENCE_LOOKUP";
       case "THERMAL_CALCULATE": return "THERMAL";
       case "COMPLIANCE_CHECK": case "KNOWLEDGE_EXPLAIN": return "KNOWLEDGE";

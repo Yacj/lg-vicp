@@ -1,3 +1,4 @@
+import { domainDecision, type DomainIntent } from "./ai-domain-turn-decision.js";
 import "dotenv/config";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ stream: vi.fn(), tools: vi.fn(), step: vi.fn() }));
@@ -16,7 +17,7 @@ beforeEach(() => {
   })() }));
 });
 
-async function run(message: string) {
+async function run(message: string, intent: DomainIntent = "GENERAL") {
   const db = { update: () => ({ set: () => ({ where: async () => [] }) }),
     select: () => ({ from: () => ({ where: () => ({ limit: async () => [{ status: "COMPLETED" }] }) }) }) };
   const last = { query: { systemId: "thin", filters: [{ metric: "K" as const, targetValue: 0.3, mode: "APPROX" as const }] },
@@ -28,7 +29,7 @@ async function run(message: string) {
     conversation: { id: "c", projectId: null }, runtime: {}, agentModel: { languageModel: {} },
     allowedTools: ["thermal", "compare_solutions"], assistantMessageId: "m", agentRunId: "r", abortSignal: new AbortController().signal,
     initialState: { system: "测试", messages: [], sources: [], recentToolHashes: [], fullText: "", userVisibleText: "", internalStepText: "" },
-    taskState: state, answerContract, userMessage: message } as any);
+    domainDecision: domainDecision(intent, message), taskState: state, answerContract, userMessage: message } as any);
   expect(result.finish).toBe("COMPLETED");
   expect(state).toEqual(frozen);
   expect(mocks.step).toHaveBeenCalledTimes(1);
@@ -46,14 +47,14 @@ describe("P0静态审计：真实prepareStep路径，模型与传输为替身", 
     ["只要20mm以内", "thermal"], ["第一个和第三个有什么区别", "compare_solutions"]
     , ["总热阻", undefined], ["保温板热阻和总热阻的区别", undefined], ["用同一厚度哪个好", "compare_solutions"]
   ])("矩阵Agent首步%s严格按目标选择工具", async (message, expected) => {
-    expect((await run(message!)).toolChoice).toEqual(expected ? { type: "tool", toolName: expected } : undefined);
+    expect((await run(message!, expected === "thermal" ? "REFERENCE_QUERY" : expected === "compare_solutions" ? "COMPARE_CANDIDATES" : "GENERAL")).toolChoice).toEqual(expected ? { type: "tool", toolName: expected } : undefined);
   });
   it("局部厚度Refine首步调用thermal", async () => {
-    expect((await run("那20mm以内")).toolChoice).toEqual({ type: "tool", toolName: "thermal" });
+    expect((await run("那20mm以内", "REFERENCE_REFINE")).toolChoice).toEqual({ type: "tool", toolName: "thermal" });
   });
   it("明确第一和第三个比较首步调用compare_solutions", async () => {
     expect(normalizeConversationLookupQuery({}, "第一个和第三个比较", { query: {}, candidates: [], createdAt: "" }).lifecycle).toBe("COMPARE_SELECTED");
-    expect((await run("第一个和第三个比较")).toolChoice).toEqual({ type: "tool", toolName: "compare_solutions" });
+    expect((await run("第一个和第三个比较", "COMPARE_CANDIDATES")).toolChoice).toEqual({ type: "tool", toolName: "compare_solutions" });
   });
   it("GENERAL合同不会因有候选强制工具（生成入口的动作故障另测）", async () => {
     expect((await run("你好")).toolChoice).toBeUndefined();

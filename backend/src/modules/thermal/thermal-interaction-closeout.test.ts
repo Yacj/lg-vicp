@@ -1,3 +1,4 @@
+import { domainDecision } from "../ai/ai-domain-turn-decision.js";
 import { describe, expect, it } from "vitest";
 import { resolveAiCapabilities } from "../ai/ai-capability-router.js";
 import { isThermalComplianceIntent, resolveAnswerContract } from "../../shared/ai-answer-contract.js";
@@ -17,7 +18,7 @@ describe("最终真实交互边界", () => {
     ["这个参数符合哪个标准", "KNOWLEDGE"],
     ["上海外墙是否满足要求", "KNOWLEDGE"]
   ])("%s → %s", (message, expected) => {
-    const capabilities = resolveAiCapabilities({ message });
+    const capabilities = resolveAiCapabilities({ message, domainDecision: domainDecision(expected === "REFERENCE_LOOKUP" ? "REFERENCE_QUERY" : expected === "THERMAL" ? "THERMAL_CALCULATE" : "COMPLIANCE_CHECK", message) });
     expect(resolveAnswerContract({ message, capabilities })).toBe(expected);
     expect(capabilities.needReferenceLookup).toBe(expected === "REFERENCE_LOOKUP");
     if (message.includes("够不够")) expect(isThermalComplianceIntent(message)).toBe(true);

@@ -1,16 +1,9 @@
-import type { DomainTurnDecision } from "./ai-domain-turn-decision.js";
+import { isClosedGreeting, type DomainTurnDecision } from "./ai-domain-turn-decision.js";
 /**
  * AI 能力路由器：预路由、安全限制与非 Agent 回退路径优化。
  * 不再作为「某 Tool 能否被模型看到」的唯一依据。
  * Chat Agent 核心 Tools 仅 5 个时，非寒暄消息向模型开放完整领域 Tool 集合。
  */
-
-import {
-  isReferenceLookupIntent,
-  isThermalCalculateIntent,
-  isThermalComplianceIntent,
-  THERMAL_VALUE_PATTERN
-} from "../../shared/ai-answer-contract.js";
 
 export interface ResolveAiCapabilitiesInput {
   message: string;
@@ -36,18 +29,6 @@ export interface AiCapabilities {
   needProductData: boolean;
   needReportContext: boolean;
 }
-
-const GREETING_PATTERN = /^(你好|您好|嗨|哈喽|在吗|hello|hi)[！!。.?？\s]*$/i;
-
-const EXPLICIT_KNOWLEDGE_PATTERN = /根据(图集|标准|规范|资料)|系统资料|已发布.{0,8}(知识|图集|标准)|知识库|资料里/;
-
-const KNOWLEDGE_PATTERN = /图集|标准|规范|节点|构造|窗洞口|洞口|产品说明|施工|技术要求|技术参数|条文|页码|章节|保温|节能标准|vicp|做法|节点图|大样/i;
-
-const COMPARISON_PATTERN = /材料对比|对比规则|竞品|eps|xps|岩棉|聚氨酯|一体板|对比|区别|vs|比起|相比|性价比|哪个好/i;
-
-const PRODUCT_PATTERN = /产品|vicp|vlcp|适用场景|有什么优势/i;
-
-const REPORT_PATTERN = /生成报告|出一份报告|工程报告|设计说明|对比报告/;
 
 const EMPTY_CAPABILITIES: AiCapabilities = {
   idle: true,
@@ -111,30 +92,13 @@ export function selectAllowedToolNames(input: {
 }
 
 export function resolveAiCapabilities(input: ResolveAiCapabilitiesInput): AiCapabilities {
-  const message = input.message.trim();
-  if (!message || GREETING_PATTERN.test(message)) {
-    return { ...EMPTY_CAPABILITIES };
-  }
-
-  const explicitKnowledgeRequest = EXPLICIT_KNOWLEDGE_PATTERN.test(message);
-  const needKnowledgeSearch = explicitKnowledgeRequest || KNOWLEDGE_PATTERN.test(message) || isThermalComplianceIntent(message);
-  const needThermalTool = input.domainDecision ? input.domainDecision.intent === "THERMAL_CALCULATE" : isThermalCalculateIntent(message);
-  const needReferenceLookup = input.domainDecision ? ["REFERENCE_QUERY", "REFERENCE_REFINE", "REFERENCE_VIEW", "REFERENCE_DETAIL", "COMPARE_CANDIDATES"].includes(input.domainDecision.intent)
-    : isReferenceLookupIntent(message) || (!needThermalTool && !isThermalComplianceIntent(message) && THERMAL_VALUE_PATTERN.test(message));
-  const needComparisonTool = COMPARISON_PATTERN.test(message);
-  const needProductData = PRODUCT_PATTERN.test(message);
-  const needReportContext = REPORT_PATTERN.test(message);
-  const needProjectContext = Boolean(input.projectId);
-
-  return {
-    idle: false,
-    needKnowledgeSearch,
-    explicitKnowledgeRequest,
-    needProjectContext,
-    needReferenceLookup,
-    needThermalTool,
-    needComparisonTool,
-    needProductData,
-    needReportContext
-  };
+  if (!input.message.trim() || isClosedGreeting(input.message)) return { ...EMPTY_CAPABILITIES };
+  const intent = input.domainDecision?.intent ?? "GENERAL";
+  const references = new Set(["REFERENCE_QUERY", "REFERENCE_REFINE", "REFERENCE_VIEW", "REFERENCE_DETAIL", "COMPARE_CANDIDATES"]);
+  const products = new Set(["PRODUCT_DISCOVERY", "PRODUCT_DETAIL", "MATERIAL_COMPARE"]);
+  return { idle: false, needKnowledgeSearch: intent !== "SOLUTION_ADVICE" && intent !== "CLARIFY",
+    explicitKnowledgeRequest: references.has(intent) || intent === "KNOWLEDGE_EXPLAIN" || intent === "COMPLIANCE_CHECK",
+    needProjectContext: Boolean(input.projectId), needReferenceLookup: references.has(intent),
+    needThermalTool: intent === "THERMAL_CALCULATE", needComparisonTool: intent === "MATERIAL_COMPARE" || intent === "COMPARE_CANDIDATES",
+    needProductData: products.has(intent), needReportContext: intent === "REPORT_REQUEST" };
 }

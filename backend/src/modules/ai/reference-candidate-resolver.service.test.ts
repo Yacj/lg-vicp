@@ -10,13 +10,13 @@ import { referenceReadFixture } from "./reference-read.fixture.js";
 import { emptySolution, refreshSolution, referenceSolutionCandidate } from "./solution-workflow.js";
 import { validateAnswerFacts } from "./thermal-answer-validation.js";
 import { buildKnowledgePageRenderModel } from "../../shared/knowledge-page-render.js";
-import { decideDomainTurn } from "./ai-domain-turn-decision.js";
+import { domainDecision, decideDomainTurn } from "./ai-domain-turn-decision.js";
 import { resolveReferenceQueryWithoutAgent } from "./reference-query.service.js";
 import { parseSolutionAction } from "./solution-action-semantic.service.js";
 
 function context(message = "第一个完整表格") {
   return { app: { db: {}, log: { warn: vi.fn() } }, request: {}, user: { id: "user", clientType: "C_APP" },
-    conversation: { id: "session", projectId: null }, userMessage: message, onEvent: vi.fn(), candidateQueryRevision: 7,
+    domainDecision: domainDecision("REFERENCE_VIEW", message), conversation: { id: "session", projectId: null }, userMessage: message, onEvent: vi.fn(), candidateQueryRevision: 7,
     taskState: { taskType: "GENERAL", lastReferenceLookup: { query: {}, candidates: referenceReadFixture().candidates,
       projectId: null, candidateQueryRevision: 7, createdAt: new Date().toISOString() } } } as any;
 }
@@ -25,8 +25,16 @@ beforeEach(() => {
   mocks.read.mockResolvedValue([referenceReadFixture().row]); mocks.current.mockResolvedValue(true);
 });
 describe("只读来源定位与生命周期", () => {
+  it.each(["A3-3", "外墙A3-3", "Ａ３－３", "a3-3", "A3-3的参数"])("SM-CODE-01只提取强格式编码 %s，不从名称造身份", message => {
+    const lookup = { query: {}, candidates: [{ id: "code-row", constructionCode: "外墙A3-3" }], createdAt: "" };
+    expect(resolveVisibleCandidateIds(lookup, message).ids).toEqual(["code-row"]);
+  });
+  it.each(["A3-4", "A3-33", "A33-3", "B3-3", "A3-3和A3-4"])("SM-CODE-01相似/不存在编码 %s不扩展事实范围", message => {
+    const lookup = { query: {}, candidates: [{ id: "code-row", constructionCode: "外墙A3-3" }, { id: "other-row", constructionCode: "A3-2" }], createdAt: "" };
+    expect(resolveVisibleCandidateIds(lookup, message).ids).toBeUndefined();
+  });
   it("裸指标追问只澄清，不读目录、不重查、不复制旧K目标", async () => {
-    const ctx = context("总热阻"); ctx.taskState.lastReferenceLookup.query = { filters: [{ metric: "K", targetValue: .3, mode: "APPROX" }] };
+    const ctx = context("总热阻"); ctx.domainDecision = { ...domainDecision("CLARIFY", "总热阻"), unresolved: ["你想查看当前候选参数还是设置新目标？"] }; ctx.taskState.lastReferenceLookup.query = { filters: [{ metric: "K", targetValue: .3, mode: "APPROX" }] };
     const before=structuredClone(ctx.taskState), result=await resolveReferenceQueryWithoutAgent(ctx);
     expect(result.needsClarification).toBe(true); expect(result.facts.canonicalAnswers[0]).toContain("当前候选");
     expect(ctx.taskState).toEqual(before); expect(mocks.read).not.toHaveBeenCalled(); expect(ctx.onEvent).not.toHaveBeenCalled();
@@ -67,7 +75,7 @@ describe("只读来源定位与生命周期", () => {
     expect(mocks.read).not.toHaveBeenCalled();
   });
   it("比较已选只消费真实SolutionState，忽略污染的lookup.Selected", async () => {
-    const ctx = context("比较已选方案");
+    const ctx = context("比较已选方案"); ctx.domainDecision = { ...domainDecision("COMPARE_CANDIDATES", "比较已选方案"), referenceScope: "CURRENT_SELECTED" }; ctx.domainDecision = { ...domainDecision("COMPARE_CANDIDATES", "比较已选方案"), referenceScope: "CURRENT_SELECTED" };
     ctx.taskState.lastReferenceLookup.selectedCandidateIds = ["row-1", "row-2"];
     const payload = refreshSolution(emptySolution(), {}, referenceReadFixture().candidates.map(referenceSolutionCandidate));
     payload.candidates.forEach(item => { item.candidate.referenceKind = "KNOWLEDGE_PAGE"; });
@@ -84,7 +92,7 @@ describe("只读来源定位与生命周期", () => {
       expect(resolveVisibleCandidateIds(last, message).ids).toBeUndefined();
   });
   it("已选硬冲突仍可比较参数，但不冒充当前筛选命中", async () => {
-    const ctx = context("比较已选方案");
+    const ctx = context("比较已选方案"); ctx.domainDecision = { ...domainDecision("COMPARE_CANDIDATES", "比较已选方案"), referenceScope: "CURRENT_SELECTED" };
     const payload = refreshSolution(emptySolution(), { thicknessMax: 20 }, referenceReadFixture().candidates.map(referenceSolutionCandidate));
     payload.candidates.forEach(item => { item.candidate.referenceKind = "KNOWLEDGE_PAGE"; });
     payload.selectedCandidateIds = ["row-1", "row-3"];
@@ -111,7 +119,7 @@ describe("只读来源定位与生命周期", () => {
     const ctx = context(), before = structuredClone(ctx.taskState);
     const payload = refreshSolution(emptySolution(), {}, referenceReadFixture().candidates.map(referenceSolutionCandidate));
     for (const message of ["K值小就一定省钱吗", "施工时怎么处理热桥"]) {
-      expect(decideDomainTurn(message, ctx.taskState.lastReferenceLookup)).toMatchObject({ intent: "KNOWLEDGE_EXPLAIN", mutation: "NONE" });
+      expect(decideDomainTurn(message, ctx.taskState.lastReferenceLookup)).toMatchObject({ intent: "GENERAL", mutation: "NONE", policyReason: "SEMANTIC_REQUIRED" });
       expect(await parseSolutionAction(ctx, message, payload)).toBeNull();
     }
     ctx.userMessage = "刚才第三个的完整热工表给我看看";

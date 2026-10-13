@@ -1,5 +1,9 @@
 # 蓝格 VICP 后端 AI 开发规则
 
+2026-10-13 语义匹配强制治理：开放自然语言只走现有resolveDomainTurn→结构化目标/关系/patch/reference/effect→Backend Policy；禁止方案/确认/加入等开放子串、删除否定、参数变化排斥Advice、pending boolean授权或泛化故障澄清。只允许工程格式提取、正式枚举/ID、无损归一、封闭完整命令/问候；副作用仍经权限/revision/来源/状态机。新增灰区快路径必须Rule ID+封闭语法/职责+5正5反3否定引用多轮+无副作用证明+冲突核验+owner批准与CI，缺一禁止。AST精确指纹白名单见docs/ai/semantic-matching-policy.md；不得全项目禁正则，不改资料、Thermal Engine、迁移或业务数据。
+
+2026-10-13 参考方案建议：SOLUTION_ADVICE 为 mutation=NONE，只读最近实际可见候选并重验归属、24h、revision及确认optionId。一般选型不强制地区/建筑、不判断合规、不重查/计算或激活方案。最近两轮业务目标及pendingAdviceGoal仅存会话任务JSON，绑定会话/项目/候选revision/有效期；换话题即失效，不入正式QueryState。正式选择/Final/Confirm/报告仍显式授权并走原生命周期。见 docs/ai/solution-advice-2026-10-13.md。
+
 2026-10-13 Domain收口：合规独立只读服务核验正式地区/建筑/结构范围与限值，不重算或刷新候选。报告execute先验证本轮领域或服务端UI授权；正式方案报告只消费CONFIRMED不可变SolutionSnapshot→DocumentModel，禁止旧产品报告替代，签名URL不入快照。裸指标先澄清查看/新目标，概念解释不恢复旧任务，同厚度多候选比较只读。产品SEARCH/READ只用正式目录/发布规格，比较ID来自搜索或UI；族简称可由启用GLOBAL后台别名显式绑定集合，缺映射拒绝宽查。无迁移/数据改写，见docs/ai/domain-turn-closeout-2026-10-13.md。
 
 2026-10-13 矩阵补测：带明确指标的候选请求不被“做法”抢入知识；K概念问句不查表；当前可见基层参数与完整热工原表只读，基层/板厚分开且多项逐个绑定，数量歧义不补旧列表。分类上下文含previousQuery，诊断只记意图/实际路径/字段差异/revision/标识/校验状态。S4术语口径待真实UAT，冻结Parser/Matcher不改。见docs/ai/high-frequency-matrix-coverage-2026-10-13.md。

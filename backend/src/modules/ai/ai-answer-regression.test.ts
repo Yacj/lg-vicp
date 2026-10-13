@@ -1,3 +1,4 @@
+import { domainDecision } from "./ai-domain-turn-decision.js";
 import { beforeAll, describe, expect, it } from "vitest";
 import { resolveAnswerContract, formatAnswerContractPrompt } from "../../shared/ai-answer-contract.js";
 import { applyAgentStreamPart, classifyFinishedStep, createAgentStepBuffer } from "./ai-agent-step-buffer.js";
@@ -52,7 +53,7 @@ describe("Answer Contract", () => {
     })).toBe("KNOWLEDGE");
 
     const lookupMessage = "保温薄抹灰系统传热系数0.3的方案";
-    const lookupCaps = resolveAiCapabilities({ message: lookupMessage });
+    const lookupCaps = resolveAiCapabilities({ message: lookupMessage, domainDecision: domainDecision("REFERENCE_QUERY", lookupMessage) });
     expect(lookupCaps.needReferenceLookup).toBe(true);
     expect(lookupCaps.needThermalTool).toBe(false);
     expect(resolveAnswerContract({
@@ -167,7 +168,7 @@ const LAST_LOOKUP = {
 describe("REFERENCE_LOOKUP vs THERMAL 五案", () => {
   it("Case 1：查已有 0.3 方案走 REFERENCE_LOOKUP，不进正式计算", () => {
     const message = "保温薄抹灰系统传热系数0.3的方案有么";
-    const capabilities = resolveAiCapabilities({ message });
+    const capabilities = resolveAiCapabilities({ message, domainDecision: domainDecision("REFERENCE_QUERY", message) });
     expect(capabilities.needReferenceLookup).toBe(true);
     expect(capabilities.needThermalTool).toBe(false);
     expect(resolveAnswerContract({ capabilities, message })).toBe("REFERENCE_LOOKUP");
@@ -208,7 +209,7 @@ describe("REFERENCE_LOOKUP vs THERMAL 五案", () => {
 
   it("Case 5：图集里更低一点的Ⅱ型仍走 REFERENCE_LOOKUP", () => {
     const message = "图集里还有没有比0.3更低一点的Ⅱ型方案？";
-    const capabilities = resolveAiCapabilities({ message });
+    const capabilities = resolveAiCapabilities({ message, domainDecision: domainDecision("REFERENCE_QUERY", message) });
     expect(capabilities.needReferenceLookup).toBe(true);
     expect(capabilities.needThermalTool).toBe(false);
     expect(resolveAnswerContract({

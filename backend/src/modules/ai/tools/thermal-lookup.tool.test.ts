@@ -1,3 +1,4 @@
+import { domainDecision } from "../ai-domain-turn-decision.js";
 import { resolveQueryEntities } from "../../thermal/thermal-entity-resolver.js";
 import "dotenv/config";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -29,7 +30,7 @@ const real: CandidateRow = {
 };
 let publishedRows: CandidateRow[];
 
-function context(message: string, last?: LastReferenceLookup): ToolRuntimeContext {
+function context(message: string, last?: LastReferenceLookup, intent: "REFERENCE_QUERY" | "REFERENCE_VIEW" | "REFERENCE_DETAIL" = "REFERENCE_QUERY"): ToolRuntimeContext {
   const pageQuery: any = {
     from: () => pageQuery, innerJoin: () => pageQuery, where: () => pageQuery,
     then: (resolve: (rows: unknown[]) => unknown) => Promise.resolve([{
@@ -41,7 +42,7 @@ function context(message: string, last?: LastReferenceLookup): ToolRuntimeContex
   return {
     app: { db: { select: () => pageQuery }, storage: { createDownloadUrl: vi.fn(async () => "https://example.test/page-22") }, log: { warn: vi.fn() } },
     request: {}, user: { id: "u" }, conversation: { id: "c", projectId: null },
-    userMessage: message, taskState: { taskType: "GENERAL", lastReferenceLookup: last }, onEvent: vi.fn()
+    domainDecision: domainDecision(intent, message), userMessage: message, taskState: { taskType: "GENERAL", lastReferenceLookup: last }, onEvent: vi.fn()
   } as unknown as ToolRuntimeContext;
 }
 
@@ -97,7 +98,7 @@ describe("thermal Tool 最终收口回归", () => {
     expect(result.data.instruction).toContain("厚度不超过 20mm");
     const restored = parseConversationTaskState(JSON.parse(JSON.stringify(ctx.taskState))).lastReferenceLookup!;
     expect(restored.query).toMatchObject({ thicknessMax: 20, preferThinner: true });
-    await execute(context("把刚才的原页打开", restored));
+    await execute(context("把刚才的原页打开", restored, "REFERENCE_VIEW"));
     expect(mocks.query).toHaveBeenCalledTimes(1);
     expect(ctx.onEvent).toHaveBeenCalledWith("reference_pages", expect.anything());
   });
@@ -122,7 +123,7 @@ describe("thermal Tool 最终收口回归", () => {
     const third = context("不限制厚度了", second.taskState?.lastReferenceLookup);
     expect((await execute(third, { thicknessMm: 25 })).data.found).toBe(true);
     expect(mocks.query.mock.calls[2]?.[3]).toMatchObject({ thicknessMm: undefined, thicknessMin: undefined, thicknessMax: undefined });
-    await execute(context("刚才那个总R多少", third.taskState?.lastReferenceLookup));
+    await execute(context("刚才那个总R多少", third.taskState?.lastReferenceLookup, "REFERENCE_DETAIL"));
     expect(mocks.query).toHaveBeenCalledTimes(3);
   });
 
@@ -173,7 +174,7 @@ describe("thermal Tool 最终收口回归", () => {
     expect(mocks.query).toHaveBeenCalledTimes(2);
     expect(next.data.found).toBe(true);
     expect(next.data.candidates[0]).toMatchObject({ id: "both", kValue: 0.295, totalThermalResistance: 3.39 });
-    const followup = await execute(context("刚才那个方案K和总R是多少？", first.taskState?.lastReferenceLookup));
+    const followup = await execute(context("刚才那个方案K和总R是多少？", first.taskState?.lastReferenceLookup, "REFERENCE_DETAIL"));
     // 首轮无完整命中，旧集合为空；只读追问需澄清，不得重查或绑定后来出现的行。
     expect(followup.data.needsClarification).toBe(true);
   });

@@ -1,0 +1,239 @@
+{
+  "mode": "READ_ONLY_SERVICE_WITH_REAL_MODEL_NOT_HTTP_UAT",
+  "startedAt": "2026-10-13T15:16:45.740Z",
+  "checks": [
+    {
+      "name": "数据库禁止写入",
+      "status": "PASS",
+      "details": {}
+    },
+    {
+      "name": "运行时阻塞诊断（仅函数名，无错误正文）",
+      "status": "BLOCKED",
+      "details": {
+        "frames": [
+          "Decipheriv.final",
+          "decryptSecret",
+          "decryptProviderKey",
+          "resolveModelById"
+        ]
+      }
+    },
+    {
+      "name": "模型环境诊断",
+      "status": "BLOCKED",
+      "details": {
+        "errorType": "Error"
+      }
+    },
+    {
+      "name": "真实模型跨基层查询目标",
+      "status": "BLOCKED",
+      "details": {
+        "intent": "CLARIFY",
+        "mutation": "NONE",
+        "policyReason": "SEMANTIC_UNAVAILABLE"
+      }
+    },
+    {
+      "name": "真实四基层同源事实",
+      "status": "PASS",
+      "details": {
+        "candidates": [
+          {
+            "code": "A3-1",
+            "thickness": 45,
+            "substrateThickness": 200,
+            "substrateMaterial": "钢筋混凝土",
+            "totalR": 3.313,
+            "k": 0.302,
+            "page": "5"
+          },
+          {
+            "code": "A3-2",
+            "thickness": 45,
+            "substrateThickness": 190,
+            "substrateMaterial": "混凝土空心砌块",
+            "totalR": 3.398,
+            "k": 0.294,
+            "page": "5"
+          },
+          {
+            "code": "外墙A3-3",
+            "thickness": 45,
+            "substrateThickness": 240,
+            "substrateMaterial": "蒸压灰砂砖",
+            "totalR": 3.416,
+            "k": 0.293,
+            "page": "6"
+          },
+          {
+            "code": "外墙A3-4",
+            "thickness": 45,
+            "substrateThickness": 200,
+            "substrateMaterial": "加气混凝土砌块",
+            "totalR": 4.04,
+            "k": 0.248,
+            "page": "6"
+          }
+        ]
+      }
+    },
+    {
+      "name": "模型环境诊断",
+      "status": "BLOCKED",
+      "details": {
+        "errorType": "Error"
+      }
+    },
+    {
+      "name": "真实模型建议连续轮",
+      "status": "BLOCKED",
+      "details": {
+        "intent": "CLARIFY",
+        "mutation": "NONE",
+        "verified": false,
+        "referencedPages": [],
+        "policyReason": "SEMANTIC_UNAVAILABLE"
+      }
+    },
+    {
+      "name": "真实归属建议事实服务",
+      "status": "BLOCKED",
+      "details": {}
+    },
+    {
+      "name": "模型环境诊断",
+      "status": "BLOCKED",
+      "details": {
+        "errorType": "Error"
+      }
+    },
+    {
+      "name": "真实模型建议连续轮",
+      "status": "BLOCKED",
+      "details": {
+        "intent": "CLARIFY",
+        "mutation": "NONE",
+        "verified": false,
+        "referencedPages": [],
+        "policyReason": "SEMANTIC_UNAVAILABLE"
+      }
+    },
+    {
+      "name": "真实归属建议事实服务",
+      "status": "BLOCKED",
+      "details": {}
+    },
+    {
+      "name": "真实数据库归属/发布/optionId建议服务（受控只读目标，不代表模型通过）",
+      "status": "PASS",
+      "details": {
+        "verified": true,
+        "referencedPages": [
+          {
+            "pageLabel": "5",
+            "matches": 2
+          },
+          {
+            "pageLabel": "6",
+            "matches": 2
+          }
+        ]
+      }
+    },
+    {
+      "name": "模型环境诊断",
+      "status": "BLOCKED",
+      "details": {
+        "errorType": "Error"
+      }
+    },
+    {
+      "name": "真实模型否定/参数/提纲边界",
+      "status": "BLOCKED",
+      "details": {
+        "expected": "REFERENCE_VIEW",
+        "intent": "CLARIFY",
+        "mutation": "NONE",
+        "policyReason": "SEMANTIC_UNAVAILABLE"
+      }
+    },
+    {
+      "name": "模型环境诊断",
+      "status": "BLOCKED",
+      "details": {
+        "errorType": "Error"
+      }
+    },
+    {
+      "name": "真实模型否定/参数/提纲边界",
+      "status": "BLOCKED",
+      "details": {
+        "expected": "SOLUTION_ADVICE",
+        "intent": "CLARIFY",
+        "mutation": "NONE",
+        "policyReason": "SEMANTIC_UNAVAILABLE"
+      }
+    },
+    {
+      "name": "模型环境诊断",
+      "status": "BLOCKED",
+      "details": {
+        "errorType": "Error"
+      }
+    },
+    {
+      "name": "真实模型否定/参数/提纲边界",
+      "status": "BLOCKED",
+      "details": {
+        "expected": "REFERENCE_DETAIL",
+        "intent": "CLARIFY",
+        "mutation": "NONE",
+        "policyReason": "SEMANTIC_UNAVAILABLE"
+      }
+    },
+    {
+      "name": "模型环境诊断",
+      "status": "BLOCKED",
+      "details": {
+        "errorType": "Error"
+      }
+    },
+    {
+      "name": "真实模型否定/参数/提纲边界",
+      "status": "BLOCKED",
+      "details": {
+        "expected": "SOLUTION_ADVICE",
+        "intent": "CLARIFY",
+        "mutation": "NONE",
+        "policyReason": "SEMANTIC_UNAVAILABLE"
+      }
+    },
+    {
+      "name": "模型环境诊断",
+      "status": "BLOCKED",
+      "details": {
+        "errorType": "Error"
+      }
+    },
+    {
+      "name": "真实模型否定/参数/提纲边界",
+      "status": "BLOCKED",
+      "details": {
+        "expected": "GENERAL",
+        "intent": "CLARIFY",
+        "mutation": "NONE",
+        "policyReason": "SEMANTIC_UNAVAILABLE"
+      }
+    },
+    {
+      "name": "无消息/用户/方案/快照/报告写入",
+      "status": "PASS",
+      "details": {
+        "transactionReadOnly": "on",
+        "method": "只读数据库连接及服务调用；未调用聊天生成/动作/报告/计算入口"
+      }
+    }
+  ]
+}

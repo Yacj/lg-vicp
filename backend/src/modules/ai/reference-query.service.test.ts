@@ -1,3 +1,4 @@
+import { domainDecision } from "./ai-domain-turn-decision.js";
 import "dotenv/config";
 import { describe, expect, it, vi } from "vitest";
 import { referenceReadFixture } from "./reference-read.fixture.js";
@@ -13,7 +14,7 @@ vi.mock("./ai-conversation-state.service.js", () => ({ saveConversationTaskState
 describe("非Agent候选对比只读冻结记录", () => {
   it("第一和第三个直接构建事实集，不读目录或全库重查，不受旧选择影响", async () => {
     const candidates = referenceReadFixture().candidates;
-    const ctx = { app: { db: {} }, conversation: { id: "c", projectId: null }, request: {}, user: {}, userMessage: "第一个和第三个哪个好",
+    const ctx = { domainDecision: domainDecision("COMPARE_CANDIDATES", "第一个和第三个哪个好"), app: { db: {} }, conversation: { id: "c", projectId: null }, request: {}, user: {}, userMessage: "第一个和第三个哪个好",
       taskState: { taskType: "GENERAL", lastReferenceLookup: { query: {}, candidates, selectedCandidateIds: ["row-1", "row-2"], candidateQueryRevision: 1, projectId: null, createdAt: new Date().toISOString() } } };
     const result = await resolveReferenceQueryWithoutAgent(ctx as any);
     expect(result.facts.candidates.map(candidate => candidate.id)).toEqual(["row-1", "row-3"]);

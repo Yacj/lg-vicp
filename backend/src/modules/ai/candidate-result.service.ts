@@ -1,9 +1,9 @@
 import type { ToolRuntimeContext } from "./tools/tool-runtime.js";
 import { saveConversationTaskState } from "./ai-conversation-state.service.js";
 import type { LastReferenceLookup } from "./conversation-task.js";
-import { recordCandidateResult } from "./solution-state.service.js";
+import { recordCandidateResult, assertSolutionAccess } from "./solution-state.service.js";
 
-export type CandidateResultContext = Pick<ToolRuntimeContext, "app" | "request" | "user" | "conversation" | "taskState" | "onEvent">;
+export type CandidateResultContext = Pick<ToolRuntimeContext, "app" | "request" | "user" | "conversation" | "taskState" | "onEvent"> & { candidatePublication?: "READ_ONLY_ADVICE" };
 /** Candidate Result不表达选择/Final/方案阶段，也不含签名URL。 */
 export function candidateResultDto(lookup: LastReferenceLookup) {
   return { queryRevision: lookup.candidateQueryRevision, candidates: lookup.candidates.map((candidate, index) => ({
@@ -18,7 +18,13 @@ export function candidateResultDto(lookup: LastReferenceLookup) {
 export async function publishCandidateResult(ctx: CandidateResultContext, snapshot: LastReferenceLookup, append = false) {
   let lookup: LastReferenceLookup;
   let solutionState = null;
-  if (ctx.user.clientType === "C_APP" || ctx.user.clientType === "PC_AI") {
+  if (ctx.candidatePublication === "READ_ONLY_ADVICE") {
+    const conversation = await assertSolutionAccess(ctx.app.db, ctx.user, ctx.conversation.id);
+    if (conversation.projectId !== ctx.conversation.projectId) throw new Error("会话所属项目已变化，请重新查询。");
+    lookup = { ...snapshot, candidateQueryRevision: (ctx.taskState?.lastReferenceLookup?.candidateQueryRevision ?? 0) + 1, projectId: conversation.projectId };
+    await saveConversationTaskState(ctx.app, ctx.conversation.id, { ...(ctx.taskState ?? { taskType: "GENERAL" }), lastReferenceLookup: lookup,
+      pendingAdviceGoal: undefined, adviceBusinessContext: undefined });
+  } else if (ctx.user.clientType === "C_APP" || ctx.user.clientType === "PC_AI") {
     const recorded = await recordCandidateResult(ctx, snapshot, append);
     lookup = recorded.lookup;
     solutionState = recorded.solutionState;

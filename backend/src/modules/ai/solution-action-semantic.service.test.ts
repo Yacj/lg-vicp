@@ -1,3 +1,4 @@
+import { domainDecision } from "./ai-domain-turn-decision.js";
 import "dotenv/config";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ generate: vi.fn(), runtime: vi.fn(), audit: vi.fn() }));
@@ -9,7 +10,7 @@ import { groundSolutionAction, type ParsedSolutionAction, type CandidateReferenc
 import { applySolutionAction, emptySolution, refreshSolution, referenceSolutionCandidate } from "./solution-workflow.js";
 const candidates = ["A", "B", "C"].map((id, index) => referenceSolutionCandidate({ id, schemeCode: `A1-${index + 1}`, thicknessMm: [18, 30, 20][index] }));
 const pool = () => refreshSolution(emptySolution(), {}, candidates);
-const ctx = { app: { db: {}, log: { warn: vi.fn() } }, request: {}, user: { id: "user" }, conversation: { id: "conversation", scene: "general_chat" } } as any;
+const ctx = { domainDecision: domainDecision("SOLUTION_ACTION", "fixture授权"), app: { db: {}, log: { warn: vi.fn() } }, request: {}, user: { id: "user" }, conversation: { id: "conversation", scene: "general_chat" } } as any;
 const semantic = (type: ParsedSolutionAction["type"], message: string, references: CandidateReference[] = [], extra: Partial<ParsedSolutionAction> = {}): ParsedSolutionAction => ({
   type, references, selectionMode: "INCLUDE", referenceScope: "CURRENT_POOL", temporalScope: "CURRENT", evidence: message, confidence: .96, unresolved: [], ...extra
 });
@@ -46,7 +47,7 @@ describe("Solution Action Semantic Parser → Grounding → 既有mutation", () 
   it("只读比较交还领域路由，不调用动作模型或选择全池", async () => {
     const message = "这几个帮我比较一下";
     mocks.generate.mockResolvedValue({ object: semantic("COMPARE_SELECTED", message) });
-    const parsed = await parseSolutionAction(ctx, message, pool());
+    const parsed = await parseSolutionAction({ ...ctx, domainDecision: domainDecision("COMPARE_CANDIDATES", message) }, message, pool());
     expect(parsed).toBeNull(); expect(mocks.generate).not.toHaveBeenCalled();
   });
   it("这几个帮我做方案显式SELECT当前全部查询候选", async () => {
@@ -71,7 +72,7 @@ describe("Solution Action Semantic Parser → Grounding → 既有mutation", () 
       expect(schema.properties).not.toHaveProperty("action");
       return { object: semantic("NONE", message) };
     });
-    expect(await parseSolutionAction(ctx, message, pool())).toBeNull();
+    expect(await parseSolutionAction({ ...ctx, domainDecision: domainDecision("REFERENCE_QUERY", message) }, message, pool())).toBeNull();
     expect(mocks.generate).not.toHaveBeenCalled();
   });
   it("有lookup候选的首次选择保留LLM与Grounding，不被无active守卫跳过", async () => {
@@ -131,7 +132,7 @@ describe("Solution Action Semantic Parser → Grounding → 既有mutation", () 
     expect((await parseSolutionAction(ctx, "1留下", pool()))?.clarification).toBeTruthy();
   });
   it("复用既有热工符号Fast Path，不额外依赖动作模型", async () => {
-    expect(await parseSolutionAction(ctx, "K<=0.3", pool())).toBeNull(); expect(mocks.generate).not.toHaveBeenCalled();
+    expect(await parseSolutionAction({ ...ctx, domainDecision: domainDecision("REFERENCE_QUERY", "K<=0.3") }, "K<=0.3", pool())).toBeNull(); expect(mocks.generate).not.toHaveBeenCalled();
   });
   it("批量引用任一项非法或嵌套伪造ID，整个动作澄清；Prompt不含正式候选ID", async () => {
     const state = pool(), frozen = structuredClone(state), message = "1和99先留着";

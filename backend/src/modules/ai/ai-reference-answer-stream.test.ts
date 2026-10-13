@@ -7,8 +7,11 @@ import { buildKnowledgePageRenderModel } from "../../shared/knowledge-page-rende
 import { formatConfirmedLookupAnswer } from "../knowledge/knowledge-test-reference.js";
 import type { ReferencePageBlock } from "./reference-page.js";
 import type { ToolRuntimeContext } from "./ai-tools.js";
+import { structuredReferenceFixture } from "./structured-reference.fixture.js";
+import { resolveStructuredReferenceQuery } from "./structured-reference-query.js";
 
-const bridge = vi.hoisted(() => ({ context: undefined as ToolRuntimeContext | undefined, confirm: true, waiting: false }));
+const bridge = vi.hoisted(() => ({ context: undefined as ToolRuntimeContext | undefined, confirm: true, waiting: false,
+  reference: undefined as { answer: string; pages: ReferencePageBlock[] } | undefined }));
 vi.mock("./ai-tools.js", () => ({ createAgentTools: (context: ToolRuntimeContext) => { bridge.context = context; return {}; } }));
 vi.mock("ai", async importOriginal => {
   const sdk = await importOriginal<typeof import("ai")>();
@@ -16,7 +19,7 @@ vi.mock("ai", async importOriginal => {
     usage: Promise.resolve({ inputTokens: 1, outputTokens: 1 }), responseMessages: Promise.resolve([]),
     fullStream: (async function* () {
       yield { type: "start-step" }; yield { type: "tool-call" };
-      if (bridge.confirm) bridge.context!.onReferenceAnswer!(formatConfirmedLookupAnswer([page], [optionId], []), [page]);
+      if (bridge.confirm) bridge.context!.onReferenceAnswer!(bridge.reference?.answer ?? formatConfirmedLookupAnswer([page], [optionId], []), bridge.reference?.pages ?? [page]);
       if (bridge.waiting) bridge.context!.onWait!({ __agentSignal: "WAITING_USER_INPUT", type: "CHOICE", title: "请选择资料", prompt: "请选择参考资料", options: [{ id: "doc", label: "协议测试资料" }] });
       yield { type: "finish-step" };
       yield { type: "start-step" };
@@ -33,7 +36,7 @@ const page: ReferencePageBlock = { type: "REFERENCE_PAGE", page: { documentId: "
   ] }] }), summary: {}, matches: [], highlights: [] };
 const optionId = page.renderModel!.constructions[0]!.options[0]!.optionId;
 
-beforeEach(() => { bridge.confirm = true; bridge.waiting = false; });
+beforeEach(() => { bridge.confirm = true; bridge.waiting = false; bridge.reference = undefined; });
 async function requestAnswer() {
   const app = Fastify();
   const query: any = { set: () => query, where: () => Promise.resolve([]) };
@@ -64,6 +67,21 @@ async function requestAnswer() {
 }
 
 describe("Agent至HTTP/SSE正文的确认事实绑定（协议夹具，非真实模型UAT）", () => {
+  it("四基层跨页完整文本及两个来源页进入SSE，四个optionId都保留", async () => {
+    const snapshots = structuredReferenceFixture();
+    const pages: ReferencePageBlock[] = snapshots.map(({ page, model }) => ({ type: "REFERENCE_PAGE", page: { documentId: page.documentId,
+      pageId: page.id, documentTitle: "模拟图集", pageLabel: page.pageLabel, pageNumber: page.physicalPageNumber, imageUrl: "" },
+      renderModel: model, matches: [], highlights: [], summary: {} }));
+    const ids = snapshots.flatMap(snapshot => snapshot.model.constructions.map(construction => construction.options[0]!.optionId));
+    bridge.reference = { pages, answer: formatConfirmedLookupAnswer(pages, ids, [], { totalMatched: 4, totalGroups: 4,
+      structured: resolveStructuredReferenceQuery("Ⅲ型45mm不同基层传热系数有什么区别") }) };
+    const { events, result } = await requestAnswer();
+    expect(result.text).toContain("共 4 条、4 种基层，当前展示 4 条"); expect(result.text).toContain("0.248");
+    expect(result.text).not.toContain("模型误答"); expect(result.text).not.toContain("[[KP:");
+    const refs = events.find(event => event.event === "reference_pages")!.data.referencePages as ReferencePageBlock[];
+    expect(refs.map(page => [page.page.pageLabel, page.matches.length])).toEqual([["5", 2], ["6", 2]]);
+    expect(refs.flatMap(page => page.matches.map(match => match.optionId))).toEqual(ids);
+  });
   it("错误模型复述不进入delta，正式值与完整原页/高亮ID/段落位置一致", async () => {
     const { events, result } = await requestAnswer();
     const text = events.filter(event => event.event === "delta").map(event => event.data.text).join("");

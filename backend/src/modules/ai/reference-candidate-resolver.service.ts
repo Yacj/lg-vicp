@@ -9,7 +9,7 @@ import type { ReferenceLookupCandidate } from "./conversation-task.js";
 import { buildAllowedAnswerFacts } from "./thermal-answer-validation.js";
 import { decideDomainTurn } from "./ai-domain-turn-decision.js";
 
-export type ReferenceReadContext = Pick<ToolRuntimeContext, "app" | "request" | "user" | "conversation" | "userMessage" | "taskState" | "onEvent" | "domainDecision" | "candidateQueryRevision">;
+export type ReferenceReadContext = Pick<ToolRuntimeContext, "app" | "request" | "user" | "conversation" | "userMessage" | "taskState" | "onEvent" | "domainDecision" | "candidateQueryRevision"> & { candidatePublication?: "READ_ONLY_ADVICE" };
 /** 重验会话/客户端/项目，只读取当前确认来源，不重新绑定旧optionId。 */
 export async function resolveCandidateReference(ctx: ReferenceReadContext) {
   const conversation = await assertSolutionAccess(ctx.app.db, ctx.user, ctx.conversation.id);
@@ -29,8 +29,10 @@ export async function resolveCandidateReference(ctx: ReferenceReadContext) {
   if (!lookup || !lookup.candidateQueryRevision && decision.referenceScope !== "CURRENT_SELECTED" || lookup?.candidateResultInvalid || lookup.projectId !== conversation.projectId
     || !Number.isFinite(Date.parse(lookup.createdAt)) || Date.now() - Date.parse(lookup.createdAt) > 24 * 3600_000
     || Date.parse(lookup.createdAt) > Date.now() + 60_000) return reject("当前候选已过期或所属项目不一致，请重新查询。");
-  const reference = decision.referenceScope === "CURRENT_SELECTED" && /比较已选|对比已选/.test(ctx.userMessage ?? "")
-    ? { ids: lookup.candidates.map(candidate => candidate.id) } : resolveVisibleCandidateIds(lookup, ctx.userMessage ?? "");
+  const adviceAll = decision.intent === "SOLUTION_ADVICE" && !decision.semantic?.reference.items.length;
+  const reference = adviceAll || decision.referenceScope === "CURRENT_SELECTED" && /比较已选|对比已选/.test(ctx.userMessage ?? "")
+    ? { ids: lookup.candidates.map(candidate => candidate.id) } : resolveVisibleCandidateIds(lookup,
+      decision.semantic?.reference.items.length ? decision.semantic.reference.items.map(item => item.evidence).join("，") : ctx.userMessage ?? "");
   if (!reference.ids) return reject(reference.reason!);
   const selected = reference.ids.map(id => lookup!.candidates.find(candidate => candidate.id === id)!);
   if (decision.intent === "COMPARE_CANDIDATES" && selected.length < 2) return reject("请指定至少两个当前候选进行比较。");

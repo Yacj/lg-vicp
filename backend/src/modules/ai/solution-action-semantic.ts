@@ -48,6 +48,12 @@ function evidenceHasNumber(text: string, value: number) {
   return tokens.some(token => (chineseNumber[token] ?? Number(token)) === value);
 }
 const normalizeCode = (text: string) => text.normalize("NFKC").replace(/\s/g, "").toUpperCase();
+/** 共用只读/动作引用证据门禁；只核验格式和值，不判定业务意图。 */
+export function referenceEvidenceMatches(ref: CandidateReference): boolean {
+  if (ref.type === "POSITION" || ref.type === "POOL_PREFIX" || ref.type === "THICKNESS") return evidenceHasNumber(ref.evidence, ref.value);
+  if (ref.type === "CONSTRUCTION_CODE") return normalizeCode(ref.evidence).includes(normalizeCode(ref.value));
+  return true;
+}
 export function groundSolutionAction(message: string, raw: unknown, state: SolutionPayload, expectedRevision: number): SolutionSelectionIntent | null {
   const parsed = parsedSolutionActionSchema.safeParse(raw);
   const unresolved = (reason: string, semantic?: ParsedSolutionAction): SolutionSelectionIntent => ({ type: "USER_SELECTION", action: "SELECT", clarification: reason, parserSource: "LLM", semantic });

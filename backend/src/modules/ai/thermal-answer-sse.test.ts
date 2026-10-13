@@ -1,3 +1,4 @@
+import { domainDecision } from "./ai-domain-turn-decision.js";
 import "dotenv/config";
 import { describe, expect, it, vi } from "vitest";
 import { runAgentLoop } from "./ai-agent.service.js";
@@ -26,7 +27,7 @@ async function run(text: string, interrupted = false, overrides: Record<string, 
 
 describe("热工事实门禁必须在第一个 SSE delta 之前", () => {
   it("已选候选对比首步调用冻结对比工具，不强制先查表", async () => {
-    await run(mocks.canonical, false, { allowedTools: ["thermal", "compare_solutions"], userMessage: "第一个和第三个哪个好",
+    await run(mocks.canonical, false, { allowedTools: ["thermal", "compare_solutions"], userMessage: "第一个和第三个哪个好", domainDecision: domainDecision("COMPARE_CANDIDATES", "第一个和第三个哪个好"),
       taskState: { taskType: "GENERAL", lastReferenceLookup: { query: {}, candidates: [{ id: "a" }, { id: "b" }, { id: "c" }], createdAt: "2026-10-10" } } });
     const step = await mocks.stream.mock.calls.at(-1)![0].prepareStep();
     expect(step.toolChoice).toEqual({ type: "tool", toolName: "compare_solutions" });

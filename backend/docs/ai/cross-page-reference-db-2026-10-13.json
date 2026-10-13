@@ -1,0 +1,441 @@
+{
+  "startedAt": "2026-10-13T12:44:20.904Z",
+  "mode": "EXPLICIT_REPEATABLE_READ_READ_ONLY",
+  "checks": [
+    {
+      "name": "真实数据库显式只读事务",
+      "status": "PASS",
+      "details": {
+        "read_only": "on",
+        "isolation": "repeatable read",
+        "sslRetry": false
+      }
+    },
+    {
+      "name": "当前平台发布确认资料范围",
+      "status": "PASS",
+      "details": {
+        "publishedDocumentsExamined": 1,
+        "related": [
+          {
+            "title": "测试知识库",
+            "versionId": "4929cc99-3269-41ce-b878-567cbf5fdb4e",
+            "pages": 79
+          }
+        ]
+      }
+    },
+    {
+      "name": "真实确认原始四档位",
+      "status": "OBSERVED",
+      "details": [
+        {
+          "constructionCode": "A3-1",
+          "specClass": "III",
+          "pageTitle": "建筑外墙热工计算参考选用表（III型VICP薄抹灰外保温系统）",
+          "baseMaterial": "钢筋混凝土",
+          "pageLabel": "5",
+          "pageId": "02f3418c-a64a-4bb2-bb8f-e9bd1aceefe8",
+          "systemName": "外墙A3-1",
+          "kValue": 0.302,
+          "thicknessMm": 45,
+          "totalThermalResistance": 3.313,
+          "productThermalResistance": 3
+        },
+        {
+          "constructionCode": "A3-2",
+          "specClass": "III",
+          "pageTitle": "建筑外墙热工计算参考选用表（III型VICP薄抹灰外保温系统）",
+          "baseMaterial": "混凝土空心砌块",
+          "pageLabel": "5",
+          "pageId": "02f3418c-a64a-4bb2-bb8f-e9bd1aceefe8",
+          "systemName": "外墙A3-2",
+          "kValue": 0.294,
+          "thicknessMm": 45,
+          "totalThermalResistance": 3.398,
+          "productThermalResistance": 3
+        },
+        {
+          "constructionCode": "外墙A3-3",
+          "specClass": "III",
+          "pageTitle": "建筑外墙热工计算参考选用表（III型VICP薄抹灰外保温系统）",
+          "baseMaterial": "蒸压灰砂砖",
+          "pageLabel": "6",
+          "pageId": "88a0dc1c-f14d-4a07-99eb-fa3beb99fbdb",
+          "systemName": "外墙A3-3",
+          "kValue": 0.293,
+          "thicknessMm": 45,
+          "totalThermalResistance": 3.416,
+          "productThermalResistance": 3
+        },
+        {
+          "constructionCode": "外墙A3-4",
+          "specClass": "III",
+          "pageTitle": "建筑外墙热工计算参考选用表（III型VICP薄抹灰外保温系统）",
+          "baseMaterial": "加气混凝土砌块",
+          "pageLabel": "6",
+          "pageId": "88a0dc1c-f14d-4a07-99eb-fa3beb99fbdb",
+          "systemName": "外墙A3-4",
+          "kValue": 0.248,
+          "thicknessMm": 45,
+          "totalThermalResistance": 4.04,
+          "productThermalResistance": 3
+        }
+      ]
+    },
+    {
+      "name": "原始确认快照与业务复现四行一致",
+      "status": "PASS",
+      "details": {}
+    },
+    {
+      "name": "确认数据概况",
+      "status": "INFO",
+      "details": {
+        "pages": 79,
+        "options": 890,
+        "completeOptions": 830
+      }
+    },
+    {
+      "name": "热工参考行概况（不执行同步）",
+      "status": "INFO",
+      "details": {
+        "rows": 2,
+        "with_source_page": 0
+      }
+    },
+    {
+      "name": "真实数据库单页输入扩展为四条两页",
+      "status": "PASS",
+      "details": {
+        "totalMatched": 4,
+        "totalGroups": 4,
+        "values": [
+          {
+            "constructionCode": "A3-1",
+            "baseMaterial": "钢筋混凝土",
+            "thicknessMm": 45,
+            "productThermalResistance": 3,
+            "totalThermalResistance": 3.313,
+            "kValue": 0.302,
+            "sourcePageId": "02f3418c-a64a-4bb2-bb8f-e9bd1aceefe8",
+            "pageLabel": "5",
+            "optionId": "kp-b33936f895636d9a0ad113e8-0-o7"
+          },
+          {
+            "constructionCode": "A3-2",
+            "baseMaterial": "混凝土空心砌块",
+            "thicknessMm": 45,
+            "productThermalResistance": 3,
+            "totalThermalResistance": 3.398,
+            "kValue": 0.294,
+            "sourcePageId": "02f3418c-a64a-4bb2-bb8f-e9bd1aceefe8",
+            "pageLabel": "5",
+            "optionId": "kp-b33936f895636d9a0ad113e8-1-o7"
+          },
+          {
+            "constructionCode": "外墙A3-3",
+            "baseMaterial": "蒸压灰砂砖",
+            "thicknessMm": 45,
+            "productThermalResistance": 3,
+            "totalThermalResistance": 3.416,
+            "kValue": 0.293,
+            "sourcePageId": "88a0dc1c-f14d-4a07-99eb-fa3beb99fbdb",
+            "pageLabel": "6",
+            "optionId": "kp-c185674d71d2a7536e75d90d-0-o7"
+          },
+          {
+            "constructionCode": "外墙A3-4",
+            "baseMaterial": "加气混凝土砌块",
+            "thicknessMm": 45,
+            "productThermalResistance": 3,
+            "totalThermalResistance": 4.04,
+            "kValue": 0.248,
+            "sourcePageId": "88a0dc1c-f14d-4a07-99eb-fa3beb99fbdb",
+            "pageLabel": "6",
+            "optionId": "kp-c185674d71d2a7536e75d90d-1-o7"
+          }
+        ],
+        "citations": [
+          {
+            "pageId": "02f3418c-a64a-4bb2-bb8f-e9bd1aceefe8",
+            "pageLabel": "5",
+            "options": [
+              "kp-b33936f895636d9a0ad113e8-0-o7",
+              "kp-b33936f895636d9a0ad113e8-1-o7"
+            ]
+          },
+          {
+            "pageId": "88a0dc1c-f14d-4a07-99eb-fa3beb99fbdb",
+            "pageLabel": "6",
+            "options": [
+              "kp-c185674d71d2a7536e75d90d-0-o7",
+              "kp-c185674d71d2a7536e75d90d-1-o7"
+            ]
+          }
+        ],
+        "answer": "有，以下参考方案的热工参数符合查询条件：\n\n本次资料匹配范围共 4 条、4 种基层，当前展示 4 条。\n\n- **A3-1**（钢筋混凝土 200mm基层）：建筑外墙热工计算参考选用表（III型VICP薄抹灰外保温系统）；保温层厚度 **45mm**，总热阻 **R₀=3.313 (m²·K)/W**，传热系数 **K=0.302 W/(m²·K)**。来源：《测试知识库》，第5页。\n\n- **A3-2**（混凝土空心砌块 190mm基层）：建筑外墙热工计算参考选用表（III型VICP薄抹灰外保温系统）；保温层厚度 **45mm**，总热阻 **R₀=3.398 (m²·K)/W**，传热系数 **K=0.294 W/(m²·K)**。来源：《测试知识库》，第5页。\n\n- **外墙A3-3**（蒸压灰砂砖 240mm基层）：建筑外墙热工计算参考选用表（III型VICP薄抹灰外保温系统）；保温层厚度 **45mm**，总热阻 **R₀=3.416 (m²·K)/W**，传热系数 **K=0.293 W/(m²·K)**。来源：《测试知识库》，第6页。\n\n- **外墙A3-4**（加气混凝土砌块 200mm基层）：建筑外墙热工计算参考选用表（III型VICP薄抹灰外保温系统）；保温层厚度 **45mm**，总热阻 **R₀=4.040 (m²·K)/W**，传热系数 **K=0.248 W/(m²·K)**。来源：《测试知识库》，第6页。\n\n以上为图集参考方案。工程选用需结合节能要求核对。"
+      }
+    },
+    {
+      "name": "真实生产检索入口",
+      "status": "PASS",
+      "details": [
+        {
+          "documentId": "baedb3e4-0935-4322-94e1-a02e4d4178ad",
+          "versionId": "4929cc99-3269-41ce-b878-567cbf5fdb4e",
+          "pageId": "f62d6adb-2bbf-4724-875e-9da03f60a0a5",
+          "pageLabel": "27",
+          "retrievalUnit": "CHUNK"
+        },
+        {
+          "documentId": "baedb3e4-0935-4322-94e1-a02e4d4178ad",
+          "versionId": "4929cc99-3269-41ce-b878-567cbf5fdb4e",
+          "pageId": "f62d6adb-2bbf-4724-875e-9da03f60a0a5",
+          "pageLabel": "27",
+          "retrievalUnit": "CHUNK"
+        },
+        {
+          "documentId": "baedb3e4-0935-4322-94e1-a02e4d4178ad",
+          "versionId": "4929cc99-3269-41ce-b878-567cbf5fdb4e",
+          "pageId": "88caca79-dc8e-4cac-800f-5ea3136bf1a1",
+          "pageLabel": "24",
+          "retrievalUnit": "CHUNK"
+        },
+        {
+          "documentId": "baedb3e4-0935-4322-94e1-a02e4d4178ad",
+          "versionId": "4929cc99-3269-41ce-b878-567cbf5fdb4e",
+          "pageId": "03738cc0-2638-4563-907e-388700bbe5ab",
+          "pageLabel": "23",
+          "retrievalUnit": "CHUNK"
+        },
+        {
+          "documentId": "baedb3e4-0935-4322-94e1-a02e4d4178ad",
+          "versionId": "4929cc99-3269-41ce-b878-567cbf5fdb4e",
+          "pageId": "f0a2385a-7c60-4ad1-ab4a-7f2469b83a84",
+          "pageLabel": "41",
+          "retrievalUnit": "CHUNK"
+        }
+      ]
+    },
+    {
+      "name": "真实生产检索→所选版本→四条两页",
+      "status": "PASS",
+      "details": {
+        "totalMatched": 4,
+        "totalGroups": 4,
+        "values": [
+          {
+            "constructionCode": "A3-1",
+            "baseMaterial": "钢筋混凝土",
+            "thicknessMm": 45,
+            "productThermalResistance": 3,
+            "totalThermalResistance": 3.313,
+            "kValue": 0.302,
+            "sourcePageId": "02f3418c-a64a-4bb2-bb8f-e9bd1aceefe8",
+            "pageLabel": "5",
+            "optionId": "kp-b33936f895636d9a0ad113e8-0-o7"
+          },
+          {
+            "constructionCode": "A3-2",
+            "baseMaterial": "混凝土空心砌块",
+            "thicknessMm": 45,
+            "productThermalResistance": 3,
+            "totalThermalResistance": 3.398,
+            "kValue": 0.294,
+            "sourcePageId": "02f3418c-a64a-4bb2-bb8f-e9bd1aceefe8",
+            "pageLabel": "5",
+            "optionId": "kp-b33936f895636d9a0ad113e8-1-o7"
+          },
+          {
+            "constructionCode": "外墙A3-3",
+            "baseMaterial": "蒸压灰砂砖",
+            "thicknessMm": 45,
+            "productThermalResistance": 3,
+            "totalThermalResistance": 3.416,
+            "kValue": 0.293,
+            "sourcePageId": "88a0dc1c-f14d-4a07-99eb-fa3beb99fbdb",
+            "pageLabel": "6",
+            "optionId": "kp-c185674d71d2a7536e75d90d-0-o7"
+          },
+          {
+            "constructionCode": "外墙A3-4",
+            "baseMaterial": "加气混凝土砌块",
+            "thicknessMm": 45,
+            "productThermalResistance": 3,
+            "totalThermalResistance": 4.04,
+            "kValue": 0.248,
+            "sourcePageId": "88a0dc1c-f14d-4a07-99eb-fa3beb99fbdb",
+            "pageLabel": "6",
+            "optionId": "kp-c185674d71d2a7536e75d90d-1-o7"
+          }
+        ],
+        "citations": [
+          {
+            "pageId": "02f3418c-a64a-4bb2-bb8f-e9bd1aceefe8",
+            "pageLabel": "5",
+            "options": [
+              "kp-b33936f895636d9a0ad113e8-0-o7",
+              "kp-b33936f895636d9a0ad113e8-1-o7"
+            ]
+          },
+          {
+            "pageId": "88a0dc1c-f14d-4a07-99eb-fa3beb99fbdb",
+            "pageLabel": "6",
+            "options": [
+              "kp-c185674d71d2a7536e75d90d-0-o7",
+              "kp-c185674d71d2a7536e75d90d-1-o7"
+            ]
+          }
+        ],
+        "answer": "有，以下参考方案的热工参数符合查询条件：\n\n本次资料匹配范围共 4 条、4 种基层，当前展示 4 条。\n\n- **A3-1**（钢筋混凝土 200mm基层）：建筑外墙热工计算参考选用表（III型VICP薄抹灰外保温系统）；保温层厚度 **45mm**，总热阻 **R₀=3.313 (m²·K)/W**，传热系数 **K=0.302 W/(m²·K)**。来源：《测试知识库》，第5页。\n\n- **A3-2**（混凝土空心砌块 190mm基层）：建筑外墙热工计算参考选用表（III型VICP薄抹灰外保温系统）；保温层厚度 **45mm**，总热阻 **R₀=3.398 (m²·K)/W**，传热系数 **K=0.294 W/(m²·K)**。来源：《测试知识库》，第5页。\n\n- **外墙A3-3**（蒸压灰砂砖 240mm基层）：建筑外墙热工计算参考选用表（III型VICP薄抹灰外保温系统）；保温层厚度 **45mm**，总热阻 **R₀=3.416 (m²·K)/W**，传热系数 **K=0.293 W/(m²·K)**。来源：《测试知识库》，第6页。\n\n- **外墙A3-4**（加气混凝土砌块 200mm基层）：建筑外墙热工计算参考选用表（III型VICP薄抹灰外保温系统）；保温层厚度 **45mm**，总热阻 **R₀=4.040 (m²·K)/W**，传热系数 **K=0.248 W/(m²·K)**。来源：《测试知识库》，第6页。\n\n以上为图集参考方案。工程选用需结合节能要求核对。"
+      }
+    },
+    {
+      "name": "真实最低K查询",
+      "status": "PASS",
+      "details": {
+        "constructionCode": "外墙A3-4",
+        "kValue": 0.248
+      }
+    },
+    {
+      "name": "Ⅲ型 A3-4 45mm 的总热阻是多少？",
+      "status": "PASS",
+      "details": {
+        "totalMatched": 1,
+        "totalThermalResistance": 4.04,
+        "kValue": 0.248
+      }
+    },
+    {
+      "name": "Ⅲ型 A3-2 18mm 是多少？",
+      "status": "PASS",
+      "details": {
+        "totalMatched": 1,
+        "totalThermalResistance": 1.598,
+        "kValue": 0.626
+      }
+    },
+    {
+      "name": "真实数据同轮序列：单构造→同厚度四基层（内存上下文）",
+      "status": "PASS",
+      "details": {
+        "totalMatched": 4,
+        "totalGroups": 4,
+        "values": [
+          {
+            "constructionCode": "A3-1",
+            "baseMaterial": "钢筋混凝土",
+            "thicknessMm": 45,
+            "productThermalResistance": 3,
+            "totalThermalResistance": 3.313,
+            "kValue": 0.302,
+            "sourcePageId": "02f3418c-a64a-4bb2-bb8f-e9bd1aceefe8",
+            "pageLabel": "5",
+            "optionId": "kp-b33936f895636d9a0ad113e8-0-o7"
+          },
+          {
+            "constructionCode": "A3-2",
+            "baseMaterial": "混凝土空心砌块",
+            "thicknessMm": 45,
+            "productThermalResistance": 3,
+            "totalThermalResistance": 3.398,
+            "kValue": 0.294,
+            "sourcePageId": "02f3418c-a64a-4bb2-bb8f-e9bd1aceefe8",
+            "pageLabel": "5",
+            "optionId": "kp-b33936f895636d9a0ad113e8-1-o7"
+          },
+          {
+            "constructionCode": "外墙A3-3",
+            "baseMaterial": "蒸压灰砂砖",
+            "thicknessMm": 45,
+            "productThermalResistance": 3,
+            "totalThermalResistance": 3.416,
+            "kValue": 0.293,
+            "sourcePageId": "88a0dc1c-f14d-4a07-99eb-fa3beb99fbdb",
+            "pageLabel": "6",
+            "optionId": "kp-c185674d71d2a7536e75d90d-0-o7"
+          },
+          {
+            "constructionCode": "外墙A3-4",
+            "baseMaterial": "加气混凝土砌块",
+            "thicknessMm": 45,
+            "productThermalResistance": 3,
+            "totalThermalResistance": 4.04,
+            "kValue": 0.248,
+            "sourcePageId": "88a0dc1c-f14d-4a07-99eb-fa3beb99fbdb",
+            "pageLabel": "6",
+            "optionId": "kp-c185674d71d2a7536e75d90d-1-o7"
+          }
+        ],
+        "citations": [
+          {
+            "pageId": "02f3418c-a64a-4bb2-bb8f-e9bd1aceefe8",
+            "pageLabel": "5",
+            "options": [
+              "kp-b33936f895636d9a0ad113e8-0-o7",
+              "kp-b33936f895636d9a0ad113e8-1-o7"
+            ]
+          },
+          {
+            "pageId": "88a0dc1c-f14d-4a07-99eb-fa3beb99fbdb",
+            "pageLabel": "6",
+            "options": [
+              "kp-c185674d71d2a7536e75d90d-0-o7",
+              "kp-c185674d71d2a7536e75d90d-1-o7"
+            ]
+          }
+        ],
+        "answer": "有，以下参考方案的热工参数符合查询条件：\n\n本次资料匹配范围共 4 条、4 种基层，当前展示 4 条。\n\n- **A3-1**（钢筋混凝土 200mm基层）：建筑外墙热工计算参考选用表（III型VICP薄抹灰外保温系统）；保温层厚度 **45mm**，总热阻 **R₀=3.313 (m²·K)/W**，传热系数 **K=0.302 W/(m²·K)**。来源：《测试知识库》，第5页。\n\n- **A3-2**（混凝土空心砌块 190mm基层）：建筑外墙热工计算参考选用表（III型VICP薄抹灰外保温系统）；保温层厚度 **45mm**，总热阻 **R₀=3.398 (m²·K)/W**，传热系数 **K=0.294 W/(m²·K)**。来源：《测试知识库》，第5页。\n\n- **外墙A3-3**（蒸压灰砂砖 240mm基层）：建筑外墙热工计算参考选用表（III型VICP薄抹灰外保温系统）；保温层厚度 **45mm**，总热阻 **R₀=3.416 (m²·K)/W**，传热系数 **K=0.293 W/(m²·K)**。来源：《测试知识库》，第6页。\n\n- **外墙A3-4**（加气混凝土砌块 200mm基层）：建筑外墙热工计算参考选用表（III型VICP薄抹灰外保温系统）；保温层厚度 **45mm**，总热阻 **R₀=4.040 (m²·K)/W**，传热系数 **K=0.248 W/(m²·K)**。来源：《测试知识库》，第6页。\n\n以上为图集参考方案。工程选用需结合节能要求核对。"
+      }
+    },
+    {
+      "name": "概念/序号比较路由",
+      "status": "PASS",
+      "details": {}
+    },
+    {
+      "name": "真实B端指定版本与C端事实/optionId一致",
+      "status": "PASS",
+      "details": {
+        "totalMatched": 4,
+        "totalGroups": 4,
+        "pages": 2
+      }
+    },
+    {
+      "name": "真实原页图只读HEAD",
+      "status": "BLOCKED",
+      "details": {
+        "pageId": "02f3418c-a64a-4bb2-bb8f-e9bd1aceefe8",
+        "pageLabel": "5",
+        "errorType": "AggregateError",
+        "code": "ECONNREFUSED"
+      }
+    },
+    {
+      "name": "真实原页图只读HEAD",
+      "status": "BLOCKED",
+      "details": {
+        "pageId": "88a0dc1c-f14d-4a07-99eb-fa3beb99fbdb",
+        "pageLabel": "6",
+        "errorType": "AggregateError",
+        "code": "ECONNREFUSED"
+      }
+    },
+    {
+      "name": "数据库事实链验证结束只读状态",
+      "status": "PASS",
+      "details": {
+        "readOnly": true,
+        "signedUrlsGenerated": 0,
+        "urlsPersisted": false,
+        "liveConversationHttpSse": "NOT RUN：会写消息/审计/候选状态",
+        "modelGateway": "NOT RUN：本次验证确定性数据库事实链"
+      }
+    }
+  ],
+  "finishedAt": "2026-10-13T12:45:01.417Z"
+}

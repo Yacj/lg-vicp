@@ -1,3 +1,4 @@
+import { domainDecision, type DomainIntent } from "./ai-domain-turn-decision.js";
 import "dotenv/config";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ save: vi.fn(), query: vi.fn(), runtime: vi.fn(), record: vi.fn(), calc: vi.fn(), read: vi.fn() }));
@@ -16,10 +17,10 @@ import { createCompareSolutionsTool, compareSolutionsInput } from "./tools/compa
 import type { ToolRuntimeContext } from "./tools/tool-runtime.js";
 import { normalizeConversationLookupQuery } from "./tools/thermal-lookup.js";
 
-function context(message: string): ToolRuntimeContext {
+function context(message: string, intent: DomainIntent = "REFERENCE_VIEW"): ToolRuntimeContext {
   const read: any = { from: () => read, innerJoin: () => read, where: async () => [] };
   return { app: { db: { select: () => read }, log: { warn: vi.fn() } }, request: {}, user: { id: "u", clientType: "C_APP" },
-    conversation: { id: "c", projectId: null, scene: "general_chat" }, userMessage: message, onEvent: vi.fn(),
+    domainDecision: domainDecision(intent, message), conversation: { id: "c", projectId: null, scene: "general_chat" }, userMessage: message, onEvent: vi.fn(),
     taskState: { taskType: "GENERAL", lastReferenceLookup: { query: normalizeConversationLookupQuery({ systemId: "thin" }, "K0.3左右", undefined, { entities: [], aliases: [] }).query,
       candidates: referenceReadFixture().candidates,
       createdAt: new Date().toISOString(), candidateQueryRevision: 7, projectId: null } } } as unknown as ToolRuntimeContext;
@@ -43,7 +44,7 @@ describe("P0静态审计：非Agent原页与比较边界（服务测试，非HTT
     expect(ctx.taskState).toEqual(frozen);
   });
   it("普通比较只读明确的第一和第三个，不改变QueryState或Selected", async () => {
-    const ctx = context("第一个和第三个比较"), frozen = structuredClone(ctx.taskState);
+    const ctx = context("第一个和第三个比较", "COMPARE_CANDIDATES"), frozen = structuredClone(ctx.taskState);
     const result = await resolveReferenceQueryWithoutAgent(ctx);
     expect(result.facts.candidates.map(c => c.id)).toEqual(["row-1", "row-3"]);
     expect(mocks.query).not.toHaveBeenCalled();
@@ -51,7 +52,7 @@ describe("P0静态审计：非Agent原页与比较边界（服务测试，非HTT
     expect(mocks.save).not.toHaveBeenCalled();
   });
   it("局部Refine正式重查并更新Candidate revision", async () => {
-    const ctx = context("那20mm以内");
+    const ctx = context("那20mm以内", "REFERENCE_REFINE");
     await resolveReferenceQueryWithoutAgent(ctx);
     expect(mocks.query).toHaveBeenCalledTimes(1);
     expect(mocks.query.mock.calls[0]![1]).toMatchObject({ systemId: "thin", thicknessMax: 20,
@@ -70,7 +71,7 @@ describe("P0静态审计：Agent工具后端实际副作用（不含真实Agent�
     expect(mocks.record).not.toHaveBeenCalled();
   });
   it("compare_solutions普通比较不得保存临时Selected", async () => {
-    const ctx = context("第一个和第三个比较"), frozen = structuredClone(ctx.taskState);
+    const ctx = context("第一个和第三个比较", "COMPARE_CANDIDATES"), frozen = structuredClone(ctx.taskState);
     const result: any = await createCompareSolutionsTool(ctx).execute!(compareSolutionsInput.parse({ operation: "COMPARE" }), { toolCallId: "p0", messages: [], context: {} });
     expect(result.ok).toBe(true);
     expect(result.data.candidates.map((c: any) => c.id)).toEqual(["row-1", "row-3"]);

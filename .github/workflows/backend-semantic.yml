@@ -1,0 +1,30 @@
+name: Backend semantic contract
+on:
+  pull_request:
+    paths: ['backend/**', '.github/workflows/backend-semantic.yml']
+  push:
+    paths: ['backend/**', '.github/workflows/backend-semantic.yml']
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/semantic_unit_tests
+      JWT_SECRET: semantic-unit-test-secret-no-production
+      AI_CONFIG_ENCRYPTION_KEY: '01234567890123456789012345678901'
+      STORAGE_ACCESS_KEY: semantic-unit-tests
+      STORAGE_SECRET_KEY: semantic-unit-tests
+      BOOTSTRAP_ADMIN_PASSWORD: semantic-unit-tests
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm test
+      - run: pnpm build

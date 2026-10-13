@@ -1,5 +1,10 @@
 import { resolveDomainTurn } from "./ai-domain-turn-decision.service.js";
 import { isReferenceRead } from "./ai-domain-turn-decision.js";
+import { targetedDomainFallback } from "./ai-domain-policy.js";
+import { resolveStructuredReferenceQuery } from "./structured-reference-query.js";
+import { resolveSolutionAdvice, emitSolutionAdvice } from "./solution-advice.service.js";
+import { loadAdviceBusinessContext } from "./solution-advice-context.service.js";
+import { advanceAdviceBusinessContext, invalidateAdviceOnTopicChange } from "./solution-advice-context.js";
 /**
  * AI 对话生成共享服务：敏感词围栏 → 限流/配额 → 生成锁 → 场景运行时解析 →
  * 消息落库 → 知识检索注入 → 提示词组装 → SSE 流式生成（主/备用模型降级）→ 审计与引用出参。
@@ -352,6 +357,7 @@ export async function streamConversationReply(options: {
   const waitingRunPreview = await getActiveAgentRun(app, conversation.id);
   const waitingPreviewState = waitingRunPreview ? parseAgentRunState(waitingRunPreview.stateJson) : null;
   const currentTaskState = await getConversationTaskState(app, conversation.id);
+  if (providedChunks === undefined) currentTaskState.adviceBusinessContext = await loadAdviceBusinessContext(app, conversation, currentTaskState, userMessage.id);
   const queryBefore = structuredClone(currentTaskState.lastReferenceLookup?.query ?? {});
   const toolRoutes = new Set<string>();
   const onToolRoute = (name: string) => { toolRoutes.add(name); };
@@ -359,10 +365,20 @@ export async function streamConversationReply(options: {
   let reportQueued = false;
   const onReportQueued = () => { reportQueued = true; };
   const onFactValidation = (code: string) => { agentFactValidationCode = code; };
-  const domainDecision = providedChunks === undefined ? await resolveDomainTurn({ app, conversation, userMessage: content, taskState: currentTaskState }) : undefined;
+  const parsedDomain = providedChunks === undefined ? await resolveDomainTurn({ app, conversation, userMessage: content, taskState: currentTaskState }) : undefined;
+  const domainDecision = parsedDomain?.intent === "SOLUTION_ADVICE" && options.candidateQueryRevision != null
+    && options.candidateQueryRevision !== currentTaskState.lastReferenceLookup?.candidateQueryRevision
+    ? { ...targetedDomainFallback(currentTaskState, "LLM", "REVISION_CHANGED"), unresolved: ["候选列表已变化，请基于最近显示的候选继续参考建议。"] } : parsedDomain;
+  const invalidatedAdvice = invalidateAdviceOnTopicChange(currentTaskState, domainDecision?.intent, content, domainDecision);
+  if (invalidatedAdvice !== currentTaskState) {
+    Object.assign(currentTaskState, invalidatedAdvice);
+    await saveConversationTaskState(app, conversation.id, currentTaskState);
+  }
   const solutionContext = { app, request, user, conversation, domainDecision };
   const solutionEnabled = providedChunks === undefined && (user.clientType === "C_APP" || user.clientType === "PC_AI");
-  const activeSolution = solutionEnabled ? await loadActiveSolution(solutionContext) : null;
+  const directAdvice = domainDecision?.intent === "SOLUTION_ADVICE";
+  const adviceQuery = directAdvice && Boolean(domainDecision?.requiresCandidateQuery);
+  const activeSolution = solutionEnabled && !directAdvice ? await loadActiveSolution(solutionContext) : null;
   const editableSolution = isEditableSolution(activeSolution) && activeSolution.projectId === conversation.projectId ? activeSolution : null;
   const lookupRevision = currentTaskState.lastReferenceLookup?.candidateQueryRevision;
   const solutionIntent = solutionEnabled && domainDecision?.intent === "SOLUTION_ACTION" ? await parseSolutionAction(solutionContext, content,
@@ -428,18 +444,21 @@ export async function streamConversationReply(options: {
     capabilities.needThermalTool = domainDecision.intent === "THERMAL_CALCULATE";
     capabilities.needReferenceLookup = ["REFERENCE_QUERY", "REFERENCE_REFINE", "REFERENCE_VIEW", "REFERENCE_DETAIL", "COMPARE_CANDIDATES"].includes(domainDecision.intent);
   }
-  const directDomainRead = Boolean(domainDecision && (isReferenceRead(domainDecision) || domainDecision.intent === "COMPARE_CANDIDATES" || domainDecision.intent === "CLARIFY" || domainDecision.intent === "COMPLIANCE_CHECK"));
+  const directDomainRead = Boolean(domainDecision && (isReferenceRead(domainDecision) || domainDecision.intent === "COMPARE_CANDIDATES" || domainDecision.intent === "CLARIFY" || domainDecision.intent === "COMPLIANCE_CHECK" || directAdvice));
   const pureExplanation = domainDecision?.intent === "KNOWLEDGE_EXPLAIN" && !reportAuthorization && !optionId && !selectedIds?.length && !optionIds?.length;
+  const structuredRequest = domainDecision && (domainDecision.mutation === "QUERY" || domainDecision.requiresCandidateQuery)
+    ? resolveStructuredReferenceQuery(content, currentTaskState.lastReferenceLookup) : null;
+  const structuredReference = structuredRequest?.needsClarification ? null : structuredRequest;
   const allowedTools = selectAllowedToolNames({
     capabilities,
     hasProject: Boolean(conversation.projectId),
     allowKnowledgeSearch: runtime.allowKnowledgeSearch
-  });
+  }).filter(name => !directAdvice && (!structuredReference || name === "search_knowledge"));
   const agentModel = providedChunks !== undefined ? null : await resolveAgentModel(runtime, app.db);
   const agentEnabled = Boolean(agentModel && allowedTools.length > 0 && !directDomainRead && !directSolutionReport && !directProductRead && !pureExplanation);
 
   // Agent 路径由工具按需检索；无工具模型或知识问答注入仍走预检索，避免假装已有 Agent 能力。
-  const needKnowledgeLookup = !agentEnabled && !directDomainRead && !directProductRead && capabilities.needKnowledgeSearch;
+  const needKnowledgeLookup = adviceQuery || !agentEnabled && !directDomainRead && !directProductRead && capabilities.needKnowledgeSearch;
   const { chunks, retrievalFailed } = await loadKnowledgeForGeneration({
     app,
     log: request.log,
@@ -456,7 +475,7 @@ export async function streamConversationReply(options: {
   const projectContext = conversation.projectId
     ? await resolveProjectContext(app, conversation.projectId)
     : null;
-  const comparisonRules = (domainDecision?.intent === "MATERIAL_COMPARE" || !agentEnabled && (conversation.scene === AI_SCENES.MATERIAL_COMPARE || capabilities.needComparisonTool))
+  const comparisonRules = !directAdvice && (domainDecision?.intent === "MATERIAL_COMPARE" || !agentEnabled && (conversation.scene === AI_SCENES.MATERIAL_COMPARE || capabilities.needComparisonTool))
     ? await loadApprovedComparisonRules(app, {})
     : [];
   const shouldInjectKnowledge = !agentEnabled && (providedChunks !== undefined
@@ -465,7 +484,10 @@ export async function streamConversationReply(options: {
     || (capabilities.needKnowledgeSearch && capabilities.explicitKnowledgeRequest));
   const candidateEvents: Array<{ event: string; data: unknown }> = [];
   const onCandidateEvent = (event: string, data: unknown) => { if (event === "report_queued") onReportQueued(); candidateEvents.push({ event, data }); };
-  const referenceQuery = !solutionIntent && providedChunks === undefined && !agentEnabled && (capabilities.needReferenceLookup || directDomainRead) && (!waitingRunPreview || directDomainRead)
+  const referenceQuery = adviceQuery && !structuredReference
+    ? await resolveReferenceQueryWithoutAgent({ ...solutionContext, userMessage: content, taskState: taskDecision.state, onEvent: onCandidateEvent,
+      domainDecision: { ...domainDecision!, intent: "REFERENCE_REFINE", mutation: "QUERY" }, candidatePublication: "READ_ONLY_ADVICE" })
+    : !directAdvice && !structuredReference && !solutionIntent && providedChunks === undefined && !agentEnabled && (capabilities.needReferenceLookup || directDomainRead) && (!waitingRunPreview || directDomainRead)
     ? await resolveReferenceQueryWithoutAgent({ app, request, user, conversation, userMessage: content, taskState: taskDecision.state, onEvent: onCandidateEvent, domainDecision, candidateQueryRevision: options.candidateQueryRevision }) : undefined;
   if (referenceQuery) onToolRoute("compliance" in referenceQuery ? "backend:compliance_read" : "readOnly" in referenceQuery ? "backend:reference_read" : directDomainRead ? "backend:clarify" : "backend:reference_query");
   const complianceResult = referenceQuery && "compliance" in referenceQuery && referenceQuery.compliance && typeof referenceQuery.compliance === "object"
@@ -473,15 +495,27 @@ export async function streamConversationReply(options: {
   const referenceFacts = referenceQuery && (referenceQuery.needsClarification || referenceQuery.facts.candidates.length || referenceQuery.facts.nearbyCandidates?.length || referenceQuery.facts.identityMatchedButMetricFailed?.length)
     ? referenceQuery.facts : undefined;
   const pageReferences = solutionIntent ? undefined : providedChunks !== undefined && options.loadPageReferences ? await options.loadPageReferences()
-    : !directDomainRead && !agentEnabled && capabilities.needReferenceLookup
-      ? referenceFacts ? undefined : await loadPublishedKnowledgeReferences(app, chunks, conversation.projectId, content, referenceQuery?.facts.query) : undefined;
+    : (!directDomainRead || adviceQuery) && !agentEnabled && (capabilities.needReferenceLookup || adviceQuery)
+      ? referenceFacts ? undefined : await loadPublishedKnowledgeReferences(app,
+        taskDecision.state.confirmedKnowledgeSourceIds?.length ? chunks.filter(hit => taskDecision.state.confirmedKnowledgeSourceIds!.includes(hit.documentId)) : chunks,
+        conversation.projectId, content, structuredReference?.query ?? referenceQuery?.facts.query) : undefined;
   const knowledgeContext = shouldInjectKnowledge
     ? (pageReferences?.authoritative ? null : formatKnowledgeContext(chunks, { retrievalFailed })) : null;
   const knowledgeSolutionCandidates = pageReferences && "solutionCandidates" in pageReferences && Array.isArray(pageReferences.solutionCandidates)
     ? pageReferences.solutionCandidates as import("./solution-workflow.js").SolutionCandidateSnapshot[] : [];
   if (solutionEnabled && knowledgeSolutionCandidates.length)
-    await publishCandidateResult({ ...solutionContext, taskState: taskDecision.state, onEvent: onCandidateEvent }, {
-      query: referenceQuery?.facts.query ?? taskDecision.state.lastReferenceLookup?.query ?? {}, candidates: knowledgeSolutionCandidates, createdAt: new Date().toISOString() });
+    await publishCandidateResult({ ...solutionContext, taskState: taskDecision.state, onEvent: onCandidateEvent, candidatePublication: adviceQuery ? "READ_ONLY_ADVICE" : undefined }, {
+      query: pageReferences?.query ?? referenceQuery?.facts.query ?? taskDecision.state.lastReferenceLookup?.query ?? {}, candidates: knowledgeSolutionCandidates, createdAt: new Date().toISOString() });
+  if (adviceQuery && taskDecision.state.lastReferenceLookup?.candidateQueryRevision === lookupRevision)
+    await publishCandidateResult({ ...solutionContext, taskState: taskDecision.state, onEvent: onCandidateEvent, candidatePublication: "READ_ONLY_ADVICE" }, {
+      query: structuredReference?.query ?? referenceQuery?.facts.query ?? {}, candidates: [], createdAt: new Date().toISOString() });
+  if (adviceQuery) taskDecision.state = advanceAdviceBusinessContext(taskDecision.state, conversation, "REFERENCE_QUERY", content, "本轮条件对应的候选", Date.now());
+  const adviceResult = directAdvice ? await resolveSolutionAdvice({ ...solutionContext, userMessage: content, taskState: taskDecision.state,
+    candidateQueryRevision: adviceQuery ? taskDecision.state.lastReferenceLookup?.candidateQueryRevision : options.candidateQueryRevision,
+    domainDecision: adviceQuery ? { ...domainDecision!, semantic: domainDecision?.semantic ? { ...domainDecision.semantic,
+      reference: { ...domainDecision.semantic.reference, scope: "LAST_VISIBLE_CANDIDATES", revision: taskDecision.state.lastReferenceLookup?.candidateQueryRevision ?? null } } : undefined,
+      referenceScope: "LATEST_VISIBLE" } : domainDecision }) : undefined;
+  if (adviceResult) onToolRoute("backend:solution_advice");
   const answerContract = resolveAnswerContract({
     domainDecision,
     taskType: taskDecision.state.taskType,
@@ -654,6 +688,9 @@ export async function streamConversationReply(options: {
         }
       }
       writeSse(reply, "delta", { text: fullText });
+    } else if (adviceResult) {
+      fullText = adviceResult.answer; referencePages = adviceResult.referencePages; agentSources = adviceResult.sources;
+      emitSolutionAdvice(reply, adviceResult);
     } else if (directSolutionReport) {
       onToolRoute("backend:solution_report");
       const generated = await generateConfirmedSolutionReport({ ...reportContext, onEvent: (event, data) => {
@@ -1001,7 +1038,7 @@ export async function streamConversationReply(options: {
     const storedReferences = providedChunks !== undefined && options.loadPageReferences
       ? referencePages.map(value => storeReferencePageBlocks([value as ReferencePageBlock])[0])
       : await persistMessageReferencePages(app, referencePages, conversation.projectId);
-    const currentSolution = solutionEnabled ? await loadActiveSolution(solutionContext) : null;
+    const currentSolution = solutionEnabled && !directAdvice ? await loadActiveSolution(solutionContext) : null;
     const solutionState = currentSolution && (solutionIntent || isEditableSolution(currentSolution)) ? solutionDto(currentSolution) : null;
     const lookupResult = taskDecision.state.lastReferenceLookup;
     const referenceCandidates = lookupResult?.candidateQueryRevision && lookupResult.candidateQueryRevision !== lookupRevision
@@ -1019,6 +1056,11 @@ export async function streamConversationReply(options: {
         domainIntent: domainDecision?.intent,
         mutation: domainDecision?.mutation,
         referenceScope: domainDecision?.referenceScope,
+        goal: domainDecision?.intent,
+        relation: domainDecision?.semantic?.relation,
+        adviceMode: domainDecision?.semantic?.adviceMode,
+        patch: domainDecision?.semantic?.constraintPatch.map(patch => ({ field: patch.field, op: patch.op })),
+        policyReason: domainDecision?.policyReason,
         referenceRevision: lookupRevision,
         queryChanged: Boolean(referenceCandidates),
         toolRoute: [...toolRoutes],
@@ -1034,7 +1076,7 @@ export async function streamConversationReply(options: {
         candidateIdList: typeof complianceResult?.candidateId === "string" ? [complianceResult.candidateId]
           : referenceQuery ? [...referenceQuery.facts.candidates, ...(referenceQuery.facts.nearbyCandidates ?? []), ...(referenceQuery.facts.identityMatchedButMetricFailed ?? [])].map(candidate => candidate.id)
           : domainDecision?.mutation === "QUERY" || domainDecision?.mutation === "CALCULATE" ? lookupResult?.candidates.map(candidate => candidate.id) ?? []
-            : solutionIntent?.candidateIds ?? (solutionIntent ? currentSolution?.payload.finalCandidateIds ?? [] : []),
+          : adviceResult?.candidates.map(candidate => candidate.id) ?? solutionIntent?.candidateIds ?? (solutionIntent ? currentSolution?.payload.finalCandidateIds ?? [] : []),
         candidateSnapshotSource: [...new Set(lookupResult?.candidates.map(candidate => candidate.sourceType === "CALCULATED" ? "CALCULATED" : `${candidate.sourceType ?? "REFERENCE"}:${candidate.referenceKind ?? "THERMAL_ROW"}`) ?? [])],
         referencePageIds: [...new Set(referencePages.flatMap(value => {
           const page = (value as ReferencePageBlock).page;
@@ -1045,9 +1087,10 @@ export async function streamConversationReply(options: {
         parserSource: domainDecision?.parserSource,
         queryParserSource: lookupResult?.query.parserSource,
         factValidationCode: complianceResult ? complianceResult.status === "CHECKED" ? "COMPLIANCE_VERIFIED" : "COMPLIANCE_NOT_DETERMINED"
+          : adviceResult ? adviceResult.verified ? "ADVICE_REFERENCE_VERIFIED" : "ADVICE_REFERENCE_UNAVAILABLE"
           : productRead && directProductRead ? "CATALOG_VERIFIED" : referenceFacts ? validateAnswerFacts(fullText, referenceFacts).code : agentFactValidationCode ?? "NOT_EVALUATED",
-        candidateIds: referenceQuery?.facts.candidates.map(candidate => candidate.id),
-        sourcePageIds: [...new Set(referenceQuery?.facts.candidates.map(candidate => candidate.sourcePageId).filter(Boolean) ?? [])],
+        candidateIds: adviceResult?.candidates.map(candidate => candidate.id) ?? referenceQuery?.facts.candidates.map(candidate => candidate.id),
+        sourcePageIds: [...new Set((adviceResult?.candidates ?? referenceQuery?.facts.candidates ?? []).map(candidate => candidate.sourcePageId).filter(Boolean))],
         factValidation: referenceFacts ? validateAnswerFacts(fullText, referenceFacts).code : undefined,
         intent: answerContract === "THERMAL" && isThermalComplianceIntent(content) ? "COMPLIANCE"
           : answerContract === "REFERENCE_LOOKUP" || answerContract === "THERMAL" ? answerContract : taskDecision.state.taskType
@@ -1087,6 +1130,10 @@ export async function streamConversationReply(options: {
         }
       });
     });
+    if (providedChunks === undefined && domainDecision) {
+      taskDecision.state = advanceAdviceBusinessContext(taskDecision.state, conversation, domainDecision.intent, content, fullText, Date.now(), adviceResult?.verified, domainDecision);
+      await saveConversationTaskState(app, conversation.id, taskDecision.state);
+    }
     // 记录本次回答引用的材料对比规则（审计，含快照）
     if (comparisonRules.length > 0) {
       await logComparisonRuleUsage(app, user, {

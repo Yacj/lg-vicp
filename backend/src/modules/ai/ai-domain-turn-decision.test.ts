@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { decideDomainTurn } from "./ai-domain-turn-decision.js";
+import { domainDecision } from "./ai-domain-turn-decision.js";
 import { resolveAnswerContract } from "../../shared/ai-answer-contract.js";
+import { applyDomainPolicy } from "./ai-domain-policy.js";
+import { domainSemanticFixture } from "./domain-semantic.fixture.js";
 const last = { query: {}, candidates: [] };
-describe("单轮目标与写入授权分层", () => {
+describe("已分类语义提案与写入授权分层（非模型理解验收）", () => {
   it.each([
     ["你好", "GENERAL", "NONE"], ["K值是什么意思", "KNOWLEDGE_EXPLAIN", "NONE"],
     ["图集里的热工计算表在哪页", "KNOWLEDGE_EXPLAIN", "NONE"],
@@ -18,10 +20,10 @@ describe("单轮目标与写入授权分层", () => {
     ["窗洞口做法在哪页", "KNOWLEDGE_EXPLAIN", "NONE"], ["生成工程报告", "REPORT_REQUEST", "REPORT"],
     ["第一个和第三个比较并留下第一个", "CLARIFY", "NONE"]
   ])("%s → %s", (message, intent, mutation) => {
-    expect(decideDomainTurn(message!, last)).toMatchObject({ intent, mutation });
+    expect(applyDomainPolicy(message!, domainSemanticFixture(message!, intent as any))).toMatchObject({ intent, mutation });
   });
   it("合规回答合同不签发计算授权", () => {
-    expect(resolveAnswerContract({ message: "上海住宅K≤0.3是否达标", domainDecision: decideDomainTurn("上海住宅K≤0.3是否达标", last),
+    expect(resolveAnswerContract({ message: "上海住宅K≤0.3是否达标", domainDecision: domainDecision("COMPLIANCE_CHECK", "上海住宅K≤0.3是否达标"),
       capabilities: { needThermalTool: true } })).toBe("KNOWLEDGE");
   });
   it.each([
@@ -33,7 +35,7 @@ describe("单轮目标与写入授权分层", () => {
     const previous = { query: { filters: [{ metric: "K" as const, targetValue: .3, mode: "APPROX" as const }] },
       candidates: [{ id: "concrete", thicknessMm: 45, substrateMaterial: "钢筋混凝土" }, { id: "aac", thicknessMm: 45, substrateMaterial: "加气混凝土" }] };
     const before = structuredClone(previous);
-    expect(decideDomainTurn(message!, previous)).toMatchObject({ intent, mutation: intent === "REFERENCE_QUERY" ? "QUERY" : "NONE" });
+    expect(applyDomainPolicy(message!, domainSemanticFixture(message!, intent as any), { taskType: "GENERAL", lastReferenceLookup: previous } as any)).toMatchObject({ intent, mutation: intent === "REFERENCE_QUERY" ? "QUERY" : "NONE" });
     expect(previous).toEqual(before);
   });
 });

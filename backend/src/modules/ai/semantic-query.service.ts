@@ -8,6 +8,7 @@ import { writeAuditLog } from "../audit-logs/audit-log.service.js";
 import type { ToolRuntimeContext } from "./tools/tool-runtime.js";
 import type { ThermalQueryState } from "../thermal/thermal-query-state.js";
 import { suggestQueryEntities } from "../thermal/thermal-entity-suggestions.js";
+import { resolveStructuredReferenceQuery } from "./structured-reference-query.js";
 
 export const SEMANTIC_QUERY_PROMPT = [
   "你只做建筑热工查询的语言分类，输出符合 schema 的 JSON。不得查询数据库、执行工具、计算或生成工程事实，不输出正式ID。",
@@ -34,6 +35,14 @@ export type SemanticLookupResolution = ReturnType<typeof normalizeConversationLo
 export async function parseSemanticQuery(ctx: Context, input: ThermalQueryState = {}, dictionaryInput?: SemanticDictionary): Promise<SemanticLookupResolution> {
   const message = normalizeSemanticText(ctx.userMessage ?? "");
   const last = ctx.taskState?.lastReferenceLookup;
+  const structured = resolveStructuredReferenceQuery(message, last);
+  if (structured) {
+    const query = { ...structured.query };
+    if (!query.systemId && !query.systemIds && !query.specClass && ctx.conversation.insulationSystemId && !query.systemHint) query.systemId = ctx.conversation.insulationSystemId;
+    if (structured.needsClarification) query.unresolved = [...(query.unresolved ?? []), { field: "query", reason: "请明确比较体系、厚度及条件关系。" }];
+    return { query, lifecycle: query.queryMode!, conflict: false, attributeQuestion: false, needsClarification: structured.needsClarification,
+      confidence: structured.needsClarification ? 0 : 1, parserSource: "FAST_PATH", normalizedText: message, numberRoles: describeNumberRoles(message) };
+  }
   const dictionary = dictionaryInput ?? await loadThermalQueryDictionary(ctx.app.db);
   const legacy = normalizeConversationLookupQuery(input, message, last, dictionary);
   const debug = { normalizedText: message, numberRoles: describeNumberRoles(message) };

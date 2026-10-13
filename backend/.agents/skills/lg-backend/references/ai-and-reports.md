@@ -1,5 +1,7 @@
 <!-- 2026-08 原文导航收口：CHUNK_REBUILD 仅重建派生 Section/Block/Chunk，保留 Page ID、预览、人工页签、CONFIRMED TOC 与人工映射；双源只从 SEARCH_SOURCE 读取并且未映射页不索引。检索统一限制当前 PUBLISHED、未过期、AI_ENABLED 版本；BROWSE_ONLY 仅浏览；来源详情通过映射返回 ORIGINAL，未映射时不伪造页码。B 端草稿验证走 `POST /api/v1/platform/knowledge/versions/:versionId/test-qa`（`searchWikiHierarchy({ versionId })`，允许 DRAFT），不得把该限定并入生产 `/api/v1/ai/knowledge-qa`。 -->
 
+2026-10-13 语义匹配强制治理：开放自然语言只走现有resolveDomainTurn→结构化目标/关系/patch/reference/effect→Backend Policy；禁止方案/确认/加入等开放子串、删除否定、参数变化排斥Advice、pending boolean授权或泛化故障澄清。只允许工程格式提取、正式枚举/ID、无损归一、封闭完整命令/问候；副作用仍经权限/revision/来源/状态机。新增灰区快路径必须Rule ID+封闭语法/职责+5正5反3否定引用多轮+无副作用证明+冲突核验+owner批准与CI，缺一禁止。AST精确指纹白名单见docs/ai/semantic-matching-policy.md；不得全项目禁正则，不改资料、Thermal Engine、迁移或业务数据。
+
 2026-10-13 Domain收口：合规独立只读服务核验正式地区/建筑/结构范围与限值，不重算或刷新候选。报告execute先验证本轮领域或服务端UI授权；正式方案报告只消费CONFIRMED不可变SolutionSnapshot→DocumentModel，禁止旧产品报告替代，签名URL不入快照。裸指标先澄清查看/新目标，概念解释不恢复旧任务，同厚度多候选比较只读。产品SEARCH/READ只用正式目录/发布规格，比较ID来自搜索或UI；族简称可由启用GLOBAL后台别名显式绑定集合，缺映射拒绝宽查。无迁移/数据改写，见docs/ai/domain-turn-closeout-2026-10-13.md。
 
 2026-10-13 矩阵补测：带明确指标的候选请求不被“做法”抢入知识；K概念问句不查表；当前可见基层参数与完整热工原表只读，基层/板厚分开且多项逐个绑定，数量歧义不补旧列表。分类上下文含previousQuery，诊断只记意图/实际路径/字段差异/revision/标识/校验状态。S4术语口径待真实UAT，冻结Parser/Matcher不改。见docs/ai/high-frequency-matrix-coverage-2026-10-13.md。
@@ -17,6 +19,8 @@ Candidate 生命周期（2026-10-12）：查到候选不等于开始方案。普
 正式生产检索中，同一版本存在 page-aware chunks 时必须排除 `metadata.source=DOCUMENT_TEXT` 且 `visualPage=false` 的 Mammoth 无页定位块；只有 B 端 DRAFT 测试可使用该文本回退，并将不可追溯标记返回调试结果。
 
 # AI 与报告
+
+参考方案建议（2026-10-13）：SOLUTION_ADVICE只读最近可见候选，复用归属/来源/revision/24h核验，按实际基层择一，不按最小K替换基层。一般建议不要求地区建筑、不重查/计算、不激活/确认或生成报告。adviceBusinessContext/pendingAdviceGoal只存任务JSON并绑定会话/项目/revision/有效期，读取最多两轮目标，换话题立即中断。参见 docs/ai/solution-advice-2026-10-13.md。
 
 会话来源校验：令牌 `clientType=C_APP/PC_AI/B_ADMIN` 与会话 `clientApp=c_app/pc_ai/b_admin` 不是同一枚举。创建和方案访问统一通过 `clientAppForClient` 映射，不直接比较原值；服务事务/权限测试使用真实小写来源，覆盖本人空状态、创建/恢复、跨用户/跨端拒绝、失效/删除会话及私有项目拒绝。
 
