@@ -1,8 +1,7 @@
 import "dotenv/config";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-// 阶段1仅记录未修复合同。P0_EXPECT_FIXED=1 将已知失败改为普通断言，输出真实红灯。
-const pendingFix = process.env.P0_EXPECT_FIXED === "1" ? it : it.fails;
+// P0修复合同使用普通断言；不再以expected-fail计为通过。
 const mocks = vi.hoisted(() => ({ generate: vi.fn(), runtime: vi.fn(), audit: vi.fn() }));
 vi.mock("ai", () => ({ generateObject: mocks.generate }));
 vi.mock("./ai-runtime.service.js", () => ({ resolveSceneRuntime: mocks.runtime }));
@@ -23,7 +22,7 @@ const ctx = { app: { db: {}, log: { warn: vi.fn() } }, request: {}, user: { id: 
 beforeEach(() => { vi.resetAllMocks(); mocks.runtime.mockRejectedValue(new Error("受控模拟：动作模型不可用")); });
 
 describe("P0静态审计：动作故障不得拦截非动作（没有真实模型/SSE）", () => {
-  pendingFix.each(["第一个原页", "第一个完整表格", "A1-3 参数", "K是什么意思", "你好", "这个K怎么算"])(
+  it.each(["第一个原页", "第一个完整表格", "A1-3 参数", "K是什么意思", "你好", "这个K怎么算"])(
     "已有候选时 %s 必须交还其领域路由", async (message) => {
       const state = payload(), frozen = structuredClone(state);
       const result = await parseSolutionAction(ctx, message, state);
@@ -43,10 +42,15 @@ describe("P0静态审计：动作故障不得拦截非动作（没有真实模�
 });
 
 describe("P0静态审计：查询生命周期与正式族约束", () => {
+  it("后台正式别名可将族简称绑定多个体系，不推导名称族也不丢硬条件", () => {
+    const entities: QueryEntity[]=[{field:"systemId",value:"i",names:["正式体系甲"]},{field:"systemId",value:"ii",names:["正式体系乙"]},{field:"systemId",value:"other",names:["别的体系"]}];
+    const query=resolveQueryEntities("轻薄墙体K0.3",{},entities,[{term:"正式体系甲",alias:"轻薄墙体"},{term:"正式体系乙",alias:"轻薄墙体"}]);
+    expect(query.systemIds).toEqual(["i","ii"]); expect(validateCandidateAgainstQueryState({systemId:"other",kValue:.3},query).passed).toBe(false);
+  });
   it("首轮薄抹灰目标由正常名称目录收窄，金属面候选被正式ID约束拒绝", () => {
     const dictionary = { entities: [
-      { field: "systemId", value: "thin-i", names: ["I型 VICP薄抹灰外保温系统"] },
-      { field: "systemId", value: "thin-ii", names: ["II型 VICP薄抹灰外保温系统"] },
+      { field: "systemId", value: "thin-i", names: ["I型 VICP薄抹灰外保温系统"], family: "薄抹灰" },
+      { field: "systemId", value: "thin-ii", names: ["II型 VICP薄抹灰外保温系统"], family: "薄抹灰" },
       { field: "systemId", value: "metal", names: ["金属面夹芯板系统"] }
     ] as QueryEntity[], aliases: [] };
     const result = normalizeConversationLookupQuery({}, "薄抹灰K0.3左右有哪些", undefined, dictionary);
@@ -54,7 +58,7 @@ describe("P0静态审计：查询生命周期与正式族约束", () => {
     expect(result.query.systemIds).toEqual(["thin-i", "thin-ii"]);
     expect(validateCandidateAgainstQueryState({ systemId: "metal", kValue: 0.3 }, result.query).passed).toBe(false);
   });
-  pendingFix("复杂正式名不能让显式薄抹灰族条件消失", () => {
+  it("复杂正式名不能让显式薄抹灰族条件消失", () => {
     const dictionary = { entities: [
       { field: "systemId", value: "thin-i", names: ["I型 VICP真空绝热板薄抹灰外墙外保温系统"] },
       { field: "systemId", value: "metal", names: ["金属面夹芯板系统"] }
@@ -79,7 +83,7 @@ describe("P0静态审计：查询生命周期与正式族约束", () => {
     expect(refined.query).toMatchObject({ systemId: "thin-i", thicknessMax: 20, filters: [{ metric: "K", targetValue: 0.3, mode: "APPROX" }] });
     expect(refined.attributeQuestion).toBe(false);
     const fresh = normalizeConversationLookupQuery({}, "屋面K0.2左右有哪些方案", { ...last, query: { ...last.query, thicknessMax: 20 } },
-      { entities: [{ field: "systemId", value: "roof", names: ["屋面保温系统"] }], aliases: [] });
+      { entities: [{ field: "systemId", value: "roof", names: ["屋面保温系统"], family: "屋面" }], aliases: [] });
     expect(fresh.lifecycle).toBe("NEW_QUERY");
     expect(fresh.query.systemId).toBe("roof");
     expect(fresh.query.thicknessMax).toBeUndefined();

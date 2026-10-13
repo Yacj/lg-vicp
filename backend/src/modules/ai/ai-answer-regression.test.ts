@@ -186,15 +186,15 @@ describe("REFERENCE_LOOKUP vs THERMAL 五案", () => {
     })).toBe("REFERENCE_LOOKUP");
   });
 
-  it("Case 3：问上海是否满足要求走 THERMAL", () => {
+  it("Case 3：合规咨询先核验标准，不授权新计算", () => {
     const message = "这个0.3的方案在上海能满足要求吗？";
     const capabilities = resolveAiCapabilities({ message });
-    expect(capabilities.needThermalTool).toBe(true);
+    expect(capabilities.needThermalTool).toBe(false);
     expect(resolveAnswerContract({
       capabilities,
       message,
       lastReferenceLookup: LAST_LOOKUP
-    })).toBe("THERMAL");
+    })).toBe("KNOWLEDGE");
   });
 
   it("Case 4：明确帮我算走 THERMAL", () => {

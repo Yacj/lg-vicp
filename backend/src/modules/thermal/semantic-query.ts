@@ -170,6 +170,7 @@ export function applySemanticQuery(message: string, semanticInput: unknown, dict
   if (/或者|\bor\b/i.test(text)) reject("relationship", "请确认多个条件是否需要同时满足，当前不支持OR查询。");
   // 目录中明确命中的硬实体不能被模型省略或收窄为任意一条记录。
   const explicitEntities = resolveQueryEntities(text, {}, dictionary.entities, dictionary.aliases);
+  for (const unresolved of explicitEntities.unresolved ?? []) reject(unresolved.field, unresolved.reason);
   for (const field of entityFields) {
     const expected = explicitEntities[field];
     if (expected !== undefined && query[field] !== expected) reject(field, "明确指定的对象未被完整保留，请确认。");

@@ -246,7 +246,8 @@ export function logThermalQueryDebug(
   logger: { debug?: (payload: object, message: string) => void; warn?: (payload: object, message: string) => void } | undefined,
   snapshot: ThermalQueryDebugSnapshot
 ): void {
-  logger?.debug?.({ thermalQueryDebug: snapshot }, "热工查询诊断");
+  const { rawText: _raw, normalizedText: _text, semanticParserResult: _semantic, numberRoles: _roles, ...safe } = snapshot;
+  logger?.debug?.({ thermalQueryDebug: safe }, "热工查询诊断");
   if (snapshot.counts.matched === 0 && snapshot.counts.nearby > 0) {
     logger?.warn?.({ thermalQueryDebug: summarizeThermalQueryDebug(snapshot) }, "热工查询无正式命中但存在接近候选");
   }

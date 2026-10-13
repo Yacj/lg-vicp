@@ -4,6 +4,12 @@ globs: src/modules/ai*/**/*.ts,src/modules/knowledge/**/*.ts,src/modules/reports
 alwaysApply: false
 ---
 
+2026-10-13 Domain收口：合规独立只读服务核验正式地区/建筑/结构范围与限值，不重算或刷新候选。报告execute先验证本轮领域或服务端UI授权；正式方案报告只消费CONFIRMED不可变SolutionSnapshot→DocumentModel，禁止旧产品报告替代，签名URL不入快照。裸指标先澄清查看/新目标，概念解释不恢复旧任务，同厚度多候选比较只读。产品SEARCH/READ只用正式目录/发布规格，比较ID来自搜索或UI；族简称可由启用GLOBAL后台别名显式绑定集合，缺映射拒绝宽查。无迁移/数据改写，见docs/ai/domain-turn-closeout-2026-10-13.md。
+
+2026-10-13 矩阵补测：带明确指标的候选请求不被“做法”抢入知识；K概念问句不查表；当前可见基层参数与完整热工原表只读，基层/板厚分开且多项逐个绑定，数量歧义不补旧列表。分类上下文含previousQuery，诊断只记意图/实际路径/字段差异/revision/标识/校验状态。S4术语口径待真实UAT，冻结Parser/Matcher不改。见docs/ai/high-frequency-matrix-coverage-2026-10-13.md。
+
+2026-10-13 高频意图P0：每轮DomainTurnDecision先于动作解析，Agent/非Agent/回答合同共享；原页/参数与普通候选比较走只读Resolver，校验最近可见revision、24h、归属和当前确认来源，不重查或刷新Candidate/Selected。计算需本轮明确授权及核验对象，不信任旧lookup.Selected。基层材料/厚度/型号与双R/K同候选校验；无可靠正式族映射时澄清，禁止名称推导族ID。无迁移/部署，详见docs/ai/backend-p0-routing-fixes-2026-10-13.md。
+
 2026-10-12 普通问答回归修复：无可定位候选时不调用 Solution Action 模型，交还正常问答；lastReferenceLookup 候选仍支持首次懒激活。动作分类提示词必须包含 JSON 与从正式 Zod schema 派生的完整字段合同，兼容只支持 json_object 的模型网关；失败日志只记录错误类型/HTTP码。
 
 Candidate 生命周期（2026-10-12）：查到候选不等于开始方案。普通查表/知识回退/计算仅保存 lastReferenceLookup（query、candidates、createdAt、candidateQueryRevision、projectId）并发 reference_candidates；只有已有 editable active state 才刷新方案池。Confirmed 后普通查询不创建新 state。显式选择/加入/开始/修订才激活；首次选择事务核验权限、24h 有效期、revision、当前来源，seed 后执行既有 mutation。/solution/activate 单请求 ADD/SELECT/SET_FINAL；序号基于最近可见查询 revision，旧列表拒绝。无新迁移，不改 Matcher/QueryState/快照/报告或前端。

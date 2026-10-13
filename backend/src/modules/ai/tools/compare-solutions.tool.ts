@@ -1,6 +1,6 @@
+import { decideDomainTurn } from "../ai-domain-turn-decision.js";
+import { resolveReferenceRead } from "../reference-candidate-resolver.service.js";
 import { buildAllowedAnswerFacts, setThermalAnswerFacts } from "../thermal-answer-validation.js";
-import { saveConversationTaskState } from "../ai-conversation-state.service.js";
-import { traceQueryState, validateCandidateAgainstQueryState } from "../../thermal/thermal-query-state.js";
 import { toolError, toolOk } from "./tool-output.js";
 import { tool } from "ai";
 import { z } from "zod";
@@ -11,11 +11,9 @@ import { loadProjectProfile } from "../ai-project-profile.js";
 import { parseConversationTaskState } from "../conversation-task.js";
 import { runRegisteredTool, type ToolRuntimeContext } from "./tool-runtime.js";
 import { normalizeComparisonForModel } from "./tool-result-normalizer.js";
-import { selectFrozenReferenceCandidateIds } from "../reference-candidate-selection.js";
 import { loadActiveSolution, actOnSolution } from "../solution-state.service.js";
-import { compareSelectedSolution } from "../solution-workflow.js";
-import { solutionComparisonText } from "../solution-selection.js";
 import { parseSolutionAction } from "../solution-action-semantic.service.js";
+import { searchProductCatalog } from "../product-read.service.js";
 
 export const compareSolutionsInput = z.object({
   operation: z.enum(["COMPARE", "ADD", "REMOVE", "REMOVE_CONFLICT", "KEEP_FOR_COMPARISON", "SET_FINAL", "CONFIRM", "START_NEW"]).optional()
@@ -41,44 +39,32 @@ export function createCompareSolutionsTool(ctx: ToolRuntimeContext) {
     `,
     inputSchema: compareSolutionsInput,
     execute: async (args, options) => runRegisteredTool(ctx, "compare_solutions", args, options, async () => {
-      if (ctx.user.clientType === "C_APP" || ctx.user.clientType === "PC_AI") {
+      const decision = ctx.domainDecision ?? decideDomainTurn(ctx.userMessage ?? "", ctx.taskState?.lastReferenceLookup);
+      if (args.operation && args.operation !== "COMPARE") {
+        if (decision.intent !== "SOLUTION_ACTION") return toolError({ code: "SOLUTION_USER_ACTION_REQUIRED", message: "该操作需要用户本轮明确选择或确认。" });
         const state = await loadActiveSolution(ctx);
-        if (state && !state.confirmedSnapshotId && !args.productIds?.length) {
-          const intent = await parseSolutionAction(ctx, ctx.userMessage ?? "", state.payload);
-          if (args.operation && args.operation !== "COMPARE") {
-            if (!intent || intent.action !== args.operation || intent.clarification) return toolError({ code: "SOLUTION_USER_ACTION_REQUIRED", message: intent?.clarification ?? "该操作需要用户明确选择或确认" });
-            const result = await actOnSolution(ctx, state.id, { action: intent.action, expectedVersion: state.version,
-              candidateSetRevision: state.candidateSetRevision, candidateIds: intent.candidateIds });
-            ctx.onEvent?.("solution_state", result);
-            return toolOk(result);
-          }
-          // 默认只能比较 SSOT 的 selected，忽略模型自由提交的候选 ID。
-          const comparison = compareSelectedSolution(state.payload);
-          const facts = buildAllowedAnswerFacts(state.payload.queryStateSnapshot, comparison.candidates.filter(candidate => !candidate.conflicts.length), "详细参数对比", undefined,
-            { nearbyCandidates: comparison.candidates.filter(candidate => candidate.conflicts.length) });
-          facts.canonicalAnswers = [solutionComparisonText(comparison)];
-          setThermalAnswerFacts(ctx, facts);
-          return toolOk({ ...comparison, canonicalAnswers: ctx.thermalCanonicalAnswers });
-        }
+        if (!state) return toolError({ code: "SOLUTION_USER_ACTION_REQUIRED", message: "请先通过明确选择激活方案。" });
+        const intent = await parseSolutionAction({ ...ctx, domainDecision: decision }, ctx.userMessage ?? "", state.payload);
+        if (!intent || intent.action !== args.operation || intent.clarification) return toolError({ code: "SOLUTION_USER_ACTION_REQUIRED", message: intent?.clarification ?? "该操作需要用户明确选择或确认" });
+        const result = await actOnSolution(ctx, state.id, { action: intent.action, expectedVersion: state.version,
+          candidateSetRevision: state.candidateSetRevision, candidateIds: intent.candidateIds });
+        ctx.onEvent?.("solution_state", result);
+        return toolOk(result);
       }
-      const last = ctx.taskState?.lastReferenceLookup;
-      const selectedIds = selectFrozenReferenceCandidateIds(last, ctx.userMessage ?? "") ?? args.candidateIds
-        ?? (last && args.solutionIds?.length ? last.candidates.filter(candidate => args.solutionIds!.includes(candidate.schemeId ?? "")).map(candidate => candidate.id) : undefined);
-      if (selectedIds) {
-        const selected = (last?.candidates ?? []).filter(candidate => selectedIds.includes(candidate.id));
-        if (!last || selected.length < 2 || selected.length !== selectedIds.length || selected.some(candidate => !validateCandidateAgainstQueryState(candidate, last.query).passed)) {
-          ctx.thermalCanonicalAnswers = ["所选方案不在当前已核验候选中，请确认要比较的正式方案。"];
-          return toolError({ code: "REFERENCE_SELECTION_INVALID", message: "所选方案不在当前已核验候选中，请确认要比较的正式方案。" });
-        }
-        last.selectedCandidateIds = [...selectedIds];
-        last.query = traceQueryState({ ...last.query, intent: "COMPARISON" }, last.query);
-        if (ctx.taskState) await saveConversationTaskState(ctx.app, ctx.conversation.id, ctx.taskState);
-        const facts = buildAllowedAnswerFacts(last.query, selected, "详细参数对比");
-        setThermalAnswerFacts(ctx, facts);
-        return toolOk({ candidates: selected, scope: "SELECTED_CANDIDATES", canonicalAnswers: facts.canonicalAnswers,
-          instruction: `只比较已选记录。数值、厚度、页码必须与后端核验事实完全一致，允许自然表达：\n${facts.canonicalAnswers[0]}` });
+      if (decision.intent === "COMPARE_CANDIDATES") {
+        const read = await resolveReferenceRead({ ...ctx, domainDecision: decision });
+        setThermalAnswerFacts(ctx, read.facts);
+        return toolOk({ candidates: read.candidates, needsClarification: read.needsClarification,
+          canonicalAnswers: read.facts.canonicalAnswers }, { sources: read.sources });
       }
+      if (args.candidateIds?.length || !args.productIds?.length && !args.solutionIds?.length)
+        return toolError({ code: "REFERENCE_SELECTION_REQUIRED", message: "请明确本轮要比较的候选。" });
       if ((args.productIds?.length ?? 0) >= 2) {
+        if(decision.intent!=="MATERIAL_COMPARE") return toolError({code:"DOMAIN_COMPARE_NOT_AUTHORIZED",message:"本轮不是产品或材料比较请求。"});
+        const allowed=new Set([...(ctx.productReadIds??[]),...(ctx.taskState?.selectedProductIds??[])]);
+        if(args.productIds!.some(id=>!allowed.has(id))) return toolError({code:"PRODUCT_REFERENCE_REQUIRED",message:"请先搜索并明确要比较的正式产品，不能猜测产品ID。"});
+        const current=await searchProductCatalog(ctx,{productIds:args.productIds});
+        if(current.products.length!==new Set(args.productIds).size) return toolError({code:"PRODUCT_REFERENCE_INVALID",message:"部分产品已停用或不存在，请重新搜索。"});
         const taskState = ctx.taskState ?? parseConversationTaskState(null);
         const { result } = await compareProducts(ctx.app, {
           productIds: ctx.taskState?.selectedProductIds?.length ? ctx.taskState.selectedProductIds : args.productIds!,

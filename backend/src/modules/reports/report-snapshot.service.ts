@@ -57,6 +57,8 @@ export interface TemplateReportInput {
   settings?: ReportSettingsValues;
   /** 对话确认快照覆盖：无项目时仍可生成，Worker 只读冻结数据 */
   contextOverlay?: Record<string, unknown>;
+  /** 仅后端已授权方案入口提供，工程内容只来自不可变SolutionSnapshot。 */
+  solutionDocumentModel?: ReturnType<typeof import("../ai/solution-document-model.js").toSolutionDocumentModel>;
 }
 
 async function resolvePublishedTemplate(
@@ -92,6 +94,25 @@ export async function assembleReportSnapshot(app: FastifyInstance, input: Templa
 
   if (typeDef) {
     assertReportProjectRequirement({ requiresProject: typeDef.requiresProject, projectId });
+  }
+
+  if (input.solutionDocumentModel) {
+    const model = structuredClone(input.solutionDocumentModel);
+    const template = await resolvePublishedTemplate(app, { templateCode: typeDef?.templateCode, asOfDate });
+    if (!template) throw new ReportError("REPORT_TEMPLATE_NOT_PUBLISHED");
+    const sections = applyReportSettingsToSections((template.sectionsJson ?? []) as ReportTemplateSection[], settings);
+    const dataJson = { title: settings.coverTitle ?? template.name, generatedAt: new Date().toISOString(), asOfDate: asOfDate.toISOString(),
+      reportType: typeDef?.code, settings, template: { id: template.id, code: template.code, version: template.version, name: template.name, sections },
+      solutionSnapshotId: model.solutionSnapshotId, documentModel: model, project: model.project,
+      selection: { query: model.queryState, candidate: model.solutions, selectedById: model.confirmedBy, createdAt: model.confirmedAt },
+      construction: model.solutions, candidates: { final: model.solutions, alternatives: model.alternatives },
+      thermal: model.solutions.map(solution => ({ candidateId: solution.candidateId, sourceType: solution.sourceType,
+        kValue: solution.kValue, productThermalResistance: solution.productThermalResistance, totalThermalResistance: solution.totalThermalResistance,
+        thicknessMm: solution.thicknessMm, calculationId: solution.calculationId })),
+      comparison: model.comparison, sources: model.referencePages, referencePages: model.referencePages,
+      requirements: model.requirements, warnings: model.warnings,
+      disclaimerText: sections.find(section => section.key === "disclaimer" && section.sourceType === "TEXT")?.content ?? null };
+    return { dataJson, template, asOfDate };
   }
 
   const project = projectId

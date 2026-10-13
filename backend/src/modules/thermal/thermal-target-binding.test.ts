@@ -183,8 +183,8 @@ describe("K≈0.3 薄抹灰候选匹配（False Negative 定位）", () => {
 /** 拒绝原因细化 + Debug Trace（第十六、二十八～三十条）。 */
 describe("Debug Trace 与 Rejected Reasons", () => {
   const entities: QueryEntity[] = [
-    { field: "systemId", value: "sys-1", names: ["I型 VICP薄抹灰外保温系统"] },
-    { field: "systemId", value: "sys-2", names: ["II型 VICP薄抹灰外保温系统"] },
+    { field: "systemId", value: "sys-1", names: ["I型 VICP薄抹灰外保温系统"], family: "薄抹灰" },
+    { field: "systemId", value: "sys-2", names: ["II型 VICP薄抹灰外保温系统"], family: "薄抹灰" },
     { field: "systemId", value: "sys-deco", names: ["VICP保温装饰板系统"] }
   ];
 
@@ -229,9 +229,9 @@ describe("Debug Trace 与 Rejected Reasons", () => {
 /** 实体解析诊断：明确「薄抹灰」到底解析成什么（第二十三、二十四条）。 */
 describe("Entity Resolver 诊断", () => {
   const entities: QueryEntity[] = [
-    { field: "systemId", value: "sys-1", names: ["I型 VICP薄抹灰外保温系统"] },
-    { field: "systemId", value: "sys-2", names: ["II型 VICP薄抹灰外保温系统"] },
-    { field: "systemId", value: "sys-3", names: ["III型 VICP薄抹灰外保温系统"] },
+    { field: "systemId", value: "sys-1", names: ["I型 VICP薄抹灰外保温系统"], family: "薄抹灰" },
+    { field: "systemId", value: "sys-2", names: ["II型 VICP薄抹灰外保温系统"], family: "薄抹灰" },
+    { field: "systemId", value: "sys-3", names: ["III型 VICP薄抹灰外保温系统"], family: "薄抹灰" },
     { field: "systemId", value: "sys-deco", names: ["VICP保温装饰板系统"] }
   ];
 

@@ -74,6 +74,6 @@ describe("热工原子事实与回答契约", () => {
     expect(prompt).toContain("最多一个典型方案");
     expect(prompt).toContain("详细、全部、列出来、对比时才展开");
     expect(prompt).toContain("APPROX 说接近，EXACT 说正好等于");
-    expect(resolveAnswerContract({ message: "A4-1的K=0.12在上海能不能用？" })).toBe("THERMAL");
+    expect(resolveAnswerContract({ message: "A4-1的K=0.12在上海能不能用？" })).toBe("KNOWLEDGE");
   });
 });

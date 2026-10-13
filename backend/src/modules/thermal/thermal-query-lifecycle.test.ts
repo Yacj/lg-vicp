@@ -63,10 +63,10 @@ describe("NEW_QUERY / CONTINUE_QUERY 生命周期", () => {
 });
 
 const entities: QueryEntity[] = [
-  { field: "systemId", value: "sys-i", names: ["I型 VICP薄抹灰外保温系统", "EW-I"] },
-  { field: "systemId", value: "sys-ii", names: ["II型 VICP薄抹灰外保温系统", "EW-II"] },
-  { field: "systemId", value: "sys-iii", names: ["III型 VICP薄抹灰外保温系统", "EW-III"] },
-  { field: "systemId", value: "sys-roof", names: ["屋面保温系统", "ROOF"] }
+  { field: "systemId", value: "sys-i", names: ["I型 VICP薄抹灰外保温系统", "EW-I"], family: "薄抹灰" },
+  { field: "systemId", value: "sys-ii", names: ["II型 VICP薄抹灰外保温系统", "EW-II"], family: "薄抹灰" },
+  { field: "systemId", value: "sys-iii", names: ["III型 VICP薄抹灰外保温系统", "EW-III"], family: "薄抹灰" },
+  { field: "systemId", value: "sys-roof", names: ["屋面保温系统", "ROOF"], family: "屋面" }
 ];
 
 describe("Entity EXACT / FAMILY", () => {

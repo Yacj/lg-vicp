@@ -4,7 +4,9 @@ import { desc, eq } from "drizzle-orm";
 import { aiAgentRuns } from "../../../db/schema.js";
 import { USER_LANGUAGE_NOTES } from "../../../shared/ai-response-policy.js";
 import { runRegisteredTool, type ToolRuntimeContext } from "./tool-runtime.js";
-import { toolOk } from "./tool-output.js";
+import { toolOk, toolError } from "./tool-output.js";
+import { hasReportAuthorization, isSolutionReportRequest } from "../report-authorization.js";
+import { generateConfirmedSolutionReport } from "../solution-report.service.js";
 import { normalizeReportForModel } from "./tool-result-normalizer.js";
 import { parseSelectedChoice, type SelectedChoice, buildUserSelectionWaitState } from "../agent-choice.js";
 import {
@@ -76,13 +78,20 @@ export function createGenerateReportTool(ctx: ToolRuntimeContext) {
       覆盖已发布报告、删除或正式发布才需要 APPROVAL。
     `,
     inputSchema: generateReportInput,
-    execute: async ({ snapshotId, reportType, requirements }, options) => runRegisteredTool(ctx, "generate_report", { snapshotId, reportType, requirements }, options, async () => {
+    execute: async ({ snapshotId, reportType, requirements }, options) => {
+      if (!hasReportAuthorization(ctx)) return toolError({ code: "REPORT_AUTHORIZATION_REQUIRED", message: "本轮没有明确的报告生成授权，请先明确要求生成报告或确认界面选择。" });
+      return runRegisteredTool(ctx, "generate_report", { snapshotId, reportType, requirements }, options, async () => {
+      if (isSolutionReportRequest(ctx, reportType)) return generateConfirmedSolutionReport(ctx, reportType);
       const taskState = ctx.taskState ?? parseConversationTaskState(null);
       ctx.onEvent?.("report_started", { conversationId: ctx.conversation.id, snapshotId: snapshotId ?? taskState.reportContextSnapshotId ?? null });
 
       const existingSnapshotId = snapshotId ?? taskState.reportContextSnapshotId ?? null;
       if (existingSnapshotId) {
         const snapshot = await getReportContextSnapshot(ctx.app, existingSnapshotId);
+        if (!snapshot || snapshot.conversationId !== ctx.conversation.id || (snapshot.projectId ?? null) !== ctx.conversation.projectId)
+          return toolError({ code: "REPORT_SNAPSHOT_INVALID", message: "报告上下文快照不存在或不属于当前会话及项目。" });
+        if (["technical_scheme", "project_brief", "energy_design", "design_note", "TEMPLATE"].includes(snapshot.reportType))
+          return generateConfirmedSolutionReport(ctx, snapshot.reportType);
         if (snapshot) {
           const generated = await generateReportFromSnapshot(ctx.app, {
             snapshot,
@@ -262,6 +271,7 @@ export function createGenerateReportTool(ctx: ToolRuntimeContext) {
         selectedProductIds
       });
       return reportQueuedOutput(selectedChoice ? [selectedChoice.option.label] : selectedProductIds);
-    })
+    });
+    }
   });
 }

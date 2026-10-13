@@ -73,7 +73,7 @@ export function describeSystemEntityResolution(message: string, entities: QueryE
   // 族名来自正式体系名称的确定性派生，直接从目录里比对（不猜测自由文本）。
   const familyIds = [...new Set(systemEntities
     .filter(entity => {
-      const family = entity.family ?? normalizeSystemFamily(entity.names[0] ?? "");
+      const family = entity.family ?? "";
       return family.length >= 2 && text.includes(family);
     })
     .map(entity => entity.value))];
@@ -106,18 +106,17 @@ export function resolveQueryEntities(message: string, query: ThermalQueryState, 
   const hits: EntityHit[] = entities.flatMap(entity => {
     const names: Array<{ name: string; strength: EntityMatchStrength }> = entity.names.map(name => ({ name, strength: "EXACT" as const }));
     if (entity.field === "systemId") {
-      // 正式名称去掉型号前缀后的族片段（如「薄抹灰」）只能作为族提示，不能当成唯一记录。
-      for (const name of entity.names) {
-        const family = normalizeSystemFamily(name);
-        if (family.length >= 2) names.push({ name: family, strength: "FAMILY" });
-      }
       if (entity.family && entity.family.length >= 2) names.push({ name: entity.family, strength: "FAMILY" });
       if (entity.category && entity.category.length >= 2) names.push({ name: entity.category, strength: "CATEGORY" });
     }
     for (const alias of aliases) {
-      if (entity.names.some(name => normalizeEntityText(name) === normalizeEntityText(alias.term))) names.push({ name: alias.alias, strength: "ALIAS" });
-      else if (entity.field === "systemId" && (entity.names.some(name => normalizeSystemFamily(name) === normalizeEntityText(alias.term))
-        || normalizeEntityText(entity.family ?? "") === normalizeEntityText(alias.term) || normalizeEntityText(entity.category ?? "") === normalizeEntityText(alias.term)))
+      if (entity.names.some(name => normalizeEntityText(name) === normalizeEntityText(alias.term))) {
+        // 同一后台别名显式绑定多个正式体系时作为集合硬条件；绝不从名称推导成员。
+        const mappedSystems = entity.field === "systemId" ? entities.filter(item => item.field === "systemId" && aliases.some(mapping =>
+          normalizeEntityText(mapping.alias) === normalizeEntityText(alias.alias) && item.names.some(name => normalizeEntityText(name) === normalizeEntityText(mapping.term)))) : [];
+        names.push({ name: alias.alias, strength: mappedSystems.length > 1 ? "FAMILY" : "ALIAS" });
+      }
+      else if (entity.field === "systemId" && (normalizeEntityText(entity.family ?? "") === normalizeEntityText(alias.term) || normalizeEntityText(entity.category ?? "") === normalizeEntityText(alias.term)))
         names.push({ name: alias.alias, strength: "FAMILY" });
     }
     return names.flatMap(({ name, strength }) => {
@@ -235,6 +234,27 @@ export function resolveQueryEntities(message: string, query: ThermalQueryState, 
     }
   }
   if (next.systemId) { next.systemHint = undefined; next.systemIds = undefined; }
+  const familyHits = selected.filter(hit => hit.entity.field === "systemId" && hit.strength === "FAMILY");
+  if (familyHits.some(hit => entities.some(entity => entity.field === "systemId" && !entity.family
+    && entity.names.some(name => normalizeSystemName(name).includes(normalizeEntityText(hit.name))))))
+    next.unresolved = [...(next.unresolved ?? []), { field: "systemId", reason: "该体系族存在未映射的正式体系，请指定完整体系名称或编码。" }];
+  // 短名称/族名只能提示需要映射，不能凭名称片段签发体系ID，也不能掉成只有K的宽查询。
+  if (!selected.some(hit => hit.entity.field === "systemId")) {
+    const terms = text.replace(/(?:有哪些|有什么|有没有|有么|方案|推荐|帮我|查询|想看|左右|附近|厚度|以内|以上|以下|不超过)/g, " ").match(/[\u4e00-\u9fa5]{2,}/g) ?? [];
+    const partialSystem = entities.some(entity => entity.field === "systemId" && entity.names.some(name => {
+      const normalized = normalizeSystemName(name);
+      return terms.some(term => {
+        for (let length = Math.min(term.length, normalized.length); length >= 2; length--)
+          for (let index = 0; index + length <= term.length; index++) {
+            const part = term.slice(index, index + length);
+            if (!/^(?:保温|外墙|外保|系统|体系|产品|材料|多少|哪个|这个|总热|热阻|系数)$/.test(part) && normalized.includes(part)) return true;
+          }
+        return false;
+      });
+    }));
+    if (partialSystem) next.unresolved = [...(next.unresolved ?? []).filter(item => item.field !== "systemId"),
+      { field: "systemId", reason: "该体系族尚无可靠正式映射，请指定完整体系名称或编码。" }];
+  }
   // 通用偏好语言只排序，不生成数值边界。
   const lowerK = /(?:K(?:值)?|传热系数)(?:低一点(?:更好)?|越低越好)/i.exec(text);
   const higherR = /(?:产品层?热阻|板自身R|产品R|总热阻|整墙热阻|总R|热阻)(?:高一点(?:更好)?|越高越好)/i.exec(text);

@@ -55,7 +55,7 @@ export const normalizeEntityText = (value: string) => value.normalize("NFKC").re
 export function normalizeSystemName(value: string) {
   return normalizeEntityText(value).replace(/iii型|三型|3型/g, "3型").replace(/ii型|二型|2型/g, "2型").replace(/i型|一型|1型/g, "1型").replace(/vicp|vlcp/g, "").replace(/外墙外保温|外墙保温|外保温|保温|系统|体系/g, "");
 }
-/** 体系族名：去掉 I/II/III 型前缀后的名称片段（如「I型 VICP薄抹灰外保温系统」→「薄抹灰」）。 */
+/** 仅供旧显示/事实别名诊断；不能签发正式查询族ID。去掉 I/II/III 型前缀后的名称片段（如「I型 VICP薄抹灰外保温系统」→「薄抹灰」）。 */
 export function normalizeSystemFamily(value: string) {
   return normalizeSystemName(value).replace(/^(?:iii|ii|i|[123一二三])型/i, "").trim();
 }

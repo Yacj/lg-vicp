@@ -1,3 +1,4 @@
+import type { DomainTurnDecision } from "../modules/ai/ai-domain-turn-decision.js";
 import { interpretThermalQuestion, THERMAL_FACT_RULES } from "../modules/ai/thermal-answer-facts.js";
 /**
  * Answer Contract：只约束最终答案形态，不是 Agent 类型。
@@ -53,14 +54,14 @@ export const THERMAL_VALUE_PATTERN = /传热系数|\bk\b|\bk(?:\s*值|\s*[=≈�
 export const LOOKUP_FOLLOWUP_PATTERN = /[iⅰⅠ1一]型|[iiⅱⅡ2二]型|[iiiⅲⅢ3三]型|体系|系统|屋面|薄抹灰|厚度|\d+\s*(?:mm|毫米|以内|以上)|(?:改成|放宽到|收紧到|调到)\d+|更低|更接近|具体参数|档位|原页|那页|刚才|第[一二三\d]+个|上一个|这个方案|把页面/i;
 
 export function isThermalCalculateIntent(message: string): boolean {
-  return THERMAL_CALC_PATTERN.test(message) || isThermalComplianceIntent(message);
+  return !/计算表|怎么算|计算原理/.test(message) && THERMAL_CALC_PATTERN.test(message);
 }
 
 export function isReferenceLookupIntent(
   message: string,
   lastReferenceLookup?: { candidates?: unknown[]; query?: object } | null
 ): boolean {
-  if (isThermalCalculateIntent(message)) return false;
+  if (isThermalCalculateIntent(message) || isThermalComplianceIntent(message) || /什么意思|是什么|怎么理解|计算表/.test(message)) return false;
   if (interpretThermalQuestion(message).needsClarification) return true;
   if (REFERENCE_LOOKUP_PATTERN.test(message)) return true;
   if (THERMAL_VALUE_PATTERN.test(message)) return true;
@@ -71,6 +72,7 @@ export function isReferenceLookupIntent(
 export function resolveAnswerContract(input: {
   /** 调用方已限定检索范围并提供原文；空结果同样不能转为全库查表或计算。 */
   knowledgeContextProvided?: boolean;
+  domainDecision?: DomainTurnDecision;
   taskType?: AnswerContractTaskType | null;
   capabilities?: AnswerContractCapabilities | null;
   skipToolLoop?: boolean;
@@ -78,6 +80,17 @@ export function resolveAnswerContract(input: {
   lastReferenceLookup?: { candidates?: unknown[]; query?: object } | null;
 }): AnswerContract {
   if (input.knowledgeContextProvided) return "KNOWLEDGE";
+  if (input.domainDecision) {
+    switch (input.domainDecision.intent) {
+      case "CLARIFY": return "CLARIFY";
+      case "REFERENCE_VIEW": case "REFERENCE_DETAIL": case "REFERENCE_QUERY": case "REFERENCE_REFINE": return "REFERENCE_LOOKUP";
+      case "THERMAL_CALCULATE": return "THERMAL";
+      case "COMPLIANCE_CHECK": case "KNOWLEDGE_EXPLAIN": return "KNOWLEDGE";
+      case "COMPARE_CANDIDATES": case "MATERIAL_COMPARE": return "COMPARISON";
+      case "PRODUCT_DISCOVERY": case "PRODUCT_DETAIL": return "PRODUCT";
+      case "GENERAL": return "DIRECT";
+    }
+  }
   const capabilities = input.capabilities;
   const message = input.message?.trim() ?? "";
   if (input.skipToolLoop || capabilities?.idle) return "DIRECT";
@@ -88,6 +101,7 @@ export function resolveAnswerContract(input: {
   ) {
     return "COMPARISON";
   }
+  if (isThermalComplianceIntent(message)) return "KNOWLEDGE";
   if (capabilities?.needThermalTool || isThermalCalculateIntent(message)) return "THERMAL";
   if (capabilities?.needReferenceLookup || isReferenceLookupIntent(message, input.lastReferenceLookup)) {
     return "REFERENCE_LOOKUP";
@@ -127,7 +141,7 @@ const CONTRACT_SHAPES: Record<AnswerContract, string> = {
     "结构化参考表未命中时：不要立刻说没有方案；继续检索知识库/图集原文。知识检索有出处时可以列方案，并说明依据来自图集或资料。",
     "表和知识库都没有可核验出处时，才说暂未找到。禁止编造档位或 K 值，也不要把示例数字写进回答。",
     "不要把地区、气候区、建筑类型、基层、厚度当作查询前置条件。不要展开完整热工公式。",
-    "后续若要判断是否达标，再进入正式热工计算。"
+    "后续若要判断是否达标，先核验正式标准及适用范围；计算需用户另行明确授权。"
   ].join(""),
   THERMAL: [
     THERMAL_FACT_RULES,

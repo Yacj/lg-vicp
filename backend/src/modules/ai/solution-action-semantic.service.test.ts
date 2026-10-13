@@ -43,11 +43,11 @@ describe("Solution Action Semantic Parser → Grounding → 既有mutation", () 
     mocks.generate.mockResolvedValue({ object: semantic("REMOVE", message, [thickness(30, "30厚")], { referenceScope: "CURRENT_SELECTION" }) });
     expect((await parseSolutionAction(ctx, message, state))?.candidateIds).toEqual(["B"]);
   });
-  it("这几个帮我比较一下只输出COMPARE，不选择全池", async () => {
+  it("只读比较交还领域路由，不调用动作模型或选择全池", async () => {
     const message = "这几个帮我比较一下";
     mocks.generate.mockResolvedValue({ object: semantic("COMPARE_SELECTED", message) });
     const parsed = await parseSolutionAction(ctx, message, pool());
-    expect(parsed).toMatchObject({ action: "COMPARE" }); expect(parsed).not.toHaveProperty("candidateIds");
+    expect(parsed).toBeNull(); expect(mocks.generate).not.toHaveBeenCalled();
   });
   it("这几个帮我做方案显式SELECT当前全部查询候选", async () => {
     const message = "这几个帮我做方案";
@@ -72,7 +72,7 @@ describe("Solution Action Semantic Parser → Grounding → 既有mutation", () 
       return { object: semantic("NONE", message) };
     });
     expect(await parseSolutionAction(ctx, message, pool())).toBeNull();
-    expect(mocks.generate).toHaveBeenCalledTimes(1);
+    expect(mocks.generate).not.toHaveBeenCalled();
   });
   it("有lookup候选的首次选择保留LLM与Grounding，不被无active守卫跳过", async () => {
     const message = "第一个和第三个留下";

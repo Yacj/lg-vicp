@@ -13,9 +13,9 @@ describe("最终真实交互边界", () => {
     ["这个墙体有没有K0.3左右的图集方案", "REFERENCE_LOOKUP"],
     ["帮我算一下这个墙体20mm后的K", "THERMAL"],
     ["A1-3改成22mm重新计算", "THERMAL"],
-    ["上海这个项目K=0.3够不够", "THERMAL"],
-    ["这个参数符合哪个标准", "THERMAL"],
-    ["上海外墙是否满足要求", "THERMAL"]
+    ["上海这个项目K=0.3够不够", "KNOWLEDGE"],
+    ["这个参数符合哪个标准", "KNOWLEDGE"],
+    ["上海外墙是否满足要求", "KNOWLEDGE"]
   ])("%s → %s", (message, expected) => {
     const capabilities = resolveAiCapabilities({ message });
     expect(resolveAnswerContract({ message, capabilities })).toBe(expected);

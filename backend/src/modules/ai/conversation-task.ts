@@ -301,6 +301,8 @@ function formatLastReferenceLookupContext(lookup: LastReferenceLookup): string {
   const candidateLines = lookup.candidates.slice(0, 12).map((item) => {
     const bits = [
       item.schemeCode ? `方案 ${item.schemeCode}` : null,
+      item.substrateMaterial ? `基层 ${item.substrateMaterial}` : null,
+      item.substrateThickness != null ? `基层厚度 ${item.substrateThickness} mm` : null,
       item.lambda !== undefined ? `λ=${item.lambda}` : null,
       item.alpha !== undefined ? `α=${item.alpha}` : null,
       item.productThermalResistance !== undefined ? `产品层热阻 ${item.productThermalResistance}` : null,

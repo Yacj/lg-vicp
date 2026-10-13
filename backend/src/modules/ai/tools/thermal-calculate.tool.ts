@@ -1,3 +1,5 @@
+import { decideDomainTurn, isReferenceRead } from "../ai-domain-turn-decision.js";
+import { resolveCandidateReference, resolveReferenceRead } from "../reference-candidate-resolver.service.js";
 import { tool } from "ai";
 import { z } from "zod";
 import { executeThermalCalc } from "../../thermal/thermal-calc.service.js";
@@ -158,6 +160,17 @@ export function createThermalTool(ctx: ToolRuntimeContext) {
         statusMessage,
         auditMetadata: () => lookupDecision ? { backendDecision: lookupDecision } : {}
       }, async () => {
+        const decision = ctx.domainDecision ?? decideDomainTurn(ctx.userMessage ?? "", ctx.taskState?.lastReferenceLookup);
+        if (isReferenceRead(decision)) {
+          const read = await resolveReferenceRead({ ...ctx, domainDecision: decision });
+          setThermalAnswerFacts(ctx, read.facts);
+          return toolOk({ candidates: read.candidates, needsClarification: read.needsClarification,
+            canonicalAnswers: read.facts.canonicalAnswers, readOnly: true }, { sources: read.sources });
+        }
+        if (args.operation === "CALCULATE" && decision.intent !== "THERMAL_CALCULATE")
+          return toolError({ code: "THERMAL_USER_AUTHORIZATION_REQUIRED", message: "执行热工计算需要用户本轮明确授权，并指定正式方案、规格和厚度。" });
+        if (args.operation !== "CALCULATE" && !["REFERENCE_QUERY", "REFERENCE_REFINE"].includes(decision.intent))
+          return toolError({ code: "REFERENCE_QUERY_AUTHORIZATION_REQUIRED", message: "本轮没有查表或修改筛选条件的要求。" });
         if (args.operation === "CALCULATE" && ctx.answerContract === "REFERENCE_LOOKUP") {
           return toolError({
             code: "REFERENCE_LOOKUP_ONLY",
@@ -300,12 +313,17 @@ export function createThermalTool(ctx: ToolRuntimeContext) {
         const last = ctx.taskState?.lastReferenceLookup;
         const query = normalizeConversationLookupQuery({ ...args, mode: args.lookupMode }, ctx.userMessage ?? "", last).query;
         if (args.regionCode) query.regionCode = args.regionCode;
-        const sourceCandidates = last?.selectedCandidateIds?.length
-          ? last.candidates.filter(candidate => last.selectedCandidateIds!.includes(candidate.id)) : last?.candidates ?? [];
-        const frozen = sourceCandidates.length === 1 ? sourceCandidates[0] : undefined;
-        args.schemeId ??= frozen?.schemeId;
-        args.productSpecId ??= frozen?.productSpecId;
-        args.thicknessMm ??= frozen?.thicknessMm;
+        // 引用只来自本轮原话或真实SolutionState.Selected；旧临时Selected及单候选不能证明授权。
+        const reference = await resolveCandidateReference({ ...ctx, domainDecision: { ...decision,
+          referenceScope: /已选|选中的|保留的/.test(ctx.userMessage ?? "") ? "CURRENT_SELECTED" : "LATEST_VISIBLE" } });
+        const frozen = reference.candidates.length === 1 ? reference.candidates[0] : undefined;
+        if (!frozen) return toolError({ code: "THERMAL_CANDIDATE_REQUIRED", message: reference.reason ?? "请指定一个已核验方案后执行计算。" });
+        if (args.schemeId && args.schemeId !== frozen.schemeId || args.productSpecId && args.productSpecId !== frozen.productSpecId
+          || args.thicknessMm != null && args.thicknessMm !== frozen.thicknessMm && !(new RegExp(`${args.thicknessMm}\\s*(?:mm|毫米)`, "i").test(ctx.userMessage ?? "")))
+          return toolError({ code: "THERMAL_INPUT_NOT_GROUNDED", message: "计算标识或厚度与本轮用户引用不一致，请确认具体方案和厚度。" });
+        args.schemeId = frozen.schemeId;
+        args.productSpecId = frozen.productSpecId;
+        args.thicknessMm ??= frozen.thicknessMm;
         let complianceAuthorized = false;
         if (/达标|合规|符合.*标准/.test(ctx.userMessage ?? "")) {
           const scoped = await resolveScopedThermalStandard(ctx.app.db, query);

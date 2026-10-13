@@ -1,3 +1,4 @@
+import { normalizeSubstrateMaterial } from "./thermal-substrate-facts.js";
 /**
  * REFERENCE_PAGE：查表命中后由后端组装。模型不输出 HTML，也不重画原表。
  * 没有来源页或没有页图时不伪造该结构。
@@ -33,6 +34,8 @@ export interface ReferencePageBlock {
     productName?: string;
     productSpecName?: string;
     thicknessMm?: number;
+    substrateMaterial?: string;
+    substrateThickness?: number | null;
     lambda?: number;
     alpha?: number;
     productThermalResistance?: number;
@@ -59,6 +62,10 @@ export interface ReferencePageBlock {
 
 export interface ReferencePageCandidate {
   id: string;
+  optionId?: string | null;
+  specClass?: string;
+  substrateMaterial?: string;
+  substrateThickness?: number | null;
   systemName?: string;
   schemeCode?: string;
   productName?: string;
@@ -130,6 +137,8 @@ export function buildHighlights(candidate: ReferencePageCandidate): ReferencePag
 function buildSummary(candidate: ReferencePageCandidate): ReferencePageBlock["summary"] {
   return {
     systemType: candidate.systemName,
+    substrateMaterial: candidate.substrateMaterial,
+    substrateThickness: candidate.substrateThickness,
     constructionCode: candidate.schemeCode,
     productName: candidate.productName,
     productSpecName: candidate.specCode,
@@ -149,7 +158,10 @@ export function bindReferencePageMatch(candidate: ReferencePageCandidate, page: 
   const records = page.renderModel?.constructions.flatMap(construction => {
     const code = (value: string | null | undefined) => value?.normalize("NFKC").replace(/\s/g, "").replace(/^外墙/, "").toUpperCase();
     if (!candidate.schemeCode || code(construction.constructionCode) !== code(candidate.schemeCode)) return [];
-    return construction.options.filter(option => THERMAL_PAGE_FIELDS.every(key =>
+    if (candidate.specClass && construction.specClass && candidate.specClass !== construction.specClass
+      || candidate.substrateMaterial && (!construction.baseMaterial || normalizeSubstrateMaterial(candidate.substrateMaterial) !== normalizeSubstrateMaterial(construction.baseMaterial))
+      || candidate.substrateThickness != null && candidate.substrateThickness !== construction.baseThicknessMm) return [];
+    return construction.options.filter(option => (!candidate.optionId || candidate.optionId === option.optionId) && THERMAL_PAGE_FIELDS.every(key =>
       candidate[key] != null && option[key] != null && Math.abs(candidate[key]! - option[key]!) < 0.00005
     )).map(option => ({ construction, option }));
   }) ?? [];

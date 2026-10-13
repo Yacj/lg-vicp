@@ -1,3 +1,4 @@
+import { normalizeSubstrateMaterial } from "./thermal-substrate-facts.js";
 import type { ReferenceLookupCandidate } from "./conversation-task.js";
 import { normalizeThermalLookupQuery } from "../thermal/thermal-lookup-mode.js";
 import { formatLookupThickness } from "../thermal/thermal-lookup-thickness.js";
@@ -62,7 +63,8 @@ function describeQuery(query: ThermalQueryState) {
 }
 
 function renderCandidate(candidate: Readonly<ReferenceLookupCandidate>, detailed: boolean) {
-  const values = [candidate.systemName, candidate.schemeCode ? `方案 ${candidate.schemeCode}` : undefined,
+  const values = [candidate.systemName,
+    candidate.substrateMaterial ? `基层 ${candidate.substrateMaterial}${candidate.substrateThickness != null ? ` ${candidate.substrateThickness} mm` : ""}` : undefined, candidate.schemeCode ? `方案 ${candidate.schemeCode}` : undefined,
     candidate.specCode ? `规格 ${candidate.specCode}` : candidate.specClass ? `${candidate.specClass}型` : undefined,
     candidate.thicknessMm != null ? `厚度 ${candidate.thicknessMm} mm` : undefined,
     candidate.productThermalResistance != null ? `产品层热阻 R=${candidate.productThermalResistance} m²·K/W` : undefined,
@@ -151,7 +153,8 @@ export function setThermalAnswerFacts(
 
 /** 单条候选的紧凑事实行（给模型看的原子事实，不含任何推理）。 */
 function factLine(candidate: Readonly<ReferenceLookupCandidate>, detailed: boolean) {
-  return [candidate.systemName,
+  return [`候选ID ${candidate.id}`, candidate.systemName,
+    candidate.substrateMaterial ? `基层材料 ${candidate.substrateMaterial}` : undefined,
     candidate.schemeCode ? `方案编码 ${candidate.schemeCode}` : undefined,
     candidate.specCode ? `规格编码 ${candidate.specCode}` : candidate.specClass ? `规格分类 ${candidate.specClass}` : undefined,
     candidate.thicknessMm != null ? `厚度 ${candidate.thicknessMm} mm` : undefined,
@@ -287,8 +290,7 @@ function metricAllowed(value: number, metric: SemanticMetric, pool: ReadonlyArra
 }
 
 function thicknessAllowed(value: number, pool: ReadonlyArray<Readonly<ReferenceLookupCandidate>>, query: ThermalQueryState): boolean {
-  return pool.some(candidate => candidate.thicknessMm != null && closeTo(value, candidate.thicknessMm, FACT_EPSILON)
-    || candidate.substrateThickness != null && closeTo(value, candidate.substrateThickness, FACT_EPSILON));
+  return pool.some(candidate => candidate.thicknessMm != null && closeTo(value, candidate.thicknessMm, FACT_EPSILON));
 }
 
 const normalizePage = (value: string) => value.replace(/\s+/g, "").toLowerCase();
@@ -313,6 +315,9 @@ function factMatches(fact: SemanticFact, candidate: Readonly<ReferenceLookupCand
     case "thickness": return thicknessAllowed(fact.value, [candidate], query);
     case "page": return pageAllowed(fact.label, [candidate], allowed);
     case "code": return codeMatchesCandidate(fact.code, candidate);
+    case "substrateThickness": return candidate.substrateThickness != null && closeTo(fact.value, candidate.substrateThickness, FACT_EPSILON);
+    case "substrateMaterial": return Boolean(candidate.substrateMaterial) && normalizeSubstrateMaterial(fact.name) === normalizeSubstrateMaterial(candidate.substrateMaterial!);
+    case "specClass": return candidate.specClass === fact.value;
     case "entity": return normalizeSystemName(fact.name) === normalizeSystemName(candidate.systemName ?? "")
       || normalizeSystemName(fact.name) === normalizeSystemFamily(candidate.systemName ?? "");
     case "standardLimit": return allowed.calculation?.standardLimitK != null && closeTo(fact.value, allowed.calculation.standardLimitK, FACT_EPSILON);
@@ -347,7 +352,7 @@ export function validateAnswerFacts(answer: string, allowedFacts: Pick<AllowedAn
     query, candidates: allowedFacts.candidates ?? [], nearbyCandidates: allowedFacts.nearbyCandidates,
     sourcePages: allowedFacts.sourcePages, calculation: allowedFacts.calculation, canonicalAnswers: allowedFacts.canonicalAnswers
   };
-  const assertion = answer.replace(/(?:没有|未|不)(?:完全|同时)?(?:满足|命中|符合)[^。\n]*[。]?/g, "");
+  const assertion = answer.replace(/(?:没有|未|不)(?:完全|同时)?(?:满足|命中|符合)[^，,；;。\n]*[。]?/g, "");
   if (!allowed.candidates.length && !allowed.calculation && /有[^。\n]{0,25}(?:满足|命中|符合)(?:当前|这些|全部|筛选)?(?:条件|要求)|找到[^。\n]{0,20}满足|^(?:有[，,。]|有(?:一个|几个|几条|一条).*方案)/.test(assertion.trim())) {
     return { passed: false, code: "INVALID_FACT" as const };
   }
@@ -356,6 +361,8 @@ export function validateAnswerFacts(answer: string, allowedFacts: Pick<AllowedAn
     : fact.kind === "thickness" && [query.thicknessMm, query.thicknessMin, query.thicknessMax].some(bound => bound != null && closeTo(fact.value, bound, FACT_EPSILON));
 
   let sawFact = false;
+  let bundlePool = pool;
+  let bundleCode: string | undefined;
   for (const segment of segmentAnswer(answer, pool.map(candidate => candidate.schemeCode?.toLowerCase()).filter((code): code is string => Boolean(code)))) {
     // 自然句中出现正式体系全名时同样绑定候选，不要求用户或模型添加「系统：」标签。
     const names = [...new Set(pool.map(candidate => candidate.systemName).filter((name): name is string => Boolean(name)))];
@@ -371,7 +378,8 @@ export function validateAnswerFacts(answer: string, allowedFacts: Pick<AllowedAn
       if (!segment.facts.every(queryFactMatches)) return { passed: false, code: "INVALID_FACT" as const };
       continue;
     }
-    const matching = pool.filter(candidate => segment.facts.every(fact => factMatches(fact, candidate, query, allowed)));
+    if (segment.code && segment.code !== bundleCode) { bundlePool = pool; bundleCode = segment.code; }
+    const matching = bundlePool.filter(candidate => segment.facts.every(fact => factMatches(fact, candidate, query, allowed)));
     if (segment.code) {
       if (!matching.length) {
         return { passed: false, code: "INVALID_FACT" as const };
@@ -382,8 +390,9 @@ export function validateAnswerFacts(answer: string, allowedFacts: Pick<AllowedAn
         return { passed: false, code: "INVALID_FACT" as const };
       }
     }
+    if (matching.length) bundlePool = matching;
     if (matching.length && !matching.some(candidate => allowed.candidates.includes(candidate)) && !allowed.calculation) {
-      const localAssertion = segment.text.replace(/(?:没有|未|不)(?:完全|同时)?(?:满足|命中|符合)[^。\n]*[。]?/g, "");
+      const localAssertion = segment.text.replace(/(?:没有|未|不)(?:完全|同时)?(?:满足|命中|符合)[^，,；;。\n]*[。]?/g, "");
       if (/(?:满足|符合)(?:全部|所有|当前|这些|筛选)?(?:条件|要求|上限|下限)|完全命中|正式命中/.test(localAssertion)
         || !/(?:相邻|未完全满足|不满足|未满足|不符合|不算命中)/.test(segment.text + answer.slice(0, answer.indexOf(segment.text)))) {
         return { passed: false, code: "INVALID_FACT" as const };

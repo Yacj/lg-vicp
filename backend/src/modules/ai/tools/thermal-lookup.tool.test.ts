@@ -8,9 +8,10 @@ import { parseConversationTaskState, type LastReferenceLookup } from "../convers
 import type { ToolRuntimeContext } from "./tool-runtime.js";
 
 const mocks = vi.hoisted(() => ({ query: vi.fn(), save: vi.fn() }));
+vi.mock("../solution-state.service.js", async original => ({ ...await original<typeof import("../solution-state.service.js")>(), assertSolutionAccess: async () => ({ projectId: null }) }));
 vi.mock("../../thermal/thermal-query-dictionary.service.js", () => ({ loadThermalQueryDictionary: async () => ({ entities: [
-  { field: "systemId", value: "system-i", names: ["薄抹灰外保温"] },
-  { field: "systemId", value: "system-roof", names: ["屋面保温系统"] },
+  { field: "systemId", value: "system-i", names: ["薄抹灰外保温"], family: "薄抹灰" },
+  { field: "systemId", value: "system-roof", names: ["屋面保温系统"], family: "屋面" },
   { field: "productSpecId", value: "11111111-1111-4111-8111-111111111111", names: ["规格乙"] }
 ], aliases: [] }) }));
 vi.mock("../../thermal/thermal-candidate.service.js", () => ({ queryThermalCandidates: mocks.query }));
@@ -173,7 +174,8 @@ describe("thermal Tool 最终收口回归", () => {
     expect(next.data.found).toBe(true);
     expect(next.data.candidates[0]).toMatchObject({ id: "both", kValue: 0.295, totalThermalResistance: 3.39 });
     const followup = await execute(context("刚才那个方案K和总R是多少？", first.taskState?.lastReferenceLookup));
-    expect(followup.data.needsClarification).toBeUndefined();
+    // 首轮无完整命中，旧集合为空；只读追问需澄清，不得重查或绑定后来出现的行。
+    expect(followup.data.needsClarification).toBe(true);
   });
 
   it("多指标目标缺失时澄清，不把模型猜测当正式条件", async () => {

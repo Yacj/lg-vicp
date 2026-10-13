@@ -1,3 +1,4 @@
+import { normalizeSubstrateMaterial } from "./thermal-substrate-facts.js";
 import { pageRecognitionResultSchema, type PageRecognitionMetadata } from "../../shared/page-recognition.js";
 import { THERMAL_LOOKUP_METRIC_PATTERN, type ThermalLookupMetric } from "../thermal/thermal-lookup-mode.js";
 import type { ReferenceLookupCandidate } from "./conversation-task.js";
@@ -5,7 +6,7 @@ import { buildKnowledgePageRenderModel } from "../../shared/knowledge-page-rende
 
 export const THERMAL_FACT_RULES = [
   "【热工数据硬规则】",
-  "厚度、λ、α、产品层热阻 R、外墙主断面总热阻 R₀、传热系数 K、构造、规格和来源必须来自同一条候选记录；每条候选是不可拆开的原子事实。",
+  "基层材料、基层厚度、厚度、λ、α、产品层热阻 R、外墙主断面总热阻 R₀、传热系数 K、构造、规格和来源必须来自同一条候选记录；每条候选是不可拆开的原子事实。",
   "禁止跨候选合并字段或把离散厚度、修正系数合成连续区间；多个方案必须逐条说明。缺失字段不得从其他候选或 Chunk 补齐、反算。",
   "已确认结构化候选优先于 Chunk / 页面文字；文字只补充说明。冲突时保留候选主事实并说明需核对，不静默合并。",
   "当前候选仅是本次命中范围，不是全量统计；未经工具完整范围统计证明，禁止宣称最高、最低、最大、全部、唯一、没有其他。",
@@ -61,6 +62,8 @@ export function bindConfirmedPageFacts(candidate: ReferenceLookupCandidate, page
     return { candidate: bound, warnings };
   }
   const { system, option } = matches[0]!;
+  if (candidate.substrateMaterial && (!system.baseMaterial || normalizeSubstrateMaterial(candidate.substrateMaterial) !== normalizeSubstrateMaterial(system.baseMaterial))
+    || candidate.substrateThickness != null && candidate.substrateThickness !== system.baseThicknessMm) return { candidate: bound, warnings: [...warnings, "来源页基层与正式候选冲突，未合并页面参数。"] };
   const keys = ["productThermalResistance", "totalThermalResistance", "kValue"] as const;
   if (keys.some((key) => option[key] == null || candidate[key] == null || Math.abs(option[key]! - candidate[key]!) > 0.00005)) {
     return { candidate: bound, warnings: [...warnings, "来源页确认参数与正式候选冲突，保留正式候选数值，未合并页面参数。"] };

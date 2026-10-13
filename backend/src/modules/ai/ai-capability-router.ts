@@ -1,3 +1,4 @@
+import type { DomainTurnDecision } from "./ai-domain-turn-decision.js";
 /**
  * AI 能力路由器：预路由、安全限制与非 Agent 回退路径优化。
  * 不再作为「某 Tool 能否被模型看到」的唯一依据。
@@ -7,6 +8,7 @@
 import {
   isReferenceLookupIntent,
   isThermalCalculateIntent,
+  isThermalComplianceIntent,
   THERMAL_VALUE_PATTERN
 } from "../../shared/ai-answer-contract.js";
 
@@ -16,6 +18,7 @@ export interface ResolveAiCapabilitiesInput {
   conversationId?: string | null;
   /** 兼容存量专业会话：仍可作为内部提示，不覆盖规则判断 */
   scene?: string | null;
+  domainDecision?: DomainTurnDecision;
 }
 
 export interface AiCapabilities {
@@ -114,9 +117,10 @@ export function resolveAiCapabilities(input: ResolveAiCapabilitiesInput): AiCapa
   }
 
   const explicitKnowledgeRequest = EXPLICIT_KNOWLEDGE_PATTERN.test(message);
-  const needKnowledgeSearch = explicitKnowledgeRequest || KNOWLEDGE_PATTERN.test(message);
-  const needThermalTool = isThermalCalculateIntent(message);
-  const needReferenceLookup = isReferenceLookupIntent(message) || (!needThermalTool && THERMAL_VALUE_PATTERN.test(message));
+  const needKnowledgeSearch = explicitKnowledgeRequest || KNOWLEDGE_PATTERN.test(message) || isThermalComplianceIntent(message);
+  const needThermalTool = input.domainDecision ? input.domainDecision.intent === "THERMAL_CALCULATE" : isThermalCalculateIntent(message);
+  const needReferenceLookup = input.domainDecision ? ["REFERENCE_QUERY", "REFERENCE_REFINE", "REFERENCE_VIEW", "REFERENCE_DETAIL", "COMPARE_CANDIDATES"].includes(input.domainDecision.intent)
+    : isReferenceLookupIntent(message) || (!needThermalTool && !isThermalComplianceIntent(message) && THERMAL_VALUE_PATTERN.test(message));
   const needComparisonTool = COMPARISON_PATTERN.test(message);
   const needProductData = PRODUCT_PATTERN.test(message);
   const needReportContext = REPORT_PATTERN.test(message);

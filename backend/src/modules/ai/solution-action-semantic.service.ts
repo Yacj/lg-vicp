@@ -1,3 +1,4 @@
+import { decideDomainTurn, type DomainTurnDecision } from "./ai-domain-turn-decision.js";
 import { generateObject } from "ai";
 import { z } from "zod";
 import { resolveSceneRuntime } from "./ai-runtime.service.js";
@@ -20,12 +21,13 @@ export const SOLUTION_ACTION_SEMANTIC_PROMPT = [
   "temporalScope=PREVIOUS只表示旧列表序号；刚才选的某厚度仍引用当前已选事实，temporalScope=CURRENT。无法唯一解释时CLARIFY/unresolved，不猜。",
   "主evidence必须来自本轮原话。confidence给分类可信度。不可确认Snapshot，禁止输出CONFIRM_FINAL/CONFIRM。行/可以/就这样/没问题用NONE。"
 ].join("\n");
-type Context = Pick<ToolRuntimeContext, "app" | "request" | "user" | "conversation"> & { abortSignal?: AbortSignal };
+type Context = Pick<ToolRuntimeContext, "app" | "request" | "user" | "conversation"> & { abortSignal?: AbortSignal; domainDecision?: DomainTurnDecision };
 /** 复用热工语义分类的模型准入/场景解析/预算，不新增模型配置或业务mutation。 */
 export async function parseSolutionAction(ctx: Context, message: string, state: SolutionPayload): Promise<SolutionSelectionIntent | null> {
   const fast = parseSolutionActionFastPath(message);
   // 无候选上下文时交还普通问答；lastReferenceLookup的候选会通过Grounding视图继续支持首次选择。
   if (fast || isSolutionAcknowledgement(message) || !state.candidates.length || parseSemanticFastPath(message)) return fast;
+  if ((ctx.domainDecision ?? decideDomainTurn(message, { query: {}, candidates: [] })).intent !== "SOLUTION_ACTION") return null;
   const revision = state.candidateSetRevision;
   try {
     const runtime = await resolveSceneRuntime(ctx.app.db, "semantic_query", "OFF")

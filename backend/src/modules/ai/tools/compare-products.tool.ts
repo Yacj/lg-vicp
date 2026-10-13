@@ -6,6 +6,8 @@ import { parseConversationTaskState } from "../conversation-task.js";
 import type { ThermalCapabilityState } from "../compare-product.js";
 import { runRegisteredTool, type ToolRuntimeContext } from "./tool-runtime.js";
 import { normalizeComparisonForModel } from "./tool-result-normalizer.js";
+import { toolError } from "./tool-output.js";
+import { searchProductCatalog } from "../product-read.service.js";
 
 export const compareProductsInput = z.object({
   productIds: z.array(z.string().trim().min(1)).min(2).max(12)
@@ -23,15 +25,20 @@ export function createCompareProductsTool(ctx: ToolRuntimeContext) {
     `,
     inputSchema: compareProductsInput,
     execute: async (args, options) => runRegisteredTool(ctx, "compare_products", args, options, async () => {
+      if(ctx.domainDecision && ctx.domainDecision.intent!=="MATERIAL_COMPARE") return toolError({code:"DOMAIN_COMPARE_NOT_AUTHORIZED",message:"本轮不是产品或材料比较请求，不能发起产品选择。"});
+      const allowed=new Set([...(ctx.productReadIds??[]),...(ctx.taskState?.selectedProductIds??[])]);
+      if(args.productIds.some(id=>!allowed.has(id))) return toolError({code:"PRODUCT_REFERENCE_REQUIRED",message:"请先搜索并明确要比较的正式产品，不能猜测产品ID。"});
+      const current=await searchProductCatalog(ctx,{productIds:args.productIds});
+      if(current.products.length!==new Set(args.productIds).size) return toolError({code:"PRODUCT_REFERENCE_INVALID",message:"部分产品已停用或不存在，请重新搜索。"});
       const taskState = ctx.taskState ?? parseConversationTaskState(null);
-      const productIds = taskState.selectedProductIds?.length ? taskState.selectedProductIds : args.productIds;
+      const productIds = args.productIds;
       const { result } = await compareProducts(ctx.app, {
         productIds,
         focus: args.focus,
         userGoal: taskState.userGoal,
         conversationId: ctx.conversation.id,
         projectId: ctx.conversation.projectId,
-        thermal: contextThermal(taskState)
+        thermal: taskState.selectedProductIds?.length === productIds.length && productIds.every(id=>taskState.selectedProductIds?.includes(id)) ? contextThermal(taskState) : undefined
       });
       const output = toProductCompareToolOutput(result);
       const comparison = normalizeComparisonForModel(result);

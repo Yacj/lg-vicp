@@ -1,3 +1,4 @@
+import { decideDomainTurn, type DomainTurnDecision } from "./ai-domain-turn-decision.js";
 /**
  * Agent Run：AI SDK streamText + tool() + stepCountIs。
  * resolveAiCapabilities 只做预路由，不代替模型选 Tool。
@@ -24,7 +25,6 @@ import { writeSse } from "./ai-sse.js";
 import { resolveConfirmedReferenceAnswer } from "./ai-reference-pages.service.js";
 import { storeReferencePageBlocks, type ReferencePageBlock } from "./reference-page.js";
 import { validateOrRepairThermalAnswer, renderAllowedFactsForModel } from "./thermal-answer-validation.js";
-import { normalizeConversationLookupQuery } from "./tools/thermal-lookup.js";
 import type { SceneRuntime } from "./ai-runtime.service.js";
 import {
   attachUserSelectionRequest,
@@ -350,6 +350,13 @@ export async function runAgentLoop(options: {
   initialState: AgentRunState;
   taskState?: ConversationTaskState | null;
   answerContract?: string | null;
+  domainDecision?: DomainTurnDecision;
+  candidateQueryRevision?: number;
+  reportAuthorization?: ToolRuntimeContext["reportAuthorization"];
+  productReadIds?: string[];
+  onToolRoute?: (toolName: string) => void;
+  onFactValidation?: (code: string) => void;
+  onReportQueued?: () => void;
   /** 本轮用户原始提问：透传给工具做确定性兜底（如 K 查询语义推断） */
   userMessage?: string | null;
 }): Promise<{
@@ -429,6 +436,7 @@ export async function runAgentLoop(options: {
           return repair.text;
         }, ctx.thermalAllowedFacts);
         ctx.thermalFactValidation = { repaired: checked.repaired, fallback: checked.fallback };
+        options.onFactValidation?.(checked.fallback ? "CANONICAL_FALLBACK" : "VALID_FACTS");
         if (!abortSignal.aborted) flushVisible(checked.text);
       } else flushVisible(buffer.text);
     }
@@ -451,9 +459,14 @@ export async function runAgentLoop(options: {
     selectedUserSelection: initialState.selectedUserSelection ?? null,
     taskState: options.taskState ?? null,
     answerContract: options.answerContract ?? null,
+    domainDecision: options.domainDecision ?? decideDomainTurn(options.userMessage ?? "", options.taskState?.lastReferenceLookup),
+    candidateQueryRevision: options.candidateQueryRevision,
+    reportAuthorization: options.reportAuthorization,
+    productReadIds: options.productReadIds,
     userMessage: options.userMessage ?? null,
     onReferenceAnswer: (answer, pages) => {
       confirmedAnswer = resolveConfirmedReferenceAnswer(answer, pages);
+      options.onFactValidation?.("CONFIRMED_SOURCE");
     },
     onWait: (signal) => {
       const type = signal.type === "APPROVAL"
@@ -495,6 +508,8 @@ export async function runAgentLoop(options: {
       waitingRef.current = type === "APPROVAL" ? waiting : attachUserSelectionRequest(waiting);
     },
     onEvent: (event, data) => {
+      if (event === "report_queued") options.onReportQueued?.();
+      if (event === "tool_result" && data && typeof data === "object" && "toolName" in data && typeof data.toolName === "string") options.onToolRoute?.(data.toolName);
       writeSse(reply, event, event === "reference_pages" && data && typeof data === "object" && "referencePages" in data
         ? { referencePages: (data as { referencePages: unknown[] }).referencePages } : data);
       if (event === "sources" && data && typeof data === "object" && "sources" in (data as Record<string, unknown>)) {
@@ -544,18 +559,12 @@ export async function runAgentLoop(options: {
       prepareStep: async () => {
         // 参考查询与正式热工由后端持有权威数据、硬条件与来源页：首步必须真实调用工具。
         // 否则模型会凭对话上下文直接作答，导致会话权威条件不更新、来源无法核验。
-        const ownsReferenceData = ctx.answerContract === "REFERENCE_LOOKUP" || ctx.answerContract === "THERMAL";
-        const hasActiveCandidates = (ctx.taskState?.lastReferenceLookup?.candidates?.length ?? 0) > 0;
-        const comparesSelected = hasActiveCandidates && normalizeConversationLookupQuery({}, ctx.userMessage ?? "", ctx.taskState?.lastReferenceLookup).lifecycle === "COMPARE_SELECTED";
-        // 已存在候选集的追问（原页/参数/局部改条件）必须回到 thermal 重查并重新给出原页，
-        // 不能让模型改用其他工具或凭上下文复述；全新查询只要求至少真实调用一次工具。
-        const toolChoice = !ownsReferenceData || allowedTools.length === 0
-          ? undefined
-          : comparesSelected && allowedTools.includes("compare_solutions")
-            ? { type: "tool", toolName: "compare_solutions" } as const
-          : hasActiveCandidates && allowedTools.includes("thermal")
-            ? { type: "tool", toolName: "thermal" } as const
-            : "required" as const;
+        const decision = ctx.domainDecision!;
+        const toolChoice = decision.intent === "COMPARE_CANDIDATES" && allowedTools.includes("compare_solutions")
+          ? { type: "tool", toolName: "compare_solutions" } as const
+          : ["REFERENCE_QUERY", "REFERENCE_REFINE", "THERMAL_CALCULATE"].includes(decision.intent)
+            ? allowedTools.includes("thermal") ? { type: "tool", toolName: "thermal" } as const : "required" as const
+            : undefined;
         return {
           activeTools: allowedTools,
           ...(step === 0 && toolChoice ? { toolChoice } : {})
@@ -566,6 +575,8 @@ export async function runAgentLoop(options: {
       abortSignal,
       providerOptions: runtime.providerOptions,
       onStepFinish: async (stepResult) => {
+        // execute入口被拒绝的调用也要记录实际尝试路径，不能只看Tool成功事件。
+        for (const result of stepResult.toolResults ?? []) if (result) options.onToolRoute?.(result.toolName);
         step += 1;
         usage = stepResult.usage;
         const stepMessages = stepResult.response?.messages ?? [];

@@ -1,6 +1,5 @@
 import "dotenv/config";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-const pendingFix = process.env.P0_EXPECT_FIXED === "1" ? it : it.fails;
 const mocks = vi.hoisted(() => ({ stream: vi.fn(), tools: vi.fn(), step: vi.fn() }));
 vi.mock("ai", async importOriginal => ({ ...await importOriginal<typeof import("ai")>(), streamText: mocks.stream }));
 vi.mock("./ai-tools.js", () => ({ createAgentTools: mocks.tools }));
@@ -37,8 +36,17 @@ async function run(message: string) {
 }
 
 describe("P0静态审计：真实prepareStep路径，模型与传输为替身", () => {
-  pendingFix.each(["第一个原页", "第一个完整表格"])("%s 不能在首步强制thermal", async message => {
+  it.each(["第一个原页", "第一个完整表格"])("%s 不能在首步强制thermal", async message => {
     expect((await run(message)).toolChoice).toBeUndefined();
+  });
+  it.each([
+    ["K值小就一定省钱吗", undefined], ["施工时怎么处理热桥", undefined],
+    ["第二个基层是什么，厚度多少？", undefined], ["刚才第三个的完整热工表给我看看", undefined],
+    ["这个数值哪一页来的", undefined], ["外墙K≤0.3，优先做薄一点，给我几套做法", "thermal"],
+    ["只要20mm以内", "thermal"], ["第一个和第三个有什么区别", "compare_solutions"]
+    , ["总热阻", undefined], ["保温板热阻和总热阻的区别", undefined], ["用同一厚度哪个好", "compare_solutions"]
+  ])("矩阵Agent首步%s严格按目标选择工具", async (message, expected) => {
+    expect((await run(message!)).toolChoice).toEqual(expected ? { type: "tool", toolName: expected } : undefined);
   });
   it("局部厚度Refine首步调用thermal", async () => {
     expect((await run("那20mm以内")).toolChoice).toEqual({ type: "tool", toolName: "thermal" });

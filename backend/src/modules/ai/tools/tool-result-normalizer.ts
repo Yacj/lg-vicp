@@ -33,6 +33,12 @@ export type NormalizedProductData = {
     name: string;
     summary: string | null;
     hasTechnicalDocs: boolean;
+    productType?: string | null;
+    specClass?: string | null;
+    thermalConductivity?: number | null;
+    correctionFactor?: number | null;
+    thicknessOptionsMm?: number[];
+    specifications?: Array<Record<string, unknown>>;
   }>;
   missingNotes: string[];
 };
@@ -135,7 +141,8 @@ export function normalizeSearchKnowledgeForModel(input: {
 }
 
 export function normalizeProductDataForModel(input: {
-  products: Array<{ id: string; name: string; summary: string | null; knowledgeDocumentIds?: string[] }>;
+  products: Array<{ id: string; name: string; summary: string | null; knowledgeDocumentIds?: string[] }
+    & Partial<Pick<NormalizedProductData["products"][number], "productType"|"specClass"|"thermalConductivity"|"correctionFactor"|"thicknessOptionsMm"|"specifications">>>;
   missingProductIds?: string[];
 }): NormalizedProductData {
   const missingNotes = (input.missingProductIds ?? []).length > 0
@@ -147,6 +154,8 @@ export function normalizeProductDataForModel(input: {
       name: item.name,
       summary: item.summary,
       hasTechnicalDocs: (item.knowledgeDocumentIds ?? []).length > 0
+      , ...Object.fromEntries(["productType","specClass","thermalConductivity","correctionFactor","thicknessOptionsMm","specifications"]
+        .flatMap(key=>key in item ? [[key,(item as unknown as Record<string,unknown>)[key]]] : []))
     })),
     missingNotes
   };

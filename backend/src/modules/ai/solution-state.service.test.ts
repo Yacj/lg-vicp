@@ -6,7 +6,8 @@ import { PgDialect } from "drizzle-orm/pg-core";
 import { solutionStates, solutionSnapshots, aiConversations, aiConversationStates, thermalCalcRecords, constructionSchemes, insulationSystems, projects } from "../../db/schema.js";
 import { actOnSolution, startSolution, loadActiveSolution, refreshActiveSolutionCandidates, activateSolutionFromLastLookup, recordCalculatedSolution, solutionPayloadFromLookup, getSolutionSnapshot, querySolution, type SolutionContext } from "./solution-state.service.js";
 import { publishCandidateResult } from "./candidate-result.service.js";
-import { parseConversationTaskState } from "./conversation-task.js";
+import { parseConversationTaskState, type ConversationTaskState } from "./conversation-task.js";
+import { parseSolutionAction } from "./solution-action-semantic.service.js";
 import { groundSolutionAction } from "./solution-action-semantic.js";
 import { querySolutionCandidates, DEFAULT_SOLUTION_QUERY_POLICY } from "./solution-candidate-query.service.js";
 import { resolveReferenceQueryWithoutAgent } from "./reference-query.service.js";
@@ -24,7 +25,9 @@ vi.mock("../thermal/thermal-query-dictionary.service.js", () => ({ loadThermalQu
 vi.mock("./ai-conversation-state.service.js", () => ({ saveConversationTaskState: vi.fn() }));
 vi.mock("./tools/tool-runtime.js", async importOriginal => ({ ...await importOriginal<typeof import("./tools/tool-runtime.js")>(),
   runRegisteredTool: async (_ctx: unknown, _name: unknown, _args: unknown, _options: unknown, run: () => unknown) => run() }));
-vi.mock("./ai-reference-pages.service.js", () => ({ readConsumableReferencePages: mocks.readable }));
+vi.mock("./ai-reference-pages.service.js", async original => ({ ...await original<typeof import("./ai-reference-pages.service.js")>(), readConsumableReferencePages: mocks.readable }));
+// 发布行查询在该事务测试中隔离；独立source测试执行真实参数化读取合同。
+vi.mock("./reference-candidate-source.service.js", () => ({ referenceRowsStillCurrent: async () => true }));
 vi.mock("../audit-logs/audit-log.service.js", () => ({ writeAuditLog: mocks.audit }));
 vi.mock("./tools/thermal-lookup.js", async importOriginal => ({ ...await importOriginal<typeof import("./tools/thermal-lookup.js")>(),
   compactCandidateResult: (row: { snapshot: unknown }) => row.snapshot }));
@@ -89,7 +92,7 @@ beforeEach(() => {
   ctx = { app: { db, storage: { createDownloadUrl: vi.fn(async () => "signed") } }, request: {}, user: { id: conversation.userId, clientType: "C_APP" }, conversation } as unknown as SolutionContext;
   mocks.query.mockResolvedValue({ candidates: [{ candidateId: a.candidateId, snapshot: a }] });
   mocks.pages.mockResolvedValue({ candidates: [a] });
-  mocks.readable.mockResolvedValue([{ page: { id: a.sourcePageId, versionId: "version", metadata: { confirmedStructuredData: pageData }, pageImageObjectKey: "pages/a.png" }, document: { id: a.sourceDocumentId, title: "图集" } }]);
+  mocks.readable.mockResolvedValue([{ page: { id: a.sourcePageId, documentId: a.sourceDocumentId, physicalPageNumber: 1, versionId: "version", metadata: { confirmedStructuredData: pageData }, pageImageObjectKey: "pages/a.png" }, document: { id: a.sourceDocumentId, title: "图集" } }]);
   mocks.audit.mockResolvedValue(undefined);
 });
 
@@ -124,6 +127,43 @@ describe("Candidate Result → 用户动作 → 懒激活生命周期", () => {
     expect(result.solutionState.poolCandidateIds).toEqual([a.id, b.id, c.id]);
     expect(result.solutionState.selectedCandidateIds).toEqual([a.id, c.id]);
     expect(db.rows(solutionStates)).toHaveLength(1);
+  });
+  it("矩阵S2：查表→20mm细化→1和3比较→明确选用→就这样，全链状态及revision隔离", async () => {
+    const context = { ...resultContext(), taskState: { taskType: "GENERAL" as const } as ConversationTaskState };
+    context.userMessage = "外墙K≤0.3，优先做薄一点，给我几套做法";
+    const candidates = [a, b, c];
+    mocks.query.mockResolvedValue({ candidates: candidates.map(snapshot => ({ candidateId: snapshot.id, snapshot })) });
+    mocks.pages.mockResolvedValue({ candidates, sources: [], blocks: [], warnings: [] });
+    const query = { filters: [{ metric: "K" as const, targetValue: .3, mode: "MAX_LIMIT" as const }], preferThinner: true };
+    mocks.semantic.mockResolvedValue({ query, lifecycle: "NEW_QUERY", needsClarification: false });
+    await resolveReferenceQueryWithoutAgent(context as any);
+    expect(await loadActiveSolution(ctx)).toBeNull();
+    expect(context.taskState.lastReferenceLookup?.candidateQueryRevision).toBe(1);
+    context.userMessage = "只要20mm以内";
+    mocks.semantic.mockResolvedValue({ query: { ...query, thicknessMax: 20 }, lifecycle: "REFINE_QUERY", needsClarification: false });
+    await resolveReferenceQueryWithoutAgent(context as any);
+    expect(context.taskState.lastReferenceLookup?.candidateQueryRevision).toBe(2);
+    expect(context.taskState.lastReferenceLookup?.query.filters).toEqual(query.filters);
+    expect(await loadActiveSolution(ctx)).toBeNull();
+    const frozen = structuredClone(context.taskState), queries = mocks.query.mock.calls.length;
+    context.userMessage = "第一个和第三个有什么区别";
+    const compared = await resolveReferenceQueryWithoutAgent(context as any);
+    expect(compared.facts.candidates.map(candidate => candidate.id)).toEqual([a.id, c.id]);
+    expect(context.taskState).toEqual(frozen); expect(mocks.query).toHaveBeenCalledTimes(queries);
+    expect(await loadActiveSolution(ctx)).toBeNull();
+    const saved = context.taskState.lastReferenceLookup!;
+    const message = "第一个留下，第三个也加入";
+    const intent = groundSolutionAction(message, { type: "SELECT", references: [
+      { type: "POSITION", value: 1, evidence: "第一个" }, { type: "POSITION", value: 3, evidence: "第三个" }],
+      selectionMode: "INCLUDE", referenceScope: "CURRENT_POOL", temporalScope: "CURRENT", evidence: message,
+      confidence: .98, unresolved: [] }, solutionPayloadFromLookup(saved), saved.candidateQueryRevision);
+    expect(intent?.clarification).toBeUndefined();
+    const changed = await activateSolutionFromLastLookup(ctx, saved.candidateQueryRevision!, { action: intent!.action, candidateIds: intent!.candidateIds });
+    expect(changed.solutionState.selectedCandidateIds).toEqual([a.id, c.id]);
+    expect(db.rows(solutionSnapshots)).toHaveLength(0);
+    const active = await loadActiveSolution(ctx);
+    expect(await parseSolutionAction({ ...ctx, conversation: { ...ctx.conversation, scene: "general_chat" } } as any, "就这样", active!.payload)).toBeNull();
+    expect(await loadActiveSolution(ctx)).toEqual(active); expect(db.rows(solutionSnapshots)).toHaveLength(0);
   });
   it("按钮首次ADD一次完成激活，正式ID与自然语言共用mutation", async () => {
     const { lookup: saved } = await lookup();
@@ -234,7 +274,7 @@ describe("Candidate Result → 用户动作 → 懒激活生命周期", () => {
     db.rows(insulationSystems).push({ id: a.systemId, name: a.systemName });
     mocks.calc.mockResolvedValue({ valid: true, record: { id: calcId, result: { kValue: .2 }, steps: [] }, notes: [], errors: [] });
     context.onEvent.mockClear();
-    await createThermalTool({ ...context, userMessage: "再算55mm的K", answerContract: "THERMAL" } as any).execute!(
+    await createThermalTool({ ...context, userMessage: "再算第一个方案55mm的K", answerContract: "THERMAL" } as any).execute!(
       thermalInput.parse({ operation: "CALCULATE", mode: "EQUIVALENT", schemeId: a.schemeId, productSpecId: a.productSpecId, thicknessMm: 55 }), { toolCallId: "calc", messages: [] });
     const active = await loadActiveSolution(ctx);
     if (editable) { expect(active?.payload.poolCandidateIds).toContain(calcId); expect(active?.payload.selectedCandidateIds).toEqual([a.id]); }

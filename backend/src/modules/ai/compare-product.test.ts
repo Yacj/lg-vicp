@@ -15,6 +15,11 @@ const products: ComparisonProduct[] = [
 ];
 
 describe("动态 Comparison Dimension", () => {
+  it("正式产品参数形成对比维度，缺少另一产品字段不拼值或编价格", () => {
+    const built=buildProductComparisonDimensions({products:[{id:"a",name:"甲",thermalConductivity:.02,specClass:"II"},{id:"b",name:"乙"}] as ComparisonProduct[],focus:["成本"]});
+    expect(built.dimensions.find(item=>item.key==="thermalConductivity")?.items).toEqual(expect.arrayContaining([expect.objectContaining({productId:"a",value:.02}),expect.objectContaining({productId:"b",insufficient:true})]));
+    expect(built.missingNotes.join(" ")).toMatch(/成本|价格/);
+  });
   it("2 产品对比使用目录字段，不打分不排名", () => {
     const built = buildProductComparisonDimensions({ products: products.slice(0, 2) });
     expect(built.dimensions.find((item) => item.key === "name")?.items).toHaveLength(2);

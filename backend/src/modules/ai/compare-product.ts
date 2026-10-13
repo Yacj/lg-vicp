@@ -54,6 +54,11 @@ export type ComparisonProduct = {
   summary?: string | null;
   status?: string | null;
   knowledgeDocumentIds?: string[];
+  productType?: string | null;
+  specClass?: string | null;
+  thermalConductivity?: number | null;
+  correctionFactor?: number | null;
+  thicknessOptionsMm?: number[];
 };
 
 export type ComparisonContext = {
@@ -163,6 +168,9 @@ export function buildProductComparisonDimensions(input: {
   dimensions.push(fieldDimension("name", "产品名称", products, (item) => item.name));
   dimensions.push(fieldDimension("summary", "产品简介", products, (item) => item.summary));
   dimensions.push(fieldDimension("categoryId", "产品分类", products, (item) => item.categoryId));
+  for(const [key,label] of [["productType","产品类型"],["specClass","型号"],["thermalConductivity","导热系数λ"],["correctionFactor","修正系数α"]] as const)
+    if(products.some(item=>item[key]!=null)) dimensions.push(fieldDimension(key,label,products,item=>item[key]));
+  if(products.some(item=>item.thicknessOptionsMm?.length)) dimensions.push(fieldDimension("thicknessOptionsMm","可选板厚mm",products,item=>item.thicknessOptionsMm?.join("/")));
 
   const knowledgeByProduct = new Map<string, Array<{ documentId: string; title: string; excerpt?: string | null }>>();
   for (const item of input.knowledgeEvidence ?? []) {

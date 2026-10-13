@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 import type { DbExecutor } from "../../db/client.js";
 import { catalogProducts, constructionSchemes, insulationSystems, knowledgeAliases, productSpecs, standardApplicability, standardDocuments, thermalReferenceSets, thermalStandardLimits } from "../../db/schema.js";
 import { publishedReferenceConditions } from "../construction/construction-structure.service.js";
-import { normalizeSystemFamily, type ConstraintCandidate } from "./thermal-query-state.js";
+import { type ConstraintCandidate } from "./thermal-query-state.js";
 import type { QueryEntity } from "./thermal-entity-resolver.js";
 
 /** 名称目录独立于选用表命中范围：没有参考行的体系也不能丢掉用户条件。 */
@@ -21,10 +21,10 @@ export async function loadThermalQueryDictionary(db: DbExecutor) {
       .where(and(...publishedReferenceConditions(standardApplicability), ...publishedReferenceConditions(standardDocuments)))
   ]);
   const entities: QueryEntity[] = [
-    // 体系族名（如「薄抹灰」）与体系类别（systemType，如「保温装饰板」）由正式数据确定性派生，
-    // 让「薄抹灰有方案吗」解析为同族 systemIds 集合硬约束，而不是要求唯一 systemId。
+    // 尚无经业务确认的familyCode；名称与自由systemType不签发正式族身份。
+    // 全名/编码/配置别名仍可唯一定位，局部族名称缺映射时必须澄清。
     ...systems.map(item => ({ field: "systemId" as const, value: item.id, names: [item.name, item.code],
-      family: normalizeSystemFamily(item.name), category: item.systemType })),
+      family: undefined, category: undefined })),
     ...schemes.flatMap(item => [
       { field: "schemeId" as const, value: item.id, names: [item.name, item.schemeCode], systemId: item.systemId },
       { field: "substrateMaterial" as const, value: item.substrateMaterial, names: [item.substrateMaterial] }

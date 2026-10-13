@@ -17,6 +17,9 @@ export type SemanticMetric = "K" | "PRODUCT_R" | "TOTAL_R" | "LAMBDA" | "ALPHA";
 export type SemanticFact =
   | { kind: "metric"; metric: SemanticMetric; value: number }
   | { kind: "thickness"; value: number }
+  | { kind: "substrateThickness"; value: number }
+  | { kind: "substrateMaterial"; name: string }
+  | { kind: "specClass"; value: "I" | "II" | "III" }
   | { kind: "page"; label: string }
   | { kind: "code"; code: string }
   | { kind: "entity"; field: "systemName"; name: string }
@@ -78,11 +81,23 @@ export function extractSemanticFacts(text: string): SemanticFact[] {
       if (match.index === re.lastIndex) re.lastIndex += 1;
     }
   }
+  const substrateSpans = [...text.matchAll(/(?:基层(?:厚度)?|基墙(?:厚度)?)\s*(?:是|为|[:：=≈约])?\s*(\d+(?:\.\d+)?)/g),
+    ...text.matchAll(/(?:钢筋混凝土|钢筋砼|(?:蒸压)?加气混凝土(?:砌块)?|加气砌块|加气砼(?:砌块)?|混凝土空心砌块|混凝土空心块|空心混凝土砌块|砼空心砌块)\s*(\d+(?:\.\d+)?)\s*(?:mm|毫米|㎜)/gi)];
+  for (const span of substrateSpans) facts.push({ kind: "substrateThickness", value: Number(span[1]) });
+  const materials = [...text.matchAll(/(?:蒸压加气混凝土(?:砌块)?|加气混凝土砌块|加气混凝土块|加气混凝土|加气砌块|加气砼(?:砌块)?|钢筋混凝土|钢筋砼|混凝土空心砌块|混凝土空心块|空心混凝土砌块|砼空心砌块)/g)];
+  for (const match of materials) facts.push({ kind: "substrateMaterial", name: match[0] });
+  // 其他带明确基层标签的材料也必须核验，不能只校验已知名称而放行编造材料。
+  for (const match of text.matchAll(/(?:基层材料|基层|基墙)\s*(?:是|为|[:：])?\s*([^，,；;。\n\d]+)(?:\d|[，,；;。\n]|$)/g)) {
+    const name = match[1]!.trim();
+    if (name && !/^厚度/.test(name) && !materials.some(item => name.includes(item[0]))) facts.push({ kind: "substrateMaterial", name });
+  }
+  for (const match of text.normalize("NFKC").matchAll(/(?<![A-Za-z])(III|II|I)型/gi)) if (!/系统|体系/.test(text.normalize("NFKC").slice(match.index! + match[0].length).split(/[，,；;。\n]/)[0]!)) facts.push({ kind: "specClass", value: match[1]!.toUpperCase() as "I" | "II" | "III" });
   for (const pattern of [THICKNESS_LABEL, THICKNESS_UNIT]) {
     const re = new RegExp(pattern.source, "gi");
     let match: RegExpExecArray | null;
     while ((match = re.exec(text))) {
-      facts.push({ kind: "thickness", value: Number(match[1]) });
+      if (!substrateSpans.some(span => span.index! <= match!.index && span.index! + span[0].length >= match!.index + match![0].length))
+        facts.push({ kind: "thickness", value: Number(match[1]) });
       if (match.index === re.lastIndex) re.lastIndex += 1;
     }
   }
@@ -153,12 +168,8 @@ export function segmentAnswer(answer: string, schemeCodes?: ReadonlyArray<string
         ...allCodes.map(hit => ({ kind: "code" as const, code: hit.code })), ...extractSemanticFacts(line)] });
       continue;
     }
-    if (codes[0]!.index > 0) {
-      const preamble = line.slice(0, codes[0]!.index);
-      segments.push({ text: preamble, facts: extractSemanticFacts(preamble) });
-    }
     codes.forEach((hit, index) => {
-      const start = hit.index;
+      const start = index === 0 ? 0 : hit.index;
       const end = index + 1 < codes.length ? codes[index + 1]!.index : line.length;
       const slice = line.slice(start, end);
       // 编码本身也是可校验事实（决定该片段归属哪条候选），必须先登记。
@@ -175,7 +186,7 @@ export function segmentAnswer(answer: string, schemeCodes?: ReadonlyArray<string
  * 未授权断言：把当前命中范围说成全量统计，或把筛选说成规范达标/合规。
  * 只有后端能证明的范围统计与合规结论才允许出现这些词；默认一律拒绝。
  */
-const OVERREACH_PATTERN = /最高|最低|最大|最小|唯一|全部|所有|没有其他|仅此|绝无|排名第一/;
+const OVERREACH_PATTERN = /最高|最低|最大|最小|最薄|最省|必然达标|唯一|全部|所有|没有其他|仅此|绝无|排名第一/;
 const COMPLIANCE_PATTERN = /达标|合规|符合[^。！？\n]{0,12}(?:标准|规范|限值)|满足[^。！？\n]{0,10}(?:标准|规范|限值)/;
 const isComplianceDisclaimer = (clause: string) => /(?:不能|无法|尚未|暂不能|还需|需核对|需确认).*(?:判断|确认|证明|给出)|(?:不能|禁止)宣称/.test(clause);
 

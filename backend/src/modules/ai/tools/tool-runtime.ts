@@ -83,6 +83,12 @@ export interface ToolRuntimeContext {
   selectedUserSelection?: import("../user-selection.js").UserSelectionResult | null;
   taskState?: ConversationTaskState | null;
   answerContract?: string | null;
+  domainDecision?: import("../ai-domain-turn-decision.js").DomainTurnDecision;
+  candidateQueryRevision?: number;
+  /** 由本轮服务端已校验的UI动作创建，不接受Tool/LLM输入或历史选择代替。 */
+  reportAuthorization?: { userId: string; conversationId: string };
+  /** 后端搜索已返回的产品ID，不能由Tool参数自行签发。 */
+  productReadIds?: string[];
   /** 本轮用户原始提问：用于工具在模型未显式给参数时做确定性兜底（如 K 查询语义） */
   userMessage?: string | null;
   thermalCanonicalAnswers?: string[];

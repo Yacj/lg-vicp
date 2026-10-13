@@ -7,7 +7,7 @@ describe("参考查询 Answer Contract 收口", () => {
     expect(resolveAnswerContract({ message })).toBe("REFERENCE_LOOKUP");
   });
   it("上海外墙限值是否达标才进入合规判断", () => {
-    expect(resolveAnswerContract({ message: "上海外墙K<=0.3是否达标？" })).toBe("THERMAL");
+    expect(resolveAnswerContract({ message: "上海外墙K<=0.3是否达标？" })).toBe("KNOWLEDGE");
   });
   it("二次模型归一保留全部 filters 和容差 metadata", () => {
     const first = normalizeReferenceLookupForModel({ found: false, candidates: [], filters: [
@@ -24,7 +24,7 @@ describe("参考查询 Answer Contract 收口", () => {
     expect(resolveAnswerContract({ message })).toBe("REFERENCE_LOOKUP");
   });
   it("法规达标问题进入正式热工判断", () => {
-    expect(resolveAnswerContract({ message: "K=0.3在上海是否达标？" })).toBe("THERMAL");
+    expect(resolveAnswerContract({ message: "K=0.3在上海是否达标？" })).toBe("KNOWLEDGE");
   });
   it("未命中也支持系统/厚度追问", () => {
     expect(resolveAnswerContract({ message: "那屋面系统呢？", lastReferenceLookup: { query: {}, candidates: [] } })).toBe("REFERENCE_LOOKUP");
