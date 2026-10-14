@@ -8,6 +8,7 @@ import {
   renderReferencePagesHtml,
   renderTemplateHtml,
   renderTemplateWord,
+  embedReferencePageImages,
   type ReportSnapshotPayload
 } from "./report-template-render.js";
 
@@ -90,6 +91,15 @@ describe("渲染辅助函数", () => {
 });
 
 describe("参考页渲染", () => {
+  it("无效图片字节不进入HTML，冻结表不丢失；PNG内容按实际格式嵌入", async () => {
+    const page = { sourcePageId: "p", pageImageObjectKey: "p.png", renderModel: { constructions: [] } };
+    const invalid = await embedReferencePageImages([page], async () => Buffer.from("<svg onload='alert(1)'/>"));
+    expect(invalid[0]).toMatchObject({ imageUnavailable: true, renderModel: page.renderModel });
+    expect(invalid[0]).not.toHaveProperty("imageBytes");
+    const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
+    const embedded = await embedReferencePageImages([page], async () => png);
+    expect(embedded[0]).toMatchObject({ imageMime: "image/png", imageBytes: png });
+  });
   it("有图时输出参数条和图片，无图时只输出参数条", () => {
     const withImage = renderReferencePagesHtml([{
       highlights: [{ field: "kValue", label: "传热系数 K", value: "0.2321897625" }],

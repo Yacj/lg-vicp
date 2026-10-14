@@ -20,6 +20,10 @@ Candidate 生命周期（2026-10-12）：查到候选不等于开始方案。普
 
 # AI 与报告
 
+报告设置驱动PDF（2026-10-14）：复用设置，创建冻结Logo文件身份与企业展示名称；Worker不读最新品牌配置。显示计算过程仅冻结步骤，排除未核验judgment；来源开关只影响完整附录，最低引用/指标/风险保留。前端默认类型和示意预览未修改，见docs/reports/report-settings-pdf-2026-10-14.md。
+
+正式方案PDF（2026-10-14）：创建服务统一本轮Domain Policy/UI授权+本人同端会话/项目CONFIRMED Snapshot与Final冻结事实校验；按Snapshot/报告类型/创建者幂等。DocumentModel纯转换，专业章节与原表只读冻结事实，无合规证据标未核验。新正式报告仅PDF必要、HTML尽力，旧Word/图片兼容；受控预览下载与审核不放松。当前库只读，真实UAT须隔离环境正式流程Confirm，见docs/reports/solution-pdf-2026-10-14.md。
+
 参考方案建议（2026-10-13）：SOLUTION_ADVICE只读最近可见候选，复用归属/来源/revision/24h核验，按实际基层择一，不按最小K替换基层。一般建议不要求地区建筑、不重查/计算、不激活/确认或生成报告。adviceBusinessContext/pendingAdviceGoal只存任务JSON并绑定会话/项目/revision/有效期，读取最多两轮目标，换话题立即中断。参见 docs/ai/solution-advice-2026-10-13.md。
 
 会话来源校验：令牌 `clientType=C_APP/PC_AI/B_ADMIN` 与会话 `clientApp=c_app/pc_ai/b_admin` 不是同一枚举。创建和方案访问统一通过 `clientAppForClient` 映射，不直接比较原值；服务事务/权限测试使用真实小写来源，覆盖本人空状态、创建/恢复、跨用户/跨端拒绝、失效/删除会话及私有项目拒绝。

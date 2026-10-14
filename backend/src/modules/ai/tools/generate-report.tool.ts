@@ -5,7 +5,7 @@ import { aiAgentRuns } from "../../../db/schema.js";
 import { USER_LANGUAGE_NOTES } from "../../../shared/ai-response-policy.js";
 import { runRegisteredTool, type ToolRuntimeContext } from "./tool-runtime.js";
 import { toolOk, toolError } from "./tool-output.js";
-import { hasReportAuthorization, isSolutionReportRequest } from "../report-authorization.js";
+import { hasReportAuthorization, isSolutionReportRequest, currentAuthorizedReportType } from "../report-authorization.js";
 import { generateConfirmedSolutionReport } from "../solution-report.service.js";
 import { normalizeReportForModel } from "./tool-result-normalizer.js";
 import { parseSelectedChoice, type SelectedChoice, buildUserSelectionWaitState } from "../agent-choice.js";
@@ -82,6 +82,7 @@ export function createGenerateReportTool(ctx: ToolRuntimeContext) {
       if (!hasReportAuthorization(ctx)) return toolError({ code: "REPORT_AUTHORIZATION_REQUIRED", message: "本轮没有明确的报告生成授权，请先明确要求生成报告或确认界面选择。" });
       return runRegisteredTool(ctx, "generate_report", { snapshotId, reportType, requirements }, options, async () => {
       if (isSolutionReportRequest(ctx, reportType)) return generateConfirmedSolutionReport(ctx, reportType);
+      reportType = currentAuthorizedReportType(ctx);
       const taskState = ctx.taskState ?? parseConversationTaskState(null);
       ctx.onEvent?.("report_started", { conversationId: ctx.conversation.id, snapshotId: snapshotId ?? taskState.reportContextSnapshotId ?? null });
 
@@ -201,6 +202,8 @@ export function createGenerateReportTool(ctx: ToolRuntimeContext) {
         confirmAction: ctx.selectedUserSelection?.confirmAction === "GENERATE_REPORT" ? "GENERATE_REPORT" : null,
         message: requirements
       });
+      if (inferred.status === "RESOLVED" && ["technical_scheme", "project_brief", "energy_design", "design_note", "TEMPLATE"].includes(inferred.reportType))
+        return generateConfirmedSolutionReport(ctx, inferred.reportType);
       if (inferred.status === "NEEDS_SELECTION") {
         const waiting = buildUserSelectionWaitState({
           request: inferred.request,

@@ -7,6 +7,11 @@ settings:
 overrides:
   unconfig: 7.3.2
 
+patchedDependencies:
+  '@uni-helper/vite-plugin-uni-components@0.2.6':
+    hash: q5gjh7myq7o66rinjubtskscya
+    path: patches/@uni-helper__vite-plugin-uni-components@0.2.6.patch
+
 importers:
 
   .:
@@ -161,7 +166,7 @@ importers:
         version: 0.2.11(@unocss/preset-legacy-compat@66.5.6)(@unocss/preset-mini@66.7.4)(@unocss/rule-utils@66.7.4)(@unocss/vite@66.5.9(vite@5.2.8(@types/node@26.4.1)(sass@1.99.0)(terser@5.31.6)))(unocss-applet@0.12.2(unocss@66.0.0(postcss@8.5.10)(vite@5.2.8(@types/node@26.4.1)(sass@1.99.0)(terser@5.31.6))(vue@3.4.38(typescript@5.5.4))))(unocss@66.0.0(postcss@8.5.10)(vite@5.2.8(@types/node@26.4.1)(sass@1.99.0)(terser@5.31.6))(vue@3.4.38(typescript@5.5.4)))
       '@uni-helper/vite-plugin-uni-components':
         specifier: ^0.2.6
-        version: 0.2.6(rollup@4.14.3)
+        version: 0.2.6(patch_hash=q5gjh7myq7o66rinjubtskscya)(rollup@4.14.3)
       '@uni-helper/vite-plugin-uni-layouts':
         specifier: ^0.1.11
         version: 0.1.11(rollup@4.14.3)
@@ -10552,7 +10557,7 @@ snapshots:
       '@unocss/preset-mini': 66.7.4
       '@unocss/vite': 66.5.9(vite@5.2.8(@types/node@26.4.1)(sass@1.99.0)(terser@5.31.6))
 
-  '@uni-helper/vite-plugin-uni-components@0.2.6(rollup@4.14.3)':
+  '@uni-helper/vite-plugin-uni-components@0.2.6(patch_hash=q5gjh7myq7o66rinjubtskscya)(rollup@4.14.3)':
     dependencies:
       '@antfu/utils': 0.7.10
       '@rollup/pluginutils': 5.3.0(rollup@4.14.3)

@@ -11,7 +11,7 @@ import {
 
 const owner = { id: "u-1", role: "NORMAL_USER" } as const;
 const other = { id: "u-2", role: "NORMAL_USER" } as const;
-const admin = { id: "u-9", role: "SUPER_ADMIN" } as const;
+const admin = { id: "u-9", role: "SUPER_ADMIN", clientType: "B_ADMIN" } as const;
 const project = { id: "p-1", name: "苏州住宅", createdById: "u-1", visibility: "PRIVATE" as const };
 
 describe("报告 projectId 可空", () => {
@@ -37,6 +37,7 @@ describe("无项目报告权限", () => {
     expect(canManageReport(owner as never, report, null)).toBe(true);
     expect(canViewReport(other as never, report, null)).toBe(false);
     expect(canManageReport(admin as never, report, null)).toBe(true);
+    expect(canManageReport({ ...admin, clientType: "C_APP" } as never, report, null)).toBe(false);
   });
 
   it("有项目时沿用项目权限", () => {

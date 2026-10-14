@@ -1,11 +1,11 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import type { ReportTemplateSection } from "../../db/schema.js";
-import { reportSettings } from "../../db/schema.js";
+import { files, reportSettings } from "../../db/schema.js";
 import type { AuthUser } from "../../shared/auth-user.js";
 import { AUDIT_ACTIONS } from "../../shared/constants.js";
 import { writeAuditLog } from "../audit-logs/audit-log.service.js";
-import { loadCompanyLogoFileId } from "../company/company.service.js";
+import { loadCompanyLogoFileId, loadReportEnterprise } from "../company/company.service.js";
 import type { reportSettingsUpdateSchema } from "./report-settings.schemas.js";
 import type { z } from "zod";
 
@@ -67,6 +67,16 @@ export async function loadReportSettingsValues(app: FastifyInstance): Promise<Re
   const [row] = await app.db.select().from(reportSettings)
     .where(eq(reportSettings.key, "default")).limit(1);
   return toValues(row);
+}
+
+/** 仅冻结企业展示配置，不读取或覆盖SolutionSnapshot中的工程事实；不保存签名URL。 */
+export async function loadReportBranding(app: FastifyInstance) {
+  const enterprise = await loadReportEnterprise(app);
+  if (!enterprise) return null;
+  const [logo] = enterprise.logoFileId ? await app.db.select({ id: files.id, objectKey: files.objectKey, mimeType: files.mimeType })
+    .from(files).where(and(eq(files.id, enterprise.logoFileId), eq(files.status, "READY"), isNull(files.deletedAt))).limit(1) : [];
+  return { companyName: enterprise.shortName || enterprise.name, companyLogoFileId: enterprise.logoFileId,
+    logo: logo ? { fileId: logo.id, objectKey: logo.objectKey, mimeType: logo.mimeType } : null };
 }
 
 export async function getReportSettings(app: FastifyInstance): Promise<ReportSettingsDto> {

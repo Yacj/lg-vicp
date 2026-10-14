@@ -1,5 +1,9 @@
 # 报告类型 / 报告设置 / 内部模板 / 审核中心
 
+报告设置已接入正式PDF的企业Logo、封面标题、页眉页脚、冻结计算过程、来源附录及免责声明。配置与Logo身份创建时冻结，旧报告不随后台设置变化；基本引用/关键指标/未核验风险始终保留。Backend与B端尚需对接事项、本轮证据见[报告设置记录](report-settings-pdf-2026-10-14.md)。
+
+2026-10-14：新 `technical_scheme` / `project_brief` 统一要求明确授权及本人同端会话的 CONFIRMED SolutionSnapshot，不能再按最近旧 selection 或产品上下文生成。原文旧“普通生成”示例只适用于兼容报告路径；正式方案新增 `conversationId` 必需、`solutionSnapshotId` 可选校验。已发布模板仍是前提。新正式产物为 PDF/HTML，旧报告四格式保留；预览路径 `/api/v1/reports/:id/artifacts/PDF/preview-url` 复用下载权限。详见 [实施与验收记录](solution-pdf-2026-10-14.md)。
+
 普通业务模型：**系统预置报告类型 + 报告设置 + 报告生成 + 报告列表**。  
 报告模板、章节配置、模板版本与发布是内部渲染配置，不进入普通管理员日常菜单。
 

@@ -3,7 +3,7 @@ import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { and, asc, count, desc, eq, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { env } from "../../config/env.js";
-import { aiConversations, aiMessages, asyncTasks, files, projects, reportArtifacts, reports, reportSources } from "../../db/schema.js";
+import { aiConversations, aiMessages, asyncTasks, files, projects, reportArtifacts, reports, reportSources, reportSnapshots } from "../../db/schema.js";
 import { QUEUE_NAMES } from "../../queues/queues.js";
 import { AUDIT_ACTIONS } from "../../shared/constants.js";
 import { getCurrentUser } from "../../shared/current-user.js";
@@ -31,8 +31,9 @@ import {
 import { publicReportTypeDto } from "./report-settings.schemas.js";
 
 const createReportBodySchema = z.object({
-  projectId: z.uuid("项目 ID 格式不正确").optional(),
-  conversationId: z.uuid("AI 会话 ID 格式不正确").optional(),
+  projectId: z.uuid("项目 ID 格式不正确").nullable().optional(),
+  conversationId: z.uuid("AI 会话 ID 格式不正确").nullable().optional(),
+  solutionSnapshotId: z.uuid("方案快照 ID 格式不正确").optional(),
   reportType: generatableReportTypeSchema,
   contentJson: z.record(z.string(), z.unknown()).default({}),
   sourceMessageIds: z.array(z.uuid("AI 回答 ID 格式不正确")).max(20, "一次最多选择 20 条 AI 回答").optional()
@@ -53,7 +54,7 @@ async function getReportWithProject(app: FastifyInstance, id: string) {
   const [row] = await app.db.select({ report: reports, project: projects })
     .from(reports).leftJoin(projects, and(eq(projects.id, reports.projectId), isNull(projects.deletedAt)))
     .where(and(eq(reports.id, id), isNull(reports.deletedAt))).limit(1);
-  return row;
+  return row?.report.projectId && !row.project ? undefined : row;
 }
 
 function uniqueIds(ids: string[] | undefined) {
@@ -137,18 +138,26 @@ export async function reportRoutes(app: FastifyInstance) {
       throw new NotFoundError("项目不存在或无权生成报告");
     }
     const typeDef = resolveReportType(request.body.reportType);
+    if ((typeDef.code === "technical_scheme" || typeDef.code === "project_brief")
+      && conversation && request.body.projectId !== undefined && request.body.projectId !== conversation.projectId)
+      throw new NotFoundError("方案会话与请求项目不一致");
     assertReportProjectRequirement({ requiresProject: typeDef.requiresProject, projectId });
 
     if (isTemplateBackedReportType(typeDef.code)) {
       const result = await generateTemplateReport(app, request, user, {
         reportType: typeDef.code,
         projectId,
-        conversationId: request.body.conversationId ?? null
+        conversationId: request.body.conversationId ?? null,
+        solutionSnapshotId: request.body.solutionSnapshotId,
+        solutionAuthorization: conversation ? { reportAuthorization: { userId: user.id, conversationId: conversation.id } } : undefined
       });
       return ok(request, {
         message: "报告已进入生成队列",
         report: result.report,
-        taskId: result.taskId
+        taskId: result.taskId,
+        solutionSnapshotId: result.solutionSnapshotId,
+        status: result.report.status,
+        reused: result.reused
       });
     }
 
@@ -264,14 +273,20 @@ export async function reportRoutes(app: FastifyInstance) {
     const isManager = canManageReport(user, row.report, row.project);
     if (!isManager && !row.report.publishedAt) throw new NotFoundError("报告尚未发布");
     const artifacts = await app.db.select({ type: reportArtifacts.type }).from(reportArtifacts)
-      .where(eq(reportArtifacts.reportId, row.report.id));
+      .innerJoin(files, eq(files.id, reportArtifacts.fileId))
+      .where(and(eq(reportArtifacts.reportId, row.report.id), eq(files.status, "READY"), isNull(files.deletedAt)));
     const sources = await app.db.select().from(reportSources)
       .where(eq(reportSources.reportId, row.report.id))
       .orderBy(asc(reportSources.sortOrder));
+    const [snapshot] = await app.db.select().from(reportSnapshots).where(eq(reportSnapshots.reportId, row.report.id)).limit(1);
+    const [task] = await app.db.select().from(asyncTasks).where(and(eq(asyncTasks.businessType, "report"),
+      eq(asyncTasks.businessId, row.report.id))).orderBy(desc(asyncTasks.createdAt)).limit(1);
     return ok(request, {
       report: row.report,
       project: row.project ? { id: row.project.id, name: row.project.name } : null,
       sources,
+      solutionSnapshotId: snapshot?.dataJson.solutionSnapshotId ?? null,
+      task: task ? { id: task.id, status: task.status, progress: task.progress, errorMessage: task.errorMessage } : null,
       availableFormats: artifacts.map((item) => item.type)
     });
   });
@@ -323,41 +338,8 @@ export async function reportRoutes(app: FastifyInstance) {
     const user = getCurrentUser(request);
     const row = await getReportWithProject(app, request.params.id);
     if (!row || !canManageReport(user, row.report, row.project)) throw new NotFoundError("报告不存在或无权生成");
-    if (row.report.status !== "DRAFT" && row.report.status !== "FAILED") {
-      throw new ForbiddenError("只有草稿或生成失败的报告可以重新生成");
-    }
-    const task = await app.db.transaction(async (tx) => {
-      const [created] = await tx.insert(asyncTasks).values({
-        queueName: QUEUE_NAMES.REPORT_GENERATION,
-        jobType: "generate_report",
-        businessType: "report",
-        businessId: row.report.id,
-        payload: { reportId: row.report.id }
-      }).returning();
-      await tx.update(reports).set({ status: "QUEUED", errorMessage: null, updatedAt: new Date() })
-        .where(eq(reports.id, row.report.id));
-      await writeAuditLog({
-        db: tx, request, actor: user, projectId: row.report.projectId ?? undefined,
-        action: AUDIT_ACTIONS.REPORT_QUEUED, targetType: "report", targetId: row.report.id,
-        afterJson: { taskId: created!.id }
-      });
-      return created!;
-    });
-    try {
-      const job = await app.queues.reportGeneration.add(
-        "generate_report",
-        { taskId: task.id, reportId: row.report.id },
-        { jobId: task.id }
-      );
-      await app.db.update(asyncTasks).set({ bullJobId: String(job.id), updatedAt: new Date() }).where(eq(asyncTasks.id, task.id));
-    } catch (error) {
-      await app.db.update(reports).set({ status: "FAILED", errorMessage: "报告任务投递失败", updatedAt: new Date() })
-        .where(eq(reports.id, row.report.id));
-      await app.db.update(asyncTasks).set({ status: "FAILED", errorMessage: "报告任务投递失败", updatedAt: new Date() })
-        .where(eq(asyncTasks.id, task.id));
-      throw error;
-    }
-    return ok(request, { message: "报告已进入生成队列", reportId: row.report.id, taskId: task.id });
+    const result = await retryReport(app, request, user, row.report.id);
+    return ok(request, { message: "报告已进入生成队列", reportId: result.reportId, taskId: result.taskId, status: result.status, reused: result.reused });
   });
 
   route.post("/reports/:id/retry", {
@@ -393,30 +375,32 @@ export async function reportRoutes(app: FastifyInstance) {
     return ok(request, { message: "报告发布成功", report });
   });
 
-  route.get("/reports/:id/artifacts/:type/download-url", {
-    preHandler: [app.authenticate],
-    schema: { tags: ["共用 / 报告"], summary: "获取报告文件下载地址", params: artifactParamsSchema }
-  }, async (request) => {
+  const artifactUrl = async (request: import("fastify").FastifyRequest<{ Params: z.infer<typeof artifactParamsSchema> }>, preview = false) => {
     const user = getCurrentUser(request);
     const row = await getReportWithProject(app, request.params.id);
     if (!row || !canViewReport(user, row.report, row.project)) throw new NotFoundError("报告不存在或无权下载");
     if (!canManageReport(user, row.report, row.project) && !row.report.publishedAt) throw new NotFoundError("报告尚未发布");
     const [artifact] = await app.db.select({ file: files }).from(reportArtifacts)
       .innerJoin(files, eq(files.id, reportArtifacts.fileId))
-      .where(and(eq(reportArtifacts.reportId, row.report.id), eq(reportArtifacts.type, request.params.type))).limit(1);
-    if (!artifact) throw new NotFoundError("请求的报告格式尚未生成");
-    const url = await app.storage.createDownloadUrl(
-      artifact.file.objectKey,
-      artifact.file.originalName,
-      env.STORAGE_PRESIGN_EXPIRES_SECONDS
-    );
-    await writeAuditLog({
-      db: app.db, request, actor: user, projectId: row.report.projectId ?? undefined,
+      .where(and(eq(reportArtifacts.reportId, row.report.id), eq(reportArtifacts.type, request.params.type),
+        eq(files.status, "READY"), isNull(files.deletedAt))).limit(1);
+    if (!artifact) throw new NotFoundError("请求的报告格式尚未生成或已失效");
+    const url = preview ? await app.storage.createPreviewUrl(artifact.file.objectKey, env.STORAGE_PRESIGN_EXPIRES_SECONDS)
+      : await app.storage.createDownloadUrl(artifact.file.objectKey, artifact.file.originalName, env.STORAGE_PRESIGN_EXPIRES_SECONDS);
+    await writeAuditLog({ db: app.db, request, actor: user, projectId: row.report.projectId ?? undefined,
       action: AUDIT_ACTIONS.REPORT_DOWNLOADED, targetType: "report", targetId: row.report.id,
-      afterJson: { type: request.params.type }
-    });
+      afterJson: { type: request.params.type, mode: preview ? "PREVIEW" : "DOWNLOAD" } });
     return ok(request, { url, expiresIn: env.STORAGE_PRESIGN_EXPIRES_SECONDS });
-  });
+  };
+  route.get("/reports/:id/artifacts/:type/download-url", {
+    preHandler: [app.authenticate],
+    schema: { tags: ["共用 / 报告"], summary: "获取报告文件下载地址", params: artifactParamsSchema }
+  }, request => artifactUrl(request));
+  route.get("/reports/:id/artifacts/:type/preview-url", {
+    preHandler: [app.authenticate],
+    schema: { tags: ["共用 / 报告"], summary: "获取受控报告预览地址（PDF/图片）",
+      params: artifactParamsSchema.extend({ type: z.enum(["PDF", "IMAGE"]) }) }
+  }, request => artifactUrl(request, true));
 
   route.delete("/reports/:id", {
     preHandler: [app.authenticate],

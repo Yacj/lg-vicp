@@ -24,6 +24,7 @@ const ENV_PATH = path.join(BACKEND_ROOT, ".env");
 const isWin = process.platform === "win32";
 // 纯代码修复发布：显式跳过数据库备份、迁移与seed，默认部署行为不变。
 const skipDatabase = process.argv.includes("--skip-db");
+const installReportRuntime = process.argv.includes("--install-report-runtime");
 
 const fail = (msg) => {
   console.error(`[失败] ${msg}`);
@@ -92,6 +93,9 @@ const PACK_ENTRIES = [
   "pnpm-workspace.yaml",
   "deploy/ecosystem.config.cjs",
   "deploy/remote-apply.sh",
+  "deploy/report-runtime.mjs",
+  "deploy/report-runtime-smoke.mjs",
+  "deploy/report-runtime-config.cjs",
   ".env.example"
 ];
 
@@ -167,6 +171,14 @@ const uploadFile = (conn, localPath, remotePath) =>
 
 const remoteTar = "/tmp/lg-vicp-backend-release.tgz";
 const quotedDir = bashQuote(remoteDir);
+// 只传部署专用白名单，不传业务.env/凭据；值按shell单引号转义。
+const reportDeployKeys = ["DEPLOY_NPM_REGISTRY", "DEPLOY_REPORT_RUNTIME_INSTALL", "DEPLOY_REPORT_CHROMIUM_DOWNLOAD_HOST", "DEPLOY_REPORT_DOWNLOAD_HOST", "DEPLOY_REPORT_APT_SOURCE_FILE"];
+const reportDeployEnv = reportDeployKeys.flatMap(key => {
+  const value = process.env[key] ?? env[key];
+  return value ? [`${key}=${bashQuote(value)}`] : [];
+});
+if (installReportRuntime) reportDeployEnv.push("DEPLOY_REPORT_RUNTIME_INSTALL=1");
+if (skipDatabase) reportDeployEnv.push("DEPLOY_SKIP_DATABASE=1");
 const applyCmd = [
   "set -euo pipefail",
   `mkdir -p ${quotedDir} ${quotedDir}/.bak ${quotedDir}/logs`,
@@ -174,7 +186,7 @@ const applyCmd = [
   `tar -xzf ${bashQuote(remoteTar)} -C ${quotedDir}`,
   `sed -i 's/\\r$//' ${quotedDir}/deploy/remote-apply.sh`,
   `cd ${quotedDir}`,
-  `${skipDatabase ? "DEPLOY_SKIP_DATABASE=1 " : ""}bash deploy/remote-apply.sh`
+  `${reportDeployEnv.join(" ")} bash deploy/remote-apply.sh`
 ].join("\n");
 
 let conn;

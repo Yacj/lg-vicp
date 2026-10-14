@@ -1,10 +1,14 @@
 <script setup lang="ts">
 import type { ApiEnvelope, ApiPage, MyReportItem } from '@/api/types'
+import type { ReportListViewItem } from '@/utils/aiReportTask'
+import { onBeforeUnmount } from 'vue'
 import { reportApi } from '@/api/modules/reports'
 import ReportListCard from '@/components/report/ReportListCard.vue'
 import { useAuthGate } from '@/composables/useAuthGate'
 import { useBackNavigation } from '@/composables/useBackNavigation'
+import { useAuthStore } from '@/store/auth'
 import { useReportTypeStore } from '@/store/reportTypes'
+import { readReportListStatus, reportErrorMessage } from '@/utils/aiReportTask'
 
 definePage({
   name: 'reports',
@@ -23,22 +27,48 @@ const { goBack } = useBackNavigation()
 const { requireLogin } = useAuthGate()
 
 const filterProjectId = computed(() => String(route.query.projectId || route.params.projectId || ''))
-const items = ref<MyReportItem[]>([])
+const items = ref<ReportListViewItem[]>([])
 const status = ref<'idle' | 'loading' | 'success' | 'error'>('loading')
 const page = ref(1)
 const total = ref(0)
 const loadingMore = ref(false)
 const loadMoreFailed = ref(false)
+const errorMessage = ref('')
+const auth = useAuthStore()
+let visible = false
+let revision = 0
 
 const canLoadMore = computed(() => items.value.length < total.value)
 const pageTitle = computed(() => filterProjectId.value ? '项目报告' : '我的报告')
 
-onMounted(() => {
+onShow(() => {
+  visible = true
   if (requireLogin({ showToast: false })) {
     void useReportTypeStore().ensureLoaded()
     void reload()
   }
 })
+
+function stopPage() {
+  visible = false
+  revision++
+  loadingMore.value = false
+}
+onHide(stopPage)
+onUnload(stopPage)
+onBeforeUnmount(stopPage)
+
+watch([filterProjectId, () => auth.user?.id], () => {
+  revision++
+  items.value = []
+  loadingMore.value = false
+  if (visible && requireLogin({ showToast: false }))
+    void reload()
+})
+
+function requestContext(sequence: number, projectId: string, userId: string | undefined) {
+  return () => visible && revision === sequence && filterProjectId.value === projectId && auth.user?.id === userId
+}
 
 onPullDownRefresh(async () => {
   if (requireLogin({ showToast: false })) {
@@ -60,41 +90,67 @@ async function requestPage(targetPage: number) {
 }
 
 async function reload() {
+  const sequence = ++revision
+  const current = requestContext(sequence, filterProjectId.value, auth.user?.id)
   status.value = 'loading'
+  loadingMore.value = false
   loadMoreFailed.value = false
+  errorMessage.value = ''
   try {
     const response = await requestPage(1)
+    if (!current())
+      return
     items.value = response.data?.items || []
     total.value = response.data?.total || 0
     page.value = 1
     status.value = 'success'
+    const enriched = await readReportListStatus(items.value, async id => (await reportApi.getDetail(id).send(true)).data, current)
+    if (current()) {
+      const indexed = new Map(enriched.map(item => [item.id, item]))
+      items.value = items.value.map(item => indexed.get(item.id) ?? item)
+    }
   }
-  catch {
-    status.value = 'error'
+  catch (error) {
+    if (current()) {
+      errorMessage.value = reportErrorMessage(error)
+      status.value = 'error'
+    }
   }
 }
 
 async function loadMore() {
-  if (status.value !== 'success' || loadingMore.value || !canLoadMore.value) {
+  if (!visible || status.value !== 'success' || loadingMore.value || !canLoadMore.value) {
     return
   }
   loadingMore.value = true
   loadMoreFailed.value = false
   const nextPage = page.value + 1
+  const current = requestContext(revision, filterProjectId.value, auth.user?.id)
   try {
     const response = await requestPage(nextPage)
+    if (!current())
+      return
     const nextItems = response.data?.items || []
     const indexed = new Map(items.value.map(item => [item.id, item]))
     nextItems.forEach(item => indexed.set(item.id, item))
     items.value = [...indexed.values()]
     total.value = response.data?.total || total.value
     page.value = nextPage
+    const enriched = await readReportListStatus(nextItems, async id => (await reportApi.getDetail(id).send(true)).data, current)
+    if (current()) {
+      const updated = new Map(enriched.map(item => [item.id, item]))
+      items.value = items.value.map(item => updated.get(item.id) ?? item)
+    }
   }
-  catch {
-    loadMoreFailed.value = true
+  catch (error) {
+    if (current()) {
+      errorMessage.value = reportErrorMessage(error)
+      loadMoreFailed.value = true
+    }
   }
   finally {
-    loadingMore.value = false
+    if (current())
+      loadingMore.value = false
   }
 }
 
@@ -130,7 +186,7 @@ function openProject(projectId: string) {
           报告加载失败
         </text>
         <text class="app-muted mt-1 text-2.5">
-          请检查网络后重试
+          {{ errorMessage || '请检查网络后重试' }}
         </text>
         <wd-button size="small" custom-class="mt-4!" @click="reload">
           重新加载

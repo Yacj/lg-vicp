@@ -11,6 +11,7 @@ import { createDocumentProcessor } from "./workers/document.worker.js";
 import type { DocumentJobData } from "./workers/document-job-state.js";
 import { isTerminalDocumentFailure, reconcileDocumentJobFailure } from "./workers/document-job-state.js";
 import { createReportProcessor } from "./workers/report.worker.js";
+import { reconcileTerminalReportFailure, reconcileFailedReportTasks } from "./workers/report-job-state.js";
 import { createConversationTitleProcessor } from "./workers/conversation-title.worker.js";
 import { createConversationMaintenanceProcessor } from "./workers/ai-conversation-maintenance.worker.js";
 import { createThermalImportProcessor } from "./workers/thermal-import.worker.js";
@@ -65,9 +66,10 @@ const documentWorker = new Worker<DocumentJobData>(
   { connection: redis, concurrency: 1, lockDuration: 5 * 60 * 1000 }
 );
 
+const reportWorker = new Worker(QUEUE_NAMES.REPORT_GENERATION, createReportProcessor(db, storage), { connection: redis, concurrency: 1, lockDuration: 10 * 60 * 1000 });
 const workers = [
   documentWorker,
-  new Worker(QUEUE_NAMES.REPORT_GENERATION, createReportProcessor(db, storage), { connection: redis, concurrency: 1, lockDuration: 10 * 60 * 1000 }),
+  reportWorker,
   new Worker(QUEUE_NAMES.AI_TITLE_GENERATION, createConversationTitleProcessor(db), { connection: redis, concurrency: 2, lockDuration: 2 * 60 * 1000 }),
   new Worker(QUEUE_NAMES.AI_CONVERSATION_MAINTENANCE, createConversationMaintenanceProcessor({ db } as never), { connection: redis, concurrency: 2, lockDuration: 5 * 60 * 1000 }),
   new Worker(QUEUE_NAMES.THERMAL_IMPORT, createThermalImportProcessor(db, storage), { connection: redis, concurrency: 2, lockDuration: 5 * 60 * 1000 }),
@@ -158,10 +160,27 @@ function handleDocumentFailure(job: Job<DocumentJobData> | undefined, error: Err
 for (const worker of workers) {
   if (worker !== documentWorker) {
     worker.on("completed", (job) => console.info(`队列任务完成：${worker.name}/${job.id}`));
-    worker.on("failed", (job, error) => console.error(`队列任务失败：${worker.name}/${job?.id ?? "未知"}`, error));
+    if (worker !== reportWorker) worker.on("failed", (job, error) => console.error(`队列任务失败：${worker.name}/${job?.id ?? "未知"}`, error));
   }
-  worker.on("error", (error) => console.error(`队列 Worker 异常：${worker.name}`, error));
+  worker.on("error", (error) => worker === reportWorker
+    ? console.error("报告 Worker 异常", { errorType: error.name }) : console.error(`队列 Worker 异常：${worker.name}`, error));
 }
+reportWorker.on("failed", (job, error) => {
+  console.error("报告队列任务失败", { jobId: job?.id, errorType: error.name });
+  if (job) void reconcileTerminalReportFailure(db, job, error).catch(() => console.error("报告任务终态同步失败", { jobId: job.id }));
+});
+let reportReconcileRun: Promise<void> | undefined;
+function reconcileReports() {
+  if (reportReconcileRun) return reportReconcileRun;
+  reportReconcileRun = reconcileFailedReportTasks(db, queues.reportGeneration)
+    .then(changed => { if (changed) console.info("报告任务终态已恢复", { changed }); })
+    .catch(() => console.warn("报告任务终态对账暂不可用"))
+    .finally(() => { reportReconcileRun = undefined; });
+  return reportReconcileRun;
+}
+await reconcileReports();
+const reportReconcileTimer = setInterval(() => void reconcileReports(), 60_000);
+reportReconcileTimer.unref();
 
 documentWorker.on("active", (job) => {
   if (job.id) documentJobStartedAt.set(job.id, Date.now());
@@ -193,8 +212,10 @@ function shutdown(signal: "SIGINT" | "SIGTERM"): Promise<void> {
   }
 
   shutdownPromise = (async () => {
+    clearInterval(reportReconcileTimer);
     console.info(`收到 ${signal}，等待活动任务完成后关闭 Worker`);
     const workerResults = await Promise.allSettled(workers.map((worker) => worker.close()));
+    await reportReconcileRun;
     const connectionResults = await Promise.allSettled([
       redis.quit(),
       client.end({ timeout: 5 })

@@ -87,23 +87,21 @@ describe("报告快照组装（数值冻结，历史不漂移）", () => {
       [profileRow]
     ]);
     const { dataJson, template } = await assembleReportSnapshot(app(db), {
-      reportType: "technical_scheme",
+      reportType: "TEMPLATE",
       projectId: "p-1",
       selectionId: "sel-1"
     });
     expect(template.code).toBe("standard_report");
-    expect(dataJson.reportType).toBe("technical_scheme");
+    expect(dataJson.reportType).toBe("TEMPLATE");
     expect(dataJson.template).toMatchObject({ code: "standard_report" });
   });
 
-  it("技术方案/简报无项目时仍可组装，不强制 requiresProject", async () => {
+  it("技术方案/简报无确认快照时拒绝，不降级到空项目模板", async () => {
     const { db } = makeDb([
       [{ ...templateRow, code: "standard_report", requiresProject: true }],
       [profileRow]
     ]);
-    const { dataJson } = await assembleReportSnapshot(app(db), { reportType: "technical_scheme" });
-    expect(dataJson.project).toBeNull();
-    expect(dataJson.reportType).toBe("technical_scheme");
+    await expect(assembleReportSnapshot(app(db), { reportType: "technical_scheme" })).rejects.toMatchObject({ code: "SOLUTION_SNAPSHOT_REQUIRED" });
   });
 
   it("无项目报告类型可以不传 projectId/templateId", async () => {

@@ -14,7 +14,7 @@ import type {
   MessageAttachment,
   ReportDetail,
   ReportItem,
-  ReportTaskStatus,
+  ReportTaskResult,
 } from '@/api/types'
 import type { AiStreamEvent } from '@/services/platform'
 import type { AgentToolStep, ParsedNeedInput, SessionReport } from '@/utils/aiAgentUi'
@@ -210,6 +210,11 @@ function toSessionReport(report: ReportItem | undefined | null): SessionReport |
     projectId: report.projectId,
     title: reportTitleFromUnknown(report, reportTaskTitle(status)),
     status,
+    reportStatus: report.status,
+    conversationId: report.conversationId ?? undefined,
+    publishedAt: report.publishedAt,
+    errorMessage: report.errorMessage,
+    messageId: null,
   }
 }
 
@@ -267,7 +272,14 @@ export const useAssistantStore = defineStore('assistant', {
   },
 
   actions: {
-    ...createSolutionActions(aiApi),
+    ...createSolutionActions(aiApi, {
+      create: body => reportApi.create(body),
+      currentUserId: () => {
+        const auth = useAuthStore()
+        return auth.accessToken ? auth.user?.id ?? null : null
+      },
+      canCreate: (): boolean => useAssistantStore().canSend && !useAssistantStore().pendingUserInput,
+    }),
     setNavContext(context: AssistantNavContext) {
       this.nav = { ...context }
     },
@@ -692,8 +704,12 @@ export const useAssistantStore = defineStore('assistant', {
       this.stopReportPolling()
       this.cancelActiveStream(false)
       const solutionRequestRevision = this.solutionRequestRevision
+      const solutionReportRequestRevision = this.solutionReportRequestRevision
+      const loadRevision = this.loadRevision + 1
       this.$reset()
       this.solutionRequestRevision = solutionRequestRevision
+      this.solutionReportRequestRevision = solutionReportRequestRevision
+      this.loadRevision = loadRevision
     },
 
     /** 开始新对话：仅重置本地状态，首次发送时再创建后端会话。 */
@@ -928,6 +944,11 @@ export const useAssistantStore = defineStore('assistant', {
       const confirmLabel = request.confirmAction.label
       const silent = Boolean(options.silent) || waiting.hidden
       const generateReport = request.confirmAction.type === 'GENERATE_REPORT' || request.selectionKind === 'PRODUCT'
+      if (silent && generateReport) {
+        waiting.hidden = false
+        this.sendLock = false
+        return false
+      }
       const basedOn = waiting.options.filter(item => selectedIds.includes(item.id)).map(item => item.label)
       try {
         let userMessage: LocalMessage | null = null
@@ -959,6 +980,7 @@ export const useAssistantStore = defineStore('assistant', {
             projectId: this.conversation.projectId,
             status: 'QUEUED',
             basedOn,
+            messageId: assistantMessage.id,
           })
         }
 
@@ -1242,6 +1264,7 @@ export const useAssistantStore = defineStore('assistant', {
             projectId: this.conversation?.projectId ?? null,
             status: this.sessionReport?.id ? (this.sessionReport.status || 'GENERATING') : 'QUEUED',
             basedOn,
+            messageId: this.streamingMessageId,
           })
           this.pendingUserInput = null
           break
@@ -1254,7 +1277,9 @@ export const useAssistantStore = defineStore('assistant', {
             id: payload.data.reportId,
             projectId: this.conversation?.projectId ?? null,
             status: mapReportTaskStatus(payload.data.status || 'QUEUED'),
+            reportStatus: payload.data.status || 'QUEUED',
             basedOn,
+            messageId: this.streamingMessageId,
           })
           this.pendingUserInput = null
           this.selectionSelectedIds = []
@@ -1270,7 +1295,9 @@ export const useAssistantStore = defineStore('assistant', {
             id: payload.data.reportId,
             projectId: this.conversation?.projectId ?? null,
             status: 'READY',
+            reportStatus: 'READY',
             basedOn,
+            messageId: this.streamingMessageId,
           })
           this.markReportReadyMessage()
           this.pendingUserInput = null
@@ -1307,7 +1334,7 @@ export const useAssistantStore = defineStore('assistant', {
             this.applySolutionState({ solutionState: payload.data.solutionState })
           const message = this.messages.find(item => item.id === payload.data.messageId)
           if (message) {
-            if (this.sessionReport?.status === 'READY') {
+            if (this.sessionReport?.status === 'READY' && this.sessionReport.messageId === message.id) {
               message.content = REPORT_COMPLETED_MESSAGE
             }
             message.status = 'COMPLETED'
@@ -1402,24 +1429,19 @@ export const useAssistantStore = defineStore('assistant', {
       this.sendLock = false
     },
 
-    applyReportTask(payload: {
-      id: string
-      projectId: string | null
-      status: ReportTaskStatus
-      basedOn?: string[]
-    }) {
+    applyReportTask(payload: Omit<SessionReport, 'title'>) {
+      const previous = this.sessionReport?.id === payload.id ? this.sessionReport : null
+      const status = payload.status ?? mapReportTaskStatus(payload.reportStatus)
       this.sessionReport = {
-        id: payload.id,
-        projectId: payload.projectId,
-        title: reportTaskTitle(payload.status),
-        status: payload.status,
-        basedOn: payload.basedOn || this.sessionReport?.basedOn,
+        ...previous,
+        ...payload,
+        title: reportTaskTitle(status),
+        status,
       }
     },
 
     markReportReadyMessage() {
-      const reportMessage = this.messages.find(item => item.id === this.streamingMessageId)
-        || [...this.messages].reverse().find(item => item.role === 'ASSISTANT')
+      const reportMessage = this.messages.find(item => item.id === this.sessionReport?.messageId)
       if (!reportMessage) {
         return
       }
@@ -1491,13 +1513,19 @@ export const useAssistantStore = defineStore('assistant', {
       }
       clearReportPoll()
       const generation = reportPollGeneration
+      const conversationId = this.conversation?.id
+      const loadRevision = this.loadRevision
+      const userId = useAuthStore().user?.id
+      const isCurrent = () => generation === reportPollGeneration && this.reportPageVisible
+        && this.sessionReport?.id === reportId && this.conversation?.id === conversationId
+        && this.loadRevision === loadRevision && useAuthStore().user?.id === userId
       const poll = async () => {
-        if (generation !== reportPollGeneration || !this.reportPageVisible || this.sessionReport?.id !== reportId) {
+        if (!isCurrent()) {
           return
         }
         try {
           const response = await reportApi.getDetail(reportId).send() as ApiEnvelope<ReportDetail>
-          if (generation !== reportPollGeneration || this.sessionReport?.id !== reportId) {
+          if (!isCurrent()) {
             return
           }
           const mapped = mapReportTaskStatus(response.data.report.status)
@@ -1506,6 +1534,13 @@ export const useAssistantStore = defineStore('assistant', {
             projectId: response.data.report.projectId,
             status: mapped,
             basedOn: this.sessionReport?.basedOn,
+            reportStatus: response.data.report.status,
+            solutionSnapshotId: response.data.solutionSnapshotId,
+            task: response.data.task,
+            taskId: response.data.task?.id,
+            availableFormats: response.data.availableFormats,
+            publishedAt: response.data.report.publishedAt,
+            errorMessage: response.data.report.errorMessage,
           })
           if (mapped === 'READY') {
             this.markReportReadyMessage()
@@ -1518,6 +1553,8 @@ export const useAssistantStore = defineStore('assistant', {
         catch {
           // 轮询失败稍后重试，不把内部错误展示成失败
         }
+        if (!isCurrent())
+          return
         reportPollTimer = setTimeout(() => {
           void poll()
         }, 2000)
@@ -1533,23 +1570,41 @@ export const useAssistantStore = defineStore('assistant', {
         return false
       }
       this.retryingReport = true
+      const conversationId = this.conversation?.id
+      const loadRevision = this.loadRevision
+      const userId = useAuthStore().user?.id
+      const isSameContext = () => this.conversation?.id === conversationId
+        && this.loadRevision === loadRevision && useAuthStore().user?.id === userId
+      const isCurrent = () => isSameContext() && this.sessionReport?.id === report.id
       try {
-        await reportApi.retry(report.id).send()
+        const response = await reportApi.retry(report.id).send() as ApiEnvelope<ReportTaskResult>
+        if (!isCurrent())
+          return false
+        const reportStatus = response.data.status ?? 'QUEUED'
+        const status = mapReportTaskStatus(reportStatus)
         this.applyReportTask({
           id: report.id,
           projectId: report.projectId,
-          status: 'QUEUED',
+          status,
+          reportStatus,
+          taskId: response.data.taskId,
+          task: null,
+          errorMessage: null,
           basedOn: report.basedOn,
         })
-        this.startReportPolling(report.id)
+        this.stopReportPolling()
+        if (shouldPollReportStatus(status))
+          this.startReportPolling(report.id)
         return true
       }
       catch (error) {
-        this.loadError = error instanceof Error ? error.message : '重新生成失败'
+        if (isCurrent())
+          this.loadError = error instanceof Error ? error.message : '重新生成失败'
         return false
       }
       finally {
-        this.retryingReport = false
+        if (isSameContext())
+          this.retryingReport = false
       }
     },
 

@@ -1,5 +1,7 @@
 import type { SolutionAction, SolutionActionBody, SolutionComparisonResult, SolutionSnapshotDto, SolutionStateDto, SolutionUpdate } from '@/api/solution-types'
-import type { ApiEnvelope } from '@/api/types'
+import type { ApiEnvelope, CreateReportBody, CreateReportResult } from '@/api/types'
+import type { SessionReport } from '@/utils/aiAgentUi'
+import { confirmedReportBody, createdReportTask, shouldPollReportStatus } from '@/utils/aiReportTask'
 import { solutionActionBody, solutionClientState, solutionErrorCode, solutionErrorMessages } from '@/utils/aiSolution'
 
 export function solutionInitialState() {
@@ -14,16 +16,23 @@ export function solutionInitialState() {
     solutionNotice: '',
     solutionRequestRevision: 0,
     solutionRetiredStateIds: [] as string[],
+    solutionReportCreating: false,
+    solutionReportError: '',
+    solutionReportRequestRevision: 0,
   }
 }
 
 interface SolutionContext extends ReturnType<typeof solutionInitialState> {
-  conversation: { id: string } | null
+  conversation: { id: string, userId?: string } | null
   loadRevision: number
   clearSolution: () => void
   applySolutionState: (update: SolutionUpdate) => boolean
   restoreSolutionState: (state: SolutionStateDto | null) => void
   refreshSolutionState: () => Promise<void>
+  invalidateSolutionReportRequest: () => void
+  applyReportTask?: (report: SessionReport) => void
+  startReportPolling?: (id: string) => void
+  stopReportPolling?: () => void
 }
 
 interface SolutionApi {
@@ -32,12 +41,25 @@ interface SolutionApi {
   getSolutionSnapshot: (id: string, snapshotId: string) => { send: () => PromiseLike<unknown> }
 }
 
+interface SolutionReportDependencies {
+  create: (body: CreateReportBody) => { send: () => PromiseLike<unknown> }
+  currentUserId: () => string | null
+  canCreate: () => boolean
+}
+
 /** 与 assistant 同属一个 Pinia store；拆出动作以便独立验证会话隔离和并发。 */
-export function createSolutionActions(api: SolutionApi) {
+export function createSolutionActions(api: SolutionApi, reports?: SolutionReportDependencies) {
   return {
     clearSolution(this: SolutionContext) {
       const revision = this.solutionRequestRevision + 1
-      Object.assign(this, solutionInitialState(), { solutionRequestRevision: revision })
+      const reportRevision = this.solutionReportRequestRevision + 1
+      Object.assign(this, solutionInitialState(), { solutionRequestRevision: revision, solutionReportRequestRevision: reportRevision })
+    },
+
+    invalidateSolutionReportRequest(this: SolutionContext) {
+      this.solutionReportRequestRevision++
+      this.solutionReportCreating = false
+      this.solutionReportError = ''
     },
 
     applySolutionState(this: SolutionContext, update: SolutionUpdate) {
@@ -50,6 +72,8 @@ export function createSolutionActions(api: SolutionApi) {
       const current = this.solutionState
       if (current?.id === state.id && current.version > state.version)
         return false
+      if (current?.id !== state.id || current?.confirmedSnapshotId !== state.confirmedSnapshotId || current?.stage !== state.stage)
+        this.invalidateSolutionReportRequest()
       if (current && current.id !== state.id)
         this.solutionRetiredStateIds = [...this.solutionRetiredStateIds, current.id]
       if (current?.id !== state.id || current.version !== state.version || current.candidateSetRevision !== state.candidateSetRevision) {
@@ -95,6 +119,8 @@ export function createSolutionActions(api: SolutionApi) {
       const id = this.conversation?.id
       if (!state || !id || state.conversationId !== id || this.solutionActionLoading)
         return false
+      if (action === 'REVISE' || action === 'START_NEW')
+        this.invalidateSolutionReportRequest()
       const revision = this.solutionRequestRevision
       const loadRevision = this.loadRevision
       const isCurrent = () => this.conversation?.id === id && revision === this.solutionRequestRevision && loadRevision === this.loadRevision
@@ -140,6 +166,50 @@ export function createSolutionActions(api: SolutionApi) {
           this.solutionActionCandidateIds = []
           this.solutionPendingAction = null
         }
+      }
+    },
+
+    /** 只由工作区显式按钮调用；仍使用 assistant 的同一 sessionReport/轮询。 */
+    async createConfirmedReport(this: SolutionContext) {
+      const body = confirmedReportBody(this.solutionState, this.conversation?.id)
+      const userId = reports?.currentUserId()
+      if (!body || !userId || this.conversation?.userId !== userId || !reports?.canCreate()
+        || this.solutionActionLoading || this.solutionReportCreating || !this.applyReportTask) {
+        return false
+      }
+      const revision = ++this.solutionReportRequestRevision
+      const loadRevision = this.loadRevision
+      const stateId = this.solutionState!.id
+      const isCurrent = () => this.solutionReportRequestRevision === revision && this.loadRevision === loadRevision
+        && reports.currentUserId() === userId && this.conversation?.id === body.conversationId
+        && this.solutionState?.id === stateId && this.solutionState.stage === 'CONFIRMED'
+        && this.solutionState.confirmedSnapshotId === body.solutionSnapshotId
+      this.solutionReportCreating = true
+      this.solutionReportError = ''
+      try {
+        const response = await reports.create(body).send() as ApiEnvelope<CreateReportResult>
+        if (!isCurrent())
+          return false
+        const result = response.data
+        if (!result.report.id || !result.taskId || result.report.conversationId !== body.conversationId
+          || result.solutionSnapshotId !== body.solutionSnapshotId) {
+          throw new Error('报告响应与当前确认方案不一致，请刷新后重试')
+        }
+        this.stopReportPolling?.()
+        const task = createdReportTask(result)
+        this.applyReportTask(task)
+        if (shouldPollReportStatus(task.status))
+          this.startReportPolling?.(result.report.id)
+        return true
+      }
+      catch (error) {
+        if (isCurrent())
+          this.solutionReportError = error instanceof Error ? error.message : '报告创建失败，请重试'
+        return false
+      }
+      finally {
+        if (this.solutionReportRequestRevision === revision)
+          this.solutionReportCreating = false
       }
     },
 

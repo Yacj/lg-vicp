@@ -1,11 +1,17 @@
 <script setup lang="ts">
-import type { ApiEnvelope, ApiPage, ProjectRecord, ReportDetail } from '@/api/types'
+import type { ApiEnvelope, ApiPage, DownloadUrlResult, ProjectRecord, ReportDetail, ReportTaskResult } from '@/api/types'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { projectApi } from '@/api/modules/projects'
 import { reportApi } from '@/api/modules/reports'
 import { useAuthGate } from '@/composables/useAuthGate'
 import { useBackNavigation } from '@/composables/useBackNavigation'
+import { useReportDetail } from '@/composables/useReportDetail'
 import { formatReportDate, reportTypeLabel } from '@/constants/reports'
+import { openOriginalFile } from '@/services/files/openOriginalFile'
+import { getPlatformInfo } from '@/services/platform'
+import { useAuthStore } from '@/store/auth'
 import { useReportTypeStore } from '@/store/reportTypes'
+import { reportDetailPresentation, reportErrorMessage } from '@/utils/aiReportTask'
 
 definePage({
   name: 'report-detail',
@@ -27,8 +33,20 @@ const { requireLogin } = useAuthGate()
 const { error: showError, success: showSuccess } = useGlobalToast()
 
 const reportId = computed(() => String(route.query.id || route.params.id || ''))
-const detail = ref<ReportDetail>()
-const status = ref<'idle' | 'loading' | 'success' | 'error'>('loading')
+const auth = useAuthStore()
+const resource = useReportDetail(() => ({ id: reportId.value, userId: auth.user?.id ?? null }), {
+  get: async id => (await reportApi.getDetail(id).send(true) as ApiEnvelope<ReportDetail>).data,
+  retry: async id => (await reportApi.retry(id).send() as ApiEnvelope<ReportTaskResult>).data,
+})
+const { detail, status, errorMessage, refreshing, retrying } = resource
+const presentation = computed(() => detail.value ? reportDetailPresentation(detail.value) : null)
+const fileAction = ref<'preview' | 'download' | null>(null)
+const fileError = ref('')
+const platform = getPlatformInfo().platform
+const downloadLabel = platform === 'h5' ? '下载 PDF' : '保存并打开 PDF'
+let visible = false
+let fileRevision = 0
+let projectRevision = 0
 const moreVisible = ref(false)
 const projectPickerVisible = ref(false)
 const linking = ref(false)
@@ -47,26 +65,83 @@ const disclaimer = computed(() => typeof content.value.disclaimer === 'string' ?
 const canLinkProject = computed(() => Boolean(report.value && !project.value))
 const moreActions = computed(() => canLinkProject.value ? [{ name: '关联项目' }] : [])
 
-onMounted(() => {
+onShow(() => {
+  visible = true
   if (requireLogin({ showToast: false })) {
     void useReportTypeStore().ensureLoaded()
-    void loadDetail()
+    void resource.start()
+  }
+  else {
+    resource.reset()
+    status.value = 'error'
+    errorMessage.value = '请登录后查看报告'
   }
 })
 
+function stopPage() {
+  visible = false
+  fileRevision++
+  fileAction.value = null
+  projectRevision++
+  linking.value = false
+  moreVisible.value = false
+  projectPickerVisible.value = false
+  projects.value = []
+  resource.stop()
+}
+onHide(stopPage)
+onUnload(stopPage)
+onBeforeUnmount(stopPage)
+
+watch([reportId, () => auth.user?.id], () => {
+  fileRevision++
+  fileAction.value = null
+  fileError.value = ''
+  projectRevision++
+  linking.value = false
+  projectPickerVisible.value = false
+  projects.value = []
+  resource.reset()
+  if (visible)
+    void resource.start()
+})
+
 async function loadDetail() {
-  if (!reportId.value) {
-    status.value = 'error'
+  if (requireLogin({ showToast: false }))
+    await resource.refresh()
+}
+
+async function openPdf(mode: 'preview' | 'download') {
+  if (!requireLogin() || fileAction.value || !presentation.value?.canPreviewPdf)
     return
-  }
-  status.value = 'loading'
+  const id = reportId.value
+  const userId = auth.user?.id
+  const revision = ++fileRevision
+  const current = () => visible && fileRevision === revision && reportId.value === id && auth.user?.id === userId
+  fileAction.value = mode
+  fileError.value = ''
   try {
-    const response = await reportApi.getDetail(reportId.value).send() as ApiEnvelope<ReportDetail>
-    detail.value = response.data
-    status.value = 'success'
+    await openOriginalFile({
+      mimeType: 'application/pdf',
+      mode,
+      isCurrent: current,
+      getUrl: async () => {
+        const method = mode === 'preview' ? reportApi.getArtifactPreviewUrl(id, 'PDF') : reportApi.getArtifactDownloadUrl(id, 'PDF')
+        return (await method.send(true) as ApiEnvelope<DownloadUrlResult>).data
+      },
+    })
+    if (current() && mode === 'download' && platform !== 'h5')
+      showSuccess('PDF 已保存到应用并打开，可通过阅读器导出')
   }
-  catch {
-    status.value = 'error'
+  catch (error) {
+    if (current()) {
+      fileError.value = reportErrorMessage(error, '文件操作失败，请重试')
+      void resource.refresh()
+    }
+  }
+  finally {
+    if (current())
+      fileAction.value = null
   }
 }
 
@@ -82,8 +157,16 @@ function handleMoreSelect() {
 }
 
 async function openProjectPicker() {
+  if (!visible || !requireLogin())
+    return
+  const id = reportId.value
+  const userId = auth.user?.id
+  const revision = ++projectRevision
+  const current = () => visible && revision === projectRevision && reportId.value === id && auth.user?.id === userId
   try {
     const response = await projectApi.getMy({ page: 1, pageSize: 50 }).send() as ApiEnvelope<ApiPage<ProjectRecord>>
+    if (!current())
+      return
     projects.value = response.data?.items || []
     if (!projects.value.length) {
       showError('暂无可关联的项目')
@@ -92,7 +175,8 @@ async function openProjectPicker() {
     projectPickerVisible.value = true
   }
   catch (error) {
-    showError(error instanceof Error ? error.message : '项目列表加载失败')
+    if (current())
+      showError(error instanceof Error ? error.message : '项目列表加载失败')
   }
 }
 
@@ -104,12 +188,18 @@ function handleProjectSelect(event: { item: { value?: string } }) {
 }
 
 async function linkProject(item: ProjectRecord) {
-  if (!report.value || linking.value) {
+  if (!visible || !report.value || linking.value || !requireLogin()) {
     return
   }
   linking.value = true
+  const id = report.value.id
+  const userId = auth.user?.id
+  const revision = ++projectRevision
+  const current = () => visible && revision === projectRevision && reportId.value === id && auth.user?.id === userId
   try {
-    const response = await reportApi.linkProject(report.value.id, { projectId: item.id }).send() as ApiEnvelope<{ report: ReportDetail['report'], project: { id: string, name: string } }>
+    const response = await reportApi.linkProject(id, { projectId: item.id }).send() as ApiEnvelope<{ report: ReportDetail['report'], project: { id: string, name: string } }>
+    if (!current())
+      return
     if (detail.value) {
       detail.value.report = response.data.report
       detail.value.project = response.data.project
@@ -118,10 +208,12 @@ async function linkProject(item: ProjectRecord) {
     showSuccess('报告已关联项目')
   }
   catch (error) {
-    showError(error instanceof Error ? error.message : '关联项目失败')
+    if (current())
+      showError(error instanceof Error ? error.message : '关联项目失败')
   }
   finally {
-    linking.value = false
+    if (current())
+      linking.value = false
   }
 }
 </script>
@@ -155,7 +247,7 @@ async function linkProject(item: ProjectRecord) {
           报告加载失败
         </text>
         <text class="app-muted mt-1 text-2.5">
-          请检查网络后重试
+          {{ errorMessage || '请检查网络后重试' }}
         </text>
         <wd-button size="small" custom-class="mt-4!" @click="loadDetail">
           重新加载
@@ -182,40 +274,94 @@ async function linkProject(item: ProjectRecord) {
           </view>
         </view>
 
-        <view v-if="summary" class="app-panel-flat mt-3 p-4">
+        <view v-if="presentation" class="app-panel-flat mt-3 p-4">
           <view class="text-3.5 font-semibold">
-            摘要
+            {{ presentation.title }}
           </view>
-          <view class="app-muted mt-2 text-3 leading-5.5">
-            {{ summary }}
+          <view class="app-muted mt-2 text-3">
+            {{ [presentation.reviewLabel, presentation.publicationLabel].filter(Boolean).join(' · ') }}
+          </view>
+          <view v-if="presentation.taskLabel" class="app-muted mt-2 text-3">
+            {{ presentation.taskLabel }}{{ presentation.progress != null ? ` · ${presentation.progress}%` : '' }}
+          </view>
+          <view v-if="presentation.errorMessage" class="app-danger-text mt-2 text-3">
+            {{ presentation.errorMessage }}
+          </view>
+          <view v-if="errorMessage" class="app-danger-text mt-2 text-3">
+            {{ errorMessage }}
+          </view>
+          <view class="mt-3 flex flex-wrap gap-2">
+            <wd-button size="small" variant="plain" :loading="refreshing" :disabled="refreshing || retrying" @click="loadDetail">
+              刷新状态
+            </wd-button>
+            <wd-button v-if="presentation.canRetry" size="small" :loading="retrying" :disabled="retrying || refreshing" @click="resource.retry()">
+              重新生成
+            </wd-button>
           </view>
         </view>
 
-        <view
-          v-for="(section, index) in sections"
-          :key="`${section.heading || 'section'}-${index}`"
-          class="app-panel-flat mt-3 p-4"
-        >
+        <view v-if="presentation && (presentation.formal || presentation.canPreviewPdf)" class="app-panel-flat mt-3 p-4">
           <view class="text-3.5 font-semibold">
-            {{ section.heading || `章节 ${index + 1}` }}
+            {{ presentation.pdfLabel }}
           </view>
-          <view class="app-muted mt-2 whitespace-pre-wrap text-3 leading-5.5">
-            {{ section.content }}
+          <view v-if="detail?.solutionSnapshotId" class="app-muted mt-2 break-all text-2.5">
+            确认方案编号：{{ detail.solutionSnapshotId }}
+          </view>
+          <view v-if="presentation.formal" class="app-muted mt-2 text-3 leading-5.5">
+            方案参数和原页来源以已确认快照及 PDF 为准。
+          </view>
+          <view v-if="presentation.canPreviewPdf" class="mt-3 flex flex-wrap gap-2">
+            <wd-button size="small" :loading="fileAction === 'preview'" :disabled="Boolean(fileAction)" @click="openPdf('preview')">
+              预览 PDF
+            </wd-button>
+            <wd-button size="small" variant="plain" :loading="fileAction === 'download'" :disabled="Boolean(fileAction)" @click="openPdf('download')">
+              {{ downloadLabel }}
+            </wd-button>
+          </view>
+          <view v-if="presentation.canPreviewPdf && platform !== 'h5'" class="app-muted mt-2 text-2.5">
+            {{ platform === 'app' ? '使用设备文档阅读器打开；保存后可在阅读器中导出。' : '使用小程序文档阅读器打开，可通过右上角菜单导出。' }}
+          </view>
+          <view v-if="fileError" class="app-danger-text mt-2 text-3">
+            {{ fileError }}
           </view>
         </view>
 
-        <view v-if="risks.length" class="app-panel-flat mt-3 p-4">
-          <view class="text-3.5 font-semibold">
-            风险提示
+        <template v-if="!presentation?.formal || (report.contentJson && !detail?.solutionSnapshotId)">
+          <view v-if="summary" class="app-panel-flat mt-3 p-4">
+            <view class="text-3.5 font-semibold">
+              摘要
+            </view>
+            <view class="app-muted mt-2 text-3 leading-5.5">
+              {{ summary }}
+            </view>
           </view>
-          <view v-for="(risk, index) in risks" :key="index" class="app-muted mt-2 text-3 leading-5.5">
-            {{ risk }}
-          </view>
-        </view>
 
-        <view v-if="disclaimer" class="app-tertiary mt-4 px-1 text-2.5 leading-4.5">
-          {{ disclaimer }}
-        </view>
+          <view
+            v-for="(section, index) in sections"
+            :key="`${section.heading || 'section'}-${index}`"
+            class="app-panel-flat mt-3 p-4"
+          >
+            <view class="text-3.5 font-semibold">
+              {{ section.heading || `章节 ${index + 1}` }}
+            </view>
+            <view class="app-muted mt-2 whitespace-pre-wrap text-3 leading-5.5">
+              {{ section.content }}
+            </view>
+          </view>
+
+          <view v-if="risks.length" class="app-panel-flat mt-3 p-4">
+            <view class="text-3.5 font-semibold">
+              风险提示
+            </view>
+            <view v-for="(risk, index) in risks" :key="index" class="app-muted mt-2 text-3 leading-5.5">
+              {{ risk }}
+            </view>
+          </view>
+
+          <view v-if="disclaimer" class="app-tertiary mt-4 px-1 text-2.5 leading-4.5">
+            {{ disclaimer }}
+          </view>
+        </template>
       </template>
     </view>
 

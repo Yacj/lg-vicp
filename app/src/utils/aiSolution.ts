@@ -145,5 +145,5 @@ export function snapshotCandidateCard(candidate: SolutionCandidate, final: boole
 export function solutionPersistenceSnapshot(state: Record<string, unknown>): Record<string, unknown> {
   const conversation = record(state.conversation)
   const solutionState = isSolutionState(state.solutionState) && state.solutionState.conversationId === conversation?.id ? solutionClientState(state.solutionState) : null
-  return { ...state, solutionState, solutionComparison: null, solutionSnapshot: null, solutionActionLoading: false, solutionActionCandidateIds: [], solutionPendingAction: null, solutionSnapshotLoading: false, solutionNotice: '', solutionRetiredStateIds: [], solutionRequestRevision: typeof state.solutionRequestRevision === 'number' ? state.solutionRequestRevision : 0 }
+  return { ...state, solutionState, solutionComparison: null, solutionSnapshot: null, solutionActionLoading: false, solutionActionCandidateIds: [], solutionPendingAction: null, solutionSnapshotLoading: false, solutionNotice: '', solutionRetiredStateIds: [], solutionRequestRevision: typeof state.solutionRequestRevision === 'number' ? state.solutionRequestRevision : 0, solutionReportCreating: false, solutionReportError: '', solutionReportRequestRevision: 0 }
 }

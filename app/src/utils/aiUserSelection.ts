@@ -244,7 +244,9 @@ export function parseUserSelectionRequest(raw: unknown): UserSelectionRequest | 
   }
 }
 
-export function shouldAutoSelectWhenSingle(request: Pick<UserSelectionRequest, 'autoSelectWhenSingle' | 'options' | 'minSelections'> | null | undefined) {
+export function shouldAutoSelectWhenSingle(request: (Pick<UserSelectionRequest, 'autoSelectWhenSingle' | 'options' | 'minSelections'> & Partial<Pick<UserSelectionRequest, 'confirmAction' | 'selectionKind'>>) | null | undefined) {
+  if (request?.confirmAction?.type === 'GENERATE_REPORT' || request?.selectionKind === 'PRODUCT' || request?.selectionKind === 'REPORT_TYPE')
+    return false
   if (!request?.autoSelectWhenSingle) {
     return false
   }

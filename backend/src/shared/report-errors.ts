@@ -46,6 +46,6 @@ export const REPORT_ERROR_SPECS: Record<ReportErrorCode, ReportErrorSpec> = {
 export class ReportError extends AppError {
   constructor(code: ReportErrorCode, message?: string) {
     const spec = REPORT_ERROR_SPECS[code];
-    super(code, message ?? spec.message, spec.statusCode);
+    super(code, message ?? spec.message, spec.statusCode, { errorCode: code });
   }
 }

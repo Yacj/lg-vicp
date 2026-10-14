@@ -1,5 +1,9 @@
 # 蓝格 VICP 后端
 
+2026-10-14 报告设置接入正式PDF：企业Logo/封面/页眉页脚与内容开关在创建时冻结，Worker只读冻结配置；关键工程指标、基本引用和风险不受可选开关隐藏。B端默认类型/示意预览仍需前端对接，见[报告设置记录](docs/reports/report-settings-pdf-2026-10-14.md)。
+
+2026-10-14 正式方案 PDF：技术方案/简报新建必须本轮明确授权及本人有效 CONFIRMED SolutionSnapshot，统一服务端加载与会话锁幂等；纯 DocumentModel→冻结 ReportSnapshot→中文 HTML→Chromium PDF。工程值不重查/重算，完整原表保留，缺标准明确未核验。新正式报告以 PDF 为必要产物，旧格式兼容；新增受控 PDF/图片预览。实现、API 与本轮验证/真实 UAT 阻塞见 [分阶段记录](docs/reports/solution-pdf-2026-10-14.md)。
+
 2026-10-13 语义匹配强制治理：开放自然语言只走现有resolveDomainTurn→结构化目标/关系/patch/reference/effect→Backend Policy；禁止方案/确认/加入等开放子串、删除否定、参数变化排斥Advice、pending boolean授权或泛化故障澄清。只允许工程格式提取、正式枚举/ID、无损归一、封闭完整命令/问候；副作用仍经权限/revision/来源/状态机。新增灰区快路径必须Rule ID+封闭语法/职责+5正5反3否定引用多轮+无副作用证明+冲突核验+owner批准与CI，缺一禁止。AST精确指纹白名单见docs/ai/semantic-matching-policy.md；不得全项目禁正则，不改资料、Thermal Engine、迁移或业务数据。
 
 2026-10-13 参考方案建议：新增只读 SOLUTION_ADVICE，复用最近可见且当前有效的确认候选，按实际基层组织一般选型分支；无需地区/建筑即可建议，不作合规结论，不创建正式方案快照或报告。轻量业务目标与正式筛选、SolutionState分离，换话题/换revision/过期即失效。实现与验收见 [方案建议及上下文衔接](docs/ai/solution-advice-2026-10-13.md)。
@@ -202,6 +206,8 @@ pnpm deploy
 ```
 
 脚本会：本地 `pnpm build` → 打包 `dist` + `drizzle` + 锁文件 → SSH 上传 → 服务器安装依赖 → **迁移前备份数据库（有 pg_dump 时）** → 只执行已提交的 Drizzle migration → 成功后才重载 PM2。
+
+PM2发布新增报告运行环境门禁：安装Node依赖后、数据库步骤之前，用Chromium验证中文字体与真实PDF；缺依赖默认中止。首次可用 `pnpm run deploy --skip-db --install-report-runtime` 显式安装，日常纯代码发布用 `pnpm run deploy --skip-db`（避免pnpm11内置deploy命令冲突）。国内源与离线预装/缓存、系统支持范围见[PM2报告环境说明](docs/reports/pm2-report-runtime-2026-10-14.md)。不覆盖服务器.env或系统软件源。
 
 SQL 约束：
 

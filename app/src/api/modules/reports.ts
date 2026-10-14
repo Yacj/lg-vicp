@@ -40,6 +40,12 @@ export const reportApi = {
     })
   },
 
+  getArtifactPreviewUrl(id: string, type: 'PDF' | 'IMAGE') {
+    return request('GET', '/reports/{id}/artifacts/{type}/preview-url', {
+      pathParams: { id, type },
+    })
+  },
+
   remove(id: string) {
     return request('DELETE', '/reports/{id}', { pathParams: { id } })
   },

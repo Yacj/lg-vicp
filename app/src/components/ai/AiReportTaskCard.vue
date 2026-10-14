@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { SessionReport } from '@/utils/aiAgentUi'
-import { reportTaskTitle } from '@/utils/aiReportTask'
+import { computed } from 'vue'
+import { reportTaskPresentation } from '@/utils/aiReportTask'
 
 const props = defineProps<{
   report: SessionReport
@@ -12,10 +13,11 @@ const emit = defineEmits<{
   retry: [report: SessionReport]
 }>()
 
-const status = computed(() => props.report.status || (props.report.id ? 'READY' : 'GENERATING'))
-const title = computed(() => reportTaskTitle(status.value))
-const showView = computed(() => status.value === 'READY' && Boolean(props.report.id))
-const showRetry = computed(() => status.value === 'FAILED')
+const presentation = computed(() => reportTaskPresentation(props.report))
+const status = computed(() => presentation.value.status)
+const title = computed(() => presentation.value.title)
+const showView = computed(() => presentation.value.canOpenDetail)
+const showRetry = computed(() => presentation.value.canRetry)
 const toneClass = computed(() => {
   if (status.value === 'READY') {
     return 'ai-report-task--ready'
@@ -37,12 +39,21 @@ const toneClass = computed(() => {
         <view class="text-3.5 font-semibold leading-5.5">
           {{ title }}
         </view>
+        <view v-if="presentation.taskLabel" class="app-muted mt-1 text-2.5">
+          {{ presentation.taskLabel }}{{ presentation.progress != null ? ` · ${presentation.progress}%` : '' }}
+        </view>
+        <view v-if="presentation.reviewLabel || presentation.publicationLabel" class="app-muted mt-1 text-2.5">
+          {{ [presentation.reviewLabel, presentation.publicationLabel].filter(Boolean).join(' · ') }}
+        </view>
+        <view v-if="presentation.errorMessage" class="app-danger-text mt-1 text-2.5">
+          {{ presentation.errorMessage }}
+        </view>
       </view>
       <wd-button v-if="showView" size="small" @click="emit('open', report)">
         查看报告
       </wd-button>
       <wd-button
-        v-else-if="showRetry"
+        v-if="showRetry"
         size="small"
         :loading="retrying"
         :disabled="retrying"

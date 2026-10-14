@@ -1,5 +1,11 @@
 # 蓝格 VICP 后端 AI 开发规则
 
+2026-10-14 PM2报告运行环境：部署在数据库步骤/重载前检查Chromium+中文字体+真实PDF；默认复用，--install-report-runtime显式安装受支持Linux依赖（含线上Alibaba Cloud Linux3/x64）。国内镜像保留锁文件下载目录，固定缓存/核验路径传给Worker，不覆盖.env/系统软件源；失败不迁移/seed/重载。线上发布用pnpm run deploy，--skip-db跳过数据库；已获用户授权发布，依赖自检与API/Worker重载成功，未运行测试套件，见docs/reports/pm2-report-runtime-2026-10-14.md。
+
+2026-10-14 报告设置驱动PDF：封面/Logo/页眉页脚/免责声明与内容开关复用现有设置；创建冻结企业展示配置和Logo文件身份，Worker不读最新企业信息。关闭来源只隐藏附录，不删基本引用/指标/未核验提示；计算过程只展示冻结步骤且不复活judgment合规断言。无迁移/前端/业务数据改写，见docs/reports/report-settings-pdf-2026-10-14.md。
+
+2026-10-14 正式方案PDF：新 technical_scheme/project_brief 必须本轮Domain Policy/UI授权 + 本人同端同会话同项目CONFIRMED Snapshot；创建服务在会话锁内重验Final/冻结事实并按Snapshot/类型/创建者复用任务。DocumentModel仅纯转换，中文工程章节/完整原表/高亮只读冻结事实，无合规证据标未核验。新正式报告优先PDF/HTML，旧Word/图片兼容；取消/审核/发布保护、attempt/最新任务写回门禁、失败对账、受控预览下载保持。无迁移/依赖/业务数据改写；Fixture与真实UAT分开，当前库只读，详见docs/reports/solution-pdf-2026-10-14.md。
+
 2026-10-13 语义匹配强制治理：开放自然语言只走现有resolveDomainTurn→结构化目标/关系/patch/reference/effect→Backend Policy；禁止方案/确认/加入等开放子串、删除否定、参数变化排斥Advice、pending boolean授权或泛化故障澄清。只允许工程格式提取、正式枚举/ID、无损归一、封闭完整命令/问候；副作用仍经权限/revision/来源/状态机。新增灰区快路径必须Rule ID+封闭语法/职责+5正5反3否定引用多轮+无副作用证明+冲突核验+owner批准与CI，缺一禁止。AST精确指纹白名单见docs/ai/semantic-matching-policy.md；不得全项目禁正则，不改资料、Thermal Engine、迁移或业务数据。
 
 2026-10-13 参考方案建议：SOLUTION_ADVICE 为 mutation=NONE，只读最近实际可见候选并重验归属、24h、revision及确认optionId。一般选型不强制地区/建筑、不判断合规、不重查/计算或激活方案。最近两轮业务目标及pendingAdviceGoal仅存会话任务JSON，绑定会话/项目/候选revision/有效期；换话题即失效，不入正式QueryState。正式选择/Final/Confirm/报告仍显式授权并走原生命周期。见 docs/ai/solution-advice-2026-10-13.md。

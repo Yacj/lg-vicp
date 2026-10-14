@@ -1,7 +1,8 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
-import { and, asc, count, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import {
   asyncTasks,
+  aiConversations,
   knowledgeDocuments,
   productSpecs,
   projects,
@@ -30,10 +31,14 @@ import {
   applyReportSettingsToSections,
   DEFAULT_REPORT_SETTINGS,
   loadReportSettingsValues,
+  loadReportBranding,
   type ReportSettingsValues
 } from "./report-settings.service.js";
 import { toTemplateDto } from "./report-template.service.js";
 import { resolveReportType, templateBackedReportTypeCodes, type ReportTypeDefinition } from "./report-types.js";
+import { currentAuthorizedReportType, hasReportAuthorization, solutionReportError, type ReportAuthorizationInput } from "../ai/report-authorization.js";
+
+export const isFormalSolutionReportType = (code?: string) => code === "technical_scheme" || code === "project_brief";
 
 /**
  * 模板报告数据快照组装与报告创建：
@@ -59,6 +64,9 @@ export interface TemplateReportInput {
   contextOverlay?: Record<string, unknown>;
   /** 仅后端已授权方案入口提供，工程内容只来自不可变SolutionSnapshot。 */
   solutionDocumentModel?: ReturnType<typeof import("../ai/solution-document-model.js").toSolutionDocumentModel>;
+  /** 仅本轮服务端上下文；外部请求不得传入授权对象或DocumentModel。 */
+  solutionAuthorization?: ReportAuthorizationInput;
+  solutionSnapshotId?: string;
 }
 
 async function resolvePublishedTemplate(
@@ -91,6 +99,8 @@ export async function assembleReportSnapshot(app: FastifyInstance, input: Templa
   const typeDef: ReportTypeDefinition | null = input.reportType ? resolveReportType(input.reportType) : null;
   const settings = input.settings ?? DEFAULT_REPORT_SETTINGS;
   const projectId = input.projectId ?? null;
+  if (isFormalSolutionReportType(input.reportType) && !input.solutionDocumentModel)
+    solutionReportError("SOLUTION_SNAPSHOT_REQUIRED", "正式方案报告必须使用已确认的方案快照。");
 
   if (typeDef) {
     assertReportProjectRequirement({ requiresProject: typeDef.requiresProject, projectId });
@@ -101,9 +111,10 @@ export async function assembleReportSnapshot(app: FastifyInstance, input: Templa
     const template = await resolvePublishedTemplate(app, { templateCode: typeDef?.templateCode, asOfDate });
     if (!template) throw new ReportError("REPORT_TEMPLATE_NOT_PUBLISHED");
     const sections = applyReportSettingsToSections((template.sectionsJson ?? []) as ReportTemplateSection[], settings);
+    const branding = await loadReportBranding(app);
     const dataJson = { title: settings.coverTitle ?? template.name, generatedAt: new Date().toISOString(), asOfDate: asOfDate.toISOString(),
-      reportType: typeDef?.code, settings, template: { id: template.id, code: template.code, version: template.version, name: template.name, sections },
-      solutionSnapshotId: model.solutionSnapshotId, documentModel: model, project: model.project,
+      reportType: typeDef?.code, settings: structuredClone(settings), branding, template: { id: template.id, code: template.code, version: template.version, name: template.name, sections },
+      solutionSnapshotId: model.solutionSnapshotId, outputPolicy: "SOLUTION_PDF_V1", documentModel: model, project: model.project,
       selection: { query: model.queryState, candidate: model.solutions, selectedById: model.confirmedBy, createdAt: model.confirmedAt },
       construction: model.solutions, candidates: { final: model.solutions, alternatives: model.alternatives },
       thermal: model.solutions.map(solution => ({ candidateId: solution.candidateId, sourceType: solution.sourceType,
@@ -342,11 +353,47 @@ export async function assembleReportSnapshot(app: FastifyInstance, input: Templa
 export async function generateTemplateReport(
   app: FastifyInstance, request: FastifyRequest, actor: AuthUser, input: TemplateReportInput
 ) {
-  const settings = input.settings ?? await loadReportSettingsValues(app);
   const storedType = input.reportType ?? "TEMPLATE";
-  const { dataJson, template, asOfDate } = await assembleReportSnapshot(app, { ...input, settings });
+  const formal = isFormalSolutionReportType(storedType);
+  if (formal && (!input.conversationId || !hasReportAuthorization({ ...input.solutionAuthorization,
+    user: actor, conversation: { id: input.conversationId } })))
+    solutionReportError("REPORT_AUTHORIZATION_REQUIRED", "正式方案报告需要本轮明确授权及本人有效会话。");
+  const authorizedType = currentAuthorizedReportType(input.solutionAuthorization ?? {});
+  const normalizedAuthorizedType = authorizedType && ["energy_design", "design_note", "TEMPLATE"].includes(authorizedType) ? "technical_scheme" : authorizedType;
+  if (formal && normalizedAuthorizedType && normalizedAuthorizedType !== storedType)
+    solutionReportError("REPORT_TYPE_NOT_AUTHORIZED", "本轮授权的报告类型与请求不一致，请重新选择报告类型。");
+  const settings = input.settings ?? await loadReportSettingsValues(app);
+  const legacy = formal ? null : await assembleReportSnapshot(app, { ...input, settings });
 
   const result = await app.db.transaction(async (tx) => {
+    let assembled = legacy;
+    let solutionSnapshotId: string | null = null;
+    if (formal) {
+      // 与方案Confirm/修订共用会话锁，防止确认状态在验证与入队记录提交间变化。
+      await tx.select({ id: aiConversations.id }).from(aiConversations)
+        .where(eq(aiConversations.id, input.conversationId!)).for("update");
+      const txApp = Object.create(app) as FastifyInstance;
+      Object.defineProperty(txApp, "db", { value: tx });
+      const { loadConfirmedSolutionDocument } = await import("../ai/confirmed-solution-document.service.js");
+      const model = await loadConfirmedSolutionDocument({ app: txApp, request, user: actor,
+        conversation: { id: input.conversationId!, projectId: input.projectId ?? null } }, input.solutionSnapshotId);
+      solutionSnapshotId = model.solutionSnapshotId;
+      const [existing] = await tx.select({ report: reports }).from(reports)
+        .innerJoin(reportSnapshots, eq(reportSnapshots.reportId, reports.id))
+        .where(and(eq(reports.conversationId, input.conversationId!), eq(reports.createdById, actor.id),
+          eq(reports.reportType, storedType), isNull(reports.deletedAt), ne(reports.status, "CANCELLED"),
+          input.projectId ? eq(reports.projectId, input.projectId) : isNull(reports.projectId),
+          sql`${reportSnapshots.dataJson}->>'solutionSnapshotId' = ${solutionSnapshotId}`))
+        .orderBy(desc(reports.createdAt)).limit(1);
+      if (existing) {
+        const [task] = await tx.select().from(asyncTasks).where(and(eq(asyncTasks.businessType, "report"),
+          eq(asyncTasks.businessId, existing.report.id))).orderBy(desc(asyncTasks.createdAt)).limit(1);
+        if (!task) solutionReportError("REPORT_TASK_MISSING", "已有报告缺少任务记录，请联系管理员。");
+        return { report: existing.report, task, reused: true, solutionSnapshotId, template: null };
+      }
+      assembled = await assembleReportSnapshot(txApp, { ...input, settings, solutionDocumentModel: model });
+    }
+    const { dataJson, template, asOfDate } = assembled!;
     const [report] = await tx.insert(reports).values({
       projectId: input.projectId ?? null,
       conversationId: input.conversationId ?? null,
@@ -385,9 +432,12 @@ export async function generateTemplateReport(
         taskId: task!.id
       }
     });
-    return { report: report!, task: task! };
+    return { report: report!, task: task!, reused: false, solutionSnapshotId, template };
   });
 
+  // 复用未投递的QUEUED任务仍使用稳定taskId，可恢复提交后进程退出的窗口。
+  const shouldEnqueue = !result.reused || result.report.status === "QUEUED" && !result.task.bullJobId;
+  if (shouldEnqueue) {
   try {
     const job = await app.queues.reportGeneration.add(
       "generate_report",
@@ -395,16 +445,18 @@ export async function generateTemplateReport(
       { jobId: result.task.id }
     );
     await app.db.update(asyncTasks).set({ bullJobId: String(job.id), updatedAt: new Date() })
-      .where(eq(asyncTasks.id, result.task.id));
+      .where(eq(asyncTasks.id, result.task.id)).catch(() => app.log?.warn({ taskId: result.task.id, errorCode: "REPORT_QUEUE_TRACKING_FAILED" }, "报告已入队，队列标识回写失败"));
   } catch (error) {
     await app.db.update(reports).set({ status: "FAILED", errorMessage: "报告任务投递失败", updatedAt: new Date() })
-      .where(eq(reports.id, result.report.id));
+      .where(and(eq(reports.id, result.report.id), eq(reports.status, "QUEUED")));
     await app.db.update(asyncTasks).set({ status: "FAILED", errorMessage: "报告任务投递失败", updatedAt: new Date() })
-      .where(eq(asyncTasks.id, result.task.id));
-    throw error;
+      .where(and(eq(asyncTasks.id, result.task.id), eq(asyncTasks.status, "QUEUED")));
+    solutionReportError("REPORT_QUEUE_UNAVAILABLE", "报告任务投递失败，请检查队列连接后按原快照重试。");
+  }
   }
 
-  return { report: result.report, taskId: result.task.id, template: toTemplateDto(template) };
+  return { report: result.report, taskId: result.task.id, template: result.template ? toTemplateDto(result.template) : null,
+    solutionSnapshotId: result.solutionSnapshotId, reused: result.reused };
 }
 
 /** 读取报告快照（历史报告完整还原数据源） */

@@ -97,6 +97,7 @@ function find(root: HostNode, type: string, label: string): HostNode {
 function mount(props: ReturnType<typeof workspaceProps>) {
   const state = ref(props.state)
   const actions: Array<[string, string[]]> = []
+  const reports: string[] = []
   const renderer = createRenderer<HostNode, HostNode>({
     createElement: type => node(type),
     createText: value => node('text', value),
@@ -122,11 +123,11 @@ function mount(props: ReturnType<typeof workspaceProps>) {
       item.parent = null
     },
   })
-  const app = renderer.createApp({ render: () => h(AiSolutionWorkspace, { ...props, state: state.value, onAction: (action: string, ids: string[]) => actions.push([action, ids]) }) })
+  const app = renderer.createApp({ render: () => h(AiSolutionWorkspace, { ...props, state: state.value, onAction: (action: string, ids: string[]) => actions.push([action, ids]), onGenerateReport: () => reports.push(state.value.confirmedSnapshotId!) }) })
   register(app)
   const root = node('root')
   app.mount(root)
-  return { root, state, actions, app }
+  return { root, state, actions, reports, app }
 }
 function click(item: HostNode) {
   (item.props.onClick as () => void)()
@@ -170,4 +171,24 @@ nodeTest('实际 CONFIRM 防重复；未处理冲突禁用确认；snapshot 展�
   await nextTick()
   for (const label of ['已确认方案摘要', '最终方案（1）', '备选方案（1）', '备选方案有厚度冲突']) assert.ok(text(confirmed.root).includes(label), label)
   confirmed.app.unmount()
+})
+
+nodeTest('PDF 按钮只允许严格 CONFIRMED 和 Snapshot；加载、历史恢复、普通建议不会自动发事件', async () => {
+  const ready = await render(AiSolutionWorkspace, workspaceProps(solutionFixture({ stage: 'READY_TO_CONFIRM' })))
+  assert.ok(!ready.includes('生成技术方案 PDF'))
+  for (const state of [solutionFixture({ stage: 'CONFIRMED' }), solutionFixture({ stage: 'GENERATED', confirmedSnapshotId: 'snapshot-1' }), solutionFixture({ stage: 'CONFIRMED', confirmedSnapshotId: 'snapshot-1' })]) {
+    const mounted = mount(workspaceProps(state))
+    assert.deepEqual(mounted.reports, [])
+    const target = find(mounted.root, 'button', '生成技术方案 PDF')
+    click(target)
+    assert.equal(mounted.reports.length, state.stage === 'CONFIRMED' && state.confirmedSnapshotId ? 1 : 0)
+    assert.deepEqual(mounted.actions, [])
+    mounted.app.unmount()
+  }
+  for (const overrides of [{ reportCreating: true }, { reportBlocked: true }, { loading: true }]) {
+    const mounted = mount({ ...workspaceProps(solutionFixture({ stage: 'CONFIRMED', confirmedSnapshotId: 'snapshot-1' })), ...overrides })
+    click(find(mounted.root, 'button', '生成技术方案 PDF'))
+    assert.deepEqual(mounted.reports, [])
+    mounted.app.unmount()
+  }
 })

@@ -5,6 +5,10 @@ globs: src/modules/ai*/**/*.ts,src/modules/knowledge/**/*.ts,src/modules/reports
 alwaysApply: false
 ---
 
+正式PDF展示复用报告设置并在创建冻结企业Logo身份与配置；Worker不刷新品牌信息。计算过程只展示冻结事实且无合规judgment，来源开关只隐藏完整附录，指标/基本引用/未核验风险保留。见docs/reports/report-settings-pdf-2026-10-14.md。
+
+2026-10-14 正式方案PDF：technical_scheme/project_brief统一强授权+本人同端同会话同项目CONFIRMED Snapshot/Final/冻结事实门槛；会话锁按Snapshot/类型/创建者幂等。纯DocumentModel→ReportSnapshot→中文HTML/完整原表→Chromium PDF；不重查/重算/造合规。新正式报告优先PDF，旧格式兼容；Worker状态/attempt/最新任务保护、失败对账、受控预览下载。当前业务库只读，Fixture与真实UAT分开；见docs/reports/solution-pdf-2026-10-14.md。
+
 2026-10-13 语义匹配强制治理：开放自然语言只走现有resolveDomainTurn→结构化目标/关系/patch/reference/effect→Backend Policy；禁止方案/确认/加入等开放子串、删除否定、参数变化排斥Advice、pending boolean授权或泛化故障澄清。只允许工程格式提取、正式枚举/ID、无损归一、封闭完整命令/问候；副作用仍经权限/revision/来源/状态机。新增灰区快路径必须Rule ID+封闭语法/职责+5正5反3否定引用多轮+无副作用证明+冲突核验+owner批准与CI，缺一禁止。AST精确指纹白名单见docs/ai/semantic-matching-policy.md；不得全项目禁正则，不改资料、Thermal Engine、迁移或业务数据。
 
 参考方案建议（2026-10-13）：SOLUTION_ADVICE为mutation=NONE；只读当前实际展示且经归属/24h/revision/确认来源核验的Candidate。通用选型按真实基层择一，不要求地区建筑、不判合规、无新条件不重查，显式新条件复用查询且不刷新正式状态；不计算或自动激活、Final、Confirm、报告。会话两轮目标与pendingAdviceGoal隔离于QueryState/SolutionState，绑定会话/项目/revision/有效期；换话题立即失效。详见docs/ai/solution-advice-2026-10-13.md。

@@ -1,5 +1,7 @@
 import { Document, HeadingLevel, ImageRun, Packer, Paragraph, TextRun } from "docx";
 import type { ReportTemplateSection } from "../../db/schema.js";
+import { renderSolutionDocumentHtml, renderFrozenReferenceTables, isEmbeddedReportImage } from "./solution-document-render.js";
+import type { SolutionDocumentModel } from "../ai/solution-document-model.js";
 
 /**
  * 模板报告确定性渲染器（纯函数，无 AI、无数据库访问）：
@@ -22,7 +24,12 @@ export interface ReportSnapshotPayload {
     headerText?: string | null;
     footerText?: string | null;
     showDisclaimer?: boolean;
+    showSourceReferences?: boolean;
+    showCalculationProcess?: boolean;
+    disclaimerText?: string | null;
   };
+  branding?: { companyName?: string; companyLogoFileId?: string | null;
+    logo?: { fileId: string; objectKey: string; mimeType: string } | null; logoDataUrl?: string; logoUnavailable?: boolean } | null;
   disclaimerText?: string | null;
   [key: string]: unknown;
 }
@@ -166,11 +173,11 @@ export function renderReferencePagesHtml(value: unknown): string {
     const groupHtml = groups.map((group) =>
       `<h2>${escapeHtml(group.title)}</h2>${group.bar ? `<p class="param-bar">${escapeHtml(group.bar)}</p>` : ""}`
     ).join("");
-    const image = typeof page.imageDataUrl === "string" && page.imageDataUrl
+    const image = isEmbeddedReportImage(page.imageDataUrl)
       ? `<img class="reference-page" src="${escapeHtml(page.imageDataUrl)}" alt="完整参考页" />`
       : "";
     const meta = referencePageMeta(page);
-    return `<section>${groupHtml}${image}${meta ? `<p class="meta">${escapeHtml(meta)}</p>` : ""}</section>`;
+    return `<section>${groupHtml}${renderFrozenReferenceTables([page])}${image}${meta ? `<p class="meta">${escapeHtml(meta)}</p>` : ""}</section>`;
   }).join("");
 }
 
@@ -183,10 +190,13 @@ export async function embedReferencePageImages(
     if (!item || typeof item !== "object") return item;
     const page = item as Record<string, unknown>;
     const objectKey = typeof page.pageImageObjectKey === "string" ? page.pageImageObjectKey : "";
-    if (!objectKey) return page;
+    if (!objectKey) return { ...page, imageUnavailable: true };
     const bytes = await loadObject(objectKey);
-    if (!bytes) return page;
-    const mime = objectKey.endsWith(".jpg") || objectKey.endsWith(".jpeg") ? "image/jpeg" : "image/png";
+    if (!bytes) return { ...page, imageUnavailable: true, imageDataUrl: undefined };
+    const png = bytes.length >= 24 && bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+    const jpeg = readJpegSize(bytes);
+    if (!png && !jpeg) return { ...page, imageUnavailable: true, imageDataUrl: undefined };
+    const mime = png ? "image/png" : "image/jpeg";
     return {
       ...page,
       imageBytes: bytes,
@@ -194,6 +204,16 @@ export async function embedReferencePageImages(
       imageDataUrl: `data:${mime};base64,${bytes.toString("base64")}`
     };
   }));
+}
+
+/** Logo只从创建时冻结的对象键加载；复用封闭图片字节校验，不查询最新企业信息。 */
+export async function embedReportBranding(payload: ReportSnapshotPayload, loadObject: (key: string) => Promise<Buffer | null>) {
+  const branding = payload.branding;
+  if (!branding) return;
+  // 不信任已有data URL，Worker只接受冻结对象存储字节。
+  const [image] = await embedReferencePageImages(branding.logo ? [{ pageImageObjectKey: branding.logo.objectKey }] : [], loadObject) as Record<string, unknown>[];
+  payload.branding = { ...branding, logoDataUrl: typeof image?.imageDataUrl === "string" ? image.imageDataUrl : undefined,
+    logoUnavailable: Boolean(branding.companyLogoFileId && !image?.imageDataUrl) };
 }
 
 function decodeDataUrl(dataUrl: string): { mime: string; bytes: Buffer } | null {
@@ -253,6 +273,15 @@ function resolveReferenceImage(page: Record<string, unknown>): { bytes: Buffer; 
 
 /** 模板报告 -> HTML 文档（Worker 渲染与 PDF/IMAGE 共用） */
 export function renderTemplateHtml(payload: ReportSnapshotPayload): string {
+  if (payload.documentModel) {
+    const stored = payload.documentModel as SolutionDocumentModel;
+    // 历史V1合同的solutions本身就是Snapshot.candidates（Final），只做封闭字段兼容，不查询或猜选择。
+    const historical = !stored.finalCandidateIds && stored.schemaVersion === 1 && payload.outputPolicy == null
+      && payload.solutionSnapshotId === stored.solutionSnapshotId && Array.isArray(stored.solutions);
+    const model = historical ? { ...stored, finalCandidateIds: stored.solutions.map(c => c.candidateId),
+      selectedCandidateIds: [...stored.solutions, ...stored.alternatives].map(c => c.candidateId) } : stored;
+    return renderSolutionDocumentHtml(payload, model);
+  }
   const sections = (payload.template?.sections ?? [])
     .filter((section) => section.enabled)
     .sort((a, b) => a.order - b.order);

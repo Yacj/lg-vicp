@@ -1,5 +1,7 @@
 # 后端架构
 
+PM2报告部署（2026-10-14）：数据库步骤/重载前真实中文PDF自检；默认检查复用，显式安装只支持白名单Linux（含线上Alibaba Cloud Linux3/x64，RPM只查缺失项后DNF安装）。使用锁文件对应CLI/国内镜像/固定缓存；路径核验记录传给Worker，显式.env优先，不改.env/软件源。失败恢复dist且不执行后续数据库/PM2；pnpm11需pnpm run deploy调用仓库脚本。本次用户授权线上发布成功且未跑测试，见docs/reports/pm2-report-runtime-2026-10-14.md。
+
 2026-10-07 迁移收口：0032 journal 漏登记以补登记 + 0051 前向补偿处理，0032 CASE 索引括号仅作语法修正；0051 对正确索引跳过，对旧索引先锁表/归一化冲突校验后同事务更新。`db:verify` 必须先校验 SQL/journal/snapshot；早期 0017–0019 的已部署命名及遗失 snapshot 仅按脚本内精确限定旧记录兼容，禁止新增通用跳号例外。可用 `MIGRATION_VERIFY_DATABASE_URL` 运行隔离临时数据库验证，禁止直接迁移生产验证。
 
 技术栈：Fastify、TypeScript、Zod、PostgreSQL、Drizzle ORM、postgres.js、Redis、BullMQ、AI SDK、MinIO/阿里云 OSS、Docker Compose、Nginx；生产可选 PM2 托管 API/Worker。

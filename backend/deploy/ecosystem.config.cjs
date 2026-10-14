@@ -20,6 +20,8 @@ function loadDotEnv(filePath) {
 const fileEnv = loadDotEnv(path.join(APP_ROOT, ".env"));
 const parsedHeap = Number(fileEnv.WORKER_MAX_OLD_SPACE_MB || process.env.WORKER_MAX_OLD_SPACE_MB || 768);
 const workerHeapMb = Number.isFinite(parsedHeap) && parsedHeap > 0 ? parsedHeap : 768;
+const { resolveReportChromium } = require("./report-runtime-config.cjs");
+const reportChromium = resolveReportChromium(APP_ROOT, fileEnv).executablePath;
 
 // DOCX_RENDER_* / SOFFICE_* 由进程内 dotenv 读取项目根 .env；
 // 修改后：pm2 restart deploy/ecosystem.config.cjs --update-env && pm2 save
@@ -64,7 +66,9 @@ module.exports = {
       kill_timeout: 21 * 60 * 1000,
       max_memory_restart: "1500M",
       env: {
-        NODE_ENV: "production"
+        NODE_ENV: "production",
+        // 仅通过部署PDF自检的路径作为回退，显式.env始终优先；不写入.env。
+        ...(reportChromium ? { PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH: reportChromium } : {})
       },
       error_file: path.join(APP_ROOT, "logs/pm2-worker-error.log"),
       out_file: path.join(APP_ROOT, "logs/pm2-worker-out.log"),

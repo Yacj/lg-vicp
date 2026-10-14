@@ -175,11 +175,11 @@ describe("方案建议多轮事实门禁（模拟数据库，非线上UAT）", (
       selectionMode: "INCLUDE", referenceScope: "CURRENT_POOL", temporalScope: "CURRENT", evidence: "加入方案", confidence: .99, unresolved: [] } });
     expect(await parseSolutionAction({ ...ctx, domainDecision: decision }, ctx.userMessage, payload)).toMatchObject({ action: "ADD", candidateIds: [payload.poolCandidateIds[0]] });
   });
-  it("正式报告缺Confirmed Snapshot仍拒绝；上海住宅合规仍独立且无标准不声称达标", async () => {
+  it("未传本轮已核验授权的正式报告仍拒绝；上海住宅合规仍独立且无标准不声称达标", async () => {
     const app = appFixture(); const state = await queriedState(app);
     mocks.model.mockResolvedValue({ object: domainSemanticFixture("直接生成正式报告", "REPORT_REQUEST") });
     expect((await resolveDomainTurn(context(app, state, "直接生成正式报告"))).intent).toBe("REPORT_REQUEST");
-    expect(await generateConfirmedSolutionReport(context(app, state, "直接生成正式报告"))).toMatchObject({ ok: false, code: "SOLUTION_SNAPSHOT_REQUIRED" });
+    expect(await generateConfirmedSolutionReport(context(app, state, "直接生成正式报告"))).toMatchObject({ ok: false, code: "REPORT_AUTHORIZATION_REQUIRED" });
     expect(mocks.report).not.toHaveBeenCalled(); expect(mocks.snapshot).not.toHaveBeenCalled();
     const ctx = context(app, state, "上海住宅能达标吗"); mocks.model.mockResolvedValue({ object: domainSemanticFixture(ctx.userMessage, "COMPLIANCE_CHECK") }); ctx.domainDecision = await resolveDomainTurn(ctx);
     expect(ctx.domainDecision.intent).toBe("COMPLIANCE_CHECK");

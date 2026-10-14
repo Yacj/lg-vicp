@@ -66,6 +66,7 @@ declare global {
   const computedEager: typeof import('@vueuse/core')['computedEager']
   const computedInject: typeof import('@vueuse/core')['computedInject']
   const computedWithControl: typeof import('@vueuse/core')['computedWithControl']
+  const confirmedReportBody: typeof import('./utils/aiReportTask')['confirmedReportBody']
   const controlledComputed: typeof import('@vueuse/core')['controlledComputed']
   const controlledRef: typeof import('@vueuse/core')['controlledRef']
   const createApis: typeof import('./api/createApis')['createApis']
@@ -81,6 +82,7 @@ declare global {
   const createSolutionActions: typeof import('./store/solution')['createSolutionActions']
   const createTemplatePromise: typeof import('@vueuse/core')['createTemplatePromise']
   const createUnrefFn: typeof import('@vueuse/core')['createUnrefFn']
+  const createdReportTask: typeof import('./utils/aiReportTask')['createdReportTask']
   const customRef: typeof import('vue')['customRef']
   const debouncedRef: typeof import('@vueuse/core')['debouncedRef']
   const debouncedWatch: typeof import('@vueuse/core')['debouncedWatch']
@@ -225,6 +227,7 @@ declare global {
   const reactiveOmit: typeof import('@vueuse/core')['reactiveOmit']
   const reactivePick: typeof import('@vueuse/core')['reactivePick']
   const readPersistedAuthUserId: typeof import('./store/user-scoped-state')['readPersistedAuthUserId']
+  const readReportListStatus: typeof import('./utils/aiReportTask')['readReportListStatus']
   const readableReferenceAnnotations: typeof import('./utils/referenceAnnotations')['readableReferenceAnnotations']
   const readonly: typeof import('vue')['readonly']
   const ref: typeof import('vue')['ref']
@@ -243,7 +246,11 @@ declare global {
   const referenceTableLocation: typeof import('./utils/referenceTable')['referenceTableLocation']
   const rememberLoginRedirect: typeof import('./utils/authRedirect')['rememberLoginRedirect']
   const renderMarkdown: typeof import('./utils/markdown')['renderMarkdown']
+  const reportAccessDenied: typeof import('./utils/aiReportTask')['reportAccessDenied']
   const reportApi: typeof import('./api/index')['reportApi']
+  const reportDetailPresentation: typeof import('./utils/aiReportTask')['reportDetailPresentation']
+  const reportErrorMessage: typeof import('./utils/aiReportTask')['reportErrorMessage']
+  const reportTaskPresentation: typeof import('./utils/aiReportTask')['reportTaskPresentation']
   const reportTaskTitle: typeof import('./utils/aiReportTask')['reportTaskTitle']
   const reportTitleFromUnknown: typeof import('./utils/aiAgentUi')['reportTitleFromUnknown']
   const request: typeof import('./api/request')['request']
@@ -449,6 +456,7 @@ declare global {
   const useReferencePageHighlight: typeof import('./composables/useReferencePageHighlight')['useReferencePageHighlight']
   const useReferencePageImage: typeof import('./composables/useReferencePageImage')['useReferencePageImage']
   const useReferencePageResource: typeof import('./composables/useReferencePageResource')['useReferencePageResource']
+  const useReportDetail: typeof import('./composables/useReportDetail')['useReportDetail']
   const useReportTypeStore: typeof import('./store/reportTypes')['useReportTypeStore']
   const useRequest: typeof import('alova/client')['useRequest']
   const useResizeObserver: typeof import('@vueuse/core')['useResizeObserver']
@@ -603,6 +611,7 @@ declare module 'vue' {
     readonly computedEager: UnwrapRef<typeof import('@vueuse/core')['computedEager']>
     readonly computedInject: UnwrapRef<typeof import('@vueuse/core')['computedInject']>
     readonly computedWithControl: UnwrapRef<typeof import('@vueuse/core')['computedWithControl']>
+    readonly confirmedReportBody: UnwrapRef<typeof import('./utils/aiReportTask')['confirmedReportBody']>
     readonly controlledComputed: UnwrapRef<typeof import('@vueuse/core')['controlledComputed']>
     readonly controlledRef: UnwrapRef<typeof import('@vueuse/core')['controlledRef']>
     readonly createApis: UnwrapRef<typeof import('./api/createApis')['createApis']>
@@ -618,6 +627,7 @@ declare module 'vue' {
     readonly createSolutionActions: UnwrapRef<typeof import('./store/solution')['createSolutionActions']>
     readonly createTemplatePromise: UnwrapRef<typeof import('@vueuse/core')['createTemplatePromise']>
     readonly createUnrefFn: UnwrapRef<typeof import('@vueuse/core')['createUnrefFn']>
+    readonly createdReportTask: UnwrapRef<typeof import('./utils/aiReportTask')['createdReportTask']>
     readonly customRef: UnwrapRef<typeof import('vue')['customRef']>
     readonly debouncedRef: UnwrapRef<typeof import('@vueuse/core')['debouncedRef']>
     readonly debouncedWatch: UnwrapRef<typeof import('@vueuse/core')['debouncedWatch']>
@@ -762,6 +772,7 @@ declare module 'vue' {
     readonly reactiveOmit: UnwrapRef<typeof import('@vueuse/core')['reactiveOmit']>
     readonly reactivePick: UnwrapRef<typeof import('@vueuse/core')['reactivePick']>
     readonly readPersistedAuthUserId: UnwrapRef<typeof import('./store/user-scoped-state')['readPersistedAuthUserId']>
+    readonly readReportListStatus: UnwrapRef<typeof import('./utils/aiReportTask')['readReportListStatus']>
     readonly readableReferenceAnnotations: UnwrapRef<typeof import('./utils/referenceAnnotations')['readableReferenceAnnotations']>
     readonly readonly: UnwrapRef<typeof import('vue')['readonly']>
     readonly ref: UnwrapRef<typeof import('vue')['ref']>
@@ -780,7 +791,11 @@ declare module 'vue' {
     readonly referenceTableLocation: UnwrapRef<typeof import('./utils/referenceTable')['referenceTableLocation']>
     readonly rememberLoginRedirect: UnwrapRef<typeof import('./utils/authRedirect')['rememberLoginRedirect']>
     readonly renderMarkdown: UnwrapRef<typeof import('./utils/markdown')['renderMarkdown']>
+    readonly reportAccessDenied: UnwrapRef<typeof import('./utils/aiReportTask')['reportAccessDenied']>
     readonly reportApi: UnwrapRef<typeof import('./api/index')['reportApi']>
+    readonly reportDetailPresentation: UnwrapRef<typeof import('./utils/aiReportTask')['reportDetailPresentation']>
+    readonly reportErrorMessage: UnwrapRef<typeof import('./utils/aiReportTask')['reportErrorMessage']>
+    readonly reportTaskPresentation: UnwrapRef<typeof import('./utils/aiReportTask')['reportTaskPresentation']>
     readonly reportTaskTitle: UnwrapRef<typeof import('./utils/aiReportTask')['reportTaskTitle']>
     readonly reportTitleFromUnknown: UnwrapRef<typeof import('./utils/aiAgentUi')['reportTitleFromUnknown']>
     readonly request: UnwrapRef<typeof import('./api/request')['request']>
@@ -986,6 +1001,7 @@ declare module 'vue' {
     readonly useReferencePageHighlight: UnwrapRef<typeof import('./composables/useReferencePageHighlight')['useReferencePageHighlight']>
     readonly useReferencePageImage: UnwrapRef<typeof import('./composables/useReferencePageImage')['useReferencePageImage']>
     readonly useReferencePageResource: UnwrapRef<typeof import('./composables/useReferencePageResource')['useReferencePageResource']>
+    readonly useReportDetail: UnwrapRef<typeof import('./composables/useReportDetail')['useReportDetail']>
     readonly useReportTypeStore: UnwrapRef<typeof import('./store/reportTypes')['useReportTypeStore']>
     readonly useRequest: UnwrapRef<typeof import('alova/client')['useRequest']>
     readonly useResizeObserver: UnwrapRef<typeof import('@vueuse/core')['useResizeObserver']>

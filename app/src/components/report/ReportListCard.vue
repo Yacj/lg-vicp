@@ -1,18 +1,22 @@
 <script setup lang="ts">
-import type { MyReportItem } from '@/api/types'
+import type { ReportListViewItem } from '@/utils/aiReportTask'
+import { computed } from 'vue'
 import { formatReportDate, reportTypeLabel } from '@/constants/reports'
+import { reportTaskPresentation } from '@/utils/aiReportTask'
 
-withDefaults(defineProps<{
-  item: MyReportItem
+const props = withDefaults(defineProps<{
+  item: ReportListViewItem
   hideProject?: boolean
 }>(), {
   hideProject: false,
 })
 
 const emit = defineEmits<{
-  open: [item: MyReportItem]
+  open: [item: ReportListViewItem]
   openProject: [projectId: string]
 }>()
+
+const presentation = computed(() => reportTaskPresentation({ id: props.item.id, projectId: props.item.project?.id ?? null, title: props.item.title, reportStatus: props.item.status, publishedAt: props.item.publishedAt }))
 </script>
 
 <template>
@@ -25,6 +29,9 @@ const emit = defineEmits<{
     </view>
     <view class="app-tertiary mt-1 text-2.5">
       {{ formatReportDate(item.createdAt) }}
+    </view>
+    <view class="app-muted mt-2 text-2.5" :class="{ 'app-danger-text': presentation.status === 'FAILED' }">
+      {{ [presentation.title, presentation.reviewLabel, presentation.publicationLabel].filter(Boolean).join(' · ') }}
     </view>
     <view
       v-if="item.project && !hideProject"

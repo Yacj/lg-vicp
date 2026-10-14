@@ -44,7 +44,7 @@ export function canViewReport(
   project: ProjectSummary | null
 ): boolean {
   if (project) return canViewProject(user, project);
-  return user.role === "SUPER_ADMIN" || report.createdById === user.id;
+  return user.role === "SUPER_ADMIN" && user.clientType === "B_ADMIN" || report.createdById === user.id;
 }
 
 export function canManageReport(
@@ -53,7 +53,7 @@ export function canManageReport(
   project: ProjectSummary | null
 ): boolean {
   if (project) return canManageProject(user, project);
-  return user.role === "SUPER_ADMIN" || report.createdById === user.id;
+  return user.role === "SUPER_ADMIN" && user.clientType === "B_ADMIN" || report.createdById === user.id;
 }
 
 export function reportListTitle(report: Pick<ReportAccessRow, "reportType" | "contentJson">): string {

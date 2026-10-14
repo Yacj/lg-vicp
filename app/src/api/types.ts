@@ -869,8 +869,9 @@ export interface PublicReportType {
 }
 
 export interface CreateReportBody {
-  projectId?: string
-  conversationId?: string
+  projectId?: string | null
+  conversationId?: string | null
+  solutionSnapshotId?: string
   reportType: ReportType
   contentJson?: Record<string, unknown>
   sourceMessageIds?: string[]
@@ -899,7 +900,7 @@ export interface ReportRecord {
   projectId: string | null
   conversationId: string | null
   reportType: ReportType
-  contentJson: Record<string, unknown>
+  contentJson: Record<string, unknown> | null
   status: ReportRecordStatus | string
   errorMessage: string | null
   publishedAt: string | null
@@ -914,6 +915,16 @@ export interface ReportDetail {
   project?: ReportProjectRef | null
   sources: unknown[]
   availableFormats: ReportArtifactType[]
+  solutionSnapshotId?: string | null
+  task?: ReportTaskSummary | null
+}
+
+/** Backend async_tasks 的状态，与报告生成/审核状态分开。 */
+export interface ReportTaskSummary {
+  id: string
+  status: 'QUEUED' | 'ACTIVE' | 'COMPLETED' | 'FAILED'
+  progress: number
+  errorMessage: string | null
 }
 
 export interface LinkReportProjectBody {
@@ -930,12 +941,18 @@ export interface CreateReportResult {
   message: string
   report: ReportRecord
   taskId: string
+  /** 旧 AI 报告创建响应可能没有这些扩展字段。 */
+  status?: ReportRecordStatus | string
+  reused?: boolean
+  solutionSnapshotId?: string | null
 }
 
 export interface ReportTaskResult {
   message: string
   reportId: string
   taskId: string
+  status?: ReportRecordStatus | string
+  reused?: boolean
 }
 
 export interface DownloadUrlResult {

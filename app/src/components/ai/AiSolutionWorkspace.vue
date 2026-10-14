@@ -2,6 +2,7 @@
 import type { AiReferencePage, ReferenceHighlight } from '@/api/reference-page'
 import type { SolutionAction, SolutionCandidate, SolutionComparisonResult, SolutionSnapshotDto, SolutionStateDto } from '@/api/solution-types'
 import { computed, ref, watch } from 'vue'
+import { confirmedReportBody } from '@/utils/aiReportTask'
 import { snapshotCandidateCard, solutionPool, solutionSelected, solutionStageLabels, visibleSolutionPool } from '@/utils/aiSolution'
 import { snapshotReferencePages } from '@/utils/referenceTable'
 import AiSolutionCandidateCard from './AiSolutionCandidateCard.vue'
@@ -17,12 +18,16 @@ const props = defineProps<{
   pendingAction: SolutionAction | null
   snapshotLoading: boolean
   notice: string
+  reportCreating?: boolean
+  reportBlocked?: boolean
+  reportError?: string
 }>()
 const emit = defineEmits<{
   action: [action: SolutionAction, candidateIds: string[]]
   source: [candidate: SolutionCandidate]
   snapshot: []
   refresh: []
+  generateReport: []
   openTable: [page: AiReferencePage, match: ReferenceHighlight | undefined, highlightEnabled: boolean]
 }>()
 const expanded = ref(false)
@@ -38,6 +43,13 @@ const finalDraftChanged = computed(() => draftFinalIds.value.length !== props.st
   || draftFinalIds.value.some(id => !props.state.finalCandidateIds.includes(id)))
 const confirmBlocked = computed(() => props.loading || finalDraftChanged.value || !finals.value.length || unhandledConflicts.value || finals.value.some(card => card.conflict))
 const snapshotPages = computed(() => snapshotReferencePages(props.snapshot))
+const canCreateReport = computed(() => Boolean(confirmedReportBody(props.state, props.state.conversationId))
+  && !props.loading && !props.reportCreating && !props.reportBlocked)
+
+function generateReport() {
+  if (canCreateReport.value)
+    emit('generateReport')
+}
 
 watch(() => props.state, (state, previous) => {
   draftFinalIds.value = [...state.finalCandidateIds]
@@ -95,6 +107,9 @@ function viewSnapshot() {
       </view>
       <AiSolutionCandidateCard v-for="candidate in finals" :key="candidate.candidateId" :candidate="candidate" read-only @source="emit('source', $event)" />
       <view class="workspace__actions">
+        <wd-button size="small" :loading="reportCreating" :disabled="!canCreateReport" @click="generateReport">
+          生成技术方案 PDF
+        </wd-button>
         <wd-button size="small" :loading="snapshotLoading" :disabled="snapshotLoading" @click="viewSnapshot">
           查看已确认方案
         </wd-button>
@@ -104,6 +119,9 @@ function viewSnapshot() {
         <wd-button size="small" variant="text" :disabled="loading" :loading="pendingAction === 'START_NEW'" @click="emit('action', 'START_NEW', [])">
           重新做一套方案
         </wd-button>
+      </view>
+      <view v-if="reportError" class="workspace__notice">
+        {{ reportError }}
       </view>
       <view v-if="snapshotExpanded && snapshot" class="workspace__section">
         <view class="text-3.5 font-semibold">

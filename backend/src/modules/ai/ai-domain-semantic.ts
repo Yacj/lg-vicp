@@ -2,6 +2,8 @@ import { z } from "zod";
 import { DOMAIN_INTENTS } from "./ai-domain-turn-decision.js";
 export const domainTurnSemanticSchema = z.object({
   intent: z.enum(DOMAIN_INTENTS), confidence: z.number().min(0).max(1), evidence: z.string().max(2000), unresolved: z.string().max(300).nullable(),
+  /** 本轮报告目标；不能由后续Tool参数或旧产品上下文覆盖。 */
+  reportType: z.enum(["technical_scheme", "project_brief", "material_compare", "ai_conversation"]).nullable().default(null),
   relation: z.enum(["NEW", "CONTINUE", "REFINE", "CANCEL", "SWITCH_TOPIC"]),
   continuedGoal: z.object({ recentTurn: z.number().int().min(0).max(1), intent: z.literal("SOLUTION_ADVICE"), evidence: z.string().min(1).max(300) }).strict().nullable().default(null),
   adviceMode: z.enum(["GENERAL_REFERENCE", "PRELIMINARY", "PROJECT_SPECIFIC", "OUTLINE"]).nullable(),

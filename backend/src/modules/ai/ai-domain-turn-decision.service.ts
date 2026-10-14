@@ -21,6 +21,7 @@ export const DOMAIN_SEMANTIC_PROMPT = [
   "体系/厚度不同基层K比较是查询，不是概念解释。按实际基层择一，不按最小K替换墙体。",
   "正式选择/加入/移除/Final是SOLUTION_ACTION，effectRequest需直接肯定REQUEST；引用、假设、解释动作不授权写入。比较再建议可只读；多个正式动作须澄清分阶段，不能一次Final再Confirm。",
   "确认Snapshot只能后端封闭命令执行，模型不输出CONFIRM。生成正式PDF/报告是REPORT_REQUEST；提纲不是报告生成。",
+  "REPORT_REQUEST的reportType表示本轮明确目标：技术方案technical_scheme、项目简报project_brief、产品材料对比material_compare、对话整理ai_conversation；类型不明确为null，不能从旧产品选择替换本轮方案目标。介绍格式/解释报告用途不授权生成。",
   "执行计算THERMAL_CALCULATE/CALCULATE，解释怎么算不是执行。合规COMPLIANCE_CHECK/READ_ONLY依赖正式标准，取消地区判断却索取正式合规证明须unresolved。",
   "effectRequest.evidence是完整本轮原话，只有真实直接肯定请求才direct=true、AFFIRMATIVE、REQUEST。低置信/歧义不授予副作用。",
   "reference仅范围与当前revision，NONE用于独立新目标；SWITCH_TOPIC不能使用旧候选。evidence必须是原话连续片段。"

@@ -1,0 +1,122 @@
+diff --git a/dist/index.cjs b/dist/index.cjs
+index 6f3ed4c84966d549b990905e145db7be42c8cbdc..ec6a2b476583676c1c03d98a4326512f8a0cdb32 100644
+--- a/dist/index.cjs
++++ b/dist/index.cjs
+@@ -190,7 +190,31 @@ async function writeFile(filePath, content) {
+   await promises.mkdir(node_path.dirname(filePath), { recursive: true });
+   return await promises.writeFile(filePath, content, "utf-8");
+ }
+-async function writeDeclaration(ctx, filepath, removeUnused = false) {
++// Serialize declaration updates and tolerate short-lived Windows file locks.
++const declarationWrites = new Map();
++async function retryDeclarationIO(action) {
++  for (let attempt = 0; ; attempt++) {
++    try {
++      return await action();
++    } catch (error) {
++      if (process.platform !== "win32" || attempt >= 5 || !["UNKNOWN", "EBUSY", "EPERM", "EACCES"].includes(error?.code))
++        throw error;
++      await new Promise((resolve) => setTimeout(resolve, 50 * 2 ** attempt));
++    }
++  }
++}
++function writeDeclaration(ctx, filepath, removeUnused = false) {
++  const previous = declarationWrites.get(filepath) || Promise.resolve();
++  const current = previous.catch(() => {}).then(() => retryDeclarationIO(() => writeDeclarationNow(ctx, filepath, removeUnused)));
++  declarationWrites.set(filepath, current);
++  const cleanup = () => {
++    if (declarationWrites.get(filepath) === current)
++      declarationWrites.delete(filepath);
++  };
++  current.then(cleanup, cleanup);
++  return current;
++}
++async function writeDeclarationNow(ctx, filepath, removeUnused = false) {
+   const originalContent = node_fs.existsSync(filepath) ? await promises.readFile(filepath, "utf-8") : "";
+   const originalImports = removeUnused ? void 0 : parseDeclaration(originalContent);
+   const code = getDeclaration(ctx, filepath, originalImports);
+@@ -390,7 +414,11 @@ class Context {
+     this.alias = {};
+     this._searched = false;
+     this.options = resolveOptions(rawOptions, this.root);
+-    this.generateDeclaration = utils$1.throttle(500, this._generateDeclaration.bind(this), { noLeading: false });
++    this.generateDeclaration = utils$1.throttle(500, () => {
++      this._generateDeclaration().catch((error) => {
++        console.warn(`[vite-plugin-uni-components] Failed to generate ${this.options.dts}: ${error.message}`);
++      });
++    }, { noLeading: false });
+     this.setTransformer(this.options.transformer);
+   }
+   setRoot(root) {
+@@ -597,6 +625,10 @@ function VitePluginComponents(options = {}) {
+       if (config.build.watch && config.command === "build")
+         ctx.setupWatcher(chokidar__default.watch(ctx.options.globs));
+     },
++    async closeBundle() {
++      ctx.generateDeclaration.cancel();
++      await ctx._generateDeclaration();
++    },
+     configureServer(server) {
+       ctx.setupViteServer(server);
+     },
+diff --git a/dist/index.mjs b/dist/index.mjs
+index 59d04672a83aefeff9ec23e181159e02d227128b..3d93570dd20462f022221f05a4c481ff5faaffd1 100644
+--- a/dist/index.mjs
++++ b/dist/index.mjs
+@@ -180,7 +180,31 @@ async function writeFile(filePath, content) {
+   await mkdir(dirname(filePath), { recursive: true });
+   return await writeFile$1(filePath, content, "utf-8");
+ }
+-async function writeDeclaration(ctx, filepath, removeUnused = false) {
++// Serialize declaration updates and tolerate short-lived Windows file locks.
++const declarationWrites = new Map();
++async function retryDeclarationIO(action) {
++  for (let attempt = 0; ; attempt++) {
++    try {
++      return await action();
++    } catch (error) {
++      if (process.platform !== "win32" || attempt >= 5 || !["UNKNOWN", "EBUSY", "EPERM", "EACCES"].includes(error?.code))
++        throw error;
++      await new Promise((resolve) => setTimeout(resolve, 50 * 2 ** attempt));
++    }
++  }
++}
++function writeDeclaration(ctx, filepath, removeUnused = false) {
++  const previous = declarationWrites.get(filepath) || Promise.resolve();
++  const current = previous.catch(() => {}).then(() => retryDeclarationIO(() => writeDeclarationNow(ctx, filepath, removeUnused)));
++  declarationWrites.set(filepath, current);
++  const cleanup = () => {
++    if (declarationWrites.get(filepath) === current)
++      declarationWrites.delete(filepath);
++  };
++  current.then(cleanup, cleanup);
++  return current;
++}
++async function writeDeclarationNow(ctx, filepath, removeUnused = false) {
+   const originalContent = existsSync(filepath) ? await readFile(filepath, "utf-8") : "";
+   const originalImports = removeUnused ? void 0 : parseDeclaration(originalContent);
+   const code = getDeclaration(ctx, filepath, originalImports);
+@@ -380,7 +404,11 @@ class Context {
+     this.alias = {};
+     this._searched = false;
+     this.options = resolveOptions(rawOptions, this.root);
+-    this.generateDeclaration = throttle(500, this._generateDeclaration.bind(this), { noLeading: false });
++    this.generateDeclaration = throttle(500, () => {
++      this._generateDeclaration().catch((error) => {
++        console.warn(`[vite-plugin-uni-components] Failed to generate ${this.options.dts}: ${error.message}`);
++      });
++    }, { noLeading: false });
+     this.setTransformer(this.options.transformer);
+   }
+   setRoot(root) {
+@@ -587,6 +615,10 @@ function VitePluginComponents(options = {}) {
+       if (config.build.watch && config.command === "build")
+         ctx.setupWatcher(chokidar.watch(ctx.options.globs));
+     },
++    async closeBundle() {
++      ctx.generateDeclaration.cancel();
++      await ctx._generateDeclaration();
++    },
+     configureServer(server) {
+       ctx.setupViteServer(server);
+     },

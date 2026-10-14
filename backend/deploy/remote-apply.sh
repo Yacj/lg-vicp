@@ -95,6 +95,14 @@ done
 NODE_MAJOR="$(node -p "process.versions.node.split('.')[0]")"
 [[ "$NODE_MAJOR" -ge 22 ]] || fail "需要 Node.js 22+，当前：$(node -v)"
 
+# 仅本次进程使用国内npm源，不覆盖用户全局npm/pnpm配置。
+export DEPLOY_NPM_REGISTRY="${DEPLOY_NPM_REGISTRY:-https://registry.npmmirror.com}"
+if ! node -e 'try { const u = new URL(process.env.DEPLOY_NPM_REGISTRY); if (u.protocol !== "https:" || u.username || u.password || u.search || u.hash) process.exit(1); } catch { process.exit(1); }'; then
+  fail "DEPLOY_NPM_REGISTRY必须为HTTPS地址，不能包含凭据或查询参数"
+fi
+export npm_config_registry="$DEPLOY_NPM_REGISTRY"
+export COREPACK_NPM_REGISTRY="$DEPLOY_NPM_REGISTRY"
+
 if ! command -v pnpm >/dev/null 2>&1; then
   command -v corepack >/dev/null 2>&1 || fail "缺少 corepack，请安装 Node.js 22+"
   corepack enable
@@ -118,6 +126,13 @@ info "安装生产依赖（pnpm install --frozen-lockfile，不在服务器编�
 if ! pnpm install --frozen-lockfile --prod=false; then
   restore_dist
   fail "依赖安装失败，已回滚 dist，PM2 未重载"
+fi
+
+# ---------- 报告运行环境：必须在数据库步骤与PM2重载之前 ----------
+info "检查Chromium、中文字体及真实PDF输出（不连接业务数据库/队列/OSS）..."
+if ! node deploy/report-runtime.mjs; then
+  restore_dist
+  fail "报告运行环境未就绪，已回滚dist；未执行数据库步骤，PM2未重载"
 fi
 
 find_pg_dump() {

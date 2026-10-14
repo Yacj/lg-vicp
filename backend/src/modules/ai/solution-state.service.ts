@@ -250,7 +250,7 @@ async function validateCurrentSources(ctx: SolutionContext, db: DbExecutor, cand
       solutionError("SOLUTION_SOURCE_CHANGED", "来源确认档位已失效，请重新查询");
   }
   return pages.map(({ page, document }) => ({ sourcePageId: page.id, documentId: document.id, versionId: page.versionId,
-    documentTitle: document.title, pageLabel: visiblePageLabel(page), objectKey: page.pageImageObjectKey,
+    documentTitle: document.title, docNumber: document.docNumber, pageLabel: visiblePageLabel(page), physicalPageNumber: page.physicalPageNumber, objectKey: page.pageImageObjectKey,
     renderModel: readableRenderModel(page.id, page.metadata, visiblePageLabel(page)) }));
 }
 export async function actOnSolution(ctx: SolutionContext, stateId: string, action: SolutionAction) {
@@ -286,7 +286,8 @@ export async function actOnSolution(ctx: SolutionContext, stateId: string, actio
         if (!model || referencePages.some(saved => saved.sourcePageId === page.id)
           || !alternatives.some(candidate => candidate.sourcePageId === page.id && model.constructions.some(construction => construction.options.some(option => option.optionId === candidate.optionId)))) continue;
         referencePages.push({ sourcePageId: page.id, documentId: document.id, versionId: page.versionId, documentTitle: document.title,
-          pageLabel: visiblePageLabel(page), objectKey: page.pageImageObjectKey, renderModel: model });
+          docNumber: document.docNumber, pageLabel: visiblePageLabel(page), physicalPageNumber: page.physicalPageNumber,
+          objectKey: page.pageImageObjectKey, renderModel: model });
       }
       const [project] = state.projectId ? await tx.select().from(projects).where(eq(projects.id, state.projectId)).limit(1) : [];
       [snapshot] = await tx.insert(solutionSnapshots).values({ solutionStateId: state.id, conversationId: state.conversationId,

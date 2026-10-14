@@ -67,7 +67,7 @@ import {
 } from "./conversation-task.js";
 import { confirmComparisonAndGenerateReport, createReportContextSnapshot } from "./report-context-snapshot.service.js";
 import { createReport } from "../reports/report-generation.service.js";
-import { hasReportAuthorization, isSolutionReportRequest } from "./report-authorization.js";
+import { hasReportAuthorization, isSolutionReportRequest, isCurrentReportUiAction } from "./report-authorization.js";
 import { generateConfirmedSolutionReport } from "./solution-report.service.js";
 import { resolveProductConsultation } from "./product-read.service.js";
 import { isComparisonSelectionWait } from "./agent-choice.js";
@@ -399,8 +399,11 @@ export async function streamConversationReply(options: {
   const validatedReportResume = taskDecision.generateReportNow && waitingRunPreview?.status === "WAITING_USER_INPUT"
     ? await prepareResumeState(waitingRunPreview, content, optionId, { optionIds: optionIds ?? selectedIds, selectedIds,
       selectionKind: selectionKind ?? waitingPreviewState?.waiting?.selectionKind, confirmAction }) : null;
-  const reportAuthorization = action === "GENERATE_REPORT" || validatedReportResume?.generateReportNow
-    ? { userId: user.id, conversationId: conversation.id } : undefined;
+  const reportAuthorization = isCurrentReportUiAction(action, confirmAction, validatedReportResume)
+    ? { userId: user.id, conversationId: conversation.id,
+      reportType: validatedReportResume?.selectedUserSelection?.selectionKind === "PRODUCT" ? "material_compare"
+        : validatedReportResume?.selectedUserSelection?.selectionKind === "REPORT_TYPE" ? validatedReportResume.selectedUserSelection.selectedIds[0]
+        : taskDecision.state.selectedReportType } : undefined;
   const reportContext = { app, request, user, conversation, userMessage: content, taskState: taskDecision.state, domainDecision, reportAuthorization };
   const reportAuthorized = hasReportAuthorization(reportContext);
   const directSolutionReport = reportAuthorized && isSolutionReportRequest(reportContext,

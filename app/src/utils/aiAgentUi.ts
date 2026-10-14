@@ -1,9 +1,9 @@
-import type { UserSelectionKind, UserSelectionOption } from './aiUserSelection.ts'
-import type { AiSourceRef, ReportTaskStatus } from '@/api/types'
+import type { UserSelectionKind, UserSelectionOption } from './aiUserSelection'
+import type { AiSourceRef, ReportArtifactType, ReportTaskStatus, ReportTaskSummary } from '@/api/types'
 import {
   parseUserSelectionRequest,
   shouldAutoSelectWhenSingle,
-} from './aiUserSelection.ts'
+} from './aiUserSelection'
 
 export type AgentRunStatus = 'RUNNING' | 'WAITING_USER_INPUT' | 'COMPLETED' | 'FAILED' | 'CANCELLED'
 
@@ -66,6 +66,17 @@ export interface SessionReport {
   title: string
   status?: ReportTaskStatus
   basedOn?: string[]
+  conversationId?: string
+  solutionSnapshotId?: string | null
+  taskId?: string
+  task?: ReportTaskSummary | null
+  reportStatus?: string
+  availableFormats?: ReportArtifactType[]
+  publishedAt?: string | null
+  errorMessage?: string | null
+  reused?: boolean
+  /** 仅报告对应的聊天消息可以被完成提示更新；按钮生成不绑定消息。 */
+  messageId?: string | null
 }
 
 export type ProjectMemoryType = 'FACT' | 'CONSTRAINT' | 'DECISION' | 'PREFERENCE' | 'TODO' | 'ASSUMPTION'

@@ -45,8 +45,9 @@ const reportParamsSchema = z.object({ id: z.uuid("报告 ID 格式不正确") })
 
 const generateReportBodySchema = z.object({
   reportType: generatableReportTypeSchema.optional(),
-  projectId: z.uuid("项目 ID 格式不正确").optional(),
-  conversationId: z.uuid("AI 会话 ID 格式不正确").optional(),
+  projectId: z.uuid("项目 ID 格式不正确").nullable().optional(),
+  conversationId: z.uuid("AI 会话 ID 格式不正确").nullable().optional(),
+  solutionSnapshotId: z.uuid("方案快照 ID 格式不正确").optional(),
   /** 兼容旧接口：已确认候选。不传则按项目取最近一次确认记录。 */
   selectionId: z.uuid("候选确认记录 ID 格式不正确").optional(),
   /** 兼容旧接口：显式内部模板。普通业务不传，由 reportType 自动选用。 */
@@ -244,7 +245,8 @@ export async function reportPlatformRoutes(app: FastifyInstance) {
       response: { 200: singleData(z.object({
         message: z.string(),
         report: reportItemSchema,
-        taskId: z.string().uuid()
+        taskId: z.string().uuid(),
+        solutionSnapshotId: z.string().uuid().nullable(), status: z.string(), reused: z.boolean()
       })) }
     }
   }, async (request) => {
@@ -269,12 +271,17 @@ export async function reportPlatformRoutes(app: FastifyInstance) {
       conversationId: request.body.conversationId ?? null,
       selectionId: request.body.selectionId,
       templateId: request.body.templateId,
-      asOfDate: request.body.asOfDate
+      asOfDate: request.body.asOfDate,
+      solutionSnapshotId: request.body.solutionSnapshotId,
+      solutionAuthorization: request.body.conversationId ? { reportAuthorization: { userId: actor.id, conversationId: request.body.conversationId } } : undefined
     });
     return ok(request, {
       message: "报告已进入生成队列",
       report: result.report,
-      taskId: result.taskId
+      taskId: result.taskId,
+      solutionSnapshotId: result.solutionSnapshotId,
+      status: result.report.status,
+      reused: result.reused
     });
   });
 

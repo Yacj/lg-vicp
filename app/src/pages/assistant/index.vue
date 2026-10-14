@@ -168,6 +168,11 @@ async function handleSolutionAction(action: SolutionAction, ids: string[]) {
     await assistantStore.performSolutionAction(action, ids)
 }
 
+async function generateSolutionReport() {
+  if (requireLogin())
+    await assistantStore.createConfirmedReport()
+}
+
 async function refreshSolution() {
   if (!requireLogin())
     return
@@ -655,7 +660,11 @@ onShareAppMessage(() => {
           :pending-action="assistantStore.solutionPendingAction"
           :snapshot-loading="assistantStore.solutionSnapshotLoading"
           :notice="assistantStore.solutionNotice"
+          :report-creating="assistantStore.solutionReportCreating"
+          :report-blocked="!assistantStore.canSend || Boolean(assistantStore.pendingUserInput)"
+          :report-error="assistantStore.solutionReportError"
           @action="handleSolutionAction"
+          @generate-report="generateSolutionReport"
           @source="openSolutionSource"
           @snapshot="assistantStore.loadSolutionSnapshot()"
           @refresh="refreshSolution"
