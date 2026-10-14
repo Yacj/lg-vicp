@@ -86,6 +86,29 @@ nodeTest('双击只提交一次；READY/FAILED reused 不伪造新任务或强�
   }
 })
 
+nodeTest('错误类型/创建人响应不绑定；创建失败保留 Backend 包络消息并可重试', async () => {
+  for (const report of [{ ...reportResult().report, reportType: 'ai_conversation' }, { ...reportResult().report, createdById: 'other' }]) {
+    const context = setup(async () => reportResult({ report }))
+    await context.store.performSolutionAction('CONFIRM', ['A'])
+    assert.equal(await context.store.createConfirmedReport(), false)
+    assert.equal(context.store.sessionReport, null)
+    assert.match(context.store.solutionReportError, /不一致/)
+  }
+  let failed = true
+  const context = setup(async () => {
+    if (failed)
+      throw Object.assign(new Error('请求失败'), { data: { error: { code: 409, message: '当前确认方案已变化，请刷新后重试' } } })
+    return reportResult({ reused: true })
+  })
+  await context.store.performSolutionAction('CONFIRM', ['A'])
+  assert.equal(await context.store.createConfirmedReport(), false)
+  assert.equal(context.store.solutionReportError, '当前确认方案已变化，请刷新后重试')
+  assert.equal(context.store.solutionState?.stage, 'CONFIRMED')
+  failed = false
+  assert.equal(await context.store.createConfirmedReport(), true)
+  assert.equal(context.store.sessionReport?.reused, true)
+})
+
 nodeTest('后端拒绝展示原消息，释放锁，用户可按原 Snapshot 再试', async () => {
   let attempt = 0
   const { store, bodies } = setup(async () => {

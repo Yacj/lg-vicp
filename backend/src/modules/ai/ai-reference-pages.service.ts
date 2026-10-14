@@ -15,6 +15,25 @@ import { readableRenderModel } from "../../shared/readable-page-render.js";
 import { compactCandidateResult } from "./tools/thermal-lookup.js";
 import { referenceSolutionCandidate, type SolutionCandidateSnapshot } from "./solution-workflow.js";
 import { confirmedReferenceQuery } from "./structured-reference-query.js";
+import type { ThermalQueryState } from "../thermal/thermal-query-state.js";
+
+/** 只重查上次已展示/显式选择的资料范围；不把热工表未命中升级为全库宽查。 */
+export async function querySelectedKnowledgeCandidates(app: FastifyInstance, query: ThermalQueryState, projectId: string | null) {
+  if (!query.documentIds?.length && !query.knowledgeVersionIds?.length) return [];
+  const ids = await app.db.select({ id: knowledgePages.id }).from(knowledgePages).where(and(
+    query.documentIds?.length ? inArray(knowledgePages.documentId, query.documentIds) : undefined,
+    query.knowledgeVersionIds?.length ? inArray(knowledgePages.versionId, query.knowledgeVersionIds) : undefined));
+  const readable = await readConsumableReferencePages(app, ids.map(page => page.id), projectId);
+  const snapshots = readable.flatMap(({ page, document }) => {
+    const data = readPageRecognitionMeta(page.metadata).confirmedStructuredData;
+    return data ? [{ page, data, model: buildKnowledgePageRenderModel(page.id, data)!, systemId: document.insulationSystemId }] : [];
+  });
+  return matchConfirmedPageOptions(snapshots, "", query, undefined).map(candidate => ({
+    ...compactCandidateResult(candidate), candidateId: candidate.candidateId, sourceType: "REFERENCE" as const,
+    referenceKind: "KNOWLEDGE_PAGE" as const, constructionCode: candidate.scheme.code, optionId: candidate.candidateId,
+    sourceVersionId: candidate.sourceVersionId, sourcePageLabel: visiblePageLabel(readable.find(row => row.page.id === candidate.sourcePageId)!.page)
+  }));
+}
 
 export async function readConsumableReferencePages(app: FastifyInstance, pageIds: readonly string[], projectId: string | null) {
   if (!pageIds.length) return [];
@@ -78,7 +97,10 @@ export async function loadPublishedKnowledgeReferences(app: FastifyInstance, hit
   });
   const totalMatched = matched?.length ?? 0;
   const totalGroups = new Set(matched?.map(candidate => candidate.scheme.substrateMaterial)).size;
-  return { pages, ...budget, authoritative: numeric, solutionCandidates, totalMatched, totalGroups, matchingDiagnostics, query: normalized.query,
+  // 后续改条件必须回到同一已消费版本查询，不能退回仅有示例行的全局热工表。
+  const scopedQuery = { ...normalized.query, documentIds: [...new Set(readable.map(row => row.document.id))],
+    knowledgeVersionIds: [...new Set(readable.map(row => row.version.id))] };
+  return { pages, ...budget, authoritative: numeric, solutionCandidates, totalMatched, totalGroups, matchingDiagnostics, query: scopedQuery,
     ...(numeric ? { answer: formatConfirmedLookupAnswer(pages, budget.citationOptionIds, normalized.query.filters ?? [],
       { scopeLabel: "本次参考资料中", emptyHint: "当前没有可核验的完整确认档位，可以调整厚度、构造或资料范围再查询。", compact: true,
         totalMatched, totalGroups, structured: normalized.structured }) } : {}) };

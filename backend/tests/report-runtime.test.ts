@@ -39,7 +39,7 @@ it.each(["12", "13"])("Debian %s自动安装可用；Ubuntu版本和架构封闭
   expect(() => assertInstallPlatform("linux", "arm64", { ID: "ubuntu", VERSION_ID: "24.04" }, 0)).not.toThrow();
 });
 it("CentOS7/未知系统/权限不足不能自动安装；可复用已验证现有浏览器", async () => {
-  expect(() => assertInstallPlatform("linux", "x64", { ID: "centos", VERSION_ID: "7" }, 0)).toThrow("自动安装仅支持");
+  expect(() => assertInstallPlatform("linux", "x64", { ID: "centos", VERSION_ID: "7" }, 0)).toThrow(expect.objectContaining({ code: "REPORT_RUNTIME_OS_UNSUPPORTED" }));
   expect(() => assertInstallPlatform("linux", "x64", { ID: "debian", VERSION_ID: "12" }, 1000)).toThrow("需要root");
   const options = readyOptions(); options.release = { ID: "centos", VERSION_ID: "7" };
   expect(await ensureReportRuntime(options)).toMatchObject({ reused: true }); expect(options.install).not.toHaveBeenCalled();

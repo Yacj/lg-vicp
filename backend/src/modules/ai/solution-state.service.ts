@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
+import { isDeepStrictEqual } from "node:util";
 import { and, eq, isNull } from "drizzle-orm";
 import { aiConversationStates, aiConversations, projects, solutionStates, solutionSnapshots, thermalCalcRecords, constructionSchemes, insulationSystems, catalogProducts } from "../../db/schema.js";
 import { parseConversationTaskState, type LastReferenceLookup, type ConversationTaskState } from "./conversation-task.js";
@@ -319,7 +320,7 @@ export async function getSolutionSnapshot(ctx: SolutionContext, snapshotId: stri
     const current = readable.find(({ page: source }) => source.id === page.sourcePageId && source.versionId === page.versionId);
     const currentModel = current ? readableRenderModel(current.page.id, current.page.metadata, visiblePageLabel(current.page)) : null;
     if (!current || current.page.pageImageObjectKey !== page.objectKey || typeof page.objectKey !== "string"
-      || JSON.stringify(currentModel) !== JSON.stringify(page.renderModel)) return { sourcePageId: page.sourcePageId, imageUrl: null };
+      || !isDeepStrictEqual(currentModel, page.renderModel)) return { sourcePageId: page.sourcePageId, imageUrl: null };
     try { return { sourcePageId: page.sourcePageId, imageUrl: await ctx.app.storage.createDownloadUrl(page.objectKey, "方案来源.png", 3600) }; }
     catch { return { sourcePageId: page.sourcePageId, imageUrl: null }; }
   }));

@@ -129,7 +129,7 @@ export function createSearchKnowledgeTool(ctx: ToolRuntimeContext) {
       if (references.answer !== undefined && ctx.answerContract === "REFERENCE_LOOKUP") {
         if ("solutionCandidates" in references && references.solutionCandidates?.length && (ctx.user.clientType === "C_APP" || ctx.user.clientType === "PC_AI")) {
           const { publishCandidateResult } = await import("../candidate-result.service.js");
-          await publishCandidateResult(ctx, { query: lookup.query, candidates: references.solutionCandidates, createdAt: new Date().toISOString() });
+          await publishCandidateResult(ctx, { query: references.query ?? lookup.query, candidates: references.solutionCandidates, createdAt: new Date().toISOString() });
         }
         ctx.onReferenceAnswer?.(references.answer, references.pages);
         return toolOk({ available: true, authoritative: true, confirmedFacts: references.context,

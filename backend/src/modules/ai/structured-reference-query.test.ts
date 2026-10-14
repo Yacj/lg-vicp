@@ -5,7 +5,7 @@ import { domainDecision } from "./ai-domain-turn-decision.js";
 import { resolveStructuredReferenceQuery } from "./structured-reference-query.js";
 import { structuredReferenceFixture } from "./structured-reference.fixture.js";
 import { formatConfirmedLookupAnswer, KnowledgeReferenceCitationStream, loadKnowledgeTestReferences, matchConfirmedPageOptions } from "../knowledge/knowledge-test-reference.js";
-import { loadPublishedKnowledgeReferences, resolveConfirmedReferenceAnswer } from "./ai-reference-pages.service.js";
+import { loadPublishedKnowledgeReferences, querySelectedKnowledgeCandidates, resolveConfirmedReferenceAnswer } from "./ai-reference-pages.service.js";
 import { parseSemanticQuery } from "./semantic-query.service.js";
 import type { ReferencePageBlock } from "./reference-page.js";
 import { resolveReferenceQueryWithoutAgent } from "./reference-query.service.js";
@@ -21,6 +21,7 @@ function fixtureApp(change: Record<string, unknown> = {}) {
     const sql = new PgDialect().sqlToQuery(condition);
     // 验证生产查询实际绑定了哪些版本/页面，避免mock把单页查询也返回两页。
     return rows.filter(row => (!sql.sql.includes('"knowledge_pages"."version_id"') || sql.params.includes(row.page.versionId))
+      && (!sql.sql.includes('"knowledge_pages"."document_id"') || sql.params.includes(row.page.documentId))
       && (!sql.sql.includes('"knowledge_pages"."id"') || sql.params.includes(row.page.id)));
   });
   const sign = vi.fn(async () => "https://fixture.test/signed");
@@ -35,6 +36,19 @@ function fixtureApp(change: Record<string, unknown> = {}) {
 const hits = [{ documentId: "fixture-document", versionId: "fixture-version", pageId: "fixture-page-5" }] as any;
 
 describe("跨页结构化热工参考数据", () => {
+  it("真实UAT知识回退保留消费版本，后续按完整条件重查同范围；不宽查、未发布不消费", async () => {
+    const { app } = fixtureApp();
+    const initial = await loadPublishedKnowledgeReferences(app, hits, null, message);
+    expect(initial.query).toMatchObject({ documentIds: ["fixture-document"], knowledgeVersionIds: ["fixture-version"] });
+    const result = await querySelectedKnowledgeCandidates(app, initial.query!, null);
+    expect(result).toHaveLength(4);
+    expect(result.every(row => row.referenceKind === "KNOWLEDGE_PAGE" && row.optionId === row.id)).toBe(true);
+    expect(await querySelectedKnowledgeCandidates(app, { ...initial.query, thicknessMm: 999 }, null)).toEqual([]);
+    expect(await querySelectedKnowledgeCandidates(app, { ...initial.query, documentIds: ["other-document"] }, null)).toEqual([]);
+    expect(await querySelectedKnowledgeCandidates(app, { specClass: "III", thicknessMm: 45 }, null)).toEqual([]);
+    const unavailable = fixtureApp({ status: "DRAFT" });
+    expect(await querySelectedKnowledgeCandidates(unavailable.app, initial.query!, null)).toEqual([]);
+  });
   it.each([message, "Ⅲ型 45mm 哪种基层的 K 最低？", "同样45mm，不同基层K有什么区别？"])("判定为数据查询：%s", text => {
     const last = { query: { specClass: "III" as const, thicknessMm: 45, schemeCode: "A3-2", targetK: 0.294 }, candidates: [] };
     expect(resolveStructuredReferenceQuery(text, last)).toMatchObject({ queryKind: "REFERENCE_COMPARISON" });

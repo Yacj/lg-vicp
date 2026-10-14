@@ -43,7 +43,7 @@ export async function resolveReferenceQueryWithoutAgent(ctx: ReferenceReadContex
     const debug = buildThermalQueryDebug({
       query,
       lifecycle: resolution.lifecycle,
-      matchedCount: outcome?.matchedCandidates?.length,
+      matchedCount: result.matchedCount,
       returnedCandidateIds: candidates.map(candidate => candidate.id),
       nearby: nearbyRaw.map(candidate => toRejectedCandidateDebug(candidate.id, validateCandidateAgainstQueryState(candidate, query))),
       toolFilters: query.filters,
@@ -55,7 +55,7 @@ export async function resolveReferenceQueryWithoutAgent(ctx: ReferenceReadContex
   const state = ctx.taskState ?? { taskType: "GENERAL" as const };
   ctx.taskState = state;
   await publishCandidateResult(ctx, { query, candidates: pages.candidates, createdAt: new Date().toISOString() });
-  const facts = buildAllowedAnswerFacts(query, pages.candidates, ctx.userMessage ?? "", outcome?.matchedCandidates?.length, {
+  const facts = buildAllowedAnswerFacts(query, pages.candidates, ctx.userMessage ?? "", result.matchedCount, {
     nearbyCandidates: nearbyPages.candidates, identityMatchedButMetricFailed: identityPages.candidates, sourcePages: [...pages.sources, ...identityPages.sources] as Array<{ pageLabel?: string | null }>
   });
   return { facts, sources: [...pages.sources, ...identityPages.sources], referencePages: [...(pages.blocks ?? []), ...(identityPages.blocks ?? [])], needsClarification: Boolean(query.unresolved?.length) };

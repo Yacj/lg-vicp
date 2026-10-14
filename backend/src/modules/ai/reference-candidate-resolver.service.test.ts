@@ -25,6 +25,16 @@ beforeEach(() => {
   mocks.read.mockResolvedValue([referenceReadFixture().row]); mocks.current.mockResolvedValue(true);
 });
 describe("只读来源定位与生命周期", () => {
+  it.each(["missing", "empty"])("真实UAT无候选%s时不误称过期或项目冲突，也不查询来源", async missing => {
+    const ctx = context("把A3-2的原页给我看一下");
+    ctx.candidateQueryRevision = undefined;
+    if (missing === "missing") ctx.taskState.lastReferenceLookup = undefined;
+    else ctx.taskState.lastReferenceLookup.candidates = [];
+    const result = await resolveReferenceRead(ctx);
+    expect(result.facts.canonicalAnswers.join(" ")).toContain("当前没有可定位的候选");
+    expect(mocks.read).not.toHaveBeenCalled();
+    expect(ctx.onEvent).not.toHaveBeenCalled();
+  });
   it.each(["A3-3", "外墙A3-3", "Ａ３－３", "a3-3", "A3-3的参数"])("SM-CODE-01只提取强格式编码 %s，不从名称造身份", message => {
     const lookup = { query: {}, candidates: [{ id: "code-row", constructionCode: "外墙A3-3" }], createdAt: "" };
     expect(resolveVisibleCandidateIds(lookup, message).ids).toEqual(["code-row"]);

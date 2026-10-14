@@ -18,6 +18,16 @@ const result = (evidence: string, operator: "APPROX" | "EXACT" = "APPROX"): Sema
 });
 beforeEach(() => { vi.clearAllMocks(); mocks.runtime.mockResolvedValue({ primary: { languageModel: {}, modelId: "configured-model" } }); });
 describe("Semantic Parser正式接线", () => {
+  it("真实UAT省略最低K追问通过模型合同及偏好排序，不新增目标值或改变资料范围", async () => {
+    const previous = { specClass: "III", thicknessMm: 45, documentIds: ["doc"], knowledgeVersionIds: ["version"] };
+    mocks.generate.mockResolvedValue({ object: { queryMode: "CONTINUE_QUERY", intent: "REFERENCE_LOOKUP", confidence: .95,
+      constraints: [], preferences: [{ field: "preferLowerK", enabled: true, evidence: "最低" }], unresolved: [] }, usage: {} });
+    const parsed = await parseSemanticQuery(ctx("最低的是哪一种？", previous), {}, dictionary);
+    expect(parsed.query).toMatchObject({ ...previous, preferences: { preferLowerK: true } });
+    expect(parsed.query.filters).toEqual([]);
+    expect(mocks.generate.mock.calls[0]?.[0].system).toContain("JSON Schema");
+    expect(mocks.generate.mock.calls[0]?.[0].system).toContain("preferLowerK=true");
+  });
   it("符号规则不调用模型，旧Tool参数不能覆盖用户上限", async () => {
     const parsed = await parseSemanticQuery(ctx("K<=0.3"), { mode: "MIN_LIMIT", targetK: 0.4 }, dictionary);
     expect(parsed.query.filters?.[0]).toMatchObject({ mode: "MAX_LIMIT", targetValue: 0.3 });

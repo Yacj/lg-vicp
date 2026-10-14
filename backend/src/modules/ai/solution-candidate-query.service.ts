@@ -3,6 +3,7 @@ import { rankByPreferences, traceQueryState, validateCandidateAgainstQueryState,
 import { compactCandidateResult } from "./tools/thermal-lookup.js";
 import type { SolutionContext } from "./solution-state.service.js";
 import { emitReferencePages } from "./tools/thermal-calculate.tool.js";
+import { querySelectedKnowledgeCandidates } from "./ai-reference-pages.service.js";
 
 import { DEFAULT_SOLUTION_QUERY_POLICY, type SolutionCandidateQueryPolicy } from "./solution-candidate-query-policy.js";
 export { DEFAULT_SOLUTION_QUERY_POLICY } from "./solution-candidate-query-policy.js";
@@ -18,8 +19,13 @@ export async function querySolutionCandidates(ctx: SolutionContext, query: Therm
     neighborTolerance: policy.neighborTolerance, projectId: ctx.conversation.projectId ?? undefined
   });
   const queryState = traceQueryState({ ...query, ...outcome?.queryState });
-  const formal = rankByPreferences((outcome?.candidates ?? []).map(compactCandidateResult)
+  let formal = rankByPreferences((outcome?.candidates ?? []).map(compactCandidateResult)
     .filter(candidate => validateCandidateAgainstQueryState(candidate, queryState).passed), queryState);
+  let matchedCount = outcome?.matchedCandidates?.length ?? formal.length;
+  if (!queryState.unresolved?.length && !formal.length) {
+    formal = rankByPreferences(await querySelectedKnowledgeCandidates(ctx.app, queryState, ctx.conversation.projectId), queryState);
+    matchedCount = formal.length;
+  }
   const nearbyRaw = (outcome?.nearbyCandidates ?? []).map(compactCandidateResult);
   const nearbyCandidates = nearbyRaw.filter(candidate => !validateCandidateAgainstQueryState(candidate, queryState).passed).slice(0, policy.nearbyLimit);
   const identityMatchedButMetricFailed = (outcome?.identityMatchedButMetricFailed ?? []).map(compactCandidateResult).slice(0, policy.identityLimit);
@@ -30,7 +36,7 @@ export async function querySolutionCandidates(ctx: SolutionContext, query: Therm
   const matchedCandidates = pages.candidates;
   return { policy, queryState, outcome, pages, nearbyPages, identityPages, candidates: matchedCandidates, matchedCandidates,
     nearbyCandidates: nearbyPages.candidates, nearbyRaw, identityMatchedButMetricFailed: identityPages.candidates,
-    matchedCount: outcome?.matchedCandidates?.length ?? formal.length,
+    matchedCount,
     matchedSystemHint: query.systemHint ? formal.length > 0 : null, isFallback: false,
     notes: [...(outcome?.notes ?? [])] };
 }

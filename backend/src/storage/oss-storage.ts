@@ -15,6 +15,7 @@ export class OssStorage implements ObjectStorage {
       accessKeySecret: env.STORAGE_SECRET_KEY,
       bucket: env.STORAGE_BUCKET,
       endpoint: env.OSS_ENDPOINT,
+      secure: true,
       internal: env.OSS_INTERNAL
     });
   }

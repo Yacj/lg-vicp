@@ -164,3 +164,41 @@ nodeTest('离开页面或账号变化后的签发/下载结果不再打开文件
   assert.equal(image.windows(), 0)
   assert.equal(image.page('https://files.test/original.pdf#old', 2), 'https://files.test/original.pdf#page=2')
 })
+
+nodeTest('下载 403 时已切换账号不再向新账号续签；保存完成前离开不再打开', async () => {
+  const changed = setup('mp-weixin')
+  let current = true
+  let signs = 0
+  changed.uni.downloadFile = (options) => {
+    current = false
+    options.success({ statusCode: 403 })
+  }
+  await assert.rejects(changed.open({ isCurrent: () => current, getUrl: async () => {
+    signs++
+    return { url: 'fixture', expiresIn: 60 }
+  } }), /取消/)
+  assert.equal(signs, 1)
+  assert.equal(changed.opened.length, 0)
+  const saving = setup('app')
+  current = true
+  saving.uni.saveFile = (options) => {
+    current = false
+    options.success({ savedFilePath: '/saved/report.pdf' })
+  }
+  await assert.rejects(saving.open({ url: 'fixture', mode: 'download', isCurrent: () => current }), /取消/)
+  assert.equal(saving.opened.length, 0)
+})
+
+nodeTest('签发途中失效关闭 H5 窗口；不支持文件能力的平台展示明确错误', async () => {
+  const web = setup('h5')
+  let current = true
+  await assert.rejects(web.open({ mimeType: 'application/pdf', isCurrent: () => current, getUrl: async () => {
+    current = false
+    return { url: 'fixture', expiresIn: 60 }
+  } }), /取消/)
+  assert.equal(web.tab.closed, true)
+  assert.equal(web.tab.location.href, '')
+  const unsupported = setup('other')
+  Object.assign(unsupported.uni, { openDocument: undefined })
+  await assert.rejects(unsupported.open({ url: 'fixture' }), /不支持文件下载与打开/)
+})

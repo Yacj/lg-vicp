@@ -1,4 +1,4 @@
-import type { CreateReportResult, ReportDetail } from '@/api/types'
+import type { CreateReportBody, CreateReportResult, ReportDetail, ReportItem, ReportTaskResult } from '@/api/types'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { test as nodeTest } from 'node:test'
@@ -6,36 +6,43 @@ import { runInNewContext } from 'node:vm'
 import { createPinia, defineStore } from 'pinia'
 import ts from 'typescript'
 import { reportResult } from '../test/fixtures/report'
-import { solutionFixture } from '../test/fixtures/solution'
+import { snapshotFixture, solutionFixture } from '../test/fixtures/solution'
 import * as agentUi from '../utils/aiAgentUi'
+import * as answerUx from '../utils/aiAnswerUx'
 import * as reportTask from '../utils/aiReportTask'
 import * as selection from '../utils/aiUserSelection'
 import * as solution from './solution'
 
 /** 执行真实 assistant store，仅替换平台/网络/计时器，不加载配置或访问 Backend。 */
-function setup(options: { detail?: () => Promise<ReportDetail>, result?: CreateReportResult, create?: () => Promise<CreateReportResult> } = {}) {
+function setup(options: { detail?: () => Promise<ReportDetail>, result?: CreateReportResult, create?: () => Promise<CreateReportResult>, retry?: () => Promise<ReportTaskResult>, history?: () => Promise<ReportItem[]> } = {}) {
   const auth = { user: { id: 'user-1' }, accessToken: 'fixture-token' }
   const timers = new Map<number, () => void>()
   const exports: Record<string, any> = {}
   let nextTimer = 0
   let streams = 0
   let creates = 0
+  const bodies: CreateReportBody[] = []
   const modules: Record<string, unknown> = {
     'pinia': { defineStore },
     './solution': solution,
     '@/store/auth': { useAuthStore: () => auth },
-    '@/api/modules/ai': { aiApi: {} },
+    '@/api/modules/ai': { aiApi: {
+      solutionAction: () => ({ send: async () => ({ data: { solutionState: solutionFixture({ stage: 'CONFIRMED', confirmedSnapshotId: 'snapshot-1' }), snapshot: snapshotFixture() } }) }),
+      getConversation: () => ({ send: async () => ({ data: { reports: await options.history?.() ?? [] } }) }),
+    } },
     '@/api/modules/reports': { reportApi: {
-      create: () => ({ send: async () => {
+      create: (body: CreateReportBody) => ({ send: async () => {
         creates++
+        bodies.push(body)
         return { data: await (options.create?.() ?? Promise.resolve(options.result ?? reportResult())) }
       } }),
       getDetail: () => ({ send: async () => ({ data: await options.detail?.() }) }),
-      retry: () => ({ send: async () => ({ data: { reportId: 'report-1', taskId: 'retry-task', status: 'GENERATING' } }) }),
+      retry: () => ({ send: async () => ({ data: await (options.retry?.() ?? Promise.resolve({ reportId: 'report-1', taskId: 'retry-task', status: 'GENERATING' })) }) }),
     } },
     '@/utils/aiReportTask': reportTask,
     '@/utils/aiUserSelection': selection,
     '@/utils/aiAgentUi': agentUi,
+    '@/utils/aiAnswerUx': answerUx,
     '@/utils/aiSource': { normalizeAiSources: (value: unknown) => value },
     '@/utils/aiStream': { parseStreamEvent: (event: string, data: unknown) => ({ event, data }) },
     '@/services/platform': { createAiStreamRequest: () => { streams++ } },
@@ -60,6 +67,7 @@ function setup(options: { detail?: () => Promise<ReportDetail>, result?: CreateR
     store,
     auth,
     timers,
+    bodies,
     creates: () => creates,
     streams: () => streams,
     tick: () => {
@@ -156,4 +164,130 @@ nodeTest('退出后同账号重登同会话，旧创建成功不能覆盖新任�
   assert.equal(await current, true)
   assert.equal(context.store.sessionReport.id, 'report-2')
   context.store.stopReportPolling()
+})
+
+nodeTest('正式 PDF 排队/生成/完成期间，普通聊天 delta 仍写入当前回答', async () => {
+  for (const status of ['QUEUED', 'GENERATING', 'READY']) {
+    const context = setup({ result: reportResult({ status }) })
+    await context.store.createConfirmedReport()
+    context.store.messages = [{ id: 'ordinary', role: 'ASSISTANT', content: '原有回答', status: 'STREAMING' }]
+    context.store.streamingMessageId = 'ordinary'
+    context.store.handleStreamEvent({ event: 'delta', data: { text: '继续说明' } }, context.store.streamRevision, 'conversation-1')
+    assert.equal(context.store.messages[0].content, '原有回答继续说明', status)
+    context.store.stopReportPolling()
+  }
+})
+
+nodeTest('SSE report_queued 与 REST 复用同一任务，只抑制该报告对应消息的 delta', async () => {
+  const context = setup()
+  await context.store.createConfirmedReport()
+  context.store.messages = [{ id: 'report-message', role: 'ASSISTANT', content: '', status: 'STREAMING' }]
+  context.store.streamingMessageId = 'report-message'
+  context.store.handleStreamEvent({ event: 'report_queued', data: { reportId: 'report-1', status: 'QUEUED' } }, context.store.streamRevision, 'conversation-1')
+  assert.equal(context.store.sessionReport.id, 'report-1')
+  assert.equal(context.store.sessionReport.messageId, 'report-message')
+  assert.equal(context.timers.size, 1)
+  context.store.handleStreamEvent({ event: 'delta', data: { text: '报告生成中' } }, context.store.streamRevision, 'conversation-1')
+  assert.equal(context.store.messages[0].content, '')
+  context.store.stopReportPolling()
+})
+
+nodeTest('报告轮询遇到 401/403/404 显示后端原文并停止，不伪造 FAILED/READY', async () => {
+  for (const code of [401, 403, 404]) {
+    const context = setup({ detail: async () => {
+      throw Object.assign(new Error('请求失败'), { code, data: { error: { code, message: '报告不存在或无权查看' } } })
+    } })
+    await context.store.createConfirmedReport()
+    context.tick()
+    await flush()
+    assert.equal(context.timers.size, 0, String(code))
+    assert.equal(context.store.sessionReport.status, 'QUEUED')
+    assert.equal(context.store.sessionReport.errorMessage, '报告不存在或无权查看')
+  }
+})
+
+nodeTest('轮询错误归属不绑定；DRAFT 不继续轮询；临时网络失败仍可恢复', async () => {
+  for (const scenario of ['wrong-id', 'draft', 'network']) {
+    const context = setup({ detail: async () => {
+      if (scenario === 'network')
+        throw new Error('网络暂时不可用')
+      return { report: { ...reportResult().report, id: scenario === 'wrong-id' ? 'other' : 'report-1', status: scenario === 'draft' ? 'DRAFT' : 'READY' }, sources: [], availableFormats: ['PDF'] }
+    } })
+    await context.store.createConfirmedReport()
+    context.tick()
+    await flush()
+    assert.equal(context.store.sessionReport.reportStatus, scenario === 'draft' ? 'DRAFT' : 'QUEUED')
+    assert.equal(context.timers.size, scenario === 'network' ? 1 : 0, scenario)
+    context.store.stopReportPolling()
+  }
+})
+
+nodeTest('重试错误 reportId 不改当前任务，权限失败在任务卡显示后端消息', async () => {
+  for (const wrongId of [true, false]) {
+    const context = setup({ result: reportResult({ status: 'FAILED' }), retry: async () => {
+      if (!wrongId)
+        throw Object.assign(new Error('请求失败'), { data: { error: { code: 403, message: '当前用户无权重新生成' } } })
+      return { message: '', reportId: 'other', taskId: 'other-task', status: 'READY' }
+    } })
+    await context.store.createConfirmedReport()
+    assert.equal(await context.store.retrySessionReport(), false)
+    assert.equal(context.store.sessionReport.reportStatus, 'FAILED')
+    assert.equal(context.store.sessionReport.taskId, 'task-1')
+    assert.match(context.store.sessionReport.errorMessage, wrongId ? /不一致/ : /当前用户无权重新生成/)
+    assert.equal(context.timers.size, 0)
+  }
+})
+
+nodeTest('Fixture Final→Confirm→显式创建→生成→PDF 详情→历史恢复，工程参数不改写', async () => {
+  let status = 'QUEUED'
+  const context = setup({ detail: async () => ({ report: { ...reportResult().report, status }, solutionSnapshotId: 'snapshot-1', sources: [], task: { id: 'task-1', status: status === 'READY' ? 'COMPLETED' : 'ACTIVE', progress: status === 'READY' ? 100 : 40, errorMessage: null }, availableFormats: status === 'READY' ? ['PDF'] : [] }) })
+  context.store.restoreSolutionState(solutionFixture({ stage: 'READY_TO_CONFIRM', selectedCandidateIds: ['A'], finalCandidateIds: ['A'] }))
+  assert.equal(await context.store.createConfirmedReport(), false)
+  assert.equal(await context.store.performSolutionAction('CONFIRM', ['A']), true)
+  assert.equal(context.creates(), 0)
+  const frozen = JSON.stringify(context.store.solutionSnapshot)
+  assert.equal(await context.store.createConfirmedReport(), true)
+  assert.deepEqual(context.bodies, [{ reportType: 'technical_scheme', conversationId: 'conversation-1', solutionSnapshotId: 'snapshot-1' }])
+  status = 'GENERATING'
+  context.tick()
+  await flush()
+  assert.equal(context.store.sessionReport.task.progress, 40)
+  assert.equal(reportTask.reportTaskPresentation(context.store.sessionReport).canPreviewPdf, false)
+  status = 'READY'
+  context.tick()
+  await flush()
+  assert.equal(reportTask.reportTaskPresentation(context.store.sessionReport).canPreviewPdf, true)
+  assert.equal(JSON.stringify(context.store.solutionSnapshot), frozen)
+  assert.equal(context.store.solutionState.stage, 'CONFIRMED')
+  assert.equal(context.timers.size, 0)
+  const restored = setup({ history: async () => [{ ...reportResult().report, status: 'GENERATING', artifacts: [], sources: [] }] })
+  await restored.store.refreshSessionReport()
+  assert.equal(restored.store.sessionReport.id, 'report-1')
+  assert.equal(restored.creates(), 0)
+  assert.equal(restored.timers.size, 1)
+  restored.store.stopReportPolling()
+})
+
+nodeTest('历史恢复的迟到响应不覆盖新报告，账号/会话变化和同账号重登均失效', async () => {
+  for (const change of ['new-report', 'account', 'conversation', 'relogin']) {
+    let resolve!: (reports: ReportItem[]) => void
+    const context = setup({ history: () => new Promise((done) => {
+      resolve = done
+    }) })
+    const pending = context.store.refreshSessionReport()
+    if (change === 'new-report')
+      await context.store.createConfirmedReport()
+    if (change === 'account')
+      context.auth.user.id = 'other'
+    if (change === 'conversation')
+      context.store.conversation.id = 'other'
+    if (change === 'relogin') {
+      context.store.resetForAccountChange()
+      context.store.conversation = { id: 'conversation-1', userId: 'user-1', projectId: null }
+    }
+    resolve([{ ...reportResult().report, id: 'old-history', status: 'GENERATING', artifacts: [], sources: [] }])
+    await pending
+    assert.equal(context.store.sessionReport?.id ?? null, change === 'new-report' ? 'report-1' : null, change)
+    context.store.stopReportPolling()
+  }
 })

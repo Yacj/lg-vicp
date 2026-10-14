@@ -51,6 +51,7 @@ export async function openOriginalFile(options: {
 
   try {
     for (let attempt = 0; attempt < 2; attempt++) {
+      assertCurrent()
       const requestedAt = Date.now()
       const signed = options.getUrl ? await options.getUrl() : { url: options.url ?? '', expiresIn: Number.POSITIVE_INFINITY }
       assertCurrent()

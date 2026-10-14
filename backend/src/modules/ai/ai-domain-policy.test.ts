@@ -33,3 +33,19 @@ it("模型不得输出正式ID/Confirm/任意patch字段", () => {
   for (const invalid of [{ ...proposal, candidateId: "fake" }, { ...proposal, intent: "CONFIRM" }, { ...proposal, constraintPatch: [{ field: "selectedIds", op: "SET", value: "fake", evidence: "方案" }] }])
     expect(domainTurnSemanticSchema.safeParse(invalid).success).toBe(false);
 });
+it("真实UAT编号不能填POSITION，序号和厚度不能填字符串，复用Grounding的强类型引用", () => {
+  const proposal = domainSemanticFixture("把 A3-2 的原页给我看一下", "REFERENCE_VIEW");
+  for (const item of [{ type: "POSITION", value: "A3-2", evidence: "A3-2" },
+    { type: "POSITION", value: "2", evidence: "2" }, { type: "THICKNESS", value: "45", evidence: "45" }])
+    expect(domainTurnSemanticSchema.safeParse({ ...proposal, reference: { ...proposal.reference, items: [item] } }).success).toBe(false);
+  expect(domainTurnSemanticSchema.safeParse({ ...proposal, reference: { ...proposal.reference,
+    items: [{ type: "CONSTRUCTION_CODE", value: "A3-2", evidence: "A3-2" }] } }).success).toBe(true);
+});
+it("真实UAT复杂操作置信度0.86保持门禁，说明未确认的操作而不是伪称缺体系或基层", () => {
+  const message = "把上面 A3-2 和 A3-4 的45mm方案加入方案对比";
+  const before = structuredClone(state);
+  const decision = applyDomainPolicy(message, domainSemanticFixture(message, "SOLUTION_ACTION", { confidence: .86 }), state);
+  expect(decision).toMatchObject({ intent: "CLARIFY", mutation: "NONE", policyReason: "EFFECT_NOT_AUTHORIZED" });
+  expect(decision.unresolved?.[0]).toContain("方案操作尚未可靠确认");
+  expect(state).toEqual(before);
+});

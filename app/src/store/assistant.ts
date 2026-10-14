@@ -55,6 +55,9 @@ import {
   isTerminalReportStatus,
   mapReportTaskStatus,
   REPORT_COMPLETED_MESSAGE,
+  reportAccessDenied,
+  reportErrorMessage,
+  reportTaskPresentation,
   reportTaskTitle,
   shouldPollReportStatus,
 } from '@/utils/aiReportTask'
@@ -1320,7 +1323,8 @@ export const useAssistantStore = defineStore('assistant', {
           break
         }
         case 'delta': {
-          if (this.sessionReport && (this.sessionReport.status === 'READY' || isInProgressReportStatus(this.sessionReport.status))) {
+          if (this.sessionReport?.messageId === this.streamingMessageId
+            && (this.sessionReport?.status === 'READY' || isInProgressReportStatus(this.sessionReport?.status))) {
             break
           }
           const message = this.messages.find(item => item.id === this.streamingMessageId)
@@ -1471,7 +1475,7 @@ export const useAssistantStore = defineStore('assistant', {
       if (!report || !latest) {
         return
       }
-      if (isInProgressReportStatus(report.status)) {
+      if (reportTaskPresentation(report).shouldPoll) {
         this.sessionReport = report
         this.startReportPolling(report.id)
         return
@@ -1501,7 +1505,7 @@ export const useAssistantStore = defineStore('assistant', {
 
     resumeReportPolling() {
       const id = this.sessionReport?.id
-      if (!id || !this.reportPageVisible || !shouldPollReportStatus(this.sessionReport?.status)) {
+      if (!id || !this.reportPageVisible || !this.sessionReport || !reportTaskPresentation(this.sessionReport).shouldPoll) {
         return
       }
       this.startReportPolling(id)
@@ -1528,6 +1532,10 @@ export const useAssistantStore = defineStore('assistant', {
           if (!isCurrent()) {
             return
           }
+          if (response.data.report.id !== reportId) {
+            this.sessionReport!.errorMessage = '报告详情与当前报告不一致，请刷新后重试'
+            return
+          }
           const mapped = mapReportTaskStatus(response.data.report.status)
           this.applyReportTask({
             id: reportId,
@@ -1546,12 +1554,19 @@ export const useAssistantStore = defineStore('assistant', {
             this.markReportReadyMessage()
             return
           }
-          if (isTerminalReportStatus(mapped)) {
+          if (isTerminalReportStatus(mapped) || !reportTaskPresentation(this.sessionReport!).shouldPoll) {
             return
           }
         }
-        catch {
-          // 轮询失败稍后重试，不把内部错误展示成失败
+        catch (error) {
+          if (!isCurrent())
+            return
+          if (reportAccessDenied(error)) {
+            this.sessionReport!.errorMessage = reportErrorMessage(error)
+            this.sessionReport!.availableFormats = []
+            return
+          }
+          // 临时网络失败稍后重试，不改写服务端报告状态。
         }
         if (!isCurrent())
           return
@@ -1580,6 +1595,8 @@ export const useAssistantStore = defineStore('assistant', {
         const response = await reportApi.retry(report.id).send() as ApiEnvelope<ReportTaskResult>
         if (!isCurrent())
           return false
+        if (response.data.reportId !== report.id)
+          throw new Error('重试任务与当前报告不一致，请刷新后重试')
         const reportStatus = response.data.status ?? 'QUEUED'
         const status = mapReportTaskStatus(reportStatus)
         this.applyReportTask({
@@ -1598,8 +1615,10 @@ export const useAssistantStore = defineStore('assistant', {
         return true
       }
       catch (error) {
-        if (isCurrent())
-          this.loadError = error instanceof Error ? error.message : '重新生成失败'
+        if (isCurrent()) {
+          this.loadError = reportErrorMessage(error, '重新生成失败')
+          this.sessionReport!.errorMessage = this.loadError
+        }
         return false
       }
       finally {
@@ -1613,9 +1632,13 @@ export const useAssistantStore = defineStore('assistant', {
       if (!conversationId) {
         return
       }
+      const loadRevision = this.loadRevision
+      const userId = useAuthStore().user?.id
+      const report = this.sessionReport
       try {
         const response = await aiApi.getConversation(conversationId).send() as ApiEnvelope<ConversationDetail>
-        if (this.conversation?.id !== conversationId) {
+        if (this.conversation?.id !== conversationId || this.loadRevision !== loadRevision
+          || useAuthStore().user?.id !== userId || this.sessionReport !== report) {
           return
         }
         this.restoreSessionReport(response.data.reports)

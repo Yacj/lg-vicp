@@ -3,6 +3,15 @@
   "note": "仅已审计白名单，不允许OPEN_INTENT。新增灰区须owner审查六项证据，代理更新manifest不代表批准。",
   "rules": [
     {
+      "file": "src/modules/ai/solution-action-semantic.ts",
+      "fingerprint": "fef3d978a7bf38a410b6184e56dcbcdd04ae3142ed195e9d7e6fa7206218861c",
+      "ruleId": "SM-CODE-01",
+      "category": "FORMAT",
+      "reason": "仅归一当前候选构造编码的外墙展示前缀，与确认页Matcher口径一致；不判定动作、不构造ID，同编号多档仍拒绝歧义。",
+      "code": "code.slice(0, 2) === \"外墙\"",
+      "tests": ["src/modules/ai/solution-action-semantic.test.ts", "scripts/check-semantic-matching.test.ts"]
+    },
+    {
       "file": "src/modules/ai/ai-capability-router.ts",
       "fingerprint": "52f466b1678d2700085001e71900a78a226044ad33bb787d6b41276460a9af5d",
       "ruleId": "SM-ENUM-01",

@@ -361,6 +361,17 @@ describe("SolutionState 服务事务/权限/并发", () => {
     const next = await actOnSolution(ctx, state.id, { action: "ADD", expectedVersion: confirmed.solutionState.version, candidateIds: [a.candidateId] });
     expect(next.solutionState.id).not.toBe(state.id); expect(db.rows(solutionSnapshots)[0].payload.candidates[0].kValue).toBe(.3);
   });
+  it("真实PostgreSQL JSONB键序不影响来源图授权，确认事实变化仍停止重签", async () => {
+    const state = await final();
+    const result = await actOnSolution(ctx, state.id, { action: "CONFIRM", expectedVersion: state.version });
+    const stored = db.rows(solutionSnapshots)[0];
+    const reorder = (value: any): any => Array.isArray(value) ? value.map(reorder)
+      : value && typeof value === "object" ? Object.fromEntries(Object.entries(value).reverse().map(([key, item]) => [key, reorder(item)])) : value;
+    stored.payload.referencePages[0].renderModel = reorder(stored.payload.referencePages[0].renderModel);
+    expect((await getSolutionSnapshot(ctx, result.snapshot!.id)).referenceImages[0]?.imageUrl).toBe("signed");
+    stored.payload.referencePages[0].renderModel.constructions[0].options[0].kValue = 99;
+    expect((await getSolutionSnapshot(ctx, result.snapshot!.id)).referenceImages[0]?.imageUrl).toBeNull();
+  });
   it("审计写入失败，snapshot 与 state 全部回滚", async () => {
     const state = await final(); mocks.audit.mockRejectedValueOnce(new Error("审计写入失败"));
     await expect(actOnSolution(ctx, state.id, { action: "CONFIRM", expectedVersion: state.version })).rejects.toThrow("审计写入失败");

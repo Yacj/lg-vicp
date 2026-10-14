@@ -1,7 +1,7 @@
 import type { SolutionAction, SolutionActionBody, SolutionComparisonResult, SolutionSnapshotDto, SolutionStateDto, SolutionUpdate } from '@/api/solution-types'
 import type { ApiEnvelope, CreateReportBody, CreateReportResult } from '@/api/types'
 import type { SessionReport } from '@/utils/aiAgentUi'
-import { confirmedReportBody, createdReportTask, shouldPollReportStatus } from '@/utils/aiReportTask'
+import { confirmedReportBody, createdReportTask, reportErrorMessage, shouldPollReportStatus } from '@/utils/aiReportTask'
 import { solutionActionBody, solutionClientState, solutionErrorCode, solutionErrorMessages } from '@/utils/aiSolution'
 
 export function solutionInitialState() {
@@ -192,7 +192,8 @@ export function createSolutionActions(api: SolutionApi, reports?: SolutionReport
           return false
         const result = response.data
         if (!result.report.id || !result.taskId || result.report.conversationId !== body.conversationId
-          || result.solutionSnapshotId !== body.solutionSnapshotId) {
+          || result.solutionSnapshotId !== body.solutionSnapshotId || result.report.reportType !== body.reportType
+          || result.report.createdById !== userId) {
           throw new Error('报告响应与当前确认方案不一致，请刷新后重试')
         }
         this.stopReportPolling?.()
@@ -204,7 +205,7 @@ export function createSolutionActions(api: SolutionApi, reports?: SolutionReport
       }
       catch (error) {
         if (isCurrent())
-          this.solutionReportError = error instanceof Error ? error.message : '报告创建失败，请重试'
+          this.solutionReportError = reportErrorMessage(error, '报告创建失败，请重试')
         return false
       }
       finally {

@@ -26,7 +26,8 @@ export async function resolveCandidateReference(ctx: ReferenceReadContext) {
       .filter(item => active.payload.selectedCandidateIds.includes(item.candidate.candidateId)).map(item => item.candidate),
       projectId: active.projectId, createdAt: new Date().toISOString() };
   }
-  if (!lookup || !lookup.candidateQueryRevision && decision.referenceScope !== "CURRENT_SELECTED" || lookup?.candidateResultInvalid || lookup.projectId !== conversation.projectId
+  if (!lookup || !lookup.candidates.length) return reject("当前没有可定位的候选，请先查询已有档位或选择方案。");
+  if (!lookup.candidateQueryRevision && decision.referenceScope !== "CURRENT_SELECTED" || lookup.candidateResultInvalid || lookup.projectId !== conversation.projectId
     || !Number.isFinite(Date.parse(lookup.createdAt)) || Date.now() - Date.parse(lookup.createdAt) > 24 * 3600_000
     || Date.parse(lookup.createdAt) > Date.now() + 60_000) return reject("当前候选已过期或所属项目不一致，请重新查询。");
   const adviceAll = decision.intent === "SOLUTION_ADVICE" && !decision.semantic?.reference.items.length;

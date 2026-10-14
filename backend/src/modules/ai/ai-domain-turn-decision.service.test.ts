@@ -4,11 +4,24 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ runtime: vi.fn(), generate: vi.fn() }));
 vi.mock("ai", () => ({ generateObject: mocks.generate }));
 vi.mock("./ai-runtime.service.js", () => ({ resolveSceneRuntime: mocks.runtime }));
-import { resolveDomainTurn } from "./ai-domain-turn-decision.service.js";
+import { resolveDomainTurn, DOMAIN_SEMANTIC_PROMPT } from "./ai-domain-turn-decision.service.js";
 function ctx(message: string) { return { app: { db: {}, log: { warn: vi.fn() } }, conversation: { scene: "general_chat" },
   userMessage: message, taskState: { taskType: "GENERAL", lastReferenceLookup: { query: {}, candidates: [{ id: "one" }] } } } as any; }
 beforeEach(() => { vi.resetAllMocks(); mocks.runtime.mockResolvedValue({ primary: { languageModel: {} } }); });
 describe("开放目标受控分类与故障隔离", () => {
+  it("真实UAT问句的QUERY授权与产品READ_ONLY合同明确，仍拒绝缺少请求证据的模型输出", async () => {
+    const message = "Ⅲ型VICP薄抹灰外保温系统，45mm厚度，不同基层的传热系数有什么区别？";
+    const proposal = domainSemanticFixture(message, "REFERENCE_QUERY", { relation: "NEW", reference: { scope: "NONE", revision: null, items: [] } });
+    mocks.generate.mockResolvedValue({ object: { ...proposal, confidence: .9, effectRequest: null } });
+    expect(await resolveDomainTurn(ctx(message))).toMatchObject({ intent: "CLARIFY", policyReason: "EFFECT_NOT_AUTHORIZED" });
+    mocks.generate.mockResolvedValue({ object: proposal });
+    expect(await resolveDomainTurn(ctx(message))).toMatchObject({ intent: "REFERENCE_QUERY", mutation: "QUERY" });
+    const product = "你们产品有哪些型号？";
+    mocks.generate.mockResolvedValue({ object: domainSemanticFixture(product, "PRODUCT_DISCOVERY", { relation: "NEW", reference: { scope: "NONE", revision: null, items: [] } }) });
+    expect(await resolveDomainTurn(ctx(product))).toMatchObject({ intent: "PRODUCT_DISCOVERY", mutation: "NONE" });
+    expect(DOMAIN_SEMANTIC_PROMPT).toContain("QUERY也必须提供effectRequest");
+    expect(DOMAIN_SEMANTIC_PROMPT).toContain("PRODUCT_DISCOVERY/PRODUCT_DETAIL");
+  });
   it.each(["你好"])("%s不依赖分类模型", async message => {
     mocks.runtime.mockRejectedValue(new Error("故障"));
     expect((await resolveDomainTurn(ctx(message))).mutation).toBe("NONE");

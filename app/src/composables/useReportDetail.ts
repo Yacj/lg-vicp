@@ -44,7 +44,7 @@ export function useReportDetail(context: () => { id: string, userId: string | nu
       timer = scheduler.set(() => { void refresh() })
   }
 
-  async function refresh() {
+  async function fetchDetail() {
     if (!active || refreshing.value)
       return
     clearTimer()
@@ -83,6 +83,11 @@ export function useReportDetail(context: () => { id: string, userId: string | nu
         schedule(sequence, id, userId)
       }
     }
+  }
+
+  async function refresh() {
+    if (!retrying.value)
+      await fetchDetail()
   }
 
   function stop() {
@@ -126,7 +131,7 @@ export function useReportDetail(context: () => { id: string, userId: string | nu
       if (result.reportId !== id)
         throw new Error('重试任务与当前报告不一致')
       detail.value = { ...detail.value, report: { ...detail.value.report, status: result.status ?? 'QUEUED', errorMessage: null }, task: null }
-      await refresh()
+      await fetchDetail()
       return true
     }
     catch (error) {

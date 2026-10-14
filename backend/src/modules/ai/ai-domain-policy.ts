@@ -16,7 +16,15 @@ export function targetedDomainFallback(state?: ConversationTaskState | null, sou
 const effectForIntent: Partial<Record<DomainTurnSemantic["intent"], DomainTurnSemantic["requestedEffect"]>> = { SOLUTION_ACTION: "STATE_MUTATION", REPORT_REQUEST: "REPORT_GENERATION", THERMAL_CALCULATE: "CALCULATE", REFERENCE_QUERY: "QUERY", REFERENCE_REFINE: "QUERY" };
 /** 模型仅提案；正式写入仍经原状态机。 */
 export function applyDomainPolicy(message: string, semantic: DomainTurnSemantic, state?: ConversationTaskState | null): DomainTurnDecision {
-  const reject = (reason: string) => targetedDomainFallback(state, "LLM", reason);
+  const reject = (reason: string) => {
+    const result = targetedDomainFallback(state, "LLM", reason);
+    if (reason === "EFFECT_NOT_AUTHORIZED") {
+      const operation = { QUERY: "查询条件更新", STATE_MUTATION: "方案操作", REPORT_GENERATION: "正式报告生成", CALCULATE: "正式计算", READ_ONLY: "只读查看" }[semantic.requestedEffect];
+      result.unresolved = [`本轮${operation}尚未可靠确认，请明确要执行的一项操作；也可以通过对应按钮继续。`];
+    }
+    if (reason === "REFERENCE_EVIDENCE_INVALID") result.unresolved = ["候选引用未能对应当前序号、构造编号或厚度，请明确当前候选后重试。"];
+    return result;
+  };
   if (!hasVerbatimEvidence(message, semantic.evidence) || semantic.constraintPatch.some(patch => !hasVerbatimEvidence(message, patch.evidence))) return reject("EVIDENCE_INVALID");
   if (semantic.reference.revision != null && semantic.reference.revision !== state?.lastReferenceLookup?.candidateQueryRevision) return reject("REVISION_CHANGED");
   if (semantic.reference.items.some(item => { const parsed = candidateReferenceSchema.safeParse(item);

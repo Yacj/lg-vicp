@@ -16,6 +16,7 @@ export const SOLUTION_ACTION_SEMANTIC_PROMPT = [
   "SELECT替换已选集合；留下/选定明确集合用SELECT。ADD追加；REMOVE撤掉；SET_FINAL指定最终候选；COMPARE_SELECTED只比较已选；KEEP_CONFLICT保留冲突用于比较；REMOVE_CONFLICT移除冲突。",
   "查新方案、修改热工硬条件、软偏好、参数/原页问题及普通聊天用NONE，交还既有查询Parser。只分类动作，不计算、选择事实或改变查询条件。",
   "references只给POSITION序号、POOL_PREFIX前N个、CONSTRUCTION_CODE原话编码、THICKNESS毫米厚度、CURRENT_SELECTION当前已选、CURRENT_POOL这些/这几个当前全部候选。每项evidence为用户原话连续片段。明确拿这些做方案用SELECT+CURRENT_POOL；普通询问有没有方案仍是NONE。",
+  "references每项代表一个要操作的对象，不能把一个对象的编号和重复描述的公共厚度列成两个独立对象。编号已唯一指向当前池且公共厚度一致时只引用编号；同编号有多档厚度则要求明确当前序号，不能忽略厚度消歧。",
   "除了某个其他都保留用selectionMode=EXCLUDE；普通选择用INCLUDE。referenceScope仅CURRENT_POOL或CURRENT_SELECTION；刚才已选的厚度用CURRENT_SELECTION。",
   "temporalScope=PREVIOUS只表示旧列表序号；刚才选的某厚度仍引用当前已选事实，temporalScope=CURRENT。无法唯一解释时CLARIFY/unresolved，不猜。",
   "主evidence必须来自本轮原话。confidence给分类可信度。不可确认Snapshot，禁止输出CONFIRM_FINAL/CONFIRM。行/可以/就这样/没问题用NONE。"

@@ -47,7 +47,10 @@ function evidenceHasNumber(text: string, value: number) {
   const tokens = text.normalize("NFKC").match(/\d+(?:\.\d+)?|[一二两三四五六七八九十]+/g) ?? [];
   return tokens.some(token => (chineseNumber[token] ?? Number(token)) === value);
 }
-const normalizeCode = (text: string) => text.normalize("NFKC").replace(/\s/g, "").toUpperCase();
+const normalizeCode = (text: string) => {
+  const code = text.normalize("NFKC").replace(/\s/g, "").toUpperCase();
+  return code.slice(0, 2) === "外墙" ? code.slice(2) : code;
+};
 /** 共用只读/动作引用证据门禁；只核验格式和值，不判定业务意图。 */
 export function referenceEvidenceMatches(ref: CandidateReference): boolean {
   if (ref.type === "POSITION" || ref.type === "POOL_PREFIX" || ref.type === "THICKNESS") return evidenceHasNumber(ref.evidence, ref.value);

@@ -161,3 +161,42 @@ nodeTest('重试被拒保留真实 FAILED；重试中的卸载/账号变化不�
   assert.equal(stopped.resource.detail.value!.report.status, 'FAILED')
   assert.equal(stopped.timers.size, 0)
 })
+
+nodeTest('重试请求未结束时手动刷新不能用旧 FAILED 覆盖重试后的状态', async () => {
+  let finishRetry!: (value: ReportTaskResult) => void
+  let status = 'FAILED'
+  const context = setup(async () => detail(status), () => new Promise((resolve) => {
+    finishRetry = resolve
+  }))
+  await context.resource.start()
+  const retry = context.resource.retry()
+  await context.resource.refresh()
+  assert.equal(context.calls(), 1)
+  status = 'GENERATING'
+  finishRetry({ message: '', reportId: 'report-1', taskId: 'retry', status })
+  assert.equal(await retry, true)
+  assert.equal(context.calls(), 2)
+  assert.equal(context.resource.detail.value!.report.status, 'GENERATING')
+  context.resource.stop()
+})
+
+nodeTest('旧轮询响应不能释放重新进入页面后新请求的刷新锁', async () => {
+  const resolves: Array<(value: ReportDetail) => void> = []
+  const context = setup(() => new Promise((resolve) => {
+    resolves.push(resolve)
+  }))
+  const old = context.resource.start()
+  context.resource.stop()
+  const current = context.resource.start()
+  resolves[0](detail('READY', ['PDF']))
+  await old
+  assert.equal(context.resource.refreshing.value, true)
+  assert.equal(context.resource.detail.value, null)
+  await context.resource.refresh()
+  assert.equal(context.calls(), 2)
+  resolves[1](detail('GENERATING'))
+  await current
+  assert.equal(context.resource.refreshing.value, false)
+  assert.equal(context.timers.size, 1)
+  context.resource.stop()
+})
