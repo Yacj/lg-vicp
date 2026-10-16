@@ -32,7 +32,7 @@ export async function createUatEnvironment() {
   const adminUrl = process.env.AI_UAT_DATABASE_ADMIN_URL || env.DATABASE_URL;
   const sourceUrl = process.env.AI_UAT_CONFIG_DATABASE_URL || env.DATABASE_URL;
   const admin = postgres(adminUrl, { max: 1, connect_timeout: 5, onnotice: () => {} });
-  const sourceClient = postgres(sourceUrl, { max: 1, connect_timeout: 5, onnotice: () => {} });
+  const sourceClient = postgres(sourceUrl, { max: 1, connect_timeout: 5, onnotice: () => {}, connection: { options: "-c default_transaction_read_only=on" } });
   const source = drizzle(sourceClient, { schema: s });
   const app = fastify({ logger: false });
   const rawRedis = new Redis(env.REDIS_URL, { lazyConnect: true, maxRetriesPerRequest: null, connectTimeout: 3000, retryStrategy: () => null });

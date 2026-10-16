@@ -1,0 +1,87 @@
+{
+  "scope": "真实隔离DB/Redis/OSS/正式HTTP-SSE/真实模型；事实由人工基线装载，程序模拟审核，不冒充真实人工复核",
+  "startedAt": "2026-10-16T06:27:11.185Z",
+  "setup": [
+    {
+      "step": "未确认发布门禁",
+      "response": {
+        "http": 200,
+        "success": false,
+        "error": {
+          "code": 400,
+          "message": "当前版本尚未审核通过，不能发布。",
+          "details": {
+            "errorCode": "KNOWLEDGE_VERSION_NOT_APPROVED"
+          }
+        },
+        "requestId": "req-8"
+      }
+    },
+    {
+      "step": "正式审核发布接口",
+      "passed": true
+    }
+  ],
+  "cases": [],
+  "permissions": [
+    {
+      "name": "DRAFT不能向C端来源开放",
+      "passed": true,
+      "response": {
+        "http": 200,
+        "success": false,
+        "error": {
+          "code": 404,
+          "message": "知识资料不存在或尚未发布"
+        },
+        "requestId": "req-1"
+      }
+    }
+  ],
+  "isolation": {
+    "database": "vicp_ai_uat_a9e1e7db084a47ad90f68ec195e53646",
+    "prefix": "vicp-ai-uat-a9e1e7db084a47ad90f68ec195e53646"
+  },
+  "fixture": {
+    "documentId": "9dcf3a24-d3d9-4295-859f-2d20eb3cf610",
+    "versionId": "a5444265-a6b3-4e83-a442-be604b2d3a4d",
+    "factsOrigin": "MANUAL_SOURCE_BASELINE，非真实Vision确认产物",
+    "corrections": [
+      {
+        "page": 90,
+        "group": 0,
+        "layerIndices": [
+          5,
+          6,
+          7
+        ],
+        "before": [
+          "4",
+          "5",
+          "6"
+        ],
+        "after": [
+          "5",
+          "6",
+          "7"
+        ],
+        "evidence": "原图上半表LC7.5及两行M15的源序号；仅临时副本，原夹具不改"
+      }
+    ]
+  },
+  "objectKeys": [
+    "vicp-ai-uat-a9e1e7db084a47ad90f68ec195e53646/complex-atlas/source-89.png",
+    "vicp-ai-uat-a9e1e7db084a47ad90f68ec195e53646/knowledge/page-images/9dcf3a24-d3d9-4295-859f-2d20eb3cf610/a5444265-a6b3-4e83-a442-be604b2d3a4d/p1-ee7f5c84-4c33-485e-850b-3865a63e9a65.png",
+    "vicp-ai-uat-a9e1e7db084a47ad90f68ec195e53646/complex-atlas/source-90.png",
+    "vicp-ai-uat-a9e1e7db084a47ad90f68ec195e53646/knowledge/page-images/9dcf3a24-d3d9-4295-859f-2d20eb3cf610/a5444265-a6b3-4e83-a442-be604b2d3a4d/p2-b99ff675-316c-4088-b974-51f874fc9713.png",
+    "vicp-ai-uat-a9e1e7db084a47ad90f68ec195e53646/complex-atlas/source-75.png",
+    "vicp-ai-uat-a9e1e7db084a47ad90f68ec195e53646/knowledge/page-images/9dcf3a24-d3d9-4295-859f-2d20eb3cf610/a5444265-a6b3-4e83-a442-be604b2d3a4d/p3-bcda14bf-54cd-4e4a-a05c-f90c8e11185b.png"
+  ],
+  "setupOnly": "PASS",
+  "objectNamespace": {
+    "status": "PASS",
+    "generatedKeys": 6
+  },
+  "cleanup": "PASS",
+  "finishedAt": "2026-10-16T06:27:58.927Z"
+}

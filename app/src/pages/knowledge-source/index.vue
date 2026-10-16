@@ -48,9 +48,18 @@ const pageTitle = computed(() => referencePageImageTitle(
 const originalFileId = computed(() => detail.value?.original.fileId || fallbackOriginalFileId.value || '')
 const physicalPageNumber = computed(() => detail.value?.location.physicalPageNumber ?? detail.value?.page?.physicalPageNumber ?? fallbackPhysicalPage.value)
 const canOpenFile = computed(() => Boolean(detail.value?.original.previewUrl || originalFileId.value))
+watch(() => context.value?.renderModel?.confirmedRevision, (revision, previous) => {
+  if (previous && revision !== previous) {
+    resource.cancel()
+    image.cancel()
+    image.failed()
+    errorMessage.value = '来源确认版本已变化，请返回对话重新查询'
+    status.value = 'error'
+  }
+})
 
 watch([pageImageUrl, imageRevision], async ([url]) => {
-  if (await image.load(url) === 'error')
+  if (await image.load(url, detail.value?.page?.id ? { pageId: detail.value.page.id, confirmedRevision: detail.value.page.renderModel?.confirmedRevision } : undefined) === 'error')
     void resource.recoverImage()
 })
 
@@ -74,10 +83,14 @@ async function handleOpenOriginal() {
     return
   opening.value = true
   try {
-    let url = detail.value?.original.previewUrl || ''
-    if (!url && originalFileId.value) {
-      const response = await fileApi.getDownloadUrl(originalFileId.value).send() as ApiEnvelope<DownloadUrlResult>
+    let url = ''
+    if (originalFileId.value) {
+      const response = await fileApi.getDownloadUrl(originalFileId.value).send(true) as ApiEnvelope<DownloadUrlResult>
       url = response.data?.url || ''
+    }
+    else {
+      await resource.load()
+      url = detail.value?.original.previewUrl || ''
     }
     if (!url)
       throw new Error('empty url')
@@ -147,6 +160,12 @@ onUnload(() => {
         </wd-empty>
       </view>
       <view v-else class="knowledge-source__content">
+        <view class="app-muted mb-3 text-3">
+          印刷页码 {{ detail?.location.pageLabel || detail?.page?.pageLabel || context?.page.pageLabel || '待核' }} · 原始页面，未进行像素框选
+        </view>
+        <wd-button v-if="canOpenFile && imageStatus === 'ready'" size="small" variant="plain" custom-class="mb-3!" :loading="opening" @click="handleOpenOriginal">
+          打开原文件
+        </wd-button>
         <ReferencePageImage :title="pageTitle" :source="imageSource" :status="imageStatus" :refreshing="refreshingImage" :revision="imageRevision" @preview="previewPageImage" @retry="resource.recoverImage(true)" @image-error="handleImageError" @image-load="resource.imageLoaded">
           <template #fallback>
             <wd-button v-if="canOpenFile" size="small" variant="plain" :loading="opening" @click="handleOpenOriginal">

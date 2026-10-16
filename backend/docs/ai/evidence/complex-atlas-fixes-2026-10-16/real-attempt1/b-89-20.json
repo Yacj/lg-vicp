@@ -1,0 +1,71 @@
+{
+  "name": "89-20",
+  "query": "I型VICP坡屋面正置和倒置，20mm的传热系数分别多少？看下表。",
+  "http": 200,
+  "contentType": "text/event-stream; charset=utf-8",
+  "events": [
+    {
+      "event": "message",
+      "data": {
+        "messageId": "74986e77-fa3e-441d-b356-a148b77baad3",
+        "userMessageId": "237ea172-90a3-45d0-bf54-f98e8d8a9f63",
+        "conversationId": "32126021-057a-4de7-b97b-fa5c5e1e9b84",
+        "requestId": "req-f"
+      }
+    },
+    {
+      "event": "progress",
+      "data": {
+        "stage": "analyzing",
+        "message": "正在分析问题..."
+      }
+    },
+    {
+      "event": "progress",
+      "data": {
+        "stage": "checking",
+        "message": "正在核对检索资料和计算结果..."
+      }
+    },
+    {
+      "event": "progress",
+      "data": {
+        "stage": "composing",
+        "message": "正在整理回答..."
+      }
+    },
+    {
+      "event": "delta",
+      "data": {
+        "text": "当前已确认资料中没有符合全部条件且可核验的档位；未给出的参数不会补算。请核对构造属性、厚度或来源。"
+      }
+    },
+    {
+      "event": "progress",
+      "data": {
+        "stage": "completed",
+        "message": "回答整理完成"
+      }
+    },
+    {
+      "event": "done",
+      "data": {
+        "messageId": "74986e77-fa3e-441d-b356-a148b77baad3",
+        "conversationId": "32126021-057a-4de7-b97b-fa5c5e1e9b84",
+        "finishReason": "COMPLETED",
+        "usage": {},
+        "model": {
+          "id": "deepseek-chat"
+        },
+        "promptVersion": {
+          "id": "f3f5a2ff-8436-4101-b11a-6ed5ce8b3c26",
+          "version": 1
+        },
+        "sources": [],
+        "latencyMs": 3458
+      }
+    }
+  ],
+  "blocks": [],
+  "facts": []
+}

@@ -3,6 +3,7 @@ import type { KnowledgeRenderConstruction, ReferenceHighlight } from '@/api/refe
 import { computed, ref } from 'vue'
 import { readableReferenceAnnotations } from '@/utils/referenceAnnotations'
 import { formatReferenceNumber } from '@/utils/referencePage'
+import { constructionAttributes, constructionLabel } from '@/utils/thermalSourceLabels'
 import ThermalOptionCard from './ThermalOptionCard.vue'
 
 const props = withDefaults(defineProps<{ construction: KnowledgeRenderConstruction, matches: ReferenceHighlight[], active?: ReferenceHighlight, anchor: string, highlightEnabled?: boolean }>(), { highlightEnabled: true })
@@ -18,10 +19,13 @@ const hasHidden = computed(() => visibleOptions.value.length < props.constructio
 <template>
   <view :id="anchor" class="thermal-section" :class="{ 'thermal-section--hit': highlightEnabled && ownedMatches.some(match => !match.optionId) }">
     <view class="text-4 font-bold">
-      {{ construction.constructionCode || construction.title || '参考构造' }}
+      {{ constructionLabel(construction) }}
     </view>
     <view v-if="construction.systemName" class="app-muted mt-1 text-3">
       {{ construction.systemName }}
+    </view>
+    <view class="app-muted mt-1 text-3">
+      {{ constructionAttributes(construction).join(' · ') }}
     </view>
     <view v-if="construction.material" class="mt-3">
       <view class="text-3.5 font-semibold">
@@ -37,10 +41,10 @@ const hasHidden = computed(() => visibleOptions.value.length < props.constructio
     <view v-if="fullConstruction" class="mt-3 space-y-2">
       <view v-for="(layer, index) in construction.layers" :key="layer.layerId || index" class="thermal-layer text-3">
         <view class="font-medium">
-          {{ layer.order ?? index + 1 }}. {{ layer.name }}
+          {{ layer.sourceLayerLabel || layer.order || index + 1 }}. {{ layer.name }}
         </view>
         <view class="app-muted mt-1 leading-5">
-          {{ layer.variable ? '厚度及产品层热阻见下方全部档位' : `厚度 ${formatReferenceNumber(layer.thicknessMm)} mm · 热阻 R ${formatReferenceNumber(layer.rValue, 3)}` }}
+          {{ layer.variable ? '可变材料层的逐档厚度和层热阻见完整热工表；产品整体热阻单独列示。' : `厚度 ${formatReferenceNumber(layer.thicknessMm)} mm · 材料层热阻 ${formatReferenceNumber(layer.rValue, 3)}` }}
         </view>
         <view class="app-muted mt-1 leading-5">
           λ {{ formatReferenceNumber(layer.lambda) }} · α {{ formatReferenceNumber(layer.alpha) }}
@@ -49,11 +53,11 @@ const hasHidden = computed(() => visibleOptions.value.length < props.constructio
     </view>
     <view class="mt-3 space-y-2">
       <view v-for="item in visibleOptions" :id="`${anchor}-option-${item.index}`" :key="item.option.optionId">
-        <ThermalOptionCard :option="item.option" :highlighted="highlightEnabled && isHit(item.option.optionId)" :active="active?.constructionId === construction.constructionId && active.optionId === item.option.optionId" :field-keys="highlightEnabled ? fieldKeys(item.option.optionId) : []" />
+        <ThermalOptionCard :option="item.option" :construction="construction" :highlighted="highlightEnabled && isHit(item.option.optionId)" :active="active?.constructionId === construction.constructionId && active.optionId === item.option.optionId" :field-keys="highlightEnabled ? fieldKeys(item.option.optionId) : []" />
       </view>
     </view>
     <wd-button v-if="hasHidden || allThicknesses" size="small" plain custom-class="mt-3!" @click="allThicknesses = !allThicknesses">
-      {{ allThicknesses ? '收起其他厚度' : `查看其他厚度（共 ${construction.options.length} 档）` }}
+      {{ allThicknesses ? '收起其他厚度' : `查看全部档位（共 ${construction.options.length} 档）` }}
     </wd-button>
     <view v-for="(note, index) in readableReferenceAnnotations(construction.notes)" :key="index" class="app-muted mt-3 text-3 leading-5">
       {{ note }}

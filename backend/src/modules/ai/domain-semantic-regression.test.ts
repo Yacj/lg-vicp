@@ -24,7 +24,7 @@ const cases = [
   ["正式生成PDF", "REPORT_REQUEST", "REPORT_GENERATION"],
 ] as const;
 it.each(cases)("开放表达必须经过同一个语义合同：%s", async (message, intent, requestedEffect) => {
-  mocks.model.mockResolvedValue({ object: { intent, confidence: .99, evidence: message, unresolved: null,
+  mocks.model.mockResolvedValue({ object: { intent, comparison: null, referenceTime: null, confidence: .99, evidence: message, unresolved: null,
     relation: message === "不要推荐方案" ? "CANCEL" : "CONTINUE", adviceMode: "GENERAL_REFERENCE",
     constraintPatch: [], reference: { scope: "LAST_VISIBLE_CANDIDATES", revision: 7 },
     requestedEffect, effectRequest: requestedEffect === "READ_ONLY" ? null : { direct: true, polarity: "AFFIRMATIVE", speechAct: "REQUEST", evidence: message },

@@ -35,6 +35,12 @@ export async function resolveReferenceQueryWithoutAgent(ctx: ReferenceReadContex
   let query: ThermalQueryState = { ...resolution.query, intent: "REFERENCE_LOOKUP" as const };
   if (resolution.needsClarification)
     query = { ...query, unresolved: query.unresolved?.length ? query.unresolved : [{ field: "query", reason: "想查哪个目标值，或这几个条件是否需要同时满足？" }] };
+  if (resolution.needsClarification) {
+    // 未理解的新条件不能发布空候选覆盖最近有效来源；澄清后再提交查询。
+    return { facts: buildAllowedAnswerFacts(query, []), sources: [], referencePages: [], needsClarification: true };
+  }
+  // 图集事实读取不刷新候选，也不经正式候选/产品ID准入。后续由有权确认页读取服务执行。
+  if (decision.semantic?.pageQuery) return { facts: buildAllowedAnswerFacts(query, []), sources: [], referencePages: [], needsClarification: false };
   const result = await querySolutionCandidates(ctx, query);
   const { outcome, candidates, nearbyRaw, nearbyCandidates: nearby, identityMatchedButMetricFailed: identity } = result;
   query = result.queryState;
@@ -54,7 +60,8 @@ export async function resolveReferenceQueryWithoutAgent(ctx: ReferenceReadContex
   const { pages, nearbyPages, identityPages } = result;
   const state = ctx.taskState ?? { taskType: "GENERAL" as const };
   ctx.taskState = state;
-  await publishCandidateResult(ctx, { query, candidates: pages.candidates, createdAt: new Date().toISOString() });
+  delete state.confirmedPageLookup;
+  await publishCandidateResult({ ...ctx, candidatePublication: "READ_ONLY_ADVICE" }, { query, candidates: pages.candidates, createdAt: new Date().toISOString() });
   const facts = buildAllowedAnswerFacts(query, pages.candidates, ctx.userMessage ?? "", result.matchedCount, {
     nearbyCandidates: nearbyPages.candidates, identityMatchedButMetricFailed: identityPages.candidates, sourcePages: [...pages.sources, ...identityPages.sources] as Array<{ pageLabel?: string | null }>
   });

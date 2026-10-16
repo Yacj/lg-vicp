@@ -1,0 +1,63 @@
+[
+  {
+    "event": "message",
+    "data": {
+      "messageId": "cb9a2dc2-58f9-460b-9473-fe68aa987817",
+      "userMessageId": "39409dbe-05d2-42f7-8104-294026b3e690",
+      "conversationId": "9a5303eb-bd40-473d-94f9-e4b441e88221",
+      "requestId": "req-m"
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "analyzing",
+      "message": "正在分析问题..."
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "checking",
+      "message": "正在核对检索资料和计算结果..."
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "composing",
+      "message": "正在整理回答..."
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "当前没有可定位的候选，请先查询已有档位或选择方案。"
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "completed",
+      "message": "回答整理完成"
+    }
+  },
+  {
+    "event": "done",
+    "data": {
+      "messageId": "cb9a2dc2-58f9-460b-9473-fe68aa987817",
+      "conversationId": "9a5303eb-bd40-473d-94f9-e4b441e88221",
+      "finishReason": "COMPLETED",
+      "usage": {},
+      "model": {
+        "id": "deepseek-chat"
+      },
+      "promptVersion": {
+        "id": "ae0f8064-e3d6-43c0-ab4c-174188be34e4",
+        "version": 3
+      },
+      "sources": [],
+      "latencyMs": 2546
+    }
+  }
+]

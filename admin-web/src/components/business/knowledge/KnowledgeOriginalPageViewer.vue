@@ -39,7 +39,7 @@ const resolvedPageId = computed(() => page.value && 'pageId' in page.value ? pag
         :page-id="resolvedPageId"
         :page-label="page?.pageLabel || pageLabel"
         :page-title="page?.pageTitle"
-        :page-image-url="imageUrl || page?.pageImageUrl"
+        :page-image-url="page?.pageImageUrl || imageUrl"
         :parsed-text="page?.parsedText"
         :render-model="page?.renderModel"
         :confirmed-structured-data="page?.confirmedStructuredData"

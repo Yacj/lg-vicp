@@ -1,0 +1,80 @@
+{
+  "id": "E02",
+  "group": "extra-II",
+  "question": "II型平屋面正置和倒置25mm的R和K分别多少？",
+  "status": "PASS",
+  "conversationId": "bf0da0bc-4d18-4140-8291-19a4833b14ae",
+  "answer": "本次已确认资料匹配 2 档、2 个独立构造，当前引用 2 档。\n\n- **平屋面（正置，级防水）**，基层钢筋混凝土楼板 120mm：板厚 **25mm**，传热阻 R **6.169 (m²·K)/W**，传热系数 K **0.162 W/(m²·K)**。来源：《复杂建筑热工图集 · 隔离人工基线（程序模拟审核）》，印刷页码 90。\n\n- **平屋面（倒置，级防水）**，基层钢筋混凝土楼板 120mm：板厚 **25mm**，传热阻 R **6.169 (m²·K)/W**，传热系数 K **0.162 W/(m²·K)**。来源：《复杂建筑热工图集 · 隔离人工基线（程序模拟审核）》，印刷页码 90。\n\n同值不代表做法相同，请结合完整表及原始构造简图核对。材料层热阻、产品整体热阻与整构造传热阻分别读取，缺值不补算；本次仅查阅资料，不选择方案或判断规范达标。",
+  "facts": [
+    {
+      "page": "90",
+      "constructionId": "kp-7efbca30489298939c357831-0",
+      "optionId": "kp-7efbca30489298939c357831-0-o4",
+      "label": "平屋面（正置，级防水）",
+      "placement": "UPRIGHT",
+      "thickness": 25,
+      "r": 6.169,
+      "k": 0.162,
+      "base": "钢筋混凝土楼板",
+      "versionId": "b99c57d8-4bb4-4db2-b34b-a6acd24ace43",
+      "revision": "7efbca30489298939c357831",
+      "fieldKeys": [
+        "thicknessMm",
+        "totalThermalResistance",
+        "kValue"
+      ]
+    },
+    {
+      "page": "90",
+      "constructionId": "kp-7efbca30489298939c357831-1",
+      "optionId": "kp-7efbca30489298939c357831-1-o4",
+      "label": "平屋面（倒置，级防水）",
+      "placement": "INVERTED",
+      "thickness": 25,
+      "r": 6.169,
+      "k": 0.162,
+      "base": "钢筋混凝土楼板",
+      "versionId": "b99c57d8-4bb4-4db2-b34b-a6acd24ace43",
+      "revision": "7efbca30489298939c357831",
+      "fieldKeys": [
+        "thicknessMm",
+        "totalThermalResistance",
+        "kValue"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "page": {
+        "documentId": "a4ea71e1-d90c-4db6-b9a2-b6fde8bad52f",
+        "pageId": "0c37bd1f-4aba-4bf1-bd24-1fa37ddf70b2",
+        "documentTitle": "复杂建筑热工图集 · 隔离人工基线（程序模拟审核）",
+        "versionId": "b99c57d8-4bb4-4db2-b34b-a6acd24ace43",
+        "pageLabelSource": "MANUAL",
+        "pageLabelVerified": true,
+        "docNumber": "J/CABEE 26J702 / UAT",
+        "pageNumber": 2,
+        "physicalPageNumber": 2,
+        "pageLabel": "90",
+        "imageUrl": "[AUTHORIZED_URL_REDACTED]"
+      },
+      "revision": "7efbca30489298939c357831",
+      "groups": 2,
+      "options": [
+        6,
+        6
+      ],
+      "notes": [
+        "1.屋面采用结构找坡时，可取消找坡层。",
+        "2.当结构找坡时，取消表中的找坡层并另行计算。",
+        "3.当为倒置式屋面时，不必设置隔汽层。",
+        "4.表中数值均按现浇屋面板考虑，若为预制空心板，应同时考虑屋面板上的水泥砂浆对屋面保温隔热的影响。"
+      ]
+    }
+  ],
+  "historyReturned": true,
+  "persistedUrlFree": true,
+  "solutionStates": 0,
+  "reports": 0,
+  "snapshots": 0
+}

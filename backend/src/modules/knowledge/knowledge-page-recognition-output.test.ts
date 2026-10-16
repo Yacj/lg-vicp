@@ -129,6 +129,31 @@ describe("页面识别输出格式修复", () => {
     expect(pageRecognitionSchemaIssues("{invalid json")).toEqual(["JSON_PARSE"]);
   });
 
+  it("数字修复保留v2证据，删除坏材料层后下标不串层", () => {
+    const repaired = repairPageRecognitionText(JSON.stringify({ schemaVersion: 2, fullText: "原文", systems: [{
+      rawConstructionLabel: "构造甲", applicationPart: "ROOF", roofForm: "FLAT", placement: "INVERTED",
+      sourceColumns: [{ fieldKey: "rValue", label: "热阻", scope: "LAYER" }],
+      layers: [{ name: "" }, { name: "芯层", lambda: "0.0025", sourceGroupLabel: "保温板" }],
+      options: [{ thicknessMm: "20", sourceRowLabel: "20", fieldEvidence: { thicknessMm: "20" },
+        layerValues: [{ layerIndex: 0, rValue: "9", rValueText: "9" }, { layerIndex: 1, rValue: "4.8", rValueText: "4.800" }] }]
+    }] }));
+    const data = pageRecognitionResultSchema.parse(JSON.parse(repaired!)), system = data.systems[0]!;
+    expect(system).toMatchObject({ rawConstructionLabel: "构造甲", applicationPart: "ROOF", roofForm: "FLAT", placement: "INVERTED" });
+    expect(system.layers).toHaveLength(1);
+    expect(system.options![0]).toMatchObject({ sourceRowLabel: "20", fieldEvidence: { thicknessMm: "20" },
+      layerValues: [{ layerIndex: 0, rValue: 4.8, rValueText: "4.800" }] });
+  });
+
+  it("实际模型返回空fieldKey时不按中文表头猜字段，保留全文并警告", () => {
+    const repaired = repairPageRecognitionText(JSON.stringify({ schemaVersion: 2, fullText: "源文热阻123", systems: [{
+      sourceColumns: [{ fieldKey: null, label: "热阻", scope: "UNKNOWN" }], options: [{ totalThermalResistance: 123 }]
+    }] }));
+    const data = pageRecognitionResultSchema.parse(JSON.parse(repaired!));
+    expect(data.fullText).toBe("源文热阻123");
+    expect(data.systems[0]!.sourceColumns).toEqual([]);
+    expect(data.warnings?.join(" ")).toContain("未映射工程值");
+  });
+
   it("AI SDK 用修复后的内容重新校验正式 schema", async () => {
     const model = new MockLanguageModelV3({
       doGenerate: async () => ({

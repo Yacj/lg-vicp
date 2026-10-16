@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ProductComparisonView } from '@/utils/aiComparison'
+import MpHtml from '@/uni_modules/mp-html/components/mp-html/mp-html.vue'
 import { splitAnswerLayers } from '@/utils/aiAnswerUx'
 import { markdownTagStyle, renderMarkdown } from '@/utils/markdown'
 

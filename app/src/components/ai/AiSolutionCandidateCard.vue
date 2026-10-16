@@ -51,6 +51,11 @@ const sourceLabel = computed(() => ({ REFERENCE: '参考方案', CALCULATED: '�
     <view v-if="candidate.productName" class="app-muted mt-1 text-3">
       {{ candidate.productName }}
     </view>
+    <view class="app-muted mt-1 text-3">
+      基层：{{ candidate.substrateMaterial || '待补齐' }}<text v-if="candidate.substrateThickness != null">
+        {{ candidate.substrateThickness }}mm
+      </text>
+    </view>
     <view v-if="metrics.length" class="candidate__metrics">
       <view v-for="metric in metrics" :key="metric.label">
         <view class="app-muted text-2.5">

@@ -1,0 +1,57 @@
+{
+  "id": "T02",
+  "group": "roof-I",
+  "question": "改成25厚，只看倒置。",
+  "status": "PASS",
+  "conversationId": "53863bdc-409d-4895-aaa6-d7969cd5450e",
+  "answer": "本次已确认资料匹配 1 档、1 个独立构造，当前引用 1 档。\n\n- **坡屋面（倒置，级防水）**，基层钢筋混凝土楼板 120mm：板厚 **25mm**，传热阻 R **5.998 (m²·K)/W**，传热系数 K **0.167 W/(m²·K)**。来源：《复杂建筑热工图集 · 隔离人工基线（程序模拟审核）》，印刷页码 89。\n\n同值不代表做法相同，请结合完整表及原始构造简图核对。材料层热阻、产品整体热阻与整构造传热阻分别读取，缺值不补算；本次仅查阅资料，不选择方案或判断规范达标。",
+  "facts": [
+    {
+      "page": "89",
+      "constructionId": "kp-e2157906792b097630b2cab6-1",
+      "optionId": "kp-e2157906792b097630b2cab6-1-o4",
+      "label": "坡屋面（倒置，级防水）",
+      "placement": "INVERTED",
+      "thickness": 25,
+      "r": 5.998,
+      "k": 0.167,
+      "base": "钢筋混凝土楼板",
+      "versionId": "3a124031-5f59-479d-8119-9999f8f6dea5",
+      "revision": "e2157906792b097630b2cab6",
+      "fieldKeys": [
+        "thicknessMm",
+        "totalThermalResistance",
+        "kValue"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "page": {
+        "documentId": "64d9fc39-acc5-48c5-b1f2-9462cfde9f15",
+        "pageId": "a5b1ccbf-d359-4d3b-a7c1-461528d18111",
+        "documentTitle": "复杂建筑热工图集 · 隔离人工基线（程序模拟审核）",
+        "versionId": "3a124031-5f59-479d-8119-9999f8f6dea5",
+        "pageLabelSource": "MANUAL",
+        "pageLabelVerified": true,
+        "docNumber": "J/CABEE 26J702 / UAT",
+        "pageNumber": 1,
+        "physicalPageNumber": 1,
+        "pageLabel": "89",
+        "imageUrl": "[AUTHORIZED_URL_REDACTED]"
+      },
+      "revision": "e2157906792b097630b2cab6",
+      "groups": 2,
+      "options": [
+        6,
+        6
+      ],
+      "notes": []
+    }
+  ],
+  "historyReturned": true,
+  "persistedUrlFree": true,
+  "solutionStates": 0,
+  "reports": 0,
+  "snapshots": 0
+}

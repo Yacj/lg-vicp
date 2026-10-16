@@ -175,3 +175,25 @@ describe("saveDraft 与 enqueue 的排队边界", () => {
     expect(add.mock.calls[0]![1].recognitionRunId).not.toBe("run-b");
   });
 });
+
+describe("v2草稿兼容边界", () => {
+  const data = { schemaVersion: 2 as const, pageLabel: "89", pageLabelEvidence: "89", fullText: "原图文字", systems: [] };
+  const page = { id: "page-1", documentId: "doc-1", versionId: "version-1", physicalPageNumber: 1,
+    pageLabel: "旧标签", pageTitle: null, parsedText: "", pageLabelVerified: false,
+    metadata: { recognitionStatus: "REVIEW_REQUIRED", draftStructuredData: data,
+      confirmedStructuredData: { fullText: "旧确认快照", systems: [] } } };
+  it("旧编辑器整体替换v2时明确拒绝，不丢失证据", async () => {
+    const { app, state } = draftHarness(page, { id: "version-1", status: "DRAFT" });
+    await expect(savePageRecognitionDraft(app, { headers: {} } as any, { id: "user-1" } as any, page.id,
+      { structuredData: { fullText: "旧编辑器", systems: [] } })).rejects.toMatchObject({ code: "PAGE_RECOGNITION_EDITOR_UPGRADE_REQUIRED", statusCode: 409 });
+    expect(state.updates).toBe(0);
+  });
+  it("v2显式空页码不被旧标签复活，旧确认快照保持", async () => {
+    const { app } = draftHarness(page, { id: "version-1", status: "DRAFT" });
+    const result = await savePageRecognitionDraft(app, { headers: {} } as any, { id: "user-1" } as any, page.id,
+      { structuredData: { ...data, pageLabel: null } });
+    expect(result.page.pageLabel).toBeNull();
+    expect(result.recognition.draftStructuredData?.schemaVersion).toBe(2);
+    expect(result.recognition.confirmedStructuredData).toEqual(page.metadata.confirmedStructuredData);
+  });
+});

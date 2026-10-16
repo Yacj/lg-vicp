@@ -29,6 +29,11 @@ const emit = defineEmits<{ source: [candidate: SolutionCandidate] }>()
           <view v-if="candidate.productName" class="comparison__row">
             产品：{{ candidate.productName }}
           </view>
+          <view class="comparison__row">
+            基层：{{ candidate.substrateMaterial || '待补齐' }}<text v-if="candidate.substrateThickness != null">
+              {{ candidate.substrateThickness }}mm
+            </text>
+          </view>
           <view v-for="metric in solutionMetrics(candidate)" :key="metric.label" class="comparison__row">
             {{ metric.label }}：{{ metric.digits ? metric.value.toFixed(metric.digits) : metric.value }} {{ metric.unit }}
           </view>

@@ -1,0 +1,17 @@
+{
+  "http": 200,
+  "success": true,
+  "data": {
+    "versionId": "b99c57d8-4bb4-4db2-b34b-a6acd24ace43",
+    "pageCount": 3,
+    "indexedPageCount": 3,
+    "contentRevision": 6,
+    "indexReady": true,
+    "stale": false,
+    "sectionCount": 1,
+    "blockCount": 5,
+    "chunkCount": 5,
+    "indexRevision": 6
+  },
+  "requestId": "req-c"
+}

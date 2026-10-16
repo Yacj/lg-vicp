@@ -1,0 +1,409 @@
+[
+  {
+    "id": "T01",
+    "keys": [
+      [
+        "reasoning",
+        "agentEnabled",
+        "allowedTools",
+        "capabilities",
+        "finishReason",
+        "reasoningMode",
+        "backendDecision"
+      ],
+      [
+        "reasoning",
+        "agentEnabled",
+        "allowedTools",
+        "capabilities",
+        "finishReason",
+        "reasoningMode",
+        "backendDecision"
+      ]
+    ],
+    "decisions": [
+      {
+        "goal": "REFERENCE_QUERY",
+        "patch": [],
+        "intent": "REFERENCE_LOOKUP",
+        "source": "INTENT",
+        "factRead": null,
+        "mutation": "QUERY",
+        "relation": "NEW",
+        "taskType": "PRODUCT_CONSULTATION",
+        "toolRoute": [
+          "backend:knowledge",
+          "backend:reference_query"
+        ],
+        "toolUsage": {
+          "report": false,
+          "thermal": false,
+          "knowledge": true
+        },
+        "adviceMode": null,
+        "candidateIds": [],
+        "domainIntent": "REFERENCE_QUERY",
+        "parserSource": "LLM",
+        "policyReason": "READ_ONLY_QUERY",
+        "queryChanged": false,
+        "reportQueued": false,
+        "effectRequest": null,
+        "sourcePageIds": [],
+        "answerContract": "REFERENCE_LOOKUP",
+        "factValidation": "VALID_FACTS",
+        "referenceScope": "LATEST_VISIBLE",
+        "candidateIdList": [],
+        "requestedEffect": "QUERY",
+        "referencePageIds": [],
+        "semanticEvidence": "I型VICP坡屋面正置和倒置，20mm的传热系数分别多少？看下表。",
+        "semanticReference": {
+          "items": [],
+          "scope": "NONE",
+          "revision": null
+        },
+        "factValidationCode": "VALID_FACTS",
+        "queryChangedFields": [],
+        "semanticConfidence": 0.9,
+        "solutionStateMutated": false,
+        "candidateSnapshotSource": []
+      },
+      {
+        "goal": "CLARIFY",
+        "intent": "PRODUCT_CONSULTATION",
+        "source": "INTENT",
+        "mutation": "NONE",
+        "taskType": "PRODUCT_CONSULTATION",
+        "toolRoute": [
+          "backend:clarify"
+        ],
+        "toolUsage": {
+          "report": false,
+          "thermal": false,
+          "knowledge": false
+        },
+        "candidateIds": [],
+        "domainIntent": "CLARIFY",
+        "parserSource": "UNAVAILABLE",
+        "policyReason": "SEMANTIC_UNAVAILABLE",
+        "queryChanged": false,
+        "reportQueued": false,
+        "sourcePageIds": [],
+        "answerContract": "CLARIFY",
+        "factValidation": "VALID_FACTS",
+        "candidateIdList": [],
+        "referencePageIds": [],
+        "factValidationCode": "VALID_FACTS",
+        "queryChangedFields": [],
+        "solutionStateMutated": false,
+        "candidateSnapshotSource": []
+      }
+    ],
+    "states": [
+      {
+        "task_state_json": {
+          "taskType": "PRODUCT_CONSULTATION",
+          "adviceBusinessContext": {
+            "createdAt": "2026-10-16T05:58:45.054Z",
+            "projectId": null,
+            "recentGoals": [
+              {
+                "intent": "REFERENCE_QUERY",
+                "userGoal": "I型VICP坡屋面正置和倒置，20mm的传热系数分别多少？看下表。",
+                "assistantQuestion": "你要找的是保温板自身热阻 R、整墙总热阻 R₀，还是传热系数 K？"
+              },
+              {
+                "intent": "CLARIFY",
+                "userGoal": "改成25厚，只看倒置。",
+                "assistantQuestion": "想确认一下：请指定这轮要讨论的保温体系或实际基层；可以先整理参考选型框架。"
+              }
+            ],
+            "conversationId": "2bd09bdf-68f3-4a53-b527-4b7c12d42115",
+            "candidateScopeActive": false
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "T03",
+    "keys": [
+      [
+        "reasoning",
+        "agentEnabled",
+        "allowedTools",
+        "capabilities",
+        "finishReason",
+        "reasoningMode",
+        "backendDecision"
+      ],
+      [
+        "reasoning",
+        "agentEnabled",
+        "allowedTools",
+        "capabilities",
+        "finishReason",
+        "reasoningMode",
+        "backendDecision"
+      ]
+    ],
+    "decisions": [
+      {
+        "goal": "CLARIFY",
+        "intent": "GENERAL",
+        "source": "INTENT",
+        "mutation": "NONE",
+        "taskType": "GENERAL",
+        "toolRoute": [
+          "backend:clarify"
+        ],
+        "toolUsage": {
+          "report": false,
+          "thermal": false,
+          "knowledge": false
+        },
+        "candidateIds": [],
+        "domainIntent": "CLARIFY",
+        "parserSource": "UNAVAILABLE",
+        "policyReason": "SEMANTIC_UNAVAILABLE",
+        "queryChanged": false,
+        "reportQueued": false,
+        "sourcePageIds": [],
+        "answerContract": "CLARIFY",
+        "factValidation": "VALID_FACTS",
+        "candidateIdList": [],
+        "referencePageIds": [],
+        "factValidationCode": "VALID_FACTS",
+        "queryChangedFields": [],
+        "solutionStateMutated": false,
+        "candidateSnapshotSource": []
+      },
+      {
+        "goal": "CLARIFY",
+        "patch": [],
+        "intent": "GENERAL",
+        "source": "INTENT",
+        "factRead": null,
+        "mutation": "NONE",
+        "relation": "CONTINUE",
+        "taskType": "GENERAL",
+        "toolRoute": [
+          "backend:clarify"
+        ],
+        "toolUsage": {
+          "report": false,
+          "thermal": false,
+          "knowledge": false
+        },
+        "adviceMode": null,
+        "candidateIds": [],
+        "domainIntent": "CLARIFY",
+        "parserSource": "LLM",
+        "policyReason": "SEMANTIC_AMBIGUOUS",
+        "queryChanged": false,
+        "reportQueued": false,
+        "effectRequest": null,
+        "sourcePageIds": [],
+        "answerContract": "CLARIFY",
+        "factValidation": "VALID_FACTS",
+        "candidateIdList": [],
+        "requestedEffect": "READ_ONLY",
+        "referencePageIds": [],
+        "semanticEvidence": "它们做法是不是也完全一样？",
+        "semanticReference": {
+          "items": [],
+          "scope": "NONE",
+          "revision": null
+        },
+        "factValidationCode": "VALID_FACTS",
+        "queryChangedFields": [],
+        "semanticConfidence": 0.62,
+        "solutionStateMutated": false,
+        "candidateSnapshotSource": []
+      }
+    ],
+    "states": [
+      {
+        "task_state_json": {
+          "taskType": "GENERAL",
+          "adviceBusinessContext": {
+            "createdAt": "2026-10-16T05:58:52.931Z",
+            "projectId": null,
+            "recentGoals": [
+              {
+                "intent": "CLARIFY",
+                "userGoal": "II型平屋面正置和倒置的20mm参数一样吗？",
+                "assistantQuestion": "想确认一下：请指定这轮要讨论的保温体系或实际基层；可以先整理参考选型框架。"
+              },
+              {
+                "intent": "CLARIFY",
+                "userGoal": "它们做法是不是也完全一样？",
+                "assistantQuestion": "想确认一下：“它们”指代不明：上一轮助手未给出任何具体构造或型号，无法确定比较对象。"
+              }
+            ],
+            "conversationId": "74336a33-140f-4a78-956c-1812e6027f94",
+            "candidateScopeActive": false
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "T05",
+    "keys": [
+      [
+        "reasoning",
+        "agentEnabled",
+        "allowedTools",
+        "capabilities",
+        "finishReason",
+        "reasoningMode",
+        "backendDecision"
+      ]
+    ],
+    "decisions": [
+      {
+        "goal": "CLARIFY",
+        "patch": [],
+        "intent": "GENERAL",
+        "source": "INTENT",
+        "factRead": null,
+        "mutation": "NONE",
+        "relation": "NEW",
+        "taskType": "GENERAL",
+        "toolRoute": [
+          "backend:clarify"
+        ],
+        "toolUsage": {
+          "report": false,
+          "thermal": false,
+          "knowledge": false
+        },
+        "adviceMode": null,
+        "candidateIds": [],
+        "domainIntent": "CLARIFY",
+        "parserSource": "LLM",
+        "policyReason": "EVIDENCE_INVALID",
+        "queryChanged": false,
+        "reportQueued": false,
+        "effectRequest": null,
+        "sourcePageIds": [],
+        "answerContract": "CLARIFY",
+        "factValidation": "VALID_FACTS",
+        "candidateIdList": [],
+        "requestedEffect": "QUERY",
+        "referencePageIds": [],
+        "semanticEvidence": "外墙C1-3和C1-4都是20mm，哪个K小？基层什么材料？",
+        "semanticReference": {
+          "items": [],
+          "scope": "NONE",
+          "revision": null
+        },
+        "factValidationCode": "VALID_FACTS",
+        "queryChangedFields": [],
+        "semanticConfidence": 0.9,
+        "solutionStateMutated": false,
+        "candidateSnapshotSource": []
+      }
+    ],
+    "states": [
+      {
+        "task_state_json": {
+          "taskType": "GENERAL",
+          "adviceBusinessContext": {
+            "createdAt": "2026-10-16T05:59:00.026Z",
+            "projectId": null,
+            "recentGoals": [
+              {
+                "intent": "CLARIFY",
+                "userGoal": "外墙C1-3和C1-4都是20mm，哪个K小？基层什么材料？",
+                "assistantQuestion": "想确认一下：请指定这轮要讨论的保温体系或实际基层；可以先整理参考选型框架。"
+              }
+            ],
+            "conversationId": "76906f51-a75b-4655-b345-fb8d1489cda6",
+            "candidateScopeActive": false
+          }
+        }
+      }
+    ]
+  },
+  {
+    "id": "T08",
+    "keys": [
+      [
+        "reasoning",
+        "agentEnabled",
+        "allowedTools",
+        "capabilities",
+        "finishReason",
+        "reasoningMode",
+        "backendDecision"
+      ]
+    ],
+    "decisions": [
+      {
+        "goal": "REFERENCE_VIEW",
+        "patch": [],
+        "intent": "REFERENCE_LOOKUP",
+        "source": "INTENT",
+        "factRead": null,
+        "mutation": "NONE",
+        "relation": "NEW",
+        "taskType": "GENERAL",
+        "toolRoute": [
+          "backend:reference_read"
+        ],
+        "toolUsage": {
+          "report": false,
+          "thermal": false,
+          "knowledge": false
+        },
+        "adviceMode": null,
+        "candidateIds": [],
+        "domainIntent": "REFERENCE_VIEW",
+        "parserSource": "LLM",
+        "policyReason": "READ_ONLY_SEMANTIC",
+        "queryChanged": false,
+        "reportQueued": false,
+        "effectRequest": null,
+        "sourcePageIds": [],
+        "answerContract": "REFERENCE_LOOKUP",
+        "factValidation": "VALID_FACTS",
+        "referenceScope": "LATEST_VISIBLE",
+        "candidateIdList": [],
+        "requestedEffect": "READ_ONLY",
+        "referencePageIds": [],
+        "semanticEvidence": "把第90页原图、备注和完整厚度表打开。",
+        "semanticReference": {
+          "items": [],
+          "scope": "NONE",
+          "revision": null
+        },
+        "factValidationCode": "VALID_FACTS",
+        "queryChangedFields": [],
+        "semanticConfidence": 0.9,
+        "solutionStateMutated": false,
+        "candidateSnapshotSource": []
+      }
+    ],
+    "states": [
+      {
+        "task_state_json": {
+          "taskType": "GENERAL",
+          "adviceBusinessContext": {
+            "createdAt": "2026-10-16T05:59:15.331Z",
+            "projectId": null,
+            "recentGoals": [
+              {
+                "intent": "REFERENCE_VIEW",
+                "userGoal": "把第90页原图、备注和完整厚度表打开。",
+                "assistantQuestion": "当前没有可定位的候选，请先查询已有档位或选择方案。"
+              }
+            ],
+            "conversationId": "9a5303eb-bd40-473d-94f9-e4b441e88221",
+            "candidateScopeActive": true
+          }
+        }
+      }
+    ]
+  }
+]

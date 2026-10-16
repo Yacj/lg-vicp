@@ -1,0 +1,15 @@
+{
+  "id": "T06",
+  "group": "ambiguous",
+  "question": "只看倒置屋面25厚的K。",
+  "status": "PARTIAL",
+  "conversationId": "3221eb17-4d6b-425e-b13d-14898801f44c",
+  "answer": "想确认一下：构造属性或印刷页码未能核验，请明确原文。",
+  "facts": [],
+  "pages": [],
+  "historyReturned": true,
+  "persistedUrlFree": true,
+  "solutionStates": 0,
+  "reports": 0,
+  "snapshots": 0
+}

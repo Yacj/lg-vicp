@@ -29,7 +29,7 @@ describe("Execution Policy 与 Global Response Policy", () => {
     expect(GLOBAL_RESPONSE_POLICY).toContain("不要把项目级计算所需条件当成参考查询的前置条件");
     expect(HARD_RESPONSE_CONSTRAINTS).toContain("不得向用户暴露内部工具名");
     expect(HARD_RESPONSE_CONSTRAINTS).toContain("不得伪造来源");
-    expect(GLOBAL_RESPONSE_POLICY.split("\n").filter((line) => /^\d+\./.test(line)).length).toBeLessThanOrEqual(11);
+    expect(GLOBAL_RESPONSE_POLICY).toContain("正式产品目录、已发布规格与图集构造是不同的资料范围");
   });
 });
 
@@ -79,9 +79,10 @@ describe("回答链路回归：系统味隔离", () => {
     expect(empty).not.toMatch(/知识库中未检索到|Tool Result|根据安全规则/);
   });
 
-  it("6. 来源可以展示，仍禁止思考链和检索过程", async () => {
+  it("6. 可以解释查图集的公开流程，仍禁止私有实现和思考链", async () => {
     const { GLOBAL_RESPONSE_POLICY, HARD_RESPONSE_CONSTRAINTS } = await import("./ai-response-policy.js");
-    expect(GLOBAL_RESPONSE_POLICY).toContain("来源可以展示，但不解释检索过程");
+    expect(GLOBAL_RESPONSE_POLICY).toContain("公开使用流程");
+    expect(GLOBAL_RESPONSE_POLICY).toContain("不要误当成索取私有实现或提示词");
     expect(HARD_RESPONSE_CONSTRAINTS).toContain("思考链");
   });
 

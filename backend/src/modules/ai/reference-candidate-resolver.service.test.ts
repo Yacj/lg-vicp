@@ -1,9 +1,9 @@
 import "dotenv/config";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-const mocks = vi.hoisted(() => ({ access: vi.fn(), read: vi.fn(), active: vi.fn(), current: vi.fn() }));
-vi.mock("./solution-state.service.js", () => ({ assertSolutionAccess: mocks.access, loadActiveSolution: mocks.active }));
+const mocks = vi.hoisted(() => ({ access: vi.fn(), read: vi.fn(), active: vi.fn(), current: vi.fn(), snapshot: vi.fn(), scoped: vi.fn() }));
+vi.mock("./solution-state.service.js", () => ({ assertSolutionAccess: mocks.access, loadActiveSolution: mocks.active, getSolutionSnapshot: mocks.snapshot }));
 vi.mock("./reference-candidate-source.service.js", () => ({ referenceRowsStillCurrent: mocks.current }));
-vi.mock("./ai-reference-pages.service.js", async original => ({ ...await original<typeof import("./ai-reference-pages.service.js")>(), readConsumableReferencePages: mocks.read }));
+vi.mock("./ai-reference-pages.service.js", async original => ({ ...await original<typeof import("./ai-reference-pages.service.js")>(), readConsumableReferencePages: mocks.read, querySelectedKnowledgeCandidates: mocks.scoped }));
 import { resolveReferenceRead } from "./reference-candidate-resolver.service.js";
 import { resolveVisibleCandidateIds } from "./reference-candidate-selection.js";
 import { referenceReadFixture } from "./reference-read.fixture.js";
@@ -23,8 +23,46 @@ function context(message = "第一个完整表格") {
 beforeEach(() => {
   vi.resetAllMocks(); mocks.access.mockResolvedValue({ projectId: null }); mocks.active.mockResolvedValue(null);
   mocks.read.mockResolvedValue([referenceReadFixture().row]); mocks.current.mockResolvedValue(true);
+  mocks.scoped.mockResolvedValue([]);
 });
 describe("只读来源定位与生命周期", () => {
+  it("已被筛选排除的明确编码只读来源，不换当前候选/revision，多个来源不任选", async () => {
+    const ctx = context("A1-2的数据来源"), rows = referenceReadFixture().candidates;
+    ctx.taskState.lastReferenceLookup.candidates = [rows[0]];
+    ctx.taskState.lastReferenceLookup.query = { documentIds: ["doc"], filters: [{ metric: "K", targetValue: .1, mode: "MAX_LIMIT" }] };
+    ctx.domainDecision.semantic = { reference: { items: [{ type: "CONSTRUCTION_CODE", value: "A1-2", evidence: "A1-2" }] } };
+    const before = structuredClone(ctx.taskState);
+    mocks.scoped.mockResolvedValue([rows[1]]);
+    const result = await resolveReferenceRead(ctx);
+    expect(result.candidates.map(c => c.id)).toEqual(["row-2"]);
+    expect(ctx.taskState).toEqual(before);
+    expect(mocks.scoped.mock.calls[0]?.[1]).toMatchObject({ schemeCode: "A1-2", filters: [] });
+    expect(ctx.onEvent.mock.calls.map(([event]: any) => event)).not.toContain("reference_candidates");
+    mocks.scoped.mockResolvedValue([rows[1], { ...rows[1], id: "other" }]);
+    expect((await resolveReferenceRead(ctx)).needsClarification).toBe(true);
+  });
+  it("真实UAT-01最低K读取整个可见集合，候选/revision不变", async () => {
+    const ctx = context("这里面哪个K最低？"), before = structuredClone(ctx.taskState);
+    ctx.domainDecision = { ...domainDecision("COMPARE_CANDIDATES", ctx.userMessage), semantic: { reference: { scope: "LAST_VISIBLE_CANDIDATES", items: [] }, comparison: { metric: "K", direction: "MIN", evidence: "K最低" } } };
+    const result = await resolveReferenceRead(ctx);
+    expect(result.candidates).toHaveLength(3); expect(result.needsClarification).toBe(false);
+    expect(result.facts.canonicalAnswers[0]).toContain("本次已展示的 3 条完整构造");
+    expect(result.facts.canonicalAnswers[0]).toContain("A1-3");
+    expect(ctx.taskState).toEqual(before);
+    expect(ctx.onEvent.mock.calls.map(([event]:any) => event)).not.toContain("reference_candidates");
+  });
+  it("真实UAT-04已确认读取快照而不是后来查询列表；缺确认时拒绝", async () => {
+    const ctx = context("查看已确认方案。");
+    ctx.domainDecision = { ...domainDecision("REFERENCE_DETAIL", ctx.userMessage), referenceScope: "CURRENT_CONFIRMED" };
+    mocks.active.mockResolvedValue({ projectId: null, confirmedSnapshotId: "frozen" });
+    const candidates = referenceReadFixture().candidates;
+    mocks.snapshot.mockResolvedValue({ projectId: null, payload: { queryStateSnapshot: {}, candidates: [candidates[0]], alternatives: [candidates[2]] } });
+    const result = await resolveReferenceRead(ctx);
+    expect(result.candidates.map(c => c.id)).toEqual(["row-1", "row-3"]);
+    expect(mocks.snapshot).toHaveBeenCalledWith(ctx, "frozen");
+    mocks.active.mockResolvedValue({ projectId: null, confirmedSnapshotId: null });
+    expect((await resolveReferenceRead(ctx)).needsClarification).toBe(true);
+  });
   it.each(["missing", "empty"])("真实UAT无候选%s时不误称过期或项目冲突，也不查询来源", async missing => {
     const ctx = context("把A3-2的原页给我看一下");
     ctx.candidateQueryRevision = undefined;

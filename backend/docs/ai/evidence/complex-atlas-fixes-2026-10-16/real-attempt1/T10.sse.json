@@ -1,0 +1,56 @@
+[
+  {
+    "event": "message",
+    "data": {
+      "messageId": "13e7e33f-4a4d-48b4-8798-48f5dcd96faa",
+      "userMessageId": "26de09b2-7168-4832-b0b9-1bbfc71e84c3",
+      "conversationId": "757942f1-ff96-4465-9262-397abd018f17",
+      "requestId": "req-s"
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "analyzing",
+      "message": "正在分析问题..."
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "composing",
+      "message": "正在整理回答..."
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "想确认一下：未明确报告类型。"
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "completed",
+      "message": "回答整理完成"
+    }
+  },
+  {
+    "event": "done",
+    "data": {
+      "messageId": "13e7e33f-4a4d-48b4-8798-48f5dcd96faa",
+      "conversationId": "757942f1-ff96-4465-9262-397abd018f17",
+      "finishReason": "COMPLETED",
+      "usage": {},
+      "model": {
+        "id": "deepseek-chat"
+      },
+      "promptVersion": {
+        "id": "ae0f8064-e3d6-43c0-ab4c-174188be34e4",
+        "version": 3
+      },
+      "sources": [],
+      "latencyMs": 2874
+    }
+  }
+]

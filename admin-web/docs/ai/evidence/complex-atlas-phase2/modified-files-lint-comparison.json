@@ -1,0 +1,110 @@
+[
+  {
+    "file": "src/components/business/knowledge/KnowledgeAnswerReferencePage.vue",
+    "before": 1,
+    "after": 0,
+    "increasedRules": {}
+  },
+  {
+    "file": "src/components/business/knowledge/KnowledgeOriginalPageViewer.vue",
+    "before": 2,
+    "after": 2,
+    "increasedRules": {}
+  },
+  {
+    "file": "src/components/business/knowledge/KnowledgePageImage.vue",
+    "before": 1,
+    "after": 1,
+    "increasedRules": {}
+  },
+  {
+    "file": "src/components/business/knowledge/KnowledgePageViewer.test.ts",
+    "before": 16,
+    "after": 16,
+    "increasedRules": {}
+  },
+  {
+    "file": "src/components/business/knowledge/KnowledgePageViewer.vue",
+    "before": 13,
+    "after": 7,
+    "increasedRules": {}
+  },
+  {
+    "file": "src/components/business/knowledge/KnowledgeRecognitionReview.vue",
+    "before": 37,
+    "after": 36,
+    "increasedRules": {}
+  },
+  {
+    "file": "src/components/business/knowledge/KnowledgeStructuredContent.vue",
+    "before": 2,
+    "after": 1,
+    "increasedRules": {}
+  },
+  {
+    "file": "src/components/business/knowledge/KnowledgeTestPanel.test.ts",
+    "before": 12,
+    "after": 12,
+    "increasedRules": {}
+  },
+  {
+    "file": "src/components/business/knowledge/ThermalOptionTable.vue",
+    "before": 8,
+    "after": 8,
+    "increasedRules": {}
+  },
+  {
+    "file": "src/components/business/knowledge/recognition/RecognitionThermalSection.vue",
+    "before": 0,
+    "after": 0,
+    "increasedRules": {}
+  },
+  {
+    "file": "src/components/business/knowledge/recognition/types.ts",
+    "before": 0,
+    "after": 0,
+    "increasedRules": {}
+  },
+  {
+    "file": "src/composables/useReferenceHighlight.ts",
+    "before": 14,
+    "after": 14,
+    "increasedRules": {}
+  },
+  {
+    "file": "src/types/components.d.ts",
+    "before": 0,
+    "after": 0,
+    "increasedRules": {}
+  },
+  {
+    "file": "src/types/knowledge-page-render.ts",
+    "before": 0,
+    "after": 0,
+    "increasedRules": {}
+  },
+  {
+    "file": "src/types/knowledge.ts",
+    "before": 0,
+    "after": 0,
+    "increasedRules": {}
+  },
+  {
+    "file": "src/utils/knowledge-answer.ts",
+    "before": 20,
+    "after": 20,
+    "increasedRules": {}
+  },
+  {
+    "file": "src/utils/knowledge-construction-table.ts",
+    "before": 15,
+    "after": 12,
+    "increasedRules": {}
+  },
+  {
+    "file": "src/utils/knowledge-document.ts",
+    "before": 2,
+    "after": 2,
+    "increasedRules": {}
+  }
+]

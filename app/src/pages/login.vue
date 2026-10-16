@@ -53,7 +53,7 @@ const canSubmit = computed(() => {
   return Boolean(formModel.phone.trim() && formModel.password.trim()) && !submitting.value
 })
 
-const wechatOpenType = computed(() => agreementChecked.value ? 'getPhoneNumber' : '')
+const wechatOpenType = computed(() => agreementChecked.value ? 'getPhoneNumber' : undefined)
 
 function initialLoginMode(): 'wechat' | 'phone' {
   if (readRoutePhone()) {

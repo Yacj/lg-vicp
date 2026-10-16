@@ -1,0 +1,17 @@
+{
+  "scope": "Node诊断，不是浏览器成功证明；浏览器实际加载失败",
+  "tests": [
+    {
+      "protocol": "http:",
+      "host": "lcvp-files.oss-cn-beijing.aliyuncs.com",
+      "status": 200,
+      "contentType": "image/png"
+    },
+    {
+      "protocol": "https:",
+      "host": "lcvp-files.oss-cn-beijing.aliyuncs.com",
+      "status": 200,
+      "contentType": "image/png"
+    }
+  ]
+}

@@ -6,7 +6,7 @@ export type DomainIntent = typeof DOMAIN_INTENTS[number];
 export interface DomainTurnDecision {
   intent: DomainIntent;
   mutation: "NONE" | "QUERY" | "SOLUTION" | "CALCULATE" | "REPORT";
-  referenceScope?: "LATEST_VISIBLE" | "CURRENT_SELECTED";
+  referenceScope?: "LATEST_VISIBLE" | "CURRENT_SELECTED" | "CURRENT_CONFIRMED";
   evidenceSpans: string[];
   parserSource?: "FAST_PATH" | "LLM" | "UNAVAILABLE";
   unresolved?: string[];

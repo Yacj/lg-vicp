@@ -232,7 +232,7 @@ export interface NumberCandidate {
   role: NumberRole;
 }
 
-const THICKNESS_UNIT = /(?:mm|毫米|cm|厘米|公分)/i;
+const THICKNESS_UNIT = /^\s*(?:mm|毫米|cm|厘米|公分|厚)/i;
 const PAGE_PREFIX = /(?:第|p\.?|page|页)\s*$/i;
 /** 数字前 4 字符内出现拉丁字母或编码分隔符（A1、XPS-3、/2）→ 属于型号/规格编码。 */
 const MODEL_TOKEN_BEFORE = /(?:[a-z][-_/]?\d*|[-_/])$/i;

@@ -136,7 +136,7 @@ export function parseStreamEvent(event: string, data: Record<string, unknown>): 
           confirmAction: confirmType
             ? {
                 type: confirmType,
-                label: asText(confirm.label) || (confirmType === 'GENERATE_REPORT' ? '确认并生成报告' : '确认'),
+                label: asText(confirm?.label) || (confirmType === 'GENERATE_REPORT' ? '确认并生成报告' : '确认'),
               }
             : undefined,
           comparisonResult: data.comparisonResult,

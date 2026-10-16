@@ -1,0 +1,312 @@
+{
+  "scope": "真实Vision推理及新草稿证据处理；正式Worker/确认/HTTP-SSE/B-H5-App均NOT_RUN",
+  "pages": [
+    {
+      "page": "89",
+      "status": "PARTIAL",
+      "explanation": "单次真实推理；所有结果仍REVIEW_REQUIRED，未人工确认、未正式发布",
+      "groups": 2,
+      "pageLabel": "89",
+      "printedPage": "PASS",
+      "notes": [],
+      "warnings": [
+        "防水等级文字仅显示“级防水”，等级字形缺失，waterproofGrade填null。",
+        "“传热阻”列位于表头“外墙主断面”下，与屋面构造的系统属性存在语义冲突，需人工核对。",
+        "options中的totalThermalResistance为整构造传热阻，截面中未单独给出完整产品热阻，productThermalResistance填null。",
+        "第1组构造的防水等级尚未核验，请核对原图字形",
+        "第1组构造第1档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第1组构造第2档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第1组构造第3档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第1组构造第4档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第1组构造第5档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第1组构造第6档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第2组构造的防水等级尚未核验，请核对原图字形",
+        "第2组构造第1档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第2组构造第2档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第2组构造第3档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第2组构造第4档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第2组构造第5档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第2组构造第6档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步"
+      ],
+      "checks": [
+        {
+          "construction": "坡屋面（正置，级防水）",
+          "thicknessMm": 5,
+          "expectedR": 2.825,
+          "expectedK": 0.354,
+          "actualR": 2.825,
+          "actualK": 0.354,
+          "numericAndIdentity": "PASS",
+          "productSemantic": "PASS"
+        },
+        {
+          "construction": "坡屋面（正置，级防水）",
+          "thicknessMm": 10,
+          "expectedR": 3.625,
+          "expectedK": 0.276,
+          "actualR": 3.625,
+          "actualK": 0.276,
+          "numericAndIdentity": "PASS",
+          "productSemantic": "PASS"
+        },
+        {
+          "construction": "坡屋面（正置，级防水）",
+          "thicknessMm": 15,
+          "expectedR": 4.425,
+          "expectedK": 0.226,
+          "actualR": 4.425,
+          "actualK": 0.226,
+          "numericAndIdentity": "PASS",
+          "productSemantic": "PASS"
+        },
+        {
+          "construction": "坡屋面（正置，级防水）",
+          "thicknessMm": 20,
+          "expectedR": 5.225,
+          "expectedK": 0.191,
+          "actualR": 5.225,
+          "actualK": 0.191,
+          "numericAndIdentity": "PASS",
+          "productSemantic": "PASS"
+        },
+        {
+          "construction": "坡屋面（正置，级防水）",
+          "thicknessMm": 25,
+          "expectedR": 6.025,
+          "expectedK": 0.166,
+          "actualR": 6.025,
+          "actualK": 0.166,
+          "numericAndIdentity": "PASS",
+          "productSemantic": "PASS"
+        },
+        {
+          "construction": "坡屋面（正置，级防水）",
+          "thicknessMm": 30,
+          "expectedR": 6.825,
+          "expectedK": 0.147,
+          "actualR": 6.825,
+          "actualK": 0.147,
+          "numericAndIdentity": "PASS",
+          "productSemantic": "PASS"
+        },
+        {
+          "construction": "坡屋面（倒置，级防水）",
+          "thicknessMm": 5,
+          "expectedR": 2.798,
+          "expectedK": 0.357,
+          "actualR": 2.798,
+          "actualK": 0.357,
+          "numericAndIdentity": "PASS",
+          "productSemantic": "PASS"
+        },
+        {
+          "construction": "坡屋面（倒置，级防水）",
+          "thicknessMm": 10,
+          "expectedR": 3.598,
+          "expectedK": 0.278,
+          "actualR": 3.598,
+          "actualK": 0.278,
+          "numericAndIdentity": "PASS",
+          "productSemantic": "PASS"
+        },
+        {
+          "construction": "坡屋面（倒置，级防水）",
+          "thicknessMm": 15,
+          "expectedR": 4.398,
+          "expectedK": 0.227,
+          "actualR": 4.398,
+          "actualK": 0.227,
+          "numericAndIdentity": "PASS",
+          "productSemantic": "PASS"
+        },
+        {
+          "construction": "坡屋面（倒置，级防水）",
+          "thicknessMm": 20,
+          "expectedR": 5.198,
+          "expectedK": 0.192,
+          "actualR": 5.198,
+          "actualK": 0.192,
+          "numericAndIdentity": "PASS",
+          "productSemantic": "PASS"
+        },
+        {
+          "construction": "坡屋面（倒置，级防水）",
+          "thicknessMm": 25,
+          "expectedR": 5.998,
+          "expectedK": 0.167,
+          "actualR": 5.998,
+          "actualK": 0.167,
+          "numericAndIdentity": "PASS",
+          "productSemantic": "PASS"
+        },
+        {
+          "construction": "坡屋面（倒置，级防水）",
+          "thicknessMm": 30,
+          "expectedR": 6.798,
+          "expectedK": 0.147,
+          "actualR": 6.798,
+          "actualK": 0.147,
+          "numericAndIdentity": "PASS",
+          "productSemantic": "PASS"
+        }
+      ]
+    },
+    {
+      "page": "90",
+      "status": "FAIL",
+      "name": "AI_NoObjectGeneratedError",
+      "modelText": "{\"schemaVersion\":2,\"pageLabel\":\"90\",\"pageLabelEvidence\":\"90\",\"pageTitle\":\"建筑屋面热工计算参考选用表（Ⅱ型VICP屋面保温系统）\",\"fullText\":\"建筑屋面热工计算参考选用表（Ⅱ型VICP屋面保温系统）\\n\\n编号 | 构造简图 | 构造层 | 分层厚度(mm) | 导热系数[W/(m·K)] | 修正系数α | 热阻[(m²·K)/W] | 外墙主断面 传热阻R[(m²·K)/W] | 外墙主断面 传热系数K[W/(m²·K)]\\n\\n平屋面（正置，级防水） 编号4\\n1.抹面层：20厚混合砂浆\\n2.结构层：120厚钢筋混凝土楼板\\n3.隔汽层：按工程设计\\n4.保温层：Ⅱ型VICP复合保温板\\n5.找坡层：最薄30厚LC7.5轻集料混凝土，找坡2%\\n6.找平层：20厚M15水泥砂浆\\n7.防水层1：按工程设计\\n8.找平层：20厚M15水泥砂浆\\n9.防水层2：按工程设计\\n10.防水层3：按工程设计\\n11.保护层及面层：按工程设计\\n\\n构造层：\\n1.混合砂浆 20 0.870 1.00 0.023\\n2.钢筋混凝土楼板 120 1.740 1.00 0.069\\n4. Ⅱ型VICP复合保温板\\n  包覆浆料 10 0.080 1.25 0.100\\n  真空绝热板 5 0.0025 1.25 2.400\\n  真空绝热板 10 0.0025 1.25 3.200\\n  真空绝热板 15 0.0025 1.25 4.000\\n  真空绝热板 20 0.0025 1.25 4.800\\n  真空绝热板 25 0.0025 1.25 5.600\\n  真空绝热板 30 0.0025 1.25 6.400\\n  包覆浆料 10 0.080 1.25 0.100\\n5.LC7.5轻集料混凝土 30 0.16 1.50 0.083\\n6.M15水泥砂浆 20 0.930 1.00 0.022\\n7.M15水泥砂浆 20 0.930 1.00 0.022\\n\\n外墙主断面：\\n2.969 0.337\\n3.769 0.265\\n4.569 0.219\\n5.369 0.186\\n6.169 0.162\\n6.969 0.143\\n\\n平屋面（倒置，级防水） 编号9\\n1.抹面层：20厚混合砂浆\\n2.结构层：120厚钢筋混凝土楼板\\n3.找坡层：最薄30厚LC7.5轻集料混凝土，找坡2%\\n4.找平层：20厚M15水泥砂浆\\n5.防水层1：按工程设计\\n6.找平层：20厚M15水泥砂浆\\n7.防水层2：按工程设计\\n8.防水层3：按工程设计\\n9.保温层：Ⅱ型VICP复合保温板\\n10.隔离层：按工程设计\\n11.保护层及面层：按工程设计\\n\\n构造层：\\n1.混合砂浆 20 0.870 1.00 0.023\\n2.钢筋混凝土楼板 120 1.740 1.00 0.069\\n3.轻集料混凝土找坡层 30 0.160 1.50 0.083\\n4.水泥砂浆找平层 20 0.930 1.00 0.022\\n6.水泥砂浆找平层 20 0.930 1.00 0.022\\n9. Ⅱ型VICP复合保温板\\n  包覆浆料 10 0.080 1.25 0.100\\n  真空绝热板 5 0.0025 1.25 2.400\\n  真空绝热板 10 0.0025 1.25 3.200\\n  真空绝热板 15 0.0025 1.25 4.000\\n  真空绝热板 20 0.0025 1.25 4.800\\n  真空绝热板 25 0.0025 1.25 5.600\\n  真空绝热板 30 0.0025 1.25 6.400\\n  包覆浆料 10 0.080 1.25 0.100\\n\\n外墙主断面：\\n2.969 0.337\\n3.769 0.265\\n4.569 0.219\\n5.369 0.186\\n6.169 0.162\\n6.969 0.143\\n\\n注：1.屋面采用结构找坡时，可取消找坡层。\\n2.当结构找坡时，取消表中的找坡层并另行计算。\\n3.当为倒置式屋面时，不必设置隔汽层。\\n4.表中数值均按现浇屋面板考虑，若为预制空心板，应同时考虑屋面板上的水泥砂浆对屋面保温隔热的影响。\\n\\n图名：建筑屋面热工计算参考选用表\\n图集号：J/CABEE 26J702\\n页次：90\\n审核：\\n校对：\\n设计：\",\"systems\":[{\"systemName\":\"平屋面（正置，级防水）\",\"specClass\":\"II\",\"constructionCode\":null,\"constructionCodeEvidence\":null,\"rawConstructionLabel\":\"平屋面（正置，级防水）\",\"applicationPart\":\"ROOF\",\"roofForm\":\"FLAT\",\"placement\":\"UPRIGHT\",\"waterproofGrade\":null,\"sourceColumns\":[{\"fieldKey\":null,\"label\":\"分层厚度\",\"groupLabel\":null,\"symbol\":null,\"unit\":\"mm\",\"scope\":\"UNKNOWN\"},{\"fieldKey\":null,\"label\":\"导热系数\",\"groupLabel\":null,\"symbol\":\"λ\",\"unit\":\"W/(m·K)\",\"scope\":\"LAYER\"},{\"fieldKey\":null,\"label\":\"修正系数\",\"groupLabel\":null,\"symbol\":\"α\",\"unit\":null,\"scope\":\"LAYER\"},{\"fieldKey\":null,\"label\":\"热阻\",\"groupLabel\":null,\"symbol\":\"R\",\"unit\":\"(m²·K)/W\",\"scope\":\"LAYER\"},{\"fieldKey\":\"totalThermalResistance\",\"label\":\"传热阻\",\"groupLabel\":\"外墙主断面\",\"symbol\":\"R\",\"unit\":\"(m²·K)/W\",\"scope\":\"CONSTRUCTION\"},{\"fieldKey\":\"kValue\",\"label\":\"传热系数\",\"groupLabel\":\"外墙主断面\",\"symbol\":\"K\",\"unit\":\"W/(m²·K)\",\"scope\":\"CONSTRUCTION\"}],\"baseMaterial\":\"钢筋混凝土楼板\",\"baseThicknessMm\":120,\"layers\":[{\"order\":1,\"sourceLayerLabel\":\"1.混合砂浆\",\"sourceGroupLabel\":null,\"name\":\"混合砂浆\",\"thicknessMm\":20,\"lambda\":0.870,\"alpha\":1.00,\"rValue\":0.023},{\"order\":2,\"sourceLayerLabel\":\"2.钢筋混凝土楼板\",\"sourceGroupLabel\":null,\"name\":\"钢筋混凝土楼板\",\"thicknessMm\":120,\"lambda\":1.740,\"alpha\":1.00,\"rValue\":0.069},{\"order\":3,\"sourceLayerLabel\":\"包覆浆料\",\"sourceGroupLabel\":\"4. Ⅱ型VICP复合保温板\",\"name\":\"包覆浆料\",\"thicknessMm\":10,\"lambda\":0.080,\"alpha\":1.25,\"rValue\":0.100},{\"order\":4,\"sourceLayerLabel\":\"真空绝热板\",\"sourceGroupLabel\":\"4. Ⅱ型VICP复合保温板\",\"name\":\"真空绝热板\",\"thicknessMm\":null,\"lambda\":0.0025,\"alpha\":1.25,\"rValue\":null},{\"order\":5,\"sourceLayerLabel\":\"包覆浆料\",\"sourceGroupLabel\":\"4. Ⅱ型VICP复合保温板\",\"name\":\"包覆浆料\",\"thicknessMm\":10,\"lambda\":0.080,\"alpha\":1.25,\"rValue\":0.100},{\"order\":6,\"sourceLayerLabel\":\"5.LC7.5轻集料混凝土\",\"sourceGroupLabel\":null,\"name\":\"LC7.5轻集料混凝土\",\"thicknessMm\":30,\"lambda\":0.16,\"alpha\":1.50,\"rValue\":0.083},{\"order\":7,\"sourceLayerLabel\":\"6.M15水泥砂浆\",\"sourceGroupLabel\":null,\"name\":\"M15水泥砂浆\",\"thicknessMm\":20,\"lambda\":0.930,\"alpha\":1.00,\"rValue\":0.022},{\"order\":8,\"sourceLayerLabel\":\"7.M15水泥砂浆\",\"sourceGroupLabel\":null,\"name\":\"M15水泥砂浆\",\"thicknessMm\":20,\"lambda\":0.930,\"alpha\":1.00,\"rValue\":0.022}],\"options\":[{\"thicknessMm\":5,\"productThermalResistance\":null,\"totalThermalResistance\":2.969,\"kValue\":0.337,\"sourceRowLabel\":\"5\",\"fieldEvidence\":{\"thicknessMm\":\"5\",\"productThermalResistance\":null,\"totalThermalResistance\":\"2.969\",\"kValue\":\"0.337\"},\"layerValues\":[{\"layerIndex\":3,\"thicknessMm\":5,\"rValue\":2.400,\"thicknessText\":\"5\",\"rValueText\":\"2.400\"}]},{\"thicknessMm\":10,\"productThermalResistance\":null,\"totalThermalResistance\":3.769,\"kValue\":0.265,\"sourceRowLabel\":\"10\",\"fieldEvidence\":{\"thicknessMm\":\"10\",\"productThermalResistance\":null,\"totalThermalResistance\":\"3.769\",\"kValue\":\"0.265\"},\"layerValues\":[{\"layerIndex\":3,\"thicknessMm\":10,\"rValue\":3.200,\"thicknessText\":\"10\",\"rValueText\":\"3.200\"}]},{\"thicknessMm\":15,\"productThermalResistance\":null,\"totalThermalResistance\":4.569,\"kValue\":0.219,\"sourceRowLabel\":\"15\",\"fieldEvidence\":{\"thicknessMm\":\"15\",\"productThermalResistance\":null,\"totalThermalResistance\":\"4.569\",\"kValue\":\"0.219\"},\"layerValues\":[{\"layerIndex\":3,\"thicknessMm\":15,\"rValue\":4.000,\"thicknessText\":\"15\",\"rValueText\":\"4.000\"}]},{\"thicknessMm\":20,\"productThermalResistance\":null,\"totalThermalResistance\":5.369,\"kValue\":0.186,\"sourceRowLabel\":\"20\",\"fieldEvidence\":{\"thicknessMm\":\"20\",\"productThermalResistance\":null,\"totalThermalResistance\":\"5.369\",\"kValue\":\"0.186\"},\"layerValues\":[{\"layerIndex\":3,\"thicknessMm\":20,\"rValue\":4.800,\"thicknessText\":\"20\",\"rValueText\":\"4.800\"}]},{\"thicknessMm\":25,\"productThermalResistance\":null,\"totalThermalResistance\":6.169,\"kValue\":0.162,\"sourceRowLabel\":\"25\",\"fieldEvidence\":{\"thicknessMm\":\"25\",\"productThermalResistance\":null,\"totalThermalResistance\":\"6.169\",\"kValue\":\"0.162\"},\"layerValues\":[{\"layerIndex\":3,\"thicknessMm\":25,\"rValue\":5.600,\"thicknessText\":\"25\",\"rValueText\":\"5.600\"}]},{\"thicknessMm\":30,\"productThermalResistance\":null,\"totalThermalResistance\":6.969,\"kValue\":0.143,\"sourceRowLabel\":\"30\",\"fieldEvidence\":{\"thicknessMm\":\"30\",\"productThermalResistance\":null,\"totalThermalResistance\":\"6.969\",\"kValue\":\"0.143\"},\"layerValues\":[{\"layerIndex\":3,\"thicknessMm\":30,\"rValue\":6.400,\"thicknessText\":\"30\",\"rValueText\":\"6.400\"}]}]},{\"systemName\":\"平屋面（倒置，级防水）\",\"specClass\":\"II\",\"constructionCode\":null,\"constructionCodeEvidence\":null,\"rawConstructionLabel\":\"平屋面（倒置，级防水）\",\"applicationPart\":\"ROOF\",\"roofForm\":\"FLAT\",\"placement\":\"INVERTED\",\"waterproofGrade\":null,\"sourceColumns\":[{\"fieldKey\":null,\"label\":\"分层厚度\",\"groupLabel\":null,\"symbol\":null,\"unit\":\"mm\",\"scope\":\"UNKNOWN\"},{\"fieldKey\":null,\"label\":\"导热系数\",\"groupLabel\":null,\"symbol\":\"λ\",\"unit\":\"W/(m·K)\",\"scope\":\"LAYER\"},{\"fieldKey\":null,\"label\":\"修正系数\",\"groupLabel\":null,\"symbol\":\"α\",\"unit\":null,\"scope\":\"LAYER\"},{\"fieldKey\":null,\"label\":\"热阻\",\"groupLabel\":null,\"symbol\":\"R\",\"unit\":\"(m²·K)/W\",\"scope\":\"LAYER\"},{\"fieldKey\":\"totalThermalResistance\",\"label\":\"传热阻\",\"groupLabel\":\"外墙主断面\",\"symbol\":\"R\",\"unit\":\"(m²·K)/W\",\"scope\":\"CONSTRUCTION\"},{\"fieldKey\":\"kValue\",\"label\":\"传热系数\",\"groupLabel\":\"外墙主断面\",\"symbol\":\"K\",\"unit\":\"W/(m²·K)\",\"scope\":\"CONSTRUCTION\"}],\"baseMaterial\":\"钢筋混凝土楼板\",\"baseThicknessMm\":120,\"layers\":[{\"order\":1,\"sourceLayerLabel\":\"1.混合砂浆\",\"sourceGroupLabel\":null,\"name\":\"混合砂浆\",\"thicknessMm\":20,\"lambda\":0.870,\"alpha\":1.00,\"rValue\":0.023},{\"order\":2,\"sourceLayerLabel\":\"2.钢筋混凝土楼板\",\"sourceGroupLabel\":null,\"name\":\"钢筋混凝土楼板\",\"thicknessMm\":120,\"lambda\":1.740,\"alpha\":1.00,\"rValue\":0.069},{\"order\":3,\"sourceLayerLabel\":\"3.轻集料混凝土找坡层\",\"sourceGroupLabel\":null,\"name\":\"轻集料混凝土找坡层\",\"thicknessMm\":30,\"lambda\":0.160,\"alpha\":1.50,\"rValue\":0.083},{\"order\":4,\"sourceLayerLabel\":\"4.水泥砂浆找平层\",\"sourceGroupLabel\":null,\"name\":\"水泥砂浆找平层\",\"thicknessMm\":20,\"lambda\":0.930,\"alpha\":1.00,\"rValue\":0.022},{\"order\":5,\"sourceLayerLabel\":\"6.水泥砂浆找平层\",\"sourceGroupLabel\":null,\"name\":\"水泥砂浆找平层\",\"thicknessMm\":20,\"lambda\":0.930,\"alpha\":1.00,\"rValue\":0.022},{\"order\":6,\"sourceLayerLabel\":\"包覆浆料\",\"sourceGroupLabel\":\"9. Ⅱ型VICP复合保温板\",\"name\":\"包覆浆料\",\"thicknessMm\":10,\"lambda\":0.080,\"alpha\":1.25,\"rValue\":0.100},{\"order\":7,\"sourceLayerLabel\":\"真空绝热板\",\"sourceGroupLabel\":\"9. Ⅱ型VICP复合保温板\",\"name\":\"真空绝热板\",\"thicknessMm\":null,\"lambda\":0.0025,\"alpha\":1.25,\"rValue\":null},{\"order\":8,\"sourceLayerLabel\":\"包覆浆料\",\"sourceGroupLabel\":\"9. Ⅱ型VICP复合保温板\",\"name\":\"包覆浆料\",\"thicknessMm\":10,\"lambda\":0.080,\"alpha\":1.25,\"rValue\":0.100}],\"options\":[{\"thicknessMm\":5,\"productThermalResistance\":null,\"totalThermalResistance\":2.969,\"kValue\":0.337,\"sourceRowLabel\":\"5\",\"fieldEvidence\":{\"thicknessMm\":\"5\",\"productThermalResistance\":null,\"totalThermalResistance\":\"2.969\",\"kValue\":\"0.337\"},\"layerValues\":[{\"layerIndex\":7,\"thicknessMm\":5,\"rValue\":2.400,\"thicknessText\":\"5\",\"rValueText\":\"2.400\"}]},{\"thicknessMm\":10,\"productThermalResistance\":null,\"totalThermalResistance\":3.769,\"kValue\":0.265,\"sourceRowLabel\":\"10\",\"fieldEvidence\":{\"thicknessMm\":\"10\",\"productThermalResistance\":null,\"totalThermalResistance\":\"3.769\",\"kValue\":\"0.265\"},\"layerValues\":[{\"layerIndex\":7,\"thicknessMm\":10,\"rValue\":3.200,\"thicknessText\":\"10\",\"rValueText\":\"3.200\"}]},{\"thicknessMm\":15,\"productThermalResistance\":null,\"totalThermalResistance\":4.569,\"kValue\":0.219,\"sourceRowLabel\":\"15\",\"fieldEvidence\":{\"thicknessMm\":\"15\",\"productThermalResistance\":null,\"totalThermalResistance\":\"4.569\",\"kValue\":\"0.219\"},\"layerValues\":[{\"layerIndex\":7,\"thicknessMm\":15,\"rValue\":4.000,\"thicknessText\":\"15\",\"rValueText\":\"4.000\"}]},{\"thicknessMm\":20,\"productThermalResistance\":null,\"totalThermalResistance\":5.369,\"kValue\":0.186,\"sourceRowLabel\":\"20\",\"fieldEvidence\":{\"thicknessMm\":\"20\",\"productThermalResistance\":null,\"totalThermalResistance\":\"5.369\",\"kValue\":\"0.186\"},\"layerValues\":[{\"layerIndex\":7,\"thicknessMm\":20,\"rValue\":4.800,\"thicknessText\":\"20\",\"rValueText\":\"4.800\"}]},{\"thicknessMm\":25,\"productThermalResistance\":null,\"totalThermalResistance\":6.169,\"kValue\":0.162,\"sourceRowLabel\":\"25\",\"fieldEvidence\":{\"thicknessMm\":\"25\",\"productThermalResistance\":null,\"totalThermalResistance\":\"6.169\",\"kValue\":\"0.162\"},\"layerValues\":[{\"layerIndex\":7,\"thicknessMm\":25,\"rValue\":5.600,\"thicknessText\":\"25\",\"rValueText\":\"5.600\"}]},{\"thicknessMm\":30,\"productThermalResistance\":null,\"totalThermalResistance\":6.969,\"kValue\":0.143,\"sourceRowLabel\":\"30\",\"fieldEvidence\":{\"thicknessMm\":\"30\",\"productThermalResistance\":null,\"totalThermalResistance\":\"6.969\",\"kValue\":\"0.143\"},\"layerValues\":[{\"layerIndex\":7,\"thicknessMm\":30,\"rValue\":6.400,\"thicknessText\":\"30\",\"rValueText\":\"6.400\"}]}]}],\"notes\":[\"注：1.屋面采用结构找坡时，可取消找坡层。\",\"2.当结构找坡时，取消表中的找坡层并另行计算。\",\"3.当为倒置式屋面时，不必设置隔汽层。\",\"4.表中数值均按现浇屋面板考虑，若为预制空心板，应同时考虑屋面板上的水泥砂浆对屋面保温隔热的影响。\"],\"warnings\":[\"防水等级原文仅见“级防水”，等级字形缺失，无法辨认具体等级；原始构造标签、部位文字及备注内容需人工核对。\"]}"
+    },
+    {
+      "page": "75",
+      "status": "FAIL",
+      "explanation": "单次真实推理；所有结果仍REVIEW_REQUIRED，未人工确认、未正式发布",
+      "groups": 2,
+      "pageLabel": "75",
+      "printedPage": "PASS",
+      "notes": [
+        "1.内表面换热阻0.11(㎡·K)/W，外表面换热阻0.04(㎡·K)/W。",
+        "2.加气混凝土砌块热工性能参照华北标图集13BJ2-12建筑外保温（节能75%）。"
+      ],
+      "warnings": [
+        "真空绝热板仅列出芯层热阻，未标注完整产品热阻；productThermalResistance为null，需人工核对。",
+        "规格列为真空绝热板厚度，未单独列出产品整体热阻与整构造总传热阻对应关系。",
+        "第1组构造第1档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第1组构造第2档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第1组构造第3档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第1组构造第4档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第1组构造第5档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第1组构造第6档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第1组构造第7档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第2组构造第1档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第2组构造第2档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第2组构造第3档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第2组构造第4档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第2组构造第5档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第2组构造第6档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第2组构造第7档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第1组构造的构造编号缺少原标签/编号栏证据，已留空；材料层号不能当构造编号",
+        "第2组构造的构造编号缺少原标签/编号栏证据，已留空；材料层号不能当构造编号"
+      ],
+      "checks": [
+        {
+          "construction": "外墙C1-3",
+          "thicknessMm": 5,
+          "expectedR": 2.116,
+          "expectedK": 0.473,
+          "numericAndIdentity": "FAIL",
+          "productSemantic": "FAIL"
+        },
+        {
+          "construction": "外墙C1-3",
+          "thicknessMm": 8,
+          "expectedR": 3.076,
+          "expectedK": 0.325,
+          "numericAndIdentity": "FAIL",
+          "productSemantic": "FAIL"
+        },
+        {
+          "construction": "外墙C1-3",
+          "thicknessMm": 10,
+          "expectedR": 3.716,
+          "expectedK": 0.269,
+          "numericAndIdentity": "FAIL",
+          "productSemantic": "FAIL"
+        },
+        {
+          "construction": "外墙C1-3",
+          "thicknessMm": 15,
+          "expectedR": 5.316,
+          "expectedK": 0.188,
+          "numericAndIdentity": "FAIL",
+          "productSemantic": "FAIL"
+        },
+        {
+          "construction": "外墙C1-3",
+          "thicknessMm": 20,
+          "expectedR": 6.916,
+          "expectedK": 0.145,
+          "numericAndIdentity": "FAIL",
+          "productSemantic": "FAIL"
+        },
+        {
+          "construction": "外墙C1-3",
+          "thicknessMm": 25,
+          "expectedR": 8.516,
+          "expectedK": 0.117,
+          "numericAndIdentity": "FAIL",
+          "productSemantic": "FAIL"
+        },
+        {
+          "construction": "外墙C1-3",
+          "thicknessMm": 30,
+          "expectedR": 10.116,
+          "expectedK": 0.099,
+          "numericAndIdentity": "FAIL",
+          "productSemantic": "FAIL"
+        },
+        {
+          "construction": "外墙C1-4",
+          "thicknessMm": 5,
+          "expectedR": 2.74,
+          "expectedK": 0.365,
+          "numericAndIdentity": "FAIL",
+          "productSemantic": "FAIL"
+        },
+        {
+          "construction": "外墙C1-4",
+          "thicknessMm": 8,
+          "expectedR": 3.7,
+          "expectedK": 0.27,
+          "numericAndIdentity": "FAIL",
+          "productSemantic": "FAIL"
+        },
+        {
+          "construction": "外墙C1-4",
+          "thicknessMm": 10,
+          "expectedR": 4.34,
+          "expectedK": 0.23,
+          "numericAndIdentity": "FAIL",
+          "productSemantic": "FAIL"
+        },
+        {
+          "construction": "外墙C1-4",
+          "thicknessMm": 15,
+          "expectedR": 5.94,
+          "expectedK": 0.168,
+          "numericAndIdentity": "FAIL",
+          "productSemantic": "FAIL"
+        },
+        {
+          "construction": "外墙C1-4",
+          "thicknessMm": 20,
+          "expectedR": 7.54,
+          "expectedK": 0.133,
+          "numericAndIdentity": "FAIL",
+          "productSemantic": "FAIL"
+        },
+        {
+          "construction": "外墙C1-4",
+          "thicknessMm": 25,
+          "expectedR": 9.14,
+          "expectedK": 0.109,
+          "numericAndIdentity": "FAIL",
+          "productSemantic": "FAIL"
+        },
+        {
+          "construction": "外墙C1-4",
+          "thicknessMm": 30,
+          "expectedR": 10.74,
+          "expectedK": 0.093,
+          "numericAndIdentity": "FAIL",
+          "productSemantic": "FAIL"
+        }
+      ]
+    }
+  ],
+  "readOnly": [
+    {
+      "transaction_read_only": "on"
+    }
+  ]
+}

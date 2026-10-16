@@ -47,6 +47,8 @@ export function solutionClientState(state: SolutionStateDto): SolutionStateDto {
     'productSpecId',
     'productId',
     'productName',
+    'substrateMaterial',
+    'substrateThickness',
     'thicknessMm',
     'productThermalResistance',
     'totalThermalResistance',

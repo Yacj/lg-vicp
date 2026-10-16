@@ -1,0 +1,19 @@
+{
+  "id": "T05",
+  "group": "wall",
+  "question": "外墙C1-3和C1-4都是20mm，哪个K小？基层什么材料？",
+  "status": "FAIL",
+  "conversationId": "76906f51-a75b-4655-b345-fb8d1489cda6",
+  "answer": "想确认一下：请指定这轮要讨论的保温体系或实际基层；可以先整理参考选型框架。",
+  "facts": [],
+  "pages": [],
+  "historyReturned": true,
+  "persistedUrlFree": true,
+  "solutionStates": 0,
+  "reports": 0,
+  "snapshots": 0,
+  "error": {
+    "name": "AssertionError",
+    "message": "命中行数必须准确，不能串构造或多返回别的档位\n\n0 !== 2\n"
+  }
+}

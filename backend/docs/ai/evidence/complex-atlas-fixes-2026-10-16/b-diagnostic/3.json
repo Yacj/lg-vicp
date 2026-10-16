@@ -1,0 +1,124 @@
+{
+  "proposal": {
+    "queryMode": "NEW_QUERY",
+    "intent": "REFERENCE_LOOKUP",
+    "constraints": [
+      {
+        "type": "ENTITY",
+        "operation": "SET",
+        "field": "specClass",
+        "entityText": "I型",
+        "resolvedText": "I",
+        "metric": null,
+        "operator": null,
+        "value": null,
+        "evidence": "I型VICP坡屋面正置和倒置",
+        "hard": true,
+        "confidence": 0.95
+      },
+      {
+        "type": "ENTITY",
+        "operation": "SET",
+        "field": "placement",
+        "entityText": "正置",
+        "resolvedText": null,
+        "metric": null,
+        "operator": null,
+        "value": null,
+        "evidence": "正置和倒置",
+        "hard": true,
+        "confidence": 0.95
+      },
+      {
+        "type": "ENTITY",
+        "operation": "APPEND",
+        "field": "placement",
+        "entityText": "倒置",
+        "resolvedText": null,
+        "metric": null,
+        "operator": null,
+        "value": null,
+        "evidence": "正置和倒置",
+        "hard": true,
+        "confidence": 0.95
+      },
+      {
+        "type": "ENTITY",
+        "operation": "SET",
+        "field": "roofForm",
+        "entityText": "坡屋面",
+        "resolvedText": "坡屋面",
+        "metric": null,
+        "operator": null,
+        "value": null,
+        "evidence": "I型VICP坡屋面正置和倒置",
+        "hard": true,
+        "confidence": 0.9
+      },
+      {
+        "type": "THICKNESS",
+        "operation": "SET",
+        "field": null,
+        "entityText": "20mm",
+        "resolvedText": null,
+        "metric": null,
+        "operator": "EXACT",
+        "value": 20,
+        "evidence": "20mm的传热系数分别多少",
+        "hard": true,
+        "confidence": 0.95
+      }
+    ],
+    "preferences": [],
+    "unresolved": [],
+    "confidence": 0.9
+  },
+  "query": {
+    "intent": "REFERENCE_LOOKUP",
+    "filters": [],
+    "mode": "MAX_LIMIT",
+    "toleranceAdjusted": false,
+    "specClass": "I",
+    "thicknessMm": 20,
+    "roofForm": "SLOPED",
+    "placements": [
+      "UPRIGHT",
+      "INVERTED"
+    ],
+    "queryMode": "NEW_QUERY",
+    "semanticConfidence": 0.9,
+    "unresolved": [],
+    "conditionTrace": [
+      {
+        "field": "specClass",
+        "value": "I",
+        "source": "USER_EXPLICIT",
+        "classification": "HARD_CONSTRAINT"
+      },
+      {
+        "field": "roofForm",
+        "value": "SLOPED",
+        "source": "USER_EXPLICIT",
+        "classification": "HARD_CONSTRAINT"
+      },
+      {
+        "field": "thicknessMm",
+        "value": 20,
+        "source": "USER_EXPLICIT",
+        "classification": "HARD_CONSTRAINT"
+      },
+      {
+        "field": "placements",
+        "value": "UPRIGHT",
+        "source": "USER_EXPLICIT",
+        "classification": "HARD_CONSTRAINT"
+      },
+      {
+        "field": "placements",
+        "value": "INVERTED",
+        "source": "USER_EXPLICIT",
+        "classification": "HARD_CONSTRAINT"
+      }
+    ]
+  }
+}

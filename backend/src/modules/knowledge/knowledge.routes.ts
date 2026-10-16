@@ -8,6 +8,7 @@ import { AUTH_CLIENTS } from "../../shared/constants.js";
 import { ForbiddenError } from "../../shared/errors.js";
 import { paginationQuerySchema } from "../../shared/pagination.js";
 import { ok } from "../../shared/response.js";
+import { readPageImageBytes } from "./knowledge-page-image.js";
 import {
   approveVersion,
   completeVersionUpload,
@@ -1361,6 +1362,17 @@ export async function knowledgeRoutes(app: FastifyInstance) {
   }, async (request) => {
     const actor = requirePermission(request, KNOWLEDGE_PERMISSIONS.PAGE_RECOGNIZE);
     return ok(request, await enqueuePageRecognition(app, request, actor, request.params.pageId, { reRecognize: true }));
+  });
+
+  route.get("/pages/:pageId/image", {
+    preHandler: [app.authenticate, requireClient(AUTH_CLIENTS.B_ADMIN)],
+    schema: { tags: ["B端 / 知识库"], summary: "读取有权审核页面的原始页图（原字节）", params: z.object({ pageId: z.uuid() }) }
+  }, async (request, reply) => {
+    requirePermission(request, KNOWLEDGE_PERMISSIONS.DOC_LIST);
+    await getPageRecognition(app, request.params.pageId);
+    const image = await readPageImageBytes(app, request.params.pageId);
+    return reply.type(image.contentType).header("Content-Disposition", "inline").header("Cache-Control", "private, no-store")
+      .header("X-Content-Type-Options", "nosniff").send(image.bytes);
   });
 
   route.get("/pages/:pageId/recognition", {

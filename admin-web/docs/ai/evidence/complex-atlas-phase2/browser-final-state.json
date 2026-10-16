@@ -1,0 +1,40 @@
+{
+  "scope": "真实B端组件+隔离HTTP/SSE Fixture；正式Backend/OSS NOT_RUN",
+  "qa": {
+    "container": 1279.9906005859375,
+    "fullOptionRows": 12,
+    "hitRows": 2,
+    "referencePages": 1,
+    "summary": [
+      "平屋面（正置，级防水）205.3690.18690",
+      "平屋面（倒置，级防水）205.3690.18690"
+    ],
+    "viewport": {
+      "height": 1331,
+      "width": 1491
+    }
+  },
+  "images": [
+    {
+      "page": 90,
+      "complete": true,
+      "naturalHeight": 1471,
+      "naturalWidth": 2048,
+      "src": "http://127.0.0.1:5186/original-90.png"
+    },
+    {
+      "page": 89,
+      "complete": true,
+      "naturalHeight": 1471,
+      "naturalWidth": 2048,
+      "src": "http://127.0.0.1:5186/original-89.png"
+    },
+    {
+      "page": 75,
+      "complete": true,
+      "naturalHeight": 1471,
+      "naturalWidth": 2048,
+      "src": "http://127.0.0.1:5186/original-75.png"
+    }
+  ]
+}

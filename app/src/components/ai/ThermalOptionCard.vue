@@ -1,14 +1,13 @@
 <script setup lang="ts">
-import type { ThermalFieldKey, ThermalRenderOption } from '@/api/reference-page'
+import type { KnowledgeRenderConstruction, ThermalFieldKey, ThermalRenderOption } from '@/api/reference-page'
 import { computed } from 'vue'
 import { readableReferenceAnnotations } from '@/utils/referenceAnnotations'
 import { formatReferenceNumber } from '@/utils/referencePage'
+import { thermalColumnHeader } from '@/utils/thermalSourceLabels'
 
-const props = defineProps<{ option: Omit<ThermalRenderOption, 'optionId'>, highlighted?: boolean, active?: boolean, fieldKeys?: string[] }>()
+const props = defineProps<{ option: Omit<ThermalRenderOption, 'optionId'>, construction?: KnowledgeRenderConstruction, highlighted?: boolean, active?: boolean, fieldKeys?: string[] }>()
 const fields = computed(() => [
-  { key: 'productThermalResistance' as ThermalFieldKey, label: '产品层热阻 R', unit: '(m²·K)/W' },
-  { key: 'totalThermalResistance' as ThermalFieldKey, label: '总热阻 R₀', unit: '(m²·K)/W' },
-  { key: 'kValue' as ThermalFieldKey, label: '传热系数 K', unit: 'W/(m²·K)' },
+  ...(['productThermalResistance', 'totalThermalResistance', 'kValue'] as ThermalFieldKey[]).map(key => ({ key, ...thermalColumnHeader(props.construction ? [props.construction] : [], key) })),
 ])
 const hasWarning = computed(() => !!readableReferenceAnnotations(props.option.warnings).length || ['thicknessMm', 'productThermalResistance', 'totalThermalResistance', 'kValue'].some((key) => {
   const value = props.option[key as ThermalFieldKey]
@@ -23,7 +22,7 @@ const hasWarning = computed(() => !!readableReferenceAnnotations(props.option.wa
         {{ formatReferenceNumber(option.thicknessMm) }} mm
       </text>
       <text v-if="highlighted" class="app-primary-text text-2.5">
-        {{ active ? '当前方案' : '匹配方案' }}
+        {{ active ? '当前档位' : '命中档位' }}
       </text>
     </view>
     <view v-for="field in fields" :key="field.key" class="mt-2 flex items-baseline justify-between gap-3 text-3">

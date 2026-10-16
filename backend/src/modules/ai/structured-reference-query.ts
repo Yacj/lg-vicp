@@ -15,14 +15,15 @@ export function resolveStructuredReferenceQuery(message: string, last?: Pick<Las
     && /比较|对比|区别|差别|不同|最低|最高|多少/.test(text);
   const codes = text.match(/[A-Z]\d+\s*-\s*\d+/gi) ?? [];
   const sameThickness = /同(?:一|样)(?:的)?厚度|相同厚度/.test(text);
-  if (comparison && !metric.metric && !/热工|参数/.test(text) && !(sameThickness && (last?.query || input.intent === "REFERENCE_LOOKUP"))) return null;
+  if (comparison && !metric.metric && !/热工|参数/.test(text) && input.intent !== "REFERENCE_LOOKUP"
+    && !(sameThickness && last?.query)) return null;
   const thickness = parseThermalThicknessMessage(text, last?.query);
   const explicitSpec = parseSpecClassHint(text);
   if (!comparison && (metric.filters.length || codes.length > 1 || !codes.length && !explicitSpec && !/系统|体系/.test(text)
-    || !/多少|参数|传热系数|热阻|\bK\b|R[0₀]/i.test(text))) return null;
+    || input.intent !== "REFERENCE_LOOKUP" && !/多少|参数|传热系数|热阻|\bK\b|R[0₀]/i.test(text))) return null;
   if (!thickness.changed && !sameThickness) return null;
   // 名称只是确认结构的文本约束，不以名称推导正式体系ID。
-  const head = text.split(/[,，;；。]|(?:外墙)?[A-Z]\d+\s*-\s*\d+|\d+(?:\.\d+)?\s*(?:mm|毫米)/i)[0]!
+  const head = text.split(/[,，;；。]|(?:外墙)?[A-Z]\d+\s*-\s*\d+|\d+(?:\.\d+)?\s*(?:mm|毫米|厚)/i)[0]!
     .replace(/^(?:请|帮我|查询|查一下|查|同样|相同)\s*/, "").trim();
   const systemHint = /系统|体系/.test(head) || explicitSpec && /型.+/.test(head)
     ? head.replace(/(?:，|的|厚度|构造)\s*$/, "").trim() : undefined;
@@ -59,8 +60,14 @@ export function resolveStructuredReferenceQuery(message: string, last?: Pick<Las
 
 /** 只有明确结构化查询才扩页；普通解释和引用追问仍只读命中页。 */
 export function confirmedReferenceQuery(message: string, input?: LookupQueryShape) {
+  // 已经通过语义/工程字段校验的SSOT不得被旧同步口语路径重新覆盖。
+  if (input?.parserSource === "LLM" || input?.applicationPart || input?.roofForm || input?.placement || input?.placements?.length || input?.pageLabel || input?.waterproofGrade || input?.constructionCodes?.length || input?.specClasses?.length || input?.unresolved?.length)
+    return { query: input, needsClarification: Boolean(input.unresolved?.length), structured: null,
+      authoritative: !input.unresolved?.length && input.intent === "REFERENCE_LOOKUP" && Boolean(input.filters?.length || input.applicationPart || input.roofForm || input.placement || input.placements?.length || input.pageLabel || input.waterproofGrade || input.constructionCodes?.length || input.specClasses?.length || input.schemeCode || input.specClass || input.thicknessMm != null || input.thicknessMin != null || input.thicknessMax != null) };
   const structured = resolveStructuredReferenceQuery(message, undefined, input);
   const normalized = structured ?? (input ? { query: input, needsClarification: Boolean(input.unresolved?.length) } : normalizeConversationLookupQuery({}, message));
   return { ...normalized, structured, authoritative: !normalized.needsClarification
-    && (Boolean(structured) || (normalized.query.filters?.length ?? 0) > 0) };
+    && (Boolean(structured) || (normalized.query.filters?.length ?? 0) > 0
+      || (normalized.query.thicknessMm != null || normalized.query.thicknessMin != null || normalized.query.thicknessMax != null)
+        && Boolean(normalized.query.systemHint || normalized.query.systemId || normalized.query.systemIds?.length || normalized.query.specClass || normalized.query.schemeCode || normalized.query.schemeId)) };
 }

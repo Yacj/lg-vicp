@@ -1,0 +1,71 @@
+{
+  "name": "89-20",
+  "query": "I型VICP坡屋面正置和倒置，20mm的传热系数分别多少？看下表。",
+  "http": 200,
+  "contentType": "text/event-stream; charset=utf-8",
+  "events": [
+    {
+      "event": "message",
+      "data": {
+        "messageId": "dd4d93b3-f54c-4852-8da6-4694203e0096",
+        "userMessageId": "3a3c991b-4f97-4718-be35-55b4eab139cb",
+        "conversationId": "d9cf40b9-9953-49c4-8130-b5ecab944669",
+        "requestId": "req-f"
+      }
+    },
+    {
+      "event": "progress",
+      "data": {
+        "stage": "analyzing",
+        "message": "正在分析问题..."
+      }
+    },
+    {
+      "event": "progress",
+      "data": {
+        "stage": "checking",
+        "message": "正在核对检索资料和计算结果..."
+      }
+    },
+    {
+      "event": "progress",
+      "data": {
+        "stage": "composing",
+        "message": "正在整理回答..."
+      }
+    },
+    {
+      "event": "delta",
+      "data": {
+        "text": "正置和倒置为并列两种构造，需分别查询，不能合并为单一placement约束\n多个不同构造属性不能收窄为任意一个值，请分别查询或保留全部对象。\n指标目标值缺少可靠依据，请确认。"
+      }
+    },
+    {
+      "event": "progress",
+      "data": {
+        "stage": "completed",
+        "message": "回答整理完成"
+      }
+    },
+    {
+      "event": "done",
+      "data": {
+        "messageId": "dd4d93b3-f54c-4852-8da6-4694203e0096",
+        "conversationId": "d9cf40b9-9953-49c4-8130-b5ecab944669",
+        "finishReason": "COMPLETED",
+        "usage": {},
+        "model": {
+          "id": "deepseek-chat"
+        },
+        "promptVersion": {
+          "id": "f3f5a2ff-8436-4101-b11a-6ed5ce8b3c26",
+          "version": 1
+        },
+        "sources": [],
+        "latencyMs": 5806
+      }
+    }
+  ],
+  "blocks": [],
+  "facts": []
+}

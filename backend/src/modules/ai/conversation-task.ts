@@ -10,6 +10,7 @@ import { THERMAL_FACT_RULES } from "./thermal-answer-facts.js";
 import { formatLookupThickness } from "../thermal/thermal-lookup-thickness.js";
 import { THERMAL_LOOKUP_METRICS, type ThermalLookupMode } from "../thermal/thermal-lookup-mode.js";
 import { adviceBusinessContextSchema, pendingAdviceGoalSchema, type AdviceBusinessContext, type PendingAdviceGoal } from "./solution-advice-context.js";
+import { confirmedPageLookupSchema, type ConfirmedPageLookup } from "./confirmed-page-lookup-state.js";
 export const CONVERSATION_TASK_TYPES = [
   "GENERAL",
   "PRODUCT_CONSULTATION",
@@ -113,6 +114,7 @@ export type ConversationTaskState = {
   reportContextSnapshotId?: string | null;
   userGoal?: string;
   lastReferenceLookup?: LastReferenceLookup;
+  confirmedPageLookup?: ConfirmedPageLookup;
   adviceBusinessContext?: AdviceBusinessContext;
   pendingAdviceGoal?: PendingAdviceGoal;
 };
@@ -192,6 +194,7 @@ export function parseConversationTaskState(raw: unknown): ConversationTaskState 
         : undefined,
     userGoal: typeof value.userGoal === "string" ? value.userGoal : undefined,
     lastReferenceLookup: parseLastReferenceLookup(value.lastReferenceLookup),
+    confirmedPageLookup: confirmedPageLookupSchema.safeParse(value.confirmedPageLookup).data,
     adviceBusinessContext: adviceBusinessContextSchema.safeParse(value.adviceBusinessContext).data,
     pendingAdviceGoal: pendingAdviceGoalSchema.safeParse(value.pendingAdviceGoal).data
   };
@@ -278,6 +281,7 @@ export function mergeConversationTaskState(
       ? patch.lastReferenceLookup
       : base.lastReferenceLookup,
     adviceBusinessContext: patch.adviceBusinessContext ?? base.adviceBusinessContext,
+    confirmedPageLookup: patch.confirmedPageLookup ?? base.confirmedPageLookup,
     pendingAdviceGoal: patch.pendingAdviceGoal ?? base.pendingAdviceGoal
   };
 }

@@ -1,0 +1,56 @@
+[
+  {
+    "event": "message",
+    "data": {
+      "messageId": "17a3e097-ae51-4b4d-8616-22ef81c00597",
+      "userMessageId": "8b6b63af-41af-4f59-a806-59a796864f1c",
+      "conversationId": "a6a9f137-a44a-452c-92d2-b64a06266364",
+      "requestId": "req-3"
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "analyzing",
+      "message": "正在分析问题..."
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "composing",
+      "message": "正在整理回答..."
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "想确认一下：明确的厚度条件未被完整保留，请确认。"
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "completed",
+      "message": "回答整理完成"
+    }
+  },
+  {
+    "event": "done",
+    "data": {
+      "messageId": "17a3e097-ae51-4b4d-8616-22ef81c00597",
+      "conversationId": "a6a9f137-a44a-452c-92d2-b64a06266364",
+      "finishReason": "COMPLETED",
+      "usage": {},
+      "model": {
+        "id": "deepseek-chat"
+      },
+      "promptVersion": {
+        "id": "ae0f8064-e3d6-43c0-ab4c-174188be34e4",
+        "version": 3
+      },
+      "sources": [],
+      "latencyMs": 6591
+    }
+  }
+]

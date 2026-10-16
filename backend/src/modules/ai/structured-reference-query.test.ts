@@ -12,6 +12,10 @@ import { resolveReferenceQueryWithoutAgent } from "./reference-query.service.js"
 vi.mock("./solution-state.service.js", () => ({ assertSolutionAccess: vi.fn(async () => ({ projectId: null })) }));
 
 const message = "Ⅲ型 VICP 薄抹灰，45mm 厚，不同基层传热系数有什么区别？";
+it("真实UAT-03未指定指标的多基层查询仍是完整档位读取，不要求先选择一个基层", () => {
+  const resolved = resolveStructuredReferenceQuery("Ⅲ型 VICP 薄抹灰 45mm，帮我对比下不同基层方案。", undefined, { intent: "REFERENCE_LOOKUP" });
+  expect(resolved).toMatchObject({ queryKind: "REFERENCE_COMPARISON", needsClarification: false, query: { specClass: "III", thicknessMm: 45, filters: [] } });
+});
 function fixtureApp(change: Record<string, unknown> = {}) {
   const snapshots = structuredReferenceFixture();
   const rows = snapshots.map(({ page }) => ({ page, document: { id: page.documentId, title: "模拟图集", projectId: null,
@@ -75,7 +79,8 @@ describe("跨页结构化热工参考数据", () => {
     ]);
     const resolved = resolveConfirmedReferenceAnswer(result.answer!, result.pages);
     expect(resolved.text).toContain("共 4 条、4 种基层，当前展示 4 条");
-    expect(resolved.text).toContain("R₀=4.040"); expect(resolved.text).not.toContain("0.999"); expect(resolved.text).not.toContain("[[KP:");
+    expect(resolved.text).toContain("整构造传热阻（源文符号待核） **4.040 (m²·K)/W**"); expect(resolved.text).not.toContain("R₀=");
+    expect(resolved.text).not.toContain("0.999"); expect(resolved.text).not.toContain("[[KP:");
     expect(resolved.pages.map(page => [page.page.pageLabel, page.matches.length])).toEqual([["5", 2], ["6", 2]]);
     for (const candidate of result.solutionCandidates!) {
       const page = resolved.pages.find(page => page.page.pageId === candidate.sourcePageId)!;

@@ -42,7 +42,7 @@ describe("统一错误响应", () => {
     const app = await buildErrorTestApp();
     try {
       const response = await app.inject("/typed-unauthorized-error");
-      expect(response.statusCode).toBe(200);
+      expect(response.statusCode).toBe(401);
       expect(response.headers["content-type"]).toContain("application/json");
       expect(response.json()).toEqual({
         success: false, error: { code: 401, message: "请先登录" }, requestId: expect.any(String)
@@ -80,11 +80,11 @@ describe("统一错误响应", () => {
     await app.close();
   });
 
-  it("访问令牌认证错误使用 HTTP 200，并返回数值 401 错误码", async () => {
+  it("访问令牌认证错误使用 HTTP 401，并返回数值 401 错误码", async () => {
     const app = await buildErrorTestApp();
     const response = await app.inject({ method: "GET", url: "/unauthorized-error" });
 
-    expect(response.statusCode).toBe(200);
+    expect(response.statusCode).toBe(401);
     expect(response.json()).toMatchObject({
       success: false,
       error: {

@@ -1,0 +1,121 @@
+{
+  "startedAt": "2026-10-16T06:24:43.278Z",
+  "mode": "EXPLICIT_REPEATABLE_READ_READ_ONLY",
+  "checks": [
+    {
+      "name": "真实数据库显式只读事务",
+      "status": "PASS",
+      "details": {
+        "read_only": "on",
+        "isolation": "repeatable read",
+        "sslRetry": false
+      }
+    },
+    {
+      "name": "当前平台发布确认资料范围",
+      "status": "PASS",
+      "details": {
+        "publishedDocumentsExamined": 1,
+        "related": [
+          {
+            "title": "测试知识库",
+            "versionId": "4929cc99-3269-41ce-b878-567cbf5fdb4e",
+            "pages": 79
+          }
+        ]
+      }
+    },
+    {
+      "name": "真实确认原始四档位",
+      "status": "OBSERVED",
+      "details": [
+        {
+          "constructionCode": "A3-1",
+          "specClass": "III",
+          "pageTitle": "建筑外墙热工计算参考选用表（III型VICP薄抹灰外保温系统）",
+          "baseMaterial": "钢筋混凝土",
+          "pageLabel": "5",
+          "pageId": "02f3418c-a64a-4bb2-bb8f-e9bd1aceefe8",
+          "systemName": "外墙A3-1",
+          "kValue": 0.302,
+          "thicknessMm": 45,
+          "totalThermalResistance": 3.313,
+          "productThermalResistance": 3
+        },
+        {
+          "constructionCode": "A3-2",
+          "specClass": "III",
+          "pageTitle": "建筑外墙热工计算参考选用表（III型VICP薄抹灰外保温系统）",
+          "baseMaterial": "混凝土空心砌块",
+          "pageLabel": "5",
+          "pageId": "02f3418c-a64a-4bb2-bb8f-e9bd1aceefe8",
+          "systemName": "外墙A3-2",
+          "kValue": 0.294,
+          "thicknessMm": 45,
+          "totalThermalResistance": 3.398,
+          "productThermalResistance": 3
+        },
+        {
+          "constructionCode": "外墙A3-3",
+          "specClass": "III",
+          "pageTitle": "建筑外墙热工计算参考选用表（III型VICP薄抹灰外保温系统）",
+          "baseMaterial": "蒸压灰砂砖",
+          "pageLabel": "6",
+          "pageId": "88a0dc1c-f14d-4a07-99eb-fa3beb99fbdb",
+          "systemName": "外墙A3-3",
+          "kValue": 0.293,
+          "thicknessMm": 45,
+          "totalThermalResistance": 3.416,
+          "productThermalResistance": 3
+        },
+        {
+          "constructionCode": "外墙A3-4",
+          "specClass": "III",
+          "pageTitle": "建筑外墙热工计算参考选用表（III型VICP薄抹灰外保温系统）",
+          "baseMaterial": "加气混凝土砌块",
+          "pageLabel": "6",
+          "pageId": "88a0dc1c-f14d-4a07-99eb-fa3beb99fbdb",
+          "systemName": "外墙A3-4",
+          "kValue": 0.248,
+          "thicknessMm": 45,
+          "totalThermalResistance": 4.04,
+          "productThermalResistance": 3
+        }
+      ]
+    },
+    {
+      "name": "原始确认快照与业务复现四行一致",
+      "status": "PASS",
+      "details": {}
+    },
+    {
+      "name": "确认数据概况",
+      "status": "INFO",
+      "details": {
+        "pages": 79,
+        "options": 890,
+        "completeOptions": 830
+      }
+    },
+    {
+      "name": "热工参考行概况（不执行同步）",
+      "status": "INFO",
+      "details": {
+        "rows": 2,
+        "with_source_page": 0
+      }
+    },
+    {
+      "name": "真实只读验证未通过",
+      "status": "FAIL",
+      "details": {
+        "errorType": "AssertionError",
+        "code": "ERR_ASSERTION",
+        "actual": "GENERAL",
+        "expected": "REFERENCE_QUERY",
+        "operator": "strictEqual"
+      }
+    }
+  ],
+  "finishedAt": "2026-10-16T06:24:46.801Z"
+}

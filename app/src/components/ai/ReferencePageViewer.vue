@@ -4,6 +4,7 @@ import { computed, watch } from 'vue'
 import { useReferencePageHighlight } from '@/composables/useReferencePageHighlight'
 import { readableReferenceAnnotations } from '@/utils/referenceAnnotations'
 import { formatReferenceNumber, hasPageRenderModel, referencePageHeading } from '@/utils/referencePage'
+import { constructionLabel, thermalColumnHeader, thermalGroupHeader } from '@/utils/thermalSourceLabels'
 import ThermalPageTable from './ThermalPageTable.vue'
 
 const props = defineProps<{ page: AiReferencePage, preferred?: ReferenceHighlight, imageFailed?: boolean, imageRevision?: number, refreshingImage?: boolean, fallbackText?: string, inline?: boolean, anchorPrefix?: string, initialView?: '原始页面' | '页面内容' }>()
@@ -20,7 +21,7 @@ const highlight = useReferencePageHighlight(() => ({ model: model.value, pageId:
 const activeLabel = computed(() => {
   const construction = model.value?.constructions.find(item => item.constructionId === highlight.active.value?.constructionId)
   const option = construction?.options.find(item => item.optionId === highlight.active.value?.optionId)
-  return construction ? `${construction.constructionCode || construction.title || '参考构造'}${option ? ` · ${formatReferenceNumber(option.thicknessMm)}mm` : ''}` : ''
+  return construction ? `${constructionLabel(construction)}${option ? ` · ${formatReferenceNumber(option.thicknessMm)}mm` : ''}` : ''
 })
 watch(model, (value, previous) => {
   if (!value)
@@ -75,7 +76,7 @@ watch(model, (value, previous) => {
       <view class="reference-page-viewer__table">
         <view class="reference-page-viewer__actions">
           <text class="app-muted min-w-0 flex-1 text-3">
-            热工参数表
+            {{ model.schemaVersion === 2 ? `完整热工表 · 全部档位（${model.constructions.reduce((count, construction) => count + construction.options.length, 0)} 行）` : '热工参数表' }}
           </text>
           <wd-button v-if="inline" size="small" type="info" variant="text" icon="share-external" @click="emit('openSource', highlight.active.value)">
             查看参考页
@@ -87,8 +88,11 @@ watch(model, (value, previous) => {
         <ThermalPageTable :constructions="model.constructions" :matches="highlight.matches.value" :highlight-enabled="highlight.enabled.value" :active="highlight.active.value" :anchor-prefix="anchorPrefix" />
       </view>
       <template v-for="construction in model.constructions" :key="construction.constructionId">
+        <view v-if="construction.sourceColumns?.length" class="app-muted mt-3 text-3 leading-5">
+          {{ constructionLabel(construction) }} · 来源栏目：{{ thermalGroupHeader([construction]) }} / {{ thermalColumnHeader([construction], 'totalThermalResistance').label }}（{{ thermalColumnHeader([construction], 'totalThermalResistance').unit }}）。来源名称按原稿保留。
+        </view>
         <view v-for="(note, index) in readableReferenceAnnotations(construction.notes)" :key="index" class="app-muted mt-3 text-3 leading-5">
-          {{ construction.constructionCode || construction.title }}：{{ note }}
+          {{ constructionLabel(construction) }}：{{ note }}
         </view>
       </template>
       <view v-for="(note, index) in notes" :key="`note-${index}`" class="app-muted mt-3 text-3 leading-5">
@@ -115,7 +119,7 @@ watch(model, (value, previous) => {
       <view v-if="page.page.imageUrl && !imageFailed" class="mt-4">
         <image :key="imageRevision" class="reference-page-viewer__image" :src="page.page.imageUrl" mode="aspectFit" @click="emit('previewImage')" @error="emit('imageError')" @load="emit('imageLoad')" />
         <view class="app-muted mt-2 text-2.5">
-          完整原页包含构造简图，点击可全屏查看。
+          印刷页码 {{ page.page.pageLabel || '待核' }} · 完整原页包含构造简图，点击可全屏查看。缺少坐标证据时仅展示整页。
         </view>
         <wd-button size="small" variant="plain" custom-class="mt-3!" @click="emit('previewImage')">
           全屏查看

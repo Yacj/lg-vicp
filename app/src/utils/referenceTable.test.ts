@@ -1,6 +1,7 @@
+import type { SolutionSnapshotDto } from '@/api/solution-types'
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import type { SolutionSnapshotDto } from '@/api/solution-types'
+import { complexAtlasFixture } from '../test/fixtures/complexAtlas'
 import { referenceFixture } from '../test/fixtures/referencePage'
 import { referenceTableLocation, resolveReferenceTablePage } from './referenceTable'
 
@@ -33,4 +34,15 @@ test('冻结表格只读取指定快照，保留全部档位和正式选项定�
   assert.deepEqual(result.renderModel, page.renderModel)
   assert.equal(result.matches[0]!.optionId, 'A1-3-18')
   assert.equal(resolveReferenceTablePage([], { ...snapshot, id: 'different' }, query), undefined)
+})
+
+test('全屏旧路由不能把换版或已失效档位绑定到新模型首行', () => {
+  const page = complexAtlasFixture(90)
+  const query = referenceTableLocation(page, { referenceMessageId: 'message' }, page.matches[1]).params
+  const messages = [{ id: 'message', referencePages: [page] }]
+  assert.equal(query.confirmedRevision, page.renderModel!.confirmedRevision)
+  assert.ok(resolveReferenceTablePage(messages, null, query))
+  assert.equal(resolveReferenceTablePage(messages, null, { ...query, confirmedRevision: 'stale' }), undefined)
+  assert.equal(resolveReferenceTablePage(messages, null, { ...query, optionId: 'stale' }), undefined)
+  assert.equal(resolveReferenceTablePage(messages, null, { ...query, constructionId: page.renderModel!.constructions[0]!.constructionId }), undefined)
 })

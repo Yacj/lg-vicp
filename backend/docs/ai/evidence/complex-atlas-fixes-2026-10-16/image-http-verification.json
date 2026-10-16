@@ -1,0 +1,95 @@
+{
+  "scope": "真实隔离HTTP原图字节、权限与版本验证；浏览器另行验收",
+  "checks": [
+    {
+      "kind": "B",
+      "label": "89",
+      "http": 200,
+      "type": "image/png",
+      "disposition": "inline",
+      "cache": "private, no-store",
+      "sha256": "6d48ac8f8a746eb6c012f8c9ad6c2bf24a4161ab65b00ee9222f351e41a4ba9c",
+      "originalSha256": "6d48ac8f8a746eb6c012f8c9ad6c2bf24a4161ab65b00ee9222f351e41a4ba9c",
+      "passed": true
+    },
+    {
+      "kind": "C",
+      "label": "89",
+      "http": 200,
+      "type": "image/png",
+      "disposition": "inline",
+      "cache": "private, no-store",
+      "sha256": "6d48ac8f8a746eb6c012f8c9ad6c2bf24a4161ab65b00ee9222f351e41a4ba9c",
+      "originalSha256": "6d48ac8f8a746eb6c012f8c9ad6c2bf24a4161ab65b00ee9222f351e41a4ba9c",
+      "passed": true
+    },
+    {
+      "kind": "B",
+      "label": "90",
+      "http": 200,
+      "type": "image/png",
+      "disposition": "inline",
+      "cache": "private, no-store",
+      "sha256": "3cda1d4a7da48652b779c637bf19418c0fd4b894dccaaf0fdb951b7a8d916aa3",
+      "originalSha256": "3cda1d4a7da48652b779c637bf19418c0fd4b894dccaaf0fdb951b7a8d916aa3",
+      "passed": true
+    },
+    {
+      "kind": "C",
+      "label": "90",
+      "http": 200,
+      "type": "image/png",
+      "disposition": "inline",
+      "cache": "private, no-store",
+      "sha256": "3cda1d4a7da48652b779c637bf19418c0fd4b894dccaaf0fdb951b7a8d916aa3",
+      "originalSha256": "3cda1d4a7da48652b779c637bf19418c0fd4b894dccaaf0fdb951b7a8d916aa3",
+      "passed": true
+    },
+    {
+      "kind": "B",
+      "label": "75",
+      "http": 200,
+      "type": "image/png",
+      "disposition": "inline",
+      "cache": "private, no-store",
+      "sha256": "a712567ae0622aa41f14961f2cf6cd5ebe28e8ecf701391c0d6814dc3e6ebcea",
+      "originalSha256": "a712567ae0622aa41f14961f2cf6cd5ebe28e8ecf701391c0d6814dc3e6ebcea",
+      "passed": true
+    },
+    {
+      "kind": "C",
+      "label": "75",
+      "http": 200,
+      "type": "image/png",
+      "disposition": "inline",
+      "cache": "private, no-store",
+      "sha256": "a712567ae0622aa41f14961f2cf6cd5ebe28e8ecf701391c0d6814dc3e6ebcea",
+      "originalSha256": "a712567ae0622aa41f14961f2cf6cd5ebe28e8ecf701391c0d6814dc3e6ebcea",
+      "passed": true
+    },
+    {
+      "name": "unauthenticated",
+      "http": 200,
+      "response": {
+        "success": false,
+        "error": {
+          "code": 401,
+          "message": "登录状态无效或已过期"
+        },
+        "requestId": "req-1d"
+      }
+    },
+    {
+      "name": "stale-revision",
+      "http": 200,
+      "response": {
+        "success": false,
+        "error": {
+          "code": 409,
+          "message": "来源确认版本已变化，请重新查询"
+        },
+        "requestId": "req-1e"
+      }
+    }
+  ]
+}

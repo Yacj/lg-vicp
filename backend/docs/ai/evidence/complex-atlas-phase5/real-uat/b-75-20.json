@@ -1,0 +1,71 @@
+{
+  "name": "75-20",
+  "query": "外墙C1-3和C1-4都是20mm，哪个K小？基层什么材料？",
+  "http": 200,
+  "contentType": "text/event-stream; charset=utf-8",
+  "events": [
+    {
+      "event": "message",
+      "data": {
+        "messageId": "08e2c2e2-c5d3-4b04-ae53-4fbc69137d57",
+        "userMessageId": "d99dc6a0-18a4-4bbe-8820-0e58819a9080",
+        "conversationId": "162f3049-b106-4b70-9be7-719915a6e413",
+        "requestId": "req-h"
+      }
+    },
+    {
+      "event": "progress",
+      "data": {
+        "stage": "analyzing",
+        "message": "正在分析问题..."
+      }
+    },
+    {
+      "event": "progress",
+      "data": {
+        "stage": "checking",
+        "message": "正在核对检索资料和计算结果..."
+      }
+    },
+    {
+      "event": "progress",
+      "data": {
+        "stage": "composing",
+        "message": "正在整理回答..."
+      }
+    },
+    {
+      "event": "delta",
+      "data": {
+        "text": "用户询问基层什么材料，但未指定具体基层材料，无法唯一确定\n指标目标值缺少可靠依据，请确认。"
+      }
+    },
+    {
+      "event": "progress",
+      "data": {
+        "stage": "completed",
+        "message": "回答整理完成"
+      }
+    },
+    {
+      "event": "done",
+      "data": {
+        "messageId": "08e2c2e2-c5d3-4b04-ae53-4fbc69137d57",
+        "conversationId": "162f3049-b106-4b70-9be7-719915a6e413",
+        "finishReason": "COMPLETED",
+        "usage": {},
+        "model": {
+          "id": "deepseek-chat"
+        },
+        "promptVersion": {
+          "id": "f3f5a2ff-8436-4101-b11a-6ed5ce8b3c26",
+          "version": 1
+        },
+        "sources": [],
+        "latencyMs": 5184
+      }
+    }
+  ],
+  "blocks": [],
+  "facts": []
+}

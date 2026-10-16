@@ -1,0 +1,56 @@
+[
+  {
+    "event": "message",
+    "data": {
+      "messageId": "ae433a0c-e94e-4c91-9596-3899f9bafa9a",
+      "userMessageId": "49bc1329-b323-49ce-804c-9be6beed1a6b",
+      "conversationId": "a6a9f137-a44a-452c-92d2-b64a06266364",
+      "requestId": "req-5"
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "analyzing",
+      "message": "正在分析问题..."
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "composing",
+      "message": "正在整理回答..."
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "想确认一下：请指定这轮要讨论的保温体系或实际基层；可以先整理参考选型框架。"
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "completed",
+      "message": "回答整理完成"
+    }
+  },
+  {
+    "event": "done",
+    "data": {
+      "messageId": "ae433a0c-e94e-4c91-9596-3899f9bafa9a",
+      "conversationId": "a6a9f137-a44a-452c-92d2-b64a06266364",
+      "finishReason": "COMPLETED",
+      "usage": {},
+      "model": {
+        "id": "deepseek-chat"
+      },
+      "promptVersion": {
+        "id": "ae0f8064-e3d6-43c0-ab4c-174188be34e4",
+        "version": 3
+      },
+      "sources": [],
+      "latencyMs": 3375
+    }
+  }
+]

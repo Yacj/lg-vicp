@@ -26,6 +26,15 @@ test('签名图片过期重新请求 Backend 一次，再失败提供手动重�
   resource.imageLoaded()
   assert.equal(resource.imageFailed.value, false)
 })
+
+test('确认快照变化拒绝把新原图绑到旧引用', async () => {
+  const context = { page: { documentId: 'document' }, renderModel: { confirmedRevision: 'old' } } as never
+  const resource = useReferencePageResource(() => ({ locator: { pageId: 'page' }, context }), async () => ({ ...detail(), page: { ...detail().page!, renderModel: { confirmedRevision: 'new', constructions: [] } } }))
+  await resource.load()
+  assert.equal(resource.status.value, 'error')
+  assert.match(resource.errorMessage.value, /确认版本已变化/)
+  assert.equal(resource.detail.value, null)
+})
 test('续签网络失败保留表格与已加载详情，页面首次加载失败可重试', async () => {
   let fail = true
   const resource = useReferencePageResource(() => ({ locator: { pageId: 'page' } }), async () => {

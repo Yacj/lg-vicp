@@ -1,0 +1,2135 @@
+[
+  {
+    "event": "message",
+    "data": {
+      "messageId": "0820c714-7cb6-442e-bfc5-424aed7b7329",
+      "userMessageId": "d4b04d97-610c-4c95-8622-ae2e08d92f40",
+      "conversationId": "f457b53a-0e94-439c-a0d1-faee31281cbe",
+      "requestId": "req-p"
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "analyzing",
+      "message": "正在分析问题..."
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "checking",
+      "message": "正在核对检索资料和计算结果..."
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "composing",
+      "message": "正在整理回答..."
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "不是"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "。"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "20"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "mm"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": " "
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "指的是"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "保温"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "层"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "本身的"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "厚度"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "，"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "对应的"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "热"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "阻"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "只是"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "**"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "保温"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "层"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "这一"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "层的"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "热"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "阻"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "**"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "，"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "不是"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "整体"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "传"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "热"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "阻"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "。\n\n"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "以"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "资料"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "里"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": " I"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": " "
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "型"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": " V"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "ICP"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": " "
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "屋"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "面的"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "数据"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "为例"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "：\n\n"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "-"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": " "
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "保温"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "层"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "（"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "真空"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "绝"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "热"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "板"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "）"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "20"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "mm"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": " "
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "时"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "，"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "**"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "产品"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "层"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "热"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "阻"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": " R"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": " ="
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": " "
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "4"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "."
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "800"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": " ("
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "m"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "²"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "·"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "K"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": ")/"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "W"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "**"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "，"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "这是"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "保温"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "层"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "自身"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "的热"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "阻"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "；\n"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "-"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": " "
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "整体"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "传"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "热"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "阻"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "要把"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "各"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "构造"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "层"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "（"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "砂浆"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "、"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "钢筋混凝土"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "楼"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "板"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "、"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "找"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "平"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "层"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "、"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "粘结"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "砂浆"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "层"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "等"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "）"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "的热"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "阻"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "相加"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "，"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "再"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "计入"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "内外"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "表面"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "换热"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "阻"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "（"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "Ri"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "="
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "0"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "."
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "11"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "、"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "Re"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "="
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "0"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "."
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "04"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "）；\n"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "-"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": " "
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "正"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "置"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "坡"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "屋面"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": " "
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "20"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "mm"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": " "
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "对应的"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "**"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "整体"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "传"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "热"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "阻"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "为"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": " "
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "5"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "."
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "225"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": " ("
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "m"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "²"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "·"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "K"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": ")/"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "W"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "，"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "传"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "热"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "系数"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": " K"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "="
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "0"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "."
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "191"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": " W"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "/("
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "m"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "²"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "·"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "K"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": ")**"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "。\n\n"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "所以你"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "看到的"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": " "
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "4"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "."
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "800"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": " "
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "是"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "产品"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "层"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "热"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "阻"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "，"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "5"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "."
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "225"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": " "
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "才是"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "包括"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "其他"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "构造"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "层"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "在内的"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "整体"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "传"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "热"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "阻"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "，"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "两者"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "不是"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "一回事"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "。\n\n"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "需要"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "说明"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "的是"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "，"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "这里的"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "数值"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "是"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": " I"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": " "
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "型"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": " V"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "ICP"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": " "
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "坡"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "屋面"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "构造"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "下的"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "结果"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "；"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "不同"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "构造"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "（"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "如"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "平"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "屋面"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": " II"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": " "
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "型"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "、"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "倒"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "置"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "式"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "）"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "因"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "其余"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "构造"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "层"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "不同"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "，"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "整体"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "传"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "热"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "阻"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "也会"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "不同"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "。\n\n"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "依据"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "：《"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "复杂"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "建筑"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "热"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "工"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "图"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "集"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": " ·"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": " "
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "隔离"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "人工"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "基线"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "（"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "程序"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "模拟"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "审核"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "）》"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "第"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": " "
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "89"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": " "
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "页"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "（"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "坡"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "屋面"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "正"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "置"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "，"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "Ⅰ"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "型"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "V"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "ICP"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": " "
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "屋面"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "保温"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "系统"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "）；"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "《"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "销售"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "与"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "设计"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "院"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "U"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "AT"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "测试"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "图"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "集"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "》"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "第"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": " "
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "23"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": " "
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "页"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "。"
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "completed",
+      "message": "回答整理完成"
+    }
+  },
+  {
+    "event": "done",
+    "data": {
+      "messageId": "0820c714-7cb6-442e-bfc5-424aed7b7329",
+      "conversationId": "f457b53a-0e94-439c-a0d1-faee31281cbe",
+      "finishReason": "COMPLETED",
+      "usage": {
+        "inputTokens": 4153,
+        "outputTokens": 313,
+        "reasoningTokens": 0
+      },
+      "model": {
+        "id": "deepseek-chat"
+      },
+      "promptVersion": {
+        "id": "ae0f8064-e3d6-43c0-ab4c-174188be34e4",
+        "version": 3
+      },
+      "sources": [
+        {
+          "sourceType": "KNOWLEDGE",
+          "retrievalUnit": "CHUNK",
+          "documentId": "a03ad618-b016-4ee0-9d8f-cebf140b563d",
+          "versionId": "6e6f4da6-507e-4223-b204-8d5c60f99dc5",
+          "sectionId": "f5fdc37e-359d-4efd-b0a7-64ca2f2a1a29",
+          "pageId": "6d315c06-47f8-4b6e-9c68-eea77f031064",
+          "blockId": "0ae7cce5-78a5-4bd3-a886-8353acfe7631",
+          "chunkId": "74771aaa-1828-4f54-b97b-9c86d0b2c640",
+          "title": "销售与设计院UAT测试图集",
+          "tocPath": null,
+          "sectionTitle": null,
+          "chapter": null,
+          "section": null,
+          "sectionPath": null,
+          "citationAnchor": null,
+          "pageNumber": 23,
+          "physicalPageNumber": 23,
+          "pageLabel": "23",
+          "pageTitle": null,
+          "originalFileId": null,
+          "pageStart": 23,
+          "pageEnd": 23,
+          "page": 23,
+          "matchedText": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。\nA1-4，20mm，产品层热阻3.200，总热阻3.390，K=0.295，印刷页23。\nI型产品当量导热系数λ=0.005 W/(m·K)，修正系数α=1.25。产品层R=δ/(λ×α)。A1-3基层为240mm灰砂砖，λ=0.9。Ri=0.11、Re=0.04 m²·K/W。\n图集参考值与按厚度重新计算的系统计算值分别标注。该测试资料没有任何地区法规合规依据；上海或其他地区项目需要真实发布标准与适用条件，不能宣称达标。\nVICP的低导热系数有助于减少达到同一热阻所需的厚度，不能据此推断全部构造的防火等级或成本。\n岩棉测试产品λ=0.040 W/(m·K)、α=1.0，厚度50mm；仅支持同热工条件比较，未提供防火/造价证据。",
+          "quote": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。\nA1-4，20mm，产品层热阻3.200，总热阻3.390，K=0.295，印刷页23。\nI型产品当量导热系数λ=0.005 W/(m·K)，修正系数α=1.25。产品层R=δ/(λ×α)。A1-3基层为240mm灰砂砖，λ=0.9。Ri=0.11、Re=0.04 m²·K/W。\n图集参考值与按厚度重新计算的系统计算值分别标注。该测试资料没有任何地区法规合规依据；上海或其他地区项目需要真实发布标准与适用条件，不能宣称达标。\nVICP的低导热系数有助于减少达到同一热阻所需的厚度，不能据此推断全部构造的防火等级或成本。\n岩棉测试产品λ=0.040 W/(m·K)、α=1.0，厚度50mm；仅支持同热工条件比较，未提供防火/造价证据。",
+          "snippet": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。 A1-4，20mm，产品层热阻3.200，总热阻3.390，K=0.295，印刷页23。 I型产品当量导热系数λ=0.005 W/(m·K)，修正系数α=1.25。产品层R",
+          "highlightRanges": [
+            {
+              "pageId": "6d315c06-47f8-4b6e-9c68-eea77f031064",
+              "pageNumber": 23,
+              "pageLabel": "23",
+              "blockId": "0ae7cce5-78a5-4bd3-a886-8353acfe7631",
+              "text": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。\nA1-4，20mm，产品层热阻3.200，总热阻3.390，K=0.295，印刷页23。\nI型产品当量导热系数λ=0.005 W/(m·K)，修正系数α=1.25。产品层R=δ/(λ×α)。A1-3基层为240mm灰砂砖，λ=0.9。Ri=0.11、Re=0.04 m²·K/W。\n图集参考值与按厚度重新计算的系统计算值分别标注。该测试资料没有任何地区法规合规依据；上海或其他地区项目需要真实发布标准与适用条件，不能宣称达标。\nVICP的低导热系数有助于减少达到同一热阻所需的厚度，不能据此推断全部构造的防火等级或成本。\n岩棉测试产品λ=0.040 W/(m·K)、α=1.0，厚度50mm；仅支持同热工条件比较，未提供防火/造价证据。"
+            }
+          ],
+          "evidenceLevel": null,
+          "score": 2.1111112
+        },
+        {
+          "sourceType": "KNOWLEDGE",
+          "retrievalUnit": "CHUNK",
+          "documentId": "bd6b4d13-69b3-48f3-908d-1087daaaa4cc",
+          "versionId": "14a7f12f-c1fd-4cb3-a363-61569c3f995f",
+          "sectionId": "818a9ed3-b611-5e1b-a0b6-46719fda2218",
+          "pageId": "4338e562-fa8c-4384-be3d-e3f70ca16f57",
+          "blockId": "aa25de65-9ae2-53f5-b00f-87093c6eddde",
+          "chunkId": "5fb90f60-0631-4cf9-a3af-a6a82c2dd171",
+          "title": "复杂建筑热工图集 · 隔离人工基线（程序模拟审核）",
+          "tocPath": null,
+          "sectionTitle": null,
+          "chapter": null,
+          "section": null,
+          "sectionPath": null,
+          "citationAnchor": null,
+          "pageNumber": 1,
+          "physicalPageNumber": 1,
+          "pageLabel": "89",
+          "pageTitle": "建筑屋面热工计算参考选用表（Ⅰ型VICP屋面保温系统）",
+          "originalFileId": null,
+          "pageStart": 1,
+          "pageEnd": 1,
+          "page": 1,
+          "matchedText": "建筑屋面热工计算参考选用表（Ⅰ型VICP屋面保温系统）\n编号 | 构造简图 | 构造层 | 分层厚度(mm) | 导热系数[W/(m·K)] | 修正系数α | 热阻[(m²·K)/W] | 外墙主断面 传热阻[(m²·K)/W] | 外墙主断面 传热系数K[W/(m²·K)]\n坡屋面（正置，级防水） | 外/内 | 1.20厚混合砂浆 | 20 | 0.870 | 1.00 | 0.023 |  | \n坡屋面（正置，级防水） |  | 2.120厚钢筋混凝土楼板 | 120 | 1.740 | 1.00 | 0.069 |  | \n坡屋面（正置，级防水） |  | 3.20厚M15水泥砂浆找平层 | 20 | 0.930 | 1.00 | 0.022 |  | \n坡屋面（正置，级防水） |  | 5.粘结砂浆层 | 5 | 0.930 | 1.00 | 0.005 |  | \n坡屋面（正置，级防水） |  | 6.Ⅰ型VICP复合保温板 包覆浆料 | 5 | 0.080 | 1.25 | 0.050 |  | \n坡屋面（正置，级防水） |  | 6.Ⅰ型VICP复合保温板 真空绝热板 | 5 | 0.0025 | 1.25 | 2.400 | 2.825 | 0.354\n坡屋面（正置，级防水） |  | 6.Ⅰ型VICP复合保温板 真空绝热板 | 10 | 0.0025 | 1.25 | 3.200 | 3.625 | 0.276\n坡屋面（正置，级防水） |  | 6.Ⅰ型VICP复合保温板 真空绝热板 | 15 | 0.0025 | 1.25 | 4.000 | 4.425 | 0.226\n坡屋面（正置，级防水） |  | 6.Ⅰ型VICP复合保温板 真空绝热板 | 20 | 0.0025 | 1.25 | 4.800 | 5.225 | 0.191\n坡屋面（正置，级防水） |  | 6.Ⅰ型VICP复合保温板 真空绝热板 | 25 | 0.0025 | 1.25 | 5.600 | 6.025 | 0.166\n坡屋面（正置，级防水） |  | 6.Ⅰ型VICP复合保温板 真空绝热板 | 30 | 0.0025 | 1.25 | 6.400 | 6.825 | 0.147\n坡屋面（正置，级防水） |  | 6.Ⅰ型VICP复合保温板 包覆浆料 | 5 | 0.080 | 1.25 | 0.050 |  | \n坡屋面（正置，级防水） |  | 7.配筋细石混凝土找平层 | 50 | 1.740 | 1.00 | 0.029 |  | \n坡屋面（正置，级防水） |  | 9.细石混凝土持钉层 | 35 | 1.28 | 1.00 | 0.027 |  |",
+          "quote": "建筑屋面热工计算参考选用表（Ⅰ型VICP屋面保温系统）\n编号 | 构造简图 | 构造层 | 分层厚度(mm) | 导热系数[W/(m·K)] | 修正系数α | 热阻[(m²·K)/W] | 外墙主断面 传热阻[(m²·K)/W] | 外墙主断面 传热系数K[W/(m²·K)]\n坡屋面（正置，级防水） | 外/内 | 1.20厚混合砂浆 | 20 | 0.870 | 1.00 | 0.023 |  | \n坡屋面（正置，级防水） |  | 2.120厚钢筋混凝土楼板 | 120 | 1.740 | 1.00 | 0.069 |  | \n坡屋面（正置，级防水） |  | 3.20厚M15水泥砂浆找平层 | 20 | 0.930 | 1.00 | 0.022 |  | \n坡屋面（正置，级防水） |  | 5.粘结砂浆层 | 5 | 0.930 | 1.00 | 0.005 |  | \n坡屋面（正置，级防水） |  | 6.Ⅰ型VICP复合保温板 包覆浆料 | 5 | 0.080 | 1.25 | 0.050 |  | \n坡屋面（正置，级防水） |  | 6.Ⅰ型VICP复合保温板 真空绝热板 | 5 | 0.0025 | 1.25 | 2.400 | 2.825 | 0.354\n坡屋面（正置，级防水） |  | 6.Ⅰ型VICP复合保温板 真空绝热板 | 10 | 0.0025 | 1.25 | 3.200 | 3.625 | 0.276\n坡屋面（正置，级防水） |  | 6.Ⅰ型VICP复合保温板 真空绝热板 | 15 | 0.0025 | 1.25 | 4.000 | 4.425 | 0.226\n坡屋面（正置，级防水） |  | 6.Ⅰ型VICP复合保温板 真空绝热板 | 20 | 0.0025 | 1.25 | 4.800 | 5.225 | 0.191\n坡屋面（正置，级防水） |  | 6.Ⅰ型VICP复合保温板 真空绝热板 | 25 | 0.0025 | 1.25 | 5.600 | 6.025 | 0.166\n坡屋面（正置，级防水） |  | 6.Ⅰ型VICP复合保温板 真空绝热板 | 30 | 0.0025 | 1.25 | 6.400 | 6.825 | 0.147\n坡屋面（正置，级防水） |  | 6.Ⅰ型VICP复合保温板 包覆浆料 | 5 | 0.080 | 1.25 | 0.050 |  | \n坡屋面（正置，级防水） |  | 7.配筋细石混凝土找平层 | 50 | 1.740 | 1.00 | 0.029 |  | \n坡屋面（正置，级防水） |  | 9.细石混凝土持钉层 | 35 | 1.28 | 1.00 | 0.027 |  |",
+          "snippet": "建筑屋面热工计算参考选用表（Ⅰ型VICP屋面保温系统） 编号 | 构造简图 | 构造层 | 分层厚度(mm) | 导热系数[W/(m·K)] | 修正系数α | 热阻[(m²·K)/W] | 外墙主断面 传热阻[(m²·K)/W] | 外墙",
+          "highlightRanges": [
+            {
+              "pageId": "4338e562-fa8c-4384-be3d-e3f70ca16f57",
+              "pageNumber": 1,
+              "pageLabel": "89",
+              "blockId": "aa25de65-9ae2-53f5-b00f-87093c6eddde",
+              "text": "建筑屋面热工计算参考选用表（Ⅰ型VICP屋面保温系统）\n编号 | 构造简图 | 构造层 | 分层厚度(mm) | 导热系数[W/(m·K)] | 修正系数α | 热阻[(m²·K)/W] | 外墙主断面 传热阻[(m²·K)/W] | 外墙主断面 传热系数K[W/(m²·K)]\n坡屋面（正置，级防水） | 外/内 | 1.20厚混合砂浆 | 20 | 0.870 | 1.00 | 0.023 |  | \n坡屋面（正置，级防水） |  | 2.120厚钢筋混凝土楼板 | 120 | 1.740 | 1.00 | 0.069 |  | \n坡屋面（正置，级防水） |  | 3.20厚M15水泥砂浆找平层 | 20 | 0.930 | 1.00 | 0.022 |  | \n坡屋面（正置，级防水） |  | 5.粘结砂浆层 | 5 | 0.930 | 1.00 | 0.005 |  | \n坡屋面（正置，级防水） |  | 6.Ⅰ型VICP复合保温板 包覆浆料 | 5 | 0.080 | 1.25 | 0.050 |  | \n坡屋面（正置，级防水） |  | 6.Ⅰ型VICP复合保温板 真空绝热板 | 5 | 0.0025 | 1.25 | 2.400 | 2.825 | 0.354\n坡屋面（正置，级防水） |  | 6.Ⅰ型VICP复合保温板 真空绝热板 | 10 | 0.0025 | 1.25 | 3.200 | 3.625 | 0.276\n坡屋面（正置，级防水） |  | 6.Ⅰ型VICP复合保温板 真空绝热板 | 15 | 0.0025 | 1.25 | 4.000 | 4.425 | 0.226\n坡屋面（正置，级防水） |  | 6.Ⅰ型VICP复合保温板 真空绝热板 | 20 | 0.0025 | 1.25 | 4.800 | 5.225 | 0.191\n坡屋面（正置，级防水） |  | 6.Ⅰ型VICP复合保温板 真空绝热板 | 25 | 0.0025 | 1.25 | 5.600 | 6.025 | 0.166\n坡屋面（正置，级防水） |  | 6.Ⅰ型VICP复合保温板 真空绝热板 | 30 | 0.0025 | 1.25 | 6.400 | 6.825 | 0.147\n坡屋面（正置，级防水） |  | 6.Ⅰ型VICP复合保温板 包覆浆料 | 5 | 0.080 | 1.25 | 0.050 |  | \n坡屋面（正置，级防水） |  | 7.配筋细石混凝土找平层 | 50 | 1.740 | 1.00 | 0.029 |  | \n坡屋面（正置，级防水） |  | 9.细石混凝土持钉层 | 35 | 1.28 | 1.00 | 0.027 |  |"
+            }
+          ],
+          "evidenceLevel": null,
+          "score": 2.0555556
+        },
+        {
+          "sourceType": "KNOWLEDGE",
+          "retrievalUnit": "CHUNK",
+          "documentId": "bd6b4d13-69b3-48f3-908d-1087daaaa4cc",
+          "versionId": "14a7f12f-c1fd-4cb3-a363-61569c3f995f",
+          "sectionId": "818a9ed3-b611-5e1b-a0b6-46719fda2218",
+          "pageId": "4338e562-fa8c-4384-be3d-e3f70ca16f57",
+          "blockId": "7e791241-7fb1-51b8-a1c1-f6a2f398bea1",
+          "chunkId": "c8365646-f38a-4f50-92c0-0cb3e3e26daa",
+          "title": "复杂建筑热工图集 · 隔离人工基线（程序模拟审核）",
+          "tocPath": null,
+          "sectionTitle": null,
+          "chapter": null,
+          "section": null,
+          "sectionPath": null,
+          "citationAnchor": null,
+          "pageNumber": 1,
+          "physicalPageNumber": 1,
+          "pageLabel": "89",
+          "pageTitle": "建筑屋面热工计算参考选用表（Ⅰ型VICP屋面保温系统）",
+          "originalFileId": null,
+          "pageStart": 1,
+          "pageEnd": 1,
+          "page": 1,
+          "matchedText": "080 | 1.25 | 0.050 |  | \n坡屋面（正置，级防水） |  | 7.配筋细石混凝土找平层 | 50 | 1.740 | 1.00 | 0.029 |  | \n坡屋面（正置，级防水） |  | 9.细石混凝土持钉层 | 35 | 1.28 | 1.00 | 0.027 |  | \n坡屋面（倒置，级防水） | 外/内 | 1.20厚混合砂浆 | 20 | 0.870 | 1.00 | 0.023 |  | \n坡屋面（倒置，级防水） |  | 2.120厚钢筋混凝土楼板 | 120 | 1.740 | 1.00 | 0.069 |  | \n坡屋面（倒置，级防水） |  | 3.20厚M15水泥砂浆找平层 | 20 | 0.930 | 1.00 | 0.022 |  | \n坡屋面（倒置，级防水） |  | 5.粘结砂浆层 | 5 | 0.930 | 1.00 | 0.005 |  | \n坡屋面（倒置，级防水） |  | 6.Ⅰ型VICP复合保温板 包覆浆料 | 5 | 0.080 | 1.25 | 0.050 |  | \n坡屋面（倒置，级防水） |  | 6.Ⅰ型VICP复合保温板 真空绝热板 | 5 | 0.0025 | 1.25 | 2.400 | 2.798 | 0.357\n坡屋面（倒置，级防水） |  | 6.Ⅰ型VICP复合保温板 真空绝热板 | 10 | 0.0025 | 1.25 | 3.200 | 3.598 | 0.278\n坡屋面（倒置，级防水） |  | 6.Ⅰ型VICP复合保温板 真空绝热板 | 15 | 0.0025 | 1.25 | 4.000 | 4.398 | 0.227\n坡屋面（倒置，级防水） |  | 6.Ⅰ型VICP复合保温板 真空绝热板 | 20 | 0.0025 | 1.25 | 4.800 | 5.198 | 0.192\n坡屋面（倒置，级防水） |  | 6.Ⅰ型VICP复合保温板 真空绝热板 | 25 | 0.0025 | 1.25 | 5.600 | 5.998 | 0.167\n坡屋面（倒置，级防水） |  | 6.Ⅰ型VICP复合保温板 真空绝热板 | 30 | 0.0025 | 1.25 | 6.400 | 6.798 | 0.147\n坡屋面（倒置，级防水） |  | 6.Ⅰ型VICP复合保温板 包覆浆料 | 5 | 0.080 | 1.25 | 0.050 |  | \n坡屋面（倒置，级防水） |  | 7.配筋细石混凝土找平层 | 50 | 1.740 | 1.00 | 0.029 |  | \n图集号 J/CABEE 26J702 | 图名 建筑屋面热工计算参考选用表 | 页次 89 | 审核 | 校对 | 设计 |  |  |",
+          "quote": "080 | 1.25 | 0.050 |  | \n坡屋面（正置，级防水） |  | 7.配筋细石混凝土找平层 | 50 | 1.740 | 1.00 | 0.029 |  | \n坡屋面（正置，级防水） |  | 9.细石混凝土持钉层 | 35 | 1.28 | 1.00 | 0.027 |  | \n坡屋面（倒置，级防水） | 外/内 | 1.20厚混合砂浆 | 20 | 0.870 | 1.00 | 0.023 |  | \n坡屋面（倒置，级防水） |  | 2.120厚钢筋混凝土楼板 | 120 | 1.740 | 1.00 | 0.069 |  | \n坡屋面（倒置，级防水） |  | 3.20厚M15水泥砂浆找平层 | 20 | 0.930 | 1.00 | 0.022 |  | \n坡屋面（倒置，级防水） |  | 5.粘结砂浆层 | 5 | 0.930 | 1.00 | 0.005 |  | \n坡屋面（倒置，级防水） |  | 6.Ⅰ型VICP复合保温板 包覆浆料 | 5 | 0.080 | 1.25 | 0.050 |  | \n坡屋面（倒置，级防水） |  | 6.Ⅰ型VICP复合保温板 真空绝热板 | 5 | 0.0025 | 1.25 | 2.400 | 2.798 | 0.357\n坡屋面（倒置，级防水） |  | 6.Ⅰ型VICP复合保温板 真空绝热板 | 10 | 0.0025 | 1.25 | 3.200 | 3.598 | 0.278\n坡屋面（倒置，级防水） |  | 6.Ⅰ型VICP复合保温板 真空绝热板 | 15 | 0.0025 | 1.25 | 4.000 | 4.398 | 0.227\n坡屋面（倒置，级防水） |  | 6.Ⅰ型VICP复合保温板 真空绝热板 | 20 | 0.0025 | 1.25 | 4.800 | 5.198 | 0.192\n坡屋面（倒置，级防水） |  | 6.Ⅰ型VICP复合保温板 真空绝热板 | 25 | 0.0025 | 1.25 | 5.600 | 5.998 | 0.167\n坡屋面（倒置，级防水） |  | 6.Ⅰ型VICP复合保温板 真空绝热板 | 30 | 0.0025 | 1.25 | 6.400 | 6.798 | 0.147\n坡屋面（倒置，级防水） |  | 6.Ⅰ型VICP复合保温板 包覆浆料 | 5 | 0.080 | 1.25 | 0.050 |  | \n坡屋面（倒置，级防水） |  | 7.配筋细石混凝土找平层 | 50 | 1.740 | 1.00 | 0.029 |  | \n图集号 J/CABEE 26J702 | 图名 建筑屋面热工计算参考选用表 | 页次 89 | 审核 | 校对 | 设计 |  |  |",
+          "snippet": "080 | 1.25 | 0.050 | | 坡屋面（正置，级防水） | | 7.配筋细石混凝土找平层 | 50 | 1.740 | 1.00 | 0.029 | | 坡屋面（正置，级防水） | | 9.细石混凝土持钉层 | 35 | 1.",
+          "highlightRanges": [
+            {
+              "pageId": "4338e562-fa8c-4384-be3d-e3f70ca16f57",
+              "pageNumber": 1,
+              "pageLabel": "89",
+              "blockId": "7e791241-7fb1-51b8-a1c1-f6a2f398bea1",
+              "text": "080 | 1.25 | 0.050 |  | \n坡屋面（正置，级防水） |  | 7.配筋细石混凝土找平层 | 50 | 1.740 | 1.00 | 0.029 |  | \n坡屋面（正置，级防水） |  | 9.细石混凝土持钉层 | 35 | 1.28 | 1.00 | 0.027 |  | \n坡屋面（倒置，级防水） | 外/内 | 1.20厚混合砂浆 | 20 | 0.870 | 1.00 | 0.023 |  | \n坡屋面（倒置，级防水） |  | 2.120厚钢筋混凝土楼板 | 120 | 1.740 | 1.00 | 0.069 |  | \n坡屋面（倒置，级防水） |  | 3.20厚M15水泥砂浆找平层 | 20 | 0.930 | 1.00 | 0.022 |  | \n坡屋面（倒置，级防水） |  | 5.粘结砂浆层 | 5 | 0.930 | 1.00 | 0.005 |  | \n坡屋面（倒置，级防水） |  | 6.Ⅰ型VICP复合保温板 包覆浆料 | 5 | 0.080 | 1.25 | 0.050 |  | \n坡屋面（倒置，级防水） |  | 6.Ⅰ型VICP复合保温板 真空绝热板 | 5 | 0.0025 | 1.25 | 2.400 | 2.798 | 0.357\n坡屋面（倒置，级防水） |  | 6.Ⅰ型VICP复合保温板 真空绝热板 | 10 | 0.0025 | 1.25 | 3.200 | 3.598 | 0.278\n坡屋面（倒置，级防水） |  | 6.Ⅰ型VICP复合保温板 真空绝热板 | 15 | 0.0025 | 1.25 | 4.000 | 4.398 | 0.227\n坡屋面（倒置，级防水） |  | 6.Ⅰ型VICP复合保温板 真空绝热板 | 20 | 0.0025 | 1.25 | 4.800 | 5.198 | 0.192\n坡屋面（倒置，级防水） |  | 6.Ⅰ型VICP复合保温板 真空绝热板 | 25 | 0.0025 | 1.25 | 5.600 | 5.998 | 0.167\n坡屋面（倒置，级防水） |  | 6.Ⅰ型VICP复合保温板 真空绝热板 | 30 | 0.0025 | 1.25 | 6.400 | 6.798 | 0.147\n坡屋面（倒置，级防水） |  | 6.Ⅰ型VICP复合保温板 包覆浆料 | 5 | 0.080 | 1.25 | 0.050 |  | \n坡屋面（倒置，级防水） |  | 7.配筋细石混凝土找平层 | 50 | 1.740 | 1.00 | 0.029 |  | \n图集号 J/CABEE 26J702 | 图名 建筑屋面热工计算参考选用表 | 页次 89 | 审核 | 校对 | 设计 |  |  |"
+            }
+          ],
+          "evidenceLevel": null,
+          "score": 2.0555556
+        },
+        {
+          "sourceType": "KNOWLEDGE",
+          "retrievalUnit": "CHUNK",
+          "documentId": "bd6b4d13-69b3-48f3-908d-1087daaaa4cc",
+          "versionId": "14a7f12f-c1fd-4cb3-a363-61569c3f995f",
+          "sectionId": "818a9ed3-b611-5e1b-a0b6-46719fda2218",
+          "pageId": "1924ca94-9b18-4bb1-a28e-5e528968d641",
+          "blockId": "bc1bf962-189b-5543-98b3-42974374caf4",
+          "chunkId": "8d7b0d46-ddcc-4f35-9c73-3543d8705f6f",
+          "title": "复杂建筑热工图集 · 隔离人工基线（程序模拟审核）",
+          "tocPath": null,
+          "sectionTitle": null,
+          "chapter": null,
+          "section": null,
+          "sectionPath": null,
+          "citationAnchor": null,
+          "pageNumber": 2,
+          "physicalPageNumber": 2,
+          "pageLabel": "90",
+          "pageTitle": "建筑屋面热工计算参考选用表（II型VICP屋面保温系统）",
+          "originalFileId": null,
+          "pageStart": 2,
+          "pageEnd": 2,
+          "page": 2,
+          "matchedText": "建筑屋面热工计算参考选用表（II型VICP屋面保温系统）\n编号 | 构造简图 | 构造层 | 分层厚度(mm) | 导热系数[W/(m·K)] | 修正系数α | 热阻[(m²·K)/W] | 外墙主断面 传热阻R[(m²·K)/W] | 外墙主断面 传热系数K[W/(m²·K)]\n平屋面（正置，级防水）构造层：1.抹面层：20厚混合砂浆；2.结构层：120厚钢筋混凝土楼板；3.隔汽层：按工程设计；4.保温层：II型VICP复合保温板；5.找坡层：最薄30厚LC7.5轻集料混凝土，找坡2%；6.找平层：20厚M15水泥砂浆；7.防水层1：按工程设计；8.找平层：20厚M15水泥砂浆；9.防水层2：按工程设计；10.防水层3：按工程设计；11.保护层及面层：按工程设计\n1.混合砂浆 20 0.870 1.00 0.023\n2.钢筋混凝土楼板 120 1.740 1.00 0.069\n4.II型VICP复合保温板 包覆浆料 10 0.080 1.25 0.100；真空绝热板 5 0.0025 1.25 2.400；真空绝热板 10 0.0025 1.25 3.200；真空绝热板 15 0.0025 1.25 4.000；真空绝热板 20 0.0025 1.25 4.800；真空绝热板 25 0.0025 1.25 5.600；真空绝热板 30 0.0025 1.25 6.400；包覆浆料 10 0.080 1.25 0.100\n5.LC7.5轻集料混凝土 30 0.16 1.50 0.083\n6.M15水泥砂浆 20 0.930 1.00 0.022\n7.M15水泥砂浆 20 0.930 1.00 0.022\n外墙主断面 2.969 0.337；3.769 0.265；4.569 0.219；5.369 0.186；6.169 0.162；6.969 0.143\n平屋面（倒置，级防水）构造层：1.抹面层：20厚混合砂浆；2.结构层：120厚钢筋混凝土楼板；3.找坡层：最薄30厚LC7.5轻集料混凝土，找坡2%；4.找平层：20厚M15水泥砂浆；5.防水层1：按工程设计；6.找平层：20厚M15水泥砂浆；7.防水层2：按工程设计；8.防水层3：按工程设计；9.保温层：II型VICP复合保温板；10.隔离层：按工程设计；11.保护层及面层：按工程设计\n1.混合砂浆 20 0.870 1.00 0.023\n2.钢筋混凝土楼板 120 1.740 1.00 0.069\n3.轻集料混凝土找坡层 30 0.160 1.50 0.083\n4.水泥砂浆找平层 20 0.930 1.00 0.022\n6.水泥砂浆找平层 20 0.930 1.00 0.022",
+          "quote": "建筑屋面热工计算参考选用表（II型VICP屋面保温系统）\n编号 | 构造简图 | 构造层 | 分层厚度(mm) | 导热系数[W/(m·K)] | 修正系数α | 热阻[(m²·K)/W] | 外墙主断面 传热阻R[(m²·K)/W] | 外墙主断面 传热系数K[W/(m²·K)]\n平屋面（正置，级防水）构造层：1.抹面层：20厚混合砂浆；2.结构层：120厚钢筋混凝土楼板；3.隔汽层：按工程设计；4.保温层：II型VICP复合保温板；5.找坡层：最薄30厚LC7.5轻集料混凝土，找坡2%；6.找平层：20厚M15水泥砂浆；7.防水层1：按工程设计；8.找平层：20厚M15水泥砂浆；9.防水层2：按工程设计；10.防水层3：按工程设计；11.保护层及面层：按工程设计\n1.混合砂浆 20 0.870 1.00 0.023\n2.钢筋混凝土楼板 120 1.740 1.00 0.069\n4.II型VICP复合保温板 包覆浆料 10 0.080 1.25 0.100；真空绝热板 5 0.0025 1.25 2.400；真空绝热板 10 0.0025 1.25 3.200；真空绝热板 15 0.0025 1.25 4.000；真空绝热板 20 0.0025 1.25 4.800；真空绝热板 25 0.0025 1.25 5.600；真空绝热板 30 0.0025 1.25 6.400；包覆浆料 10 0.080 1.25 0.100\n5.LC7.5轻集料混凝土 30 0.16 1.50 0.083\n6.M15水泥砂浆 20 0.930 1.00 0.022\n7.M15水泥砂浆 20 0.930 1.00 0.022\n外墙主断面 2.969 0.337；3.769 0.265；4.569 0.219；5.369 0.186；6.169 0.162；6.969 0.143\n平屋面（倒置，级防水）构造层：1.抹面层：20厚混合砂浆；2.结构层：120厚钢筋混凝土楼板；3.找坡层：最薄30厚LC7.5轻集料混凝土，找坡2%；4.找平层：20厚M15水泥砂浆；5.防水层1：按工程设计；6.找平层：20厚M15水泥砂浆；7.防水层2：按工程设计；8.防水层3：按工程设计；9.保温层：II型VICP复合保温板；10.隔离层：按工程设计；11.保护层及面层：按工程设计\n1.混合砂浆 20 0.870 1.00 0.023\n2.钢筋混凝土楼板 120 1.740 1.00 0.069\n3.轻集料混凝土找坡层 30 0.160 1.50 0.083\n4.水泥砂浆找平层 20 0.930 1.00 0.022\n6.水泥砂浆找平层 20 0.930 1.00 0.022",
+          "snippet": "建筑屋面热工计算参考选用表（II型VICP屋面保温系统） 编号 | 构造简图 | 构造层 | 分层厚度(mm) | 导热系数[W/(m·K)] | 修正系数α | 热阻[(m²·K)/W] | 外墙主断面 传热阻R[(m²·K)/W] | ",
+          "highlightRanges": [
+            {
+              "pageId": "1924ca94-9b18-4bb1-a28e-5e528968d641",
+              "pageNumber": 2,
+              "pageLabel": "90",
+              "blockId": "bc1bf962-189b-5543-98b3-42974374caf4",
+              "text": "建筑屋面热工计算参考选用表（II型VICP屋面保温系统）\n编号 | 构造简图 | 构造层 | 分层厚度(mm) | 导热系数[W/(m·K)] | 修正系数α | 热阻[(m²·K)/W] | 外墙主断面 传热阻R[(m²·K)/W] | 外墙主断面 传热系数K[W/(m²·K)]\n平屋面（正置，级防水）构造层：1.抹面层：20厚混合砂浆；2.结构层：120厚钢筋混凝土楼板；3.隔汽层：按工程设计；4.保温层：II型VICP复合保温板；5.找坡层：最薄30厚LC7.5轻集料混凝土，找坡2%；6.找平层：20厚M15水泥砂浆；7.防水层1：按工程设计；8.找平层：20厚M15水泥砂浆；9.防水层2：按工程设计；10.防水层3：按工程设计；11.保护层及面层：按工程设计\n1.混合砂浆 20 0.870 1.00 0.023\n2.钢筋混凝土楼板 120 1.740 1.00 0.069\n4.II型VICP复合保温板 包覆浆料 10 0.080 1.25 0.100；真空绝热板 5 0.0025 1.25 2.400；真空绝热板 10 0.0025 1.25 3.200；真空绝热板 15 0.0025 1.25 4.000；真空绝热板 20 0.0025 1.25 4.800；真空绝热板 25 0.0025 1.25 5.600；真空绝热板 30 0.0025 1.25 6.400；包覆浆料 10 0.080 1.25 0.100\n5.LC7.5轻集料混凝土 30 0.16 1.50 0.083\n6.M15水泥砂浆 20 0.930 1.00 0.022\n7.M15水泥砂浆 20 0.930 1.00 0.022\n外墙主断面 2.969 0.337；3.769 0.265；4.569 0.219；5.369 0.186；6.169 0.162；6.969 0.143\n平屋面（倒置，级防水）构造层：1.抹面层：20厚混合砂浆；2.结构层：120厚钢筋混凝土楼板；3.找坡层：最薄30厚LC7.5轻集料混凝土，找坡2%；4.找平层：20厚M15水泥砂浆；5.防水层1：按工程设计；6.找平层：20厚M15水泥砂浆；7.防水层2：按工程设计；8.防水层3：按工程设计；9.保温层：II型VICP复合保温板；10.隔离层：按工程设计；11.保护层及面层：按工程设计\n1.混合砂浆 20 0.870 1.00 0.023\n2.钢筋混凝土楼板 120 1.740 1.00 0.069\n3.轻集料混凝土找坡层 30 0.160 1.50 0.083\n4.水泥砂浆找平层 20 0.930 1.00 0.022\n6.水泥砂浆找平层 20 0.930 1.00 0.022"
+            }
+          ],
+          "evidenceLevel": null,
+          "score": 2.0555556
+        },
+        {
+          "sourceType": "KNOWLEDGE",
+          "retrievalUnit": "CHUNK",
+          "documentId": "bd6b4d13-69b3-48f3-908d-1087daaaa4cc",
+          "versionId": "14a7f12f-c1fd-4cb3-a363-61569c3f995f",
+          "sectionId": "818a9ed3-b611-5e1b-a0b6-46719fda2218",
+          "pageId": "1924ca94-9b18-4bb1-a28e-5e528968d641",
+          "blockId": "f0942562-366b-5dc1-a58b-79a45871eaad",
+          "chunkId": "ebba10de-1fe7-427b-be23-9b025c0cedae",
+          "title": "复杂建筑热工图集 · 隔离人工基线（程序模拟审核）",
+          "tocPath": null,
+          "sectionTitle": null,
+          "chapter": null,
+          "section": null,
+          "sectionPath": null,
+          "citationAnchor": null,
+          "pageNumber": 2,
+          "physicalPageNumber": 2,
+          "pageLabel": "90",
+          "pageTitle": "建筑屋面热工计算参考选用表（II型VICP屋面保温系统）",
+          "originalFileId": null,
+          "pageStart": 2,
+          "pageEnd": 2,
+          "page": 2,
+          "matchedText": "1.混合砂浆 20 0.870 1.00 0.023\n2.钢筋混凝土楼板 120 1.740 1.00 0.069\n3.轻集料混凝土找坡层 30 0.160 1.50 0.083\n4.水泥砂浆找平层 20 0.930 1.00 0.022\n6.水泥砂浆找平层 20 0.930 1.00 0.022\n9.II型VICP复合保温板 包覆浆料 10 0.080 1.25 0.100；真空绝热板 5 0.0025 1.25 2.400；真空绝热板 10 0.0025 1.25 3.200；真空绝热板 15 0.0025 1.25 4.000；真空绝热板 20 0.0025 1.25 4.800；真空绝热板 25 0.0025 1.25 5.600；真空绝热板 30 0.0025 1.25 6.400；包覆浆料 10 0.080 1.25 0.100\n外墙主断面 2.969 0.337；3.769 0.265；4.569 0.219；5.369 0.186；6.169 0.162；6.969 0.143\n注：1.屋面采用结构找坡时，可取消找坡层。2.当结构找坡时，取消表中的找坡层并另行计算。3.当为倒置式屋面时，不必设置隔汽层。4.表中数值均按现浇屋面板考虑，若为预制空心板，应同时考虑屋面板上的水泥砂浆对屋面保温隔热的影响。\n图名：建筑屋面热工计算参考选用表；图集号：J/CABEE 26J702；页次：90",
+          "quote": "1.混合砂浆 20 0.870 1.00 0.023\n2.钢筋混凝土楼板 120 1.740 1.00 0.069\n3.轻集料混凝土找坡层 30 0.160 1.50 0.083\n4.水泥砂浆找平层 20 0.930 1.00 0.022\n6.水泥砂浆找平层 20 0.930 1.00 0.022\n9.II型VICP复合保温板 包覆浆料 10 0.080 1.25 0.100；真空绝热板 5 0.0025 1.25 2.400；真空绝热板 10 0.0025 1.25 3.200；真空绝热板 15 0.0025 1.25 4.000；真空绝热板 20 0.0025 1.25 4.800；真空绝热板 25 0.0025 1.25 5.600；真空绝热板 30 0.0025 1.25 6.400；包覆浆料 10 0.080 1.25 0.100\n外墙主断面 2.969 0.337；3.769 0.265；4.569 0.219；5.369 0.186；6.169 0.162；6.969 0.143\n注：1.屋面采用结构找坡时，可取消找坡层。2.当结构找坡时，取消表中的找坡层并另行计算。3.当为倒置式屋面时，不必设置隔汽层。4.表中数值均按现浇屋面板考虑，若为预制空心板，应同时考虑屋面板上的水泥砂浆对屋面保温隔热的影响。\n图名：建筑屋面热工计算参考选用表；图集号：J/CABEE 26J702；页次：90",
+          "snippet": "1.混合砂浆 20 0.870 1.00 0.023 2.钢筋混凝土楼板 120 1.740 1.00 0.069 3.轻集料混凝土找坡层 30 0.160 1.50 0.083 4.水泥砂浆找平层 20 0.930 1.00 0.022 ",
+          "highlightRanges": [
+            {
+              "pageId": "1924ca94-9b18-4bb1-a28e-5e528968d641",
+              "pageNumber": 2,
+              "pageLabel": "90",
+              "blockId": "f0942562-366b-5dc1-a58b-79a45871eaad",
+              "text": "1.混合砂浆 20 0.870 1.00 0.023\n2.钢筋混凝土楼板 120 1.740 1.00 0.069\n3.轻集料混凝土找坡层 30 0.160 1.50 0.083\n4.水泥砂浆找平层 20 0.930 1.00 0.022\n6.水泥砂浆找平层 20 0.930 1.00 0.022\n9.II型VICP复合保温板 包覆浆料 10 0.080 1.25 0.100；真空绝热板 5 0.0025 1.25 2.400；真空绝热板 10 0.0025 1.25 3.200；真空绝热板 15 0.0025 1.25 4.000；真空绝热板 20 0.0025 1.25 4.800；真空绝热板 25 0.0025 1.25 5.600；真空绝热板 30 0.0025 1.25 6.400；包覆浆料 10 0.080 1.25 0.100\n外墙主断面 2.969 0.337；3.769 0.265；4.569 0.219；5.369 0.186；6.169 0.162；6.969 0.143\n注：1.屋面采用结构找坡时，可取消找坡层。2.当结构找坡时，取消表中的找坡层并另行计算。3.当为倒置式屋面时，不必设置隔汽层。4.表中数值均按现浇屋面板考虑，若为预制空心板，应同时考虑屋面板上的水泥砂浆对屋面保温隔热的影响。\n图名：建筑屋面热工计算参考选用表；图集号：J/CABEE 26J702；页次：90"
+            }
+          ],
+          "evidenceLevel": null,
+          "score": 2.0555556
+        }
+      ],
+      "latencyMs": 7176
+    }
+  }
+]

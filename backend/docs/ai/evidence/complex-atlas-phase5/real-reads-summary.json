@@ -1,0 +1,180 @@
+{
+  "scope": "真实隔离只读DB与正式B/C共享读取函数；结构化条件直接注入，不是自然语义/HTTP/SSE成功",
+  "cases": [
+    {
+      "page": "89",
+      "thicknessMm": 20,
+      "status": "PASS_REAL_DB_SHARED_SERVICE",
+      "rows": [
+        {
+          "page": "89",
+          "constructionId": "kp-bba7cd6e72f9222e8736f179-0",
+          "optionId": "kp-bba7cd6e72f9222e8736f179-0-o3",
+          "label": "坡屋面（正置，级防水）",
+          "constructionCode": null,
+          "base": "钢筋混凝土楼板",
+          "thicknessMm": 20,
+          "r": 5.225,
+          "k": 0.191
+        },
+        {
+          "page": "89",
+          "constructionId": "kp-bba7cd6e72f9222e8736f179-1",
+          "optionId": "kp-bba7cd6e72f9222e8736f179-1-o3",
+          "label": "坡屋面（倒置，级防水）",
+          "constructionCode": null,
+          "base": "钢筋混凝土楼板",
+          "thicknessMm": 20,
+          "r": 5.198,
+          "k": 0.192
+        }
+      ]
+    },
+    {
+      "page": "89",
+      "thicknessMm": 25,
+      "status": "PASS_REAL_DB_SHARED_SERVICE",
+      "rows": [
+        {
+          "page": "89",
+          "constructionId": "kp-bba7cd6e72f9222e8736f179-0",
+          "optionId": "kp-bba7cd6e72f9222e8736f179-0-o4",
+          "label": "坡屋面（正置，级防水）",
+          "constructionCode": null,
+          "base": "钢筋混凝土楼板",
+          "thicknessMm": 25,
+          "r": 6.025,
+          "k": 0.166
+        },
+        {
+          "page": "89",
+          "constructionId": "kp-bba7cd6e72f9222e8736f179-1",
+          "optionId": "kp-bba7cd6e72f9222e8736f179-1-o4",
+          "label": "坡屋面（倒置，级防水）",
+          "constructionCode": null,
+          "base": "钢筋混凝土楼板",
+          "thicknessMm": 25,
+          "r": 5.998,
+          "k": 0.167
+        }
+      ]
+    },
+    {
+      "page": "90",
+      "thicknessMm": 20,
+      "status": "PASS_REAL_DB_SHARED_SERVICE",
+      "rows": [
+        {
+          "page": "90",
+          "constructionId": "kp-475e2c65df7ac6ddf9874dea-0",
+          "optionId": "kp-475e2c65df7ac6ddf9874dea-0-o3",
+          "label": "平屋面（正置，级防水）",
+          "constructionCode": null,
+          "base": "钢筋混凝土楼板",
+          "thicknessMm": 20,
+          "r": 5.369,
+          "k": 0.186
+        },
+        {
+          "page": "90",
+          "constructionId": "kp-475e2c65df7ac6ddf9874dea-1",
+          "optionId": "kp-475e2c65df7ac6ddf9874dea-1-o3",
+          "label": "平屋面（倒置，级防水）",
+          "constructionCode": null,
+          "base": "钢筋混凝土楼板",
+          "thicknessMm": 20,
+          "r": 5.369,
+          "k": 0.186
+        }
+      ]
+    },
+    {
+      "page": "90",
+      "thicknessMm": 25,
+      "status": "PASS_REAL_DB_SHARED_SERVICE",
+      "rows": [
+        {
+          "page": "90",
+          "constructionId": "kp-475e2c65df7ac6ddf9874dea-0",
+          "optionId": "kp-475e2c65df7ac6ddf9874dea-0-o4",
+          "label": "平屋面（正置，级防水）",
+          "constructionCode": null,
+          "base": "钢筋混凝土楼板",
+          "thicknessMm": 25,
+          "r": 6.169,
+          "k": 0.162
+        },
+        {
+          "page": "90",
+          "constructionId": "kp-475e2c65df7ac6ddf9874dea-1",
+          "optionId": "kp-475e2c65df7ac6ddf9874dea-1-o4",
+          "label": "平屋面（倒置，级防水）",
+          "constructionCode": null,
+          "base": "钢筋混凝土楼板",
+          "thicknessMm": 25,
+          "r": 6.169,
+          "k": 0.162
+        }
+      ]
+    },
+    {
+      "page": "75",
+      "thicknessMm": 20,
+      "status": "PASS_REAL_DB_SHARED_SERVICE",
+      "rows": [
+        {
+          "page": "75",
+          "constructionId": "kp-92186f22c7d3fcb2e822a1fc-0",
+          "optionId": "kp-92186f22c7d3fcb2e822a1fc-0-o4",
+          "label": "外墙C1-3",
+          "constructionCode": "C1-3",
+          "base": "蒸压灰砂砖",
+          "thicknessMm": 20,
+          "r": 6.916,
+          "k": 0.145
+        },
+        {
+          "page": "75",
+          "constructionId": "kp-92186f22c7d3fcb2e822a1fc-1",
+          "optionId": "kp-92186f22c7d3fcb2e822a1fc-1-o4",
+          "label": "外墙C1-4",
+          "constructionCode": "C1-4",
+          "base": "加气混凝土砌块",
+          "thicknessMm": 20,
+          "r": 7.54,
+          "k": 0.133
+        }
+      ]
+    },
+    {
+      "page": "75",
+      "thicknessMm": 25,
+      "status": "PASS_REAL_DB_SHARED_SERVICE",
+      "rows": [
+        {
+          "page": "75",
+          "constructionId": "kp-92186f22c7d3fcb2e822a1fc-0",
+          "optionId": "kp-92186f22c7d3fcb2e822a1fc-0-o5",
+          "label": "外墙C1-3",
+          "constructionCode": "C1-3",
+          "base": "蒸压灰砂砖",
+          "thicknessMm": 25,
+          "r": 8.516,
+          "k": 0.117
+        },
+        {
+          "page": "75",
+          "constructionId": "kp-92186f22c7d3fcb2e822a1fc-1",
+          "optionId": "kp-92186f22c7d3fcb2e822a1fc-1-o5",
+          "label": "外墙C1-4",
+          "constructionCode": "C1-4",
+          "base": "加气混凝土砌块",
+          "thicknessMm": 25,
+          "r": 9.14,
+          "k": 0.109
+        }
+      ]
+    }
+  ],
+  "status": "PASS"
+}

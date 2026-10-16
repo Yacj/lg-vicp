@@ -25,6 +25,8 @@ export function useReferencePageResource(input: () => { locator: AiSourceLocator
         throw new Error('引用页面不一致')
       if (context && response.document.id !== context.page.documentId)
         throw new Error('引用资料不一致')
+      if (context?.renderModel?.confirmedRevision && response.page?.renderModel?.confirmedRevision && context.renderModel.confirmedRevision !== response.page.renderModel.confirmedRevision)
+        throw new Error('来源确认版本已变化，请返回对话重新查询')
       detail.value = response
       errorMessage.value = ''
       return 'ready'

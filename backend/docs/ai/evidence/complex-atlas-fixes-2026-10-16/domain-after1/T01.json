@@ -1,0 +1,234 @@
+{
+  "id": "T01",
+  "message": "I型VICP坡屋面正置和倒置，20mm的传热系数分别多少？看下表。",
+  "scope": "真实结构化提案；源配置强制只读；不执行业务目标",
+  "proposal": {
+    "pageQuery": {
+      "queryMode": "NEW_QUERY",
+      "intent": "REFERENCE_LOOKUP",
+      "constraints": [
+        {
+          "type": "ENTITY",
+          "operation": "SET",
+          "field": "specClass",
+          "entityText": "I型",
+          "resolvedText": "I型",
+          "metric": null,
+          "operator": null,
+          "value": null,
+          "evidence": "I型",
+          "hard": true,
+          "confidence": 0.95
+        },
+        {
+          "type": "ENTITY",
+          "operation": "SET",
+          "field": "roofForm",
+          "entityText": "坡屋面",
+          "resolvedText": "坡屋面",
+          "metric": null,
+          "operator": null,
+          "value": null,
+          "evidence": "坡屋面",
+          "hard": true,
+          "confidence": 0.95
+        },
+        {
+          "type": "ENTITY",
+          "operation": "SET",
+          "field": "placement",
+          "entityText": "正置",
+          "resolvedText": "正置",
+          "metric": null,
+          "operator": null,
+          "value": null,
+          "evidence": "正置",
+          "hard": true,
+          "confidence": 0.95
+        },
+        {
+          "type": "ENTITY",
+          "operation": "APPEND",
+          "field": "placement",
+          "entityText": "倒置",
+          "resolvedText": "倒置",
+          "metric": null,
+          "operator": null,
+          "value": null,
+          "evidence": "倒置",
+          "hard": true,
+          "confidence": 0.95
+        },
+        {
+          "type": "THICKNESS",
+          "operation": "SET",
+          "field": null,
+          "entityText": "20mm",
+          "resolvedText": "20mm",
+          "metric": null,
+          "operator": "EXACT",
+          "value": 20,
+          "evidence": "20mm",
+          "hard": true,
+          "confidence": 0.95
+        }
+      ],
+      "preferences": [],
+      "unresolved": [],
+      "confidence": 0.95
+    },
+    "intent": "REFERENCE_QUERY",
+    "confidence": 0.95,
+    "evidence": "I型VICP坡屋面正置和倒置，20mm的传热系数分别多少？看下表。",
+    "unresolved": null,
+    "reportType": null,
+    "factRead": null,
+    "relation": "NEW",
+    "continuedGoal": null,
+    "comparison": null,
+    "referenceTime": null,
+    "adviceMode": null,
+    "constraintPatch": [],
+    "reference": {
+      "scope": "NONE",
+      "revision": null,
+      "items": []
+    },
+    "requestedEffect": "QUERY",
+    "effectRequest": null,
+    "ambiguity": []
+  },
+  "finishReason": "stop",
+  "usage": {
+    "inputTokens": 4868,
+    "inputTokenDetails": {
+      "noCacheTokens": 4868,
+      "cacheReadTokens": 0
+    },
+    "outputTokens": 662,
+    "outputTokenDetails": {
+      "textTokens": 662,
+      "reasoningTokens": 0
+    },
+    "totalTokens": 5530,
+    "raw": {
+      "prompt_tokens": 4868,
+      "completion_tokens": 662,
+      "total_tokens": 5530,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      },
+      "prompt_cache_hit_tokens": 0,
+      "prompt_cache_miss_tokens": 4868
+    }
+  },
+  "policy": {
+    "intent": "REFERENCE_QUERY",
+    "mutation": "QUERY",
+    "evidenceSpans": [
+      "I型VICP坡屋面正置和倒置，20mm的传热系数分别多少？看下表。"
+    ],
+    "parserSource": "LLM",
+    "semantic": {
+      "pageQuery": {
+        "queryMode": "NEW_QUERY",
+        "intent": "REFERENCE_LOOKUP",
+        "constraints": [
+          {
+            "type": "ENTITY",
+            "operation": "SET",
+            "field": "specClass",
+            "entityText": "I型",
+            "resolvedText": "I型",
+            "metric": null,
+            "operator": null,
+            "value": null,
+            "evidence": "I型",
+            "hard": true,
+            "confidence": 0.95
+          },
+          {
+            "type": "ENTITY",
+            "operation": "SET",
+            "field": "roofForm",
+            "entityText": "坡屋面",
+            "resolvedText": "坡屋面",
+            "metric": null,
+            "operator": null,
+            "value": null,
+            "evidence": "坡屋面",
+            "hard": true,
+            "confidence": 0.95
+          },
+          {
+            "type": "ENTITY",
+            "operation": "SET",
+            "field": "placement",
+            "entityText": "正置",
+            "resolvedText": "正置",
+            "metric": null,
+            "operator": null,
+            "value": null,
+            "evidence": "正置",
+            "hard": true,
+            "confidence": 0.95
+          },
+          {
+            "type": "ENTITY",
+            "operation": "APPEND",
+            "field": "placement",
+            "entityText": "倒置",
+            "resolvedText": "倒置",
+            "metric": null,
+            "operator": null,
+            "value": null,
+            "evidence": "倒置",
+            "hard": true,
+            "confidence": 0.95
+          },
+          {
+            "type": "THICKNESS",
+            "operation": "SET",
+            "field": null,
+            "entityText": "20mm",
+            "resolvedText": "20mm",
+            "metric": null,
+            "operator": "EXACT",
+            "value": 20,
+            "evidence": "20mm",
+            "hard": true,
+            "confidence": 0.95
+          }
+        ],
+        "preferences": [],
+        "unresolved": [],
+        "confidence": 0.95
+      },
+      "intent": "REFERENCE_QUERY",
+      "confidence": 0.95,
+      "evidence": "I型VICP坡屋面正置和倒置，20mm的传热系数分别多少？看下表。",
+      "unresolved": null,
+      "reportType": null,
+      "factRead": null,
+      "relation": "NEW",
+      "continuedGoal": null,
+      "comparison": null,
+      "referenceTime": null,
+      "adviceMode": null,
+      "constraintPatch": [],
+      "reference": {
+        "scope": "NONE",
+        "revision": null,
+        "items": []
+      },
+      "requestedEffect": "QUERY",
+      "effectRequest": null,
+      "ambiguity": []
+    },
+    "requiresCandidateQuery": false,
+    "restoreAdviceGoal": false,
+    "referenceScope": "LATEST_VISIBLE",
+    "policyReason": "READ_ONLY_QUERY"
+  },
+  "durationMs": 2770
+}

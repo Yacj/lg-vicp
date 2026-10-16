@@ -691,6 +691,9 @@ export interface KnowledgeReferencePageBlock extends ReferenceHighlight, Knowled
   type?: 'REFERENCE_PAGE'
   summary: KnowledgeReferencePageMatch['summary']
   page: {
+    versionId?: string
+    pageLabelSource?: string | null
+    pageLabelVerified?: boolean | null
     documentId: string
     pageId: string
     documentTitle: string
@@ -774,6 +777,8 @@ export interface KnowledgePage extends KnowledgePagePresentation {
 export type PageRecognitionStatus = 'PENDING' | 'PROCESSING' | 'REVIEW_REQUIRED' | 'CONFIRMED' | 'FAILED'
 
 export interface PageRecognitionLayer {
+  sourceLayerLabel?: string | null
+  sourceGroupLabel?: string | null
   order?: number | null
   name: string
   thicknessMm?: number | null
@@ -782,7 +787,27 @@ export interface PageRecognitionLayer {
   rValue?: number | null
 }
 
+export interface PageRecognitionSourceColumn {
+  fieldKey: 'thicknessMm' | 'lambda' | 'alpha' | 'rValue' | 'productThermalResistance' | 'totalThermalResistance' | 'kValue'
+  label: string
+  groupLabel?: string | null
+  symbol?: string | null
+  unit?: string | null
+  scope: 'LAYER' | 'PRODUCT' | 'CONSTRUCTION' | 'UNKNOWN'
+}
+
+export interface PageRecognitionLayerValue {
+  layerIndex: number
+  thicknessMm?: number | null
+  rValue?: number | null
+  thicknessText?: string | null
+  rValueText?: string | null
+}
+
 export interface PageRecognitionOption {
+  sourceRowLabel?: string | null
+  fieldEvidence?: Partial<Record<'thicknessMm' | 'productThermalResistance' | 'totalThermalResistance' | 'kValue', string | null>>
+  layerValues?: PageRecognitionLayerValue[]
   /** 管理员人工选择的已发布产品规格；AI 不生成，仅由人工映射写入。 */
   productSpecId?: string | null
   /** 可选的产品目录约束，用于缩小规格候选；AI 不猜测。 */
@@ -791,11 +816,18 @@ export interface PageRecognitionOption {
   productThermalResistance?: number | null
   totalThermalResistance?: number | null
   kValue?: number | null
-  /** @deprecated 仅兼容历史 recognition draft；含义等同 totalThermalResistance。 */
+  /** @deprecated 旧字段语义未核验，不能填入产品或整构造热阻。 */
   rValue?: number | null
 }
 
 export interface PageRecognitionSystem {
+  rawConstructionLabel?: string | null
+  constructionCodeEvidence?: string | null
+  applicationPart?: 'EXTERNAL_WALL' | 'ROOF' | null
+  roofForm?: 'SLOPED' | 'FLAT' | null
+  placement?: 'UPRIGHT' | 'INVERTED' | null
+  waterproofGrade?: string | null
+  sourceColumns?: PageRecognitionSourceColumn[]
   /** 管理员人工选择的已发布构造方案；AI 不生成，仅由人工映射写入。 */
   schemeId?: string | null
   systemName?: string | null
@@ -862,6 +894,8 @@ export interface PageRecognitionConfirmResult {
 }
 
 export interface PageRecognitionResult {
+  schemaVersion?: 2
+  pageLabelEvidence?: string | null
   pageLabel?: string | null
   pageTitle?: string | null
   fullText: string

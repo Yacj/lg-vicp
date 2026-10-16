@@ -1,0 +1,19 @@
+{
+  "id": "T03",
+  "group": "roof-II",
+  "question": "II型平屋面正置和倒置的20mm参数一样吗？",
+  "status": "FAIL",
+  "conversationId": "c173c131-b98f-4461-9525-88f709da6d56",
+  "answer": "想确认一下：明确的厚度条件未被完整保留，请确认。",
+  "facts": [],
+  "pages": [],
+  "historyReturned": true,
+  "persistedUrlFree": true,
+  "solutionStates": 0,
+  "reports": 0,
+  "snapshots": 0,
+  "error": {
+    "name": "AssertionError",
+    "message": "命中行数必须准确，不能串构造或多返回别的档位\n\n0 !== 2\n"
+  }
+}

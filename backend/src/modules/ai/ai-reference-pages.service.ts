@@ -16,6 +16,7 @@ import { compactCandidateResult } from "./tools/thermal-lookup.js";
 import { referenceSolutionCandidate, type SolutionCandidateSnapshot } from "./solution-workflow.js";
 import { confirmedReferenceQuery } from "./structured-reference-query.js";
 import type { ThermalQueryState } from "../thermal/thermal-query-state.js";
+import { queryConfirmedPageFacts, confirmedFactExtremum } from "../knowledge/confirmed-page-facts.js";
 
 /** 只重查上次已展示/显式选择的资料范围；不把热工表未命中升级为全库宽查。 */
 export async function querySelectedKnowledgeCandidates(app: FastifyInstance, query: ThermalQueryState, projectId: string | null) {
@@ -57,6 +58,7 @@ export async function toReferencePageBlock(app: FastifyInstance, { page, documen
     catch { app.log.warn({ pageId: page.id }, "来源页图片暂不可用，保留确认表格"); }
   }
   return { type: "REFERENCE_PAGE", page: { documentId: document.id, pageId: page.id, documentTitle: document.title,
+    versionId: page.versionId, pageLabelSource: page.pageLabelSource, pageLabelVerified: page.pageLabelVerified,
     docNumber: document.docNumber,
     pageNumber: page.physicalPageNumber, physicalPageNumber: page.physicalPageNumber,
     ...(visiblePageLabel(page) ? { pageLabel: visiblePageLabel(page)! } : {}), imageUrl },
@@ -66,13 +68,22 @@ export async function toReferencePageBlock(app: FastifyInstance, { page, documen
 
 /** C 端只从本轮有权检索/选中的当前发布版本读取确认档位，不复用 B 端草稿接口。 */
 export async function loadPublishedKnowledgeReferences(app: FastifyInstance, hits: readonly WikiHit[], projectId: string | null, message: string, lookup?: ReturnType<typeof normalizeConversationLookupQuery>["query"]): Promise<KnowledgeTestReferenceContext & { solutionCandidates?: SolutionCandidateSnapshot[] }> {
-  const versionIds = [...new Set(hits.map(hit => hit.versionId))];
-  if (!versionIds.length) return { context: "", pages: [] };
+  // 语义已grounding的独立查表不能依赖全文检索top-N；继承/显式资料范围仍严格保留。
+  const freshFactScope = lookup?.parserSource === "LLM" && lookup.intent === "REFERENCE_LOOKUP"
+    && !lookup.documentIds && !lookup.knowledgeVersionIds
+    && Boolean(lookup.pageLabel || lookup.applicationPart || lookup.roofForm || lookup.placement || lookup.placements?.length || lookup.constructionCodes?.length || lookup.schemeCode || lookup.specClass);
+  const versionIds = [...new Set(lookup?.knowledgeVersionIds ?? hits.map(hit => hit.versionId))];
+  if (!versionIds.length && !freshFactScope) return { context: "", pages: [] };
   const normalized = confirmedReferenceQuery(message, lookup);
   const numeric = normalized.authoritative;
   const sourceIds = [...new Set(hits.map(hit => hit.pageId).filter((id): id is string => Boolean(id)))];
-  const rows = await app.db.select({ id: knowledgePages.id }).from(knowledgePages)
-    .where(and(inArray(knowledgePages.versionId, versionIds), numeric ? undefined : inArray(knowledgePages.id, sourceIds)));
+  const rows = freshFactScope ? await app.db.select({ id: knowledgePages.id }).from(knowledgePages)
+    .innerJoin(knowledgeDocuments, eq(knowledgeDocuments.id, knowledgePages.documentId))
+    .where(and(eq(knowledgePages.versionId, knowledgeDocuments.currentVersionId), eq(knowledgeDocuments.status, "ACTIVE"), isNull(knowledgeDocuments.deletedAt),
+      projectId ? or(isNull(knowledgeDocuments.projectId), eq(knowledgeDocuments.projectId, projectId)) : isNull(knowledgeDocuments.projectId),
+      lookup?.pageLabel ? eq(knowledgePages.pageLabel, lookup.pageLabel) : undefined))
+    : await app.db.select({ id: knowledgePages.id }).from(knowledgePages)
+      .where(and(inArray(knowledgePages.versionId, versionIds), numeric ? undefined : inArray(knowledgePages.id, sourceIds)));
   const readable = await readConsumableReferencePages(app, rows.map(row => row.id), projectId);
   const snapshots = readable.flatMap(({ page, document }) => {
     const data = readPageRecognitionMeta(page.metadata).confirmedStructuredData;
@@ -80,14 +91,17 @@ export async function loadPublishedKnowledgeReferences(app: FastifyInstance, hit
   });
   if (!snapshots.length && !numeric) return { context: "", pages: [] };
   const matchingDiagnostics = { excludedMissingCoreFields: 0, excludedMissingBaseMaterial: 0 };
-  const matched = numeric ? matchConfirmedPageOptions(snapshots, message, normalized.query, normalized.structured, matchingDiagnostics) : undefined;
-  const ids = matched ? [...new Set(matched.map(candidate => candidate.sourcePageId!))].slice(0, REFERENCE_PAGE_LIMIT) : sourceIds.slice(0, REFERENCE_PAGE_LIMIT);
+  const pageFacts = numeric && snapshots.some(snapshot => snapshot.data.schemaVersion === 2) ? queryConfirmedPageFacts(snapshots, normalized.query) : undefined;
+  const matched = numeric && !pageFacts ? matchConfirmedPageOptions(snapshots, message, normalized.query, normalized.structured, matchingDiagnostics) : undefined;
+  const ids = pageFacts ? [...new Set(pageFacts.map(fact => fact.pageId))].slice(0, REFERENCE_PAGE_LIMIT)
+    : matched ? [...new Set(matched.map(candidate => candidate.sourcePageId!))].slice(0, REFERENCE_PAGE_LIMIT) : sourceIds.slice(0, REFERENCE_PAGE_LIMIT);
   const pages = await Promise.all(ids.flatMap(id => {
     const row = readable.find(item => item.page.id === id);
     return row ? [toReferencePageBlock(app, row)] : [];
   }));
-  if (numeric) pages.forEach(page => { page.answerStyle = "THERMAL_SOLUTIONS"; page.primaryFieldKeys = thermalLookupPrimaryFields(normalized.query.filters, normalized.structured?.compareMetric); });
-  const selectedIds = matched?.filter(candidate => ids.includes(candidate.sourcePageId!)).map(candidate => candidate.candidateId).slice(0, normalized.structured ? 12 : 3);
+  if (numeric) pages.forEach(page => { if (!pageFacts) page.answerStyle = "THERMAL_SOLUTIONS"; page.primaryFieldKeys = thermalLookupPrimaryFields(normalized.query.filters, normalized.structured?.compareMetric); });
+  const selectedIds = pageFacts ? pageFacts.filter(fact => ids.includes(fact.pageId)).map(fact => fact.option.optionId).slice(0, 12)
+    : matched?.filter(candidate => ids.includes(candidate.sourcePageId!)).map(candidate => candidate.candidateId).slice(0, numeric ? 12 : 3);
   const budget = budgetKnowledgeTestReferences(pages, selectedIds, env.AI_CONTEXT_BUCKET_KNOWLEDGE_TOKENS);
   const solutionCandidates = matched?.filter(candidate => budget.citationOptionIds.includes(candidate.candidateId)).map(candidate => {
     const page = readable.find(({ page }) => page.id === candidate.sourcePageId)!.page;
@@ -95,15 +109,15 @@ export async function loadPublishedKnowledgeReferences(app: FastifyInstance, hit
       thermalReferenceRowId: undefined, optionId: candidate.candidateId, sourceDocumentId: page.documentId, sourceVersionId: page.versionId,
       sourcePageLabel: visiblePageLabel(page) };
   });
-  const totalMatched = matched?.length ?? 0;
-  const totalGroups = new Set(matched?.map(candidate => candidate.scheme.substrateMaterial)).size;
+  const totalMatched = pageFacts?.length ?? matched?.length ?? 0;
+  const totalGroups = pageFacts ? new Set(pageFacts.map(fact => fact.construction.constructionId)).size : new Set(matched?.map(candidate => candidate.scheme.substrateMaterial)).size;
   // 后续改条件必须回到同一已消费版本查询，不能退回仅有示例行的全局热工表。
   const scopedQuery = { ...normalized.query, documentIds: [...new Set(readable.map(row => row.document.id))],
     knowledgeVersionIds: [...new Set(readable.map(row => row.version.id))] };
-  return { pages, ...budget, authoritative: numeric, solutionCandidates, totalMatched, totalGroups, matchingDiagnostics, query: scopedQuery,
+  return { pages, ...budget, authoritative: numeric, ...(pageFacts ? { readOnlyPageFacts: true } : {}), solutionCandidates, totalMatched, totalGroups, matchingDiagnostics, query: scopedQuery,
     ...(numeric ? { answer: formatConfirmedLookupAnswer(pages, budget.citationOptionIds, normalized.query.filters ?? [],
       { scopeLabel: "本次参考资料中", emptyHint: "当前没有可核验的完整确认档位，可以调整厚度、构造或资料范围再查询。", compact: true,
-        totalMatched, totalGroups, structured: normalized.structured }) } : {}) };
+        totalMatched, totalGroups, readFields: normalized.query.readFields, structured: normalized.structured, readOnlyPageFacts: Boolean(pageFacts), extremum: pageFacts ? confirmedFactExtremum(pageFacts, normalized.query) : undefined }) } : {}) };
 }
 
 /** 元数据仅取正式标识，数值与表格重读当前确认快照；旧快照 ID 失效就省略引用。 */
@@ -120,9 +134,12 @@ export function referencePageLocators(metadata: unknown) {
 }
 
 export function restoreReferencePageMatches(current: ReferencePageBlock, stored: Record<string, unknown>): ReferencePageBlock | null {
+  const storedPage = asRecord(stored.page) ?? stored;
+  if (storedPage.versionId != null && storedPage.versionId !== current.page.versionId) return null;
   const oldMatches = Array.isArray(stored.matches) ? stored.matches : [];
   const matches: ReferencePageMatch[] = oldMatches.flatMap(value => {
     const item = asRecord(value); if (!item || typeof item.optionId !== "string" || item.pageId !== current.page.pageId) return [];
+    if (item.confirmedRevision != null && item.confirmedRevision !== current.renderModel?.confirmedRevision) return [];
     const construction = current.renderModel?.constructions.find(row => row.constructionId === item.constructionId);
     const option = construction?.options.find(row => row.optionId === item.optionId);
     if (!construction || !option) return [];
@@ -133,8 +150,9 @@ export function restoreReferencePageMatches(current: ReferencePageBlock, stored:
       totalThermalResistance: option.totalThermalResistance ?? undefined, kValue: option.kValue ?? undefined,
       lambda: construction.material?.lambda ?? undefined, alpha: construction.material?.alpha ?? undefined };
     return [{ pageId: current.page.pageId, constructionId: construction.constructionId, optionId: option.optionId, fieldKeys,
+      ...(current.renderModel?.confirmedRevision ? { confirmedRevision: current.renderModel.confirmedRevision } : {}),
       ...(typeof item.answerOffset === "number" && Number.isSafeInteger(item.answerOffset) && item.answerOffset >= 0 ? { answerOffset: item.answerOffset } : {}),
-      summary, highlights: buildHighlights({ id: option.optionId, ...summary }) }];
+      summary, highlights: buildHighlights({ id: option.optionId, ...summary }, construction.sourceColumns) }];
   });
   if (oldMatches.some(value => typeof asRecord(value)?.optionId === "string") && !matches.length) return null;
   if (matches.length) return { ...current, matches, summary: matches[0]!.summary, highlights: matches[0]!.highlights,
@@ -161,7 +179,7 @@ export async function hydrateMessageReferencePages(app: FastifyInstance, message
 export function resolveConfirmedReferenceAnswer(answer: string, pages: readonly ReferencePageBlock[]) {
   const stream = new KnowledgeReferenceCitationStream();
   const text = stream.push(answer, true);
-  return { text, pages: stream.resolve(pages).map(page => ({ ...page, answerStyle: "THERMAL_SOLUTIONS" as const })) };
+  return { text, pages: stream.resolve(pages).map(page => page.renderModel?.schemaVersion === 2 ? page : { ...page, answerStyle: "THERMAL_SOLUTIONS" as const }) };
 }
 
 export async function persistMessageReferencePages(app: FastifyInstance, references: readonly unknown[], projectId: string | null) {
@@ -170,12 +188,20 @@ export async function persistMessageReferencePages(app: FastifyInstance, referen
   return locators.flatMap(locator => {
     const row = rows.find(item => item.page.id === locator.pageId && item.document.id === locator.documentId);
     if (!row) return [];
+    const renderModel = readableRenderModel(row.page.id, row.page.metadata, visiblePageLabel(row.page));
+    const current: ReferencePageBlock = { type: "REFERENCE_PAGE", page: { documentId: row.document.id, pageId: row.page.id,
+      documentTitle: row.document.title, versionId: row.page.versionId, pageNumber: row.page.physicalPageNumber, imageUrl: "" },
+      renderModel, matches: [], summary: {}, highlights: [] };
+    const hasMatches = Array.isArray(locator.item.matches) && locator.item.matches.length > 0;
+    const restored = hasMatches ? restoreReferencePageMatches(current, locator.item) : undefined;
+    if (hasMatches && !restored) return [];
     // 白名单投影，既兼容历史平铺结构也避免持久化临时URL或工具内部数据。
     return [{ documentId: locator.documentId, pageId: locator.pageId, documentTitle: row.document.title, docNumber: row.document.docNumber,
+      versionId: row.page.versionId,
       pageLabel: row.page.pageLabel, physicalPageNumber: row.page.physicalPageNumber,
-      pageImageObjectKey: row.page.pageImageObjectKey, renderModel: locator.item.renderModel,
+      pageImageObjectKey: row.page.pageImageObjectKey, renderModel,
       ...(locator.item.answerStyle === "THERMAL_SOLUTIONS" ? { answerStyle: "THERMAL_SOLUTIONS" as const } : {}),
       primaryFieldKeys: THERMAL_PAGE_FIELDS.filter(key => Array.isArray(locator.item.primaryFieldKeys) && locator.item.primaryFieldKeys.includes(key)),
-      summary: locator.item.summary ?? {}, highlights: locator.item.highlights ?? [], matches: locator.item.matches ?? [] }];
+      summary: restored?.summary ?? {}, highlights: restored?.highlights ?? [], matches: restored?.matches ?? [] }];
   });
 }

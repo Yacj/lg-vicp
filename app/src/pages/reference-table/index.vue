@@ -9,6 +9,7 @@ import { useAssistantStore } from '@/store/assistant'
 import { knowledgeSourceLocation } from '@/utils/aiSource'
 import { formatReferenceNumber, hasPageRenderModel, referencePageHeading } from '@/utils/referencePage'
 import { resolveReferenceTablePage } from '@/utils/referenceTable'
+import { constructionLabel } from '@/utils/thermalSourceLabels'
 
 definePage({
   name: 'reference-table',
@@ -33,7 +34,7 @@ const highlight = useReferencePageHighlight(() => ({ model: model.value, pageId:
 const activeLabel = computed(() => {
   const construction = model.value?.constructions.find(item => item.constructionId === highlight.active.value?.constructionId)
   const option = construction?.options.find(item => item.optionId === highlight.active.value?.optionId)
-  return construction ? `${construction.constructionCode || construction.title || '参考构造'}${option ? ` · ${formatReferenceNumber(option.thicknessMm)}mm` : ''}` : ''
+  return construction ? `${constructionLabel(construction)}${option ? ` · ${formatReferenceNumber(option.thicknessMm)}mm` : ''}` : ''
 })
 let measurementRevision = 0
 async function measureTable() {
@@ -82,9 +83,9 @@ onUnload(() => {
         <view v-if="heading.subtitle" class="reference-table__subtitle app-muted mt-1">
           {{ heading.subtitle }}
         </view>
-        <!-- <view class="reference-table__source flex items-center justify-between gap-2">
+        <view class="reference-table__source flex items-center justify-between gap-2">
           <text class="reference-table__caption app-muted min-w-0">
-            {{ page?.page.documentTitle }}{{ page?.page.pageLabel ? ` · 第${page.page.pageLabel}页` : '' }}
+            {{ page?.page.pageLabel ? `印刷页码 ${page.page.pageLabel}` : '印刷页码待核' }}
           </text>
           <wd-button size="small" variant="text" icon="share-external" @click="openSource">
             查看参考页
@@ -103,7 +104,7 @@ onUnload(() => {
           <wd-button size="small" variant="text" @click="highlight.toggle">
             {{ highlight.enabled.value ? '取消高亮' : '显示高亮' }}
           </wd-button>
-        </view> -->
+        </view>
         <view class="reference-table__caption app-muted mt-1">
           左右滑动查看全部列，上下滑动查看全部行
         </view>

@@ -1,0 +1,234 @@
+{
+  "id": "T03",
+  "message": "II型平屋面正置和倒置的20mm参数一样吗？",
+  "scope": "真实结构化提案；源配置强制只读；不执行业务目标",
+  "proposal": {
+    "pageQuery": {
+      "queryMode": "NEW_QUERY",
+      "intent": "REFERENCE_LOOKUP",
+      "constraints": [
+        {
+          "type": "ENTITY",
+          "operation": "SET",
+          "field": "specClass",
+          "entityText": "II型",
+          "resolvedText": "II型",
+          "metric": null,
+          "operator": null,
+          "value": null,
+          "evidence": "II型",
+          "hard": true,
+          "confidence": 0.95
+        },
+        {
+          "type": "ENTITY",
+          "operation": "SET",
+          "field": "roofForm",
+          "entityText": "平屋面",
+          "resolvedText": "平屋面",
+          "metric": null,
+          "operator": null,
+          "value": null,
+          "evidence": "平屋面",
+          "hard": true,
+          "confidence": 0.95
+        },
+        {
+          "type": "ENTITY",
+          "operation": "SET",
+          "field": "placement",
+          "entityText": "正置",
+          "resolvedText": "正置",
+          "metric": null,
+          "operator": null,
+          "value": null,
+          "evidence": "正置",
+          "hard": true,
+          "confidence": 0.95
+        },
+        {
+          "type": "ENTITY",
+          "operation": "APPEND",
+          "field": "placement",
+          "entityText": "倒置",
+          "resolvedText": "倒置",
+          "metric": null,
+          "operator": null,
+          "value": null,
+          "evidence": "倒置",
+          "hard": true,
+          "confidence": 0.95
+        },
+        {
+          "type": "THICKNESS",
+          "operation": "SET",
+          "field": null,
+          "entityText": "20mm",
+          "resolvedText": "20mm",
+          "metric": null,
+          "operator": "EXACT",
+          "value": 20,
+          "evidence": "20mm",
+          "hard": true,
+          "confidence": 0.95
+        }
+      ],
+      "preferences": [],
+      "unresolved": [],
+      "confidence": 0.9
+    },
+    "intent": "REFERENCE_QUERY",
+    "confidence": 0.9,
+    "evidence": "II型平屋面正置和倒置的20mm参数一样吗？",
+    "unresolved": null,
+    "reportType": null,
+    "factRead": null,
+    "relation": "NEW",
+    "continuedGoal": null,
+    "comparison": null,
+    "referenceTime": null,
+    "adviceMode": null,
+    "constraintPatch": [],
+    "reference": {
+      "scope": "NONE",
+      "revision": null,
+      "items": []
+    },
+    "requestedEffect": "QUERY",
+    "effectRequest": null,
+    "ambiguity": []
+  },
+  "finishReason": "stop",
+  "usage": {
+    "inputTokens": 4860,
+    "inputTokenDetails": {
+      "noCacheTokens": 252,
+      "cacheReadTokens": 4608
+    },
+    "outputTokens": 654,
+    "outputTokenDetails": {
+      "textTokens": 654,
+      "reasoningTokens": 0
+    },
+    "totalTokens": 5514,
+    "raw": {
+      "prompt_tokens": 4860,
+      "completion_tokens": 654,
+      "total_tokens": 5514,
+      "prompt_tokens_details": {
+        "cached_tokens": 4608
+      },
+      "prompt_cache_hit_tokens": 4608,
+      "prompt_cache_miss_tokens": 252
+    }
+  },
+  "policy": {
+    "intent": "REFERENCE_QUERY",
+    "mutation": "QUERY",
+    "evidenceSpans": [
+      "II型平屋面正置和倒置的20mm参数一样吗？"
+    ],
+    "parserSource": "LLM",
+    "semantic": {
+      "pageQuery": {
+        "queryMode": "NEW_QUERY",
+        "intent": "REFERENCE_LOOKUP",
+        "constraints": [
+          {
+            "type": "ENTITY",
+            "operation": "SET",
+            "field": "specClass",
+            "entityText": "II型",
+            "resolvedText": "II型",
+            "metric": null,
+            "operator": null,
+            "value": null,
+            "evidence": "II型",
+            "hard": true,
+            "confidence": 0.95
+          },
+          {
+            "type": "ENTITY",
+            "operation": "SET",
+            "field": "roofForm",
+            "entityText": "平屋面",
+            "resolvedText": "平屋面",
+            "metric": null,
+            "operator": null,
+            "value": null,
+            "evidence": "平屋面",
+            "hard": true,
+            "confidence": 0.95
+          },
+          {
+            "type": "ENTITY",
+            "operation": "SET",
+            "field": "placement",
+            "entityText": "正置",
+            "resolvedText": "正置",
+            "metric": null,
+            "operator": null,
+            "value": null,
+            "evidence": "正置",
+            "hard": true,
+            "confidence": 0.95
+          },
+          {
+            "type": "ENTITY",
+            "operation": "APPEND",
+            "field": "placement",
+            "entityText": "倒置",
+            "resolvedText": "倒置",
+            "metric": null,
+            "operator": null,
+            "value": null,
+            "evidence": "倒置",
+            "hard": true,
+            "confidence": 0.95
+          },
+          {
+            "type": "THICKNESS",
+            "operation": "SET",
+            "field": null,
+            "entityText": "20mm",
+            "resolvedText": "20mm",
+            "metric": null,
+            "operator": "EXACT",
+            "value": 20,
+            "evidence": "20mm",
+            "hard": true,
+            "confidence": 0.95
+          }
+        ],
+        "preferences": [],
+        "unresolved": [],
+        "confidence": 0.9
+      },
+      "intent": "REFERENCE_QUERY",
+      "confidence": 0.9,
+      "evidence": "II型平屋面正置和倒置的20mm参数一样吗？",
+      "unresolved": null,
+      "reportType": null,
+      "factRead": null,
+      "relation": "NEW",
+      "continuedGoal": null,
+      "comparison": null,
+      "referenceTime": null,
+      "adviceMode": null,
+      "constraintPatch": [],
+      "reference": {
+        "scope": "NONE",
+        "revision": null,
+        "items": []
+      },
+      "requestedEffect": "QUERY",
+      "effectRequest": null,
+      "ambiguity": []
+    },
+    "requiresCandidateQuery": false,
+    "restoreAdviceGoal": false,
+    "referenceScope": "LATEST_VISIBLE",
+    "policyReason": "READ_ONLY_QUERY"
+  },
+  "durationMs": 2378
+}

@@ -42,22 +42,31 @@ export function knowledgeAnswerContent(answer: string, pages: KnowledgeReference
   for (const block of pages) {
     const matches = block.matches?.length ? block.matches : [{ ...block, highlights: block.highlights ?? [] }]
     for (const match of matches) {
-      const constructionCode = match.summary.constructionCode?.trim()
+      const section = match.constructionId
+        ? block.renderModel?.constructions.find(item => item.constructionId === match.constructionId
+          && (!match.optionId || item.options.some(option => option.optionId === match.optionId)))
+        : undefined
+      const constructionCode = match.summary.constructionCode?.trim() || section?.rawConstructionLabel || section?.systemName || ''
       if (!constructionCode) { unplacedCount++; continue }
       const anchor = answerBlockAt(blocks, match.answerOffset)
       if (match.answerOffset != null && anchor < 0) { unplacedCount++; continue }
-      const key = `${block.page.pageId}:${constructionCode}${anchor >= 0 ? `:${anchor}` : ''}`
+      const key = `${block.page.pageId}:${section && anchor >= 0 ? 'confirmed-page' : section?.constructionId || constructionCode}${anchor >= 0 ? `:${anchor}` : ''}`
       let group = groups.find(item => item.key === key)
       if (!group) { group = { key, constructionCode, page: block.page, renderModel: block.renderModel, matches: [] }; groups.push(group) }
       const existing = match.optionId ? group.matches.find(item => item.optionId === match.optionId && item.constructionId === match.constructionId) : undefined
       if (existing) existing.fieldKeys = [...new Set([...(existing.fieldKeys ?? []), ...(match.fieldKeys ?? [])])]
-      else if (!match.candidateId || !group.matches.some(item => item.candidateId === match.candidateId)) group.matches.push({ ...match })
+      else if ((match.optionId && match.constructionId) || !match.candidateId || !group.matches.some(item => item.candidateId === match.candidateId)) group.matches.push({ ...match })
     }
   }
   for (const group of groups) {
     const anchor = group.matches[0]?.answerOffset
     const indexByOffset = answerBlockAt(blocks, anchor)
     if (indexByOffset >= 0) { blocks[indexByOffset]!.groups.push(group); continue }
+    // 无印刷编号时只使用服务端段落位置，不以口语标签搜索回答。
+    if (group.matches.some(match => !match.summary.constructionCode?.trim())) {
+      unplacedCount++
+      continue
+    }
     const code = group.constructionCode.replace(/^外墙\s*/, '')
     // 同一构造编号在不同来源页重复时，需要后端给出段落关联，不能任选一页。
     if (groups.filter(item => item.constructionCode.replace(/^外墙\s*/, '') === code).length !== 1) { unplacedCount++; continue }

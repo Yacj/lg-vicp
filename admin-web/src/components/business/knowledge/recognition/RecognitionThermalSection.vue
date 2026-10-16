@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { RecognitionDraftSystem } from '@/components/business/knowledge/recognition/types'
 import { SPEC_CLASS_OPTIONS } from '@/components/business/knowledge/recognition/types'
+import { removeRecognitionLayer } from '@/utils/knowledge-recognition-draft'
+import RecognitionEvidenceSection from './RecognitionEvidenceSection.vue'
 
 withDefaults(defineProps<{ readonly?: boolean }>(), { readonly: false })
 
@@ -23,7 +25,7 @@ function addLayer(system: RecognitionDraftSystem): void {
 }
 
 function removeLayer(system: RecognitionDraftSystem, index: number): void {
-  system.layers.splice(index, 1)
+  removeRecognitionLayer(system, index)
 }
 
 function addOption(system: RecognitionDraftSystem): void {
@@ -43,7 +45,7 @@ function removeOption(system: RecognitionDraftSystem, index: number): void {
       class="recognition-thermal__system"
     >
       <header class="recognition-thermal__system-head">
-        <strong>构造 {{ system.constructionCode || `#${systemIndex + 1}` }}</strong>
+        <strong>{{ system.rawConstructionLabel || system.constructionCode || system.systemName || `第 ${systemIndex + 1} 组构造` }}</strong>
         <t-button
           v-if="!readonly"
           size="small"
@@ -64,7 +66,25 @@ function removeOption(system: RecognitionDraftSystem, index: number): void {
             <t-select v-model="system.specClass" :disabled="readonly" :options="[...SPEC_CLASS_OPTIONS]" clearable />
           </t-form-item>
           <t-form-item label="构造编号">
-            <t-input v-model="system.constructionCode" :disabled="readonly" />
+            <t-input v-model="system.constructionCode" :disabled="readonly" placeholder="原图未印编号可留空" />
+          </t-form-item>
+          <t-form-item label="原始构造标签">
+            <t-input v-model="system.rawConstructionLabel" :disabled="readonly" placeholder="逐字保留原图分组标签" />
+          </t-form-item>
+          <t-form-item label="构造编号原文证据">
+            <t-input v-model="system.constructionCodeEvidence" :disabled="readonly" placeholder="抄编号栏，不填材料层号" />
+          </t-form-item>
+          <t-form-item label="部位">
+            <t-select v-model="system.applicationPart" :disabled="readonly" :options="[{ label: '外墙', value: 'EXTERNAL_WALL' }, { label: '屋面', value: 'ROOF' }]" clearable />
+          </t-form-item>
+          <t-form-item label="屋面形式">
+            <t-select v-model="system.roofForm" :disabled="readonly" :options="[{ label: '坡屋面', value: 'SLOPED' }, { label: '平屋面', value: 'FLAT' }]" clearable />
+          </t-form-item>
+          <t-form-item label="构造位置">
+            <t-select v-model="system.placement" :disabled="readonly" :options="[{ label: '正置', value: 'UPRIGHT' }, { label: '倒置', value: 'INVERTED' }]" clearable />
+          </t-form-item>
+          <t-form-item label="防水等级原文（与 VICP 型号分开）">
+            <t-input v-model="system.waterproofGrade" :disabled="readonly" placeholder="等级字形不清时留空待核对" />
           </t-form-item>
           <t-form-item label="基层材料">
             <t-input v-model="system.baseMaterial" :disabled="readonly" />
@@ -103,7 +123,7 @@ function removeOption(system: RecognitionDraftSystem, index: number): void {
           <t-input-number v-model="layer.alpha" :disabled="readonly" :min="0" placeholder="α" />
         </label>
         <label class="recognition-thermal__field">
-          <span>热阻 R</span>
+          <span>材料层自身热阻</span>
           <t-input-number v-model="layer.rValue" :disabled="readonly" :min="0" placeholder="R" />
         </label>
         <t-button v-if="!readonly" class="recognition-thermal__remove" theme="danger" variant="text" @click="removeLayer(system, layerIndex)">
@@ -112,9 +132,9 @@ function removeOption(system: RecognitionDraftSystem, index: number): void {
       </div>
 
       <div class="recognition-thermal__subhead">
-        <strong>参考方案</strong>
+        <strong>厚度档位</strong>
         <t-button v-if="!readonly" size="small" variant="text" @click="addOption(system)">
-          新增方案
+          新增档位
         </t-button>
       </div>
       <div
@@ -127,12 +147,12 @@ function removeOption(system: RecognitionDraftSystem, index: number): void {
           <t-input-number v-model="option.thicknessMm" :disabled="readonly" :min="0" placeholder="厚度 mm" />
         </label>
         <label class="recognition-thermal__field">
-          <span>产品层 R</span>
-          <t-input-number v-model="option.productThermalResistance" :disabled="readonly" :min="0" placeholder="产品层 R" />
+          <span>完整产品热阻（非芯层）</span>
+          <t-input-number v-model="option.productThermalResistance" :disabled="readonly" :min="0" placeholder="产品整体热阻，缺失留空" />
         </label>
         <label class="recognition-thermal__field">
-          <span>总 R</span>
-          <t-input-number v-model="option.totalThermalResistance" :disabled="readonly" :min="0" placeholder="总 R" />
+          <span>整构造传热阻</span>
+          <t-input-number v-model="option.totalThermalResistance" :disabled="readonly" :min="0" placeholder="整构造传热阻" />
         </label>
         <label class="recognition-thermal__field">
           <span>传热系数 K</span>
@@ -142,6 +162,7 @@ function removeOption(system: RecognitionDraftSystem, index: number): void {
           删除
         </t-button>
       </div>
+      <RecognitionEvidenceSection :system="system" :readonly="readonly" @update:system="systems[systemIndex] = $event" />
     </section>
 
     <t-button v-if="!readonly" variant="outline" @click="addSystem">

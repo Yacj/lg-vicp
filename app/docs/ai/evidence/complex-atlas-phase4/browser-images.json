@@ -1,0 +1,36 @@
+[
+  {
+    "images": [
+      {
+        "complete": true,
+        "height": 1471,
+        "src": "http://127.0.0.1:5187/fixture/original/90.png",
+        "width": 2048
+      }
+    ],
+    "page": "印刷页码 90 · 原始 PNG",
+    "text": "隔离 Fixture · 人工源图基线\n真实 UniApp H5 组件 / HTTP / SSE\n未连接正式 Backend、数据库、Redis、Vision 或 OSS\n返回对话（保留页内位置）\n印刷页码 90 · 原始 PNG\n模拟签名过期\n恢复授权图片\n建筑屋面热工计算参考选用表（II型VICP屋面保温系统）\n全屏查看\n1.屋面采用结构找坡时，可取消找坡层。\n2.当结构找坡时，取消表中的找坡层并另行计算。\n3.当为倒置式屋面时，不必设置隔汽层。\n4.表中数值均按现浇屋面板考虑，若为预制空心板，应同时考虑屋面板上的水泥砂浆对屋面保温隔热的影响。"
+  },
+  {
+    "images": [
+      {
+        "complete": true,
+        "height": 1471,
+        "src": "http://127.0.0.1:5187/fixture/original/75.png",
+        "width": 2048
+      }
+    ],
+    "page": "印刷页码 75 · 原始 PNG"
+  },
+  {
+    "images": [
+      {
+        "complete": true,
+        "height": 1471,
+        "src": "http://127.0.0.1:5187/fixture/original/89.png",
+        "width": 2048
+      }
+    ],
+    "page": "印刷页码 89 · 原始 PNG"
+  }
+]

@@ -8,7 +8,6 @@ import type {
   KnowledgePageRecognitionSummary,
   PageRecognitionConfirmResult,
   PageRecognitionMappingIssue,
-  PageRecognitionResult,
 } from '@/types/knowledge'
 import type { ProductSpec } from '@/types/masterdata'
 import type { ThermalSet } from '@/types/thermal'
@@ -31,8 +30,8 @@ import RecognitionMappingSection from '@/components/business/knowledge/recogniti
 import RecognitionTextSection from '@/components/business/knowledge/recognition/RecognitionTextSection.vue'
 import RecognitionThermalSection from '@/components/business/knowledge/recognition/RecognitionThermalSection.vue'
 import RecognitionWarningsSection from '@/components/business/knowledge/recognition/RecognitionWarningsSection.vue'
-import { KNOWLEDGE_VERSION_LOCKED_HINT, useKnowledgeVersionEditable } from '@/composables/useKnowledgeVersionEditable'
 import { useKnowledgeReviewNavigation } from '@/composables/useKnowledgeReviewNavigation'
+import { KNOWLEDGE_VERSION_LOCKED_HINT, useKnowledgeVersionEditable } from '@/composables/useKnowledgeVersionEditable'
 import { usePermissionAccess } from '@/composables/usePermissionAccess'
 import { businessUserError, businessUserMessage } from '@/utils/business-error'
 import {
@@ -43,6 +42,7 @@ import {
   RECOGNITION_AMBIGUOUS_HINT,
   RECOGNITION_NOT_FOUND_HINT,
 } from '@/utils/knowledge-recognition'
+import { recognitionDraftPayload as apiResult, copyRecognitionDraft as copyResult } from '@/utils/knowledge-recognition-draft'
 
 const props = withDefaults(defineProps<{
   documentId: string
@@ -128,47 +128,6 @@ const recognizeAllowed = computed(() => canRecognize.value && !versionLocked.val
 
 function emptyResult(): RecognitionDraft {
   return { pageLabel: '', pageTitle: '', fullText: '', systems: [] }
-}
-
-function copyResult(value: PageRecognitionResult | null | undefined): RecognitionDraft {
-  if (!value) {
-    return emptyResult()
-  }
-  return {
-    pageLabel: value.pageLabel ?? '',
-    pageTitle: value.pageTitle ?? '',
-    fullText: value.fullText ?? '',
-    notes: value.notes,
-    warnings: value.warnings,
-    systems: (value.systems ?? []).map(system => ({
-      schemeId: system.schemeId ?? null,
-      systemName: system.systemName ?? '',
-      specClass: system.specClass ?? undefined,
-      constructionCode: system.constructionCode ?? '',
-      baseMaterial: system.baseMaterial ?? '',
-      baseThicknessMm: system.baseThicknessMm ?? undefined,
-      layers: (system.layers ?? []).map(layer => ({
-        order: layer.order ?? undefined,
-        name: layer.name,
-        thicknessMm: layer.thicknessMm ?? undefined,
-        lambda: layer.lambda ?? undefined,
-        alpha: layer.alpha ?? undefined,
-        rValue: layer.rValue ?? undefined,
-      })),
-      options: (system.options ?? []).map(option => ({
-        thicknessMm: option.thicknessMm ?? undefined,
-        productThermalResistance: option.productThermalResistance ?? undefined,
-        totalThermalResistance: option.totalThermalResistance ?? undefined,
-        kValue: option.kValue ?? undefined,
-        productSpecId: option.productSpecId ?? null,
-        catalogProductId: option.catalogProductId ?? null,
-      })),
-    })),
-  }
-}
-
-function apiResult(value: RecognitionDraft): PageRecognitionResult {
-  return JSON.parse(JSON.stringify(value)) as PageRecognitionResult
 }
 
 const counts = computed(() => {
@@ -806,6 +765,7 @@ onMounted(() => {
         <div class="knowledge-review__fields" :aria-busy="detailLoading">
           <t-loading v-if="detailLoading" loading text="正在加载识别结果" />
           <div class="knowledge-review__page-heading">
+            <p v-if="recognition?.confirmedAt">上次人工确认：{{ recognition.confirmedById || '确认人待核' }} · {{ recognition.confirmedAt }} · {{ recognition.versionStatus }}</p>
             <div>
               <strong>文件页序：{{ selected.physicalPageNumber }}</strong>
               <span>资料页码：{{ draft.pageLabel || '—' }}</span>

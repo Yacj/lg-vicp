@@ -67,6 +67,8 @@ declare global {
   const computedInject: typeof import('@vueuse/core')['computedInject']
   const computedWithControl: typeof import('@vueuse/core')['computedWithControl']
   const confirmedReportBody: typeof import('./utils/aiReportTask')['confirmedReportBody']
+  const constructionAttributes: typeof import('./utils/thermalSourceLabels')['constructionAttributes']
+  const constructionLabel: typeof import('./utils/thermalSourceLabels')['constructionLabel']
   const controlledComputed: typeof import('@vueuse/core')['controlledComputed']
   const controlledRef: typeof import('@vueuse/core')['controlledRef']
   const createApis: typeof import('./api/createApis')['createApis']
@@ -304,7 +306,10 @@ declare global {
   const syncRefs: typeof import('@vueuse/core')['syncRefs']
   const templateRef: typeof import('@vueuse/core')['templateRef']
   const themeColorOptions: typeof import('./composables/useManualTheme')['themeColorOptions']
+  const thermalColumnHeader: typeof import('./utils/thermalSourceLabels')['thermalColumnHeader']
   const thermalConstructionRows: typeof import('./utils/thermalPageTable')['thermalConstructionRows']
+  const thermalGroupHeader: typeof import('./utils/thermalSourceLabels')['thermalGroupHeader']
+  const thermalLayerValue: typeof import('./utils/thermalPageTable')['thermalLayerValue']
   const throttledRef: typeof import('@vueuse/core')['throttledRef']
   const throttledWatch: typeof import('@vueuse/core')['throttledWatch']
   const toRaw: typeof import('vue')['toRaw']
@@ -612,6 +617,8 @@ declare module 'vue' {
     readonly computedInject: UnwrapRef<typeof import('@vueuse/core')['computedInject']>
     readonly computedWithControl: UnwrapRef<typeof import('@vueuse/core')['computedWithControl']>
     readonly confirmedReportBody: UnwrapRef<typeof import('./utils/aiReportTask')['confirmedReportBody']>
+    readonly constructionAttributes: UnwrapRef<typeof import('./utils/thermalSourceLabels')['constructionAttributes']>
+    readonly constructionLabel: UnwrapRef<typeof import('./utils/thermalSourceLabels')['constructionLabel']>
     readonly controlledComputed: UnwrapRef<typeof import('@vueuse/core')['controlledComputed']>
     readonly controlledRef: UnwrapRef<typeof import('@vueuse/core')['controlledRef']>
     readonly createApis: UnwrapRef<typeof import('./api/createApis')['createApis']>
@@ -849,7 +856,10 @@ declare module 'vue' {
     readonly syncRefs: UnwrapRef<typeof import('@vueuse/core')['syncRefs']>
     readonly templateRef: UnwrapRef<typeof import('@vueuse/core')['templateRef']>
     readonly themeColorOptions: UnwrapRef<typeof import('./composables/useManualTheme')['themeColorOptions']>
+    readonly thermalColumnHeader: UnwrapRef<typeof import('./utils/thermalSourceLabels')['thermalColumnHeader']>
     readonly thermalConstructionRows: UnwrapRef<typeof import('./utils/thermalPageTable')['thermalConstructionRows']>
+    readonly thermalGroupHeader: UnwrapRef<typeof import('./utils/thermalSourceLabels')['thermalGroupHeader']>
+    readonly thermalLayerValue: UnwrapRef<typeof import('./utils/thermalPageTable')['thermalLayerValue']>
     readonly throttledRef: UnwrapRef<typeof import('@vueuse/core')['throttledRef']>
     readonly throttledWatch: UnwrapRef<typeof import('@vueuse/core')['throttledWatch']>
     readonly toRaw: UnwrapRef<typeof import('vue')['toRaw']>

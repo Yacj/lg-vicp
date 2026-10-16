@@ -1,4 +1,5 @@
 import type { AiReferencePage, KnowledgePageRenderModel, ReferenceHighlight, ReferencePageMatch, ReferencePageSummary, RenderNumber, ThermalRenderOption } from '@/api/reference-page'
+import { constructionAttributes, constructionLabel } from './thermalSourceLabels'
 
 function record(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value)
@@ -63,6 +64,8 @@ export function resolvePageHighlights(model: KnowledgePageRenderModel | null | u
     return []
   const result: ReferenceHighlight[] = []
   for (const match of matches) {
+    if (match.confirmedRevision && match.confirmedRevision !== model.confirmedRevision)
+      continue
     if (match.pageId && match.pageId !== pageId)
       continue
     const owners = model.constructions.filter(construction => (!match.constructionId || match.constructionId === construction.constructionId)
@@ -87,7 +90,7 @@ function normalizeMatch(value: unknown): ReferencePageMatch | null {
   const candidateId = text(value.candidateId)
   if (!constructionId && !optionId && !candidateId && !summary)
     return null
-  return { pageId: text(value.pageId) || undefined, constructionId: constructionId || undefined, optionId: optionId || undefined, candidateId: candidateId || undefined, fieldKeys: Array.isArray(value.fieldKeys) ? value.fieldKeys.filter((key): key is string => typeof key === 'string') : [], ...(typeof value.answerOffset === 'number' && Number.isInteger(value.answerOffset) && value.answerOffset >= 0 ? { answerOffset: value.answerOffset } : {}), ...(summary ? { summary } : {}) }
+  return { confirmedRevision: text(value.confirmedRevision) || undefined, pageId: text(value.pageId) || undefined, constructionId: constructionId || undefined, optionId: optionId || undefined, candidateId: candidateId || undefined, fieldKeys: Array.isArray(value.fieldKeys) ? value.fieldKeys.filter((key): key is string => typeof key === 'string') : [], ...(typeof value.answerOffset === 'number' && Number.isInteger(value.answerOffset) && value.answerOffset >= 0 ? { answerOffset: value.answerOffset } : {}), ...(summary ? { summary } : {}) }
 }
 function normalizeSummary(value: unknown): ReferencePageSummary | undefined {
   if (!record(value))
@@ -121,7 +124,7 @@ export function normalizeReferencePages(value: unknown): AiReferencePage[] {
     const matches = [...(Array.isArray(raw.matches) ? raw.matches : []), ...(Array.isArray(raw.highlights) ? raw.highlights : []), ...(raw.referenceHighlight ? [raw.referenceHighlight] : [])]
       .map(normalizeMatch)
       .filter((match): match is ReferencePageMatch => !!match)
-    const page: AiReferencePage = { type: 'REFERENCE_PAGE', page: { pageId, documentId, documentTitle: text(source.documentTitle) || text(source.title), pageLabel: text(source.pageLabel) || undefined, docNumber: text(source.docNumber) || undefined, imageUrl: text(source.imageUrl) || text(source.pageImageUrl) || text(raw.pageImageUrl) || text(raw.pageImage) }, renderModel: hasPageRenderModel(raw.renderModel) ? raw.renderModel : null, summary: normalizeSummary(raw.summary), matches }
+    const page: AiReferencePage = { type: 'REFERENCE_PAGE', page: { pageId, documentId, versionId: text(source.versionId) || undefined, pageLabelSource: text(source.pageLabelSource) || undefined, pageLabelVerified: typeof source.pageLabelVerified === 'boolean' ? source.pageLabelVerified : undefined, documentTitle: text(source.documentTitle) || text(source.title), pageLabel: text(source.pageLabel) || undefined, docNumber: text(source.docNumber) || undefined, imageUrl: text(source.imageUrl) || text(source.pageImageUrl) || text(raw.pageImageUrl) || text(raw.pageImage) }, renderModel: hasPageRenderModel(raw.renderModel) ? raw.renderModel : null, summary: normalizeSummary(raw.summary), matches }
     const existing = pages.find(item => item.page.pageId === pageId && item.page.documentId === documentId)
     if (raw.answerStyle === 'THERMAL_SOLUTIONS')
       page.answerStyle = 'THERMAL_SOLUTIONS'
@@ -130,12 +133,21 @@ export function normalizeReferencePages(value: unknown): AiReferencePage[] {
       page.primaryFieldKeys = (['thicknessMm', 'productThermalResistance', 'totalThermalResistance', 'kValue'] as const).filter(key => primaryFields.includes(key))
     if (existing) {
       // 模型版本改变时只接受新模型的标识，绝不把不同快照的行合在一起。
+      const changed = (page.renderModel && existing.renderModel?.confirmedRevision !== page.renderModel.confirmedRevision)
+        || (page.page.versionId && existing.page.versionId && page.page.versionId !== existing.page.versionId)
+      if (changed) {
+        existing.matches = []
+        existing.summary = undefined
+        existing.answerStyle = undefined
+        existing.primaryFieldKeys = undefined
+        existing.page.imageUrl = ''
+      }
       if (page.renderModel)
         existing.renderModel = page.renderModel
       existing.page = { ...existing.page, ...page.page, imageUrl: page.page.imageUrl || existing.page.imageUrl, documentTitle: page.page.documentTitle || existing.page.documentTitle, pageLabel: page.page.pageLabel || existing.page.pageLabel, docNumber: page.page.docNumber || existing.page.docNumber }
       existing.matches = mergeMatches([...existing.matches, ...matches])
       existing.summary = page.summary || existing.summary
-      existing.answerStyle = page.answerStyle || existing.answerStyle
+      existing.answerStyle = page.renderModel?.schemaVersion === 2 && !page.answerStyle ? undefined : page.answerStyle || existing.answerStyle
       existing.primaryFieldKeys = page.primaryFieldKeys || existing.primaryFieldKeys
     }
     else {
@@ -169,14 +181,14 @@ function mergeMatches(matches: ReferencePageMatch[]): ReferencePageMatch[] {
 }
 
 /** 卡片与高亮项共用正式原页同一行，summary 不能覆盖原页数值。 */
-export function referenceSolutions(page: AiReferencePage): Array<{ key: string, match?: ReferenceHighlight, title: string, system: string, base?: string, option: Omit<ThermalRenderOption, 'optionId'> }> {
+export function referenceSolutions(page: AiReferencePage): Array<{ key: string, match?: ReferenceHighlight, title: string, system: string, base?: string, construction?: KnowledgePageRenderModel['constructions'][number], option: Omit<ThermalRenderOption, 'optionId'> }> {
   if (hasPageRenderModel(page.renderModel)) {
     return resolvePageHighlights(page.renderModel, page.matches, page.page.pageId).flatMap((match) => {
       const construction = page.renderModel!.constructions.find(item => item.constructionId === match.constructionId)!
       const option = construction.options.find(item => item.optionId === match.optionId)
-      const title = construction.constructionCode || construction.title || '参考构造'
+      const title = constructionLabel(construction)
       const system = construction.systemName && construction.systemName !== title ? construction.systemName : construction.material?.name || (construction.specClass ? `${construction.specClass}型VICP` : '')
-      return option ? [{ key: `${construction.constructionId}-${option.optionId}`, match, title, system, base: construction.baseMaterial ? `${construction.baseMaterial}${construction.baseThicknessMm != null ? ` ${formatReferenceNumber(construction.baseThicknessMm)}mm` : ''}基层` : undefined, option }] : []
+      return option ? [{ key: `${construction.constructionId}-${option.optionId}`, match, title, system, construction, base: constructionAttributes(construction).join(' · '), option }] : []
     })
   }
   const summaries = page.matches.length ? page.matches.flatMap(match => match.summary ? [match.summary] : []) : page.summary ? [page.summary] : []

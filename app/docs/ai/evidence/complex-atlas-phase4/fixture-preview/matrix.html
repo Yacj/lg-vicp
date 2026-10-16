@@ -1,0 +1,7 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>H5 CSS 视口验收矩阵</title><style>body{margin:12px;background:#edf1f5;font:14px sans-serif}iframe{display:block;border:1px solid #8c98ab;background:white;margin-top:10px;width:375px;height:1000px}button{margin:4px;padding:6px}</style></head><body><p>隔离 H5 · iframe 是真实 CSS 视口；不代表手机、OSS 或生产联测</p><button onclick="setWidth(320)">320px</button><button onclick="setWidth(375)">375px</button><button onclick="setWidth(430)">430px</button><button onclick="setWidth(800)">800px 横屏</button><button onclick="setWidth(375.5)">375px 校准</button><button onclick="setWidth(429.5)">430px 校准</button><span id="width">375px</span><iframe id="h5" title="UniApp H5 验收" src="/"></iframe><script>function setWidth(width){const frame=document.getElementById('h5');frame.style.width=width+'px';document.getElementById('width').textContent='CSS '+width+'px';}</script></body></html>
+
+
+
+
+
+

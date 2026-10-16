@@ -46,6 +46,7 @@ import { buildChunksFromPages, type AliasDictEntry } from "./knowledge-chunking.
 import { markPageContentMutation, purgePageDerivedIndex, type PurgePageIndexResult } from "./knowledge-page-index.service.js";
 import { normalizeSearchText } from "./knowledge.normalize.js";
 import { normalizePageRecognitionAnnotations, pageRecognitionSchemaIssues, repairPageRecognitionText } from "./knowledge-page-recognition-output.js";
+import { preparePageRecognitionCandidate, validatePageRecognitionEvidence } from "../../shared/page-recognition-evidence.js";
 
 const VISION_URL_TTL = 600;
 
@@ -456,7 +457,7 @@ export async function runPageRecognitionJob(
     const hadLegacyRValue = parsed.systems.some((system) =>
       system.options?.some((option) => option.rValue != null)
     );
-    const candidate = normalizePageRecognitionAnnotations({
+    const candidate = normalizePageRecognitionAnnotations(preparePageRecognitionCandidate({
       ...parsed,
       systems: parsed.systems.map((system) => ({
         ...system,
@@ -466,7 +467,7 @@ export async function runPageRecognitionJob(
         ...(parsed.warnings ?? []),
         ...(hadLegacyRValue ? ["模型输出了旧字段 rValue，已移除；请分别确认产品层热阻与总传热阻"] : [])
       ]
-    });
+    }));
     const warnings = [
       ...(candidate.warnings ?? []),
       ...(meta.imageWarnings ?? [])
@@ -589,13 +590,19 @@ export async function savePageRecognitionDraft(
       );
     }
 
-    const structuredData = buildRecognitionDraft({
+    const previousDraft = meta.draftStructuredData ?? meta.structuredData ?? meta.confirmedStructuredData;
+    if (previousDraft?.schemaVersion === 2 && input.structuredData && input.structuredData.schemaVersion !== 2) {
+      throw new AppError("PAGE_RECOGNITION_EDITOR_UPGRADE_REQUIRED", "当前识别结果包含构造和字段证据，请使用支持新识别合同的审核界面；旧界面不能覆盖这些字段", 409);
+    }
+    const draft = buildRecognitionDraft({
       structuredData: input.structuredData,
-      fallback: meta.draftStructuredData ?? meta.structuredData ?? meta.confirmedStructuredData,
-      pageLabel: input.pageLabel !== undefined ? input.pageLabel : (input.structuredData?.pageLabel ?? meta.draftStructuredData?.pageLabel ?? lockedPage.pageLabel),
+      fallback: previousDraft,
+      pageLabel: input.pageLabel !== undefined ? input.pageLabel : (input.structuredData?.pageLabel !== undefined ? input.structuredData.pageLabel : meta.draftStructuredData?.pageLabel ?? lockedPage.pageLabel),
       pageTitle: input.pageTitle !== undefined ? input.pageTitle : (input.structuredData?.pageTitle ?? meta.draftStructuredData?.pageTitle ?? lockedPage.pageTitle),
       parsedText: input.parsedText !== undefined ? input.parsedText : (input.structuredData?.fullText ?? meta.draftStructuredData?.fullText ?? meta.structuredData?.fullText ?? lockedPage.parsedText ?? "")
     });
+    const structuredData = validatePageRecognitionEvidence(draft.schemaVersion === 2 && input.pageLabel !== undefined
+      ? { ...draft, pageLabelEvidence: input.pageLabel } : draft).data;
     // 保留 recognitionRunId：REVIEW_REQUIRED 后的 runId 仅用于审计，Worker 完成态校验要求 status=PROCESSING，不会被再次消费。
     const nextMeta = mergePageMetadata(lockedPage.metadata, {
       ...meta,
@@ -710,6 +717,10 @@ export async function syncThermalRowsFromConfirmedPage(
   structured: PageRecognitionResult,
   thermalSetId: string
 ): Promise<{ upserted: number; warnings: string[]; skipped: number; mappingIssues: Array<Record<string, unknown>> }> {
+  const evidence = validatePageRecognitionEvidence(structured);
+  if (evidence.issues.length) {
+    throw new AppError("PAGE_RECOGNITION_EVIDENCE_INVALID", "来源证据不一致，不能同步热工参考行，请先核对识别草稿", 400, { issues: evidence.issues });
+  }
   const warnings: string[] = [];
   const mappingIssues: Array<Record<string, unknown>> = [];
   const [set] = await db.select().from(thermalReferenceSets)
@@ -840,6 +851,10 @@ export async function confirmPageRecognition(
       });
     }
     const currentStructured = pageRecognitionResultSchema.parse(syncOnly ? currentMeta.confirmedStructuredData : currentMeta.draftStructuredData);
+    const evidence = validatePageRecognitionEvidence(currentStructured);
+    if (evidence.issues.length) {
+      throw new AppError("PAGE_RECOGNITION_EVIDENCE_INVALID", "构造编号或工程字段与来源证据不一致，请先保存并核对识别草稿", 400, { issues: evidence.issues });
+    }
     if (!currentStructured.fullText?.trim()) {
       throw new AppError("PAGE_RECOGNITION_INCOMPLETE", "确认前需要页面全文（fullText/parsedText）", 400);
     }
@@ -933,6 +948,10 @@ export async function confirmPageRecognition(
  */
 export function assessBatchConfirmSafety(structured: PageRecognitionResult): { safe: boolean; reasons: string[] } {
   const reasons: string[] = [];
+  if (structured.schemaVersion === 2) {
+    const evidence = validatePageRecognitionEvidence(structured);
+    reasons.push(...evidence.issues, ...(evidence.data.warnings ?? []));
+  }
   if (!structured.fullText?.trim()) reasons.push("缺少页面全文（fullText/parsedText）");
   for (const system of structured.systems ?? []) {
     const options = system.options ?? [];

@@ -1,0 +1,19 @@
+{
+  "id": "T01",
+  "group": "roof-I",
+  "question": "I型VICP坡屋面正置和倒置，20mm的传热系数分别多少？看下表。",
+  "status": "FAIL",
+  "conversationId": "a6a9f137-a44a-452c-92d2-b64a06266364",
+  "answer": "想确认一下：明确的厚度条件未被完整保留，请确认。",
+  "facts": [],
+  "pages": [],
+  "historyReturned": true,
+  "persistedUrlFree": true,
+  "solutionStates": 0,
+  "reports": 0,
+  "snapshots": 0,
+  "error": {
+    "name": "AssertionError",
+    "message": "命中行数必须准确，不能串构造或多返回别的档位\n\n0 !== 2\n"
+  }
+}

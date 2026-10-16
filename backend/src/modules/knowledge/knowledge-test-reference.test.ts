@@ -27,6 +27,18 @@ const page: ReferencePageBlock = { type: "REFERENCE_PAGE", page: { documentId: "
 const optionId = model.constructions[0]!.options[0]!.optionId;
 
 describe("已确认页面模型与回答引用", () => {
+  it("旧确认字段中整个体系名为构造编码时只读兼容，描述文字不猜编号，快照不修改", () => {
+    const legacy = structuredClone(snapshot);
+    legacy.pageTitle = "III型VICP薄抹灰外保温系统";
+    legacy.systems[0]!.constructionCode = undefined;
+    legacy.systems[0]!.systemName = "外墙G3-1";
+    const before = structuredClone(legacy);
+    const projected = buildKnowledgePageRenderModel("legacy", legacy)!;
+    expect(projected.constructions[0]).toMatchObject({ constructionCode: "外墙G3-1", systemName: legacy.pageTitle });
+    expect(legacy).toEqual(before);
+    const copy = structuredClone(legacy); copy.systems[0]!.systemName = "关于外墙G3-1的描述";
+    expect(buildKnowledgePageRenderModel("legacy", copy)!.constructions[0]!.constructionCode).toBeUndefined();
+  });
   it("保留同页全部构造、全部档位、后续层及备注，标识绑定快照且不改变原数据", () => {
     const before = JSON.stringify(snapshot);
     expect(model.constructions).toHaveLength(2);
@@ -106,13 +118,13 @@ describe("已确认页面模型与回答引用", () => {
     const answer = formatConfirmedLookupAnswer([page], ids, normalizeConversationLookupQuery({}, "传热系数0.3").query.filters);
     const stream = new KnowledgeReferenceCitationStream();
     const visible = stream.push(answer, true);
-    expect(visible).toContain("18mm"); expect(visible).toContain("R₀=3.297"); expect(visible).toContain("K=0.303");
+    expect(visible).toContain("18mm"); expect(visible).toContain("整构造传热阻（源文符号待核）=3.297"); expect(visible).toContain("K=0.303");
     expect(visible).not.toContain("[[KP:"); expect(visible).not.toContain("20mm");
     expect(stream.resolve([page], ids)[0]!.matches).toHaveLength(2);
     expect(stream.resolve([page], ids)[0]!.renderModel?.constructions[0]!.options).toHaveLength(3);
     expect(formatConfirmedLookupAnswer([], [], normalizeConversationLookupQuery({}, "传热系数正好0.3").query.filters)).toContain("未找到");
   });
-  it("客户端简洁文案保留查询指标、正式行标识和工程选用说明，默认B端文案不变", () => {
+  it("客户端文案保留查询指标、正式行标识和工程选用说明，旧页缺符号证据保守退化", () => {
     const filters = normalizeConversationLookupQuery({}, "传热系数0.3").query.filters;
     const answer = formatConfirmedLookupAnswer([page], [optionId], filters, { compact: true });
     expect(answer).toContain("有，以下参考方案");
@@ -120,7 +132,7 @@ describe("已确认页面模型与回答引用", () => {
     expect(answer).not.toContain("已确认记录"); expect(answer).not.toContain("产品层热阻 R=");
     expect(answer).toContain("工程选用"); expect(answer).toContain(`[[KP:${optionId}:`);
     const resistance = formatConfirmedLookupAnswer([page], [optionId], normalizeConversationLookupQuery({}, "总热阻3.3").query.filters, { compact: true });
-    expect(resistance).toContain("R₀=3.297");
+    expect(resistance).toContain("源文符号待核"); expect(resistance).toContain("3.297"); expect(resistance).not.toContain("R₀=");
     expect(formatConfirmedLookupAnswer([page], [optionId], filters)).toContain("产品层热阻 R=2.880");
   });
 });

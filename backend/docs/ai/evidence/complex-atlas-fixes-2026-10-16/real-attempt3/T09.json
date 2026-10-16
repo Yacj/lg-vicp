@@ -1,0 +1,15 @@
+{
+  "id": "T09",
+  "group": "resistance",
+  "question": "20mm保温层的热阻是整体传热阻吗？",
+  "status": "PASS",
+  "conversationId": "cd6da55e-1bb8-41c1-98a5-4729f55efa9a",
+  "answer": "材料层或保温芯层的热阻只描述该层；产品整体热阻描述完整产品，必须有独立来源证据；整构造传热阻描述整套构造。它们不是同一个指标。仅有保温层厚度不能确定产品整体热阻或整构造传热阻，不能把芯层数值互填，也不能自行相加补算。原表未单独给出产品整体热阻时，应明确标注未给出；原表的 R 符号和单位按来源保留。传热系数 K 表示构造的传热能力，与热阻是不同指标，不能互换名称和单位。这里仅说明概念，不核验某一厚度的数值。",
+  "facts": [],
+  "pages": [],
+  "historyReturned": true,
+  "persistedUrlFree": true,
+  "solutionStates": 0,
+  "reports": 0,
+  "snapshots": 0
+}

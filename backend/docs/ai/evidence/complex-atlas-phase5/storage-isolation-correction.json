@@ -1,0 +1,54 @@
+{
+  "scope": "仅本次随机UAT文档副本；旧业务对象不处理",
+  "pages": [
+    {
+      "directory": "real-uat-attempt1",
+      "label": "89",
+      "key": "knowledge/page-images/c6628cbf-c9c5-4c9d-9cff-21a5eadc56fe/7a02cf17-09a5-4e37-8b5c-f180ae83d603/p1-abfb3f7b-d0c0-4366-9517-c99129f0428a.png",
+      "sha256": "6d48ac8f8a746eb6c012f8c9ad6c2bf24a4161ab65b00ee9222f351e41a4ba9c",
+      "removedOwnedCopy": true,
+      "isolatedPointerUpdated": false
+    },
+    {
+      "directory": "real-uat-attempt1",
+      "label": "90",
+      "key": "knowledge/page-images/c6628cbf-c9c5-4c9d-9cff-21a5eadc56fe/7a02cf17-09a5-4e37-8b5c-f180ae83d603/p2-2247aa44-7718-4413-ac0b-a668da0ec82d.png",
+      "sha256": "3cda1d4a7da48652b779c637bf19418c0fd4b894dccaaf0fdb951b7a8d916aa3",
+      "removedOwnedCopy": true,
+      "isolatedPointerUpdated": false
+    },
+    {
+      "directory": "real-uat-attempt1",
+      "label": "75",
+      "key": "knowledge/page-images/c6628cbf-c9c5-4c9d-9cff-21a5eadc56fe/7a02cf17-09a5-4e37-8b5c-f180ae83d603/p3-596388e5-a50b-48a9-9dc5-064d34c70d7e.png",
+      "sha256": "a712567ae0622aa41f14961f2cf6cd5ebe28e8ecf701391c0d6814dc3e6ebcea",
+      "removedOwnedCopy": true,
+      "isolatedPointerUpdated": false
+    },
+    {
+      "directory": "real-uat",
+      "label": "89",
+      "key": "knowledge/page-images/bd6b4d13-69b3-48f3-908d-1087daaaa4cc/14a7f12f-c1fd-4cb3-a363-61569c3f995f/p1-026d7c0c-7744-4ca2-93b5-da805b2f6cbf.png",
+      "sha256": "6d48ac8f8a746eb6c012f8c9ad6c2bf24a4161ab65b00ee9222f351e41a4ba9c",
+      "removedOwnedCopy": true,
+      "isolatedPointerUpdated": true
+    },
+    {
+      "directory": "real-uat",
+      "label": "90",
+      "key": "knowledge/page-images/bd6b4d13-69b3-48f3-908d-1087daaaa4cc/14a7f12f-c1fd-4cb3-a363-61569c3f995f/p2-c25767eb-aabd-4d11-af61-23c80adf2913.png",
+      "sha256": "3cda1d4a7da48652b779c637bf19418c0fd4b894dccaaf0fdb951b7a8d916aa3",
+      "removedOwnedCopy": true,
+      "isolatedPointerUpdated": true
+    },
+    {
+      "directory": "real-uat",
+      "label": "75",
+      "key": "knowledge/page-images/bd6b4d13-69b3-48f3-908d-1087daaaa4cc/14a7f12f-c1fd-4cb3-a363-61569c3f995f/p3-16ee8f6b-5121-4011-9c61-00f55770325a.png",
+      "sha256": "a712567ae0622aa41f14961f2cf6cd5ebe28e8ecf701391c0d6814dc3e6ebcea",
+      "removedOwnedCopy": true,
+      "isolatedPointerUpdated": true
+    }
+  ],
+  "status": "PASS"
+}

@@ -5,7 +5,7 @@ let instance: InstanceType<typeof MarkdownIt> | null = null
 /** 代码块内的 code，需覆盖行内 code 的 tag-style */
 const FENCE_CODE_STYLE = 'padding:0;background:transparent;color:var(--app-text-primary)'
 
-function decorateMarkdownIt(md: MarkdownIt) {
+function decorateMarkdownIt(md: InstanceType<typeof MarkdownIt>) {
   // mp-html 用 border / cellspacing 把单元格边框写进内联样式，H5 / App / 小程序都能显示
   md.renderer.rules.table_open = () =>
     '<table border="1" cellspacing="0" style="border-color:var(--app-border-default);border-style:solid;">\n'

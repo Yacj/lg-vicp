@@ -1,0 +1,19 @@
+{
+  "id": "T08",
+  "group": "full-page",
+  "question": "把第90页原图、备注和完整厚度表打开。",
+  "status": "FAIL",
+  "conversationId": "e30865ce-12f0-4db0-94f3-68ada093de89",
+  "answer": "现在还不能打开第 90 页原图，也不能展开备注和完整厚度表。\n\n原因是当前这段会话里没有可核验到具体第 90 页的资料内容——没有可定位的图集正文、页面对应关系或已发布的第 90 页记录，所以我无法确认那一页是哪本图集、属于哪个构造，也就不能把原图、备注和厚度表拿出来给你。\n\n要往下走，请补充其中任一项：\n\n- 图集编号或名称（例如某本构造图集的编号）\n- 该页对应的构造做法或系统名称\n- 或直接上传 / 指定这份资料的来源\n\n拿到之后我再定位第 90 页，把原图、备注和厚度表按实际内容列出。",
+  "facts": [],
+  "pages": [],
+  "historyReturned": true,
+  "persistedUrlFree": true,
+  "solutionStates": 0,
+  "reports": 0,
+  "snapshots": 0,
+  "error": {
+    "name": "AssertionError",
+    "message": "The expression evaluated to a falsy value:\n\n  assert.ok(page)\n"
+  }
+}

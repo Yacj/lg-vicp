@@ -26,7 +26,9 @@ export function useReferenceHighlight(input: () => { model?: KnowledgePageRender
     lastTarget = target
   }
 
-  watch(matches, () => { index.value = 0; enabled.value = true; lastTarget = undefined }, { immediate: true })
+  // 重复SSE事件只替换对象引用时，保留用户选择的位置与高亮开关。
+  const matchSignature = computed(() => JSON.stringify([input().pageId, matches.value.map(match => [match.constructionId, match.optionId, match.fieldKeys])]))
+  watch(matchSignature, () => { index.value = 0; enabled.value = true; lastTarget = undefined }, { immediate: true })
   watch([active, structuredVisible], () => { if (autoLocate) void locate() }, { immediate: true, flush: 'post' })
 
   function navigate(offset: number): void {

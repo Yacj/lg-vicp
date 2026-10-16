@@ -1,6 +1,6 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": { "rootDir": ".", "noEmit": true },
-  "include": ["tests/uat/**/*.ts", "scripts/run-ai-uat.ts", "scripts/run-solution-uat.ts", "scripts/verify-knowledge-page-references.ts", "src/**/*.ts"],
+  "include": ["tests/uat/**/*.ts", "scripts/run-ai-uat.ts", "scripts/run-solution-uat.ts", "scripts/run-complex-atlas-uat.ts", "scripts/audit-complex-atlas-environment.ts", "scripts/repair-complex-atlas-uat-storage.ts", "scripts/verify-complex-atlas-real-reads.ts", "scripts/verify-knowledge-page-references.ts", "scripts/verify-complex-atlas-recognition.ts", "scripts/verify-complex-atlas-query.ts", "src/**/*.ts"],
   "exclude": ["dist", "node_modules", "**/*.test.ts", "**/*.spec.ts"]
 }

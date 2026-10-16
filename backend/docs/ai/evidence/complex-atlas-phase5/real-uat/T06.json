@@ -1,0 +1,15 @@
+{
+  "id": "T06",
+  "group": "ambiguous",
+  "question": "只看倒置屋面25厚的K。",
+  "status": "PARTIAL",
+  "conversationId": "4dcb459b-689a-4d2b-96b2-67458969dcec",
+  "answer": "想确认一下：请指定这轮要讨论的保温体系或实际基层；可以先整理参考选型框架。",
+  "facts": [],
+  "pages": [],
+  "historyReturned": true,
+  "persistedUrlFree": true,
+  "solutionStates": 0,
+  "reports": 0,
+  "snapshots": 0
+}

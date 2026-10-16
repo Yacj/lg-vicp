@@ -1,0 +1,102 @@
+{
+  "groups": [
+    {
+      "id": "reference-construction-0",
+      "label": "外墙C1-3I 型 VICP外墙蒸压灰砂砖 240mm",
+      "options": [
+        {
+          "k": "0.473",
+          "productR": "—",
+          "r": "2.116",
+          "thickness": "5"
+        },
+        {
+          "k": "0.325",
+          "productR": "—",
+          "r": "3.076",
+          "thickness": "8"
+        },
+        {
+          "k": "0.269",
+          "productR": "—",
+          "r": "3.716",
+          "thickness": "10"
+        },
+        {
+          "k": "0.188",
+          "productR": "—",
+          "r": "5.316",
+          "thickness": "15"
+        },
+        {
+          "k": "0.145",
+          "productR": "—",
+          "r": "6.916",
+          "thickness": "20"
+        },
+        {
+          "k": "0.117",
+          "productR": "—",
+          "r": "8.516",
+          "thickness": "25"
+        },
+        {
+          "k": "0.099",
+          "productR": "—",
+          "r": "10.116",
+          "thickness": "30"
+        }
+      ]
+    },
+    {
+      "id": "reference-construction-1",
+      "label": "外墙C1-4I 型 VICP外墙加气混凝土砌块 200mm",
+      "options": [
+        {
+          "k": "0.365",
+          "productR": "—",
+          "r": "2.740",
+          "thickness": "5"
+        },
+        {
+          "k": "0.270",
+          "productR": "—",
+          "r": "3.700",
+          "thickness": "8"
+        },
+        {
+          "k": "0.230",
+          "productR": "—",
+          "r": "4.340",
+          "thickness": "10"
+        },
+        {
+          "k": "0.168",
+          "productR": "—",
+          "r": "5.940",
+          "thickness": "15"
+        },
+        {
+          "k": "0.133",
+          "productR": "—",
+          "r": "7.540",
+          "thickness": "20"
+        },
+        {
+          "k": "0.109",
+          "productR": "—",
+          "r": "9.140",
+          "thickness": "25"
+        },
+        {
+          "k": "0.093",
+          "productR": "—",
+          "r": "10.740",
+          "thickness": "30"
+        }
+      ]
+    }
+  ],
+  "height": 1074,
+  "width": 1910
+}

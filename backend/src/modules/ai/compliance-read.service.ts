@@ -20,6 +20,8 @@ export async function resolveComplianceRead(ctx: ReferenceReadContext) {
   };
   if (conversation.projectId !== ctx.conversation.projectId) return reply("UNAVAILABLE", "会话所属项目已变化，请重新核验。");
   const dictionary = await loadThermalQueryDictionary(ctx.app.db);
+  if (dictionary.hasPublishedLimits === false)
+    return reply("UNAVAILABLE", "当前没有已发布且生效的正式标准限值，无法核验该方案是否达标，也不能作所有地区通用的合规承诺。技术参考与正式合规结论需要区分。");
   const project = conversation.projectId ? (await ctx.app.db.select().from(projects).where(eq(projects.id, conversation.projectId)).limit(1))[0] : null;
   const lookup = ctx.taskState?.lastReferenceLookup;
   const history = lookup?.projectId === conversation.projectId && !lookup.candidateResultInvalid ? lookup.query : undefined;

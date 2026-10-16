@@ -5,7 +5,9 @@
  * 草稿结构与后端 PageRecognitionResult 对齐，提交前原样序列化。
  */
 
-export interface RecognitionDraftOption {
+import type { PageRecognitionOption, PageRecognitionSourceColumn } from '@/types/knowledge'
+
+export interface RecognitionDraftOption extends Pick<PageRecognitionOption, 'sourceRowLabel' | 'fieldEvidence' | 'layerValues'> {
   thicknessMm?: number
   /** 产品层热阻。 */
   productThermalResistance?: number
@@ -19,6 +21,8 @@ export interface RecognitionDraftOption {
 }
 
 export interface RecognitionDraftLayer {
+  sourceLayerLabel?: string
+  sourceGroupLabel?: string
   order?: number
   name: string
   thicknessMm?: number
@@ -28,6 +32,13 @@ export interface RecognitionDraftLayer {
 }
 
 export interface RecognitionDraftSystem {
+  rawConstructionLabel?: string
+  constructionCodeEvidence?: string
+  applicationPart?: 'EXTERNAL_WALL' | 'ROOF'
+  roofForm?: 'SLOPED' | 'FLAT'
+  placement?: 'UPRIGHT' | 'INVERTED'
+  waterproofGrade?: string
+  sourceColumns?: PageRecognitionSourceColumn[]
   systemName?: string
   specClass?: 'I' | 'II' | 'III'
   constructionCode?: string
@@ -40,6 +51,8 @@ export interface RecognitionDraftSystem {
 }
 
 export interface RecognitionDraft {
+  schemaVersion?: 2
+  pageLabelEvidence?: string | null
   pageLabel?: string
   pageTitle?: string
   fullText: string

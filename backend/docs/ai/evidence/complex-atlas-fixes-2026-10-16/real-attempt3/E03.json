@@ -1,0 +1,114 @@
+{
+  "id": "E03",
+  "group": "extra-wall",
+  "question": "外墙C1-3和C1-4的25mm参数分别多少？",
+  "status": "FAIL",
+  "conversationId": "208957de-4324-4a8e-a0eb-d03904c84100",
+  "answer": "本次已确认资料匹配 2 档、2 个独立构造，当前引用 2 档。\n\n- **外墙C1-3**，基层蒸压灰砂砖 240mm：板厚 **25mm**，传热阻 R **8.516 (m²·K)/W**，传热系数 K **0.117 W/(m²·K)**。来源：《复杂建筑热工图集 · 隔离人工基线（程序模拟审核）》，印刷页码 75。\n\n- **外墙C1-4**，基层加气混凝土砌块 200mm：板厚 **25mm**，传热阻 R **9.140 (m²·K)/W**，传热系数 K **0.109 W/(m²·K)**。来源：《复杂建筑热工图集 · 隔离人工基线（程序模拟审核）》，印刷页码 75。\n\n即使参数相同，也不能据此认定构造做法完全相同。以下分别列出确认热工表记录的材料层顺序；完整防水、隔汽和施工做法仍需核对原始构造简图。\n\n- **外墙C1-3**：1 混合砂浆（20mm） → 2 蒸压灰砂砖（240mm） → 3 找平层（15mm） → 4 粘结砂浆（5mm） → 5 包覆浆料（5mm） → 5 真空绝热板（逐档可变） → 5 包覆浆料（5mm）。来源印刷页码 75。\n\n- **外墙C1-4**：1 混合砂浆（20mm） → 2 加气混凝土砌块（200mm） → 3 找平层（15mm） → 4 粘结砂浆（5mm） → 5 包覆浆料（5mm） → 5 真空绝热板（逐档可变） → 5 包覆浆料（5mm）。来源印刷页码 75。\n\n印刷页码 75：注：1.内表面换热阻0.11(m²·K)/W，外表面换热阻0.04(m²·K)/W。\n\n印刷页码 75：2.加气混凝土砌块热工性能参照华北标图集 13BJ2-12建筑外保温（节能75%）。\n\n同值不代表做法相同，请结合完整表及原始构造简图核对。材料层热阻、产品整体热阻与整构造传热阻分别读取，缺值不补算；本次仅查阅资料，不选择方案或判断规范达标。",
+  "facts": [
+    {
+      "page": "75",
+      "constructionId": "kp-3ce8857f7c0e53f66092dafa-0",
+      "optionId": "kp-3ce8857f7c0e53f66092dafa-0-o5",
+      "label": "外墙C1-3",
+      "placement": null,
+      "thickness": 25,
+      "r": 8.516,
+      "k": 0.117,
+      "base": "蒸压灰砂砖",
+      "versionId": "b99c57d8-4bb4-4db2-b34b-a6acd24ace43",
+      "revision": "3ce8857f7c0e53f66092dafa",
+      "fieldKeys": [
+        "thicknessMm",
+        "totalThermalResistance",
+        "kValue"
+      ]
+    },
+    {
+      "page": "75",
+      "constructionId": "kp-3ce8857f7c0e53f66092dafa-1",
+      "optionId": "kp-3ce8857f7c0e53f66092dafa-1-o5",
+      "label": "外墙C1-4",
+      "placement": null,
+      "thickness": 25,
+      "r": 9.14,
+      "k": 0.109,
+      "base": "加气混凝土砌块",
+      "versionId": "b99c57d8-4bb4-4db2-b34b-a6acd24ace43",
+      "revision": "3ce8857f7c0e53f66092dafa",
+      "fieldKeys": [
+        "thicknessMm",
+        "totalThermalResistance",
+        "kValue"
+      ]
+    },
+    {
+      "page": "75",
+      "constructionId": "kp-3ce8857f7c0e53f66092dafa-0",
+      "optionId": "kp-3ce8857f7c0e53f66092dafa-0-o5",
+      "label": "外墙C1-3",
+      "placement": null,
+      "thickness": 25,
+      "r": 8.516,
+      "k": 0.117,
+      "base": "蒸压灰砂砖",
+      "versionId": "b99c57d8-4bb4-4db2-b34b-a6acd24ace43",
+      "revision": "3ce8857f7c0e53f66092dafa",
+      "fieldKeys": [
+        "thicknessMm"
+      ]
+    },
+    {
+      "page": "75",
+      "constructionId": "kp-3ce8857f7c0e53f66092dafa-1",
+      "optionId": "kp-3ce8857f7c0e53f66092dafa-1-o5",
+      "label": "外墙C1-4",
+      "placement": null,
+      "thickness": 25,
+      "r": 9.14,
+      "k": 0.109,
+      "base": "加气混凝土砌块",
+      "versionId": "b99c57d8-4bb4-4db2-b34b-a6acd24ace43",
+      "revision": "3ce8857f7c0e53f66092dafa",
+      "fieldKeys": [
+        "thicknessMm"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "page": {
+        "documentId": "a4ea71e1-d90c-4db6-b9a2-b6fde8bad52f",
+        "pageId": "5e4a1aed-fb7d-4664-be67-c56e1743257b",
+        "documentTitle": "复杂建筑热工图集 · 隔离人工基线（程序模拟审核）",
+        "versionId": "b99c57d8-4bb4-4db2-b34b-a6acd24ace43",
+        "pageLabelSource": "MANUAL",
+        "pageLabelVerified": true,
+        "docNumber": "J/CABEE 26J702 / UAT",
+        "pageNumber": 3,
+        "physicalPageNumber": 3,
+        "pageLabel": "75",
+        "imageUrl": "[AUTHORIZED_URL_REDACTED]"
+      },
+      "revision": "3ce8857f7c0e53f66092dafa",
+      "groups": 2,
+      "options": [
+        7,
+        7
+      ],
+      "notes": [
+        "注：1.内表面换热阻0.11(m²·K)/W，外表面换热阻0.04(m²·K)/W。",
+        "2.加气混凝土砌块热工性能参照华北标图集 13BJ2-12建筑外保温（节能75%）。"
+      ]
+    }
+  ],
+  "historyReturned": true,
+  "persistedUrlFree": true,
+  "solutionStates": 0,
+  "reports": 0,
+  "snapshots": 0,
+  "error": {
+    "name": "AssertionError",
+    "message": "命中行数必须准确，不能串构造或多返回别的档位\n\n4 !== 2\n"
+  }
+}

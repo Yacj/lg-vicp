@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { useReferencePageImage } from './useReferencePageImage'
+import { createPinia, setActivePinia } from 'pinia'
+import { useAuthStore } from '@/store/auth'
 
 test('原生读取签名图片后使用返回的临时路径，读取失败不会留下空白图片', async () => {
   let fail = false
@@ -66,5 +68,35 @@ test('使用 uni.getImageInfo 下载解码图片，空路径或无效尺寸按�
       Reflect.deleteProperty(globalThis, 'uni')
     else
       Reflect.set(globalThis, 'uni', previousUni)
+  }
+})
+
+test('已知来源页使用当前登录态读取原字节，权限失败不回退旧签名', async () => {
+  const previousUni = Reflect.get(globalThis, 'uni')
+  setActivePinia(createPinia())
+  useAuthStore().setSession({ accessToken: 'temporary-unit-token' })
+  let status = 200
+  let decoded = 0
+  const requests: any[] = []
+  Reflect.set(globalThis, 'uni', {
+    downloadFile(options: any) { requests.push(options); options.success({ statusCode: status, tempFilePath: '/tmp/authorized.png' }) },
+    getImageInfo(options: any) { decoded++; options.success({ path: options.src, width: 2048, height: 1471 }) },
+  })
+  try {
+    const image = useReferencePageImage()
+    const locator = { pageId: '10000000-0000-4000-8000-000000000001', confirmedRevision: 'a'.repeat(24) }
+    assert.equal(await image.load('https://old.example/page.png', locator), 'ready')
+    assert.match(requests[0].url, /\/ai\/knowledge\/pages\/10000000-0000-4000-8000-000000000001\/image\?confirmedRevision=a{24}$/)
+    assert.equal(requests[0].header.Authorization, 'Bearer temporary-unit-token')
+    assert.doesNotMatch(requests[0].url, /temporary-unit-token/)
+    status = 401
+    assert.equal(await image.load('https://old.example/page.png', locator), 'error')
+    assert.equal(decoded, 1)
+    assert.equal(image.source.value, '')
+  }
+  finally {
+    useAuthStore().clearSession()
+    if (previousUni === undefined) Reflect.deleteProperty(globalThis, 'uni')
+    else Reflect.set(globalThis, 'uni', previousUni)
   }
 })

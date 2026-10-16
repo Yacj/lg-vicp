@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { normalizedThermalLookupFilterSchema } from "./thermal-lookup.schemas.js";
 import { getCandidateMetricValue, matchesMetric, normalizeThermalLookupQuery } from "./thermal-lookup-mode.js";
+import { confirmedPageQueryFields } from "../../shared/confirmed-page-query.js";
 
 export const constraintSourceSchema = z.enum(["USER_EXPLICIT", "CONTEXT_INHERITED", "SYSTEM_DERIVED"]);
 export const entityFields = ["systemId", "systemHint", "schemeId", "schemeCode", "productSpecId", "catalogProductId", "specClass", "substrateMaterial", "buildingType", "structureType", "regionCode", "standardLimitId"] as const;
@@ -11,6 +12,7 @@ export const conditionTraceSchema = z.object({
   classification: z.enum(["HARD_CONSTRAINT", "SOFT_PREFERENCE", "AMBIGUOUS"])
 });
 export const queryStateExtraFields = {
+  ...confirmedPageQueryFields,
   queryMode: z.enum(["NEW_QUERY", "CONTINUE_QUERY", "REFINE_QUERY", "COMPARE_SELECTED"]).optional(),
   semanticConfidence: z.number().min(0).max(1).optional(),
   parserSource: z.enum(["FAST_PATH", "LLM", "LEGACY_FALLBACK", "UNAVAILABLE"]).optional(),
@@ -46,6 +48,7 @@ export const constraintMatchSchema = z.object({ passed: z.boolean(), matched: z.
 export type ConstraintMatch = z.infer<typeof constraintMatchSchema>;
 
 export interface ConstraintCandidate {
+  applicationPart?: string; roofForm?: string; placement?: string; waterproofGrade?: string; pageLabel?: string;
   systemId?: string; systemName?: string; schemeId?: string; schemeCode?: string; productSpecId?: string;
   catalogProductId?: string | null; specClass?: string; substrateMaterial?: string; substrateThickness?: number | null;
   structureType?: string; setBuildingTypes?: string[]; thicknessMm?: number; kValue?: number; productThermalResistance?: number; totalThermalResistance?: number;
@@ -65,10 +68,20 @@ const sameText = (a: string | undefined | null, b: string) => !!a && normalizeEn
 export function validateCandidateAgainstQueryState(candidate: ConstraintCandidate, query: ThermalQueryState): ConstraintMatch {
   const matched: string[] = [], failed: string[] = [];
   const check = (field: string, passed: boolean) => (passed ? matched : failed).push(field);
+  for (const field of ["applicationPart", "roofForm", "placement", "waterproofGrade", "pageLabel"] as const)
+    if (query[field] != null) check(field, candidate[field] === query[field]);
+  if (query.constructionCodes?.length) check("constructionCodes", !!candidate.schemeCode && query.constructionCodes.includes(candidate.schemeCode));
+  if (query.specClasses?.length) check("specClasses", !!candidate.specClass && query.specClasses.some(value => value === candidate.specClass));
+  if (query.placements?.length) check("placements", !!candidate.placement && query.placements.some(value => value === candidate.placement));
   for (const field of entityFields) {
     const value = query[field];
     if (value === undefined) continue;
-    if (field === "systemHint") check(field, !!candidate.systemName && !!normalizeSystemName(value) && normalizeSystemName(candidate.systemName).includes(normalizeSystemName(value)));
+    if (field === "systemHint") {
+      const specific = normalizeSystemName(value);
+      // 仅品牌/通用名称归一后可能为空，保留原文字面条件，不能一律拒绝或放宽成任意体系。
+      check(field, !!candidate.systemName && (specific ? normalizeSystemName(candidate.systemName).includes(specific)
+        : normalizeEntityText(candidate.systemName).includes(normalizeEntityText(value))));
+    }
     else if (field === "buildingType") check(field, !!candidate.setBuildingTypes?.some(name => sameText(name, value)));
     else if (field === "substrateMaterial") check(field, !!candidate.substrateMaterial && normalizeEntityText(candidate.substrateMaterial).replace(/^\d+(?:\.\d+)?(?:mm|毫米)/, "") === normalizeEntityText(value).replace(/^\d+(?:\.\d+)?(?:mm|毫米)/, ""));
     else check(field, candidate[field] === value);
@@ -113,9 +126,11 @@ export function traceQueryState(query: ThermalQueryState, previous?: ThermalQuer
     const old = previous?.conditionTrace?.find(item => item.field === field && item.value === value && item.mode === mode);
     conditionTrace.push({ field, value, mode, classification, source: old ? "CONTEXT_INHERITED" : "USER_EXPLICIT" });
   };
-  for (const field of [...entityFields, "substrateThickness", "thicknessMm", "thicknessMin", "thicknessMax"] as const)
+  for (const field of [...entityFields, "applicationPart", "roofForm", "placement", "waterproofGrade", "pageLabel", "substrateThickness", "thicknessMm", "thicknessMin", "thicknessMax"] as const)
     if (query[field] !== undefined) add(field, query[field]!, "HARD_CONSTRAINT");
   for (const id of query.systemIds ?? []) add("systemIds", id, "HARD_CONSTRAINT");
+  for (const value of query.specClasses ?? []) add("specClasses", value, "HARD_CONSTRAINT");
+  for (const value of query.placements ?? []) add("placements", value, "HARD_CONSTRAINT");
   for (const filter of query.filters ?? []) add(filter.metric, filter.targetValue, "HARD_CONSTRAINT", filter.mode);
   for (const field of ["documentIds", "knowledgeVersionIds"] as const) for (const value of query[field] ?? []) add(field, value, "HARD_CONSTRAINT");
   for (const ambiguity of query.unresolved ?? []) conditionTrace.push({ field: ambiguity.field, value: ambiguity.reason, source: "USER_EXPLICIT", classification: "AMBIGUOUS" });

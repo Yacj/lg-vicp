@@ -1,0 +1,42 @@
+[
+  {
+    "kind": "download",
+    "withReferer": false,
+    "status": 200,
+    "contentType": "image/png",
+    "disposition": "attachment; filename*=UTF-8''page.png",
+    "allowOrigin": null,
+    "corp": null,
+    "errorCode": null
+  },
+  {
+    "kind": "download",
+    "withReferer": true,
+    "status": 200,
+    "contentType": "image/png",
+    "disposition": "attachment; filename*=UTF-8''page.png",
+    "allowOrigin": "*",
+    "corp": null,
+    "errorCode": null
+  },
+  {
+    "kind": "preview",
+    "withReferer": false,
+    "status": 200,
+    "contentType": "image/png",
+    "disposition": "attachment",
+    "allowOrigin": null,
+    "corp": null,
+    "errorCode": null
+  },
+  {
+    "kind": "preview",
+    "withReferer": true,
+    "status": 200,
+    "contentType": "image/png",
+    "disposition": "attachment",
+    "allowOrigin": "*",
+    "corp": null,
+    "errorCode": null
+  }
+]

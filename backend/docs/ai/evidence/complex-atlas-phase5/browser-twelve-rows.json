@@ -1,0 +1,226 @@
+{
+  "scope": "真实HTTP来源详情→真实H5组件DOM；不代表聊天自然召回成功",
+  "rows": [
+    {
+      "page": "89",
+      "construction": "正置",
+      "thickness": 20,
+      "r": 5.225,
+      "k": 0.191,
+      "dom": [
+        {
+          "page": "89",
+          "label": "坡屋面（正置，级防水）I 型 VICP屋面坡屋面正置防水等级待核对钢筋混凝土楼板 120mm",
+          "k": "0.191",
+          "productR": "—",
+          "r": "5.225",
+          "thickness": "20"
+        }
+      ],
+      "status": "PASS_DIRECT_SOURCE_UI"
+    },
+    {
+      "page": "89",
+      "construction": "倒置",
+      "thickness": 20,
+      "r": 5.198,
+      "k": 0.192,
+      "dom": [
+        {
+          "page": "89",
+          "label": "坡屋面（倒置，级防水）I 型 VICP屋面坡屋面倒置防水等级待核对钢筋混凝土楼板 120mm",
+          "k": "0.192",
+          "productR": "—",
+          "r": "5.198",
+          "thickness": "20"
+        }
+      ],
+      "status": "PASS_DIRECT_SOURCE_UI"
+    },
+    {
+      "page": "89",
+      "construction": "正置",
+      "thickness": 25,
+      "r": 6.025,
+      "k": 0.166,
+      "dom": [
+        {
+          "page": "89",
+          "label": "坡屋面（正置，级防水）I 型 VICP屋面坡屋面正置防水等级待核对钢筋混凝土楼板 120mm",
+          "k": "0.166",
+          "productR": "—",
+          "r": "6.025",
+          "thickness": "25"
+        }
+      ],
+      "status": "PASS_DIRECT_SOURCE_UI"
+    },
+    {
+      "page": "89",
+      "construction": "倒置",
+      "thickness": 25,
+      "r": 5.998,
+      "k": 0.167,
+      "dom": [
+        {
+          "page": "89",
+          "label": "坡屋面（倒置，级防水）I 型 VICP屋面坡屋面倒置防水等级待核对钢筋混凝土楼板 120mm",
+          "k": "0.167",
+          "productR": "—",
+          "r": "5.998",
+          "thickness": "25"
+        }
+      ],
+      "status": "PASS_DIRECT_SOURCE_UI"
+    },
+    {
+      "page": "90",
+      "construction": "正置",
+      "thickness": 20,
+      "r": 5.369,
+      "k": 0.186,
+      "dom": [
+        {
+          "page": "90",
+          "label": "平屋面（正置，级防水）II 型 VICP屋面平屋面正置防水等级待核对钢筋混凝土楼板 120mm",
+          "k": "0.186",
+          "productR": "—",
+          "r": "5.369",
+          "row": "7 / span 1",
+          "thickness": "20"
+        }
+      ],
+      "status": "PASS_DIRECT_SOURCE_UI"
+    },
+    {
+      "page": "90",
+      "construction": "倒置",
+      "thickness": 20,
+      "r": 5.369,
+      "k": 0.186,
+      "dom": [
+        {
+          "page": "90",
+          "label": "平屋面（倒置，级防水）II 型 VICP屋面平屋面倒置防水等级待核对钢筋混凝土楼板 120mm",
+          "k": "0.186",
+          "productR": "—",
+          "r": "5.369",
+          "row": "10 / span 1",
+          "thickness": "20"
+        }
+      ],
+      "status": "PASS_DIRECT_SOURCE_UI"
+    },
+    {
+      "page": "90",
+      "construction": "正置",
+      "thickness": 25,
+      "r": 6.169,
+      "k": 0.162,
+      "dom": [
+        {
+          "page": "90",
+          "label": "平屋面（正置，级防水）II 型 VICP屋面平屋面正置防水等级待核对钢筋混凝土楼板 120mm",
+          "k": "0.162",
+          "productR": "—",
+          "r": "6.169",
+          "row": "8 / span 1",
+          "thickness": "25"
+        }
+      ],
+      "status": "PASS_DIRECT_SOURCE_UI"
+    },
+    {
+      "page": "90",
+      "construction": "倒置",
+      "thickness": 25,
+      "r": 6.169,
+      "k": 0.162,
+      "dom": [
+        {
+          "page": "90",
+          "label": "平屋面（倒置，级防水）II 型 VICP屋面平屋面倒置防水等级待核对钢筋混凝土楼板 120mm",
+          "k": "0.162",
+          "productR": "—",
+          "r": "6.169",
+          "row": "11 / span 1",
+          "thickness": "25"
+        }
+      ],
+      "status": "PASS_DIRECT_SOURCE_UI"
+    },
+    {
+      "page": "75",
+      "construction": "C1-3",
+      "thickness": 20,
+      "r": 6.916,
+      "k": 0.145,
+      "dom": [
+        {
+          "page": "75",
+          "label": "外墙C1-3I 型 VICP外墙蒸压灰砂砖 240mm",
+          "k": "0.145",
+          "productR": "—",
+          "r": "6.916",
+          "thickness": "20"
+        }
+      ],
+      "status": "PASS_DIRECT_SOURCE_UI"
+    },
+    {
+      "page": "75",
+      "construction": "C1-4",
+      "thickness": 20,
+      "r": 7.54,
+      "k": 0.133,
+      "dom": [
+        {
+          "page": "75",
+          "label": "外墙C1-4I 型 VICP外墙加气混凝土砌块 200mm",
+          "k": "0.133",
+          "productR": "—",
+          "r": "7.540",
+          "thickness": "20"
+        }
+      ],
+      "status": "PASS_DIRECT_SOURCE_UI"
+    },
+    {
+      "page": "75",
+      "construction": "C1-3",
+      "thickness": 25,
+      "r": 8.516,
+      "k": 0.117,
+      "dom": [
+        {
+          "page": "75",
+          "label": "外墙C1-3I 型 VICP外墙蒸压灰砂砖 240mm",
+          "k": "0.117",
+          "productR": "—",
+          "r": "8.516",
+          "thickness": "25"
+        }
+      ],
+      "status": "PASS_DIRECT_SOURCE_UI"
+    },
+    {
+      "page": "75",
+      "construction": "C1-4",
+      "thickness": 25,
+      "r": 9.14,
+      "k": 0.109,
+      "dom": [
+        {
+          "page": "75",
+          "label": "外墙C1-4I 型 VICP外墙加气混凝土砌块 200mm",
+          "k": "0.109",
+          "productR": "—",
+          "r": "9.140",
+          "thickness": "25"
+        }
+      ],
+      "status": "PASS_DIRECT_SOURCE_UI"
+    }
+  ],
+  "status": "PASS"
+}

@@ -35,6 +35,8 @@ export function hasRenderModel(model: unknown): model is KnowledgePageRenderMode
 export function normalizeReferenceHighlights(value: unknown): ReferenceHighlight[] {
   if (!Array.isArray(value)) return []
   return value.filter(isRecord).map(item => ({
+    confirmedRevision: typeof item.confirmedRevision === 'string' ? item.confirmedRevision : undefined,
+    answerOffset: typeof item.answerOffset === 'number' && Number.isSafeInteger(item.answerOffset) && item.answerOffset >= 0 ? item.answerOffset : undefined,
     pageId: typeof item.pageId === 'string' ? item.pageId : undefined,
     constructionId: typeof item.constructionId === 'string' ? item.constructionId : undefined,
     optionId: typeof item.optionId === 'string' ? item.optionId : undefined,
@@ -51,6 +53,9 @@ export function resolveReferenceHighlights(model: KnowledgePageRenderModel | nul
   if (!hasRenderModel(model)) return []
   const resolved: ResolvedReferenceHighlight[] = []
   for (const match of matches) {
+    if (match.confirmedRevision && match.confirmedRevision !== model.confirmedRevision) {
+      continue
+    }
     if (match.pageId && match.pageId !== pageId) continue
     const sections = model.constructions.filter(section => (!match.constructionId || section.constructionId === match.constructionId)
       && (match.optionId ? section.options.some(option => option.optionId === match.optionId) : !!match.constructionId))

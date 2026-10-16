@@ -199,7 +199,7 @@ export function createThermalTool(ctx: ToolRuntimeContext) {
             tolerance: args.tolerance ?? args.kTolerance
           });
           if (resolution.needsClarification) {
-            await persistLastReferenceLookup(ctx, { query: resolution.query, candidates: [], createdAt: new Date().toISOString() });
+            if (!last?.candidates.length) await persistLastReferenceLookup(ctx, { query: resolution.query, candidates: [], createdAt: new Date().toISOString() });
             if (!resolution.semanticParserResult && interpretThermalQuestion(ctx.userMessage ?? "", last?.query.metric).needsClarification) {
               return toolOk(thermalMetricClarification());
             }

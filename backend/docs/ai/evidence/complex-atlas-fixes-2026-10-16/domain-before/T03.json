@@ -1,0 +1,122 @@
+{
+  "id": "T03",
+  "message": "II型平屋面正置和倒置的20mm参数一样吗？",
+  "scope": "真实结构化提案；源配置强制只读；不执行业务目标",
+  "invalidProposal": {
+    "intent": "REFERENCE_QUERY",
+    "confidence": 0.9,
+    "evidence": "II型平屋面正置和倒置的20mm参数一样吗？",
+    "unresolved": null,
+    "reportType": null,
+    "factRead": null,
+    "relation": "NEW",
+    "continuedGoal": null,
+    "comparison": null,
+    "referenceTime": null,
+    "adviceMode": null,
+    "constraintPatch": null,
+    "reference": {
+      "scope": "NONE",
+      "revision": null,
+      "items": []
+    },
+    "requestedEffect": "QUERY",
+    "effectRequest": null,
+    "ambiguity": [],
+    "pageQuery": {
+      "queryMode": "NEW_QUERY",
+      "intent": "REFERENCE_LOOKUP",
+      "constraints": [
+        {
+          "type": "ENTITY",
+          "operation": "SET",
+          "field": "specClass",
+          "entityText": "II型",
+          "resolvedText": "II型",
+          "metric": null,
+          "operator": null,
+          "value": null,
+          "evidence": "II型",
+          "hard": true,
+          "confidence": 0.95
+        },
+        {
+          "type": "ENTITY",
+          "operation": "SET",
+          "field": "roofForm",
+          "entityText": "平屋面",
+          "resolvedText": "平屋面",
+          "metric": null,
+          "operator": null,
+          "value": null,
+          "evidence": "平屋面",
+          "hard": true,
+          "confidence": 0.95
+        },
+        {
+          "type": "ENTITY",
+          "operation": "SET",
+          "field": "placement",
+          "entityText": "正置",
+          "resolvedText": "正置",
+          "metric": null,
+          "operator": null,
+          "value": null,
+          "evidence": "正置",
+          "hard": true,
+          "confidence": 0.9
+        },
+        {
+          "type": "ENTITY",
+          "operation": "APPEND",
+          "field": "placement",
+          "entityText": "倒置",
+          "resolvedText": "倒置",
+          "metric": null,
+          "operator": null,
+          "value": null,
+          "evidence": "倒置",
+          "hard": true,
+          "confidence": 0.9
+        },
+        {
+          "type": "THICKNESS",
+          "operation": "SET",
+          "field": null,
+          "entityText": "20mm",
+          "resolvedText": "20mm",
+          "metric": null,
+          "operator": "EXACT",
+          "value": 20,
+          "evidence": "20mm",
+          "hard": true,
+          "confidence": 0.95
+        }
+      ],
+      "preferences": [],
+      "unresolved": [],
+      "confidence": 0.9
+    }
+  },
+  "error": {
+    "name": "AI_NoObjectGeneratedError",
+    "finishReason": "stop",
+    "causeName": "AI_TypeValidationError",
+    "issues": [
+      {
+        "path": [
+          "constraintPatch"
+        ],
+        "code": "invalid_type",
+        "message": "Invalid input: expected array, received null"
+      }
+    ],
+    "causeKeys": [
+      "name",
+      "cause",
+      "value",
+      "context"
+    ]
+  },
+  "durationMs": 1917
+}

@@ -1,0 +1,90 @@
+{
+  "groups": [
+    {
+      "id": "reference-construction-0",
+      "label": "坡屋面（正置，级防水）I 型 VICP屋面坡屋面正置防水等级待核对钢筋混凝土楼板 120mm",
+      "options": [
+        {
+          "k": "0.354",
+          "productR": "—",
+          "r": "2.825",
+          "thickness": "5"
+        },
+        {
+          "k": "0.276",
+          "productR": "—",
+          "r": "3.625",
+          "thickness": "10"
+        },
+        {
+          "k": "0.226",
+          "productR": "—",
+          "r": "4.425",
+          "thickness": "15"
+        },
+        {
+          "k": "0.191",
+          "productR": "—",
+          "r": "5.225",
+          "thickness": "20"
+        },
+        {
+          "k": "0.166",
+          "productR": "—",
+          "r": "6.025",
+          "thickness": "25"
+        },
+        {
+          "k": "0.147",
+          "productR": "—",
+          "r": "6.825",
+          "thickness": "30"
+        }
+      ]
+    },
+    {
+      "id": "reference-construction-1",
+      "label": "坡屋面（倒置，级防水）I 型 VICP屋面坡屋面倒置防水等级待核对钢筋混凝土楼板 120mm",
+      "options": [
+        {
+          "k": "0.357",
+          "productR": "—",
+          "r": "2.798",
+          "thickness": "5"
+        },
+        {
+          "k": "0.278",
+          "productR": "—",
+          "r": "3.598",
+          "thickness": "10"
+        },
+        {
+          "k": "0.227",
+          "productR": "—",
+          "r": "4.398",
+          "thickness": "15"
+        },
+        {
+          "k": "0.192",
+          "productR": "—",
+          "r": "5.198",
+          "thickness": "20"
+        },
+        {
+          "k": "0.167",
+          "productR": "—",
+          "r": "5.998",
+          "thickness": "25"
+        },
+        {
+          "k": "0.147",
+          "productR": "—",
+          "r": "6.798",
+          "thickness": "30"
+        }
+      ]
+    }
+  ],
+  "height": 1074,
+  "width": 1910
+}

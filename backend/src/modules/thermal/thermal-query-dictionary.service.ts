@@ -48,5 +48,5 @@ export async function loadThermalQueryDictionary(db: DbExecutor) {
       substrateMaterial: item.substrateMaterial, substrateThickness: item.substrateThickness })),
     ...specs.map(item => ({ productSpecId: item.id, catalogProductId: item.catalogProductId, specClass: item.specClass ?? undefined, specCode: item.specCode }))
   ];
-  return { entities, aliases, selectionFacts };
+  return { entities, aliases, selectionFacts, hasPublishedLimits: limits.length > 0 };
 }

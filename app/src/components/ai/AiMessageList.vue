@@ -9,6 +9,7 @@ import AiProductCard from '@/components/ai/AiProductCard.vue'
 import AiReferenceAnswer from '@/components/ai/AiReferenceAnswer.vue'
 import AiSourceCard from '@/components/ai/AiSourceCard.vue'
 import { CHAT_IMAGE_ONLY_CONTENT, VISION_FAILURE_MESSAGE } from '@/constants/chatImage'
+import MpHtml from '@/uni_modules/mp-html/components/mp-html/mp-html.vue'
 import { isSourceInquiry, previousUserText, splitAnswerLayers } from '@/utils/aiAnswerUx'
 import { markdownTagStyle, markdownToPlainText, renderMarkdown } from '@/utils/markdown'
 

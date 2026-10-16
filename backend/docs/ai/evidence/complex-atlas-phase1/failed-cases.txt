@@ -1,0 +1,52 @@
+ FAIL  src/modules/ai/domain-semantic-regression.test.ts > 开放表达必须经过同一个语义合同：能不能出个方案
+ FAIL  src/modules/ai/domain-semantic-regression.test.ts > 开放表达必须经过同一个语义合同：不要出方案，直接列原表
+ FAIL  src/modules/ai/domain-semantic-regression.test.ts > 开放表达必须经过同一个语义合同：不要推荐方案
+ FAIL  src/modules/ai/domain-semantic-regression.test.ts > 开放表达必须经过同一个语义合同：暂不确认，先给建议
+ FAIL  src/modules/ai/domain-semantic-regression.test.ts > 开放表达必须经过同一个语义合同：帮我确认一下 A3-2 的 K
+ FAIL  src/modules/ai/domain-semantic-regression.test.ts > 开放表达必须经过同一个语义合同：给我45mm的初步方案，顺便比较基层
+ FAIL  src/modules/ai/domain-semantic-regression.test.ts > 开放表达必须经过同一个语义合同：不用生成报告，只给个大致方案
+ FAIL  src/modules/ai/domain-semantic-regression.test.ts > 开放表达必须经过同一个语义合同：仅给我报告提纲
+ FAIL  src/modules/ai/domain-semantic-regression.test.ts > 开放表达必须经过同一个语义合同：他说‘确认最终方案’，请解释这句话
+ FAIL  src/modules/ai/domain-semantic-regression.test.ts > 开放表达必须经过同一个语义合同：假如把第一个加入方案，会有什么变化
+ FAIL  src/modules/ai/domain-semantic-regression.test.ts > 开放表达必须经过同一个语义合同：不要把第一个加入方案
+ FAIL  src/modules/ai/domain-semantic-regression.test.ts > 开放表达必须经过同一个语义合同：先比较，再给通用建议
+ FAIL  src/modules/ai/domain-semantic-regression.test.ts > 开放表达必须经过同一个语义合同：先不考虑地区，来个参考选型
+ FAIL  src/modules/ai/domain-semantic-regression.test.ts > 开放表达必须经过同一个语义合同：不需要合规结论，只做参考选型
+ FAIL  src/modules/ai/domain-semantic-regression.test.ts > 开放表达必须经过同一个语义合同：上海住宅能达标吗
+ FAIL  src/modules/ai/domain-semantic-regression.test.ts > 开放表达必须经过同一个语义合同：正式生成PDF
+ FAIL  src/modules/ai/reference-candidate-resolver.service.test.ts > 只读来源定位与生命周期 > 已被筛选排除的明确编码只读来源，不换当前候选/revision，多个来源不任选
+ FAIL  src/modules/ai/reference-fact-read.service.test.ts > 确认数字是只读；错误数字不反选另一条记录，指定构造来源后比较
+ FAIL  src/modules/ai/solution-advice-context.test.ts > 建议目标上下文边界与旧会话兼容 > 上下文读取只加载该会话最近两轮目标、Revision，不从内容猜候选ID
+ FAIL  src/modules/ai/solution-advice-context.test.ts > 建议目标上下文边界与旧会话兼容 > PDF请求仍能分类为报告，但建议不能代替其正式快照前提
+ FAIL  src/modules/ai/solution-advice.service.test.ts > 方案建议多轮事实门禁（模拟数据库，非线上UAT） > 四基层查询→出方案→移除地区建筑范围，建议有四个基层分支和确认来源，业务表零写入
+ FAIL  src/modules/ai/solution-advice.service.test.ts > 方案建议多轮事实门禁（模拟数据库，非线上UAT） > 同义咨询 帮我整理一个初步方案 使用有效候选
+ FAIL  src/modules/ai/solution-advice.service.test.ts > 方案建议多轮事实门禁（模拟数据库，非线上UAT） > 同义咨询 按刚才的数据给建议 使用有效候选
+ FAIL  src/modules/ai/solution-advice.service.test.ts > 方案建议多轮事实门禁（模拟数据库，非线上UAT） > 同义咨询 先不考虑地区，来个参考选型 使用有效候选
+ FAIL  src/modules/ai/solution-advice.service.test.ts > 方案建议多轮事实门禁（模拟数据库，非线上UAT） > 同义咨询 不用生成报告，只给个大致方案 使用有效候选
+ FAIL  src/modules/ai/solution-advice.service.test.ts > 方案建议多轮事实门禁（模拟数据库，非线上UAT） > 同义咨询 不需要合规结论，只做参考选型 使用有效候选
+ FAIL  src/modules/ai/solution-advice.service.test.ts > 方案建议多轮事实门禁（模拟数据库，非线上UAT） > 同义咨询 无需合规结论，给个参考选型 使用有效候选
+ FAIL  src/modules/ai/solution-advice.service.test.ts > 方案建议多轮事实门禁（模拟数据库，非线上UAT） > 方案目标继续：先不判断达标；历史助手追问地区可用作目标证据，不用作工程事实
+ FAIL  src/modules/ai/solution-advice.service.test.ts > 方案建议多轮事实门禁（模拟数据库，非线上UAT） > 旧版GENERAL中的建议目标只能由单次语义合同恢复，且仍核验当前来源
+ FAIL  src/modules/ai/solution-advice.service.test.ts > 方案建议多轮事实门禁（模拟数据库，非线上UAT） > 只读建议点名A3-3复用正式编码提取，前缀不影响同源optionId身份
+ FAIL  src/modules/ai/solution-advice.service.test.ts > 方案建议多轮事实门禁（模拟数据库，非线上UAT） > 概念问答→请求方案，没有已知候选时仅给框架和必要范围，不编造参数
+ FAIL  src/modules/ai/solution-advice.service.test.ts > 方案建议多轮事实门禁（模拟数据库，非线上UAT） > 产品话题切换后不得暗用旧候选，过期目标也不能从旧文本恢复
+ FAIL  src/modules/ai/solution-advice.service.test.ts > 方案建议多轮事实门禁（模拟数据库，非线上UAT） > revision拒绝失效事实
+ FAIL  src/modules/ai/solution-advice.service.test.ts > 方案建议多轮事实门禁（模拟数据库，非线上UAT） > project拒绝失效事实
+ FAIL  src/modules/ai/solution-advice.service.test.ts > 方案建议多轮事实门禁（模拟数据库，非线上UAT） > conversation拒绝失效事实
+ FAIL  src/modules/ai/solution-advice.service.test.ts > 方案建议多轮事实门禁（模拟数据库，非线上UAT） > expiredContext拒绝失效事实
+ FAIL  src/modules/ai/solution-advice.service.test.ts > 方案建议多轮事实门禁（模拟数据库，非线上UAT） > expiredCandidates拒绝失效事实
+ FAIL  src/modules/ai/solution-advice.service.test.ts > 方案建议多轮事实门禁（模拟数据库，非线上UAT） > futureCandidates拒绝失效事实
+ FAIL  src/modules/ai/solution-advice.service.test.ts > 方案建议多轮事实门禁（模拟数据库，非线上UAT） > invalidCandidates拒绝失效事实
+ FAIL  src/modules/ai/solution-advice.service.test.ts > 方案建议多轮事实门禁（模拟数据库，非线上UAT） > withdrawnSource拒绝失效事实
+ FAIL  src/modules/ai/solution-advice.service.test.ts > 方案建议多轮事实门禁（模拟数据库，非线上UAT） > changedOption拒绝失效事实
+ FAIL  src/modules/ai/solution-advice.service.test.ts > 方案建议多轮事实门禁（模拟数据库，非线上UAT） > 用户/客户端无权限时沿用来源Resolver归属拒绝
+ FAIL  src/modules/ai/solution-advice.service.test.ts > 方案建议多轮事实门禁（模拟数据库，非线上UAT） > 既有地区/建筑字段只从建议校验视图移除，正式QueryState不改变
+ FAIL  src/modules/ai/solution-advice.service.test.ts > 方案建议多轮事实门禁（模拟数据库，非线上UAT） > 同厚度的建议复用已展示事实；本轮明确改厚度交给Refine，不用旧45mm冒充40mm方案
+ FAIL  src/modules/ai/solution-advice.service.test.ts > 方案建议多轮事实门禁（模拟数据库，非线上UAT） > 正式加入继续经过动作Grounding，建议不能触发SELECT/Final/Confirm
+ FAIL  src/modules/ai/solution-advice.service.test.ts > 方案建议多轮事实门禁（模拟数据库，非线上UAT） > 未传本轮已核验授权的正式报告仍拒绝；上海住宅合规仍独立且无标准不声称达标
+ FAIL  src/modules/ai/solution-advice.service.test.ts > 方案建议多轮事实门禁（模拟数据库，非线上UAT） > 分类low对咨询安全降级；正式动作不可借低置信变更
+ FAIL  src/modules/ai/solution-advice.service.test.ts > 方案建议多轮事实门禁（模拟数据库，非线上UAT） > 分类timeout对咨询安全降级；正式动作不可借低置信变更
+ FAIL  src/modules/ai/solution-advice.service.test.ts > 方案建议多轮事实门禁（模拟数据库，非线上UAT） > 分类parse对咨询安全降级；正式动作不可借低置信变更
+ FAIL  src/modules/ai/solution-advice.service.test.ts > 方案建议多轮事实门禁（模拟数据库，非线上UAT） > 真实Fastify inject/SSE协议两轮建议，四个optionId对应页5/6，正文不会暴露内部引用
+ FAIL  src/modules/ai/solution-state.service.test.ts > Candidate Result → 用户动作 → 懒激活生命周期 > 普通REFERENCE_LOOKUP保存结果和revision、发候选事件，不创建/发送方案
+ FAIL  src/modules/ai/solution-state.service.test.ts > Candidate Result → 用户动作 → 懒激活生命周期 > 矩阵S2：查表→20mm细化→1和3比较→明确选用→就这样，全链状态及revision隔离

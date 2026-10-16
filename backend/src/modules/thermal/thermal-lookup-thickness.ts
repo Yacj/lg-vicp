@@ -32,7 +32,7 @@ export function parseThermalThicknessMessage(message: string, previous: LookupTh
       changed = true;
       continue;
     }
-    const unitNumber = /([0-9]+(?:\.[0-9]+)?)(?:mm|毫米)/i.exec(clause);
+    const unitNumber = /([0-9]+(?:\.[0-9]+)?)(?:mm|毫米|厚)/i.exec(clause);
     const thicknessNumber = /厚度(?:从[0-9]+(?:\.[0-9]+)?(?:mm|毫米)?)?(?:控制在|控制到|放宽到|收紧到|调整到|调整为|提高到|降到|改到|调到|改成|改为|换成|变成|要求|需要|目标是|目标|为|在|到|不超过|不低于|最多|至少|≤|≥|<=|>=|=)*([0-9]+(?:\.[0-9]+)?)/i.exec(clause);
     const implicitChange = /(?:(?:最大|最小)?(?:放宽到|收紧到|调整到|调整为|调到|改到|改成|改为|换成|提高到|降到))([0-9]+(?:\.[0-9]+)?)|([0-9]+(?:\.[0-9]+)?)(?=以内|以上|以下)/.exec(clause);
     const hasPrevious = previous.thicknessMm !== undefined || previous.thicknessMin !== undefined || previous.thicknessMax !== undefined;

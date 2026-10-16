@@ -1,0 +1,133 @@
+{
+  "scope": "留存证据核验；不能替代真实模型、权限、业务路由、OSS 或真机验收",
+  "rows": [
+    {
+      "page": 89,
+      "thickness": 20,
+      "group": 0,
+      "r": 5.225,
+      "k": 0.191,
+      "status": "PASS",
+      "scope": "人工 Fixture 的浏览器 DOM"
+    },
+    {
+      "page": 89,
+      "thickness": 20,
+      "group": 1,
+      "r": 5.198,
+      "k": 0.192,
+      "status": "PASS",
+      "scope": "人工 Fixture 的浏览器 DOM"
+    },
+    {
+      "page": 89,
+      "thickness": 25,
+      "group": 0,
+      "r": 6.025,
+      "k": 0.166,
+      "status": "PASS",
+      "scope": "人工 Fixture 的浏览器 DOM"
+    },
+    {
+      "page": 89,
+      "thickness": 25,
+      "group": 1,
+      "r": 5.998,
+      "k": 0.167,
+      "status": "PASS",
+      "scope": "人工 Fixture 的浏览器 DOM"
+    },
+    {
+      "page": 90,
+      "thickness": 20,
+      "group": 0,
+      "r": 5.369,
+      "k": 0.186,
+      "status": "PASS",
+      "scope": "人工 Fixture 的浏览器 DOM"
+    },
+    {
+      "page": 90,
+      "thickness": 20,
+      "group": 1,
+      "r": 5.369,
+      "k": 0.186,
+      "status": "PASS",
+      "scope": "人工 Fixture 的浏览器 DOM"
+    },
+    {
+      "page": 90,
+      "thickness": 25,
+      "group": 0,
+      "r": 6.169,
+      "k": 0.162,
+      "status": "PASS",
+      "scope": "人工 Fixture 的浏览器 DOM"
+    },
+    {
+      "page": 90,
+      "thickness": 25,
+      "group": 1,
+      "r": 6.169,
+      "k": 0.162,
+      "status": "PASS",
+      "scope": "人工 Fixture 的浏览器 DOM"
+    },
+    {
+      "page": 75,
+      "thickness": 20,
+      "group": 0,
+      "r": 6.916,
+      "k": 0.145,
+      "status": "PASS",
+      "scope": "人工 Fixture 的浏览器 DOM"
+    },
+    {
+      "page": 75,
+      "thickness": 20,
+      "group": 1,
+      "r": 7.54,
+      "k": 0.133,
+      "status": "PASS",
+      "scope": "人工 Fixture 的浏览器 DOM"
+    },
+    {
+      "page": 75,
+      "thickness": 25,
+      "group": 0,
+      "r": 8.516,
+      "k": 0.117,
+      "status": "PASS",
+      "scope": "人工 Fixture 的浏览器 DOM"
+    },
+    {
+      "page": 75,
+      "thickness": 25,
+      "group": 1,
+      "r": 9.14,
+      "k": 0.109,
+      "status": "PASS",
+      "scope": "人工 Fixture 的浏览器 DOM"
+    }
+  ],
+  "sourceImages": [
+    {
+      "printedPage": 89,
+      "path": "D:/work/lg-vicp/admin-web/docs/ai/evidence/complex-atlas-phase2/source-page-89.png",
+      "bytes": 647161,
+      "sha256": "6d48ac8f8a746eb6c012f8c9ad6c2bf24a4161ab65b00ee9222f351e41a4ba9c"
+    },
+    {
+      "printedPage": 90,
+      "path": "D:/work/lg-vicp/admin-web/docs/ai/evidence/complex-atlas-phase2/source-page-90.png",
+      "bytes": 690463,
+      "sha256": "3cda1d4a7da48652b779c637bf19418c0fd4b894dccaaf0fdb951b7a8d916aa3"
+    },
+    {
+      "printedPage": 75,
+      "path": "D:/work/lg-vicp/admin-web/docs/ai/evidence/complex-atlas-phase2/source-page-75.png",
+      "bytes": 589957,
+      "sha256": "a712567ae0622aa41f14961f2cf6cd5ebe28e8ecf701391c0d6814dc3e6ebcea"
+    }
+  ]
+}

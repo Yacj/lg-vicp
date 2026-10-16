@@ -5,6 +5,7 @@ type DisplayOption = KnowledgeConstructionContent['options'][number]
 interface ConstructionRowBase {
   viewerKey: string
   layer: KnowledgeRenderLayer | null
+  layerIndex?: number
   order: number | null
   groupStart: number
   groupLength: number
@@ -47,21 +48,30 @@ export function pageConstructionCellSpan(row: KnowledgePageTableRow, rowIndex: n
 /** 只展开后端明确关联的材料档位；不能确定对应层时，档位单独列在同一张表中。 */
 export function constructionTableRows(construction: KnowledgeConstructionContent): KnowledgeConstructionRow[] {
   const variableLayers = construction.layers.filter(layer => layer.variable)
-  const variableLayer = variableLayers.length === 1 ? variableLayers[0] : undefined
+  const indices = new Set(construction.options.flatMap(option => option.layerValues?.map(value => value.layerIndex) ?? []))
+  const declaredIndex = indices.size === 1 ? [...indices][0] : undefined
+  const declaredLayer = declaredIndex != null && construction.options.every(option => option.layerValues?.some(value => value.layerIndex === declaredIndex))
+    ? construction.layers[declaredIndex]
+    : undefined
+  const variableLayer = declaredLayer ?? (variableLayers.length === 1 ? variableLayers[0] : undefined)
   const rows: KnowledgeConstructionRow[] = []
-  const appendOptions = (layer: KnowledgeRenderLayer | null, order: number | null): void => {
+  const appendOptions = (layer: KnowledgeRenderLayer | null, order: number | null, layerIndex?: number): void => {
     const groupStart = rows.length
     construction.options.forEach((option, index) => rows.push({
-      kind: 'option', option, layer, order,
+      kind: 'option',
+      option,
+      layer,
+      order,
+      layerIndex,
       viewerKey: `option-${index}`, groupStart, groupLength: construction.options.length,
     }))
   }
   construction.layers.forEach((layer, index) => {
     const order = layer.order ?? index + 1
     if (layer === variableLayer && construction.options.length) {
-      appendOptions(layer, order)
+      appendOptions(layer, order, index)
     } else {
-      rows.push({ kind: 'layer', layer, order, viewerKey: `layer-${index}`, groupStart: rows.length, groupLength: 1 })
+      rows.push({ kind: 'layer', layer, order, layerIndex: index, viewerKey: `layer-${index}`, groupStart: rows.length, groupLength: 1 })
     }
   })
   if (construction.options.length && !variableLayer) appendOptions(null, null)

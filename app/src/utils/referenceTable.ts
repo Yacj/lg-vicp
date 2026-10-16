@@ -1,6 +1,6 @@
 import type { AiReferencePage, ReferenceHighlight } from '@/api/reference-page'
 import type { SolutionSnapshotDto } from '@/api/solution-types'
-import { normalizeReferencePages } from './referencePage'
+import { normalizeReferencePages, resolvePageHighlights } from './referencePage'
 
 export function snapshotReferencePages(snapshot: SolutionSnapshotDto | null): AiReferencePage[] {
   return (snapshot?.payload.referencePages || []).map(page => ({
@@ -15,7 +15,7 @@ export function snapshotReferencePages(snapshot: SolutionSnapshotDto | null): Ai
 
 export function referenceTableLocation(page: AiReferencePage, origin: { referenceMessageId?: string, referenceSnapshotId?: string }, preferred?: ReferenceHighlight, highlightEnabled = true) {
   const params: Record<string, string> = { documentId: page.page.documentId, pageId: page.page.pageId }
-  for (const [key, value] of Object.entries({ ...origin, constructionId: preferred?.constructionId, optionId: preferred?.optionId })) {
+  for (const [key, value] of Object.entries({ ...origin, confirmedRevision: page.renderModel?.confirmedRevision, constructionId: preferred?.constructionId, optionId: preferred?.optionId })) {
     if (value)
       params[key] = value
   }
@@ -31,5 +31,10 @@ export function resolveReferenceTablePage(messages: Array<{ id: string, referenc
   const pages = query.referenceMessageId
     ? normalizeReferencePages(messages.find(message => message.id === query.referenceMessageId)?.referencePages)
     : snapshot?.id === query.referenceSnapshotId ? snapshotReferencePages(snapshot) : []
-  return pages.find(page => page.page.documentId === query.documentId && page.page.pageId === query.pageId)
+  const page = pages.find(page => page.page.documentId === query.documentId && page.page.pageId === query.pageId)
+  if (!page || (query.confirmedRevision && query.confirmedRevision !== page.renderModel?.confirmedRevision))
+    return undefined
+  if ((query.optionId || query.constructionId) && !resolvePageHighlights(page.renderModel, [{ pageId: query.pageId, constructionId: query.constructionId, optionId: query.optionId }], query.pageId).length)
+    return undefined
+  return page
 }

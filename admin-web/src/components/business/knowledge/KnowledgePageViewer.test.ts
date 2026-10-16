@@ -70,7 +70,7 @@ describe('知识页结构化展示与定位', () => {
     expect(table.textContent).toContain('I型VICP复合保温板')
     expect(table.textContent).toContain('0.005')
     expect(table.textContent).toContain('1.25')
-    expect(element.querySelector('[data-option-id="A1-3-18"]')?.textContent).toContain('182.8803.2970.303')
+    expect(element.querySelector('[data-option-id="A1-3-18"]')?.textContent).toContain('18—2.8803.2970.303')
     expect(element.querySelectorAll('tr.is-hit')).toHaveLength(0)
     expect(element.textContent).not.toContain('文件第')
     expect(element.textContent).not.toContain('调试 JSON')
@@ -138,6 +138,24 @@ describe('知识页结构化展示与定位', () => {
     expect(element.textContent).toContain('命中数据暂无法定位')
   })
 
+  it('重复来源事件不重置已选命中或用户关闭高亮的状态', async () => {
+    const matches = [{ constructionId: 'A1-3', optionId: 'A1-3-18' }, { constructionId: 'A1-4', optionId: 'A1-4-18' }]
+    const { element, props } = await mount({ highlights: matches })
+    click(element, '下一处')
+    await nextTick()
+    await nextTick()
+    Object.assign(props, { highlights: JSON.parse(JSON.stringify(matches)) })
+    await nextTick()
+    await nextTick()
+    expect(element.querySelector('tr.is-active')?.getAttribute('data-option-id')).toBe('A1-4-18')
+    click(element, '取消高亮')
+    await nextTick()
+    Object.assign(props, { highlights: JSON.parse(JSON.stringify(matches)) })
+    await nextTick()
+    await nextTick()
+    expect(element.querySelectorAll('tr.is-hit')).toHaveLength(0)
+  })
+
   it('异常数值保持原样并提示校验，识别数据和 JSON 按权限显示', async () => {
     const model = renderModel()
     model.constructions[0]!.options[0]!.productThermalResistance = null
@@ -177,17 +195,18 @@ describe('知识页结构化展示与定位', () => {
   it('原表排版合并编号、材料及公共 λ/α，主断面两列与各厚度逐行对应', async () => {
     const { element } = await mount()
     const section = element.querySelector('.thermal-option-table')!
-    const wallHeader = [...section.querySelectorAll('thead th')].find(cell => cell.textContent === '外墙主断面')!
+    const wallHeader = [...section.querySelectorAll('thead th')].find(cell => cell.textContent === '整构造参数（源文组名待核）')!
     expect(wallHeader.getAttribute('colspan')).toBe('2')
-    expect(section.querySelector('thead')?.textContent).toContain('传热阻 R₀')
+    expect(section.querySelector('thead')?.textContent).toContain('整构造传热阻（源文符号待核）')
+    expect(section.querySelector('thead')?.textContent).not.toContain('R₀')
     expect(section.querySelector('tbody tr td')?.getAttribute('rowspan')).toBe('8')
     const firstOption = section.querySelector('[data-option-id="A1-3-15"]')!
     const merged = firstOption.querySelectorAll('td[rowspan="3"]')
     expect([...merged].map(cell => cell.textContent)).toEqual(['5. I型VICP复合保温板', '0.005', '1.25'])
-    expect([...section.querySelector('[data-option-id="A1-3-18"]')!.querySelectorAll('td')].map(cell => cell.textContent)).toEqual(['18', '2.880', '3.297', '0.303'])
+    expect([...section.querySelector('[data-option-id="A1-3-18"]')!.querySelectorAll('td')].map(cell => cell.textContent)).toEqual(['18', '—', '2.880', '3.297', '0.303'])
     expect(section.querySelector('tr[data-construction-id="A1-4"] td')?.getAttribute('rowspan')).toBe('8')
     expect([...section.querySelector('[data-option-id="A1-4-15"]')!.querySelectorAll('td[rowspan="3"]')].map(cell => cell.textContent)).toEqual(['5. I型VICP复合保温板', '0.005', '1.25'])
-    expect([...section.querySelector('[data-option-id="A1-4-18"]')!.querySelectorAll('td')].map(cell => cell.textContent)).toEqual(['18', '2.880', '3.297', '0.303'])
+    expect([...section.querySelector('[data-option-id="A1-4-18"]')!.querySelectorAll('td')].map(cell => cell.textContent)).toEqual(['18', '—', '2.880', '3.297', '0.303'])
     expect(section.querySelectorAll('tr.is-construction-end')).toHaveLength(2)
     const commonRows = section.querySelectorAll('tr[data-row-kind="layer"]')
     expect(commonRows[0]?.textContent).toContain('0.8701.000.023')
@@ -200,7 +219,7 @@ describe('知识页结构化展示与定位', () => {
     model.constructions[0]!.options[1]!.totalThermalResistance = null
     const { element } = await mount({ renderModel: model })
     const row = element.querySelector('[data-option-id="A1-3-18"]')!
-    expect([...row.querySelectorAll('td')].map(cell => cell.textContent)).toEqual(['18', '2.880', '—', '0.303', '需校验'])
+    expect([...row.querySelectorAll('td')].map(cell => cell.textContent)).toEqual(['18', '—', '2.880', '—', '0.303', '需校验'])
     expect(element.querySelector('.thermal-option-table thead')?.textContent).toContain('识别提示')
   })
 

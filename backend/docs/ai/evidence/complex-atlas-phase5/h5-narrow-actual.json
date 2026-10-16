@@ -1,0 +1,34 @@
+{
+  "groups": [
+    {
+      "label": "平屋面（正置，级防水）II 型 VICP屋面平屋面正置防水等级待核对钢筋混凝土楼板 120mm"
+    },
+    {
+      "label": "平屋面（倒置，级防水）II 型 VICP屋面平屋面倒置防水等级待核对钢筋混凝土楼板 120mm"
+    }
+  ],
+  "height": 811,
+  "scrolls": [
+    {
+      "clientWidth": 328,
+      "scrollLeft": 0,
+      "scrollWidth": 328
+    },
+    {
+      "clientWidth": 328,
+      "scrollLeft": 0,
+      "scrollWidth": 961
+    },
+    {
+      "clientWidth": 328,
+      "scrollLeft": 0,
+      "scrollWidth": 328
+    },
+    {
+      "clientWidth": 328,
+      "scrollLeft": 0,
+      "scrollWidth": 961
+    }
+  ],
+  "width": 376
+}

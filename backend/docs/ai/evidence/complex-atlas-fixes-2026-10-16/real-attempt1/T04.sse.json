@@ -1,0 +1,56 @@
+[
+  {
+    "event": "message",
+    "data": {
+      "messageId": "f6aaea99-185b-4346-9c0a-5b594355173d",
+      "userMessageId": "bb87f4ea-3848-47a4-aa55-3e62c4ed2efe",
+      "conversationId": "c173c131-b98f-4461-9525-88f709da6d56",
+      "requestId": "req-a"
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "analyzing",
+      "message": "正在分析问题..."
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "composing",
+      "message": "正在整理回答..."
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "想确认一下：“它们”指代不明，且前文厚度条件未确认，无法确定比较对象与条件。"
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "completed",
+      "message": "回答整理完成"
+    }
+  },
+  {
+    "event": "done",
+    "data": {
+      "messageId": "f6aaea99-185b-4346-9c0a-5b594355173d",
+      "conversationId": "c173c131-b98f-4461-9525-88f709da6d56",
+      "finishReason": "COMPLETED",
+      "usage": {},
+      "model": {
+        "id": "deepseek-chat"
+      },
+      "promptVersion": {
+        "id": "ae0f8064-e3d6-43c0-ab4c-174188be34e4",
+        "version": 3
+      },
+      "sources": [],
+      "latencyMs": 2703
+    }
+  }
+]

@@ -1,10 +1,11 @@
-import type { PageRecognitionResult } from './knowledge'
+import type { PageRecognitionLayerValue, PageRecognitionOption, PageRecognitionResult, PageRecognitionSystem } from './knowledge'
 
 /** 页面展示契约：由 Backend 提供，不从全文或识别草稿重建。 */
 export type ThermalFieldKey = 'thicknessMm' | 'productThermalResistance' | 'totalThermalResistance' | 'kValue'
 export type RenderNumber = number | string | null
 
-export interface ThermalRenderOption {
+export interface ThermalRenderOption extends Pick<PageRecognitionOption, 'sourceRowLabel' | 'fieldEvidence'> {
+  layerValues?: PageRecognitionLayerValue[]
   optionId: string
   thicknessMm?: RenderNumber
   productThermalResistance?: RenderNumber
@@ -14,6 +15,8 @@ export interface ThermalRenderOption {
 }
 
 export interface KnowledgeRenderLayer {
+  sourceLayerLabel?: string | null
+  sourceGroupLabel?: string | null
   layerId?: string
   order?: number | null
   name: string
@@ -25,7 +28,7 @@ export interface KnowledgeRenderLayer {
   variable?: boolean
 }
 
-export interface KnowledgeRenderConstruction {
+export interface KnowledgeRenderConstruction extends Pick<PageRecognitionSystem, 'rawConstructionLabel' | 'applicationPart' | 'roofForm' | 'placement' | 'waterproofGrade' | 'sourceColumns' | 'specClass' | 'baseMaterial' | 'baseThicknessMm'> {
   constructionId: string
   constructionCode?: string | null
   title?: string | null
@@ -44,6 +47,8 @@ export type KnowledgeConstructionContent = Omit<KnowledgeRenderConstruction, 'co
 }
 
 export interface KnowledgePageRenderModel {
+  confirmedRevision?: string
+  schemaVersion?: 2
   pageTitle?: string | null
   pageLabel?: string | null
   constructions: KnowledgeRenderConstruction[]
@@ -53,6 +58,7 @@ export interface KnowledgePageRenderModel {
 }
 
 export interface ReferenceHighlight {
+  confirmedRevision?: string
   pageId?: string | null
   constructionId?: string | null
   optionId?: string | null

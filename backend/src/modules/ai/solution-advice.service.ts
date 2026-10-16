@@ -17,7 +17,7 @@ export async function resolveSolutionAdvice(ctx: ReferenceReadContext) {
     sources: [] as unknown[], verified: false, needsClarification: true });
   if (ctx.domainDecision?.semantic?.adviceMode === "OUTLINE") return { ...empty("参考方案提纲：1. 需求与实际基层；2. 已确认构造及来源；3. 保温层与施工节点比选；4. 防火和固定要求核对；5. 待核实条件与适用边界。未核验候选时不填工程数值，不生成正式报告或合规证明。"), needsClarification: false };
   if (ctx.domainDecision?.semantic?.reference.scope === "NONE")
-    return empty("通用参考方案可先核对实际基层、保温体系和保温层要求，再阅读对应确认构造。请指定这轮要讨论的保温体系或基层，当前独立目标不沿用旧候选数值。");
+    return { ...empty("通用技术参考可以按以下顺序核对：1. 现场实际基层材料与厚度；2. 选用体系、保温厚度及对应的已确认图集构造；3. 粘结、固定、防火及节点要求；4. 材料参数与来源是否齐全；5. 项目适用的正式标准另行核验。这里不补造热工数值，也不作达标、审图或施工验收承诺；当前独立目标不沿用旧候选数值。"), needsClarification: false };
   const context = ctx.taskState?.adviceBusinessContext;
   if (context && (!adviceContextIsCurrent(context, ctx.conversation, ctx.taskState) || !context.candidateScopeActive && !ctx.domainDecision?.restoreAdviceGoal))
     return empty("可以先整理参考选型思路。你这轮要讨论哪个保温体系或哪一种实际基层？之前的话题和候选范围不能直接沿用。");

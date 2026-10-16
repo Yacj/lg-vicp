@@ -4,6 +4,7 @@ import { z } from "zod";
 import { getCurrentUser } from "../../shared/current-user.js";
 import { ok } from "../../shared/response.js";
 import { resolveSourceDetail } from "../knowledge/knowledge-wiki-read.service.js";
+import { readPageImageBytes } from "../knowledge/knowledge-page-image.js";
 
 /**
  * AI 来源详情（Wiki 原文阅读 + 页面高亮）：
@@ -13,6 +14,16 @@ import { resolveSourceDetail } from "../knowledge/knowledge-wiki-read.service.js
  */
 export async function aiKnowledgeRoutes(app: FastifyInstance) {
   const route = app.withTypeProvider<ZodTypeProvider>();
+  route.get("/pages/:pageId/image", {
+    preHandler: [app.authenticate],
+    schema: { tags: ["共用 / 知识溯源"], summary: "经当前来源权限核验读取原始页图（原字节，不缓存授权）",
+      params: z.object({ pageId: z.uuid() }), querystring: z.object({ confirmedRevision: z.string().regex(/^[a-f0-9]{24}$/).optional() }) }
+  }, async (request, reply) => {
+    await resolveSourceDetail(app, getCurrentUser(request), { pageId: request.params.pageId });
+    const image = await readPageImageBytes(app, request.params.pageId, request.query.confirmedRevision);
+    return reply.type(image.contentType).header("Content-Disposition", "inline").header("Cache-Control", "private, no-store")
+      .header("X-Content-Type-Options", "nosniff").send(image.bytes);
+  });
 
   const sourceDetailQuerySchema = z.object({
     documentId: z.uuid("文档 ID 格式不正确").optional(),

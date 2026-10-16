@@ -1,0 +1,60 @@
+{
+  "id": "T08",
+  "group": "full-page",
+  "question": "把第90页原图、备注和完整厚度表打开。",
+  "status": "PASS",
+  "conversationId": "f577cbdf-c88a-4e80-b44f-ace3e9b83f07",
+  "answer": "即使参数相同，也不能据此认定构造做法完全相同。以下分别列出确认热工表记录的材料层顺序；完整防水、隔汽和施工做法仍需核对原始构造简图。\n\n- **平屋面（正置，级防水）**：1 混合砂浆（20mm） → 2 钢筋混凝土楼板（120mm） → 4 II型VICP复合保温板（包覆浆料）（10mm） → 4 II型VICP复合保温板（真空绝热板）（逐档可变） → 4 II型VICP复合保温板（包覆浆料）（10mm） → 5 LC7.5轻集料混凝土（30mm） → 6 M15水泥砂浆（20mm） → 7 M15水泥砂浆（20mm）。来源印刷页码 90。\n\n印刷页码 90：1.屋面采用结构找坡时，可取消找坡层。\n\n印刷页码 90：2.当结构找坡时，取消表中的找坡层并另行计算。\n\n印刷页码 90：3.当为倒置式屋面时，不必设置隔汽层。\n\n印刷页码 90：4.表中数值均按现浇屋面板考虑，若为预制空心板，应同时考虑屋面板上的水泥砂浆对屋面保温隔热的影响。",
+  "facts": [
+    {
+      "page": "90",
+      "constructionId": "kp-7efbca30489298939c357831-0",
+      "optionId": "kp-7efbca30489298939c357831-0-o4",
+      "label": "平屋面（正置，级防水）",
+      "placement": "UPRIGHT",
+      "thickness": 25,
+      "r": 6.169,
+      "k": 0.162,
+      "base": "钢筋混凝土楼板",
+      "versionId": "b99c57d8-4bb4-4db2-b34b-a6acd24ace43",
+      "revision": "7efbca30489298939c357831",
+      "fieldKeys": [
+        "thicknessMm"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "page": {
+        "documentId": "a4ea71e1-d90c-4db6-b9a2-b6fde8bad52f",
+        "pageId": "0c37bd1f-4aba-4bf1-bd24-1fa37ddf70b2",
+        "documentTitle": "复杂建筑热工图集 · 隔离人工基线（程序模拟审核）",
+        "versionId": "b99c57d8-4bb4-4db2-b34b-a6acd24ace43",
+        "pageLabelSource": "MANUAL",
+        "pageLabelVerified": true,
+        "docNumber": "J/CABEE 26J702 / UAT",
+        "pageNumber": 2,
+        "physicalPageNumber": 2,
+        "pageLabel": "90",
+        "imageUrl": "[AUTHORIZED_URL_REDACTED]"
+      },
+      "revision": "7efbca30489298939c357831",
+      "groups": 2,
+      "options": [
+        6,
+        6
+      ],
+      "notes": [
+        "1.屋面采用结构找坡时，可取消找坡层。",
+        "2.当结构找坡时，取消表中的找坡层并另行计算。",
+        "3.当为倒置式屋面时，不必设置隔汽层。",
+        "4.表中数值均按现浇屋面板考虑，若为预制空心板，应同时考虑屋面板上的水泥砂浆对屋面保温隔热的影响。"
+      ]
+    }
+  ],
+  "historyReturned": true,
+  "persistedUrlFree": true,
+  "solutionStates": 0,
+  "reports": 0,
+  "snapshots": 0
+}

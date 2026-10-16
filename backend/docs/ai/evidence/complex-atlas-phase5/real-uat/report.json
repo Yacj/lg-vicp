@@ -1,0 +1,526 @@
+{
+  "scope": "真实隔离DB/Redis/OSS/正式HTTP-SSE/真实模型；事实由人工基线装载，程序模拟审核，不冒充真实人工复核",
+  "startedAt": "2026-10-16T05:57:24.478Z",
+  "setup": [
+    {
+      "step": "未确认发布门禁",
+      "response": {
+        "http": 200,
+        "success": false,
+        "error": {
+          "code": 400,
+          "message": "当前版本尚未审核通过，不能发布。",
+          "details": {
+            "errorCode": "KNOWLEDGE_VERSION_NOT_APPROVED"
+          }
+        },
+        "requestId": "req-8"
+      }
+    },
+    {
+      "step": "正式审核发布接口",
+      "passed": true
+    },
+    {
+      "step": "B端知识库测试 89-20",
+      "result": {
+        "name": "89-20",
+        "query": "I型VICP坡屋面正置和倒置，20mm的传热系数分别多少？看下表。",
+        "http": 200,
+        "contentType": "text/event-stream; charset=utf-8",
+        "events": [
+          {
+            "event": "message",
+            "data": {
+              "messageId": "dd4d93b3-f54c-4852-8da6-4694203e0096",
+              "userMessageId": "3a3c991b-4f97-4718-be35-55b4eab139cb",
+              "conversationId": "d9cf40b9-9953-49c4-8130-b5ecab944669",
+              "requestId": "req-f"
+            }
+          },
+          {
+            "event": "progress",
+            "data": {
+              "stage": "analyzing",
+              "message": "正在分析问题..."
+            }
+          },
+          {
+            "event": "progress",
+            "data": {
+              "stage": "checking",
+              "message": "正在核对检索资料和计算结果..."
+            }
+          },
+          {
+            "event": "progress",
+            "data": {
+              "stage": "composing",
+              "message": "正在整理回答..."
+            }
+          },
+          {
+            "event": "delta",
+            "data": {
+              "text": "正置和倒置为并列两种构造，需分别查询，不能合并为单一placement约束\n多个不同构造属性不能收窄为任意一个值，请分别查询或保留全部对象。\n指标目标值缺少可靠依据，请确认。"
+            }
+          },
+          {
+            "event": "progress",
+            "data": {
+              "stage": "completed",
+              "message": "回答整理完成"
+            }
+          },
+          {
+            "event": "done",
+            "data": {
+              "messageId": "dd4d93b3-f54c-4852-8da6-4694203e0096",
+              "conversationId": "d9cf40b9-9953-49c4-8130-b5ecab944669",
+              "finishReason": "COMPLETED",
+              "usage": {},
+              "model": {
+                "id": "deepseek-chat"
+              },
+              "promptVersion": {
+                "id": "f3f5a2ff-8436-4101-b11a-6ed5ce8b3c26",
+                "version": 1
+              },
+              "sources": [],
+              "latencyMs": 5806
+            }
+          }
+        ],
+        "blocks": [],
+        "facts": []
+      }
+    },
+    {
+      "step": "B端知识库测试 90-20",
+      "result": {
+        "name": "90-20",
+        "query": "II型平屋面正置和倒置的20mm参数一样吗？",
+        "http": 200,
+        "contentType": "text/event-stream; charset=utf-8",
+        "events": [
+          {
+            "event": "message",
+            "data": {
+              "messageId": "0299e7de-abdf-4020-a10a-14216ac60ecd",
+              "userMessageId": "1627fd03-8277-4f6b-8393-faa32710875a",
+              "conversationId": "ecc63a59-2144-456b-a9e0-26c664d42958",
+              "requestId": "req-g"
+            }
+          },
+          {
+            "event": "progress",
+            "data": {
+              "stage": "analyzing",
+              "message": "正在分析问题..."
+            }
+          },
+          {
+            "event": "progress",
+            "data": {
+              "stage": "checking",
+              "message": "正在核对检索资料和计算结果..."
+            }
+          },
+          {
+            "event": "progress",
+            "data": {
+              "stage": "composing",
+              "message": "正在整理回答..."
+            }
+          },
+          {
+            "event": "delta",
+            "data": {
+              "text": "用户同时询问正置和倒置，未指定单一放置方式，不能添加单值placement约束"
+            }
+          },
+          {
+            "event": "progress",
+            "data": {
+              "stage": "completed",
+              "message": "回答整理完成"
+            }
+          },
+          {
+            "event": "done",
+            "data": {
+              "messageId": "0299e7de-abdf-4020-a10a-14216ac60ecd",
+              "conversationId": "ecc63a59-2144-456b-a9e0-26c664d42958",
+              "finishReason": "COMPLETED",
+              "usage": {},
+              "model": {
+                "id": "deepseek-chat"
+              },
+              "promptVersion": {
+                "id": "f3f5a2ff-8436-4101-b11a-6ed5ce8b3c26",
+                "version": 1
+              },
+              "sources": [],
+              "latencyMs": 4834
+            }
+          }
+        ],
+        "blocks": [],
+        "facts": []
+      }
+    },
+    {
+      "step": "B端知识库测试 75-20",
+      "result": {
+        "name": "75-20",
+        "query": "外墙C1-3和C1-4都是20mm，哪个K小？基层什么材料？",
+        "http": 200,
+        "contentType": "text/event-stream; charset=utf-8",
+        "events": [
+          {
+            "event": "message",
+            "data": {
+              "messageId": "08e2c2e2-c5d3-4b04-ae53-4fbc69137d57",
+              "userMessageId": "d99dc6a0-18a4-4bbe-8820-0e58819a9080",
+              "conversationId": "162f3049-b106-4b70-9be7-719915a6e413",
+              "requestId": "req-h"
+            }
+          },
+          {
+            "event": "progress",
+            "data": {
+              "stage": "analyzing",
+              "message": "正在分析问题..."
+            }
+          },
+          {
+            "event": "progress",
+            "data": {
+              "stage": "checking",
+              "message": "正在核对检索资料和计算结果..."
+            }
+          },
+          {
+            "event": "progress",
+            "data": {
+              "stage": "composing",
+              "message": "正在整理回答..."
+            }
+          },
+          {
+            "event": "delta",
+            "data": {
+              "text": "用户询问基层什么材料，但未指定具体基层材料，无法唯一确定\n指标目标值缺少可靠依据，请确认。"
+            }
+          },
+          {
+            "event": "progress",
+            "data": {
+              "stage": "completed",
+              "message": "回答整理完成"
+            }
+          },
+          {
+            "event": "done",
+            "data": {
+              "messageId": "08e2c2e2-c5d3-4b04-ae53-4fbc69137d57",
+              "conversationId": "162f3049-b106-4b70-9be7-719915a6e413",
+              "finishReason": "COMPLETED",
+              "usage": {},
+              "model": {
+                "id": "deepseek-chat"
+              },
+              "promptVersion": {
+                "id": "f3f5a2ff-8436-4101-b11a-6ed5ce8b3c26",
+                "version": 1
+              },
+              "sources": [],
+              "latencyMs": 5184
+            }
+          }
+        ],
+        "blocks": [],
+        "facts": []
+      }
+    }
+  ],
+  "cases": [
+    {
+      "id": "T01",
+      "group": "roof-I",
+      "question": "I型VICP坡屋面正置和倒置，20mm的传热系数分别多少？看下表。",
+      "status": "FAIL",
+      "conversationId": "2bd09bdf-68f3-4a53-b527-4b7c12d42115",
+      "answer": "你要找的是保温板自身热阻 R、整墙总热阻 R₀，还是传热系数 K？",
+      "facts": [],
+      "pages": [],
+      "historyReturned": true,
+      "persistedUrlFree": true,
+      "solutionStates": 0,
+      "reports": 0,
+      "snapshots": 0,
+      "error": {
+        "name": "AssertionError",
+        "message": "命中行数必须准确，不能串构造或多返回别的档位\n\n0 !== 2\n"
+      }
+    },
+    {
+      "id": "T02",
+      "group": "roof-I",
+      "question": "改成25厚，只看倒置。",
+      "status": "FAIL",
+      "conversationId": "2bd09bdf-68f3-4a53-b527-4b7c12d42115",
+      "answer": "想确认一下：请指定这轮要讨论的保温体系或实际基层；可以先整理参考选型框架。",
+      "facts": [],
+      "pages": [],
+      "historyReturned": true,
+      "persistedUrlFree": true,
+      "solutionStates": 0,
+      "reports": 0,
+      "snapshots": 0,
+      "error": {
+        "name": "AssertionError",
+        "message": "命中行数必须准确，不能串构造或多返回别的档位\n\n0 !== 1\n"
+      }
+    },
+    {
+      "id": "T03",
+      "group": "roof-II",
+      "question": "II型平屋面正置和倒置的20mm参数一样吗？",
+      "status": "FAIL",
+      "conversationId": "74336a33-140f-4a78-956c-1812e6027f94",
+      "answer": "想确认一下：请指定这轮要讨论的保温体系或实际基层；可以先整理参考选型框架。",
+      "facts": [],
+      "pages": [],
+      "historyReturned": true,
+      "persistedUrlFree": true,
+      "solutionStates": 0,
+      "reports": 0,
+      "snapshots": 0,
+      "error": {
+        "name": "AssertionError",
+        "message": "命中行数必须准确，不能串构造或多返回别的档位\n\n0 !== 2\n"
+      }
+    },
+    {
+      "id": "T04",
+      "group": "roof-II",
+      "question": "它们做法是不是也完全一样？",
+      "status": "PARTIAL",
+      "conversationId": "74336a33-140f-4a78-956c-1812e6027f94",
+      "answer": "想确认一下：“它们”指代不明：上一轮助手未给出任何具体构造或型号，无法确定比较对象。",
+      "facts": [],
+      "pages": [],
+      "historyReturned": true,
+      "persistedUrlFree": true,
+      "solutionStates": 0,
+      "reports": 0,
+      "snapshots": 0
+    },
+    {
+      "id": "T05",
+      "group": "wall",
+      "question": "外墙C1-3和C1-4都是20mm，哪个K小？基层什么材料？",
+      "status": "FAIL",
+      "conversationId": "76906f51-a75b-4655-b345-fb8d1489cda6",
+      "answer": "想确认一下：请指定这轮要讨论的保温体系或实际基层；可以先整理参考选型框架。",
+      "facts": [],
+      "pages": [],
+      "historyReturned": true,
+      "persistedUrlFree": true,
+      "solutionStates": 0,
+      "reports": 0,
+      "snapshots": 0,
+      "error": {
+        "name": "AssertionError",
+        "message": "命中行数必须准确，不能串构造或多返回别的档位\n\n0 !== 2\n"
+      }
+    },
+    {
+      "id": "T06",
+      "group": "ambiguous",
+      "question": "只看倒置屋面25厚的K。",
+      "status": "PARTIAL",
+      "conversationId": "4dcb459b-689a-4d2b-96b2-67458969dcec",
+      "answer": "想确认一下：请指定这轮要讨论的保温体系或实际基层；可以先整理参考选型框架。",
+      "facts": [],
+      "pages": [],
+      "historyReturned": true,
+      "persistedUrlFree": true,
+      "solutionStates": 0,
+      "reports": 0,
+      "snapshots": 0
+    },
+    {
+      "id": "T07",
+      "group": "concept",
+      "question": "I型VICP和I级防水一样吗？",
+      "status": "PARTIAL",
+      "conversationId": "c185016f-5a65-4974-aa58-f1659d970678",
+      "answer": "不一样。这是两个不同维度上的概念：\n\n**I型VICP**\n指的是 VICP（真空绝热复合保温板）的产品型号/系列。在屋面和墙面参考表里能看到“Ⅰ型VICP复合保温板”“Ⅱ型VICP复合保温板”这样的区分，主要差别在于配套的包覆浆料厚度等构造参数不同。\n\n**I级防水**\n指的是屋面防水等级。它是按建筑的防水设防要求划分的等级，与用哪一款保温产品无关。同一张参考表里，同一款“Ⅰ型VICP”既可以出现在“Ⅰ级防水”的构造中，防水做法本身是另外的构造层。\n\n**简单说：**\n- I型VICP = 保温板的型号\n- I级防水 = 屋面的防水设防等级\n\n两者不互相决定，也不存在“一型对应一级”的对应关系。选保温板看热工和构造要求，防水等级看建筑本身的防水设防需求，设计时通常是分别确定、再组合到同一构造里。\n\n依据：《复杂建筑热工图集·隔离人工基线（程序模拟审核）》建筑屋面热工计算参考选用表（Ⅰ型VICP屋面保温系统）第89页、第90页。\n\n需要的话，可以进一步帮你看某个具体构造（比如坡屋面正置/倒置）里保温板和防水层分别是哪一层。",
+      "facts": [],
+      "pages": [],
+      "historyReturned": true,
+      "persistedUrlFree": true,
+      "solutionStates": 0,
+      "reports": 0,
+      "snapshots": 0
+    },
+    {
+      "id": "T08",
+      "group": "full-page",
+      "question": "把第90页原图、备注和完整厚度表打开。",
+      "status": "FAIL",
+      "conversationId": "9a5303eb-bd40-473d-94f9-e4b441e88221",
+      "answer": "当前没有可定位的候选，请先查询已有档位或选择方案。",
+      "facts": [],
+      "pages": [],
+      "historyReturned": true,
+      "persistedUrlFree": true,
+      "solutionStates": 0,
+      "reports": 0,
+      "snapshots": 0,
+      "error": {
+        "name": "AssertionError",
+        "message": "The expression evaluated to a falsy value:\n\n  assert.ok(page)\n"
+      }
+    },
+    {
+      "id": "T09",
+      "group": "resistance",
+      "question": "20mm保温层的热阻是整体传热阻吗？",
+      "status": "PARTIAL",
+      "conversationId": "f457b53a-0e94-439c-a0d1-faee31281cbe",
+      "answer": "不是。20mm 指的是保温层本身的厚度，对应的热阻只是**保温层这一层的热阻**，不是整体传热阻。\n\n以资料里 I 型 VICP 屋面的数据为例：\n\n- 保温层（真空绝热板）20mm 时，**产品层热阻 R = 4.800 (m²·K)/W**，这是保温层自身的热阻；\n- 整体传热阻要把各构造层（砂浆、钢筋混凝土楼板、找平层、粘结砂浆层等）的热阻相加，再计入内外表面换热阻（Ri=0.11、Re=0.04）；\n- 正置坡屋面 20mm 对应的**整体传热阻为 5.225 (m²·K)/W，传热系数 K=0.191 W/(m²·K)**。\n\n所以你看到的 4.800 是产品层热阻，5.225 才是包括其他构造层在内的整体传热阻，两者不是一回事。\n\n需要说明的是，这里的数值是 I 型 VICP 坡屋面构造下的结果；不同构造（如平屋面 II 型、倒置式）因其余构造层不同，整体传热阻也会不同。\n\n依据：《复杂建筑热工图集 · 隔离人工基线（程序模拟审核）》第 89 页（坡屋面正置，Ⅰ型VICP 屋面保温系统）；《销售与设计院UAT测试图集》第 23 页。",
+      "facts": [],
+      "pages": [],
+      "historyReturned": true,
+      "persistedUrlFree": true,
+      "solutionStates": 0,
+      "reports": 0,
+      "snapshots": 0
+    },
+    {
+      "id": "T10",
+      "group": "compliance",
+      "question": "这些屋面做法在某省2025年能达标吗？生成正式报告。",
+      "status": "PARTIAL",
+      "conversationId": "2ec40118-8052-449d-9c4e-ef67daac1680",
+      "answer": "想确认一下：缺少具体屋面做法/构造编号及省份名称，无法核对合规性。",
+      "facts": [],
+      "pages": [],
+      "historyReturned": true,
+      "persistedUrlFree": true,
+      "solutionStates": 0,
+      "reports": 0,
+      "snapshots": 0
+    },
+    {
+      "id": "T11",
+      "group": "verify",
+      "question": "确认一下这里的R=5.369是否正确，不是确认方案。",
+      "status": "PARTIAL",
+      "conversationId": "fc4d2f22-c2b7-4eb8-adc6-567a1a4e03e5",
+      "answer": "请补充要核对的构造编号；若已有多个构造，还需明确对应来源和保温板厚度。",
+      "facts": [],
+      "pages": [],
+      "historyReturned": true,
+      "persistedUrlFree": true,
+      "solutionStates": 0,
+      "reports": 0,
+      "snapshots": 0
+    }
+  ],
+  "permissions": [
+    {
+      "name": "DRAFT不能向C端来源开放",
+      "passed": true,
+      "response": {
+        "http": 200,
+        "success": false,
+        "error": {
+          "code": 404,
+          "message": "知识资料不存在或尚未发布"
+        },
+        "requestId": "req-1"
+      }
+    },
+    {
+      "name": "别人的会话不可读取",
+      "response": {
+        "http": 200,
+        "success": false,
+        "error": {
+          "code": 404,
+          "message": "AI 会话不存在或无权查看"
+        },
+        "requestId": "req-x"
+      }
+    },
+    {
+      "name": "C端不可访问B端审核",
+      "response": {
+        "http": 200,
+        "success": false,
+        "error": {
+          "code": 403,
+          "message": "当前登录端无权访问后台接口"
+        },
+        "requestId": "req-i"
+      }
+    },
+    {
+      "name": "无令牌不可访问B端审核",
+      "response": {
+        "http": 200,
+        "success": false,
+        "error": {
+          "code": 401,
+          "message": "登录状态无效或已过期"
+        },
+        "requestId": "req-j"
+      }
+    }
+  ],
+  "isolation": {
+    "database": "vicp_ai_uat_b2de2058b3e34b129628330d8757e180",
+    "prefix": "vicp-ai-uat-b2de2058b3e34b129628330d8757e180"
+  },
+  "fixture": {
+    "documentId": "bd6b4d13-69b3-48f3-908d-1087daaaa4cc",
+    "versionId": "14a7f12f-c1fd-4cb3-a363-61569c3f995f",
+    "factsOrigin": "MANUAL_SOURCE_BASELINE，非真实Vision确认产物",
+    "corrections": [
+      {
+        "page": 90,
+        "group": 0,
+        "layerIndices": [
+          5,
+          6,
+          7
+        ],
+        "before": [
+          "4",
+          "5",
+          "6"
+        ],
+        "after": [
+          "5",
+          "6",
+          "7"
+        ],
+        "evidence": "原图上半表LC7.5及两行M15的源序号；仅临时副本，原夹具不改"
+      }
+    ]
+  },
+  "objectKeys": [
+    "vicp-ai-uat-b2de2058b3e34b129628330d8757e180/complex-atlas/source-89.png",
+    "vicp-ai-uat-b2de2058b3e34b129628330d8757e180/complex-atlas/source-90.png",
+    "vicp-ai-uat-b2de2058b3e34b129628330d8757e180/complex-atlas/source-75.png"
+  ],
+  "privateBridgeFile": "C:\\Users\\admin\\AppData\\Local\\Temp\\vicp-atlas-uat-ee75b650-0651-4f50-bfa5-81d04022699f.json",
+  "readyForBrowser": true,
+  "finishedTurnsAt": "2026-10-16T05:59:32.792Z",
+  "cleanup": "PASS",
+  "finishedAt": "2026-10-16T06:34:06.347Z"
+}

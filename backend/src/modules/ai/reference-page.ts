@@ -45,6 +45,9 @@ export interface ReferencePageBlock {
     kValue?: number;
   };
   page: {
+    versionId?: string;
+    pageLabelSource?: string | null;
+    pageLabelVerified?: boolean | null;
     documentId: string;
     pageId: string;
     documentTitle: string;
@@ -96,6 +99,7 @@ export interface ReferencePageSource {
 }
 
 export interface StoredReferencePage {
+  versionId?: string;
   answerStyle?: "THERMAL_SOLUTIONS";
   primaryFieldKeys?: PageReferenceHighlight["fieldKeys"];
   renderModel?: KnowledgePageRenderModel | null;
@@ -117,19 +121,24 @@ function formatNumber(value: number): string {
   return text.includes(".") ? text.replace(/0+$/, "").replace(/\.$/, "") : text;
 }
 
-export function buildHighlights(candidate: ReferencePageCandidate): ReferencePageHighlight[] {
+export function buildHighlights(candidate: ReferencePageCandidate, sourceColumns?: KnowledgePageRenderModel["constructions"][number]["sourceColumns"]): ReferencePageHighlight[] {
+  const label = (field: typeof THERMAL_PAGE_FIELDS[number], fallback: string) => {
+    const own = sourceColumns?.filter(column => column.fieldKey === field);
+    const column = own?.length === 1 ? own[0] : undefined;
+    return column ? `${column.groupLabel ? `${column.groupLabel} · ` : ""}${column.label}${column.symbol && !column.label.includes(column.symbol) ? ` ${column.symbol}` : ""}${column.unit ? ` (${column.unit})` : ""}` : fallback;
+  };
   const highlights: ReferencePageHighlight[] = [];
   if (candidate.thicknessMm != null) {
     highlights.push({ field: "thicknessMm", label: "厚度", value: `${formatNumber(candidate.thicknessMm)} mm` });
   }
   if (candidate.productThermalResistance != null) {
-    highlights.push({ field: "productR", label: "产品层热阻 R", value: formatNumber(candidate.productThermalResistance) });
+    highlights.push({ field: "productR", label: label("productThermalResistance", "产品整体热阻（源文待核）"), value: formatNumber(candidate.productThermalResistance) });
   }
   if (candidate.totalThermalResistance != null) {
-    highlights.push({ field: "rValue", label: "外墙主断面总热阻 R₀", value: formatNumber(candidate.totalThermalResistance) });
+    highlights.push({ field: "rValue", label: label("totalThermalResistance", "整构造传热阻（源文符号待核）"), value: formatNumber(candidate.totalThermalResistance) });
   }
   if (candidate.kValue != null) {
-    highlights.push({ field: "kValue", label: "传热系数 K", value: formatNumber(candidate.kValue) });
+    highlights.push({ field: "kValue", label: label("kValue", "传热系数 K"), value: formatNumber(candidate.kValue) });
   }
   return highlights;
 }
@@ -168,12 +177,13 @@ export function bindReferencePageMatch(candidate: ReferencePageCandidate, page: 
   if (records.length !== 1) return null;
   const { construction, option } = records[0]!;
   return { pageId: page.pageId, constructionId: construction.constructionId, optionId: option.optionId,
-    fieldKeys: [...THERMAL_PAGE_FIELDS], candidateId: candidate.id, summary: buildSummary(candidate), highlights: buildHighlights(candidate) };
+    fieldKeys: [...THERMAL_PAGE_FIELDS], candidateId: candidate.id, summary: buildSummary(candidate), highlights: buildHighlights(candidate, construction.sourceColumns) };
 }
 
 /** 正式消息只保存来源标识/快照，不保存会过期的签名 URL。 */
 export function storeReferencePageBlocks(blocks: readonly ReferencePageBlock[]): StoredReferencePage[] {
   return blocks.map(block => ({ documentId: block.page.documentId, pageId: block.page.pageId,
+    ...(block.page.versionId ? { versionId: block.page.versionId } : {}),
     documentTitle: block.page.documentTitle, docNumber: block.page.docNumber, physicalPageNumber: block.page.physicalPageNumber,
     pageLabel: block.page.pageLabel, summary: block.summary, highlights: block.highlights,
     matches: block.matches, renderModel: block.renderModel, answerStyle: block.answerStyle, primaryFieldKeys: block.primaryFieldKeys }));

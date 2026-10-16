@@ -2,6 +2,7 @@
 import type { AiReferencePage, ReferenceHighlight } from '@/api/reference-page'
 import { computed, ref } from 'vue'
 import { formatReferenceNumber, referenceSolutions } from '@/utils/referencePage'
+import { thermalColumnHeader } from '@/utils/thermalSourceLabels'
 
 const props = defineProps<{ page: AiReferencePage, limit?: number }>()
 const emit = defineEmits<{ open: [match?: ReferenceHighlight] }>()
@@ -45,9 +46,9 @@ const details = ref<Record<string, boolean>>({})
         </view>
       </view>
       <view v-if="details[solution.key] || page.primaryFieldKeys?.some(key => key === 'productThermalResistance' || key === 'totalThermalResistance')" class="solution__details text-3">
-        <view>产品层热阻 R：{{ formatReferenceNumber(solution.option.productThermalResistance, 3) }} (m²·K)/W</view>
+        <view>{{ thermalColumnHeader(solution.construction ? [solution.construction] : [], 'productThermalResistance').label }}：{{ formatReferenceNumber(solution.option.productThermalResistance, 3) }} (m²·K)/W</view>
         <view class="mt-1">
-          总热阻 R₀：{{ formatReferenceNumber(solution.option.totalThermalResistance, 3) }} (m²·K)/W
+          {{ thermalColumnHeader(solution.construction ? [solution.construction] : [], 'totalThermalResistance').label }}：{{ formatReferenceNumber(solution.option.totalThermalResistance, 3) }} {{ thermalColumnHeader(solution.construction ? [solution.construction] : [], 'totalThermalResistance').unit }}
         </view>
       </view>
       <wd-button v-if="!page.primaryFieldKeys?.some(key => key === 'productThermalResistance' || key === 'totalThermalResistance')" size="small" variant="text" @click="details[solution.key] = !details[solution.key]">

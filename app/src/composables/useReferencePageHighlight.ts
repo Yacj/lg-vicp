@@ -14,14 +14,15 @@ export function useReferencePageHighlight(input: () => { model?: KnowledgePageRe
   let lastTarget = ''
   let revision = 0
   const anchor = (constructionIndex: number, optionIndex?: number) => `${input().anchorPrefix || 'reference'}-construction-${constructionIndex}${optionIndex == null ? '' : `-option-${optionIndex}`}`
-  watch(() => input().pageId, () => {
+  watch(() => `${input().pageId}:${input().model?.confirmedRevision || ''}`, () => {
     enabled.value = true
     lastTarget = ''
     tab.value = input().model ? input().initialView || '页面内容' : '原始页面'
   })
-  watch(matches, () => {
-    const preferred = input().preferred
-    const position = preferred ? matches.value.findIndex(match => match.constructionId === preferred.constructionId && match.optionId === preferred.optionId) : -1
+  const identity = (match?: ReferenceHighlight) => `${match?.constructionId || ''}:${match?.optionId || ''}`
+  watch([matches, () => input().preferred], ([items, preferred], [previous, oldPreferred]) => {
+    const target = identity(preferred) !== identity(oldPreferred) ? preferred : previous?.[index.value] || preferred
+    const position = target ? items.findIndex(match => identity(match) === identity(target)) : -1
     index.value = position >= 0 ? position : 0
   }, { immediate: true })
   watch([active, tab], async () => {

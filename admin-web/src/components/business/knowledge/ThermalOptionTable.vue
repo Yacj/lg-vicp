@@ -5,6 +5,7 @@ import type { KnowledgePageTableRow } from '@/utils/knowledge-construction-table
 import { computed, h } from 'vue'
 import { formatRenderNumber, formatThermalNumber, optionHasWarning } from '@/utils/knowledge-page-render'
 import { pageConstructionCellSpan, pageConstructionTableRows } from '@/utils/knowledge-construction-table'
+import { constructionAttributes, constructionLabel, thermalColumnHeader, thermalGroupHeader } from '@/utils/knowledge-thermal-labels'
 
 const props = withDefaults(defineProps<{
   construction?: KnowledgeConstructionContent
@@ -28,37 +29,47 @@ function optionCell(row: KnowledgePageTableRow, key: ThermalFieldKey): ReturnTyp
     title: key === 'productThermalResistance' ? '产品层热阻 R' : undefined,
   }, key === 'thicknessMm' ? formatRenderNumber(row.option[key]) : formatThermalNumber(row.option[key]))
 }
-const heading = (label: string, unit: string) => () => h('span', [label, h('small', unit)])
+function heading(field: Parameters<typeof thermalColumnHeader>[1]) {
+  return () => {
+    const { label, unit } = thermalColumnHeader(constructions.value, field)
+    return h('span', [label, unit ? h('small', unit) : null])
+  }
+}
 const columns = computed<PrimaryTableCol<TableRowData>[]>(() => {
   const result: PrimaryTableCol<TableRowData>[] = [
-    { colKey: 'constructionCode', title: '编号', width: 105, align: 'center', className: 'construction-code', cell: (_, { row }) => {
+    { colKey: 'constructionCode', title: '构造 / 原始标签', width: 190, align: 'center', className: 'construction-code', cell: (_, { row }) => {
       const item = row as KnowledgePageTableRow
-      return item.construction.constructionCode || item.construction.title || item.construction.systemName || '—'
+      return h('div', [h('strong', constructionLabel(item.construction)), ...constructionAttributes(item.construction).map(text => h('small', text))])
     } },
     { colKey: 'name', title: '构造层', width: 220, className: 'construction-material', cell: (_, { row }) => {
       const item = row as KnowledgePageTableRow
       const name = item.layer?.name || item.construction.material?.name || '厚度档位'
-      return `${item.order != null ? `${item.order}. ` : ''}${name}`
+      return h('div', [item.layer?.sourceGroupLabel ? h('small', item.layer.sourceGroupLabel) : null, item.layer?.sourceLayerLabel ? `${item.layer.sourceLayerLabel} · ${name}` : `${item.order != null ? `${item.order}. ` : ''}${name}`])
     } },
-    { colKey: 'thicknessMm', title: heading('分层厚度', 'mm'), width: 95, align: 'center', cell: (_, { row }) => {
+    { colKey: 'thicknessMm', title: heading('thicknessMm'), width: 95, align: 'center', cell: (_, { row }) => {
       const item = row as KnowledgePageTableRow
       return item.kind === 'option' ? optionCell(item, 'thicknessMm') : formatRenderNumber(item.layer?.thicknessMm)
     } },
-    { colKey: 'lambda', title: heading('导热系数 λ', 'W/(m·K)'), width: 120, align: 'center', cell: (_, { row }) => {
+    { colKey: 'lambda', title: heading('lambda'), width: 120, align: 'center', cell: (_, { row }) => {
       const item = row as KnowledgePageTableRow
       return formatThermalNumber(item.layer?.lambda ?? (item.kind === 'option' ? item.construction.material?.lambda : null))
     } },
-    { colKey: 'alpha', title: '修正系数 α', width: 100, align: 'center', cell: (_, { row }) => {
+    { colKey: 'alpha', title: heading('alpha'), width: 100, align: 'center', cell: (_, { row }) => {
       const item = row as KnowledgePageTableRow
       return formatThermalNumber(item.layer?.alpha ?? (item.kind === 'option' ? item.construction.material?.alpha : null), 2)
     } },
-    { colKey: 'rValue', title: heading('热阻 R', 'm²·K/W'), width: 110, align: 'center', cell: (_, { row }) => {
+    { colKey: 'rValue', title: heading('rValue'), width: 110, align: 'center', cell: (_, { row }) => {
       const item = row as KnowledgePageTableRow
-      return item.kind === 'option' ? optionCell(item, 'productThermalResistance') : formatThermalNumber(item.layer?.rValue)
+      return formatThermalNumber(item.kind === 'option'
+        ? item.option.layerValues?.find(value => value.layerIndex === item.layerIndex)?.rValue
+        : item.layer?.rValue)
     } },
-    { colKey: 'wallSection', title: '外墙主断面', align: 'center', children: [
-      { colKey: 'totalThermalResistance', title: heading('传热阻 R₀', 'm²·K/W'), width: 120, align: 'center', className: 'wall-section-value', cell: (_, { row }) => optionCell(row as KnowledgePageTableRow, 'totalThermalResistance') },
-      { colKey: 'kValue', title: heading('传热系数 K', 'W/(m²·K)'), width: 130, align: 'center', className: 'wall-section-value', cell: (_, { row }) => optionCell(row as KnowledgePageTableRow, 'kValue') },
+    ...(constructions.value.some(section => section.options.some(option => option.productThermalResistance != null))
+      ? [{ colKey: 'productThermalResistance', title: heading('productThermalResistance'), width: 150, align: 'center' as const, cell: (_: unknown, { row }: { row: TableRowData }) => optionCell(row as KnowledgePageTableRow, 'productThermalResistance') }]
+      : []),
+    { colKey: 'wallSection', title: thermalGroupHeader(constructions.value), align: 'center', children: [
+      { colKey: 'totalThermalResistance', title: heading('totalThermalResistance'), width: 170, align: 'center', className: 'wall-section-value', cell: (_, { row }) => optionCell(row as KnowledgePageTableRow, 'totalThermalResistance') },
+      { colKey: 'kValue', title: heading('kValue'), width: 150, align: 'center', className: 'wall-section-value', cell: (_, { row }) => optionCell(row as KnowledgePageTableRow, 'kValue') },
     ] },
   ]
   if (hasWarnings.value) result.push({ colKey: 'warning', title: '识别提示', width: 100, cell: (_, { row }) => {
@@ -99,6 +110,8 @@ function rowClassName({ row, rowIndex }: { row: TableRowData, rowIndex: number }
 .thermal-option-table :deep(.construction-material), .thermal-option-table :deep(.construction-code) { white-space: normal; overflow-wrap: anywhere; }
 .thermal-option-table :deep(.construction-code) { font-weight: bold; }
 .thermal-option-table :deep(th small) { display: block; font-weight: normal; }
+.thermal-option-table :deep(td small) { display: block; font-weight: normal; color: var(--td-text-color-secondary); }
+.thermal-option-table :deep(th) { white-space: normal; }
 .thermal-option-table :deep(.is-hit td) { background: var(--td-warning-color-1); }
 .thermal-option-table :deep(.is-active td) { border-bottom-color: var(--td-warning-color); }
 /* 主断面两列呈现为贯穿构造的连续区域；保留单元格高度及档位定位。 */

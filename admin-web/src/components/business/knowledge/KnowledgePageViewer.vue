@@ -46,16 +46,16 @@ const debugData = computed(() => JSON.stringify(props.confirmedStructuredData ??
     <header class="knowledge-page-viewer__heading"><h2>页面标题：{{ displayTitle }}</h2><span>印刷页码：{{ pageLabel || model?.pageLabel || '未标注' }}</span></header>
     <t-tabs v-model="tab">
       <t-tab-panel value="image" label="页面原图" :destroy-on-hide="false">
-        <KnowledgePageImage :image-url="pageImageUrl" :title="displayTitle" />
+        <KnowledgePageImage :image-url="pageImageUrl" :page-id="pageId" :title="displayTitle" />
       </t-tab-panel>
       <t-tab-panel value="structured" label="页面内容" :destroy-on-hide="false">
         <ReferenceHighlightBar v-if="incomingMatches.length" :count="highlight.matches.value.length" :index="highlight.index.value" :enabled="highlight.enabled.value" :unresolved="highlight.matches.value.length < incomingMatches.length" @navigate="highlight.navigate" @toggle="highlight.toggle" />
-        <!-- <div v-if="hasAnomaly" class="knowledge-page-viewer__warning" role="status">
+        <div v-if="hasAnomaly" class="knowledge-page-viewer__warning" role="status">
           <span>识别数据可能存在异常</span>
           <t-button v-if="reviewAllowed" size="small" variant="text" @click="emit('review')">进入识别校验</t-button>
           <span v-else>请联系有识别校验权限的管理员核对。</span>
-        </div> -->
-        <!-- <KnowledgeStructuredContent v-if="model" :model="model" :matches="highlight.enabled.value ? highlight.matches.value : []" :active="highlight.active.value" :has-original-image="!!pageImageUrl" @view-original="tab = 'image'" /> -->
+        </div>
+        <KnowledgeStructuredContent v-if="model" :model="model" :matches="highlight.enabled.value ? highlight.matches.value : []" :active="highlight.active.value" :has-original-image="!!pageImageUrl" @view-original="tab = 'image'" />
         <template v-else-if="confirmedStructuredData?.systems.length">
           <KnowledgeRecognizedContent :systems="confirmedStructuredData.systems" :notes="confirmedStructuredData.notes" />
           <details v-if="parsedText || confirmedStructuredData.fullText" class="knowledge-page-viewer__original"><summary>查看页面原文</summary><KnowledgeDocumentContent :content="parsedText || confirmedStructuredData.fullText" /></details>
@@ -65,14 +65,14 @@ const debugData = computed(() => JSON.stringify(props.confirmedStructuredData ??
           <KnowledgeDocumentContent :content="parsedText || confirmedStructuredData?.fullText" :ranges="textHighlights" />
         </template>
       </t-tab-panel>
-      <!-- <t-tab-panel v-if="canInspect" value="recognition" label="识别结果">
+      <t-tab-panel v-if="canInspect" value="recognition" label="识别结果">
         <p class="knowledge-page-viewer__hint">{{ confirmedStructuredData ? '以下为已确认的识别结果，可与页面原图核对。' : '尚未确认识别结果。' }}</p>
         <KnowledgeRecognizedContent v-if="confirmedStructuredData" :systems="confirmedStructuredData.systems" :notes="confirmedStructuredData.notes" />
         <KnowledgeStructuredContent v-else-if="model" :model="model" :matches="[]" />
         <p v-else>暂无识别数据</p>
         <ul v-if="warnings.length"><li v-for="warning in warnings" :key="warning">{{ warning }}</li></ul>
         <details v-if="canDebug"><summary>调试 JSON</summary><pre class="knowledge-page-viewer__json">{{ debugData }}</pre></details>
-      </t-tab-panel> -->
+      </t-tab-panel>
     </t-tabs>
   </section>
 </template>

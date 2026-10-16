@@ -1,4 +1,8 @@
+2026-10-16 复杂图集阶段5真实联合UAT：验收FAIL。隔离库共享服务及H5来源详情12行通过，真实自然SSE未形成引用闭环，芯层R误称产品R、浏览器原图加载仍失败；旧890确认档不回填，A3原值正确但查询回归未过。测试配置源强制只读、全部对象操作统一隔离前缀，派生副本遗漏已精确清理并重跑验证。未部署/迁移业务库/改写旧PDF，见docs/ai/complex-atlas-phase5-2026-10-16.md。
+
 <!-- 2026-08 原文导航收口：CHUNK_REBUILD 仅重建派生 Section/Block/Chunk，保留 Page ID、预览、人工页签、CONFIRMED TOC 与人工映射；双源只从 SEARCH_SOURCE 读取并且未映射页不索引。检索统一限制当前 PUBLISHED、未过期、AI_ENABLED 版本；BROWSE_ONLY 仅浏览；来源详情通过映射返回 ORIGINAL，未映射时不伪造页码。B 端草稿验证走 `POST /api/v1/platform/knowledge/versions/:versionId/test-qa`（`searchWikiHierarchy({ versionId })`，允许 DRAFT），不得把该限定并入生产 `/api/v1/ai/knowledge-qa`。 -->
+
+复杂图集阶段1（2026-10-15）：新v2草稿分离材料层/芯层R、产品整体R和构造R，保留源列头与原构造标签；RenderModel仅透传，不推断构造语义或改R为R₀。旧确认数据不增加默认字段，不改引用hash；新快照重排/重认后旧ID失效。无编号资料可单页确认阅读，缺产品R的结构化数值查表仍需阶段3适配；不得据此自动选方案或生成报告。见docs/ai/complex-atlas-phase1-2026-10-15.md。
 
 2026-10-13 语义匹配强制治理：开放自然语言只走现有resolveDomainTurn→结构化目标/关系/patch/reference/effect→Backend Policy；禁止方案/确认/加入等开放子串、删除否定、参数变化排斥Advice、pending boolean授权或泛化故障澄清。只允许工程格式提取、正式枚举/ID、无损归一、封闭完整命令/问候；副作用仍经权限/revision/来源/状态机。新增灰区快路径必须Rule ID+封闭语法/职责+5正5反3否定引用多轮+无副作用证明+冲突核验+owner批准与CI，缺一禁止。AST精确指纹白名单见docs/ai/semantic-matching-policy.md；不得全项目禁正则，不改资料、Thermal Engine、迁移或业务数据。
 
@@ -19,6 +23,10 @@ Candidate 生命周期（2026-10-12）：查到候选不等于开始方案。普
 正式生产检索中，同一版本存在 page-aware chunks 时必须排除 `metadata.source=DOCUMENT_TEXT` 且 `visualPage=false` 的 Mammoth 无页定位块；只有 B 端 DRAFT 测试可使用该文本回退，并将不可追溯标记返回调试结果。
 
 # AI 与报告
+
+复杂图集阶段3（2026-10-16）：v2确认页的只读参数检索使用confirmed-page-facts，共用现有语义条件与工程值比较；不伪造方案/产品ID，不刷新Candidate或降低热工同步门槛。原始R列名/单位从来源字段呈现，摘要/引用参数条同源。可选confirmedRevision与版本/pageLabel核验信息绑定引用，持久化重读当前确认模型，历史重验发布/项目权限并重签。追问条件独立保存于本人同端同会话/项目的24h只读状态；正式选择/Confirm/Snapshot/PDF保持原门禁。Fixture HTTP/SSE不得冒充真实业务路由/DB/OSS/浏览器UAT。见docs/ai/complex-atlas-phase3-2026-10-16.md。
+
+2026-10-15 C端UAT修复：共享查询服务负责首次/局部改条件与已消费图集回退，无命中保存资料范围；明确指标REPLACE与厚度上下限独立校验。来源/比较不刷新候选，旧序号时间歧义拒绝，明确构造编码仅在同一已消费有权版本读取来源。已确认查看读Snapshot；Domain/Query结构化提案复核最多一次且共用原预算，低置信写入仍拒绝。详见docs/ai/c-uat-fixes-2026-10-15.md。
 
 报告设置驱动PDF（2026-10-14）：复用设置，创建冻结Logo文件身份与企业展示名称；Worker不读最新品牌配置。显示计算过程仅冻结步骤，排除未核验judgment；来源开关只影响完整附录，最低引用/指标/风险保留。前端默认类型和示意预览未修改，见docs/reports/report-settings-pdf-2026-10-14.md。
 

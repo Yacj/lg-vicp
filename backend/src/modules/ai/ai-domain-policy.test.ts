@@ -3,6 +3,35 @@ import { applyDomainPolicy } from "./ai-domain-policy.js";
 import { domainTurnSemanticSchema } from "./ai-domain-semantic.js";
 import { domainSemanticFixture } from "./domain-semantic.fixture.js";
 const state = { taskType: "GENERAL", lastReferenceLookup: { query: { thicknessMm: 45 }, candidateQueryRevision: 7, candidates: [] } } as any;
+it.each(["45厚的3型那种外墙，不同砖墙K差多少？", "查III型45mm的K", "比较不同基层", "按原条件改35mm", "继续刚才35mm对比"])("只读查询%s不需要正式副作用授权", message => {
+  const before = structuredClone(state);
+  const semantic = domainSemanticFixture(message, "REFERENCE_QUERY", { effectRequest: null });
+  expect(applyDomainPolicy(message, semantic, state)).toMatchObject({ mutation: "QUERY", policyReason: "READ_ONLY_QUERY" });
+  expect(state).toEqual(before);
+  expect(applyDomainPolicy(message, { ...semantic, confidence: .5 }, state).intent).toBe("CLARIFY");
+});
+it("事实核对不视为旧序号；真正旧序号与正式报告不共享只读例外", () => {
+  const message = "帮我确认一下K=0.294对不对";
+  const semantic = domainSemanticFixture(message, "REFERENCE_DETAIL", { referenceTime: "EARLIER", factRead: { mode: "VERIFY", metric: "K", historyClaim: false, evidence: message } });
+  expect(applyDomainPolicy(message, semantic, state)).toMatchObject({ intent: "REFERENCE_DETAIL", mutation: "NONE" });
+  expect(applyDomainPolicy(message, { ...semantic, reference: { ...semantic.reference, items: [{ type: "POSITION", value: 2, evidence: message }] } }, state).intent).toBe("CLARIFY");
+  const report = domainSemanticFixture("确认最终方案并生成正式PDF", "REPORT_REQUEST", { effectRequest: null });
+  expect(applyDomainPolicy("确认最终方案并生成正式PDF", report, state)).toMatchObject({ intent: "CLARIFY", mutation: "NONE" });
+});
+it("旧序号时间指代不能复用更新后列表，即使序号存在也只澄清", () => {
+  const message = "刚才那第二个还在吗？";
+  const proposal = domainSemanticFixture(message, "REFERENCE_VIEW", { referenceTime: "EARLIER" });
+  expect(applyDomainPolicy(message, proposal, state)).toMatchObject({ intent: "CLARIFY", mutation: "NONE", policyReason: "REFERENCE_TIME_UNRESOLVED" });
+});
+it("真实UAT-06厚度范围与精确档独立grounding，不把20以内当20mm档", () => {
+  const message = "只看20mm以内呢？";
+  const proposal = domainSemanticFixture(message, "REFERENCE_REFINE", { constraintPatch: [{ field: "thicknessMax", op: "SET", value: 20, evidence: "20mm以内" }] });
+  expect(applyDomainPolicy(message, proposal, state)).toMatchObject({ intent: "REFERENCE_REFINE", mutation: "QUERY" });
+  proposal.constraintPatch[0]!.field = "thicknessMm";
+  expect(applyDomainPolicy(message, proposal, state).policyReason).toBe("THICKNESS_EVIDENCE_INVALID");
+  proposal.constraintPatch[0]!.field = "thicknessMax"; proposal.constraintPatch[0]!.value = 30;
+  expect(applyDomainPolicy(message, proposal, state).intent).toBe("CLARIFY");
+});
 it.each(["SOLUTION_ACTION", "REPORT_REQUEST", "THERMAL_CALCULATE", "REFERENCE_QUERY"] as const)("%s 语义只提案，低置信/否定/引用/假设/证据伪造均无副作用", intent => {
   const message = "完整本轮原话";
   const valid = domainSemanticFixture(message, intent);

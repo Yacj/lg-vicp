@@ -4,20 +4,22 @@ import { normalizeThermalLookupQuery, parseThermalLookupMessage } from "./therma
 import { entityFields, traceQueryState, type ThermalQueryState } from "./thermal-query-state.js";
 import { resolveQueryEntities, type QueryAlias, type QueryEntity } from "./thermal-entity-resolver.js";
 import { parseThermalThicknessMessage } from "./thermal-lookup-thickness.js";
+import { groundedPageAttribute, pageAttributeFields, confirmedPageReadFieldSchema } from "../../shared/confirmed-page-query.js";
 
 const metricSchema = z.enum(["K", "TOTAL_R", "PRODUCT_R"]);
 const operatorSchema = z.enum(["EXACT", "APPROX", "MAX_LIMIT", "MIN_LIMIT"]);
 // 单一对象，便于兼容结构化输出网关；null 表示不适用，不允许额外事实字段。
 export const semanticConstraintSchema = z.object({
   type: z.enum(["ENTITY", "METRIC", "THICKNESS"]),
-  operation: z.enum(["SET", "REMOVE", "APPEND", "EXCLUDE"]),
-  field: z.enum([...entityFields, "substrateThickness"]).nullable(),
+  operation: z.enum(["SET", "REMOVE", "APPEND", "EXCLUDE", "REPLACE"]),
+  field: z.enum([...entityFields, ...pageAttributeFields, "substrateThickness"]).nullable(),
   entityText: z.string().nullable(),
   resolvedText: z.string().nullable(),
   metric: metricSchema.nullable(), operator: operatorSchema.nullable(), value: z.number().nullable(),
   evidence: z.string().min(1), hard: z.literal(true), confidence: z.number().min(0).max(1)
 }).strict();
 export const semanticQuerySchema = z.object({
+  readFields: z.array(confirmedPageReadFieldSchema).max(7).optional(),
   queryMode: z.enum(QUERY_LIFECYCLE_MODES),
   intent: z.enum(["REFERENCE_LOOKUP", "THERMAL", "COMPLIANCE", "COMPARISON"]),
   constraints: z.array(semanticConstraintSchema).max(24),
@@ -43,7 +45,7 @@ export function describeNumberRoles(message: string) {
 
 function semanticNumberRole(text: string, raw: string, index: number): string {
   const before = text.slice(0, index), after = text.slice(index + raw.length);
-  if (/^\s*(?:mm|cm|毫米|厘米|公分)\b/i.test(after) || /^\s*(?:毫米|厘米|公分)/.test(after)) return "THICKNESS";
+  if (/^\s*(?:mm|cm|毫米|厘米|公分)\b/i.test(after) || /^\s*(?:毫米|厘米|公分|厚)/.test(after)) return "THICKNESS";
   if (/(?:第|page|p\.)\s*$/i.test(before)) return "PAGE_NUMBER";
   if (/(?:\bK|PRODUCT_R|TOTAL_R|R0)\s*$/i.test(before)) return "THERMAL_TARGET";
   if (/(?:[a-z][a-z0-9_-]*|[-_/])$/i.test(before)) return "SCHEME_CODE_PART";
@@ -82,29 +84,99 @@ export function applySemanticQuery(message: string, semanticInput: unknown, dict
   const semantic = semanticQuerySchema.parse(semanticInput);
   const text = normalizeSemanticText(message);
   let query: ThermalQueryState = semantic.queryMode === "NEW_QUERY" ? {} : { ...previous };
-  query = { ...query, intent: semantic.intent, unresolved: [...semantic.unresolved] };
+  query = { ...query, intent: semantic.intent, unresolved: [...semantic.unresolved],
+    readFields: semantic.readFields?.length ? semantic.readFields : semantic.queryMode === "NEW_QUERY" ? undefined : previous?.readFields };
   const reject = (field: string, reason: string) => { query.unresolved = [...(query.unresolved ?? []), { field, reason }]; };
   if (semantic.confidence < 0.75) reject("query", "这句话有不同理解，请确认查询条件。");
   const updatedMetrics = new Set<string>();
+  let changedSpec: string | undefined;
+  let changedCode: string | undefined;
+  const changedPageAttributes = new Map<string, string>();
   // 先定位体系，再在体系内消解重复构造编号，不能依赖模型数组顺序。
-  const constraints = [...semantic.constraints].sort((a, b) => Number(b.type === "ENTITY" && b.field === "systemId") - Number(a.type === "ENTITY" && a.field === "systemId"));
+  const constraints = [...semantic.constraints].sort((a, b) => Number(b.type === "ENTITY" && b.field === "systemId") - Number(a.type === "ENTITY" && a.field === "systemId")
+    || Number((a.field === "schemeCode" || a.field === "specClass" || a.field === "placement") && a.operation === "APPEND") - Number((b.field === "schemeCode" || b.field === "specClass" || b.field === "placement") && b.operation === "APPEND"));
   for (const constraint of constraints) {
     const evidence = normalizeSemanticText(constraint.evidence);
     if (!text.includes(evidence) || constraint.confidence < 0.75) { reject("query", "部分条件的语义或依据不明确，请确认。"); continue; }
     if (constraint.type === "ENTITY") {
+      if (constraint.field && (pageAttributeFields as readonly string[]).includes(constraint.field)) {
+        const field = constraint.field as typeof pageAttributeFields[number];
+        const literal = constraint.entityText;
+        if (!literal || !evidence.includes(normalizeSemanticText(literal))) { reject(field, "构造属性缺少原话依据。"); continue; }
+        const value = groundedPageAttribute(field, literal);
+        if (!value) { reject(field, "构造属性或印刷页码未能核验，请明确原文。"); continue; }
+        if (field === "placement" && constraint.operation === "APPEND") {
+          query.placements = [...new Set([...(query.placements ?? []), ...(query.placement ? [query.placement] : []), value as "UPRIGHT" | "INVERTED"])];
+          query.placement = undefined;
+          continue;
+        }
+        if (constraint.operation === "REMOVE") {
+          Object.assign(query, { [field]: undefined });
+          if (field === "placement") query.placements = undefined;
+        }
+        else if (constraint.operation === "SET") {
+          if (changedPageAttributes.has(field) && changedPageAttributes.get(field) !== value) reject(field, "多个不同属性不能互相覆盖，请明确分别查询或保留全部对象。");
+          else { changedPageAttributes.set(field, value); Object.assign(query, { [field]: value }); if (field === "placement") query.placements = undefined; }
+        }
+        else reject(field, "多个不同构造属性不能收窄为任意一个值，请分别查询或保留全部对象。");
+        continue;
+      }
       if (constraint.field === "substrateThickness") { reject("substrateThickness", "基层厚度应作为数值条件解析。"); continue; }
       if (!constraint.field || !constraint.entityText || !evidence.includes(normalizeSemanticText(constraint.entityText))) { reject("entity", "指定对象缺少原话依据。"); continue; }
       const term = constraint.resolvedText ?? constraint.entityText;
       // 自然描述可映射到目录名称，但不能凭空建立新的名称/ID。
       const resolved = resolveQueryEntities(term, {}, dictionary.entities.filter(entity => entity.field === constraint.field), dictionary.aliases, query);
-      const field = constraint.field;
+      const field = constraint.field as typeof entityFields[number];
       if (constraint.operation === "REMOVE") {
         Object.assign(query, { [field]: undefined });
         query.removedFields = [...new Set([...(query.removedFields ?? []), field])];
+        if (field === "specClass") query.specClasses = undefined;
+        if (field === "schemeCode") query.constructionCodes = undefined;
         if (field === "systemId") { query.systemIds = undefined; query.systemHint = undefined; }
         continue;
       }
+      // 名称提示及强格式编码只是硬筛选条件，不签发正式目录ID；事实仍从确认来源匹配。
+      if (constraint.operation === "SET" && field === "systemHint") {
+        query.systemHint = constraint.entityText;
+        const named = resolveQueryEntities(constraint.entityText, {}, dictionary.entities, dictionary.aliases);
+        query.systemId = named.systemId; query.systemIds = named.systemIds;
+        continue;
+      }
+      if (constraint.operation === "SET" && field === "schemeCode" && /^[A-Z]{1,4}\d+(?:-\d+)+$/i.test(constraint.entityText)) {
+        if (changedCode && changedCode !== constraint.entityText.toUpperCase()) { reject("schemeCode", "多个构造编码须明确并列，不能用后一个覆盖前一个。"); continue; }
+        changedCode = constraint.entityText.toUpperCase();
+        query.schemeCode = constraint.entityText.toUpperCase(); query.schemeId = undefined;
+        query.constructionCodes = undefined;
+        continue;
+      }
+      if (constraint.operation === "APPEND" && field === "schemeCode" && /^[A-Z]{1,4}\d+(?:-\d+)+$/i.test(constraint.entityText)) {
+        query.constructionCodes = [...new Set([...(query.constructionCodes ?? []), ...(query.schemeCode ? [query.schemeCode] : []), constraint.entityText.toUpperCase()])];
+        query.schemeCode = undefined; query.schemeId = undefined;
+        continue;
+      }
+      if ((constraint.operation === "SET" || constraint.operation === "APPEND") && field === "specClass") {
+        const token = normalizeSemanticText(constraint.entityText).replace(/\s/g, "").replace(/型$/, "").toUpperCase();
+        const classes: Partial<Record<string, "I" | "II" | "III">> = { I: "I", II: "II", III: "III", "1": "I", "2": "II", "3": "III", 一: "I", 二: "II", 三: "III" };
+        const specClass = classes[token];
+        if (specClass) {
+          if (constraint.operation === "APPEND") {
+            query.specClasses = [...new Set([...(query.specClasses ?? []), ...(query.specClass ? [query.specClass] : []), specClass])];
+            query.specClass = undefined; query.productSpecId = undefined; query.catalogProductId = undefined;
+            continue;
+          }
+          if (changedSpec && changedSpec !== specClass) { reject("specClass", "多个型号须明确并列，不能用后一个覆盖前一个。"); continue; }
+          changedSpec = specClass;
+          query.specClasses = undefined;
+          if (query.specClass !== specClass) { query.productSpecId = undefined; query.catalogProductId = undefined; }
+          query.specClass = specClass;
+          continue;
+        }
+      }
       const value = resolved[field];
+      if (field === "catalogProductId" && constraint.operation === "SET") {
+        const named = resolveQueryEntities(constraint.entityText, {}, dictionary.entities.filter(entity => entity.field === field), dictionary.aliases);
+        if (named.catalogProductId !== value) { reject(field, "产品目录身份须由原话正式名称或已配置别名定位，不能以泛称收窄图集型号范围。"); continue; }
+      }
       if ((!value && !resolved.systemIds?.length) || resolved.unresolved?.length) { reject(field, "指定对象对应多个记录或未匹配正式目录，请确认具体对象。"); continue; }
       if (constraint.operation === "EXCLUDE") {
         query.exclusions = [...(query.exclusions ?? []), ...(resolved.systemIds ?? (value ? [value] : [])).map(id => ({ field, value: id }))];
@@ -120,6 +192,10 @@ export function applySemanticQuery(message: string, semanticInput: unknown, dict
         query.removedMetrics = [...new Set([...(query.removedMetrics ?? []), constraint.metric])];
       } else if (constraint.operator && constraint.value != null && groundedValue(constraint)
         && constraint.value > 0 && constraint.value <= (constraint.metric === "K" ? 10 : 100)) {
+        if (constraint.operation === "REPLACE") {
+          query.filters = query.filters?.filter(filter => updatedMetrics.has(filter.metric)) ?? [];
+          query.metric = undefined; query.targetValue = undefined; query.targetK = undefined; query.targetR = undefined;
+        }
         const filters = normalizeThermalLookupQuery(query).filters;
         query.filters = filters.filter(filter => constraint.operation === "APPEND" || updatedMetrics.has(constraint.metric!) || filter.metric !== constraint.metric);
         // 明确符号比较优先于模型分类；容差仍只从原话规则提取。
@@ -173,6 +249,7 @@ export function applySemanticQuery(message: string, semanticInput: unknown, dict
   for (const unresolved of explicitEntities.unresolved ?? []) reject(unresolved.field, unresolved.reason);
   for (const field of entityFields) {
     const expected = explicitEntities[field];
+    if (field === "specClass" && expected && query.specClasses?.some(value => value === expected)) continue;
     if (expected !== undefined && query[field] !== expected) reject(field, "明确指定的对象未被完整保留，请确认。");
   }
   if (explicitEntities.systemIds?.length) {

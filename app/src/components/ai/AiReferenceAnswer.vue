@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { AiReferencePage, ReferenceHighlight } from '@/api/reference-page'
 import { computed, getCurrentInstance, ref } from 'vue'
+import MpHtml from '@/uni_modules/mp-html/components/mp-html/mp-html.vue'
 import { referenceAnswerPageContent } from '@/utils/aiReferenceAnswer'
 import { markdownTagStyle, renderMarkdown } from '@/utils/markdown'
 import AiAnswerReferencePage from './AiAnswerReferencePage.vue'
@@ -25,7 +26,7 @@ const display = computed(() => {
   <view>
     <view v-if="display.leading.length" class="mb-3">
       <view class="app-muted text-2.5">
-        参考方案
+        来源参数表（已确认事实）
       </view>
       <AiAnswerReferencePage v-for="item in display.leading" :key="`${item.page.page.documentId}:${item.page.page.pageId}`" :page="item.page" :anchor-prefix="item.anchorPrefix" @open="emit('open', item.page, $event)" @open-table="(match, enabled) => emit('openTable', item.page, match, enabled)" />
     </view>

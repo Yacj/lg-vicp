@@ -1,0 +1,56 @@
+[
+  {
+    "event": "message",
+    "data": {
+      "messageId": "ed593933-4eaa-4181-a217-d41ca994231f",
+      "userMessageId": "11a4e6a9-37fc-4d9f-a118-c18c7cbbef3c",
+      "conversationId": "780d1a3e-2e94-4653-9c75-0dd8410fd57f",
+      "requestId": "req-s"
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "analyzing",
+      "message": "正在分析问题..."
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "composing",
+      "message": "正在整理回答..."
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "想确认一下：缺少具体屋面做法、构造编号或候选范围，无法核对合规；报告生成需先确认方案快照。"
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "completed",
+      "message": "回答整理完成"
+    }
+  },
+  {
+    "event": "done",
+    "data": {
+      "messageId": "ed593933-4eaa-4181-a217-d41ca994231f",
+      "conversationId": "780d1a3e-2e94-4653-9c75-0dd8410fd57f",
+      "finishReason": "COMPLETED",
+      "usage": {},
+      "model": {
+        "id": "deepseek-chat"
+      },
+      "promptVersion": {
+        "id": "ae0f8064-e3d6-43c0-ab4c-174188be34e4",
+        "version": 3
+      },
+      "sources": [],
+      "latencyMs": 3304
+    }
+  }
+]

@@ -8,7 +8,7 @@ import { buildThermalCalcPresentation } from "../thermal/thermal-calc-presentati
 
 const text = (value: unknown) => escapeHtml(value == null || value === "" ? "未提供" : String(value));
 const number = (value: unknown) => typeof value === "number" && Number.isFinite(value) ? text(value) : "未提供";
-const section = (title: string, body: string) => `<section><h2>${text(title)}</h2>${body}</section>`;
+const section = (title: string, body: string, keepTogether = false) => `<section${keepTogether ? ' class="keep-together"' : ""}><h2>${text(title)}</h2>${body}</section>`;
 const table = (headers: string[], rows: string[][]) => `<table><thead><tr>${headers.map(h => `<th>${text(h)}</th>`).join("")}</tr></thead><tbody>${rows.map(row => `<tr>${row.map(cell => `<td>${cell}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
 const list = (items: string[]) => `<ul>${items.map(item => `<li>${text(item)}</li>`).join("")}</ul>`;
 
@@ -136,12 +136,13 @@ export function renderSolutionDocumentHtml(payload: ReportSnapshotPayload, model
   const sources = section(titleFor("sources", "知识来源与冻结原表"), sourceSections(model,
     payload.settings?.showSourceReferences === false || sections.some(s => s.key === "sources" && !s.enabled)
       ? [] : payload.referencePages ?? model.referencePages));
-  const risks = section("风险与限制", list([...new Set([...model.warnings, "工程指标仅来自确认时的方案快照，未重检索、重算或读取最新产品参数。", "图集选型及计算结果不等同于地区合规、审图通过或施工验收结论。"])]));
+  const risks = section("风险与限制", list([...new Set([...model.warnings, "工程指标仅来自确认时的方案快照，未重检索、重算或读取最新产品参数。", "图集选型及计算结果不等同于地区合规、审图通过或施工验收结论。"])]), true);
   const disclaimer = payload.settings?.showDisclaimer === false ? undefined : sections.find(s => s.key === "disclaimer" && s.enabled && s.sourceType === "TEXT");
   const disclaimerContent = payload.settings?.disclaimerText?.trim() || disclaimer?.content;
   const extra = sections.filter(s => s.enabled && s.sourceType === "TEXT" && s.key !== "disclaimer").map(s => section(s.title, `<p>${text(s.content)}</p>`)).join("");
   return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'"><style>
   @page{size:A4}*{box-sizing:border-box}body{font-family:"Microsoft YaHei","Noto Sans CJK SC","SimSun",sans-serif;color:#172b3a;font-size:10pt;line-height:1.6;margin:0}h1{font-size:26pt;line-height:1.4}h2{font-size:15pt;border-bottom:1px solid #176b57;padding-bottom:5px;break-after:avoid}h3{font-size:11pt;break-after:avoid}.cover{min-height:225mm;padding-top:30mm;break-after:page}.eyebrow{color:#176b57}section{margin:5mm 0}table{width:100%;border-collapse:collapse;table-layout:fixed;margin:3mm 0;font-size:8.5pt}th,td{border:1px solid #cbd5df;padding:5px;vertical-align:top;overflow-wrap:anywhere;white-space:pre-line}thead{display:table-header-group}th{background:#eef5f3}tr{break-inside:avoid}.final-option{background:#e6f3ec;font-weight:bold}.warning{color:#8a4b12}.reference-page{display:block;max-width:100%;max-height:235mm;width:auto;height:auto;margin:4mm auto;object-fit:contain;break-inside:avoid}li,p{overflow-wrap:anywhere}.source-page{break-before:page}.source-page:first-child{break-before:auto}footer{font-size:9pt;border-top:1px solid #cbd5df;margin-top:8mm;padding-top:3mm}
   .company-logo{display:block;max-width:65mm;max-height:25mm;object-fit:contain;margin-bottom:8mm}
+  .keep-together{break-inside:avoid}li{break-inside:avoid;orphans:2;widows:2}
   </style></head><body>${cover}${assumptions}${final}${basis}${alternatives}${sources}${risks}${extra}${disclaimer ? section(disclaimer.title, `<p>${text(disclaimerContent)}</p>`) : ""}<footer>${text(payload.settings?.footerText ?? "由蓝格智配生成，需经专业审核后方可作为正式技术文件使用。")}</footer></body></html>`;
 }

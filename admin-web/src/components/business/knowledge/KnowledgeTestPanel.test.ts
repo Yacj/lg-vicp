@@ -57,8 +57,9 @@ describe('AI 回答下完整原页及正式档位高亮', () => {
     expect(pages[1]?.parentElement?.querySelector('.app-markdown')?.textContent).toContain('外墙A1-4')
     for (const page of pages) {
       expect(page.querySelectorAll('.thermal-option-table')).toHaveLength(1)
-      expect(page.querySelectorAll('table')).toHaveLength(1)
-      expect(page.querySelectorAll('thead')).toHaveLength(1)
+      expect(page.querySelector('.answer-match-summary')).not.toBeNull()
+      expect(page.querySelectorAll('.thermal-option-table table')).toHaveLength(1)
+      expect(page.querySelectorAll('.thermal-option-table thead')).toHaveLength(1)
       expect(page.querySelectorAll('tr[data-construction-id="A1-3"]')).toHaveLength(5)
       expect(page.querySelectorAll('tr[data-construction-id="A1-4"]')).toHaveLength(5)
       expect(page.querySelectorAll('tr[data-option-id]')).toHaveLength(6)

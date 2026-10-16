@@ -1,0 +1,101 @@
+{
+  "overall": "FAIL",
+  "note": "复审结合内容、SSE与UI；初始脚本PARTIAL不能当PASS。T10仅负例边界。",
+  "cases": [
+    {
+      "id": "T01",
+      "reviewedStatus": "FAIL",
+      "initialStatus": "FAIL",
+      "source": "real-uat/T01.json",
+      "referenceRows": 0,
+      "noSideEffect": true
+    },
+    {
+      "id": "T02",
+      "reviewedStatus": "FAIL",
+      "initialStatus": "FAIL",
+      "source": "real-uat/T02.json",
+      "referenceRows": 0,
+      "noSideEffect": true
+    },
+    {
+      "id": "T03",
+      "reviewedStatus": "FAIL",
+      "initialStatus": "FAIL",
+      "source": "real-uat/T03.json",
+      "referenceRows": 0,
+      "noSideEffect": true
+    },
+    {
+      "id": "T04",
+      "reviewedStatus": "FAIL",
+      "initialStatus": "PARTIAL",
+      "source": "real-uat/T04.json",
+      "referenceRows": 0,
+      "noSideEffect": true
+    },
+    {
+      "id": "T05",
+      "reviewedStatus": "FAIL",
+      "initialStatus": "FAIL",
+      "source": "real-uat/T05.json",
+      "referenceRows": 0,
+      "noSideEffect": true
+    },
+    {
+      "id": "T06",
+      "reviewedStatus": "FAIL",
+      "initialStatus": "PARTIAL",
+      "source": "real-uat/T06.json",
+      "referenceRows": 0,
+      "noSideEffect": true
+    },
+    {
+      "id": "T07",
+      "reviewedStatus": "PARTIAL",
+      "initialStatus": "PARTIAL",
+      "source": "real-uat/T07.json",
+      "referenceRows": 0,
+      "noSideEffect": true
+    },
+    {
+      "id": "T08",
+      "reviewedStatus": "FAIL",
+      "initialStatus": "FAIL",
+      "source": "real-uat/T08.json",
+      "referenceRows": 0,
+      "noSideEffect": true
+    },
+    {
+      "id": "T09",
+      "reviewedStatus": "FAIL",
+      "initialStatus": "PARTIAL",
+      "source": "real-uat/T09.json",
+      "referenceRows": 0,
+      "noSideEffect": true
+    },
+    {
+      "id": "T10",
+      "reviewedStatus": "PASS_SAFETY_NEGATIVE_ONLY",
+      "initialStatus": "PARTIAL",
+      "source": "real-uat/T10.json",
+      "referenceRows": 0,
+      "noSideEffect": true
+    },
+    {
+      "id": "T11",
+      "reviewedStatus": "PARTIAL",
+      "initialStatus": "PARTIAL",
+      "source": "real-uat/T11.json",
+      "referenceRows": 0,
+      "noSideEffect": true
+    },
+    {
+      "id": "T12",
+      "reviewedStatus": "PARTIAL",
+      "source": "报告中的浏览器/历史/失败证据",
+      "referenceRows": null,
+      "noSideEffect": null
+    }
+  ]
+}

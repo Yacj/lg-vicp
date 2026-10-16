@@ -12,6 +12,7 @@ const swaggerTags = [
   { name: "B端 / 平台 / 岗位管理", description: "B 端平台岗位和组织管理接口" },
   { name: "B端 / 平台 / AI配置", description: "B 端平台 AI 服务商、模型和提示词配置接口" },
   { name: "B端 / 平台 / 知识库", description: "B 端平台知识文档、版本、页面、分块与检索接口" },
+  { name: "B端 / 知识库", description: "B 端已授权知识页面原图读取" },
   { name: "B端 / 平台 / 采集管理", description: "B 端独立采集管理（手动/自动获取外部候选资料，确认后导入知识库）" },
   { name: "B端 / 平台 / AI运营", description: "B 端平台 AI 会话运营、反馈和审计接口" },
   { name: "B端 / 平台 / AI调试", description: "B 端平台 AI 调试接口（流式验证，不落业务库）" },

@@ -1,0 +1,33 @@
+{
+  "scope": "仅本次随机UAT版本的正式HTTP安全负例，非业务版本",
+  "publishedEditDenied": true,
+  "disabledSourceDenied": true,
+  "responses": {
+    "readonly": {
+      "http": 200,
+      "success": false,
+      "error": {
+        "code": 409,
+        "message": "当前版本已进入审核/发布流程，如需修改请先回到草稿或创建新版本"
+      },
+      "requestId": "req-z"
+    },
+    "disable": {
+      "http": 200,
+      "success": true,
+      "data": {
+        "message": "版本已停用"
+      },
+      "requestId": "req-10"
+    },
+    "denied": {
+      "http": 200,
+      "success": false,
+      "error": {
+        "code": 404,
+        "message": "知识资料不存在或尚未发布"
+      },
+      "requestId": "req-18"
+    }
+  }
+}

@@ -1,0 +1,127 @@
+[
+  {
+    "path": "src/auto-imports.d.ts",
+    "before": "dab276817e51201e7ddeebe8ad90ac3e5651ce98216fa0650186a1dbd794d1bd",
+    "after": "eb82e37e26fe6944060cc897910ceb045ef7f29bf3af5ba2b46c3e69bac3a50c"
+  },
+  {
+    "path": "src/components/ai/AiAnswerReferencePage.vue",
+    "before": "08fb49d72dc004b442ea3ae595b6d17abfcd94635105bff326c0d9fc6f283f76",
+    "after": "b5cd4ed1309d20c2a36bfefa9454121972fb60a1593faee8821b0a6b5c547c26"
+  },
+  {
+    "path": "src/components/ai/AiReferenceAnswer.vue",
+    "before": "f22b35c93c4bf9248061140187220712fbf2b8c7a4a867db0939b16befe2bf1c",
+    "after": "6809ab7fb7adc1be55cb2971732d16192953e9b45ff101d70d98c1fdaa4d4755"
+  },
+  {
+    "path": "src/components/ai/AiThermalSolutionCard.vue",
+    "before": "1ff227fb5b5773f7646eaa3f03777f8490089e54099346afbc16bce6e4191981",
+    "after": "d6418a5456069c3bcb1f253064c0b1965f1c32c3befc65ae886579dba9be41d4"
+  },
+  {
+    "path": "src/components/ai/ReferencePageViewer.test.ts",
+    "before": "fbedd393b305e4646566c6a876ab6627d3d302fe01d44173157865644a53e666",
+    "after": "14219e3ecc56c68546e4afffb424368f50d0b86f9363f489743035600ae7b46a"
+  },
+  {
+    "path": "src/components/ai/ReferencePageViewer.vue",
+    "before": "9fc10232c1ce1b920800b99d853810cc55460ca61f3f0201ea2c64fcd9dc6d32",
+    "after": "90d9f9bf5726e2fcb4744a855819a2b43a872299c0192d2fcf53486d739a7a5c"
+  },
+  {
+    "path": "src/components/ai/StructuredThermalSection.vue",
+    "before": "636f44222ac9c612f8e4f04d5a7888b0c43b9e7ddc08d3b07915af6112e308d2",
+    "after": "758181856a630fbdeb4609b0dfea4fc8cdf3cda1924223222589234868359449"
+  },
+  {
+    "path": "src/components/ai/ThermalOptionCard.vue",
+    "before": "bd9bfed5ceb763a9cfcd148feb285482f15c18343a2733af521800e3175f6ca1",
+    "after": "a1fe124d2132e13113b25535bd383c41dd3689015bed77af66d3afac66db4076"
+  },
+  {
+    "path": "src/components/ai/ThermalPageTable.vue",
+    "before": "ea64d9ca8f7bbe8a7f3635f62cbbe9c4368e3261e69bb5eda6753672dbfd3d7a",
+    "after": "d19b2b054cb098a164dfb0bfde21e0463cc15cf38a43ea5f804b5a81c44d5fc1"
+  },
+  {
+    "path": "src/composables/useReferencePageHighlight.test.ts",
+    "before": "634ffe50baa67e16c15ea5246108d4d741ea39130cdd5c8cd8a51506521e5d6d",
+    "after": "3f2feb70e5959f997ce3905061cf54ed897b8d9f0c0ea86d161e8472e14eeb51"
+  },
+  {
+    "path": "src/composables/useReferencePageHighlight.ts",
+    "before": "dcd996ce0fdce56fcf563b370e79bb8de38426217661e5e1812a8b5c023f208f",
+    "after": "da5e8691e3c7feb1f539cacbbeab6b7641e1768a1a684a213770156c22661a9d"
+  },
+  {
+    "path": "src/composables/useReferencePageResource.test.ts",
+    "before": "1ab8bf87556113d72b36e000bdd056e553e567fc2c9419dcaeb627e78c8c903e",
+    "after": "a19f14fe168ef01614f2ff7b05dc27d28f29f6c7e548309921ba179cc4385d0e"
+  },
+  {
+    "path": "src/composables/useReferencePageResource.ts",
+    "before": "6eb928f7281d44b0f96e260c2def5372cba4fc7080c311166f3939a74540af5d",
+    "after": "70c356924b3155e8ff7c8c95c728f98e5ad87c0f0174c31fd38622c96d85ac5c"
+  },
+  {
+    "path": "src/pages/knowledge-source/index.vue",
+    "before": "8bacf886a2f76df0c34ccc0e82e4a4ebe46d32473e0eb24fff99151ae8e265d0",
+    "after": "e6daccf61408f38599e621d34569829e836d0106063ab80b48134853644eb335"
+  },
+  {
+    "path": "src/pages/reference-table/index.vue",
+    "before": "6042bdc298b06c874e17bce77ed8b300412d00e43ec485401c8a649f9539e9e4",
+    "after": "73433e8715b6e22f557afe6ae366246a5182686884e9705b5338e4ce1081c0f4"
+  },
+  {
+    "path": "src/test/fixtures/complexAtlas.ts",
+    "before": null,
+    "after": "fa7e1ac78a6b6b3b76bb126a189c2b13320a00f5225628603531bbcad7ea9527"
+  },
+  {
+    "path": "src/test/fixtures/complex-atlas/page-75.json",
+    "before": null,
+    "after": "6ed54d95f2b71eba3fcddfa272c5e1bab8a21dda1b9d8279ec44e3b9ba52b26c"
+  },
+  {
+    "path": "src/test/fixtures/complex-atlas/page-89.json",
+    "before": null,
+    "after": "d4b73ed59babdcc6fe0d2ac62842aaba6bb812e3d1b106a8aa5f72b682f72eb3"
+  },
+  {
+    "path": "src/test/fixtures/complex-atlas/page-90.json",
+    "before": null,
+    "after": "fabaeb9b79334842845075f85e66dd18ed9c65e16c62ec90ee8ae7987e6b90fd"
+  },
+  {
+    "path": "src/utils/complexAtlas.test.ts",
+    "before": null,
+    "after": "06cdbffe41e408c9938a44a8befacc148c1d9dec7ab575e2ecb24d91ed9a8f01"
+  },
+  {
+    "path": "src/utils/referencePage.ts",
+    "before": "d729dd961f11008eba1f48dccf29aa4804be0dd5cfa71f5adacbbc4bbaadbb3e",
+    "after": "82f6303540d263bdaae590aee9fbc274f85e9b23490c6d7413cb1bbae6e30b7a"
+  },
+  {
+    "path": "src/utils/referenceTable.test.ts",
+    "before": "11a22ee5b643610b2fed037abfa9739cfc219e09b5a4170fa167c4a0726b65e7",
+    "after": "1b4671734d996918a12fb9d7eea34a9e366c9d351f716b54fcea05abaa3588e9"
+  },
+  {
+    "path": "src/utils/referenceTable.ts",
+    "before": "aa7873a8ab7c4d6e0330889b101a3fe75217190b5755ea207a346225f2ec58b5",
+    "after": "3cd2eb1d2c822824edfb02f1e9ee9988ef63bb5b1e31cbd225bc292b319a6eb0"
+  },
+  {
+    "path": "src/utils/thermalPageTable.ts",
+    "before": "f384c24bfc5fae586928c6a31b164516822a19619fe91151d226041516703a0e",
+    "after": "3ad95c916047cce5196ee4b3a7d2386f37d6641628670f10c07c3c1780a4bd48"
+  },
+  {
+    "path": "src/utils/thermalSourceLabels.ts",
+    "before": null,
+    "after": "9176fa3e1344feac83b4b6f9909a38668f1d807a0b1fc00e8aa913180ddc93bd"
+  }
+]

@@ -5,6 +5,14 @@ globs: src/modules/ai*/**/*.ts,src/modules/knowledge/**/*.ts,src/modules/reports
 alwaysApply: false
 ---
 
+2026-10-16 复杂图集阶段5真实联合UAT：验收FAIL。隔离库共享服务及H5来源详情12行通过，真实自然SSE未形成引用闭环，芯层R误称产品R、浏览器原图加载仍失败；旧890确认档不回填，A3原值正确但查询回归未过。测试配置源强制只读、全部对象操作统一隔离前缀，派生副本遗漏已精确清理并重跑验证。未部署/迁移业务库/改写旧PDF，见docs/ai/complex-atlas-phase5-2026-10-16.md。
+
+复杂图集阶段3（2026-10-16）：确认页只读事实不等于正式Candidate；无编号/缺产品R不补值，不刷新方案或降低同步准入。沿用Domain语义合同解析部位/坡平/正倒置/等级/页码，禁止样本关键词路由。B/C共用确认模型与工程过滤；引用版本、历史权限、短期链接重取须校验；不改旧确认数据/冻结快照/PDF。见docs/ai/complex-atlas-phase3-2026-10-16.md。
+
+复杂图集阶段1（2026-10-15）：新Vision草稿v2保留原标签/屋面属性/源列头/逐档层证据；层R、产品R、构造R禁止互填。无编号可单页人工确认资料，正式热工同步仍严格映射；旧编辑器不得丢失v2字段，旧确认JSON与hash不回填。识别波动必须REVIEW_REQUIRED，未部署/迁移。见docs/ai/complex-atlas-phase1-2026-10-15.md。
+
+2026-10-15 C端UAT：指标纠正REPLACE、范围厚度独立grounding；查表统一后端执行，无命中保留已消费资料范围，歧义不覆盖有效候选。只读比较完整集合、后端计算有范围的极值；旧序号时间歧义拒绝，明确编码可在同一有权版本只读定位来源，不刷新候选。已确认读冻结Snapshot；Domain/Query复核最多一次且共用原预算，不放松写入权限。见docs/ai/c-uat-fixes-2026-10-15.md。
+
 正式PDF展示复用报告设置并在创建冻结企业Logo身份与配置；Worker不刷新品牌信息。计算过程只展示冻结事实且无合规judgment，来源开关只隐藏完整附录，指标/基本引用/未核验风险保留。见docs/reports/report-settings-pdf-2026-10-14.md。
 
 2026-10-14 正式方案PDF：technical_scheme/project_brief统一强授权+本人同端同会话同项目CONFIRMED Snapshot/Final/冻结事实门槛；会话锁按Snapshot/类型/创建者幂等。纯DocumentModel→ReportSnapshot→中文HTML/完整原表→Chromium PDF；不重查/重算/造合规。新正式报告优先PDF，旧格式兼容；Worker状态/attempt/最新任务保护、失败对账、受控预览下载。当前业务库只读，Fixture与真实UAT分开；见docs/reports/solution-pdf-2026-10-14.md。

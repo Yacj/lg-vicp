@@ -1,0 +1,35 @@
+{
+  "baselineCount": 52,
+  "attempts": [
+    {
+      "name": "first",
+      "passed": 2293,
+      "failed": 52,
+      "skipped": 1,
+      "added": [],
+      "removed": []
+    },
+    {
+      "name": "release",
+      "passed": 2295,
+      "failed": 53,
+      "skipped": 1,
+      "added": [
+        "FAIL src/modules/ai/structured-reference-query.test.ts 跨页结构化热工参考数据 四个45mm档位跨两页，各参数和optionId原子绑定"
+      ],
+      "removed": []
+    },
+    {
+      "name": "last-complete",
+      "passed": 2294,
+      "failed": 54,
+      "skipped": 1,
+      "added": [
+        "FAIL tests/report-runtime.test.ts 服务器脚本自检失败必在迁移/seed/PM2之前退出并恢复dist（临时目录+所有命令桩）",
+        "FAIL src/modules/ai/structured-reference-query.test.ts 跨页结构化热工参考数据 四个45mm档位跨两页，各参数和optionId原子绑定"
+      ],
+      "removed": []
+    }
+  ],
+  "additionalRecheck": "最后完整运行两个新增失败的文件包含在后续240项单worker复核中，原全量失败状态保留；其他52项未消除"
+}

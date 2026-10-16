@@ -17,6 +17,34 @@ const metric = (evidence: string, operator: "EXACT" | "APPROX" | "MAX_LIMIT" | "
 const parsed = (constraints: SemanticQuery["constraints"], queryMode: SemanticQuery["queryMode"] = "NEW_QUERY"): SemanticQuery => ({ queryMode, intent: "REFERENCE_LOOKUP", constraints, preferences: [], unresolved: [], confidence: 0.99 });
 
 describe("统一语义分类的确定性边界", () => {
+  it("仅品牌提示仍按原文硬匹配，不因去品牌归一为空而漏查，也不接受其他品牌", () => {
+    const query = { systemHint: "VICP", filters: [{ metric: "K" as const, targetValue: .3, mode: "APPROX" as const }] };
+    expect(validateCandidateAgainstQueryState({ systemName: "III型VICP薄抹灰外保温系统", kValue: .302 }, query).passed).toBe(true);
+    expect(validateCandidateAgainstQueryState({ systemName: "岩棉薄抹灰外保温系统", kValue: .302 }, query).passed).toBe(false);
+  });
+  it("图集名称、型号与构造是文本/工程编码硬约束，不要求存在同名目录ID", () => {
+    const message = "III型 VICP 薄抹灰 A3-2 45mm";
+    const entity = (field: "systemHint" | "specClass" | "schemeCode", text: string) => ({ ...metric(text), type: "ENTITY" as const,
+      field, entityText: text, resolvedText: text, metric: null, operator: null, value: null });
+    const query = applySemanticQuery(message, parsed([entity("systemHint", "III型 VICP 薄抹灰"), entity("specClass", "III型"), entity("schemeCode", "A3-2"),
+      { ...metric("45mm", "EXACT", 45), type: "THICKNESS", metric: null }]), { entities: [], aliases: [] });
+    expect(query).toMatchObject({ systemHint: "III型 VICP 薄抹灰", specClass: "III", schemeCode: "A3-2", thicknessMm: 45, unresolved: [] });
+    expect(query.systemId).toBeUndefined(); expect(query.schemeId).toBeUndefined();
+    expect(validateCandidateAgainstQueryState({ systemName: "III型VICP薄抹灰外保温系统", specClass: "II", schemeCode: "A3-2", thicknessMm: 45 }, query).passed).toBe(false);
+  });
+  it("真实UAT-06纠正指标替换旧R，保留实体和厚度；追加指标仍AND，伪造替换不删除旧条件", () => {
+    const old = { specClass: "III" as const, thicknessMm: 45, metric: "PRODUCT_R" as const, targetValue: 8.3,
+      filters: [{ metric: "PRODUCT_R" as const, mode: "APPROX" as const, targetValue: 8.3 }] };
+    const message = "我刚才说错了，我想查的是传热系数 K 在 0.3 左右。";
+    const next = applySemanticQuery(message, parsed([{ ...metric(message), operation: "REPLACE" }], "REFINE_QUERY"), dictionary, old);
+    expect(next).toMatchObject({ specClass: "III", thicknessMm: 45, metric: "K", targetValue: .3, filters: [{ metric: "K", targetValue: .3 }] });
+    expect(old.filters[0]?.metric).toBe("PRODUCT_R");
+    const added = applySemanticQuery("同时K在0.3左右", parsed([metric("K在0.3左右")], "REFINE_QUERY"), dictionary, old);
+    expect(added.filters?.map(f => f.metric)).toEqual(["PRODUCT_R", "K"]);
+    const invalid = applySemanticQuery(message, parsed([{ ...metric(message, "APPROX", .9), operation: "REPLACE" }], "REFINE_QUERY"), dictionary, old);
+    expect(invalid.filters?.map(f => f.metric)).toEqual(["PRODUCT_R"]);
+    expect(invalid.unresolved?.length).toBeGreaterThan(0);
+  });
   it("Normalizer只改变格式，Fast Path只接受完整符号语法", () => {
     expect(normalizeSemanticText("Ｋ＝０．３，Ｒ₀ ≥ ３．３ ㎡·K/W")).toBe("K=0.3,R0 ≥ 3.3 m²·K/W");
     expect(parseSemanticFastPath("Ｋ <= ０．３")?.constraints[0]).toMatchObject({ metric: "K", operator: "MAX_LIMIT", value: 0.3 });

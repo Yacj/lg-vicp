@@ -5,6 +5,13 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { aiRetrievalLogs } from "../../db/schema.js";
 import { searchProjectKnowledge, type WikiHit } from "../knowledge/knowledge.service.js";
+import { parseSpecClassHint } from "./tools/thermal-lookup.js";
+
+/** 型号工程格式提取，不判断意图、不签发正式ID或副作用。 */
+export function requestedSpecClasses(message: string) {
+  const terms = message.normalize("NFKC").match(/(?:III|II|I|[123一二三])型/gi) ?? [];
+  return [...new Map(terms.flatMap(term => { const specClass = parseSpecClassHint(term); return specClass ? [[specClass, { term, specClass }] as const] : []; })).values()];
+}
 
 export async function loadKnowledgeForGeneration(options: {
   app: FastifyInstance;
@@ -24,9 +31,21 @@ export async function loadKnowledgeForGeneration(options: {
     return { chunks: [], retrievalFailed: false };
   }
   try {
-    const chunks = await searchProjectKnowledge(options.app, options.projectId, options.content, {
+    let chunks = await searchProjectKnowledge(options.app, options.projectId, options.content, {
       insulationSystemId: options.insulationSystemId
     });
+    const classes = requestedSpecClasses(options.content);
+    if (classes.length > 1) {
+      // 逐型号召回并交错排列，避免同一本资料的I型片段占满预算而误称II型不存在。
+      const grouped = await Promise.allSettled(classes.map(item => searchProjectKnowledge(options.app, options.projectId, item.term,
+        { insulationSystemId: options.insulationSystemId, limit: 20 })));
+      const groups = grouped.map((result, index) => result.status === "fulfilled" ? result.value.filter(hit =>
+        parseSpecClassHint(hit.pageTitle ?? hit.content) === classes[index]!.specClass).slice(0, 3) : []);
+      const covered = Array.from({ length: 3 }, (_, index) => groups.flatMap(group => group[index] ? [group[index]!] : [])).flat();
+      const unique = new Map<string, WikiHit>();
+      for (const hit of [...covered, ...chunks]) unique.set(`${hit.documentId}:${hit.pageId}:${hit.chunkId ?? hit.content}`, hit);
+      chunks = [...unique.values()].slice(0, 12);
+    }
     if (chunks.length > 0) {
       try {
         await options.app.db.insert(aiRetrievalLogs).values(chunks.map((chunk) => ({

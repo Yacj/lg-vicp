@@ -1,0 +1,130 @@
+{
+  "id": "T08",
+  "message": "把第90页原图、备注和完整厚度表打开。",
+  "scope": "真实结构化提案；源配置强制只读；不执行业务目标",
+  "proposal": {
+    "pageQuery": {
+      "queryMode": "NEW_QUERY",
+      "intent": "REFERENCE_LOOKUP",
+      "constraints": [
+        {
+          "type": "ENTITY",
+          "operation": "SET",
+          "field": "pageLabel",
+          "entityText": "第90页",
+          "resolvedText": "90",
+          "metric": null,
+          "operator": null,
+          "value": null,
+          "evidence": "第90页",
+          "hard": true,
+          "confidence": 0.95
+        }
+      ],
+      "preferences": [],
+      "unresolved": [],
+      "confidence": 0.95
+    },
+    "intent": "REFERENCE_QUERY",
+    "confidence": 0.95,
+    "evidence": "把第90页原图、备注和完整厚度表打开。",
+    "unresolved": null,
+    "reportType": null,
+    "factRead": null,
+    "relation": "NEW",
+    "continuedGoal": null,
+    "comparison": null,
+    "referenceTime": null,
+    "adviceMode": null,
+    "constraintPatch": [],
+    "reference": {
+      "scope": "NONE",
+      "revision": null,
+      "items": []
+    },
+    "requestedEffect": "QUERY",
+    "effectRequest": null,
+    "ambiguity": []
+  },
+  "finishReason": "stop",
+  "usage": {
+    "inputTokens": 4858,
+    "inputTokenDetails": {
+      "noCacheTokens": 250,
+      "cacheReadTokens": 4608
+    },
+    "outputTokens": 210,
+    "outputTokenDetails": {
+      "textTokens": 210,
+      "reasoningTokens": 0
+    },
+    "totalTokens": 5068,
+    "raw": {
+      "prompt_tokens": 4858,
+      "completion_tokens": 210,
+      "total_tokens": 5068,
+      "prompt_tokens_details": {
+        "cached_tokens": 4608
+      },
+      "prompt_cache_hit_tokens": 4608,
+      "prompt_cache_miss_tokens": 250
+    }
+  },
+  "policy": {
+    "intent": "REFERENCE_QUERY",
+    "mutation": "QUERY",
+    "evidenceSpans": [
+      "把第90页原图、备注和完整厚度表打开。"
+    ],
+    "parserSource": "LLM",
+    "semantic": {
+      "pageQuery": {
+        "queryMode": "NEW_QUERY",
+        "intent": "REFERENCE_LOOKUP",
+        "constraints": [
+          {
+            "type": "ENTITY",
+            "operation": "SET",
+            "field": "pageLabel",
+            "entityText": "第90页",
+            "resolvedText": "90",
+            "metric": null,
+            "operator": null,
+            "value": null,
+            "evidence": "第90页",
+            "hard": true,
+            "confidence": 0.95
+          }
+        ],
+        "preferences": [],
+        "unresolved": [],
+        "confidence": 0.95
+      },
+      "intent": "REFERENCE_QUERY",
+      "confidence": 0.95,
+      "evidence": "把第90页原图、备注和完整厚度表打开。",
+      "unresolved": null,
+      "reportType": null,
+      "factRead": null,
+      "relation": "NEW",
+      "continuedGoal": null,
+      "comparison": null,
+      "referenceTime": null,
+      "adviceMode": null,
+      "constraintPatch": [],
+      "reference": {
+        "scope": "NONE",
+        "revision": null,
+        "items": []
+      },
+      "requestedEffect": "QUERY",
+      "effectRequest": null,
+      "ambiguity": []
+    },
+    "requiresCandidateQuery": false,
+    "restoreAdviceGoal": false,
+    "referenceScope": "LATEST_VISIBLE",
+    "policyReason": "READ_ONLY_QUERY"
+  },
+  "durationMs": 1621
+}

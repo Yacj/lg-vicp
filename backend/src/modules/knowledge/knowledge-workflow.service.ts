@@ -31,6 +31,8 @@ import {
 } from "./knowledge-readiness.js";
 import { searchWikiHierarchy } from "./knowledge.service.js";
 import { loadKnowledgeTestReferences } from "./knowledge-test-reference.js";
+import { parseSemanticQuery } from "../ai/semantic-query.service.js";
+import { resolveDomainTurn } from "../ai/ai-domain-turn-decision.service.js";
 import { getPageImageDownloadName } from "./knowledge-page-image.js";
 import {
   addParsingJobToQueue,
@@ -821,7 +823,13 @@ export async function streamVersionTestQa(
     conversation,
     content: body.query,
     knowledgeChunks: chunks,
-    loadPageReferences: () => loadKnowledgeTestReferences(app, versionId, document.title, chunks, body.query),
+    loadPageReferences: () => loadKnowledgeTestReferences(app, versionId, document.title, chunks, body.query, async () => {
+      const domainDecision = await resolveDomainTurn({ app, conversation, userMessage: body.query });
+      if (domainDecision.intent === "CLARIFY") return { unresolved: (domainDecision.unresolved ?? ["查询条件尚待核对"]).map(reason => ({field:"query",reason})) };
+      if (domainDecision.mutation !== "QUERY") return {};
+      const resolved = await parseSemanticQuery({ app, request, user: actor, conversation, userMessage: body.query, domainDecision }, {}, undefined, true);
+      return resolved.query;
+    }),
     mapSources: hasDebugPermission(actor) ? toAiSources : toUserTestSources
   });
 }

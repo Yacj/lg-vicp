@@ -3,7 +3,7 @@ import { extractSemanticFacts } from "./thermal-answer-semantics.js";
 import { normalizeSubstrateMaterial } from "./thermal-substrate-facts.js";
 // SM-CODE-01：既有封闭构造编码语法，仅提取字段；不判断意图或生成正式ID。
 const constructionCodePattern = /\b[A-Z]{1,4}\d+(?:-\d+)+\b/gi;
-const constructionCodes = (value: string) => [...value.normalize("NFKC").matchAll(constructionCodePattern)].map(match => match[0].toUpperCase());
+export const constructionCodes = (value: string) => [...value.normalize("NFKC").matchAll(constructionCodePattern)].map(match => match[0].toUpperCase());
 
 /** 只有当前候选中实际出现的基层才构成只读引用；不同档位仍须唯一，不签发新的身份。 */
 export function resolveCandidateMaterialReference(candidates: LastReferenceLookup["candidates"], message: string): { ids?: string[]; reason?: string } | undefined {

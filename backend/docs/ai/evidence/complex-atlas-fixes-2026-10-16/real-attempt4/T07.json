@@ -1,0 +1,15 @@
+{
+  "id": "T07",
+  "group": "concept",
+  "question": "I型VICP和I级防水一样吗？",
+  "status": "PARTIAL",
+  "conversationId": "4cae02c1-bde6-4399-a18f-9e088cee646e",
+  "answer": "不一样，这是两个完全不同的概念。\n\n**I型VICP**——指保温产品本身的型号分类。I型VICP复合保温板由包覆浆料层和真空绝热板芯层构成，I型对应的是某一具体产品规格体系，属于“材料/产品”范畴。\n\n**I级防水**——指防水层设防等级，属于“构造做法”范畴，衡量的是建筑部位的防水要求，与保温产品的型号无关。\n\n两者分属不同维度，可以独立组合：同一个屋面既可能是I型VICP保温、也可能是II型VICP保温；防水等级同理可以单独变化。所以不能用其中一个去推断另一个，也不能因为都带“I”就视为同一等级。\n\n如果你需要核对某个具体构造里用的是哪一型VICP、对应哪一级防水，可以把部位和做法告诉我。",
+  "facts": [],
+  "pages": [],
+  "historyReturned": true,
+  "persistedUrlFree": true,
+  "solutionStates": 0,
+  "reports": 0,
+  "snapshots": 0
+}

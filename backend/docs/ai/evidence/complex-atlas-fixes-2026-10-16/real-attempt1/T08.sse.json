@@ -1,0 +1,1015 @@
+[
+  {
+    "event": "message",
+    "data": {
+      "messageId": "fb1cab36-5c15-43a0-a94a-895b9cd00b4f",
+      "userMessageId": "42358ccd-7f09-4a52-bc29-94dd2c9a79a2",
+      "conversationId": "e30865ce-12f0-4db0-94f3-68ada093de89",
+      "requestId": "req-m"
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "analyzing",
+      "message": "正在分析问题..."
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "checking",
+      "message": "正在核对检索资料和计算结果..."
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "composing",
+      "message": "正在整理回答..."
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "现在"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "还不能"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "打开"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "第"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": " "
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "90"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": " "
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "页"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "原"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "图"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "，"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "也不能"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "展开"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "备注"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "和"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "完整"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "厚度"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "表"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "。\n\n"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "原因是"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "当前"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "这段"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "会话"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "里"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "没有"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "可"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "核"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "验"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "到"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "具体"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "第"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": " "
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "90"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": " "
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "页"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "的资料"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "内容"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "——"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "没有"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "可"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "定位"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "的"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "图"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "集"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "正文"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "、"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "页"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "面对"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "应"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "关系"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "或"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "已"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "发布的"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "第"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": " "
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "90"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": " "
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "页"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "记录"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "，"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "所以我"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "无法"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "确认"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "那一"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "页"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "是哪"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "本"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "图"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "集"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "、"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "属于"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "哪个"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "构造"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "，"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "也就"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "不能"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "把"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "原"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "图"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "、"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "备注"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "和"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "厚度"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "表"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "拿出来"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "给你"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "。\n\n"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "要"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "往下"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "走"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "，"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "请"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "补充"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "其中"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "任"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "一项"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "：\n\n"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "-"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": " "
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "图"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "集"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "编号"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "或"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "名称"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "（"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "例如"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "某"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "本"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "构造"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "图"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "集的"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "编号"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "）\n"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "-"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": " "
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "该"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "页"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "对应的"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "构造"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "做法"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "或"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "系统"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "名称"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "\n"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "-"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": " "
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "或"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "直接"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "上传"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": " /"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": " "
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "指定"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "这份"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "资料的"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "来源"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "\n\n"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "拿到"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "之后"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "我再"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "定位"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "第"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": " "
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "90"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": " "
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "页"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "，"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "把"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "原"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "图"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "、"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "备注"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "和"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "厚度"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "表"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "按"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "实际"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "内容"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "列出"
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "。"
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "completed",
+      "message": "回答整理完成"
+    }
+  },
+  {
+    "event": "done",
+    "data": {
+      "messageId": "fb1cab36-5c15-43a0-a94a-895b9cd00b4f",
+      "conversationId": "e30865ce-12f0-4db0-94f3-68ada093de89",
+      "finishReason": "COMPLETED",
+      "usage": {
+        "inputTokens": 2152,
+        "outputTokens": 159,
+        "reasoningTokens": 0
+      },
+      "model": {
+        "id": "deepseek-chat"
+      },
+      "promptVersion": {
+        "id": "ae0f8064-e3d6-43c0-ab4c-174188be34e4",
+        "version": 3
+      },
+      "sources": [],
+      "latencyMs": 6864
+    }
+  }
+]

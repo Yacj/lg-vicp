@@ -167,5 +167,5 @@ try {
 } catch (error) { record("真实只读验证未通过", "FAIL", safeError(error)); process.exitCode = 1; }
 finally {
   await mkdir("docs/ai", { recursive: true });
-  await writeFile("docs/ai/cross-page-reference-db-2026-10-13.json", JSON.stringify({ ...report, finishedAt: new Date().toISOString() }, null, 2) + "\n");
+  await writeFile(process.argv[2] ?? "docs/ai/cross-page-reference-db-2026-10-13.json", JSON.stringify({ ...report, finishedAt: new Date().toISOString() }, null, 2) + "\n");
 }

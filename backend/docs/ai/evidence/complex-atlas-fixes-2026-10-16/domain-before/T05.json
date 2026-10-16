@@ -1,0 +1,214 @@
+{
+  "id": "T05",
+  "message": "外墙C1-3和C1-4都是20mm，哪个K小？基层什么材料？",
+  "scope": "真实结构化提案；源配置强制只读；不执行业务目标",
+  "proposal": {
+    "pageQuery": {
+      "queryMode": "NEW_QUERY",
+      "intent": "REFERENCE_LOOKUP",
+      "constraints": [
+        {
+          "type": "ENTITY",
+          "operation": "SET",
+          "field": "applicationPart",
+          "entityText": "外墙",
+          "resolvedText": "外墙",
+          "metric": null,
+          "operator": null,
+          "value": null,
+          "evidence": "外墙",
+          "hard": true,
+          "confidence": 0.95
+        },
+        {
+          "type": "ENTITY",
+          "operation": "SET",
+          "field": "schemeCode",
+          "entityText": "C1-3",
+          "resolvedText": "C1-3",
+          "metric": null,
+          "operator": null,
+          "value": null,
+          "evidence": "C1-3",
+          "hard": true,
+          "confidence": 0.95
+        },
+        {
+          "type": "ENTITY",
+          "operation": "APPEND",
+          "field": "schemeCode",
+          "entityText": "C1-4",
+          "resolvedText": "C1-4",
+          "metric": null,
+          "operator": null,
+          "value": null,
+          "evidence": "C1-4",
+          "hard": true,
+          "confidence": 0.95
+        },
+        {
+          "type": "THICKNESS",
+          "operation": "SET",
+          "field": null,
+          "entityText": "20mm",
+          "resolvedText": "20mm",
+          "metric": null,
+          "operator": "EXACT",
+          "value": 20,
+          "evidence": "20mm",
+          "hard": true,
+          "confidence": 0.95
+        }
+      ],
+      "preferences": [],
+      "unresolved": [],
+      "confidence": 0.9
+    },
+    "intent": "REFERENCE_QUERY",
+    "confidence": 0.9,
+    "evidence": "外墙C1-3和C1-4都是20mm，哪个K小？基层什么材料？",
+    "unresolved": null,
+    "reportType": null,
+    "factRead": null,
+    "relation": "NEW",
+    "continuedGoal": null,
+    "comparison": {
+      "metric": "K",
+      "direction": "MIN",
+      "evidence": "哪个K小"
+    },
+    "referenceTime": null,
+    "adviceMode": null,
+    "constraintPatch": [],
+    "reference": {
+      "scope": "NONE",
+      "revision": null,
+      "items": []
+    },
+    "requestedEffect": "QUERY",
+    "effectRequest": null,
+    "ambiguity": []
+  },
+  "finishReason": "stop",
+  "usage": {
+    "inputTokens": 4597,
+    "inputTokenDetails": {
+      "noCacheTokens": 245,
+      "cacheReadTokens": 4352
+    },
+    "outputTokens": 610,
+    "outputTokenDetails": {
+      "textTokens": 610,
+      "reasoningTokens": 0
+    },
+    "totalTokens": 5207,
+    "raw": {
+      "prompt_tokens": 4597,
+      "completion_tokens": 610,
+      "total_tokens": 5207,
+      "prompt_tokens_details": {
+        "cached_tokens": 4352
+      },
+      "prompt_cache_hit_tokens": 4352,
+      "prompt_cache_miss_tokens": 245
+    }
+  },
+  "policy": {
+    "intent": "CLARIFY",
+    "mutation": "NONE",
+    "evidenceSpans": [],
+    "parserSource": "LLM",
+    "policyReason": "EVIDENCE_INVALID",
+    "unresolved": [
+      "请指定这轮要讨论的保温体系或实际基层；可以先整理参考选型框架。"
+    ],
+    "semantic": {
+      "pageQuery": {
+        "queryMode": "NEW_QUERY",
+        "intent": "REFERENCE_LOOKUP",
+        "constraints": [
+          {
+            "type": "ENTITY",
+            "operation": "SET",
+            "field": "applicationPart",
+            "entityText": "外墙",
+            "resolvedText": "外墙",
+            "metric": null,
+            "operator": null,
+            "value": null,
+            "evidence": "外墙",
+            "hard": true,
+            "confidence": 0.95
+          },
+          {
+            "type": "ENTITY",
+            "operation": "SET",
+            "field": "schemeCode",
+            "entityText": "C1-3",
+            "resolvedText": "C1-3",
+            "metric": null,
+            "operator": null,
+            "value": null,
+            "evidence": "C1-3",
+            "hard": true,
+            "confidence": 0.95
+          },
+          {
+            "type": "ENTITY",
+            "operation": "APPEND",
+            "field": "schemeCode",
+            "entityText": "C1-4",
+            "resolvedText": "C1-4",
+            "metric": null,
+            "operator": null,
+            "value": null,
+            "evidence": "C1-4",
+            "hard": true,
+            "confidence": 0.95
+          },
+          {
+            "type": "THICKNESS",
+            "operation": "SET",
+            "field": null,
+            "entityText": "20mm",
+            "resolvedText": "20mm",
+            "metric": null,
+            "operator": "EXACT",
+            "value": 20,
+            "evidence": "20mm",
+            "hard": true,
+            "confidence": 0.95
+          }
+        ],
+        "preferences": [],
+        "unresolved": [],
+        "confidence": 0.9
+      },
+      "intent": "REFERENCE_QUERY",
+      "confidence": 0.9,
+      "evidence": "外墙C1-3和C1-4都是20mm，哪个K小？基层什么材料？",
+      "unresolved": null,
+      "reportType": null,
+      "factRead": null,
+      "relation": "NEW",
+      "continuedGoal": null,
+      "comparison": {
+        "metric": "K",
+        "direction": "MIN",
+        "evidence": "哪个K小"
+      },
+      "referenceTime": null,
+      "adviceMode": null,
+      "constraintPatch": [],
+      "reference": {
+        "scope": "NONE",
+        "revision": null,
+        "items": []
+      },
+      "requestedEffect": "QUERY",
+      "effectRequest": null,
+      "ambiguity": []
+    }
+  },
+  "durationMs": 2991
+}

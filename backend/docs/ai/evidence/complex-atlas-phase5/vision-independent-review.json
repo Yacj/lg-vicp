@@ -1,0 +1,118 @@
+{
+  "scope": "逐视觉组独立核数；数值相同不代表正式身份完整，也不豁免页码/材料层/来源证据",
+  "pages": [
+    {
+      "page": "89",
+      "status": "FAIL",
+      "pageLabel": null,
+      "groups": [
+        {
+          "label": "坡屋面（正置，级防水）",
+          "constructionCode": null,
+          "rawLabelHasSourceCode": false,
+          "numericByVisualGroup": 6,
+          "options": 6,
+          "productValues": [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "label": "坡屋面（倒置，级防水）",
+          "constructionCode": null,
+          "rawLabelHasSourceCode": false,
+          "numericByVisualGroup": 6,
+          "options": 6,
+          "productValues": [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ]
+        }
+      ]
+    },
+    {
+      "page": "90",
+      "status": "PARTIAL",
+      "pageLabel": "90",
+      "groups": [
+        {
+          "label": "平屋面（正置，级防水）",
+          "constructionCode": null,
+          "rawLabelHasSourceCode": false,
+          "numericByVisualGroup": 6,
+          "options": 6,
+          "productValues": [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "label": "平屋面（倒置，级防水）",
+          "constructionCode": null,
+          "rawLabelHasSourceCode": false,
+          "numericByVisualGroup": 6,
+          "options": 6,
+          "productValues": [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ]
+        }
+      ]
+    },
+    {
+      "page": "75",
+      "status": "FAIL",
+      "pageLabel": "75",
+      "groups": [
+        {
+          "label": "外墙C1-3",
+          "constructionCode": null,
+          "rawLabelHasSourceCode": true,
+          "numericByVisualGroup": 7,
+          "options": 7,
+          "productValues": [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "label": "外墙C1-4",
+          "constructionCode": null,
+          "rawLabelHasSourceCode": true,
+          "numericByVisualGroup": 7,
+          "options": 7,
+          "productValues": [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ]
+        }
+      ]
+    }
+  ]
+}

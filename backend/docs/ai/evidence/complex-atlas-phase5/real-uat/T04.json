@@ -1,0 +1,15 @@
+{
+  "id": "T04",
+  "group": "roof-II",
+  "question": "它们做法是不是也完全一样？",
+  "status": "PARTIAL",
+  "conversationId": "74336a33-140f-4a78-956c-1812e6027f94",
+  "answer": "想确认一下：“它们”指代不明：上一轮助手未给出任何具体构造或型号，无法确定比较对象。",
+  "facts": [],
+  "pages": [],
+  "historyReturned": true,
+  "persistedUrlFree": true,
+  "solutionStates": 0,
+  "reports": 0,
+  "snapshots": 0
+}

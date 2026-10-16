@@ -3,6 +3,18 @@ import { test } from 'node:test'
 import { referenceFixture } from '../test/fixtures/referencePage'
 import { formatReferenceNumber, hasPageRenderModel, normalizeReferencePages, referencePageHeading, referencePageInitialView, referencePersistenceSnapshot, referenceSolutions, resolvePageHighlights } from './referencePage'
 
+test('确认版本约束在协议归一化后仍保留，旧引用不能标到新模型', () => {
+  const source = referenceFixture()
+  source.renderModel!.confirmedRevision = 'current'
+  const construction = source.renderModel!.constructions[0]!
+  source.matches = [{ constructionId: construction.constructionId, optionId: construction.options[0]!.optionId, confirmedRevision: 'old', fieldKeys: ['kValue'] }]
+  const normalized = normalizeReferencePages([source])[0]!
+  assert.equal(normalized.matches[0]!.confirmedRevision, 'old')
+  assert.equal(resolvePageHighlights(normalized.renderModel!, normalized.matches, normalized.page.pageId).length, 0)
+  normalized.matches[0]!.confirmedRevision = 'current'
+  assert.equal(resolvePageHighlights(normalized.renderModel!, normalized.matches, normalized.page.pageId).length, 1)
+})
+
 test('来源标题视觉分层仅使用页面标题或明确统一系统名，原图路由有安全默认值', () => {
   const model = referenceFixture().renderModel!
   model.pageTitle = '建筑外墙热工计算参考选用表（II型VICP薄抹灰外保温系统）'

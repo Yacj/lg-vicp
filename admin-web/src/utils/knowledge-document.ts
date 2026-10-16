@@ -28,11 +28,23 @@ export function recognitionConstructionContent(system: PageRecognitionSystem): K
   const variableCandidates = options.length > 1 ? layers.filter(layer => layer.thicknessMm == null && layer.rValue == null && layer.lambda != null && layer.alpha != null) : []
   const variableLayer = variableCandidates.length === 1 ? variableCandidates[0] : undefined
   return {
+    rawConstructionLabel: system.rawConstructionLabel,
+    applicationPart: system.applicationPart,
+    roofForm: system.roofForm,
+    placement: system.placement,
+    waterproofGrade: system.waterproofGrade,
+    sourceColumns: system.sourceColumns,
+    specClass: system.specClass,
+    baseMaterial: system.baseMaterial,
+    baseThicknessMm: system.baseThicknessMm,
     constructionCode: system.constructionCode,
     systemName: system.systemName,
     layers: layers.map(layer => ({ ...layer, variable: layer === variableLayer })),
     material: variableLayer ? { name: variableLayer.name, lambda: variableLayer.lambda, alpha: variableLayer.alpha } : null,
     options: options.map(option => ({
+      sourceRowLabel: option.sourceRowLabel,
+      fieldEvidence: option.fieldEvidence,
+      layerValues: option.layerValues,
       thicknessMm: option.thicknessMm,
       productThermalResistance: option.productThermalResistance,
       totalThermalResistance: option.totalThermalResistance,

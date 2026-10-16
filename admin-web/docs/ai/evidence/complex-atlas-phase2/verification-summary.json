@@ -1,0 +1,172 @@
+{
+  "scope": "人工源图Fixture、保存载荷、内存确认、浏览器DOM；不是正式Backend查询或数据库确认",
+  "pages": [
+    {
+      "page": 89,
+      "constructionCount": 2,
+      "optionCounts": [
+        6,
+        6
+      ],
+      "productRRemainsNull": true,
+      "sourceFieldsPreserved": true,
+      "fixtureMemoryConfirmedOnly": true,
+      "thermalUpserted": 0,
+      "sha256": "6d48ac8f8a746eb6c012f8c9ad6c2bf24a4161ab65b00ee9222f351e41a4ba9c"
+    },
+    {
+      "page": 90,
+      "constructionCount": 2,
+      "optionCounts": [
+        6,
+        6
+      ],
+      "productRRemainsNull": true,
+      "sourceFieldsPreserved": true,
+      "fixtureMemoryConfirmedOnly": true,
+      "thermalUpserted": 0,
+      "sha256": "3cda1d4a7da48652b779c637bf19418c0fd4b894dccaaf0fdb951b7a8d916aa3"
+    },
+    {
+      "page": 75,
+      "constructionCount": 2,
+      "optionCounts": [
+        7,
+        7
+      ],
+      "productRRemainsNull": true,
+      "sourceFieldsPreserved": true,
+      "fixtureMemoryConfirmedOnly": true,
+      "thermalUpserted": 0,
+      "sha256": "a712567ae0622aa41f14961f2cf6cd5ebe28e8ecf701391c0d6814dc3e6ebcea"
+    }
+  ],
+  "totalOptions": 38,
+  "twelveRows": [
+    {
+      "page": 89,
+      "construction": "坡屋面（正置，级防水）",
+      "thicknessMm": 20,
+      "totalThermalResistance": 5.225,
+      "kValue": 0.191,
+      "constructionId": "kp-2d49afa04f0da34ee87a5d77-0",
+      "optionId": "kp-2d49afa04f0da34ee87a5d77-0-o3",
+      "status": "PASS_FIXTURE_AND_BROWSER_DOM"
+    },
+    {
+      "page": 89,
+      "construction": "坡屋面（倒置，级防水）",
+      "thicknessMm": 20,
+      "totalThermalResistance": 5.198,
+      "kValue": 0.192,
+      "constructionId": "kp-2d49afa04f0da34ee87a5d77-1",
+      "optionId": "kp-2d49afa04f0da34ee87a5d77-1-o3",
+      "status": "PASS_FIXTURE_AND_BROWSER_DOM"
+    },
+    {
+      "page": 89,
+      "construction": "坡屋面（正置，级防水）",
+      "thicknessMm": 25,
+      "totalThermalResistance": 6.025,
+      "kValue": 0.166,
+      "constructionId": "kp-2d49afa04f0da34ee87a5d77-0",
+      "optionId": "kp-2d49afa04f0da34ee87a5d77-0-o4",
+      "status": "PASS_FIXTURE_AND_BROWSER_DOM"
+    },
+    {
+      "page": 89,
+      "construction": "坡屋面（倒置，级防水）",
+      "thicknessMm": 25,
+      "totalThermalResistance": 5.998,
+      "kValue": 0.167,
+      "constructionId": "kp-2d49afa04f0da34ee87a5d77-1",
+      "optionId": "kp-2d49afa04f0da34ee87a5d77-1-o4",
+      "status": "PASS_FIXTURE_AND_BROWSER_DOM"
+    },
+    {
+      "page": 90,
+      "construction": "平屋面（正置，级防水）",
+      "thicknessMm": 20,
+      "totalThermalResistance": 5.369,
+      "kValue": 0.186,
+      "constructionId": "kp-014aed0d383a622c2cfcc05d-0",
+      "optionId": "kp-014aed0d383a622c2cfcc05d-0-o3",
+      "status": "PASS_FIXTURE_AND_BROWSER_DOM"
+    },
+    {
+      "page": 90,
+      "construction": "平屋面（倒置，级防水）",
+      "thicknessMm": 20,
+      "totalThermalResistance": 5.369,
+      "kValue": 0.186,
+      "constructionId": "kp-014aed0d383a622c2cfcc05d-1",
+      "optionId": "kp-014aed0d383a622c2cfcc05d-1-o3",
+      "status": "PASS_FIXTURE_AND_BROWSER_DOM"
+    },
+    {
+      "page": 90,
+      "construction": "平屋面（正置，级防水）",
+      "thicknessMm": 25,
+      "totalThermalResistance": 6.169,
+      "kValue": 0.162,
+      "constructionId": "kp-014aed0d383a622c2cfcc05d-0",
+      "optionId": "kp-014aed0d383a622c2cfcc05d-0-o4",
+      "status": "PASS_FIXTURE_AND_BROWSER_DOM"
+    },
+    {
+      "page": 90,
+      "construction": "平屋面（倒置，级防水）",
+      "thicknessMm": 25,
+      "totalThermalResistance": 6.169,
+      "kValue": 0.162,
+      "constructionId": "kp-014aed0d383a622c2cfcc05d-1",
+      "optionId": "kp-014aed0d383a622c2cfcc05d-1-o4",
+      "status": "PASS_FIXTURE_AND_BROWSER_DOM"
+    },
+    {
+      "page": 75,
+      "construction": "外墙C1-3",
+      "thicknessMm": 20,
+      "totalThermalResistance": 6.916,
+      "kValue": 0.145,
+      "constructionId": "kp-f81a71cbdba73084f6db4452-0",
+      "optionId": "kp-f81a71cbdba73084f6db4452-0-o4",
+      "status": "PASS_FIXTURE_AND_BROWSER_DOM"
+    },
+    {
+      "page": 75,
+      "construction": "外墙C1-4",
+      "thicknessMm": 20,
+      "totalThermalResistance": 7.54,
+      "kValue": 0.133,
+      "constructionId": "kp-f81a71cbdba73084f6db4452-1",
+      "optionId": "kp-f81a71cbdba73084f6db4452-1-o4",
+      "status": "PASS_FIXTURE_AND_BROWSER_DOM"
+    },
+    {
+      "page": 75,
+      "construction": "外墙C1-3",
+      "thicknessMm": 25,
+      "totalThermalResistance": 8.516,
+      "kValue": 0.117,
+      "constructionId": "kp-f81a71cbdba73084f6db4452-0",
+      "optionId": "kp-f81a71cbdba73084f6db4452-0-o5",
+      "status": "PASS_FIXTURE_AND_BROWSER_DOM"
+    },
+    {
+      "page": 75,
+      "construction": "外墙C1-4",
+      "thicknessMm": 25,
+      "totalThermalResistance": 9.14,
+      "kValue": 0.109,
+      "constructionId": "kp-f81a71cbdba73084f6db4452-1",
+      "optionId": "kp-f81a71cbdba73084f6db4452-1-o5",
+      "status": "PASS_FIXTURE_AND_BROWSER_DOM"
+    }
+  ],
+  "realVision": "NOT_RUN_PHASE2",
+  "realBackendHttpSse": "NOT_RUN",
+  "realDatabaseConfirm": "NOT_RUN",
+  "realOss": "NOT_RUN",
+  "appH5": "NOT_RUN_PHASE2"
+}

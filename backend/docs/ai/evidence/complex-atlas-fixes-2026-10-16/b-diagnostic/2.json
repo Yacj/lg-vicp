@@ -1,0 +1,144 @@
+{
+  "proposal": {
+    "queryMode": "NEW_QUERY",
+    "intent": "REFERENCE_LOOKUP",
+    "constraints": [
+      {
+        "type": "ENTITY",
+        "operation": "SET",
+        "field": "specClass",
+        "entityText": "I型",
+        "resolvedText": "I型",
+        "metric": null,
+        "operator": null,
+        "value": null,
+        "evidence": "I型VICP坡屋面",
+        "hard": true,
+        "confidence": 0.95
+      },
+      {
+        "type": "ENTITY",
+        "operation": "SET",
+        "field": "systemHint",
+        "entityText": "VICP",
+        "resolvedText": "VICP",
+        "metric": null,
+        "operator": null,
+        "value": null,
+        "evidence": "I型VICP坡屋面正置和倒置",
+        "hard": true,
+        "confidence": 0.9
+      },
+      {
+        "type": "ENTITY",
+        "operation": "SET",
+        "field": "roofForm",
+        "entityText": "坡屋面",
+        "resolvedText": "坡屋面",
+        "metric": null,
+        "operator": null,
+        "value": null,
+        "evidence": "I型VICP坡屋面正置和倒置",
+        "hard": true,
+        "confidence": 0.95
+      },
+      {
+        "type": "ENTITY",
+        "operation": "SET",
+        "field": "placement",
+        "entityText": "正置",
+        "resolvedText": "正置",
+        "metric": null,
+        "operator": null,
+        "value": null,
+        "evidence": "I型VICP坡屋面正置和倒置",
+        "hard": true,
+        "confidence": 0.95
+      },
+      {
+        "type": "ENTITY",
+        "operation": "APPEND",
+        "field": "placement",
+        "entityText": "倒置",
+        "resolvedText": "倒置",
+        "metric": null,
+        "operator": null,
+        "value": null,
+        "evidence": "I型VICP坡屋面正置和倒置",
+        "hard": true,
+        "confidence": 0.95
+      },
+      {
+        "type": "THICKNESS",
+        "operation": "SET",
+        "field": null,
+        "entityText": "20mm",
+        "resolvedText": null,
+        "metric": null,
+        "operator": "EXACT",
+        "value": 20,
+        "evidence": "20mm的传热系数",
+        "hard": true,
+        "confidence": 0.95
+      }
+    ],
+    "preferences": [],
+    "unresolved": [],
+    "confidence": 0.9
+  },
+  "query": {
+    "intent": "REFERENCE_LOOKUP",
+    "filters": [],
+    "mode": "MAX_LIMIT",
+    "toleranceAdjusted": false,
+    "systemHint": "VICP",
+    "specClass": "I",
+    "thicknessMm": 20,
+    "roofForm": "SLOPED",
+    "placements": [
+      "UPRIGHT",
+      "INVERTED"
+    ],
+    "queryMode": "NEW_QUERY",
+    "semanticConfidence": 0.9,
+    "unresolved": [],
+    "conditionTrace": [
+      {
+        "field": "systemHint",
+        "value": "VICP",
+        "source": "USER_EXPLICIT",
+        "classification": "HARD_CONSTRAINT"
+      },
+      {
+        "field": "specClass",
+        "value": "I",
+        "source": "USER_EXPLICIT",
+        "classification": "HARD_CONSTRAINT"
+      },
+      {
+        "field": "roofForm",
+        "value": "SLOPED",
+        "source": "USER_EXPLICIT",
+        "classification": "HARD_CONSTRAINT"
+      },
+      {
+        "field": "thicknessMm",
+        "value": 20,
+        "source": "USER_EXPLICIT",
+        "classification": "HARD_CONSTRAINT"
+      },
+      {
+        "field": "placements",
+        "value": "UPRIGHT",
+        "source": "USER_EXPLICIT",
+        "classification": "HARD_CONSTRAINT"
+      },
+      {
+        "field": "placements",
+        "value": "INVERTED",
+        "source": "USER_EXPLICIT",
+        "classification": "HARD_CONSTRAINT"
+      }
+    ]
+  }
+}

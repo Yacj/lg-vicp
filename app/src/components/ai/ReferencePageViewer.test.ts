@@ -1,14 +1,16 @@
+import type { AiReferencePage } from '@/api/reference-page'
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { createSSRApp, h } from 'vue'
 import { renderToString } from 'vue/server-renderer'
-import type { AiReferencePage } from '@/api/reference-page'
+import { complexAtlasFixture } from '../../test/fixtures/complexAtlas'
 import { referenceFixture } from '../../test/fixtures/referencePage'
-import ReferencePageViewer from './ReferencePageViewer.vue'
-import AiThermalSolutionCard from './AiThermalSolutionCard.vue'
-import StructuredThermalSection from './StructuredThermalSection.vue'
-import AiReferenceAnswer from './AiReferenceAnswer.vue'
 import AiAnswerReferencePage from './AiAnswerReferencePage.vue'
+import AiReferenceAnswer from './AiReferenceAnswer.vue'
+import AiThermalSolutionCard from './AiThermalSolutionCard.vue'
+import ReferencePageViewer from './ReferencePageViewer.vue'
+import StructuredThermalSection from './StructuredThermalSection.vue'
+
 async function render(component: unknown, props: Record<string, unknown>) {
   const app = createSSRApp({ render: () => h(component as never, props) })
   app.component('wd-button', { render() { return h('button', this.$slots.default?.()) } })
@@ -16,6 +18,28 @@ async function render(component: unknown, props: Record<string, unknown>) {
   app.component('mp-html', { props: ['content'], render() { return h('section', { innerHTML: this.$props.content }) } })
   return renderToString(app)
 }
+test('复杂图集三页按来源列头显示 6 个独立构造、全部档位和原备注，命中对比含 R/K', async () => {
+  for (const number of [89, 90, 75] as const) {
+    const page = complexAtlasFixture(number)
+    const html = await render(AiAnswerReferencePage, { page, anchorPrefix: `atlas-${number}` })
+    assert.equal((html.match(/class="thermal-table__body"/g) || []).length, 2)
+    assert.equal((html.match(/id="atlas-\d+-construction-\d+-option-\d+"/g) || []).length, number === 75 ? 14 : 12)
+    for (const construction of page.renderModel!.constructions) {
+      assert.ok(html.includes(construction.rawConstructionLabel!))
+      for (const option of construction.options) {
+        assert.ok(html.includes(String(option.kValue)))
+        assert.ok(html.includes(String(option.totalThermalResistance)))
+      }
+    }
+    for (const note of page.renderModel!.notes || [])
+      assert.ok(html.includes(note))
+    assert.ok(html.includes('传热阻 R'))
+    assert.ok(html.includes('来源栏目：外墙主断面'))
+    assert.ok(html.includes('定位命中档位'))
+    assert.ok(html.includes(`印刷页码 ${number}`))
+    assert.ok(!html.includes('R₀'))
+  }
+})
 test('方案卡默认只强调厚度和 K，来源是引用区域，双 R 可展开，不显示技术标识', async () => {
   const page = referenceFixture()
   page.matches.push({ constructionId: 'A1-4', optionId: 'A1-4-18', fieldKeys: ['kValue'] })
@@ -30,7 +54,8 @@ test('方案卡默认只强调厚度和 K，来源是引用区域，双 R 可展
 test('默认同页一张完整表格，公共层和所有厚度保留，命中四字段突出且原图互斥', async () => {
   const page = referenceFixture()
   const html = await render(ReferencePageViewer, { page })
-  for (const text of ['A1-3', 'A1-4', '保温板', '0.005', '1.25', '2.880', '3.297', '0.303', '砂浆', '>15<', '>20<', '>25<', '原页备注', '查看原始页面', '全屏看表格', '外墙主断面']) assert.ok(html.includes(text), text)
+  for (const text of ['A1-3', 'A1-4', '保温板', '0.005', '1.25', '2.880', '3.297', '0.303', '砂浆', '>15<', '>20<', '>25<', '原页备注', '查看原始页面', '全屏看表格', '整构造参数（源文组名待核）']) assert.ok(html.includes(text), text)
+  assert.ok(!html.includes('R₀'))
   assert.ok(html.includes('reference-construction-0-option-1'))
   assert.equal((html.match(/class="thermal-table__header"/g) || []).length, 1)
   assert.equal((html.match(/class="[^"]*thermal-table__row--hit/g) || []).length, 1)
@@ -58,7 +83,7 @@ test('历史表格的识别字段说明不出现在对话或参考页，也不�
     const html = await render(ReferencePageViewer, { page, inline })
     for (const text of [...internal, '识别参数可能存在异常', '需核对']) assert.ok(!html.includes(text), text)
     for (const text of ['全屏看表格', '2.880', '3.297', '0.303']) assert.ok(html.includes(text), text)
-    assert.equal((html.match(/class="[^\"]*thermal-table__field--hit/g) || []).length, 4)
+    assert.equal((html.match(/class="[^"]*thermal-table__field--hit/g) || []).length, 4)
   }
   assert.equal(JSON.stringify(page), snapshot)
 })

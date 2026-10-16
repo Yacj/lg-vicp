@@ -13,6 +13,8 @@ export interface SolutionCandidate {
   productSpecId?: string
   productId?: string | null
   productName?: string
+  substrateMaterial?: string
+  substrateThickness?: number | null
   thicknessMm?: number
   productThermalResistance?: number
   totalThermalResistance?: number

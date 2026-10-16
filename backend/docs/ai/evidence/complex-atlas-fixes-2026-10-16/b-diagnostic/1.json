@@ -1,0 +1,173 @@
+{
+  "proposal": {
+    "queryMode": "NEW_QUERY",
+    "intent": "REFERENCE_LOOKUP",
+    "constraints": [
+      {
+        "type": "ENTITY",
+        "operation": "SET",
+        "field": "specClass",
+        "entityText": "I型",
+        "resolvedText": "I型",
+        "metric": null,
+        "operator": null,
+        "value": null,
+        "evidence": "I型VICP",
+        "hard": true,
+        "confidence": 0.9
+      },
+      {
+        "type": "ENTITY",
+        "operation": "SET",
+        "field": "systemHint",
+        "entityText": "VICP",
+        "resolvedText": "VICP",
+        "metric": null,
+        "operator": null,
+        "value": null,
+        "evidence": "VICP坡屋面",
+        "hard": true,
+        "confidence": 0.7
+      },
+      {
+        "type": "ENTITY",
+        "operation": "SET",
+        "field": "roofForm",
+        "entityText": "坡屋面",
+        "resolvedText": "坡屋面",
+        "metric": null,
+        "operator": null,
+        "value": null,
+        "evidence": "坡屋面正置和倒置",
+        "hard": true,
+        "confidence": 0.9
+      },
+      {
+        "type": "ENTITY",
+        "operation": "SET",
+        "field": "placement",
+        "entityText": "正置",
+        "resolvedText": "正置",
+        "metric": null,
+        "operator": null,
+        "value": null,
+        "evidence": "正置和倒置",
+        "hard": true,
+        "confidence": 0.9
+      },
+      {
+        "type": "ENTITY",
+        "operation": "APPEND",
+        "field": "placement",
+        "entityText": "倒置",
+        "resolvedText": "倒置",
+        "metric": null,
+        "operator": null,
+        "value": null,
+        "evidence": "正置和倒置",
+        "hard": true,
+        "confidence": 0.9
+      },
+      {
+        "type": "THICKNESS",
+        "operation": "SET",
+        "field": null,
+        "entityText": "20mm",
+        "resolvedText": null,
+        "metric": null,
+        "operator": "EXACT",
+        "value": 20,
+        "evidence": "20mm的传热系数",
+        "hard": true,
+        "confidence": 0.95
+      }
+    ],
+    "preferences": [],
+    "unresolved": [
+      {
+        "field": "systemHint",
+        "reason": "原话“VICP”为简称，是否唯一对应目录中I型VICP薄抹灰外保温系统无法确认"
+      }
+    ],
+    "confidence": 0.7
+  },
+  "query": {
+    "intent": "REFERENCE_LOOKUP",
+    "filters": [],
+    "mode": "MAX_LIMIT",
+    "toleranceAdjusted": false,
+    "specClass": "I",
+    "thicknessMm": 20,
+    "roofForm": "SLOPED",
+    "placements": [
+      "UPRIGHT",
+      "INVERTED"
+    ],
+    "queryMode": "NEW_QUERY",
+    "semanticConfidence": 0.7,
+    "unresolved": [
+      {
+        "field": "systemHint",
+        "reason": "原话“VICP”为简称，是否唯一对应目录中I型VICP薄抹灰外保温系统无法确认"
+      },
+      {
+        "field": "query",
+        "reason": "这句话有不同理解，请确认查询条件。"
+      },
+      {
+        "field": "query",
+        "reason": "部分条件的语义或依据不明确，请确认。"
+      }
+    ],
+    "conditionTrace": [
+      {
+        "field": "specClass",
+        "value": "I",
+        "source": "USER_EXPLICIT",
+        "classification": "HARD_CONSTRAINT"
+      },
+      {
+        "field": "roofForm",
+        "value": "SLOPED",
+        "source": "USER_EXPLICIT",
+        "classification": "HARD_CONSTRAINT"
+      },
+      {
+        "field": "thicknessMm",
+        "value": 20,
+        "source": "USER_EXPLICIT",
+        "classification": "HARD_CONSTRAINT"
+      },
+      {
+        "field": "placements",
+        "value": "UPRIGHT",
+        "source": "USER_EXPLICIT",
+        "classification": "HARD_CONSTRAINT"
+      },
+      {
+        "field": "placements",
+        "value": "INVERTED",
+        "source": "USER_EXPLICIT",
+        "classification": "HARD_CONSTRAINT"
+      },
+      {
+        "field": "systemHint",
+        "value": "原话“VICP”为简称，是否唯一对应目录中I型VICP薄抹灰外保温系统无法确认",
+        "source": "USER_EXPLICIT",
+        "classification": "AMBIGUOUS"
+      },
+      {
+        "field": "query",
+        "value": "这句话有不同理解，请确认查询条件。",
+        "source": "USER_EXPLICIT",
+        "classification": "AMBIGUOUS"
+      },
+      {
+        "field": "query",
+        "value": "部分条件的语义或依据不明确，请确认。",
+        "source": "USER_EXPLICIT",
+        "classification": "AMBIGUOUS"
+      }
+    ]
+  }
+}

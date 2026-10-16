@@ -1,0 +1,86 @@
+{
+  "id": "T08",
+  "message": "把第90页原图、备注和完整厚度表打开。",
+  "scope": "真实结构化提案；源配置强制只读；不执行业务目标",
+  "proposal": {
+    "intent": "REFERENCE_VIEW",
+    "confidence": 0.9,
+    "evidence": "把第90页原图、备注和完整厚度表打开。",
+    "unresolved": null,
+    "reportType": null,
+    "factRead": null,
+    "relation": "NEW",
+    "continuedGoal": null,
+    "comparison": null,
+    "referenceTime": "CURRENT",
+    "adviceMode": null,
+    "constraintPatch": [],
+    "reference": {
+      "scope": "NONE",
+      "revision": null,
+      "items": []
+    },
+    "requestedEffect": "READ_ONLY",
+    "effectRequest": null,
+    "ambiguity": []
+  },
+  "finishReason": "stop",
+  "usage": {
+    "inputTokens": 4589,
+    "inputTokenDetails": {
+      "noCacheTokens": 237,
+      "cacheReadTokens": 4352
+    },
+    "outputTokens": 115,
+    "outputTokenDetails": {
+      "textTokens": 115,
+      "reasoningTokens": 0
+    },
+    "totalTokens": 4704,
+    "raw": {
+      "prompt_tokens": 4589,
+      "completion_tokens": 115,
+      "total_tokens": 4704,
+      "prompt_tokens_details": {
+        "cached_tokens": 4352
+      },
+      "prompt_cache_hit_tokens": 4352,
+      "prompt_cache_miss_tokens": 237
+    }
+  },
+  "policy": {
+    "intent": "REFERENCE_VIEW",
+    "mutation": "NONE",
+    "evidenceSpans": [
+      "把第90页原图、备注和完整厚度表打开。"
+    ],
+    "parserSource": "LLM",
+    "semantic": {
+      "intent": "REFERENCE_VIEW",
+      "confidence": 0.9,
+      "evidence": "把第90页原图、备注和完整厚度表打开。",
+      "unresolved": null,
+      "reportType": null,
+      "factRead": null,
+      "relation": "NEW",
+      "continuedGoal": null,
+      "comparison": null,
+      "referenceTime": "CURRENT",
+      "adviceMode": null,
+      "constraintPatch": [],
+      "reference": {
+        "scope": "NONE",
+        "revision": null,
+        "items": []
+      },
+      "requestedEffect": "READ_ONLY",
+      "effectRequest": null,
+      "ambiguity": []
+    },
+    "requiresCandidateQuery": false,
+    "restoreAdviceGoal": false,
+    "referenceScope": "LATEST_VISIBLE",
+    "policyReason": "READ_ONLY_SEMANTIC"
+  },
+  "durationMs": 889
+}

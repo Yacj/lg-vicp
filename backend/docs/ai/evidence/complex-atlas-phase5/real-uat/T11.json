@@ -1,0 +1,15 @@
+{
+  "id": "T11",
+  "group": "verify",
+  "question": "确认一下这里的R=5.369是否正确，不是确认方案。",
+  "status": "PARTIAL",
+  "conversationId": "fc4d2f22-c2b7-4eb8-adc6-567a1a4e03e5",
+  "answer": "请补充要核对的构造编号；若已有多个构造，还需明确对应来源和保温板厚度。",
+  "facts": [],
+  "pages": [],
+  "historyReturned": true,
+  "persistedUrlFree": true,
+  "solutionStates": 0,
+  "reports": 0,
+  "snapshots": 0
+}

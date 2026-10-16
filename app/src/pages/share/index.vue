@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ApiEnvelope, PublicShareResult, ShareMessageSnapshot } from '@/api/types'
 import { shareApi } from '@/api/modules/shares'
+import MpHtml from '@/uni_modules/mp-html/components/mp-html/mp-html.vue'
 import { markdownTagStyle, renderMarkdown } from '@/utils/markdown'
 
 definePage({

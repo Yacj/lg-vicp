@@ -88,7 +88,7 @@ export function planWechatPhoneLogin(input: {
     return { action: 'need-login-code' }
   }
 
-  const loginCode = input.loginCode.trim()
+  const loginCode = (input.loginCode ?? '').trim()
   if (!loginCode) {
     return { action: 'stop', message: WECHAT_LOGIN_FAILED_MESSAGE }
   }

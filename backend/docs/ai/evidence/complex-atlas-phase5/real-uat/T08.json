@@ -1,0 +1,19 @@
+{
+  "id": "T08",
+  "group": "full-page",
+  "question": "把第90页原图、备注和完整厚度表打开。",
+  "status": "FAIL",
+  "conversationId": "9a5303eb-bd40-473d-94f9-e4b441e88221",
+  "answer": "当前没有可定位的候选，请先查询已有档位或选择方案。",
+  "facts": [],
+  "pages": [],
+  "historyReturned": true,
+  "persistedUrlFree": true,
+  "solutionStates": 0,
+  "reports": 0,
+  "snapshots": 0,
+  "error": {
+    "name": "AssertionError",
+    "message": "The expression evaluated to a falsy value:\n\n  assert.ok(page)\n"
+  }
+}

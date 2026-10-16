@@ -1,0 +1,78 @@
+{
+  "id": "T05",
+  "group": "wall",
+  "question": "外墙C1-3和C1-4都是20mm，哪个K小？基层什么材料？",
+  "status": "PASS",
+  "conversationId": "315b7f42-0a19-4bf0-bc78-f9a195bc5910",
+  "answer": "本次已确认资料匹配 2 档、2 个独立构造，当前引用 2 档。\n\n- **外墙C1-4**，基层加气混凝土砌块 200mm：板厚 **20mm**，传热阻 R **7.540 (m²·K)/W**，传热系数 K **0.133 W/(m²·K)**。来源：《复杂建筑热工图集 · 隔离人工基线（程序模拟审核）》，印刷页码 75。\n\n- **外墙C1-3**，基层蒸压灰砂砖 240mm：板厚 **20mm**，传热阻 R **6.916 (m²·K)/W**，传热系数 K **0.145 W/(m²·K)**。来源：《复杂建筑热工图集 · 隔离人工基线（程序模拟审核）》，印刷页码 75。\n\n在全部 2 条匹配档位内，传热系数 K最小为 0.133，共 1 条并列。\n\n同值不代表做法相同，请结合完整表及原始构造简图核对。材料层热阻、产品整体热阻与整构造传热阻分别读取，缺值不补算；本次仅查阅资料，不选择方案或判断规范达标。",
+  "facts": [
+    {
+      "page": "75",
+      "constructionId": "kp-974b05635d93b474e033a95b-1",
+      "optionId": "kp-974b05635d93b474e033a95b-1-o4",
+      "label": "外墙C1-4",
+      "placement": null,
+      "thickness": 20,
+      "r": 7.54,
+      "k": 0.133,
+      "base": "加气混凝土砌块",
+      "versionId": "3a124031-5f59-479d-8119-9999f8f6dea5",
+      "revision": "974b05635d93b474e033a95b",
+      "fieldKeys": [
+        "thicknessMm",
+        "totalThermalResistance",
+        "kValue"
+      ]
+    },
+    {
+      "page": "75",
+      "constructionId": "kp-974b05635d93b474e033a95b-0",
+      "optionId": "kp-974b05635d93b474e033a95b-0-o4",
+      "label": "外墙C1-3",
+      "placement": null,
+      "thickness": 20,
+      "r": 6.916,
+      "k": 0.145,
+      "base": "蒸压灰砂砖",
+      "versionId": "3a124031-5f59-479d-8119-9999f8f6dea5",
+      "revision": "974b05635d93b474e033a95b",
+      "fieldKeys": [
+        "thicknessMm",
+        "totalThermalResistance",
+        "kValue"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "page": {
+        "documentId": "64d9fc39-acc5-48c5-b1f2-9462cfde9f15",
+        "pageId": "72fbd5c3-e44b-4e83-bedd-132b5c97d88c",
+        "documentTitle": "复杂建筑热工图集 · 隔离人工基线（程序模拟审核）",
+        "versionId": "3a124031-5f59-479d-8119-9999f8f6dea5",
+        "pageLabelSource": "MANUAL",
+        "pageLabelVerified": true,
+        "docNumber": "J/CABEE 26J702 / UAT",
+        "pageNumber": 3,
+        "physicalPageNumber": 3,
+        "pageLabel": "75",
+        "imageUrl": "[AUTHORIZED_URL_REDACTED]"
+      },
+      "revision": "974b05635d93b474e033a95b",
+      "groups": 2,
+      "options": [
+        7,
+        7
+      ],
+      "notes": [
+        "注：1.内表面换热阻0.11(m²·K)/W，外表面换热阻0.04(m²·K)/W。",
+        "2.加气混凝土砌块热工性能参照华北标图集 13BJ2-12建筑外保温（节能75%）。"
+      ]
+    }
+  ],
+  "historyReturned": true,
+  "persistedUrlFree": true,
+  "solutionStates": 0,
+  "reports": 0,
+  "snapshots": 0
+}

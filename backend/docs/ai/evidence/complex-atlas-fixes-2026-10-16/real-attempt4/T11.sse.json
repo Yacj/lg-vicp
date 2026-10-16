@@ -1,0 +1,63 @@
+[
+  {
+    "event": "message",
+    "data": {
+      "messageId": "8c06f5be-7417-4f24-a9eb-b655236970a6",
+      "userMessageId": "93af8ce8-82c4-40d5-a2a6-93a13e855a3e",
+      "conversationId": "415c75d0-0e5a-4e2f-a7aa-9488dc70966f",
+      "requestId": "req-v"
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "analyzing",
+      "message": "正在分析问题..."
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "checking",
+      "message": "正在核对检索资料和计算结果..."
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "composing",
+      "message": "正在整理回答..."
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "请补充要核对的构造编号；若已有多个构造，还需明确对应来源和保温板厚度。"
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "completed",
+      "message": "回答整理完成"
+    }
+  },
+  {
+    "event": "done",
+    "data": {
+      "messageId": "8c06f5be-7417-4f24-a9eb-b655236970a6",
+      "conversationId": "415c75d0-0e5a-4e2f-a7aa-9488dc70966f",
+      "finishReason": "COMPLETED",
+      "usage": {},
+      "model": {
+        "id": "deepseek-chat"
+      },
+      "promptVersion": {
+        "id": "ae0f8064-e3d6-43c0-ab4c-174188be34e4",
+        "version": 3
+      },
+      "sources": [],
+      "latencyMs": 3416
+    }
+  }
+]

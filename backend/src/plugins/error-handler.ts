@@ -1,7 +1,7 @@
 import fp from "fastify-plugin";
 import type { FastifyReply } from "fastify";
 import { ZodError } from "zod";
-import { AppError, ConflictError } from "../shared/errors.js";
+import { AppError, ConflictError, UnauthorizedError } from "../shared/errors.js";
 import { uniqueViolationMessage } from "../shared/database-errors.js";
 import { fail } from "../shared/response.js";
 
@@ -17,6 +17,7 @@ function sendErrorResponse(reply: FastifyReply, httpStatusCode: number, payload:
 export const errorHandlerPlugin = fp(async (app) => {
   app.setErrorHandler((error, request, reply) => {
     if (error instanceof AppError) {
+      if (error instanceof UnauthorizedError) return sendErrorResponse(reply, 401, fail(request.id, error.statusCode, error.message, error.details));
       return sendBusinessError(reply, request.id, error.statusCode, error.message, error.details);
     }
 

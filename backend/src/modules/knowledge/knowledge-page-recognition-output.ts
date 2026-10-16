@@ -1,4 +1,4 @@
-import { pageRecognitionResultSchema, type PageRecognitionResult } from "../../shared/page-recognition.js";
+import { pageRecognitionResultSchema, pageRecognitionSourceColumnSchema, type PageRecognitionResult } from "../../shared/page-recognition.js";
 
 /** 备注保留原图文字；剔除模型泄漏的结构化字段解释，正常多厚度留空不作为风险。 */
 export function normalizePageRecognitionAnnotations(result: PageRecognitionResult): PageRecognitionResult {
@@ -83,6 +83,7 @@ export function repairPageRecognitionText(text: string): string | null {
       repairWarnings.push(`第 ${systemIndex + 1} 个构造不是对象，已跳过`);
       return [];
     }
+    const layerIndices = new Map<number, number>();
     const layers = items(system.layers ?? system.constructionLayers).flatMap((entry, layerIndex) => {
       const layer = object(entry);
       if (!layer) {
@@ -94,7 +95,9 @@ export function repairPageRecognitionText(text: string): string | null {
         repairWarnings.push(`第 ${systemIndex + 1} 个构造的第 ${layerIndex + 1} 层缺少名称，已跳过`);
         return [];
       }
+      layerIndices.set(layerIndex, layerIndices.size);
       return [{
+        ...layer,
         order: Number.isInteger(number(layer.order)) ? number(layer.order) : null,
         name,
         thicknessMm: number(layer.thicknessMm ?? layer.thickness),
@@ -114,10 +117,21 @@ export function repairPageRecognitionText(text: string): string | null {
         repairWarnings.push(`第 ${systemIndex + 1} 个构造的第 ${optionIndex + 1} 档含未区分来源的热阻，未映射到产品层或总传热阻`);
       }
       return [{
+        ...Object.fromEntries(Object.entries(option).filter(([key]) => key !== "rValue" && key !== "thermalResistance")),
         thicknessMm: number(option.thicknessMm ?? option.thickness),
         productThermalResistance: number(option.productThermalResistance),
         totalThermalResistance: number(option.totalThermalResistance),
-        kValue: number(option.kValue)
+        kValue: number(option.kValue),
+        ...(option.layerValues != null ? { layerValues: items(option.layerValues).flatMap(entry => {
+          const layerValue = object(entry);
+          const sourceIndex = layerValue ? number(layerValue.layerIndex) : null;
+          if (sourceIndex == null || !layerIndices.has(sourceIndex)) {
+            repairWarnings.push(`第 ${systemIndex + 1} 个构造的第 ${optionIndex + 1} 档引用了不可读取的材料层，未绑定到其他层`);
+            return [];
+          }
+          return [{ ...layerValue, layerIndex: layerIndices.get(sourceIndex),
+            thicknessMm: number(layerValue!.thicknessMm), rValue: number(layerValue!.rValue) }];
+        }) } : {})
       }];
     });
     const normalizedClass = specClass(system.specClass);
@@ -125,6 +139,13 @@ export function repairPageRecognitionText(text: string): string | null {
       repairWarnings.push(`第 ${systemIndex + 1} 个构造的规格等级无法识别，已留空`);
     }
     return [{
+      ...system,
+      ...(system.sourceColumns != null ? { sourceColumns: items(system.sourceColumns).flatMap(entry => {
+        const column = pageRecognitionSourceColumnSchema.safeParse(entry);
+        if (column.success) return [column.data];
+        repairWarnings.push(`第 ${systemIndex + 1} 个构造存在不符合字段合同的源列，未映射工程值；请对照全文和原图核对`);
+        return [];
+      }) } : {}),
       systemName: string(system.systemName),
       specClass: normalizedClass,
       constructionCode: string(system.constructionCode),
@@ -137,6 +158,7 @@ export function repairPageRecognitionText(text: string): string | null {
   const fullText = string(root.fullText ?? root.parsedText ?? root.text) ?? "";
   if (!fullText.trim()) repairWarnings.push("模型未返回可确认的页面全文，请人工补充后再确认");
   const repaired = {
+    ...root,
     pageLabel: typeof root.pageLabel === "number" ? String(root.pageLabel) : string(root.pageLabel),
     pageTitle: string(root.pageTitle),
     fullText,

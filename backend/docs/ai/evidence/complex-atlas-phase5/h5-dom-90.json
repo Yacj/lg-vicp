@@ -1,0 +1,103 @@
+{
+  "groups": [
+    {
+      "id": "reference-construction-0",
+      "label": "平屋面（正置，级防水）II 型 VICP屋面平屋面正置防水等级待核对钢筋混凝土楼板 120mm",
+      "options": [
+        {
+          "k": "0.337",
+          "productR": "—",
+          "r": "2.969",
+          "row": "4 / span 1",
+          "thickness": "5"
+        },
+        {
+          "k": "0.265",
+          "productR": "—",
+          "r": "3.769",
+          "row": "5 / span 1",
+          "thickness": "10"
+        },
+        {
+          "k": "0.219",
+          "productR": "—",
+          "r": "4.569",
+          "row": "6 / span 1",
+          "thickness": "15"
+        },
+        {
+          "k": "0.186",
+          "productR": "—",
+          "r": "5.369",
+          "row": "7 / span 1",
+          "thickness": "20"
+        },
+        {
+          "k": "0.162",
+          "productR": "—",
+          "r": "6.169",
+          "row": "8 / span 1",
+          "thickness": "25"
+        },
+        {
+          "k": "0.143",
+          "productR": "—",
+          "r": "6.969",
+          "row": "9 / span 1",
+          "thickness": "30"
+        }
+      ]
+    },
+    {
+      "id": "reference-construction-1",
+      "label": "平屋面（倒置，级防水）II 型 VICP屋面平屋面倒置防水等级待核对钢筋混凝土楼板 120mm",
+      "options": [
+        {
+          "k": "0.337",
+          "productR": "—",
+          "r": "2.969",
+          "row": "7 / span 1",
+          "thickness": "5"
+        },
+        {
+          "k": "0.265",
+          "productR": "—",
+          "r": "3.769",
+          "row": "8 / span 1",
+          "thickness": "10"
+        },
+        {
+          "k": "0.219",
+          "productR": "—",
+          "r": "4.569",
+          "row": "9 / span 1",
+          "thickness": "15"
+        },
+        {
+          "k": "0.186",
+          "productR": "—",
+          "r": "5.369",
+          "row": "10 / span 1",
+          "thickness": "20"
+        },
+        {
+          "k": "0.162",
+          "productR": "—",
+          "r": "6.169",
+          "row": "11 / span 1",
+          "thickness": "25"
+        },
+        {
+          "k": "0.143",
+          "productR": "—",
+          "r": "6.969",
+          "row": "12 / span 1",
+          "thickness": "30"
+        }
+      ]
+    }
+  ],
+  "headers": " 构造 / 原始标签  构造层 / 材料 分层厚度mm导热系数W/(m·K)修正系数 α热阻(m²·K)/W产品整体热阻（源文待核）(m²·K)/W外墙主断面传热阻 R(m²·K)/W传热系数 KW/(m²·K)",
+  "height": 1331,
+  "width": 1491
+}

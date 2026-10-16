@@ -1,0 +1,71 @@
+{
+  "name": "90-20",
+  "query": "II型平屋面正置和倒置的20mm参数一样吗？",
+  "http": 200,
+  "contentType": "text/event-stream; charset=utf-8",
+  "events": [
+    {
+      "event": "message",
+      "data": {
+        "messageId": "0299e7de-abdf-4020-a10a-14216ac60ecd",
+        "userMessageId": "1627fd03-8277-4f6b-8393-faa32710875a",
+        "conversationId": "ecc63a59-2144-456b-a9e0-26c664d42958",
+        "requestId": "req-g"
+      }
+    },
+    {
+      "event": "progress",
+      "data": {
+        "stage": "analyzing",
+        "message": "正在分析问题..."
+      }
+    },
+    {
+      "event": "progress",
+      "data": {
+        "stage": "checking",
+        "message": "正在核对检索资料和计算结果..."
+      }
+    },
+    {
+      "event": "progress",
+      "data": {
+        "stage": "composing",
+        "message": "正在整理回答..."
+      }
+    },
+    {
+      "event": "delta",
+      "data": {
+        "text": "用户同时询问正置和倒置，未指定单一放置方式，不能添加单值placement约束"
+      }
+    },
+    {
+      "event": "progress",
+      "data": {
+        "stage": "completed",
+        "message": "回答整理完成"
+      }
+    },
+    {
+      "event": "done",
+      "data": {
+        "messageId": "0299e7de-abdf-4020-a10a-14216ac60ecd",
+        "conversationId": "ecc63a59-2144-456b-a9e0-26c664d42958",
+        "finishReason": "COMPLETED",
+        "usage": {},
+        "model": {
+          "id": "deepseek-chat"
+        },
+        "promptVersion": {
+          "id": "f3f5a2ff-8436-4101-b11a-6ed5ce8b3c26",
+          "version": 1
+        },
+        "sources": [],
+        "latencyMs": 4834
+      }
+    }
+  ],
+  "blocks": [],
+  "facts": []
+}

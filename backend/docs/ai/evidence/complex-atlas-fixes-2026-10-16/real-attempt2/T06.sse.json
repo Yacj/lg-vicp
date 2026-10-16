@@ -1,0 +1,56 @@
+[
+  {
+    "event": "message",
+    "data": {
+      "messageId": "668b79fb-f55d-4d18-a274-6261d61e40c0",
+      "userMessageId": "4d2657bb-a89c-4a4d-a2fe-1dc56def5c06",
+      "conversationId": "9ca6598a-13f8-41be-8fee-02504125457b",
+      "requestId": "req-g"
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "analyzing",
+      "message": "正在分析问题..."
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "composing",
+      "message": "正在整理回答..."
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "想确认一下：部分明确指标条件未被完整解析，请确认。"
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "completed",
+      "message": "回答整理完成"
+    }
+  },
+  {
+    "event": "done",
+    "data": {
+      "messageId": "668b79fb-f55d-4d18-a274-6261d61e40c0",
+      "conversationId": "9ca6598a-13f8-41be-8fee-02504125457b",
+      "finishReason": "COMPLETED",
+      "usage": {},
+      "model": {
+        "id": "deepseek-chat"
+      },
+      "promptVersion": {
+        "id": "ae0f8064-e3d6-43c0-ab4c-174188be34e4",
+        "version": 3
+      },
+      "sources": [],
+      "latencyMs": 4781
+    }
+  }
+]

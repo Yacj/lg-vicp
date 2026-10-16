@@ -1,0 +1,56 @@
+[
+  {
+    "event": "message",
+    "data": {
+      "messageId": "c8e3e122-0849-45f7-a651-681b8b724fec",
+      "userMessageId": "f3e1913a-8958-44bd-ab3a-cee2126b7e38",
+      "conversationId": "74336a33-140f-4a78-956c-1812e6027f94",
+      "requestId": "req-a"
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "analyzing",
+      "message": "正在分析问题..."
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "composing",
+      "message": "正在整理回答..."
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "想确认一下：“它们”指代不明：上一轮助手未给出任何具体构造或型号，无法确定比较对象。"
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "completed",
+      "message": "回答整理完成"
+    }
+  },
+  {
+    "event": "done",
+    "data": {
+      "messageId": "c8e3e122-0849-45f7-a651-681b8b724fec",
+      "conversationId": "74336a33-140f-4a78-956c-1812e6027f94",
+      "finishReason": "COMPLETED",
+      "usage": {},
+      "model": {
+        "id": "deepseek-chat"
+      },
+      "promptVersion": {
+        "id": "ae0f8064-e3d6-43c0-ab4c-174188be34e4",
+        "version": 3
+      },
+      "sources": [],
+      "latencyMs": 2781
+    }
+  }
+]

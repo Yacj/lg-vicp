@@ -1,0 +1,84 @@
+{
+  "scope": "浏览器真实Store发送产生的会话，由本人C_APP HTTP重读；模型reasoning不留存",
+  "http": 200,
+  "response": {
+    "success": true,
+    "data": {
+      "conversation": {
+        "id": "3cd1541c-a31b-4b4f-a661-e5a32e3b92a8",
+        "userId": "850e8389-6120-46c2-9ea5-701d7d24ce97",
+        "projectId": null,
+        "insulationSystemId": null,
+        "clientApp": "c_app",
+        "scene": "general_chat",
+        "title": null,
+        "reasoningMode": "OFF",
+        "isPinned": false,
+        "pinnedAt": null,
+        "lastMessageAt": "2026-10-16T06:11:41.127Z",
+        "groupId": null,
+        "status": "active",
+        "deletedAt": null,
+        "createdAt": "2026-10-16T06:11:37.590Z",
+        "updatedAt": "2026-10-16T06:11:41.127Z"
+      },
+      "solutionState": null,
+      "messages": [
+        {
+          "id": "04756c71-64a8-42ea-ab2d-bd022cc10c40",
+          "conversationId": "3cd1541c-a31b-4b4f-a661-e5a32e3b92a8",
+          "userId": "850e8389-6120-46c2-9ea5-701d7d24ce97",
+          "role": "USER",
+          "status": "COMPLETED",
+          "content": "I型VICP坡屋面正置和倒置，20mm的传热系数分别多少？看下表。",
+          "referencePages": [],
+          "reasoningMode": "OFF",
+          "model": null,
+          "durationMs": null,
+          "startedAt": null,
+          "finishedAt": null,
+          "stopReason": null,
+          "createdAt": "2026-10-16T06:11:38.195Z",
+          "attachments": []
+        },
+        {
+          "id": "4a7d4815-19a1-4073-92fc-1e4ec71ea3df",
+          "conversationId": "3cd1541c-a31b-4b4f-a661-e5a32e3b92a8",
+          "userId": null,
+          "role": "ASSISTANT",
+          "status": "COMPLETED",
+          "content": "想确认一下：请指定这轮要讨论的保温体系或实际基层；可以先整理参考选型框架。",
+          "referencePages": [],
+          "reasoningMode": "OFF",
+          "model": "deepseek-chat",
+          "durationMs": 3957,
+          "startedAt": "2026-10-16T06:11:40.941Z",
+          "finishedAt": "2026-10-16T06:11:41.098Z",
+          "stopReason": null,
+          "createdAt": "2026-10-16T06:11:38.195Z",
+          "attachments": []
+        }
+      ],
+      "activeAgentRun": null,
+      "processingSummary": {
+        "stages": [
+          {
+            "stage": "analyzing",
+            "message": "正在分析问题..."
+          },
+          {
+            "stage": "composing",
+            "message": "正在整理回答..."
+          }
+        ],
+        "note": "这里展示回答依据和处理阶段，不展示模型原始思考链。"
+      },
+      "retrievals": [],
+      "feedbacks": [],
+      "regenerations": [],
+      "reports": [],
+      "shareLinks": []
+    },
+    "requestId": "req-17"
+  }
+}

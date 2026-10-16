@@ -1,0 +1,206 @@
+[
+  {
+    "page": 89,
+    "label": "坡屋面（正置，级防水）",
+    "thicknessMm": 20,
+    "R": 5.225,
+    "K": 0.191,
+    "pageId": "fixture-page-89",
+    "constructionId": "kp-ab9cdbb6fa0e10537e3ed0fb-0",
+    "optionId": "kp-ab9cdbb6fa0e10537e3ed0fb-0-o3",
+    "fieldKeys": [
+      "thicknessMm",
+      "totalThermalResistance",
+      "kValue"
+    ],
+    "confirmedRevision": "ab9cdbb6fa0e10537e3ed0fb",
+    "status": "PASS_FIXTURE_HTTP_SSE"
+  },
+  {
+    "page": 89,
+    "label": "坡屋面（倒置，级防水）",
+    "thicknessMm": 20,
+    "R": 5.198,
+    "K": 0.192,
+    "pageId": "fixture-page-89",
+    "constructionId": "kp-ab9cdbb6fa0e10537e3ed0fb-1",
+    "optionId": "kp-ab9cdbb6fa0e10537e3ed0fb-1-o3",
+    "fieldKeys": [
+      "thicknessMm",
+      "totalThermalResistance",
+      "kValue"
+    ],
+    "confirmedRevision": "ab9cdbb6fa0e10537e3ed0fb",
+    "status": "PASS_FIXTURE_HTTP_SSE"
+  },
+  {
+    "page": 89,
+    "label": "坡屋面（正置，级防水）",
+    "thicknessMm": 25,
+    "R": 6.025,
+    "K": 0.166,
+    "pageId": "fixture-page-89",
+    "constructionId": "kp-ab9cdbb6fa0e10537e3ed0fb-0",
+    "optionId": "kp-ab9cdbb6fa0e10537e3ed0fb-0-o4",
+    "fieldKeys": [
+      "thicknessMm",
+      "totalThermalResistance",
+      "kValue"
+    ],
+    "confirmedRevision": "ab9cdbb6fa0e10537e3ed0fb",
+    "status": "PASS_FIXTURE_HTTP_SSE"
+  },
+  {
+    "page": 89,
+    "label": "坡屋面（倒置，级防水）",
+    "thicknessMm": 25,
+    "R": 5.998,
+    "K": 0.167,
+    "pageId": "fixture-page-89",
+    "constructionId": "kp-ab9cdbb6fa0e10537e3ed0fb-1",
+    "optionId": "kp-ab9cdbb6fa0e10537e3ed0fb-1-o4",
+    "fieldKeys": [
+      "thicknessMm",
+      "totalThermalResistance",
+      "kValue"
+    ],
+    "confirmedRevision": "ab9cdbb6fa0e10537e3ed0fb",
+    "status": "PASS_FIXTURE_HTTP_SSE"
+  },
+  {
+    "page": 90,
+    "label": "平屋面（正置，级防水）",
+    "thicknessMm": 20,
+    "R": 5.369,
+    "K": 0.186,
+    "pageId": "fixture-page-90",
+    "constructionId": "kp-1aa2f2cc72f115f38388616f-0",
+    "optionId": "kp-1aa2f2cc72f115f38388616f-0-o3",
+    "fieldKeys": [
+      "thicknessMm",
+      "totalThermalResistance",
+      "kValue"
+    ],
+    "confirmedRevision": "1aa2f2cc72f115f38388616f",
+    "status": "PASS_FIXTURE_HTTP_SSE"
+  },
+  {
+    "page": 90,
+    "label": "平屋面（倒置，级防水）",
+    "thicknessMm": 20,
+    "R": 5.369,
+    "K": 0.186,
+    "pageId": "fixture-page-90",
+    "constructionId": "kp-1aa2f2cc72f115f38388616f-1",
+    "optionId": "kp-1aa2f2cc72f115f38388616f-1-o3",
+    "fieldKeys": [
+      "thicknessMm",
+      "totalThermalResistance",
+      "kValue"
+    ],
+    "confirmedRevision": "1aa2f2cc72f115f38388616f",
+    "status": "PASS_FIXTURE_HTTP_SSE"
+  },
+  {
+    "page": 90,
+    "label": "平屋面（正置，级防水）",
+    "thicknessMm": 25,
+    "R": 6.169,
+    "K": 0.162,
+    "pageId": "fixture-page-90",
+    "constructionId": "kp-1aa2f2cc72f115f38388616f-0",
+    "optionId": "kp-1aa2f2cc72f115f38388616f-0-o4",
+    "fieldKeys": [
+      "thicknessMm",
+      "totalThermalResistance",
+      "kValue"
+    ],
+    "confirmedRevision": "1aa2f2cc72f115f38388616f",
+    "status": "PASS_FIXTURE_HTTP_SSE"
+  },
+  {
+    "page": 90,
+    "label": "平屋面（倒置，级防水）",
+    "thicknessMm": 25,
+    "R": 6.169,
+    "K": 0.162,
+    "pageId": "fixture-page-90",
+    "constructionId": "kp-1aa2f2cc72f115f38388616f-1",
+    "optionId": "kp-1aa2f2cc72f115f38388616f-1-o4",
+    "fieldKeys": [
+      "thicknessMm",
+      "totalThermalResistance",
+      "kValue"
+    ],
+    "confirmedRevision": "1aa2f2cc72f115f38388616f",
+    "status": "PASS_FIXTURE_HTTP_SSE"
+  },
+  {
+    "page": 75,
+    "label": "外墙C1-3",
+    "thicknessMm": 20,
+    "R": 6.916,
+    "K": 0.145,
+    "pageId": "fixture-page-75",
+    "constructionId": "kp-e59add15533a96e283bcaf4d-0",
+    "optionId": "kp-e59add15533a96e283bcaf4d-0-o4",
+    "fieldKeys": [
+      "thicknessMm",
+      "totalThermalResistance",
+      "kValue"
+    ],
+    "confirmedRevision": "e59add15533a96e283bcaf4d",
+    "status": "PASS_FIXTURE_HTTP_SSE"
+  },
+  {
+    "page": 75,
+    "label": "外墙C1-4",
+    "thicknessMm": 20,
+    "R": 7.54,
+    "K": 0.133,
+    "pageId": "fixture-page-75",
+    "constructionId": "kp-e59add15533a96e283bcaf4d-1",
+    "optionId": "kp-e59add15533a96e283bcaf4d-1-o4",
+    "fieldKeys": [
+      "thicknessMm",
+      "totalThermalResistance",
+      "kValue"
+    ],
+    "confirmedRevision": "e59add15533a96e283bcaf4d",
+    "status": "PASS_FIXTURE_HTTP_SSE"
+  },
+  {
+    "page": 75,
+    "label": "外墙C1-3",
+    "thicknessMm": 25,
+    "R": 8.516,
+    "K": 0.117,
+    "pageId": "fixture-page-75",
+    "constructionId": "kp-e59add15533a96e283bcaf4d-0",
+    "optionId": "kp-e59add15533a96e283bcaf4d-0-o5",
+    "fieldKeys": [
+      "thicknessMm",
+      "totalThermalResistance",
+      "kValue"
+    ],
+    "confirmedRevision": "e59add15533a96e283bcaf4d",
+    "status": "PASS_FIXTURE_HTTP_SSE"
+  },
+  {
+    "page": 75,
+    "label": "外墙C1-4",
+    "thicknessMm": 25,
+    "R": 9.14,
+    "K": 0.109,
+    "pageId": "fixture-page-75",
+    "constructionId": "kp-e59add15533a96e283bcaf4d-1",
+    "optionId": "kp-e59add15533a96e283bcaf4d-1-o5",
+    "fieldKeys": [
+      "thicknessMm",
+      "totalThermalResistance",
+      "kValue"
+    ],
+    "confirmedRevision": "e59add15533a96e283bcaf4d",
+    "status": "PASS_FIXTURE_HTTP_SSE"
+  }
+]

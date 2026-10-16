@@ -1,0 +1,241 @@
+[
+  {
+    "project": "backend",
+    "file": "AGENTS.md",
+    "status": "modified",
+    "beforeSha256": "45837ef21215e6973892965d87e7f82e3864f95a8101458cb5aa01225f142adf",
+    "afterSha256": "1f5db336ce276e782d7648221db9470514ce84ffd5eafe22662484807983e87d"
+  },
+  {
+    "project": "backend",
+    "file": "README.md",
+    "status": "modified",
+    "beforeSha256": "64537e449a4e63e94980578015615ba7f70604a62cef575e10efd041a3d8907e",
+    "afterSha256": "e3abbe17264d3f94e444d1f7d3984f1a708f3f00a3ad44c43cb6f15016811111"
+  },
+  {
+    "project": "backend",
+    "file": ".cursor/rules/30-ai-and-reports.mdc",
+    "status": "modified",
+    "beforeSha256": "5cb9ef973af1d501b81d3500fcc4cb0a97d7579eeb0745c410daf3c801ec17c3",
+    "afterSha256": "9b82623593af8ae0c2ac6424488d9159d882a8ed082abd129f7f7ad906ed89f0"
+  },
+  {
+    "project": "backend",
+    "file": ".agents/skills/lg-backend/references/ai-and-reports.md",
+    "status": "modified",
+    "beforeSha256": "2e116f44362ca144681aef7c92fad5a634f00c10111c3ddd4c71cb71f7a6dbe9",
+    "afterSha256": "37b4d802c4248c2936a8a6ec823d24854f94da79d09747e4ce6efbeec587ef64"
+  },
+  {
+    "project": "backend",
+    "file": "src/modules/ai/ai-domain-semantic.ts",
+    "status": "modified",
+    "beforeSha256": "7beecf705eafc0eec20a7e132deef8df3e16d201c834e1365de96bbacc445f5a",
+    "afterSha256": "9b0a77f1f5d6e0207e4596eb42d010979b3f56607e9244d2d119e736166e4111"
+  },
+  {
+    "project": "backend",
+    "file": "src/modules/ai/ai-domain-turn-decision.service.ts",
+    "status": "modified",
+    "beforeSha256": "dcbe54c34969e62da3f8938dd4c4ac641ab743a44ff915113062235a13048e7b",
+    "afterSha256": "f0e5e909d537960460b3bf100e3b9593cc510ce5b1b05f0bc605ebf29504ad59"
+  },
+  {
+    "project": "backend",
+    "file": "src/modules/ai/ai-generation.service.ts",
+    "status": "modified",
+    "beforeSha256": "e68f3d111b31d6861ed1edc9505a3c417d6187e43bd2b94c88c454f494f829c0",
+    "afterSha256": "7168c491b309ade51715afad21ebca13a5d5890b4821ba2cd25478ef3762d782"
+  },
+  {
+    "project": "backend",
+    "file": "src/modules/ai/ai-reference-pages.service.ts",
+    "status": "modified",
+    "beforeSha256": "1185a4ec2cd68085a6a70614df265b67b221b429d411f188d0783d8e26d665ac",
+    "afterSha256": "47cf807f16ecf69bc1bd809bd70c4465e6491753bcb472f92fe043ae87eddac7"
+  },
+  {
+    "project": "backend",
+    "file": "src/modules/ai/conversation-task.ts",
+    "status": "modified",
+    "beforeSha256": "da1bd797b4c3c191d0ce7de425aa94a0fca870c04dd275bfc72366697a9ab2b2",
+    "afterSha256": "50baafd8c5001f0f0ccc10622db7b6f145eb4919e7aa7356bd98921a13e319a0"
+  },
+  {
+    "project": "backend",
+    "file": "src/modules/ai/reference-page.ts",
+    "status": "modified",
+    "beforeSha256": "cb7b0eb47815270995a68e790df6d9c85a0b0928943b0ab8c852836c5ae70980",
+    "afterSha256": "33a1a15657e52779fcc09d17029aff48b8f6e816d938942569b309db5324809c"
+  },
+  {
+    "project": "backend",
+    "file": "src/modules/ai/reference-query.service.ts",
+    "status": "modified",
+    "beforeSha256": "8751dacc55756c1321d442e41af1c2e0da003c1fdbfcde2feb53f8f71b251d08",
+    "afterSha256": "f5cb182f84974a38b2b1f762e109c48520c56a6cf389c82c132c1f96a063244e"
+  },
+  {
+    "project": "backend",
+    "file": "src/modules/ai/semantic-query.service.ts",
+    "status": "modified",
+    "beforeSha256": "9b53ec953adab614176b01c63a47273480a7936f097b6427ef18c623a315226a",
+    "afterSha256": "aab06255422b2f57a83b665c322e11802fdec7c7089f02824a0b17166f30ae3f"
+  },
+  {
+    "project": "backend",
+    "file": "src/modules/ai/structured-reference-query.test.ts",
+    "status": "modified",
+    "beforeSha256": "58d262cd67b67f2a742b951ee93cc9f402f0553f513003ad8846bbf56d73a9a1",
+    "afterSha256": "d749210c128b27f3da3e3d567a0930a8f78815b8697e6ce83e13436e7c287d77"
+  },
+  {
+    "project": "backend",
+    "file": "src/modules/ai/structured-reference-query.ts",
+    "status": "modified",
+    "beforeSha256": "3b67a7aaa026e00cef0307f8e30bc9f3db18a201c26e4f995e47a51921be3c3a",
+    "afterSha256": "8c3660f1118426788e150dc836b2362f3afe397c3333c5a860a819228387ef77"
+  },
+  {
+    "project": "backend",
+    "file": "src/modules/knowledge/knowledge-test-reference.test.ts",
+    "status": "modified",
+    "beforeSha256": "0610bf9f0d72f036f74895a2377b78027df802069abd40691321bfa240b0e301",
+    "afterSha256": "af8866994d9e22d3bfab6276a030a32f95ef39452dccf138786f0437579d010c"
+  },
+  {
+    "project": "backend",
+    "file": "src/modules/knowledge/knowledge-test-reference.ts",
+    "status": "modified",
+    "beforeSha256": "5bbf1d8ce115adecdb2520767f9d10ee18afd5e6a689d023a3e238067e85d027",
+    "afterSha256": "bd93e9d5de3647c0bbe8ce3868d31dad59d48ca990bd9a048c90460657e486a7"
+  },
+  {
+    "project": "backend",
+    "file": "src/modules/knowledge/knowledge-workflow.service.ts",
+    "status": "modified",
+    "beforeSha256": "ed50b8a84e62bbb7bee3377ef61832b06f2a77adffe9b49625d4ed6011d94943",
+    "afterSha256": "c5848e6b8edd20441a4f49340fd0e39dfe9c83430772ded957252fdf2eae6217"
+  },
+  {
+    "project": "backend",
+    "file": "src/modules/thermal/semantic-query.ts",
+    "status": "modified",
+    "beforeSha256": "3fd187332a3fda6180c0aa3db577cd9364e026f4d09eded6e0aeb381cfdcd9a3",
+    "afterSha256": "589b6888245bfcb8774195d0723a377dcdf1dd14560d3ab12a7ec5eb15141e14"
+  },
+  {
+    "project": "backend",
+    "file": "src/modules/thermal/thermal-query-state.ts",
+    "status": "modified",
+    "beforeSha256": "165bbe6749f26060b12ccb8b34db2b74e0fa16270f76556e5c7ec81c0e009677",
+    "afterSha256": "80818cb910a9384b475262c53854e845c3c523ecf6c74de5c9aa6633c1fd6a48"
+  },
+  {
+    "project": "backend",
+    "file": "src/shared/knowledge-page-render.ts",
+    "status": "modified",
+    "beforeSha256": "dea716deb888a8206a65506c61a47940cf5f1662a6b4678b461f739ec43ff72e",
+    "afterSha256": "9a25e3a22f1993dcf100ec9d30f7d5ddc76605ea107fbf527d1673bd52082fe2"
+  },
+  {
+    "project": "backend",
+    "file": "src/shared/confirmed-page-query.ts",
+    "status": "new",
+    "afterSha256": "8c0bae704d0dce0ba2ccfb359f4d942e7fe08adfe0b6799b5b19a31c8f96460d"
+  },
+  {
+    "project": "backend",
+    "file": "src/modules/ai/confirmed-page-lookup-state.ts",
+    "status": "new",
+    "afterSha256": "758fa0c02c087ca01ea19d961b0655f6373887aed1ae76291f94149fea6970a0"
+  },
+  {
+    "project": "backend",
+    "file": "src/modules/ai/confirmed-page-query-readonly.test.ts",
+    "status": "new",
+    "afterSha256": "52c691f3c7774ec07c4054cd333ba25aaa5bdf6cf02d06f9698b7dc810ce4cd8"
+  },
+  {
+    "project": "backend",
+    "file": "src/modules/knowledge/confirmed-page-facts.ts",
+    "status": "new",
+    "afterSha256": "6ca4a31232b445a4ffe650ddc3789db0c1b0826a8be10ddfcf8f16cd02eb0ac7"
+  },
+  {
+    "project": "backend",
+    "file": "src/modules/knowledge/confirmed-page-facts.test.ts",
+    "status": "new",
+    "afterSha256": "019a71f45249dd68fad397f968761935110c71329dc2ef8844cac5b054c24497"
+  },
+  {
+    "project": "backend",
+    "file": "scripts/verify-complex-atlas-query.ts",
+    "status": "new",
+    "afterSha256": "b417950629a9459ed883ea9045f3cd7cf8c104cc18a362c65fcd69dc14aed149"
+  },
+  {
+    "project": "backend",
+    "file": "tsconfig.uat.json",
+    "status": "modified",
+    "scope": "仅增加取证脚本类型检查",
+    "afterSha256": "0733f78d31a3896606741730e5ab7a2caa1c1554e76dd95f6b10d8f0edb8b563"
+  },
+  {
+    "project": "admin-web",
+    "file": "src/types/knowledge.ts",
+    "status": "modified",
+    "beforeSha256": "b7c6ce34c24e1023dfdd2b2a7bc66571bcc596f255411eb72505e03efe2d0371",
+    "afterSha256": "221dd9b6850490799f0804f71561e3f8410f7933860ecf21ff94e8876a72732a"
+  },
+  {
+    "project": "admin-web",
+    "file": "src/types/knowledge-page-render.ts",
+    "status": "modified",
+    "afterSha256": "bc80df0764a041ff411d133f6b767627a4f465a953232eadfb3f716b4d3a0278",
+    "note": "阶段前同名工具备份覆盖了此类型文件备份，未提供未经核验的before hash；本阶段仅新增两个confirmedRevision可选字段"
+  },
+  {
+    "project": "admin-web",
+    "file": "src/utils/knowledge-page-render.ts",
+    "status": "modified",
+    "beforeSha256": "a73f6d752d3169cadd6b0d362ae890d9b6a4dd92c6414e07c6e2bc974d52578a",
+    "afterSha256": "99f16dc6e84cb19a007563cac58072219e69516a820b314beb8ba280c5bed5b3"
+  },
+  {
+    "project": "admin-web",
+    "file": "src/utils/complex-atlas.test.ts",
+    "status": "modified",
+    "beforeSha256": "1878a0ddba4dfb752cd41bf1f567fef8fcbea5e0c7c9f7055c61ea4db9445864",
+    "afterSha256": "414e7ec4955048bbca7240f5f659c3c86079de5c364d8431bb3ca481efe7d7e7"
+  },
+  {
+    "project": "app",
+    "file": "src/api/reference-page.ts",
+    "status": "modified",
+    "beforeSha256": "2ebd1513022dc6737da45509317ad8c66ddbae6a0616ade4331f4d9fb16d4628",
+    "afterSha256": "217753b95cd63e3a73b22d89f4b0122bf424261ac54bcb826ac33768eee8b727"
+  },
+  {
+    "project": "app",
+    "file": "src/utils/referencePage.ts",
+    "status": "modified",
+    "beforeSha256": "e622e72cd02e8d6ea5f40c7f879059648f7acc69559b84a73e63627eadfbd70b",
+    "afterSha256": "d729dd961f11008eba1f48dccf29aa4804be0dd5cfa71f5adacbbc4bbaadbb3e"
+  },
+  {
+    "project": "app",
+    "file": "src/utils/referencePage.test.ts",
+    "status": "modified",
+    "beforeSha256": "61d61c2733a31bef423e72a20514f47dc7bbebbb6b397de1d4ff52e5adc17cad",
+    "afterSha256": "03667ee7b3353ccaa142bc3aecfd997a34264f4320f1f0781c3b262023450382"
+  },
+  {
+    "project": "backend",
+    "file": "src/modules/ai/ai-domain-policy.ts",
+    "status": "modified",
+    "beforeSha256": "daa1d2c6c833b55d7af6163ddf573d33ee6244666d7c5a1d3bb3efa21c42de93",
+    "afterSha256": "517228ce4b35c0b3ffb9b8193c9feedaab27b69cf0c0deb29fe12460650ce006"
+  }
+]

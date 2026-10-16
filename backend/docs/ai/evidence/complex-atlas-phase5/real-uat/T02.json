@@ -1,0 +1,19 @@
+{
+  "id": "T02",
+  "group": "roof-I",
+  "question": "改成25厚，只看倒置。",
+  "status": "FAIL",
+  "conversationId": "2bd09bdf-68f3-4a53-b527-4b7c12d42115",
+  "answer": "想确认一下：请指定这轮要讨论的保温体系或实际基层；可以先整理参考选型框架。",
+  "facts": [],
+  "pages": [],
+  "historyReturned": true,
+  "persistedUrlFree": true,
+  "solutionStates": 0,
+  "reports": 0,
+  "snapshots": 0,
+  "error": {
+    "name": "AssertionError",
+    "message": "命中行数必须准确，不能串构造或多返回别的档位\n\n0 !== 1\n"
+  }
+}

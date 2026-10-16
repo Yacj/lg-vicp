@@ -1,0 +1,56 @@
+[
+  {
+    "event": "message",
+    "data": {
+      "messageId": "3c3d81d0-0e2e-468b-af1b-1e0d59919bd1",
+      "userMessageId": "3fe47c8e-e0ae-4ddb-a0b4-128d31888121",
+      "conversationId": "2ec40118-8052-449d-9c4e-ef67daac1680",
+      "requestId": "req-s"
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "analyzing",
+      "message": "正在分析问题..."
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "composing",
+      "message": "正在整理回答..."
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "想确认一下：缺少具体屋面做法/构造编号及省份名称，无法核对合规性。"
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "completed",
+      "message": "回答整理完成"
+    }
+  },
+  {
+    "event": "done",
+    "data": {
+      "messageId": "3c3d81d0-0e2e-468b-af1b-1e0d59919bd1",
+      "conversationId": "2ec40118-8052-449d-9c4e-ef67daac1680",
+      "finishReason": "COMPLETED",
+      "usage": {},
+      "model": {
+        "id": "deepseek-chat"
+      },
+      "promptVersion": {
+        "id": "ae0f8064-e3d6-43c0-ab4c-174188be34e4",
+        "version": 3
+      },
+      "sources": [],
+      "latencyMs": 2822
+    }
+  }
+]

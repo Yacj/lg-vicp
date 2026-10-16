@@ -69,6 +69,10 @@ import type {
   PublicLibraryTocResult,
 } from '@/types/knowledge'
 import { api, getHttpAccessToken, httpBaseURL } from '@/api/http/client'
+/** 原图字节经当前后台权限读取，不把访问令牌放进图片URL。 */
+export function fetchKnowledgePageImage(pageId: string): Promise<Blob> {
+  return api.get(`/api/v1/platform/knowledge/pages/${encodeURIComponent(pageId)}/image`, { responseType: 'blob' })
+}
 import { B_ADMIN_CLIENT } from '@/types/auth'
 import { HttpRequestError } from '@/types/error'
 

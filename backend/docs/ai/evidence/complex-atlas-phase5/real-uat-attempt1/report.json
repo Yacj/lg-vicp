@@ -1,0 +1,79 @@
+{
+  "scope": "真实隔离DB/Redis/OSS/正式HTTP-SSE/真实模型；事实由人工基线装载，程序模拟审核，不冒充真实人工复核",
+  "startedAt": "2026-10-16T05:54:30.229Z",
+  "setup": [
+    {
+      "step": "未确认发布门禁",
+      "response": {
+        "http": 200,
+        "success": false,
+        "error": {
+          "code": 400,
+          "message": "当前版本尚未审核通过，不能发布。",
+          "details": {
+            "errorCode": "KNOWLEDGE_VERSION_NOT_APPROVED"
+          }
+        },
+        "requestId": "req-8"
+      }
+    }
+  ],
+  "cases": [],
+  "permissions": [
+    {
+      "name": "DRAFT不能向C端来源开放",
+      "passed": true,
+      "response": {
+        "http": 200,
+        "success": false,
+        "error": {
+          "code": 404,
+          "message": "知识资料不存在或尚未发布"
+        },
+        "requestId": "req-1"
+      }
+    }
+  ],
+  "isolation": {
+    "database": "vicp_ai_uat_1ab28feb4c6e4789b4abe805b6c7d06e",
+    "prefix": "vicp-ai-uat-1ab28feb4c6e4789b4abe805b6c7d06e"
+  },
+  "fixture": {
+    "documentId": "c6628cbf-c9c5-4c9d-9cff-21a5eadc56fe",
+    "versionId": "7a02cf17-09a5-4e37-8b5c-f180ae83d603",
+    "factsOrigin": "MANUAL_SOURCE_BASELINE，非真实Vision确认产物",
+    "corrections": [
+      {
+        "page": 90,
+        "group": 0,
+        "layerIndices": [
+          5,
+          6,
+          7
+        ],
+        "before": [
+          "4",
+          "5",
+          "6"
+        ],
+        "after": [
+          "5",
+          "6",
+          "7"
+        ],
+        "evidence": "原图上半表LC7.5及两行M15的源序号；仅临时副本，原夹具不改"
+      }
+    ]
+  },
+  "objectKeys": [
+    "vicp-ai-uat-1ab28feb4c6e4789b4abe805b6c7d06e/complex-atlas/source-89.png",
+    "vicp-ai-uat-1ab28feb4c6e4789b4abe805b6c7d06e/complex-atlas/source-90.png",
+    "vicp-ai-uat-1ab28feb4c6e4789b4abe805b6c7d06e/complex-atlas/source-75.png"
+  ],
+  "environmentError": {
+    "name": "Error",
+    "message": "正式测试API拒绝：409 版本正式索引尚未完成（或页面变更后未重建），请先执行版本索引重建"
+  },
+  "cleanup": "PASS",
+  "finishedAt": "2026-10-16T05:55:11.018Z"
+}
