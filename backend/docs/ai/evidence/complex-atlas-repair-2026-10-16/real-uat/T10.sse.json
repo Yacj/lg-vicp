@@ -1,0 +1,56 @@
+[
+  {
+    "event": "message",
+    "data": {
+      "messageId": "65b8a68f-2b20-4f83-b588-9903bbd283e4",
+      "userMessageId": "bfde8230-bf70-4a29-bb72-c21860cb8feb",
+      "conversationId": "4252dfa0-f686-4e11-88df-827189d80dd6",
+      "requestId": "req-u"
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "analyzing",
+      "message": "正在分析问题..."
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "composing",
+      "message": "正在整理回答..."
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "想确认一下：缺少具体屋面做法、省份及正式标准依据，无法核对是否达标。"
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "completed",
+      "message": "回答整理完成"
+    }
+  },
+  {
+    "event": "done",
+    "data": {
+      "messageId": "65b8a68f-2b20-4f83-b588-9903bbd283e4",
+      "conversationId": "4252dfa0-f686-4e11-88df-827189d80dd6",
+      "finishReason": "COMPLETED",
+      "usage": {},
+      "model": {
+        "id": "deepseek-chat"
+      },
+      "promptVersion": {
+        "id": "ae0f8064-e3d6-43c0-ab4c-174188be34e4",
+        "version": 3
+      },
+      "sources": [],
+      "latencyMs": 2415
+    }
+  }
+]

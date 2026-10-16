@@ -1,0 +1,10 @@
+import fs from 'node:fs';import {connect,exec,config,quote} from './ssh.mjs';
+const conn=await connect();
+const code=`import fs from 'node:fs';import {execFileSync} from 'node:child_process';import dotenv from 'dotenv';import {Redis} from 'ioredis';
+const env=dotenv.parse(fs.readFileSync('.env'));const redis=new Redis(env.REDIS_URL,{maxRetriesPerRequest:1});redis.on('error',()=>{});const result={queue:{}};
+try{for(const key of ['wait','active','paused','failed','completed'])result.queue[key]=['failed','completed'].includes(key)?await redis.zcard('bull:page-recognition:'+key):await redis.llen('bull:page-recognition:'+key);result.paused=await redis.hget('bull:page-recognition:meta','paused');result.consumers=(await redis.client('LIST')).split('\\n').filter(line=>line.includes('name=bull:')).length;}finally{redis.disconnect();}
+const ps=JSON.parse(execFileSync('/www/server/nodejs/v22.22.3/bin/pm2',['jlist'],{encoding:'utf8',maxBuffer:8000000}));result.processes=ps.filter(p=>p.name.startsWith('lg-vicp')).map(p=>({name:p.name,status:p.pm2_env.status,restarts:p.pm2_env.restart_time,uptime:p.pm2_env.pm_uptime,redisEnvPresent:!!p.pm2_env.REDIS_URL,redisEnvMatches:!p.pm2_env.REDIS_URL||p.pm2_env.REDIS_URL===env.REDIS_URL}));
+const secrets=Object.entries(env).filter(([key,value])=>/KEY|SECRET|PASSWORD|URL/.test(key)&&value.length>8).map(([,v])=>v);function scrub(s){for(const secret of secrets)s=s.split(secret).join('[REDACTED]');return s.replace(/https?:\\/\\/\\S+/g,'[URL]').replace(/Bearer\\s+\\S+/gi,'Bearer [REDACTED]');}
+result.logs={};for(const f of ['logs/pm2-worker-error.log','logs/pm2-worker-out.log'])if(fs.existsSync(f))result.logs[f]=fs.readFileSync(f,'utf8').split('\\n').slice(-100).filter(l=>/Error|错误|异常|Worker|识别|启动|ECONN|ready|队列|memory|global|heap|soffice|docx/.test(l)).slice(-18).map(scrub);
+console.log(JSON.stringify(result));`;
+try{const out=await exec(conn,`cd ${quote(config.DEPLOY_REMOTE_DIR)} && /www/server/nodejs/v22.22.3/bin/node --input-type=module -e ${quote(code)}`);fs.writeFileSync('docs/ai/evidence/complex-atlas-online-2026-10-16/worker-inspect.json',out);console.log(out);}finally{conn.end();}

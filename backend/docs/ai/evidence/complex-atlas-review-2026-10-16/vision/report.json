@@ -1,0 +1,12 @@
+{
+  "scope": "真实Vision推理及新草稿证据处理；正式Worker/确认/HTTP-SSE/B-H5-App均NOT_RUN",
+  "pages": [],
+  "readOnly": [
+    {
+      "transaction_read_only": "on"
+    }
+  ],
+  "environmentError": {
+    "name": "Error"
+  }
+}

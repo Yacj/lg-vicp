@@ -1,0 +1,380 @@
+[
+  {
+    "project": "backend",
+    "path": "src/modules/ai/ai-domain-semantic.ts",
+    "currentPath": "E:\\code\\lg\\backend\\src\\modules\\ai\\ai-domain-semantic.ts",
+    "exists": true,
+    "currentSha256": "f6d97e186ccc7a45feed85a4db0dafa51d486f2987cc976d0099051ccd395ef3"
+  },
+  {
+    "project": "backend",
+    "path": "src/modules/ai/ai-domain-turn-decision.service.ts",
+    "currentPath": "E:\\code\\lg\\backend\\src\\modules\\ai\\ai-domain-turn-decision.service.ts",
+    "exists": true,
+    "currentSha256": "e74d7c49fab0693469acad150e79bb72e6ba941562b79e0262ff6de05dddd7a0"
+  },
+  {
+    "project": "backend",
+    "path": "src/modules/ai/ai-generation.service.ts",
+    "currentPath": "E:\\code\\lg\\backend\\src\\modules\\ai\\ai-generation.service.ts",
+    "exists": true,
+    "currentSha256": "7168c491b309ade51715afad21ebca13a5d5890b4821ba2cd25478ef3762d782"
+  },
+  {
+    "project": "backend",
+    "path": "src/modules/ai/ai-reference-pages.service.ts",
+    "currentPath": "E:\\code\\lg\\backend\\src\\modules\\ai\\ai-reference-pages.service.ts",
+    "exists": true,
+    "currentSha256": "afd65211e9cddbcb4477776d89b9a942594fd4ff256ae3cdab1945d6dbf5eeed"
+  },
+  {
+    "project": "backend",
+    "path": "src/modules/ai/conversation-task.ts",
+    "currentPath": "E:\\code\\lg\\backend\\src\\modules\\ai\\conversation-task.ts",
+    "exists": true,
+    "currentSha256": "50baafd8c5001f0f0ccc10622db7b6f145eb4919e7aa7356bd98921a13e319a0"
+  },
+  {
+    "project": "backend",
+    "path": "src/modules/ai/reference-page.ts",
+    "currentPath": "E:\\code\\lg\\backend\\src\\modules\\ai\\reference-page.ts",
+    "exists": true,
+    "currentSha256": "33a1a15657e52779fcc09d17029aff48b8f6e816d938942569b309db5324809c"
+  },
+  {
+    "project": "backend",
+    "path": "src/modules/ai/reference-query.service.ts",
+    "currentPath": "E:\\code\\lg\\backend\\src\\modules\\ai\\reference-query.service.ts",
+    "exists": true,
+    "currentSha256": "f5cb182f84974a38b2b1f762e109c48520c56a6cf389c82c132c1f96a063244e"
+  },
+  {
+    "project": "backend",
+    "path": "src/modules/ai/semantic-query.service.ts",
+    "currentPath": "E:\\code\\lg\\backend\\src\\modules\\ai\\semantic-query.service.ts",
+    "exists": true,
+    "currentSha256": "2c233a9e76791c8dcc0173bc272c20fa020bdf1356c2da578f13bd04720d02cc"
+  },
+  {
+    "project": "backend",
+    "path": "src/modules/ai/structured-reference-query.test.ts",
+    "currentPath": "E:\\code\\lg\\backend\\src\\modules\\ai\\structured-reference-query.test.ts",
+    "exists": true,
+    "currentSha256": "d749210c128b27f3da3e3d567a0930a8f78815b8697e6ce83e13436e7c287d77"
+  },
+  {
+    "project": "backend",
+    "path": "src/modules/ai/structured-reference-query.ts",
+    "currentPath": "E:\\code\\lg\\backend\\src\\modules\\ai\\structured-reference-query.ts",
+    "exists": true,
+    "currentSha256": "633c6c4bc0c6b6611ac0fbc178b956c93cc5b7d57c981e4cb8bbbdd1cc54e2c3"
+  },
+  {
+    "project": "backend",
+    "path": "src/modules/knowledge/knowledge-test-reference.test.ts",
+    "currentPath": "E:\\code\\lg\\backend\\src\\modules\\knowledge\\knowledge-test-reference.test.ts",
+    "exists": true,
+    "currentSha256": "af8866994d9e22d3bfab6276a030a32f95ef39452dccf138786f0437579d010c"
+  },
+  {
+    "project": "backend",
+    "path": "src/modules/knowledge/knowledge-test-reference.ts",
+    "currentPath": "E:\\code\\lg\\backend\\src\\modules\\knowledge\\knowledge-test-reference.ts",
+    "exists": true,
+    "currentSha256": "cd105bc006a696a951cb727e65f6f19688d30b746a5d4359033515d82e63b526"
+  },
+  {
+    "project": "backend",
+    "path": "src/modules/knowledge/knowledge-workflow.service.ts",
+    "currentPath": "E:\\code\\lg\\backend\\src\\modules\\knowledge\\knowledge-workflow.service.ts",
+    "exists": true,
+    "currentSha256": "9010c58404fd633fab2892216cd3e1540453051e0a75b90223d77993b15d0e24"
+  },
+  {
+    "project": "backend",
+    "path": "src/modules/thermal/semantic-query.ts",
+    "currentPath": "E:\\code\\lg\\backend\\src\\modules\\thermal\\semantic-query.ts",
+    "exists": true,
+    "currentSha256": "4e5a82629ad04157627657bfb40af7dafbab653bbd91c9ab5951c4f14041e6d0"
+  },
+  {
+    "project": "backend",
+    "path": "src/modules/thermal/thermal-query-state.ts",
+    "currentPath": "E:\\code\\lg\\backend\\src\\modules\\thermal\\thermal-query-state.ts",
+    "exists": true,
+    "currentSha256": "a95027ec4802408c9ea10faeecd994688572c13f771a09e0551fe7f1653913cf"
+  },
+  {
+    "project": "backend",
+    "path": "src/shared/knowledge-page-render.ts",
+    "currentPath": "E:\\code\\lg\\backend\\src\\shared\\knowledge-page-render.ts",
+    "exists": true,
+    "currentSha256": "9a25e3a22f1993dcf100ec9d30f7d5ddc76605ea107fbf527d1673bd52082fe2"
+  },
+  {
+    "project": "backend",
+    "path": "src/shared/confirmed-page-query.ts",
+    "currentPath": "E:\\code\\lg\\backend\\src\\shared\\confirmed-page-query.ts",
+    "exists": true,
+    "currentSha256": "a498e613f6626876b4732cb71aa3e32a43802ee441c40e309b0124b87f090f27"
+  },
+  {
+    "project": "backend",
+    "path": "src/modules/ai/confirmed-page-lookup-state.ts",
+    "currentPath": "E:\\code\\lg\\backend\\src\\modules\\ai\\confirmed-page-lookup-state.ts",
+    "exists": true,
+    "currentSha256": "878acaae845da3fbf9ff45b51424892761fef32d1a5db78b0cf8d2611bbe01fe"
+  },
+  {
+    "project": "backend",
+    "path": "src/modules/ai/confirmed-page-query-readonly.test.ts",
+    "currentPath": "E:\\code\\lg\\backend\\src\\modules\\ai\\confirmed-page-query-readonly.test.ts",
+    "exists": true,
+    "currentSha256": "985c6aa27b0be846b129115d8543a02bab8d5aaa9406ec0f3e97e20d6ff40780"
+  },
+  {
+    "project": "backend",
+    "path": "src/modules/knowledge/confirmed-page-facts.ts",
+    "currentPath": "E:\\code\\lg\\backend\\src\\modules\\knowledge\\confirmed-page-facts.ts",
+    "exists": true,
+    "currentSha256": "77690455d2a2a5b34139fb8782fb4f335b0a6c3b89fc9897b5a518cf0898306f"
+  },
+  {
+    "project": "backend",
+    "path": "src/modules/knowledge/confirmed-page-facts.test.ts",
+    "currentPath": "E:\\code\\lg\\backend\\src\\modules\\knowledge\\confirmed-page-facts.test.ts",
+    "exists": true,
+    "currentSha256": "4b646b17c388aa633a8ee7dcbe6b8743e446a39ef973b03379b2416c715b052f"
+  },
+  {
+    "project": "admin-web",
+    "path": "src/types/knowledge.ts",
+    "currentPath": "E:\\code\\lg\\admin-web\\src\\types\\knowledge.ts",
+    "exists": true,
+    "currentSha256": "221dd9b6850490799f0804f71561e3f8410f7933860ecf21ff94e8876a72732a"
+  },
+  {
+    "project": "admin-web",
+    "path": "src/types/knowledge-page-render.ts",
+    "currentPath": "E:\\code\\lg\\admin-web\\src\\types\\knowledge-page-render.ts",
+    "exists": true,
+    "currentSha256": "bc80df0764a041ff411d133f6b767627a4f465a953232eadfb3f716b4d3a0278"
+  },
+  {
+    "project": "admin-web",
+    "path": "src/utils/knowledge-page-render.ts",
+    "currentPath": "E:\\code\\lg\\admin-web\\src\\utils\\knowledge-page-render.ts",
+    "exists": true,
+    "currentSha256": "99f16dc6e84cb19a007563cac58072219e69516a820b314beb8ba280c5bed5b3"
+  },
+  {
+    "project": "admin-web",
+    "path": "src/utils/complex-atlas.test.ts",
+    "currentPath": "E:\\code\\lg\\admin-web\\src\\utils\\complex-atlas.test.ts",
+    "exists": true,
+    "currentSha256": "4e8c418931248a68a7dc362feb206b77c3e8866cb11a09143c452e4f16709272"
+  },
+  {
+    "project": "app",
+    "path": "src/api/reference-page.ts",
+    "currentPath": "E:\\code\\lg\\app\\src\\api\\reference-page.ts",
+    "exists": true,
+    "currentSha256": "217753b95cd63e3a73b22d89f4b0122bf424261ac54bcb826ac33768eee8b727"
+  },
+  {
+    "project": "app",
+    "path": "src/utils/referencePage.ts",
+    "currentPath": "E:\\code\\lg\\app\\src\\utils\\referencePage.ts",
+    "exists": true,
+    "currentSha256": "82f6303540d263bdaae590aee9fbc274f85e9b23490c6d7413cb1bbae6e30b7a"
+  },
+  {
+    "project": "app",
+    "path": "src/utils/referencePage.test.ts",
+    "currentPath": "E:\\code\\lg\\app\\src\\utils\\referencePage.test.ts",
+    "exists": true,
+    "currentSha256": "03667ee7b3353ccaa142bc3aecfd997a34264f4320f1f0781c3b262023450382"
+  },
+  {
+    "project": "backend",
+    "path": "src/modules/ai/ai-domain-policy.ts",
+    "currentPath": "E:\\code\\lg\\backend\\src\\modules\\ai\\ai-domain-policy.ts",
+    "exists": true,
+    "currentSha256": "517228ce4b35c0b3ffb9b8193c9feedaab27b69cf0c0deb29fe12460650ce006"
+  },
+  {
+    "project": "app",
+    "path": "src/auto-imports.d.ts",
+    "currentPath": "E:\\code\\lg\\app\\src\\auto-imports.d.ts",
+    "exists": true,
+    "currentSha256": "ba67012878efd08036134fda07c49a9bfddf3c3173b72f073d1a999d89be1fcf"
+  },
+  {
+    "project": "app",
+    "path": "src/components/ai/AiAnswerReferencePage.vue",
+    "currentPath": "E:\\code\\lg\\app\\src\\components\\ai\\AiAnswerReferencePage.vue",
+    "exists": true,
+    "currentSha256": "272077e650b209e72c6b542a14f3bfd42c17ffab810afd721ba22d73739969e6"
+  },
+  {
+    "project": "app",
+    "path": "src/components/ai/AiReferenceAnswer.vue",
+    "currentPath": "E:\\code\\lg\\app\\src\\components\\ai\\AiReferenceAnswer.vue",
+    "exists": true,
+    "currentSha256": "6809ab7fb7adc1be55cb2971732d16192953e9b45ff101d70d98c1fdaa4d4755"
+  },
+  {
+    "project": "app",
+    "path": "src/components/ai/AiThermalSolutionCard.vue",
+    "currentPath": "E:\\code\\lg\\app\\src\\components\\ai\\AiThermalSolutionCard.vue",
+    "exists": true,
+    "currentSha256": "d6418a5456069c3bcb1f253064c0b1965f1c32c3befc65ae886579dba9be41d4"
+  },
+  {
+    "project": "app",
+    "path": "src/components/ai/ReferencePageViewer.test.ts",
+    "currentPath": "E:\\code\\lg\\app\\src\\components\\ai\\ReferencePageViewer.test.ts",
+    "exists": true,
+    "currentSha256": "bb471c11cf7ca73c71af0a94e8ae6105eb6e396de3927708286c2601fd048516"
+  },
+  {
+    "project": "app",
+    "path": "src/components/ai/ReferencePageViewer.vue",
+    "currentPath": "E:\\code\\lg\\app\\src\\components\\ai\\ReferencePageViewer.vue",
+    "exists": true,
+    "currentSha256": "90d9f9bf5726e2fcb4744a855819a2b43a872299c0192d2fcf53486d739a7a5c"
+  },
+  {
+    "project": "app",
+    "path": "src/components/ai/StructuredThermalSection.vue",
+    "currentPath": "E:\\code\\lg\\app\\src\\components\\ai\\StructuredThermalSection.vue",
+    "exists": true,
+    "currentSha256": "cdfc36c35c5a034de75ad3be57ac6a5b408fcaa74f345d5fa9365ae59090b59d"
+  },
+  {
+    "project": "app",
+    "path": "src/components/ai/ThermalOptionCard.vue",
+    "currentPath": "E:\\code\\lg\\app\\src\\components\\ai\\ThermalOptionCard.vue",
+    "exists": true,
+    "currentSha256": "a1fe124d2132e13113b25535bd383c41dd3689015bed77af66d3afac66db4076"
+  },
+  {
+    "project": "app",
+    "path": "src/components/ai/ThermalPageTable.vue",
+    "currentPath": "E:\\code\\lg\\app\\src\\components\\ai\\ThermalPageTable.vue",
+    "exists": true,
+    "currentSha256": "3eb2b90375c160558945c9f1b97a1809b82486a9d4fb0e5620d874c2290ffd60"
+  },
+  {
+    "project": "app",
+    "path": "src/composables/useReferencePageHighlight.test.ts",
+    "currentPath": "E:\\code\\lg\\app\\src\\composables\\useReferencePageHighlight.test.ts",
+    "exists": true,
+    "currentSha256": "2ebc42bbea75badda812fc076ca986e84187313c8ad3219e5eed4274fd6e0092"
+  },
+  {
+    "project": "app",
+    "path": "src/composables/useReferencePageHighlight.ts",
+    "currentPath": "E:\\code\\lg\\app\\src\\composables\\useReferencePageHighlight.ts",
+    "exists": true,
+    "currentSha256": "da5e8691e3c7feb1f539cacbbeab6b7641e1768a1a684a213770156c22661a9d"
+  },
+  {
+    "project": "app",
+    "path": "src/composables/useReferencePageResource.test.ts",
+    "currentPath": "E:\\code\\lg\\app\\src\\composables\\useReferencePageResource.test.ts",
+    "exists": true,
+    "currentSha256": "a19f14fe168ef01614f2ff7b05dc27d28f29f6c7e548309921ba179cc4385d0e"
+  },
+  {
+    "project": "app",
+    "path": "src/composables/useReferencePageResource.ts",
+    "currentPath": "E:\\code\\lg\\app\\src\\composables\\useReferencePageResource.ts",
+    "exists": true,
+    "currentSha256": "70c356924b3155e8ff7c8c95c728f98e5ad87c0f0174c31fd38622c96d85ac5c"
+  },
+  {
+    "project": "app",
+    "path": "src/pages/knowledge-source/index.vue",
+    "currentPath": "E:\\code\\lg\\app\\src\\pages\\knowledge-source\\index.vue",
+    "exists": true,
+    "currentSha256": "c42afb570717e985407b195c515573b21b1cbad52f261839e5481b4450fcec75"
+  },
+  {
+    "project": "app",
+    "path": "src/pages/reference-table/index.vue",
+    "currentPath": "E:\\code\\lg\\app\\src\\pages\\reference-table\\index.vue",
+    "exists": true,
+    "currentSha256": "73433e8715b6e22f557afe6ae366246a5182686884e9705b5338e4ce1081c0f4"
+  },
+  {
+    "project": "app",
+    "path": "src/test/fixtures/complexAtlas.ts",
+    "currentPath": "E:\\code\\lg\\app\\src\\test\\fixtures\\complexAtlas.ts",
+    "exists": true,
+    "currentSha256": "9edcb8866432edc54efd5ec28284c01ab35b8d21e8629c3d18e146b7935eff19"
+  },
+  {
+    "project": "app",
+    "path": "src/test/fixtures/complex-atlas/page-75.json",
+    "currentPath": "E:\\code\\lg\\app\\src\\test\\fixtures\\complex-atlas\\page-75.json",
+    "exists": true,
+    "currentSha256": "6ed54d95f2b71eba3fcddfa272c5e1bab8a21dda1b9d8279ec44e3b9ba52b26c"
+  },
+  {
+    "project": "app",
+    "path": "src/test/fixtures/complex-atlas/page-89.json",
+    "currentPath": "E:\\code\\lg\\app\\src\\test\\fixtures\\complex-atlas\\page-89.json",
+    "exists": true,
+    "currentSha256": "d4b73ed59babdcc6fe0d2ac62842aaba6bb812e3d1b106a8aa5f72b682f72eb3"
+  },
+  {
+    "project": "app",
+    "path": "src/test/fixtures/complex-atlas/page-90.json",
+    "currentPath": "E:\\code\\lg\\app\\src\\test\\fixtures\\complex-atlas\\page-90.json",
+    "exists": true,
+    "currentSha256": "fabaeb9b79334842845075f85e66dd18ed9c65e16c62ec90ee8ae7987e6b90fd"
+  },
+  {
+    "project": "app",
+    "path": "src/utils/complexAtlas.test.ts",
+    "currentPath": "E:\\code\\lg\\app\\src\\utils\\complexAtlas.test.ts",
+    "exists": true,
+    "currentSha256": "3ddcfa1a21c84bb2800477981e2994ab2933c0f06b46bb5193005c247a3778cd"
+  },
+  {
+    "project": "app",
+    "path": "src/utils/referencePage.ts",
+    "currentPath": "E:\\code\\lg\\app\\src\\utils\\referencePage.ts",
+    "exists": true,
+    "currentSha256": "82f6303540d263bdaae590aee9fbc274f85e9b23490c6d7413cb1bbae6e30b7a"
+  },
+  {
+    "project": "app",
+    "path": "src/utils/referenceTable.test.ts",
+    "currentPath": "E:\\code\\lg\\app\\src\\utils\\referenceTable.test.ts",
+    "exists": true,
+    "currentSha256": "1b4671734d996918a12fb9d7eea34a9e366c9d351f716b54fcea05abaa3588e9"
+  },
+  {
+    "project": "app",
+    "path": "src/utils/referenceTable.ts",
+    "currentPath": "E:\\code\\lg\\app\\src\\utils\\referenceTable.ts",
+    "exists": true,
+    "currentSha256": "3cd2eb1d2c822824edfb02f1e9ee9988ef63bb5b1e31cbd225bc292b319a6eb0"
+  },
+  {
+    "project": "app",
+    "path": "src/utils/thermalPageTable.ts",
+    "currentPath": "E:\\code\\lg\\app\\src\\utils\\thermalPageTable.ts",
+    "exists": true,
+    "currentSha256": "79732374207a7f1c9bf21955fed0538d210492e09380a70b45468030ea9e29c1"
+  },
+  {
+    "project": "app",
+    "path": "src/utils/thermalSourceLabels.ts",
+    "currentPath": "E:\\code\\lg\\app\\src\\utils\\thermalSourceLabels.ts",
+    "exists": true,
+    "currentSha256": "daa22e918ee8e4e5abbda9e2178e4d7bebc28643a5d8575075f3908c2f00e0d6"
+  }
+]

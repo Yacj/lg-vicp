@@ -1,0 +1,7 @@
+{
+  "scope": "原阶段2/4的Fixture测试壳，仅修正本机路径和新日志目录，使用当前真实组件，不连接业务API",
+  "bTemp": "C:/Users/zjj/AppData/Local/Temp/atlas-review-b-4D0Mek",
+  "sourceB": "E:/code/lg/admin-web/docs/ai/evidence/complex-atlas-phase2/fixture-preview",
+  "sourceH": "E:/code/lg/app/docs/ai/evidence/complex-atlas-phase4/fixture-preview",
+  "workspace": "E:/code/lg"
+}

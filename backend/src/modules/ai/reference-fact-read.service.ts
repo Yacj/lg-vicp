@@ -9,6 +9,7 @@ import { buildAllowedAnswerFacts } from "./thermal-answer-validation.js";
 import type { ReferenceReadContext } from "./reference-candidate-resolver.service.js";
 import type { WikiHit } from "../knowledge/knowledge.service.js";
 import type { ReferenceLookupCandidate } from "./conversation-task.js";
+import { verifyVisibleConfirmedPageFact } from "./confirmed-page-fact-verify.js";
 
 const metricKey = { K: "kValue", TOTAL_R: "totalThermalResistance", PRODUCT_R: "productThermalResistance" } as const;
 const metricLabel = { K: "K", TOTAL_R: "总热阻 R₀", PRODUCT_R: "产品层热阻 R" };
@@ -42,6 +43,10 @@ export async function resolveReferenceFactRead(ctx: ReferenceReadContext, hits: 
   const history = await readReferenceFactHistory(ctx.app, ctx.conversation.id);
   const message = ctx.userMessage ?? "";
   let codes = [...new Set(constructionCodes(message))];
+  if (request.mode === "VERIFY" && !codes.length) {
+    const verified = await verifyVisibleConfirmedPageFact(ctx, history, request.metric);
+    if (verified) return { ...respond(verified.answer, [], verified.pages, verified.code), needsClarification: verified.needsClarification };
+  }
   const prefix = request.historyClaim && codes.length ? codes.map(code => historyMentionStatus(code, history)
     ? `当前会话先前的助手回答提到过 ${code}；以下重新核验资料。`
     : `在当前可核验的会话记录中，助手此前未提到 ${code}。下面按独立资料查询说明。`).join("\n") + "\n" : "";

@@ -1,0 +1,35 @@
+{
+  "startedAt": "2026-10-16T11:33:46.687Z",
+  "mode": "EXPLICIT_REPEATABLE_READ_READ_ONLY",
+  "checks": [
+    {
+      "name": "真实数据库显式只读事务",
+      "status": "PASS",
+      "details": {
+        "read_only": "on",
+        "isolation": "repeatable read",
+        "sslRetry": false
+      }
+    },
+    {
+      "name": "当前平台发布确认资料范围",
+      "status": "DATA_UNAVAILABLE",
+      "details": {
+        "publishedDocumentsExamined": 0,
+        "related": []
+      }
+    },
+    {
+      "name": "真实只读验证未通过",
+      "status": "FAIL",
+      "details": {
+        "errorType": "AssertionError",
+        "code": "ERR_ASSERTION",
+        "actual": 0,
+        "expected": true,
+        "operator": "=="
+      }
+    }
+  ],
+  "finishedAt": "2026-10-16T11:33:46.908Z"
+}

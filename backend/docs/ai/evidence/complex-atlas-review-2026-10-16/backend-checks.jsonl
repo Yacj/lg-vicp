@@ -1,0 +1,4 @@
+{"command":"pnpm lint","exitCode":0,"finishedAt":"2026-10-16T19:28:02.2351092+08:00"}
+{"command":"pnpm test","exitCode":1,"finishedAt":"2026-10-16T19:31:08.8031009+08:00"}
+{"command":"pnpm build","exitCode":0,"finishedAt":"2026-10-16T19:31:15.5154565+08:00"}
+{"command":"pnpm db:check","exitCode":0,"finishedAt":"2026-10-16T19:31:18.5168541+08:00"}

@@ -26,6 +26,7 @@ import { formatDate } from '@/utils/day'
 
 const { canAccess } = usePermissionAccess()
 const canApprove = computed(() => canAccess({ permissions: ['system:review:approve'] }))
+const entityTypeOptions = reviewEntityTypes.map(type => ({ label: reviewEntityLabels[type], value: type }))
 
 const feedback = useAppFeedback()
 
@@ -227,7 +228,7 @@ onMounted(load)
         <t-form-item label="实体类型">
           <t-select
             v-model="entityType"
-            :options="reviewEntityTypes.map((value) => ({ label: reviewEntityLabels[value], value }))"
+            :options="entityTypeOptions"
             clearable
             placeholder="全部"
           />

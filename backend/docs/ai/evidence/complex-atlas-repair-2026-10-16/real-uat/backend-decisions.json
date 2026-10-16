@@ -1,0 +1,1133 @@
+[
+  {
+    "id": "T01",
+    "decisions": [
+      {
+        "backendDecision": {
+          "goal": "REFERENCE_REFINE",
+          "patch": [],
+          "intent": "REFERENCE_LOOKUP",
+          "source": "INTENT",
+          "factRead": null,
+          "mutation": "QUERY",
+          "relation": "REFINE",
+          "taskType": "PRODUCT_CONSULTATION",
+          "toolRoute": [
+            "backend:knowledge",
+            "backend:reference_query"
+          ],
+          "toolUsage": {
+            "report": false,
+            "thermal": false,
+            "knowledge": true
+          },
+          "adviceMode": null,
+          "candidateIds": [],
+          "domainIntent": "REFERENCE_REFINE",
+          "parserSource": "LLM",
+          "policyReason": "READ_ONLY_QUERY",
+          "queryChanged": false,
+          "reportQueued": false,
+          "effectRequest": null,
+          "sourcePageIds": [],
+          "answerContract": "REFERENCE_LOOKUP",
+          "referenceScope": "LATEST_VISIBLE",
+          "candidateIdList": [],
+          "requestedEffect": "QUERY",
+          "referencePageIds": [
+            "2c161d87-a343-4dfe-a01e-6d018e943087"
+          ],
+          "semanticEvidence": "改成25厚，只看倒置。",
+          "semanticReference": {
+            "items": [],
+            "scope": "NONE",
+            "revision": null
+          },
+          "factValidationCode": "NOT_EVALUATED",
+          "queryChangedFields": [],
+          "semanticConfidence": 0.95,
+          "solutionStateMutated": false,
+          "candidateSnapshotSource": []
+        }
+      },
+      {
+        "backendDecision": {
+          "goal": "REFERENCE_QUERY",
+          "patch": [],
+          "intent": "REFERENCE_LOOKUP",
+          "source": "INTENT",
+          "factRead": null,
+          "mutation": "QUERY",
+          "relation": "NEW",
+          "taskType": "PRODUCT_CONSULTATION",
+          "toolRoute": [
+            "backend:knowledge",
+            "backend:reference_query"
+          ],
+          "toolUsage": {
+            "report": false,
+            "thermal": false,
+            "knowledge": true
+          },
+          "adviceMode": null,
+          "candidateIds": [],
+          "domainIntent": "REFERENCE_QUERY",
+          "parserSource": "LLM",
+          "policyReason": "READ_ONLY_QUERY",
+          "queryChanged": false,
+          "reportQueued": false,
+          "effectRequest": null,
+          "sourcePageIds": [],
+          "answerContract": "REFERENCE_LOOKUP",
+          "referenceScope": "LATEST_VISIBLE",
+          "candidateIdList": [],
+          "requestedEffect": "QUERY",
+          "referencePageIds": [
+            "2c161d87-a343-4dfe-a01e-6d018e943087"
+          ],
+          "semanticEvidence": "I型VICP坡屋面正置和倒置，20mm的传热系数分别多少？看下表。",
+          "semanticReference": {
+            "items": [],
+            "scope": "NONE",
+            "revision": null
+          },
+          "factValidationCode": "NOT_EVALUATED",
+          "queryChangedFields": [],
+          "semanticConfidence": 0.95,
+          "solutionStateMutated": false,
+          "candidateSnapshotSource": []
+        }
+      }
+    ]
+  },
+  {
+    "id": "T02",
+    "decisions": [
+      {
+        "backendDecision": {
+          "goal": "REFERENCE_REFINE",
+          "patch": [],
+          "intent": "REFERENCE_LOOKUP",
+          "source": "INTENT",
+          "factRead": null,
+          "mutation": "QUERY",
+          "relation": "REFINE",
+          "taskType": "PRODUCT_CONSULTATION",
+          "toolRoute": [
+            "backend:knowledge",
+            "backend:reference_query"
+          ],
+          "toolUsage": {
+            "report": false,
+            "thermal": false,
+            "knowledge": true
+          },
+          "adviceMode": null,
+          "candidateIds": [],
+          "domainIntent": "REFERENCE_REFINE",
+          "parserSource": "LLM",
+          "policyReason": "READ_ONLY_QUERY",
+          "queryChanged": false,
+          "reportQueued": false,
+          "effectRequest": null,
+          "sourcePageIds": [],
+          "answerContract": "REFERENCE_LOOKUP",
+          "referenceScope": "LATEST_VISIBLE",
+          "candidateIdList": [],
+          "requestedEffect": "QUERY",
+          "referencePageIds": [
+            "2c161d87-a343-4dfe-a01e-6d018e943087"
+          ],
+          "semanticEvidence": "改成25厚，只看倒置。",
+          "semanticReference": {
+            "items": [],
+            "scope": "NONE",
+            "revision": null
+          },
+          "factValidationCode": "NOT_EVALUATED",
+          "queryChangedFields": [],
+          "semanticConfidence": 0.95,
+          "solutionStateMutated": false,
+          "candidateSnapshotSource": []
+        }
+      },
+      {
+        "backendDecision": {
+          "goal": "REFERENCE_QUERY",
+          "patch": [],
+          "intent": "REFERENCE_LOOKUP",
+          "source": "INTENT",
+          "factRead": null,
+          "mutation": "QUERY",
+          "relation": "NEW",
+          "taskType": "PRODUCT_CONSULTATION",
+          "toolRoute": [
+            "backend:knowledge",
+            "backend:reference_query"
+          ],
+          "toolUsage": {
+            "report": false,
+            "thermal": false,
+            "knowledge": true
+          },
+          "adviceMode": null,
+          "candidateIds": [],
+          "domainIntent": "REFERENCE_QUERY",
+          "parserSource": "LLM",
+          "policyReason": "READ_ONLY_QUERY",
+          "queryChanged": false,
+          "reportQueued": false,
+          "effectRequest": null,
+          "sourcePageIds": [],
+          "answerContract": "REFERENCE_LOOKUP",
+          "referenceScope": "LATEST_VISIBLE",
+          "candidateIdList": [],
+          "requestedEffect": "QUERY",
+          "referencePageIds": [
+            "2c161d87-a343-4dfe-a01e-6d018e943087"
+          ],
+          "semanticEvidence": "I型VICP坡屋面正置和倒置，20mm的传热系数分别多少？看下表。",
+          "semanticReference": {
+            "items": [],
+            "scope": "NONE",
+            "revision": null
+          },
+          "factValidationCode": "NOT_EVALUATED",
+          "queryChangedFields": [],
+          "semanticConfidence": 0.95,
+          "solutionStateMutated": false,
+          "candidateSnapshotSource": []
+        }
+      }
+    ]
+  },
+  {
+    "id": "T03",
+    "decisions": [
+      {
+        "backendDecision": {
+          "goal": "REFERENCE_REFINE",
+          "patch": [],
+          "intent": "REFERENCE_LOOKUP",
+          "source": "INTENT",
+          "factRead": null,
+          "mutation": "QUERY",
+          "relation": "REFINE",
+          "taskType": "GENERAL",
+          "toolRoute": [
+            "backend:knowledge",
+            "backend:reference_query"
+          ],
+          "toolUsage": {
+            "report": false,
+            "thermal": false,
+            "knowledge": true
+          },
+          "adviceMode": null,
+          "candidateIds": [],
+          "domainIntent": "REFERENCE_REFINE",
+          "parserSource": "LLM",
+          "policyReason": "READ_ONLY_QUERY",
+          "queryChanged": false,
+          "reportQueued": false,
+          "effectRequest": null,
+          "sourcePageIds": [],
+          "answerContract": "REFERENCE_LOOKUP",
+          "referenceScope": "LATEST_VISIBLE",
+          "candidateIdList": [],
+          "requestedEffect": "QUERY",
+          "referencePageIds": [
+            "3b8cb47b-8741-4b81-b5ba-84b49109c66c"
+          ],
+          "semanticEvidence": "它们做法是不是也完全一样？",
+          "semanticReference": {
+            "items": [],
+            "scope": "LAST_VISIBLE_CANDIDATES",
+            "revision": null
+          },
+          "factValidationCode": "NOT_EVALUATED",
+          "queryChangedFields": [],
+          "semanticConfidence": 0.95,
+          "solutionStateMutated": false,
+          "candidateSnapshotSource": []
+        }
+      },
+      {
+        "backendDecision": {
+          "goal": "REFERENCE_DETAIL",
+          "patch": [],
+          "intent": "REFERENCE_LOOKUP",
+          "source": "INTENT",
+          "factRead": {
+            "mode": "VERIFY",
+            "metric": "TOTAL_R",
+            "evidence": "确认一下这里的R=5.369是否正确，不是确认方案。",
+            "historyClaim": false
+          },
+          "mutation": "NONE",
+          "relation": "CONTINUE",
+          "taskType": "GENERAL",
+          "toolRoute": [
+            "backend:reference_read"
+          ],
+          "toolUsage": {
+            "report": false,
+            "thermal": false,
+            "knowledge": false
+          },
+          "adviceMode": null,
+          "candidateIds": [],
+          "domainIntent": "REFERENCE_DETAIL",
+          "parserSource": "LLM",
+          "policyReason": "READ_ONLY_SEMANTIC",
+          "queryChanged": false,
+          "reportQueued": false,
+          "effectRequest": null,
+          "sourcePageIds": [],
+          "answerContract": "REFERENCE_LOOKUP",
+          "referenceScope": "LATEST_VISIBLE",
+          "candidateIdList": [],
+          "requestedEffect": "READ_ONLY",
+          "referencePageIds": [
+            "3b8cb47b-8741-4b81-b5ba-84b49109c66c"
+          ],
+          "semanticEvidence": "确认一下这里的R=5.369是否正确，不是确认方案。",
+          "semanticReference": {
+            "items": [],
+            "scope": "LAST_VISIBLE_CANDIDATES",
+            "revision": null
+          },
+          "factValidationCode": "CONFIRMED_PAGE_FACT_VERIFY",
+          "queryChangedFields": [],
+          "semanticConfidence": 0.95,
+          "solutionStateMutated": false,
+          "candidateSnapshotSource": []
+        }
+      },
+      {
+        "backendDecision": {
+          "goal": "REFERENCE_QUERY",
+          "patch": [],
+          "intent": "REFERENCE_LOOKUP",
+          "source": "INTENT",
+          "factRead": null,
+          "mutation": "QUERY",
+          "relation": "NEW",
+          "taskType": "GENERAL",
+          "toolRoute": [
+            "backend:knowledge",
+            "backend:reference_query"
+          ],
+          "toolUsage": {
+            "report": false,
+            "thermal": false,
+            "knowledge": true
+          },
+          "adviceMode": null,
+          "candidateIds": [],
+          "domainIntent": "REFERENCE_QUERY",
+          "parserSource": "LLM",
+          "policyReason": "READ_ONLY_QUERY",
+          "queryChanged": false,
+          "reportQueued": false,
+          "effectRequest": null,
+          "sourcePageIds": [],
+          "answerContract": "REFERENCE_LOOKUP",
+          "referenceScope": "LATEST_VISIBLE",
+          "candidateIdList": [],
+          "requestedEffect": "QUERY",
+          "referencePageIds": [
+            "3b8cb47b-8741-4b81-b5ba-84b49109c66c"
+          ],
+          "semanticEvidence": "II型平屋面正置和倒置的20mm参数一样吗？",
+          "semanticReference": {
+            "items": [],
+            "scope": "NONE",
+            "revision": null
+          },
+          "factValidationCode": "NOT_EVALUATED",
+          "queryChangedFields": [],
+          "semanticConfidence": 0.95,
+          "solutionStateMutated": false,
+          "candidateSnapshotSource": []
+        }
+      }
+    ]
+  },
+  {
+    "id": "T11",
+    "decisions": [
+      {
+        "backendDecision": {
+          "goal": "REFERENCE_REFINE",
+          "patch": [],
+          "intent": "REFERENCE_LOOKUP",
+          "source": "INTENT",
+          "factRead": null,
+          "mutation": "QUERY",
+          "relation": "REFINE",
+          "taskType": "GENERAL",
+          "toolRoute": [
+            "backend:knowledge",
+            "backend:reference_query"
+          ],
+          "toolUsage": {
+            "report": false,
+            "thermal": false,
+            "knowledge": true
+          },
+          "adviceMode": null,
+          "candidateIds": [],
+          "domainIntent": "REFERENCE_REFINE",
+          "parserSource": "LLM",
+          "policyReason": "READ_ONLY_QUERY",
+          "queryChanged": false,
+          "reportQueued": false,
+          "effectRequest": null,
+          "sourcePageIds": [],
+          "answerContract": "REFERENCE_LOOKUP",
+          "referenceScope": "LATEST_VISIBLE",
+          "candidateIdList": [],
+          "requestedEffect": "QUERY",
+          "referencePageIds": [
+            "3b8cb47b-8741-4b81-b5ba-84b49109c66c"
+          ],
+          "semanticEvidence": "它们做法是不是也完全一样？",
+          "semanticReference": {
+            "items": [],
+            "scope": "LAST_VISIBLE_CANDIDATES",
+            "revision": null
+          },
+          "factValidationCode": "NOT_EVALUATED",
+          "queryChangedFields": [],
+          "semanticConfidence": 0.95,
+          "solutionStateMutated": false,
+          "candidateSnapshotSource": []
+        }
+      },
+      {
+        "backendDecision": {
+          "goal": "REFERENCE_DETAIL",
+          "patch": [],
+          "intent": "REFERENCE_LOOKUP",
+          "source": "INTENT",
+          "factRead": {
+            "mode": "VERIFY",
+            "metric": "TOTAL_R",
+            "evidence": "确认一下这里的R=5.369是否正确，不是确认方案。",
+            "historyClaim": false
+          },
+          "mutation": "NONE",
+          "relation": "CONTINUE",
+          "taskType": "GENERAL",
+          "toolRoute": [
+            "backend:reference_read"
+          ],
+          "toolUsage": {
+            "report": false,
+            "thermal": false,
+            "knowledge": false
+          },
+          "adviceMode": null,
+          "candidateIds": [],
+          "domainIntent": "REFERENCE_DETAIL",
+          "parserSource": "LLM",
+          "policyReason": "READ_ONLY_SEMANTIC",
+          "queryChanged": false,
+          "reportQueued": false,
+          "effectRequest": null,
+          "sourcePageIds": [],
+          "answerContract": "REFERENCE_LOOKUP",
+          "referenceScope": "LATEST_VISIBLE",
+          "candidateIdList": [],
+          "requestedEffect": "READ_ONLY",
+          "referencePageIds": [
+            "3b8cb47b-8741-4b81-b5ba-84b49109c66c"
+          ],
+          "semanticEvidence": "确认一下这里的R=5.369是否正确，不是确认方案。",
+          "semanticReference": {
+            "items": [],
+            "scope": "LAST_VISIBLE_CANDIDATES",
+            "revision": null
+          },
+          "factValidationCode": "CONFIRMED_PAGE_FACT_VERIFY",
+          "queryChangedFields": [],
+          "semanticConfidence": 0.95,
+          "solutionStateMutated": false,
+          "candidateSnapshotSource": []
+        }
+      },
+      {
+        "backendDecision": {
+          "goal": "REFERENCE_QUERY",
+          "patch": [],
+          "intent": "REFERENCE_LOOKUP",
+          "source": "INTENT",
+          "factRead": null,
+          "mutation": "QUERY",
+          "relation": "NEW",
+          "taskType": "GENERAL",
+          "toolRoute": [
+            "backend:knowledge",
+            "backend:reference_query"
+          ],
+          "toolUsage": {
+            "report": false,
+            "thermal": false,
+            "knowledge": true
+          },
+          "adviceMode": null,
+          "candidateIds": [],
+          "domainIntent": "REFERENCE_QUERY",
+          "parserSource": "LLM",
+          "policyReason": "READ_ONLY_QUERY",
+          "queryChanged": false,
+          "reportQueued": false,
+          "effectRequest": null,
+          "sourcePageIds": [],
+          "answerContract": "REFERENCE_LOOKUP",
+          "referenceScope": "LATEST_VISIBLE",
+          "candidateIdList": [],
+          "requestedEffect": "QUERY",
+          "referencePageIds": [
+            "3b8cb47b-8741-4b81-b5ba-84b49109c66c"
+          ],
+          "semanticEvidence": "II型平屋面正置和倒置的20mm参数一样吗？",
+          "semanticReference": {
+            "items": [],
+            "scope": "NONE",
+            "revision": null
+          },
+          "factValidationCode": "NOT_EVALUATED",
+          "queryChangedFields": [],
+          "semanticConfidence": 0.95,
+          "solutionStateMutated": false,
+          "candidateSnapshotSource": []
+        }
+      }
+    ]
+  },
+  {
+    "id": "T04",
+    "decisions": [
+      {
+        "backendDecision": {
+          "goal": "REFERENCE_REFINE",
+          "patch": [],
+          "intent": "REFERENCE_LOOKUP",
+          "source": "INTENT",
+          "factRead": null,
+          "mutation": "QUERY",
+          "relation": "REFINE",
+          "taskType": "GENERAL",
+          "toolRoute": [
+            "backend:knowledge",
+            "backend:reference_query"
+          ],
+          "toolUsage": {
+            "report": false,
+            "thermal": false,
+            "knowledge": true
+          },
+          "adviceMode": null,
+          "candidateIds": [],
+          "domainIntent": "REFERENCE_REFINE",
+          "parserSource": "LLM",
+          "policyReason": "READ_ONLY_QUERY",
+          "queryChanged": false,
+          "reportQueued": false,
+          "effectRequest": null,
+          "sourcePageIds": [],
+          "answerContract": "REFERENCE_LOOKUP",
+          "referenceScope": "LATEST_VISIBLE",
+          "candidateIdList": [],
+          "requestedEffect": "QUERY",
+          "referencePageIds": [
+            "3b8cb47b-8741-4b81-b5ba-84b49109c66c"
+          ],
+          "semanticEvidence": "它们做法是不是也完全一样？",
+          "semanticReference": {
+            "items": [],
+            "scope": "LAST_VISIBLE_CANDIDATES",
+            "revision": null
+          },
+          "factValidationCode": "NOT_EVALUATED",
+          "queryChangedFields": [],
+          "semanticConfidence": 0.95,
+          "solutionStateMutated": false,
+          "candidateSnapshotSource": []
+        }
+      },
+      {
+        "backendDecision": {
+          "goal": "REFERENCE_DETAIL",
+          "patch": [],
+          "intent": "REFERENCE_LOOKUP",
+          "source": "INTENT",
+          "factRead": {
+            "mode": "VERIFY",
+            "metric": "TOTAL_R",
+            "evidence": "确认一下这里的R=5.369是否正确，不是确认方案。",
+            "historyClaim": false
+          },
+          "mutation": "NONE",
+          "relation": "CONTINUE",
+          "taskType": "GENERAL",
+          "toolRoute": [
+            "backend:reference_read"
+          ],
+          "toolUsage": {
+            "report": false,
+            "thermal": false,
+            "knowledge": false
+          },
+          "adviceMode": null,
+          "candidateIds": [],
+          "domainIntent": "REFERENCE_DETAIL",
+          "parserSource": "LLM",
+          "policyReason": "READ_ONLY_SEMANTIC",
+          "queryChanged": false,
+          "reportQueued": false,
+          "effectRequest": null,
+          "sourcePageIds": [],
+          "answerContract": "REFERENCE_LOOKUP",
+          "referenceScope": "LATEST_VISIBLE",
+          "candidateIdList": [],
+          "requestedEffect": "READ_ONLY",
+          "referencePageIds": [
+            "3b8cb47b-8741-4b81-b5ba-84b49109c66c"
+          ],
+          "semanticEvidence": "确认一下这里的R=5.369是否正确，不是确认方案。",
+          "semanticReference": {
+            "items": [],
+            "scope": "LAST_VISIBLE_CANDIDATES",
+            "revision": null
+          },
+          "factValidationCode": "CONFIRMED_PAGE_FACT_VERIFY",
+          "queryChangedFields": [],
+          "semanticConfidence": 0.95,
+          "solutionStateMutated": false,
+          "candidateSnapshotSource": []
+        }
+      },
+      {
+        "backendDecision": {
+          "goal": "REFERENCE_QUERY",
+          "patch": [],
+          "intent": "REFERENCE_LOOKUP",
+          "source": "INTENT",
+          "factRead": null,
+          "mutation": "QUERY",
+          "relation": "NEW",
+          "taskType": "GENERAL",
+          "toolRoute": [
+            "backend:knowledge",
+            "backend:reference_query"
+          ],
+          "toolUsage": {
+            "report": false,
+            "thermal": false,
+            "knowledge": true
+          },
+          "adviceMode": null,
+          "candidateIds": [],
+          "domainIntent": "REFERENCE_QUERY",
+          "parserSource": "LLM",
+          "policyReason": "READ_ONLY_QUERY",
+          "queryChanged": false,
+          "reportQueued": false,
+          "effectRequest": null,
+          "sourcePageIds": [],
+          "answerContract": "REFERENCE_LOOKUP",
+          "referenceScope": "LATEST_VISIBLE",
+          "candidateIdList": [],
+          "requestedEffect": "QUERY",
+          "referencePageIds": [
+            "3b8cb47b-8741-4b81-b5ba-84b49109c66c"
+          ],
+          "semanticEvidence": "II型平屋面正置和倒置的20mm参数一样吗？",
+          "semanticReference": {
+            "items": [],
+            "scope": "NONE",
+            "revision": null
+          },
+          "factValidationCode": "NOT_EVALUATED",
+          "queryChangedFields": [],
+          "semanticConfidence": 0.95,
+          "solutionStateMutated": false,
+          "candidateSnapshotSource": []
+        }
+      }
+    ]
+  },
+  {
+    "id": "T05",
+    "decisions": [
+      {
+        "backendDecision": {
+          "goal": "REFERENCE_QUERY",
+          "patch": [],
+          "intent": "REFERENCE_LOOKUP",
+          "source": "INTENT",
+          "factRead": null,
+          "mutation": "QUERY",
+          "relation": "NEW",
+          "taskType": "GENERAL",
+          "toolRoute": [
+            "backend:knowledge",
+            "backend:reference_query"
+          ],
+          "toolUsage": {
+            "report": false,
+            "thermal": false,
+            "knowledge": true
+          },
+          "adviceMode": null,
+          "candidateIds": [],
+          "domainIntent": "REFERENCE_QUERY",
+          "parserSource": "LLM",
+          "policyReason": "READ_ONLY_QUERY",
+          "queryChanged": false,
+          "reportQueued": false,
+          "effectRequest": null,
+          "sourcePageIds": [],
+          "answerContract": "REFERENCE_LOOKUP",
+          "referenceScope": "LATEST_VISIBLE",
+          "candidateIdList": [],
+          "requestedEffect": "QUERY",
+          "referencePageIds": [
+            "78e6fdc1-a34b-4ff4-b68f-e2bd8f35efb4"
+          ],
+          "semanticEvidence": "外墙C1-3和C1-4都是20mm，哪个K小？基层什么材料？",
+          "semanticReference": {
+            "items": [],
+            "scope": "NONE",
+            "revision": null
+          },
+          "factValidationCode": "NOT_EVALUATED",
+          "queryChangedFields": [],
+          "semanticConfidence": 0.95,
+          "solutionStateMutated": false,
+          "candidateSnapshotSource": []
+        }
+      }
+    ]
+  },
+  {
+    "id": "T06",
+    "decisions": [
+      {
+        "backendDecision": {
+          "goal": "CLARIFY",
+          "patch": [],
+          "intent": "GENERAL",
+          "source": "INTENT",
+          "factRead": null,
+          "mutation": "NONE",
+          "relation": "NEW",
+          "taskType": "GENERAL",
+          "toolRoute": [
+            "backend:clarify"
+          ],
+          "toolUsage": {
+            "report": false,
+            "thermal": false,
+            "knowledge": false
+          },
+          "adviceMode": null,
+          "candidateIds": [],
+          "domainIntent": "CLARIFY",
+          "parserSource": "LLM",
+          "policyReason": "PAGE_QUERY_CONSTRAINTS_INVALID",
+          "queryChanged": false,
+          "reportQueued": false,
+          "effectRequest": null,
+          "sourcePageIds": [],
+          "answerContract": "CLARIFY",
+          "factValidation": "VALID_FACTS",
+          "candidateIdList": [],
+          "requestedEffect": "QUERY",
+          "referencePageIds": [],
+          "semanticEvidence": "只看倒置屋面25厚的K。",
+          "semanticReference": {
+            "items": [],
+            "scope": "NONE",
+            "revision": null
+          },
+          "factValidationCode": "VALID_FACTS",
+          "queryChangedFields": [],
+          "semanticConfidence": 0.9,
+          "solutionStateMutated": false,
+          "candidateSnapshotSource": []
+        }
+      }
+    ]
+  },
+  {
+    "id": "T07",
+    "decisions": [
+      {
+        "backendDecision": {
+          "goal": "KNOWLEDGE_EXPLAIN",
+          "patch": [],
+          "intent": "GENERAL",
+          "source": "INTENT",
+          "factRead": null,
+          "mutation": "NONE",
+          "relation": "NEW",
+          "taskType": "GENERAL",
+          "toolRoute": [
+            "backend:knowledge"
+          ],
+          "toolUsage": {
+            "report": false,
+            "thermal": false,
+            "knowledge": true
+          },
+          "adviceMode": null,
+          "domainIntent": "KNOWLEDGE_EXPLAIN",
+          "parserSource": "LLM",
+          "policyReason": "READ_ONLY_SEMANTIC",
+          "queryChanged": false,
+          "reportQueued": false,
+          "effectRequest": null,
+          "sourcePageIds": [],
+          "answerContract": "KNOWLEDGE",
+          "referenceScope": "LATEST_VISIBLE",
+          "candidateIdList": [],
+          "requestedEffect": "READ_ONLY",
+          "referencePageIds": [],
+          "semanticEvidence": "I型VICP和I级防水一样吗？",
+          "semanticReference": {
+            "items": [],
+            "scope": "NONE",
+            "revision": null
+          },
+          "factValidationCode": "NOT_EVALUATED",
+          "queryChangedFields": [],
+          "semanticConfidence": 0.9,
+          "solutionStateMutated": false,
+          "candidateSnapshotSource": []
+        }
+      }
+    ]
+  },
+  {
+    "id": "T08",
+    "decisions": [
+      {
+        "backendDecision": {
+          "goal": "REFERENCE_QUERY",
+          "patch": [],
+          "intent": "REFERENCE_LOOKUP",
+          "source": "INTENT",
+          "factRead": null,
+          "mutation": "QUERY",
+          "relation": "NEW",
+          "taskType": "GENERAL",
+          "toolRoute": [
+            "backend:knowledge",
+            "backend:reference_query"
+          ],
+          "toolUsage": {
+            "report": false,
+            "thermal": false,
+            "knowledge": true
+          },
+          "adviceMode": null,
+          "candidateIds": [],
+          "domainIntent": "REFERENCE_QUERY",
+          "parserSource": "LLM",
+          "policyReason": "READ_ONLY_QUERY",
+          "queryChanged": false,
+          "reportQueued": false,
+          "effectRequest": null,
+          "sourcePageIds": [],
+          "answerContract": "REFERENCE_LOOKUP",
+          "referenceScope": "LATEST_VISIBLE",
+          "candidateIdList": [],
+          "requestedEffect": "QUERY",
+          "referencePageIds": [
+            "3b8cb47b-8741-4b81-b5ba-84b49109c66c"
+          ],
+          "semanticEvidence": "把第90页原图、备注和完整厚度表打开。",
+          "semanticReference": {
+            "items": [],
+            "scope": "NONE",
+            "revision": null
+          },
+          "factValidationCode": "NOT_EVALUATED",
+          "queryChangedFields": [],
+          "semanticConfidence": 0.95,
+          "solutionStateMutated": false,
+          "candidateSnapshotSource": []
+        }
+      }
+    ]
+  },
+  {
+    "id": "T09",
+    "decisions": [
+      {
+        "backendDecision": {
+          "goal": "KNOWLEDGE_EXPLAIN",
+          "patch": [],
+          "intent": "GENERAL",
+          "source": "INTENT",
+          "factRead": {
+            "mode": "DEFINE",
+            "metric": null,
+            "evidence": "20mm保温层的热阻是整体传热阻吗？",
+            "historyClaim": false
+          },
+          "mutation": "NONE",
+          "relation": "NEW",
+          "taskType": "GENERAL",
+          "toolRoute": [
+            "backend:knowledge",
+            "backend:reference_read"
+          ],
+          "toolUsage": {
+            "report": false,
+            "thermal": false,
+            "knowledge": true
+          },
+          "adviceMode": null,
+          "candidateIds": [],
+          "domainIntent": "KNOWLEDGE_EXPLAIN",
+          "parserSource": "LLM",
+          "policyReason": "READ_ONLY_SEMANTIC",
+          "queryChanged": false,
+          "reportQueued": false,
+          "effectRequest": null,
+          "sourcePageIds": [],
+          "answerContract": "KNOWLEDGE",
+          "referenceScope": "LATEST_VISIBLE",
+          "candidateIdList": [],
+          "requestedEffect": "READ_ONLY",
+          "referencePageIds": [],
+          "semanticEvidence": "20mm保温层的热阻是整体传热阻吗？",
+          "semanticReference": {
+            "items": [],
+            "scope": "NONE",
+            "revision": null
+          },
+          "factValidationCode": "THERMAL_METRIC_DEFINITION",
+          "queryChangedFields": [],
+          "semanticConfidence": 0.95,
+          "solutionStateMutated": false,
+          "candidateSnapshotSource": []
+        }
+      }
+    ]
+  },
+  {
+    "id": "T10",
+    "decisions": [
+      {
+        "backendDecision": {
+          "goal": "CLARIFY",
+          "patch": [],
+          "intent": "GENERAL",
+          "source": "INTENT",
+          "factRead": null,
+          "mutation": "NONE",
+          "relation": "NEW",
+          "taskType": "GENERAL",
+          "toolRoute": [
+            "backend:clarify"
+          ],
+          "toolUsage": {
+            "report": false,
+            "thermal": false,
+            "knowledge": false
+          },
+          "adviceMode": null,
+          "candidateIds": [],
+          "domainIntent": "CLARIFY",
+          "parserSource": "LLM",
+          "policyReason": "SEMANTIC_AMBIGUOUS",
+          "queryChanged": false,
+          "reportQueued": false,
+          "effectRequest": null,
+          "sourcePageIds": [],
+          "answerContract": "CLARIFY",
+          "factValidation": "INVALID_FACT",
+          "candidateIdList": [],
+          "requestedEffect": "READ_ONLY",
+          "referencePageIds": [],
+          "semanticEvidence": "这些屋面做法在某省2025年能达标吗？生成正式报告。",
+          "semanticReference": {
+            "items": [],
+            "scope": "NONE",
+            "revision": null
+          },
+          "factValidationCode": "INVALID_FACT",
+          "queryChangedFields": [],
+          "semanticConfidence": 0.9,
+          "solutionStateMutated": false,
+          "candidateSnapshotSource": []
+        }
+      }
+    ]
+  },
+  {
+    "id": "E01",
+    "decisions": [
+      {
+        "backendDecision": {
+          "goal": "REFERENCE_QUERY",
+          "patch": [],
+          "intent": "REFERENCE_LOOKUP",
+          "source": "INTENT",
+          "factRead": null,
+          "mutation": "QUERY",
+          "relation": "NEW",
+          "taskType": "PRODUCT_CONSULTATION",
+          "toolRoute": [
+            "backend:knowledge",
+            "backend:reference_query"
+          ],
+          "toolUsage": {
+            "report": false,
+            "thermal": false,
+            "knowledge": true
+          },
+          "adviceMode": null,
+          "candidateIds": [],
+          "domainIntent": "REFERENCE_QUERY",
+          "parserSource": "LLM",
+          "policyReason": "READ_ONLY_QUERY",
+          "queryChanged": false,
+          "reportQueued": false,
+          "effectRequest": null,
+          "sourcePageIds": [],
+          "answerContract": "REFERENCE_LOOKUP",
+          "referenceScope": "LATEST_VISIBLE",
+          "candidateIdList": [],
+          "requestedEffect": "QUERY",
+          "referencePageIds": [
+            "2c161d87-a343-4dfe-a01e-6d018e943087"
+          ],
+          "semanticEvidence": "I型VICP坡屋面正置和倒置25mm的R和K分别多少？",
+          "semanticReference": {
+            "items": [],
+            "scope": "NONE",
+            "revision": null
+          },
+          "factValidationCode": "NOT_EVALUATED",
+          "queryChangedFields": [],
+          "semanticConfidence": 0.95,
+          "solutionStateMutated": false,
+          "candidateSnapshotSource": []
+        }
+      }
+    ]
+  },
+  {
+    "id": "E02",
+    "decisions": [
+      {
+        "backendDecision": {
+          "goal": "REFERENCE_QUERY",
+          "patch": [],
+          "intent": "REFERENCE_LOOKUP",
+          "source": "INTENT",
+          "factRead": null,
+          "mutation": "QUERY",
+          "relation": "NEW",
+          "taskType": "GENERAL",
+          "toolRoute": [
+            "backend:knowledge",
+            "backend:reference_query"
+          ],
+          "toolUsage": {
+            "report": false,
+            "thermal": false,
+            "knowledge": true
+          },
+          "adviceMode": null,
+          "candidateIds": [],
+          "domainIntent": "REFERENCE_QUERY",
+          "parserSource": "LLM",
+          "policyReason": "READ_ONLY_QUERY",
+          "queryChanged": false,
+          "reportQueued": false,
+          "effectRequest": null,
+          "sourcePageIds": [],
+          "answerContract": "REFERENCE_LOOKUP",
+          "referenceScope": "LATEST_VISIBLE",
+          "candidateIdList": [],
+          "requestedEffect": "QUERY",
+          "referencePageIds": [
+            "3b8cb47b-8741-4b81-b5ba-84b49109c66c"
+          ],
+          "semanticEvidence": "II型平屋面正置和倒置25mm的R和K分别多少？",
+          "semanticReference": {
+            "items": [],
+            "scope": "NONE",
+            "revision": null
+          },
+          "factValidationCode": "NOT_EVALUATED",
+          "queryChangedFields": [],
+          "semanticConfidence": 0.95,
+          "solutionStateMutated": false,
+          "candidateSnapshotSource": []
+        }
+      }
+    ]
+  },
+  {
+    "id": "E03",
+    "decisions": [
+      {
+        "backendDecision": {
+          "goal": "REFERENCE_QUERY",
+          "patch": [],
+          "intent": "REFERENCE_LOOKUP",
+          "source": "INTENT",
+          "factRead": null,
+          "mutation": "QUERY",
+          "relation": "NEW",
+          "taskType": "GENERAL",
+          "toolRoute": [
+            "backend:knowledge",
+            "backend:reference_query"
+          ],
+          "toolUsage": {
+            "report": false,
+            "thermal": false,
+            "knowledge": true
+          },
+          "adviceMode": null,
+          "candidateIds": [],
+          "domainIntent": "REFERENCE_QUERY",
+          "parserSource": "LLM",
+          "policyReason": "READ_ONLY_QUERY",
+          "queryChanged": false,
+          "reportQueued": false,
+          "effectRequest": null,
+          "sourcePageIds": [],
+          "answerContract": "REFERENCE_LOOKUP",
+          "referenceScope": "LATEST_VISIBLE",
+          "candidateIdList": [],
+          "requestedEffect": "QUERY",
+          "referencePageIds": [
+            "78e6fdc1-a34b-4ff4-b68f-e2bd8f35efb4"
+          ],
+          "semanticEvidence": "外墙C1-3和C1-4的25mm参数分别多少？",
+          "semanticReference": {
+            "items": [],
+            "scope": "NONE",
+            "revision": null
+          },
+          "factValidationCode": "NOT_EVALUATED",
+          "queryChangedFields": [],
+          "semanticConfidence": 0.95,
+          "solutionStateMutated": false,
+          "candidateSnapshotSource": []
+        }
+      }
+    ]
+  }
+]

@@ -1,0 +1,219 @@
+{
+  "scope": "正式UniApp表格组件+本次隔离已确认人工基线+真实HTTP/OSS浏览器解码；非Vision自动确认、非原生App",
+  "rows": [
+    {
+      "page": "75",
+      "group": "外墙C1-3I 型 VICP外墙蒸压灰砂砖 240mm",
+      "groupId": "reference-construction-0",
+      "thicknessMm": 20,
+      "expectedR": 6.916,
+      "expectedK": 0.145,
+      "actual": [
+        {
+          "r": 6.916,
+          "k": 0.145
+        }
+      ],
+      "status": "PASS"
+    },
+    {
+      "page": "75",
+      "group": "外墙C1-3I 型 VICP外墙蒸压灰砂砖 240mm",
+      "groupId": "reference-construction-0",
+      "thicknessMm": 25,
+      "expectedR": 8.516,
+      "expectedK": 0.117,
+      "actual": [
+        {
+          "r": 8.516,
+          "k": 0.117
+        }
+      ],
+      "status": "PASS"
+    },
+    {
+      "page": "75",
+      "group": "外墙C1-4I 型 VICP外墙加气混凝土砌块 200mm",
+      "groupId": "reference-construction-1",
+      "thicknessMm": 20,
+      "expectedR": 7.54,
+      "expectedK": 0.133,
+      "actual": [
+        {
+          "r": 7.54,
+          "k": 0.133
+        }
+      ],
+      "status": "PASS"
+    },
+    {
+      "page": "75",
+      "group": "外墙C1-4I 型 VICP外墙加气混凝土砌块 200mm",
+      "groupId": "reference-construction-1",
+      "thicknessMm": 25,
+      "expectedR": 9.14,
+      "expectedK": 0.109,
+      "actual": [
+        {
+          "r": 9.14,
+          "k": 0.109
+        }
+      ],
+      "status": "PASS"
+    },
+    {
+      "page": "89",
+      "group": "坡屋面（正置，级防水）I 型 VICP屋面坡屋面正置防水等级待核对钢筋混凝土楼板 120mm",
+      "groupId": "reference-construction-0",
+      "thicknessMm": 20,
+      "expectedR": 5.225,
+      "expectedK": 0.191,
+      "actual": [
+        {
+          "r": 5.225,
+          "k": 0.191
+        }
+      ],
+      "status": "PASS"
+    },
+    {
+      "page": "89",
+      "group": "坡屋面（正置，级防水）I 型 VICP屋面坡屋面正置防水等级待核对钢筋混凝土楼板 120mm",
+      "groupId": "reference-construction-0",
+      "thicknessMm": 25,
+      "expectedR": 6.025,
+      "expectedK": 0.166,
+      "actual": [
+        {
+          "r": 6.025,
+          "k": 0.166
+        }
+      ],
+      "status": "PASS"
+    },
+    {
+      "page": "89",
+      "group": "坡屋面（倒置，级防水）I 型 VICP屋面坡屋面倒置防水等级待核对钢筋混凝土楼板 120mm",
+      "groupId": "reference-construction-1",
+      "thicknessMm": 20,
+      "expectedR": 5.198,
+      "expectedK": 0.192,
+      "actual": [
+        {
+          "r": 5.198,
+          "k": 0.192
+        }
+      ],
+      "status": "PASS"
+    },
+    {
+      "page": "89",
+      "group": "坡屋面（倒置，级防水）I 型 VICP屋面坡屋面倒置防水等级待核对钢筋混凝土楼板 120mm",
+      "groupId": "reference-construction-1",
+      "thicknessMm": 25,
+      "expectedR": 5.998,
+      "expectedK": 0.167,
+      "actual": [
+        {
+          "r": 5.998,
+          "k": 0.167
+        }
+      ],
+      "status": "PASS"
+    },
+    {
+      "page": "90",
+      "group": "平屋面（正置，级防水）II 型 VICP屋面平屋面正置防水等级待核对钢筋混凝土楼板 120mm",
+      "groupId": "reference-construction-0",
+      "thicknessMm": 20,
+      "expectedR": 5.369,
+      "expectedK": 0.186,
+      "actual": [
+        {
+          "r": 5.369,
+          "k": 0.186
+        }
+      ],
+      "status": "PASS"
+    },
+    {
+      "page": "90",
+      "group": "平屋面（正置，级防水）II 型 VICP屋面平屋面正置防水等级待核对钢筋混凝土楼板 120mm",
+      "groupId": "reference-construction-0",
+      "thicknessMm": 25,
+      "expectedR": 6.169,
+      "expectedK": 0.162,
+      "actual": [
+        {
+          "r": 6.169,
+          "k": 0.162
+        }
+      ],
+      "status": "PASS"
+    },
+    {
+      "page": "90",
+      "group": "平屋面（倒置，级防水）II 型 VICP屋面平屋面倒置防水等级待核对钢筋混凝土楼板 120mm",
+      "groupId": "reference-construction-1",
+      "thicknessMm": 20,
+      "expectedR": 5.369,
+      "expectedK": 0.186,
+      "actual": [
+        {
+          "r": 5.369,
+          "k": 0.186
+        }
+      ],
+      "status": "PASS"
+    },
+    {
+      "page": "90",
+      "group": "平屋面（倒置，级防水）II 型 VICP屋面平屋面倒置防水等级待核对钢筋混凝土楼板 120mm",
+      "groupId": "reference-construction-1",
+      "thicknessMm": 25,
+      "expectedR": 6.169,
+      "expectedK": 0.162,
+      "actual": [
+        {
+          "r": 6.169,
+          "k": 0.162
+        }
+      ],
+      "status": "PASS"
+    }
+  ],
+  "images": [
+    {
+      "page": "75",
+      "images": [
+        {
+          "height": 1471,
+          "loaded": true,
+          "width": 2048
+        }
+      ]
+    },
+    {
+      "page": "89",
+      "images": [
+        {
+          "height": 1471,
+          "loaded": true,
+          "width": 2048
+        }
+      ]
+    },
+    {
+      "page": "90",
+      "images": [
+        {
+          "height": 1471,
+          "loaded": true,
+          "width": 2048
+        }
+      ]
+    }
+  ],
+  "tableStatus": "PASS",
+  "imageStatus": "PASS"
+}

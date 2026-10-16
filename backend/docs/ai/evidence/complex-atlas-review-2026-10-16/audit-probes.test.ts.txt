@@ -1,0 +1,35 @@
+/** 只读审计复现；内存授权/历史桩，无数据库/网络/正式写入。失败保留为验收缺口。 */
+import "dotenv/config";
+import { readFileSync } from "node:fs";
+import { expect, it, vi } from "vitest";
+const mocks = vi.hoisted(() => ({ access: vi.fn(), history: vi.fn(), query: vi.fn(), read: vi.fn() }));
+vi.mock("../../../../src/modules/ai/solution-state.service.js", () => ({ assertSolutionAccess: mocks.access }));
+vi.mock("../../../../src/modules/ai/reference-fact-history.js", async original => ({ ...await original<typeof import("../../../../src/modules/ai/reference-fact-history.js")>(), readReferenceFactHistory: mocks.history }));
+vi.mock("../../../../src/modules/ai/ai-reference-pages.service.js", async original => ({ ...await original<typeof import("../../../../src/modules/ai/ai-reference-pages.service.js")>(), querySelectedKnowledgeCandidates: mocks.query, readConsumableReferencePages: mocks.read }));
+import { resolveReferenceFactRead } from "../../../../src/modules/ai/reference-fact-read.service.js";
+import { domainSemanticFixture } from "../../../../src/modules/ai/domain-semantic.fixture.js";
+import { domainDecision } from "../../../../src/modules/ai/ai-domain-turn-decision.js";
+import { buildKnowledgePageRenderModel } from "../../../../src/shared/knowledge-page-render.js";
+
+it("T11：已定位无编号90页正置20mm后，只读核验R不应强求印刷构造编号", async () => {
+  const data = JSON.parse(readFileSync(new URL("../../../../tests/fixtures/complex-atlas/page-90.json", import.meta.url), "utf8")).data;
+  const model = buildKnowledgePageRenderModel("page-90", data)!;
+  const construction = model.constructions[0]!;
+  const option = construction.options.find(row => row.thicknessMm === 20)!;
+  const message = "确认一下这里的R=5.369是否正确，不是确认方案。";
+  mocks.access.mockResolvedValue({ projectId: null });
+  mocks.history.mockResolvedValue([{ content: "平屋面（正置），20mm，传热阻 R=5.369。", createdAt: new Date(), metadata: { referencePages: [{
+    documentId: "document", pageId: "page-90", versionId: "version", renderModel: model,
+    matches: [{ pageId: "page-90", constructionId: construction.constructionId, optionId: option.optionId, confirmedRevision: model.confirmedRevision, fieldKeys: ["totalThermalResistance"] }]
+  }] } }]);
+  const query = { intent: "REFERENCE_LOOKUP", parserSource: "LLM", pageLabel: "90", thicknessMm: 20, placement: "UPRIGHT", documentIds: ["document"], knowledgeVersionIds: ["version"] };
+  const semantic = domainSemanticFixture(message, "REFERENCE_DETAIL", { factRead: { mode: "VERIFY", metric: "TOTAL_R", historyClaim: false, evidence: message } });
+  const ctx: any = { app: { db: {}, storage: {}, log: { warn: vi.fn() } }, user: { id: "user", clientType: "C_APP" },
+    conversation: { id: "conversation", userId: "user", projectId: null, clientApp: "c_app" }, userMessage: message,
+    taskState: { taskType: "GENERAL", confirmedPageLookup: { query, createdAt: new Date().toISOString(), conversationId: "conversation", userId: "user", projectId: null, clientApp: "c_app" } },
+    domainDecision: { ...domainDecision("REFERENCE_DETAIL", message), semantic } };
+  const result = await resolveReferenceFactRead(ctx, []);
+  console.log(JSON.stringify({ scope: "内存桩只读复现，不是真实HTTP", answer: result?.facts.canonicalAnswers[0], validationCode: result?.validationCode, sourceReadCalled: mocks.read.mock.calls.length, candidateReadCalled: mocks.query.mock.calls.length }));
+  expect(result?.needsClarification).toBe(false);
+  expect(result?.referencePages).toHaveLength(1);
+});

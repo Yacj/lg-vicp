@@ -1,0 +1,54 @@
+[
+  {
+    "cases": [
+      {
+        "Name": "FAIL",
+        "Count": 1
+      },
+      {
+        "Name": "PARTIAL",
+        "Count": 3
+      },
+      {
+        "Name": "PASS",
+        "Count": 10
+      }
+    ],
+    "cleanup": "PASS",
+    "finishedAt": "2026-10-16T12:25:30.802Z",
+    "run": "real-uat",
+    "status": "FAIL"
+  },
+  {
+    "cases": [
+      {
+        "Name": "PARTIAL",
+        "Count": 3
+      },
+      {
+        "Name": "PASS",
+        "Count": 11
+      }
+    ],
+    "cleanup": "PASS",
+    "finishedAt": "2026-10-16T12:31:25.88Z",
+    "run": "real-uat-final",
+    "status": "PARTIAL"
+  },
+  {
+    "cases": [
+      {
+        "Name": "PARTIAL",
+        "Count": 1
+      },
+      {
+        "Name": "PASS",
+        "Count": 13
+      }
+    ],
+    "cleanup": "PASS",
+    "finishedAt": "2026-10-16T12:46:07.622Z",
+    "run": "real-uat-acceptance",
+    "status": "PARTIAL"
+  }
+]

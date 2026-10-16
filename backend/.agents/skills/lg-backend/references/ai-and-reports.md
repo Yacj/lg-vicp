@@ -24,6 +24,8 @@ Candidate 生命周期（2026-10-12）：查到候选不等于开始方案。普
 
 # AI 与报告
 
+审计后修复（2026-10-16）：无编号v2确认页数值核验只读绑定本人同端24h状态和最近实际显示的版本/revision/构造/档位；数值不能反选身份，裸R按唯一确认来源列解释，显式产品R不能替换。重复引用全部更新高亮并清除旧answerOffset；不建Candidate、不动方案/快照/报告。B端签名失败保留确认表格。真实OSS/SSE及H5 DOM12行通过，阶段5仍PARTIAL，见docs/ai/complex-atlas-repair-2026-10-16.md。
+
 复杂图集阶段3（2026-10-16）：v2确认页的只读参数检索使用confirmed-page-facts，共用现有语义条件与工程值比较；不伪造方案/产品ID，不刷新Candidate或降低热工同步门槛。原始R列名/单位从来源字段呈现，摘要/引用参数条同源。可选confirmedRevision与版本/pageLabel核验信息绑定引用，持久化重读当前确认模型，历史重验发布/项目权限并重签。追问条件独立保存于本人同端同会话/项目的24h只读状态；正式选择/Confirm/Snapshot/PDF保持原门禁。Fixture HTTP/SSE不得冒充真实业务路由/DB/OSS/浏览器UAT。见docs/ai/complex-atlas-phase3-2026-10-16.md。
 
 2026-10-15 C端UAT修复：共享查询服务负责首次/局部改条件与已消费图集回退，无命中保存资料范围；明确指标REPLACE与厚度上下限独立校验。来源/比较不刷新候选，旧序号时间歧义拒绝，明确构造编码仅在同一已消费有权版本读取来源。已确认查看读Snapshot；Domain/Query结构化提案复核最多一次且共用原预算，低置信写入仍拒绝。详见docs/ai/c-uat-fixes-2026-10-15.md。

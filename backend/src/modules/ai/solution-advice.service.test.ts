@@ -10,6 +10,7 @@ vi.mock("./reference-candidate-source.service.js", () => ({ referenceRowsStillCu
 vi.mock("./ai-reference-pages.service.js", async original => ({ ...await original<typeof import("./ai-reference-pages.service.js")>(), readConsumableReferencePages: mocks.read }));
 vi.mock("ai", async original => ({ ...await original<typeof import("ai")>(), generateObject: mocks.model }));
 vi.mock("./ai-runtime.service.js", () => ({ resolveSceneRuntime: mocks.runtime }));
+vi.mock("./reference-fact-history.js", () => ({ readReferenceFactHistory: async () => [] }));
 vi.mock("../reports/report-snapshot.service.js", () => ({ generateTemplateReport: mocks.report }));
 vi.mock("../thermal/thermal-query-dictionary.service.js", () => ({ loadThermalQueryDictionary: mocks.dictionary }));
 vi.mock("../thermal/thermal-calc.service.js", () => ({ executeThermalCalc: mocks.calc }));

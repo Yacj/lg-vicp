@@ -1,0 +1,15 @@
+{
+  "id": "T07",
+  "group": "concept",
+  "question": "I型VICP和I级防水一样吗？",
+  "status": "PARTIAL",
+  "conversationId": "f60fb407-921f-4cb9-af82-0119ac249eb2",
+  "answer": "请补充要核对的构造编号；若已有多个构造，还需明确对应来源和保温板厚度。",
+  "facts": [],
+  "pages": [],
+  "historyReturned": true,
+  "persistedUrlFree": true,
+  "solutionStates": 0,
+  "reports": 0,
+  "snapshots": 0
+}

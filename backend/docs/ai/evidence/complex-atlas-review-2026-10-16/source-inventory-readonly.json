@@ -1,0 +1,83 @@
+{
+  "scope": "仅显式只读源库清点，不运行检索写会话，不修改版本状态或旧数据",
+  "versions": [
+    {
+      "status": "DISABLED",
+      "usage_mode": "AI_ENABLED",
+      "count": 1
+    }
+  ],
+  "documents": [
+    {
+      "status": "ACTIVE",
+      "count": 1
+    }
+  ],
+  "pages": 79,
+  "confirmedPages": 79,
+  "options": 890,
+  "completeOptions": 830,
+  "a3": [
+    {
+      "pageId": "02f3418c-a64a-4bb2-bb8f-e9bd1aceefe8",
+      "versionId": "4929cc99-3269-41ce-b878-567cbf5fdb4e",
+      "pageLabel": "5",
+      "constructionCode": "A3-1",
+      "systemName": "外墙A3-1",
+      "specClass": "III",
+      "baseMaterial": "钢筋混凝土",
+      "option": {
+        "kValue": 0.302,
+        "thicknessMm": 45,
+        "totalThermalResistance": 3.313,
+        "productThermalResistance": 3
+      }
+    },
+    {
+      "pageId": "02f3418c-a64a-4bb2-bb8f-e9bd1aceefe8",
+      "versionId": "4929cc99-3269-41ce-b878-567cbf5fdb4e",
+      "pageLabel": "5",
+      "constructionCode": "A3-2",
+      "systemName": "外墙A3-2",
+      "specClass": "III",
+      "baseMaterial": "混凝土空心砌块",
+      "option": {
+        "kValue": 0.294,
+        "thicknessMm": 45,
+        "totalThermalResistance": 3.398,
+        "productThermalResistance": 3
+      }
+    },
+    {
+      "pageId": "88a0dc1c-f14d-4a07-99eb-fa3beb99fbdb",
+      "versionId": "4929cc99-3269-41ce-b878-567cbf5fdb4e",
+      "pageLabel": "6",
+      "constructionCode": "外墙A3-3",
+      "systemName": "外墙A3-3",
+      "specClass": "III",
+      "baseMaterial": "蒸压灰砂砖",
+      "option": {
+        "kValue": 0.293,
+        "thicknessMm": 45,
+        "totalThermalResistance": 3.416,
+        "productThermalResistance": 3
+      }
+    },
+    {
+      "pageId": "88a0dc1c-f14d-4a07-99eb-fa3beb99fbdb",
+      "versionId": "4929cc99-3269-41ce-b878-567cbf5fdb4e",
+      "pageLabel": "6",
+      "constructionCode": "外墙A3-4",
+      "systemName": "外墙A3-4",
+      "specClass": "III",
+      "baseMaterial": "加气混凝土砌块",
+      "option": {
+        "kValue": 0.248,
+        "thicknessMm": 45,
+        "totalThermalResistance": 4.04,
+        "productThermalResistance": 3
+      }
+    }
+  ],
+  "latestHistoricalTestDatabasePresent": true
+}

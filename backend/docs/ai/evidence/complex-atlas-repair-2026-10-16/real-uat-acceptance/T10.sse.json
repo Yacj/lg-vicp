@@ -1,0 +1,56 @@
+[
+  {
+    "event": "message",
+    "data": {
+      "messageId": "555be9c3-dfe4-46c9-b15a-9e5a0846475c",
+      "userMessageId": "a71862fc-516d-428c-bbff-9a6a036fc9ad",
+      "conversationId": "82b2b115-6396-48c7-9cf0-a7403ecf2533",
+      "requestId": "req-u"
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "analyzing",
+      "message": "正在分析问题..."
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "composing",
+      "message": "正在整理回答..."
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "想确认一下：缺少具体构造/候选与地区标准依据，无法核对是否达标。"
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "completed",
+      "message": "回答整理完成"
+    }
+  },
+  {
+    "event": "done",
+    "data": {
+      "messageId": "555be9c3-dfe4-46c9-b15a-9e5a0846475c",
+      "conversationId": "82b2b115-6396-48c7-9cf0-a7403ecf2533",
+      "finishReason": "COMPLETED",
+      "usage": {},
+      "model": {
+        "id": "deepseek-chat"
+      },
+      "promptVersion": {
+        "id": "ae0f8064-e3d6-43c0-ab4c-174188be34e4",
+        "version": 3
+      },
+      "sources": [],
+      "latencyMs": 2201
+    }
+  }
+]

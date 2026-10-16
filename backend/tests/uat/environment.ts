@@ -26,6 +26,7 @@ import type { UatPersona } from "./schema.js";
 
 /** 只读复制运行配置；业务数据从零建立在随机临时库，绝不在原库创建用户或会话。 */
 export async function createUatEnvironment() {
+  assert.equal(env.STORAGE_PROVIDER, "oss", "真实UAT只允许阿里云OSS；请配置OSS后重试，不使用MinIO");
   const id = randomUUID().replaceAll("-", "");
   const databaseName = `vicp_ai_uat_${id}`;
   const prefix = `vicp-ai-uat-${id}`;

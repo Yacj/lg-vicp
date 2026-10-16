@@ -1,0 +1,1023 @@
+{
+  "scope": "真实隔离DB/Redis/OSS/正式HTTP-SSE/真实模型；事实由人工基线装载，程序模拟审核，不冒充真实人工复核",
+  "startedAt": "2026-10-16T12:28:11.596Z",
+  "setup": [
+    {
+      "step": "未确认发布门禁",
+      "response": {
+        "http": 200,
+        "success": false,
+        "error": {
+          "code": 400,
+          "message": "当前版本尚未审核通过，不能发布。",
+          "details": {
+            "errorCode": "KNOWLEDGE_VERSION_NOT_APPROVED"
+          }
+        },
+        "requestId": "req-8"
+      }
+    },
+    {
+      "step": "正式审核发布接口",
+      "passed": true
+    },
+    {
+      "step": "B端知识库测试 89-20",
+      "status": "PASS"
+    },
+    {
+      "step": "B端知识库测试 90-20",
+      "status": "PASS"
+    },
+    {
+      "step": "B端知识库测试 75-20",
+      "status": "PASS"
+    },
+    {
+      "step": "B端知识库测试 89-25",
+      "status": "PASS"
+    },
+    {
+      "step": "B端知识库测试 90-25",
+      "status": "PASS"
+    },
+    {
+      "step": "B端知识库测试 75-25",
+      "status": "PASS"
+    }
+  ],
+  "cases": [
+    {
+      "id": "T01",
+      "group": "roof-I",
+      "question": "I型VICP坡屋面正置和倒置，20mm的传热系数分别多少？看下表。",
+      "status": "PASS",
+      "conversationId": "81ee8d4d-864a-4bb2-b91f-64442fa16b12",
+      "answer": "本次已确认资料匹配 2 档、2 个独立构造，当前引用 2 档。\n\n- **坡屋面（正置，级防水）**，基层钢筋混凝土楼板 120mm：板厚 **20mm**，传热阻 R **5.225 (m²·K)/W**，传热系数 K **0.191 W/(m²·K)**。来源：《复杂建筑热工图集 · 隔离人工基线（程序模拟审核）》，印刷页码 89。\n\n- **坡屋面（倒置，级防水）**，基层钢筋混凝土楼板 120mm：板厚 **20mm**，传热阻 R **5.198 (m²·K)/W**，传热系数 K **0.192 W/(m²·K)**。来源：《复杂建筑热工图集 · 隔离人工基线（程序模拟审核）》，印刷页码 89。\n\n同值不代表做法相同，请结合完整表及原始构造简图核对。材料层热阻、产品整体热阻与整构造传热阻分别读取，缺值不补算；本次仅查阅资料，不选择方案或判断规范达标。",
+      "facts": [
+        {
+          "page": "89",
+          "constructionId": "kp-d5684be5760c2eb050171445-0",
+          "optionId": "kp-d5684be5760c2eb050171445-0-o3",
+          "label": "坡屋面（正置，级防水）",
+          "placement": "UPRIGHT",
+          "thickness": 20,
+          "r": 5.225,
+          "k": 0.191,
+          "base": "钢筋混凝土楼板",
+          "versionId": "b108a0a5-0dd1-47de-bfaf-c6e8690f9874",
+          "revision": "d5684be5760c2eb050171445",
+          "fieldKeys": [
+            "thicknessMm",
+            "totalThermalResistance",
+            "kValue"
+          ]
+        },
+        {
+          "page": "89",
+          "constructionId": "kp-d5684be5760c2eb050171445-1",
+          "optionId": "kp-d5684be5760c2eb050171445-1-o3",
+          "label": "坡屋面（倒置，级防水）",
+          "placement": "INVERTED",
+          "thickness": 20,
+          "r": 5.198,
+          "k": 0.192,
+          "base": "钢筋混凝土楼板",
+          "versionId": "b108a0a5-0dd1-47de-bfaf-c6e8690f9874",
+          "revision": "d5684be5760c2eb050171445",
+          "fieldKeys": [
+            "thicknessMm",
+            "totalThermalResistance",
+            "kValue"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "page": {
+            "documentId": "57ef0e9b-4a95-43ee-b9e1-be62a071c682",
+            "pageId": "b9b65246-20ee-4c72-9300-0696ce69a1d9",
+            "documentTitle": "复杂建筑热工图集 · 隔离人工基线（程序模拟审核）",
+            "versionId": "b108a0a5-0dd1-47de-bfaf-c6e8690f9874",
+            "pageLabelSource": "MANUAL",
+            "pageLabelVerified": true,
+            "docNumber": "J/CABEE 26J702 / UAT",
+            "pageNumber": 1,
+            "physicalPageNumber": 1,
+            "pageLabel": "89",
+            "imageUrl": "[AUTHORIZED_URL_REDACTED]"
+          },
+          "revision": "d5684be5760c2eb050171445",
+          "groups": 2,
+          "options": [
+            6,
+            6
+          ],
+          "notes": []
+        }
+      ],
+      "historyReturned": true,
+      "persistedUrlFree": true,
+      "solutionStates": 0,
+      "reports": 0,
+      "snapshots": 0
+    },
+    {
+      "id": "T02",
+      "group": "roof-I",
+      "question": "改成25厚，只看倒置。",
+      "status": "PASS",
+      "conversationId": "81ee8d4d-864a-4bb2-b91f-64442fa16b12",
+      "answer": "本次已确认资料匹配 1 档、1 个独立构造，当前引用 1 档。\n\n- **坡屋面（倒置，级防水）**，基层钢筋混凝土楼板 120mm：板厚 **25mm**，传热阻 R **5.998 (m²·K)/W**，传热系数 K **0.167 W/(m²·K)**。来源：《复杂建筑热工图集 · 隔离人工基线（程序模拟审核）》，印刷页码 89。\n\n同值不代表做法相同，请结合完整表及原始构造简图核对。材料层热阻、产品整体热阻与整构造传热阻分别读取，缺值不补算；本次仅查阅资料，不选择方案或判断规范达标。",
+      "facts": [
+        {
+          "page": "89",
+          "constructionId": "kp-d5684be5760c2eb050171445-1",
+          "optionId": "kp-d5684be5760c2eb050171445-1-o4",
+          "label": "坡屋面（倒置，级防水）",
+          "placement": "INVERTED",
+          "thickness": 25,
+          "r": 5.998,
+          "k": 0.167,
+          "base": "钢筋混凝土楼板",
+          "versionId": "b108a0a5-0dd1-47de-bfaf-c6e8690f9874",
+          "revision": "d5684be5760c2eb050171445",
+          "fieldKeys": [
+            "thicknessMm",
+            "totalThermalResistance",
+            "kValue"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "page": {
+            "documentId": "57ef0e9b-4a95-43ee-b9e1-be62a071c682",
+            "pageId": "b9b65246-20ee-4c72-9300-0696ce69a1d9",
+            "documentTitle": "复杂建筑热工图集 · 隔离人工基线（程序模拟审核）",
+            "versionId": "b108a0a5-0dd1-47de-bfaf-c6e8690f9874",
+            "pageLabelSource": "MANUAL",
+            "pageLabelVerified": true,
+            "docNumber": "J/CABEE 26J702 / UAT",
+            "pageNumber": 1,
+            "physicalPageNumber": 1,
+            "pageLabel": "89",
+            "imageUrl": "[AUTHORIZED_URL_REDACTED]"
+          },
+          "revision": "d5684be5760c2eb050171445",
+          "groups": 2,
+          "options": [
+            6,
+            6
+          ],
+          "notes": []
+        }
+      ],
+      "historyReturned": true,
+      "persistedUrlFree": true,
+      "solutionStates": 0,
+      "reports": 0,
+      "snapshots": 0
+    },
+    {
+      "id": "T03",
+      "group": "roof-II",
+      "question": "II型平屋面正置和倒置的20mm参数一样吗？",
+      "status": "PASS",
+      "conversationId": "1318d642-23c2-48a3-bb8c-766b62a2b1e1",
+      "answer": "本次已确认资料匹配 2 档、2 个独立构造，当前引用 2 档。\n\n- **平屋面（正置，级防水）**，基层钢筋混凝土楼板 120mm：板厚 **20mm**，传热阻 R **5.369 (m²·K)/W**，传热系数 K **0.186 W/(m²·K)**。来源：《复杂建筑热工图集 · 隔离人工基线（程序模拟审核）》，印刷页码 90。\n\n- **平屋面（倒置，级防水）**，基层钢筋混凝土楼板 120mm：板厚 **20mm**，传热阻 R **5.369 (m²·K)/W**，传热系数 K **0.186 W/(m²·K)**。来源：《复杂建筑热工图集 · 隔离人工基线（程序模拟审核）》，印刷页码 90。\n\n即使参数相同，也不能据此认定构造做法完全相同。以下分别列出确认热工表记录的材料层顺序；完整防水、隔汽和施工做法仍需核对原始构造简图。\n\n- **平屋面（正置，级防水）**：1 混合砂浆（20mm） → 2 钢筋混凝土楼板（120mm） → 4 II型VICP复合保温板（包覆浆料）（10mm） → 4 II型VICP复合保温板（真空绝热板）（逐档可变） → 4 II型VICP复合保温板（包覆浆料）（10mm） → 5 LC7.5轻集料混凝土（30mm） → 6 M15水泥砂浆（20mm） → 7 M15水泥砂浆（20mm）。来源印刷页码 90。\n\n- **平屋面（倒置，级防水）**：1 混合砂浆（20mm） → 2 钢筋混凝土楼板（120mm） → 3 轻集料混凝土找坡层（30mm） → 4 水泥砂浆找平层（20mm） → 6 水泥砂浆找平层（20mm） → 9 II型VICP复合保温板（包覆浆料）（10mm） → 9 II型VICP复合保温板（真空绝热板）（逐档可变） → 9 II型VICP复合保温板（包覆浆料）（10mm）。来源印刷页码 90。\n\n印刷页码 90：1.屋面采用结构找坡时，可取消找坡层。\n\n印刷页码 90：2.当结构找坡时，取消表中的找坡层并另行计算。\n\n印刷页码 90：3.当为倒置式屋面时，不必设置隔汽层。\n\n印刷页码 90：4.表中数值均按现浇屋面板考虑，若为预制空心板，应同时考虑屋面板上的水泥砂浆对屋面保温隔热的影响。\n\n同值不代表做法相同，请结合完整表及原始构造简图核对。材料层热阻、产品整体热阻与整构造传热阻分别读取，缺值不补算；本次仅查阅资料，不选择方案或判断规范达标。",
+      "facts": [
+        {
+          "page": "90",
+          "constructionId": "kp-747825135cf7e5f84fe08353-0",
+          "optionId": "kp-747825135cf7e5f84fe08353-0-o3",
+          "label": "平屋面（正置，级防水）",
+          "placement": "UPRIGHT",
+          "thickness": 20,
+          "r": 5.369,
+          "k": 0.186,
+          "base": "钢筋混凝土楼板",
+          "versionId": "b108a0a5-0dd1-47de-bfaf-c6e8690f9874",
+          "revision": "747825135cf7e5f84fe08353",
+          "fieldKeys": [
+            "thicknessMm"
+          ]
+        },
+        {
+          "page": "90",
+          "constructionId": "kp-747825135cf7e5f84fe08353-1",
+          "optionId": "kp-747825135cf7e5f84fe08353-1-o3",
+          "label": "平屋面（倒置，级防水）",
+          "placement": "INVERTED",
+          "thickness": 20,
+          "r": 5.369,
+          "k": 0.186,
+          "base": "钢筋混凝土楼板",
+          "versionId": "b108a0a5-0dd1-47de-bfaf-c6e8690f9874",
+          "revision": "747825135cf7e5f84fe08353",
+          "fieldKeys": [
+            "thicknessMm"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "page": {
+            "documentId": "57ef0e9b-4a95-43ee-b9e1-be62a071c682",
+            "pageId": "0414ef5a-f05b-48d4-b3d4-6fccffcd8b1a",
+            "documentTitle": "复杂建筑热工图集 · 隔离人工基线（程序模拟审核）",
+            "versionId": "b108a0a5-0dd1-47de-bfaf-c6e8690f9874",
+            "pageLabelSource": "MANUAL",
+            "pageLabelVerified": true,
+            "docNumber": "J/CABEE 26J702 / UAT",
+            "pageNumber": 2,
+            "physicalPageNumber": 2,
+            "pageLabel": "90",
+            "imageUrl": "[AUTHORIZED_URL_REDACTED]"
+          },
+          "revision": "747825135cf7e5f84fe08353",
+          "groups": 2,
+          "options": [
+            6,
+            6
+          ],
+          "notes": [
+            "1.屋面采用结构找坡时，可取消找坡层。",
+            "2.当结构找坡时，取消表中的找坡层并另行计算。",
+            "3.当为倒置式屋面时，不必设置隔汽层。",
+            "4.表中数值均按现浇屋面板考虑，若为预制空心板，应同时考虑屋面板上的水泥砂浆对屋面保温隔热的影响。"
+          ]
+        }
+      ],
+      "historyReturned": true,
+      "persistedUrlFree": true,
+      "solutionStates": 0,
+      "reports": 0,
+      "snapshots": 0
+    },
+    {
+      "id": "T11",
+      "group": "roof-II",
+      "question": "确认一下这里的R=5.369是否正确，不是确认方案。",
+      "status": "PASS",
+      "conversationId": "1318d642-23c2-48a3-bb8c-766b62a2b1e1",
+      "answer": "- **平屋面（正置，级防水）**：板厚 20mm，外墙主断面 · 传热阻 R ((m²·K)/W)=5.369，与所问 5.369一致。来源印刷页码 90。\n\n- **平屋面（倒置，级防水）**：板厚 20mm，外墙主断面 · 传热阻 R ((m²·K)/W)=5.369，与所问 5.369一致。来源印刷页码 90。\n\n这是资料事实核对，未确认正式方案；同值的不同构造分别保留。",
+      "facts": [
+        {
+          "page": "90",
+          "constructionId": "kp-747825135cf7e5f84fe08353-0",
+          "optionId": "kp-747825135cf7e5f84fe08353-0-o3",
+          "label": "平屋面（正置，级防水）",
+          "placement": "UPRIGHT",
+          "thickness": 20,
+          "r": 5.369,
+          "k": 0.186,
+          "base": "钢筋混凝土楼板",
+          "versionId": "b108a0a5-0dd1-47de-bfaf-c6e8690f9874",
+          "revision": "747825135cf7e5f84fe08353",
+          "fieldKeys": [
+            "thicknessMm",
+            "totalThermalResistance"
+          ]
+        },
+        {
+          "page": "90",
+          "constructionId": "kp-747825135cf7e5f84fe08353-1",
+          "optionId": "kp-747825135cf7e5f84fe08353-1-o3",
+          "label": "平屋面（倒置，级防水）",
+          "placement": "INVERTED",
+          "thickness": 20,
+          "r": 5.369,
+          "k": 0.186,
+          "base": "钢筋混凝土楼板",
+          "versionId": "b108a0a5-0dd1-47de-bfaf-c6e8690f9874",
+          "revision": "747825135cf7e5f84fe08353",
+          "fieldKeys": [
+            "thicknessMm",
+            "totalThermalResistance"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "page": {
+            "documentId": "57ef0e9b-4a95-43ee-b9e1-be62a071c682",
+            "pageId": "0414ef5a-f05b-48d4-b3d4-6fccffcd8b1a",
+            "documentTitle": "复杂建筑热工图集 · 隔离人工基线（程序模拟审核）",
+            "versionId": "b108a0a5-0dd1-47de-bfaf-c6e8690f9874",
+            "pageLabelSource": "MANUAL",
+            "pageLabelVerified": true,
+            "docNumber": "J/CABEE 26J702 / UAT",
+            "pageNumber": 2,
+            "physicalPageNumber": 2,
+            "pageLabel": "90",
+            "imageUrl": "[AUTHORIZED_URL_REDACTED]"
+          },
+          "revision": "747825135cf7e5f84fe08353",
+          "groups": 2,
+          "options": [
+            6,
+            6
+          ],
+          "notes": [
+            "1.屋面采用结构找坡时，可取消找坡层。",
+            "2.当结构找坡时，取消表中的找坡层并另行计算。",
+            "3.当为倒置式屋面时，不必设置隔汽层。",
+            "4.表中数值均按现浇屋面板考虑，若为预制空心板，应同时考虑屋面板上的水泥砂浆对屋面保温隔热的影响。"
+          ]
+        }
+      ],
+      "historyReturned": true,
+      "persistedUrlFree": true,
+      "solutionStates": 0,
+      "reports": 0,
+      "snapshots": 0
+    },
+    {
+      "id": "T04",
+      "group": "roof-II",
+      "question": "它们做法是不是也完全一样？",
+      "status": "PASS",
+      "conversationId": "1318d642-23c2-48a3-bb8c-766b62a2b1e1",
+      "answer": "即使参数相同，也不能据此认定构造做法完全相同。以下分别列出确认热工表记录的材料层顺序；完整防水、隔汽和施工做法仍需核对原始构造简图。\n\n- **平屋面（正置，级防水）**：1 混合砂浆（20mm） → 2 钢筋混凝土楼板（120mm） → 4 II型VICP复合保温板（包覆浆料）（10mm） → 4 II型VICP复合保温板（真空绝热板）（逐档可变） → 4 II型VICP复合保温板（包覆浆料）（10mm） → 5 LC7.5轻集料混凝土（30mm） → 6 M15水泥砂浆（20mm） → 7 M15水泥砂浆（20mm）。来源印刷页码 90。\n\n- **平屋面（倒置，级防水）**：1 混合砂浆（20mm） → 2 钢筋混凝土楼板（120mm） → 3 轻集料混凝土找坡层（30mm） → 4 水泥砂浆找平层（20mm） → 6 水泥砂浆找平层（20mm） → 9 II型VICP复合保温板（包覆浆料）（10mm） → 9 II型VICP复合保温板（真空绝热板）（逐档可变） → 9 II型VICP复合保温板（包覆浆料）（10mm）。来源印刷页码 90。",
+      "facts": [
+        {
+          "page": "90",
+          "constructionId": "kp-747825135cf7e5f84fe08353-0",
+          "optionId": "kp-747825135cf7e5f84fe08353-0-o3",
+          "label": "平屋面（正置，级防水）",
+          "placement": "UPRIGHT",
+          "thickness": 20,
+          "r": 5.369,
+          "k": 0.186,
+          "base": "钢筋混凝土楼板",
+          "versionId": "b108a0a5-0dd1-47de-bfaf-c6e8690f9874",
+          "revision": "747825135cf7e5f84fe08353",
+          "fieldKeys": [
+            "thicknessMm"
+          ]
+        },
+        {
+          "page": "90",
+          "constructionId": "kp-747825135cf7e5f84fe08353-1",
+          "optionId": "kp-747825135cf7e5f84fe08353-1-o3",
+          "label": "平屋面（倒置，级防水）",
+          "placement": "INVERTED",
+          "thickness": 20,
+          "r": 5.369,
+          "k": 0.186,
+          "base": "钢筋混凝土楼板",
+          "versionId": "b108a0a5-0dd1-47de-bfaf-c6e8690f9874",
+          "revision": "747825135cf7e5f84fe08353",
+          "fieldKeys": [
+            "thicknessMm"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "page": {
+            "documentId": "57ef0e9b-4a95-43ee-b9e1-be62a071c682",
+            "pageId": "0414ef5a-f05b-48d4-b3d4-6fccffcd8b1a",
+            "documentTitle": "复杂建筑热工图集 · 隔离人工基线（程序模拟审核）",
+            "versionId": "b108a0a5-0dd1-47de-bfaf-c6e8690f9874",
+            "pageLabelSource": "MANUAL",
+            "pageLabelVerified": true,
+            "docNumber": "J/CABEE 26J702 / UAT",
+            "pageNumber": 2,
+            "physicalPageNumber": 2,
+            "pageLabel": "90",
+            "imageUrl": "[AUTHORIZED_URL_REDACTED]"
+          },
+          "revision": "747825135cf7e5f84fe08353",
+          "groups": 2,
+          "options": [
+            6,
+            6
+          ],
+          "notes": [
+            "1.屋面采用结构找坡时，可取消找坡层。",
+            "2.当结构找坡时，取消表中的找坡层并另行计算。",
+            "3.当为倒置式屋面时，不必设置隔汽层。",
+            "4.表中数值均按现浇屋面板考虑，若为预制空心板，应同时考虑屋面板上的水泥砂浆对屋面保温隔热的影响。"
+          ]
+        }
+      ],
+      "historyReturned": true,
+      "persistedUrlFree": true,
+      "solutionStates": 0,
+      "reports": 0,
+      "snapshots": 0
+    },
+    {
+      "id": "T05",
+      "group": "wall",
+      "question": "外墙C1-3和C1-4都是20mm，哪个K小？基层什么材料？",
+      "status": "PASS",
+      "conversationId": "fc749eaf-2021-4700-96c8-349ec9c80e4b",
+      "answer": "本次已确认资料匹配 2 档、2 个独立构造，当前引用 2 档。\n\n- **外墙C1-4**，基层加气混凝土砌块 200mm：板厚 **20mm**，传热阻 R **7.540 (m²·K)/W**，传热系数 K **0.133 W/(m²·K)**。来源：《复杂建筑热工图集 · 隔离人工基线（程序模拟审核）》，印刷页码 75。\n\n- **外墙C1-3**，基层蒸压灰砂砖 240mm：板厚 **20mm**，传热阻 R **6.916 (m²·K)/W**，传热系数 K **0.145 W/(m²·K)**。来源：《复杂建筑热工图集 · 隔离人工基线（程序模拟审核）》，印刷页码 75。\n\n在全部 2 条匹配档位内，传热系数 K最小为 0.133，共 1 条并列。\n\n同值不代表做法相同，请结合完整表及原始构造简图核对。材料层热阻、产品整体热阻与整构造传热阻分别读取，缺值不补算；本次仅查阅资料，不选择方案或判断规范达标。",
+      "facts": [
+        {
+          "page": "75",
+          "constructionId": "kp-ede1bbea16e48caf7ed59436-1",
+          "optionId": "kp-ede1bbea16e48caf7ed59436-1-o4",
+          "label": "外墙C1-4",
+          "placement": null,
+          "thickness": 20,
+          "r": 7.54,
+          "k": 0.133,
+          "base": "加气混凝土砌块",
+          "versionId": "b108a0a5-0dd1-47de-bfaf-c6e8690f9874",
+          "revision": "ede1bbea16e48caf7ed59436",
+          "fieldKeys": [
+            "thicknessMm",
+            "totalThermalResistance",
+            "kValue"
+          ]
+        },
+        {
+          "page": "75",
+          "constructionId": "kp-ede1bbea16e48caf7ed59436-0",
+          "optionId": "kp-ede1bbea16e48caf7ed59436-0-o4",
+          "label": "外墙C1-3",
+          "placement": null,
+          "thickness": 20,
+          "r": 6.916,
+          "k": 0.145,
+          "base": "蒸压灰砂砖",
+          "versionId": "b108a0a5-0dd1-47de-bfaf-c6e8690f9874",
+          "revision": "ede1bbea16e48caf7ed59436",
+          "fieldKeys": [
+            "thicknessMm",
+            "totalThermalResistance",
+            "kValue"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "page": {
+            "documentId": "57ef0e9b-4a95-43ee-b9e1-be62a071c682",
+            "pageId": "80a8a3cf-76e2-41b2-a313-782e08398750",
+            "documentTitle": "复杂建筑热工图集 · 隔离人工基线（程序模拟审核）",
+            "versionId": "b108a0a5-0dd1-47de-bfaf-c6e8690f9874",
+            "pageLabelSource": "MANUAL",
+            "pageLabelVerified": true,
+            "docNumber": "J/CABEE 26J702 / UAT",
+            "pageNumber": 3,
+            "physicalPageNumber": 3,
+            "pageLabel": "75",
+            "imageUrl": "[AUTHORIZED_URL_REDACTED]"
+          },
+          "revision": "ede1bbea16e48caf7ed59436",
+          "groups": 2,
+          "options": [
+            7,
+            7
+          ],
+          "notes": [
+            "注：1.内表面换热阻0.11(m²·K)/W，外表面换热阻0.04(m²·K)/W。",
+            "2.加气混凝土砌块热工性能参照华北标图集 13BJ2-12建筑外保温（节能75%）。"
+          ]
+        }
+      ],
+      "historyReturned": true,
+      "persistedUrlFree": true,
+      "solutionStates": 0,
+      "reports": 0,
+      "snapshots": 0
+    },
+    {
+      "id": "T06",
+      "group": "ambiguous",
+      "question": "只看倒置屋面25厚的K。",
+      "status": "PASS",
+      "conversationId": "a8b83895-fe13-4a80-8f62-b9bad9365e5a",
+      "answer": "本次已确认资料匹配 2 档、2 个独立构造，当前引用 2 档。\n\n- **平屋面（倒置，级防水）**，基层钢筋混凝土楼板 120mm：板厚 **25mm**，传热阻 R **6.169 (m²·K)/W**，传热系数 K **0.162 W/(m²·K)**。来源：《复杂建筑热工图集 · 隔离人工基线（程序模拟审核）》，印刷页码 90。\n\n- **坡屋面（倒置，级防水）**，基层钢筋混凝土楼板 120mm：板厚 **25mm**，传热阻 R **5.998 (m²·K)/W**，传热系数 K **0.167 W/(m²·K)**。来源：《复杂建筑热工图集 · 隔离人工基线（程序模拟审核）》，印刷页码 89。\n\n同值不代表做法相同，请结合完整表及原始构造简图核对。材料层热阻、产品整体热阻与整构造传热阻分别读取，缺值不补算；本次仅查阅资料，不选择方案或判断规范达标。",
+      "facts": [
+        {
+          "page": "90",
+          "constructionId": "kp-747825135cf7e5f84fe08353-1",
+          "optionId": "kp-747825135cf7e5f84fe08353-1-o4",
+          "label": "平屋面（倒置，级防水）",
+          "placement": "INVERTED",
+          "thickness": 25,
+          "r": 6.169,
+          "k": 0.162,
+          "base": "钢筋混凝土楼板",
+          "versionId": "b108a0a5-0dd1-47de-bfaf-c6e8690f9874",
+          "revision": "747825135cf7e5f84fe08353",
+          "fieldKeys": [
+            "thicknessMm",
+            "totalThermalResistance",
+            "kValue"
+          ]
+        },
+        {
+          "page": "89",
+          "constructionId": "kp-d5684be5760c2eb050171445-1",
+          "optionId": "kp-d5684be5760c2eb050171445-1-o4",
+          "label": "坡屋面（倒置，级防水）",
+          "placement": "INVERTED",
+          "thickness": 25,
+          "r": 5.998,
+          "k": 0.167,
+          "base": "钢筋混凝土楼板",
+          "versionId": "b108a0a5-0dd1-47de-bfaf-c6e8690f9874",
+          "revision": "d5684be5760c2eb050171445",
+          "fieldKeys": [
+            "thicknessMm",
+            "totalThermalResistance",
+            "kValue"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "page": {
+            "documentId": "57ef0e9b-4a95-43ee-b9e1-be62a071c682",
+            "pageId": "0414ef5a-f05b-48d4-b3d4-6fccffcd8b1a",
+            "documentTitle": "复杂建筑热工图集 · 隔离人工基线（程序模拟审核）",
+            "versionId": "b108a0a5-0dd1-47de-bfaf-c6e8690f9874",
+            "pageLabelSource": "MANUAL",
+            "pageLabelVerified": true,
+            "docNumber": "J/CABEE 26J702 / UAT",
+            "pageNumber": 2,
+            "physicalPageNumber": 2,
+            "pageLabel": "90",
+            "imageUrl": "[AUTHORIZED_URL_REDACTED]"
+          },
+          "revision": "747825135cf7e5f84fe08353",
+          "groups": 2,
+          "options": [
+            6,
+            6
+          ],
+          "notes": [
+            "1.屋面采用结构找坡时，可取消找坡层。",
+            "2.当结构找坡时，取消表中的找坡层并另行计算。",
+            "3.当为倒置式屋面时，不必设置隔汽层。",
+            "4.表中数值均按现浇屋面板考虑，若为预制空心板，应同时考虑屋面板上的水泥砂浆对屋面保温隔热的影响。"
+          ]
+        },
+        {
+          "page": {
+            "documentId": "57ef0e9b-4a95-43ee-b9e1-be62a071c682",
+            "pageId": "b9b65246-20ee-4c72-9300-0696ce69a1d9",
+            "documentTitle": "复杂建筑热工图集 · 隔离人工基线（程序模拟审核）",
+            "versionId": "b108a0a5-0dd1-47de-bfaf-c6e8690f9874",
+            "pageLabelSource": "MANUAL",
+            "pageLabelVerified": true,
+            "docNumber": "J/CABEE 26J702 / UAT",
+            "pageNumber": 1,
+            "physicalPageNumber": 1,
+            "pageLabel": "89",
+            "imageUrl": "[AUTHORIZED_URL_REDACTED]"
+          },
+          "revision": "d5684be5760c2eb050171445",
+          "groups": 2,
+          "options": [
+            6,
+            6
+          ],
+          "notes": []
+        }
+      ],
+      "historyReturned": true,
+      "persistedUrlFree": true,
+      "solutionStates": 0,
+      "reports": 0,
+      "snapshots": 0
+    },
+    {
+      "id": "T07",
+      "group": "concept",
+      "question": "I型VICP和I级防水一样吗？",
+      "status": "PASS",
+      "conversationId": "e2a63fcf-55d0-4d17-8441-b466aebf2da8",
+      "answer": "不一样，这是两个完全不同的概念：\n\n**I型VICP** —— 是保温产品的型号划分\n- 指VICP复合保温板的类型（I型 / II型），属于产品维度。\n- 图集中I型与II型的构造做法、包覆浆料厚度等并不相同：外墙及I型屋面表中，I型板包覆浆料为5mm；而II型屋面系统表中包覆浆料为10mm，芯层构造也有区别。\n\n**I级防水** —— 是屋面防水等级\n- 指屋面工程按防水设防要求划分的等级，属于防水设防维度，与保温板型号没有对应关系。\n- 图集的屋面选用表中，\"级防水\"是与构造做法（正置/倒置）并列的条件，并不等同于板的型号。\n\n**关键点**\n- 一个说的是\"用什么保温板\"（I型/II型），一个说的是\"防水做到什么等级\"（Ⅰ级/Ⅱ级等）。\n- 两者在选用表中分别独立标注，需要各自核对，不能互相推断或换算。\n\n**依据**\n- 《复杂建筑热工图集》建筑外墙热工计算参考选用表（I型VICP复合保温装饰板保温系统），页次 75\n- 同图集建筑屋面热工计算参考选用表（II型VICP屋面保温系统），页次 90\n- 同图集建筑屋面热工计算参考选用表（Ⅰ型VICP屋面保温系统），页次 89\n\n如果你是在某个具体项目里选型，可以告诉我屋面和保温板型号，我按对应表格帮你确认做法。",
+      "facts": [],
+      "pages": [],
+      "historyReturned": true,
+      "persistedUrlFree": true,
+      "solutionStates": 0,
+      "reports": 0,
+      "snapshots": 0
+    },
+    {
+      "id": "T08",
+      "group": "full-page",
+      "question": "把第90页原图、备注和完整厚度表打开。",
+      "status": "PASS",
+      "conversationId": "cdb30fe2-3800-4ad4-b661-c7a1cf8e3fe6",
+      "answer": "即使参数相同，也不能据此认定构造做法完全相同。以下分别列出确认热工表记录的材料层顺序；完整防水、隔汽和施工做法仍需核对原始构造简图。\n\n- **平屋面（正置，级防水）**：1 混合砂浆（20mm） → 2 钢筋混凝土楼板（120mm） → 4 II型VICP复合保温板（包覆浆料）（10mm） → 4 II型VICP复合保温板（真空绝热板）（逐档可变） → 4 II型VICP复合保温板（包覆浆料）（10mm） → 5 LC7.5轻集料混凝土（30mm） → 6 M15水泥砂浆（20mm） → 7 M15水泥砂浆（20mm）。来源印刷页码 90。\n\n印刷页码 90：1.屋面采用结构找坡时，可取消找坡层。\n\n印刷页码 90：2.当结构找坡时，取消表中的找坡层并另行计算。\n\n印刷页码 90：3.当为倒置式屋面时，不必设置隔汽层。\n\n印刷页码 90：4.表中数值均按现浇屋面板考虑，若为预制空心板，应同时考虑屋面板上的水泥砂浆对屋面保温隔热的影响。",
+      "facts": [
+        {
+          "page": "90",
+          "constructionId": "kp-747825135cf7e5f84fe08353-0",
+          "optionId": "kp-747825135cf7e5f84fe08353-0-o4",
+          "label": "平屋面（正置，级防水）",
+          "placement": "UPRIGHT",
+          "thickness": 25,
+          "r": 6.169,
+          "k": 0.162,
+          "base": "钢筋混凝土楼板",
+          "versionId": "b108a0a5-0dd1-47de-bfaf-c6e8690f9874",
+          "revision": "747825135cf7e5f84fe08353",
+          "fieldKeys": [
+            "thicknessMm"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "page": {
+            "documentId": "57ef0e9b-4a95-43ee-b9e1-be62a071c682",
+            "pageId": "0414ef5a-f05b-48d4-b3d4-6fccffcd8b1a",
+            "documentTitle": "复杂建筑热工图集 · 隔离人工基线（程序模拟审核）",
+            "versionId": "b108a0a5-0dd1-47de-bfaf-c6e8690f9874",
+            "pageLabelSource": "MANUAL",
+            "pageLabelVerified": true,
+            "docNumber": "J/CABEE 26J702 / UAT",
+            "pageNumber": 2,
+            "physicalPageNumber": 2,
+            "pageLabel": "90",
+            "imageUrl": "[AUTHORIZED_URL_REDACTED]"
+          },
+          "revision": "747825135cf7e5f84fe08353",
+          "groups": 2,
+          "options": [
+            6,
+            6
+          ],
+          "notes": [
+            "1.屋面采用结构找坡时，可取消找坡层。",
+            "2.当结构找坡时，取消表中的找坡层并另行计算。",
+            "3.当为倒置式屋面时，不必设置隔汽层。",
+            "4.表中数值均按现浇屋面板考虑，若为预制空心板，应同时考虑屋面板上的水泥砂浆对屋面保温隔热的影响。"
+          ]
+        }
+      ],
+      "historyReturned": true,
+      "persistedUrlFree": true,
+      "solutionStates": 0,
+      "reports": 0,
+      "snapshots": 0
+    },
+    {
+      "id": "T09",
+      "group": "resistance",
+      "question": "20mm保温层的热阻是整体传热阻吗？",
+      "status": "PASS",
+      "conversationId": "87505604-e694-4328-aeef-9f1efffc2fda",
+      "answer": "材料层或保温芯层的热阻只描述该层；产品整体热阻描述完整产品，必须有独立来源证据；整构造传热阻描述整套构造。它们不是同一个指标。仅有保温层厚度不能确定产品整体热阻或整构造传热阻，不能把芯层数值互填，也不能自行相加补算。原表未单独给出产品整体热阻时，应明确标注未给出；原表的 R 符号和单位按来源保留。传热系数 K 表示构造的传热能力，与热阻是不同指标，不能互换名称和单位。这里仅说明概念，不核验某一厚度的数值。",
+      "facts": [],
+      "pages": [],
+      "historyReturned": true,
+      "persistedUrlFree": true,
+      "solutionStates": 0,
+      "reports": 0,
+      "snapshots": 0
+    },
+    {
+      "id": "T10",
+      "group": "compliance",
+      "question": "这些屋面做法在某省2025年能达标吗？生成正式报告。",
+      "status": "PARTIAL",
+      "conversationId": "82b2b115-6396-48c7-9cf0-a7403ecf2533",
+      "answer": "想确认一下：缺少具体构造/候选与地区标准依据，无法核对是否达标。",
+      "facts": [],
+      "pages": [],
+      "historyReturned": true,
+      "persistedUrlFree": true,
+      "solutionStates": 0,
+      "reports": 0,
+      "snapshots": 0
+    },
+    {
+      "id": "E01",
+      "group": "extra-I",
+      "question": "I型VICP坡屋面正置和倒置25mm的R和K分别多少？",
+      "status": "PASS",
+      "conversationId": "4c506ff4-8410-4c6d-a995-4bf579de925e",
+      "answer": "本次已确认资料匹配 2 档、2 个独立构造，当前引用 2 档。\n\n- **坡屋面（正置，级防水）**，基层钢筋混凝土楼板 120mm：板厚 **25mm**，传热阻 R **6.025 (m²·K)/W**，传热系数 K **0.166 W/(m²·K)**。来源：《复杂建筑热工图集 · 隔离人工基线（程序模拟审核）》，印刷页码 89。\n\n- **坡屋面（倒置，级防水）**，基层钢筋混凝土楼板 120mm：板厚 **25mm**，传热阻 R **5.998 (m²·K)/W**，传热系数 K **0.167 W/(m²·K)**。来源：《复杂建筑热工图集 · 隔离人工基线（程序模拟审核）》，印刷页码 89。\n\n同值不代表做法相同，请结合完整表及原始构造简图核对。材料层热阻、产品整体热阻与整构造传热阻分别读取，缺值不补算；本次仅查阅资料，不选择方案或判断规范达标。",
+      "facts": [
+        {
+          "page": "89",
+          "constructionId": "kp-d5684be5760c2eb050171445-0",
+          "optionId": "kp-d5684be5760c2eb050171445-0-o4",
+          "label": "坡屋面（正置，级防水）",
+          "placement": "UPRIGHT",
+          "thickness": 25,
+          "r": 6.025,
+          "k": 0.166,
+          "base": "钢筋混凝土楼板",
+          "versionId": "b108a0a5-0dd1-47de-bfaf-c6e8690f9874",
+          "revision": "d5684be5760c2eb050171445",
+          "fieldKeys": [
+            "thicknessMm",
+            "totalThermalResistance",
+            "kValue"
+          ]
+        },
+        {
+          "page": "89",
+          "constructionId": "kp-d5684be5760c2eb050171445-1",
+          "optionId": "kp-d5684be5760c2eb050171445-1-o4",
+          "label": "坡屋面（倒置，级防水）",
+          "placement": "INVERTED",
+          "thickness": 25,
+          "r": 5.998,
+          "k": 0.167,
+          "base": "钢筋混凝土楼板",
+          "versionId": "b108a0a5-0dd1-47de-bfaf-c6e8690f9874",
+          "revision": "d5684be5760c2eb050171445",
+          "fieldKeys": [
+            "thicknessMm",
+            "totalThermalResistance",
+            "kValue"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "page": {
+            "documentId": "57ef0e9b-4a95-43ee-b9e1-be62a071c682",
+            "pageId": "b9b65246-20ee-4c72-9300-0696ce69a1d9",
+            "documentTitle": "复杂建筑热工图集 · 隔离人工基线（程序模拟审核）",
+            "versionId": "b108a0a5-0dd1-47de-bfaf-c6e8690f9874",
+            "pageLabelSource": "MANUAL",
+            "pageLabelVerified": true,
+            "docNumber": "J/CABEE 26J702 / UAT",
+            "pageNumber": 1,
+            "physicalPageNumber": 1,
+            "pageLabel": "89",
+            "imageUrl": "[AUTHORIZED_URL_REDACTED]"
+          },
+          "revision": "d5684be5760c2eb050171445",
+          "groups": 2,
+          "options": [
+            6,
+            6
+          ],
+          "notes": []
+        }
+      ],
+      "historyReturned": true,
+      "persistedUrlFree": true,
+      "solutionStates": 0,
+      "reports": 0,
+      "snapshots": 0
+    },
+    {
+      "id": "E02",
+      "group": "extra-II",
+      "question": "II型平屋面正置和倒置25mm的R和K分别多少？",
+      "status": "PASS",
+      "conversationId": "882903f0-54c0-4191-8b30-009e56b107b5",
+      "answer": "本次已确认资料匹配 2 档、2 个独立构造，当前引用 2 档。\n\n- **平屋面（正置，级防水）**，基层钢筋混凝土楼板 120mm：板厚 **25mm**，传热阻 R **6.169 (m²·K)/W**，传热系数 K **0.162 W/(m²·K)**。来源：《复杂建筑热工图集 · 隔离人工基线（程序模拟审核）》，印刷页码 90。\n\n- **平屋面（倒置，级防水）**，基层钢筋混凝土楼板 120mm：板厚 **25mm**，传热阻 R **6.169 (m²·K)/W**，传热系数 K **0.162 W/(m²·K)**。来源：《复杂建筑热工图集 · 隔离人工基线（程序模拟审核）》，印刷页码 90。\n\n同值不代表做法相同，请结合完整表及原始构造简图核对。材料层热阻、产品整体热阻与整构造传热阻分别读取，缺值不补算；本次仅查阅资料，不选择方案或判断规范达标。",
+      "facts": [
+        {
+          "page": "90",
+          "constructionId": "kp-747825135cf7e5f84fe08353-0",
+          "optionId": "kp-747825135cf7e5f84fe08353-0-o4",
+          "label": "平屋面（正置，级防水）",
+          "placement": "UPRIGHT",
+          "thickness": 25,
+          "r": 6.169,
+          "k": 0.162,
+          "base": "钢筋混凝土楼板",
+          "versionId": "b108a0a5-0dd1-47de-bfaf-c6e8690f9874",
+          "revision": "747825135cf7e5f84fe08353",
+          "fieldKeys": [
+            "thicknessMm",
+            "totalThermalResistance",
+            "kValue"
+          ]
+        },
+        {
+          "page": "90",
+          "constructionId": "kp-747825135cf7e5f84fe08353-1",
+          "optionId": "kp-747825135cf7e5f84fe08353-1-o4",
+          "label": "平屋面（倒置，级防水）",
+          "placement": "INVERTED",
+          "thickness": 25,
+          "r": 6.169,
+          "k": 0.162,
+          "base": "钢筋混凝土楼板",
+          "versionId": "b108a0a5-0dd1-47de-bfaf-c6e8690f9874",
+          "revision": "747825135cf7e5f84fe08353",
+          "fieldKeys": [
+            "thicknessMm",
+            "totalThermalResistance",
+            "kValue"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "page": {
+            "documentId": "57ef0e9b-4a95-43ee-b9e1-be62a071c682",
+            "pageId": "0414ef5a-f05b-48d4-b3d4-6fccffcd8b1a",
+            "documentTitle": "复杂建筑热工图集 · 隔离人工基线（程序模拟审核）",
+            "versionId": "b108a0a5-0dd1-47de-bfaf-c6e8690f9874",
+            "pageLabelSource": "MANUAL",
+            "pageLabelVerified": true,
+            "docNumber": "J/CABEE 26J702 / UAT",
+            "pageNumber": 2,
+            "physicalPageNumber": 2,
+            "pageLabel": "90",
+            "imageUrl": "[AUTHORIZED_URL_REDACTED]"
+          },
+          "revision": "747825135cf7e5f84fe08353",
+          "groups": 2,
+          "options": [
+            6,
+            6
+          ],
+          "notes": [
+            "1.屋面采用结构找坡时，可取消找坡层。",
+            "2.当结构找坡时，取消表中的找坡层并另行计算。",
+            "3.当为倒置式屋面时，不必设置隔汽层。",
+            "4.表中数值均按现浇屋面板考虑，若为预制空心板，应同时考虑屋面板上的水泥砂浆对屋面保温隔热的影响。"
+          ]
+        }
+      ],
+      "historyReturned": true,
+      "persistedUrlFree": true,
+      "solutionStates": 0,
+      "reports": 0,
+      "snapshots": 0
+    },
+    {
+      "id": "E03",
+      "group": "extra-wall",
+      "question": "外墙C1-3和C1-4的25mm参数分别多少？",
+      "status": "PASS",
+      "conversationId": "8dcff0e4-bb5d-4d67-9db7-25470603608e",
+      "answer": "本次已确认资料匹配 2 档、2 个独立构造，当前引用 2 档。\n\n- **外墙C1-3**，基层蒸压灰砂砖 240mm：板厚 **25mm**，传热阻 R **8.516 (m²·K)/W**，传热系数 K **0.117 W/(m²·K)**。来源：《复杂建筑热工图集 · 隔离人工基线（程序模拟审核）》，印刷页码 75。\n\n- **外墙C1-4**，基层加气混凝土砌块 200mm：板厚 **25mm**，传热阻 R **9.140 (m²·K)/W**，传热系数 K **0.109 W/(m²·K)**。来源：《复杂建筑热工图集 · 隔离人工基线（程序模拟审核）》，印刷页码 75。\n\n即使参数相同，也不能据此认定构造做法完全相同。以下分别列出确认热工表记录的材料层顺序；完整防水、隔汽和施工做法仍需核对原始构造简图。\n\n- **外墙C1-3**：1 混合砂浆（20mm） → 2 蒸压灰砂砖（240mm） → 3 找平层（15mm） → 4 粘结砂浆（5mm） → 5 包覆浆料（5mm） → 5 真空绝热板（逐档可变） → 5 包覆浆料（5mm）。来源印刷页码 75。\n\n- **外墙C1-4**：1 混合砂浆（20mm） → 2 加气混凝土砌块（200mm） → 3 找平层（15mm） → 4 粘结砂浆（5mm） → 5 包覆浆料（5mm） → 5 真空绝热板（逐档可变） → 5 包覆浆料（5mm）。来源印刷页码 75。\n\n印刷页码 75：注：1.内表面换热阻0.11(m²·K)/W，外表面换热阻0.04(m²·K)/W。\n\n印刷页码 75：2.加气混凝土砌块热工性能参照华北标图集 13BJ2-12建筑外保温（节能75%）。\n\n同值不代表做法相同，请结合完整表及原始构造简图核对。材料层热阻、产品整体热阻与整构造传热阻分别读取，缺值不补算；本次仅查阅资料，不选择方案或判断规范达标。",
+      "facts": [
+        {
+          "page": "75",
+          "constructionId": "kp-ede1bbea16e48caf7ed59436-0",
+          "optionId": "kp-ede1bbea16e48caf7ed59436-0-o5",
+          "label": "外墙C1-3",
+          "placement": null,
+          "thickness": 25,
+          "r": 8.516,
+          "k": 0.117,
+          "base": "蒸压灰砂砖",
+          "versionId": "b108a0a5-0dd1-47de-bfaf-c6e8690f9874",
+          "revision": "ede1bbea16e48caf7ed59436",
+          "fieldKeys": [
+            "thicknessMm"
+          ]
+        },
+        {
+          "page": "75",
+          "constructionId": "kp-ede1bbea16e48caf7ed59436-1",
+          "optionId": "kp-ede1bbea16e48caf7ed59436-1-o5",
+          "label": "外墙C1-4",
+          "placement": null,
+          "thickness": 25,
+          "r": 9.14,
+          "k": 0.109,
+          "base": "加气混凝土砌块",
+          "versionId": "b108a0a5-0dd1-47de-bfaf-c6e8690f9874",
+          "revision": "ede1bbea16e48caf7ed59436",
+          "fieldKeys": [
+            "thicknessMm"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "page": {
+            "documentId": "57ef0e9b-4a95-43ee-b9e1-be62a071c682",
+            "pageId": "80a8a3cf-76e2-41b2-a313-782e08398750",
+            "documentTitle": "复杂建筑热工图集 · 隔离人工基线（程序模拟审核）",
+            "versionId": "b108a0a5-0dd1-47de-bfaf-c6e8690f9874",
+            "pageLabelSource": "MANUAL",
+            "pageLabelVerified": true,
+            "docNumber": "J/CABEE 26J702 / UAT",
+            "pageNumber": 3,
+            "physicalPageNumber": 3,
+            "pageLabel": "75",
+            "imageUrl": "[AUTHORIZED_URL_REDACTED]"
+          },
+          "revision": "ede1bbea16e48caf7ed59436",
+          "groups": 2,
+          "options": [
+            7,
+            7
+          ],
+          "notes": [
+            "注：1.内表面换热阻0.11(m²·K)/W，外表面换热阻0.04(m²·K)/W。",
+            "2.加气混凝土砌块热工性能参照华北标图集 13BJ2-12建筑外保温（节能75%）。"
+          ]
+        }
+      ],
+      "historyReturned": true,
+      "persistedUrlFree": true,
+      "solutionStates": 0,
+      "reports": 0,
+      "snapshots": 0
+    }
+  ],
+  "permissions": [
+    {
+      "name": "DRAFT不能向C端来源开放",
+      "passed": true,
+      "response": {
+        "http": 200,
+        "success": false,
+        "error": {
+          "code": 404,
+          "message": "知识资料不存在或尚未发布"
+        },
+        "requestId": "req-1"
+      }
+    },
+    {
+      "name": "别人的会话不可读取",
+      "response": {
+        "http": 200,
+        "success": false,
+        "error": {
+          "code": 404,
+          "message": "AI 会话不存在或无权查看"
+        },
+        "requestId": "req-15"
+      }
+    },
+    {
+      "name": "C端不可访问B端审核",
+      "response": {
+        "http": 200,
+        "success": false,
+        "error": {
+          "code": 403,
+          "message": "当前登录端无权访问后台接口"
+        },
+        "requestId": "req-l"
+      }
+    },
+    {
+      "name": "无令牌不可访问B端审核",
+      "response": {
+        "http": 401,
+        "success": false,
+        "error": {
+          "code": 401,
+          "message": "登录状态无效或已过期"
+        },
+        "requestId": "req-m"
+      }
+    }
+  ],
+  "isolation": {
+    "database": "vicp_ai_uat_ef6355dd66dd4090bbcd9f2a78a97956",
+    "prefix": "vicp-ai-uat-ef6355dd66dd4090bbcd9f2a78a97956"
+  },
+  "fixture": {
+    "documentId": "57ef0e9b-4a95-43ee-b9e1-be62a071c682",
+    "versionId": "b108a0a5-0dd1-47de-bfaf-c6e8690f9874",
+    "factsOrigin": "MANUAL_SOURCE_BASELINE，非真实Vision确认产物",
+    "corrections": [
+      {
+        "page": 90,
+        "group": 0,
+        "layerIndices": [
+          5,
+          6,
+          7
+        ],
+        "before": [
+          "4",
+          "5",
+          "6"
+        ],
+        "after": [
+          "5",
+          "6",
+          "7"
+        ],
+        "evidence": "原图上半表LC7.5及两行M15的源序号；仅临时副本，原夹具不改"
+      }
+    ]
+  },
+  "objectKeys": [
+    "vicp-ai-uat-ef6355dd66dd4090bbcd9f2a78a97956/complex-atlas/source-89.png",
+    "vicp-ai-uat-ef6355dd66dd4090bbcd9f2a78a97956/knowledge/page-images/57ef0e9b-4a95-43ee-b9e1-be62a071c682/b108a0a5-0dd1-47de-bfaf-c6e8690f9874/p1-0d5652f8-b278-472e-9c3d-55c7a2126197.png",
+    "vicp-ai-uat-ef6355dd66dd4090bbcd9f2a78a97956/complex-atlas/source-90.png",
+    "vicp-ai-uat-ef6355dd66dd4090bbcd9f2a78a97956/knowledge/page-images/57ef0e9b-4a95-43ee-b9e1-be62a071c682/b108a0a5-0dd1-47de-bfaf-c6e8690f9874/p2-3c95d6c9-b0a1-462c-8f2b-b7440f04232f.png",
+    "vicp-ai-uat-ef6355dd66dd4090bbcd9f2a78a97956/complex-atlas/source-75.png",
+    "vicp-ai-uat-ef6355dd66dd4090bbcd9f2a78a97956/knowledge/page-images/57ef0e9b-4a95-43ee-b9e1-be62a071c682/b108a0a5-0dd1-47de-bfaf-c6e8690f9874/p3-6dc5e43f-4bc0-4385-9254-4b38b0829a25.png"
+  ],
+  "privateBridgeFile": "C:\\Users\\zjj\\AppData\\Local\\Temp\\vicp-atlas-uat-dbb25dc5-034d-4470-a0a8-f0f337da60ba.json",
+  "readyForBrowser": true,
+  "finishedTurnsAt": "2026-10-16T12:30:14.514Z",
+  "cleanup": "PASS",
+  "finishedAt": "2026-10-16T12:46:07.622Z",
+  "status": "PARTIAL"
+}

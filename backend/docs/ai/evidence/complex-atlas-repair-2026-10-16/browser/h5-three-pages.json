@@ -1,0 +1,3158 @@
+[
+  {
+    "page": "75",
+    "groups": [
+      {
+        "cells": [
+          {
+            "column": "1",
+            "row": "1",
+            "text": "外墙C1-3I 型 VICP外墙蒸压灰砂砖 240mm"
+          },
+          {
+            "column": "1",
+            "row": "1",
+            "text": ""
+          },
+          {
+            "column": "2",
+            "row": "1",
+            "text": "1. 混合砂浆"
+          },
+          {
+            "column": "4",
+            "row": "1",
+            "text": "0.870"
+          },
+          {
+            "column": "5",
+            "row": "1",
+            "text": "1.00"
+          },
+          {
+            "column": "6",
+            "row": "1",
+            "text": "0.023"
+          },
+          {
+            "column": "3",
+            "row": "1",
+            "text": "20"
+          },
+          {
+            "column": "7",
+            "row": "1",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "1",
+            "text": ""
+          },
+          {
+            "column": "9",
+            "row": "1",
+            "text": ""
+          },
+          {
+            "column": "1",
+            "row": "2",
+            "text": ""
+          },
+          {
+            "column": "2",
+            "row": "2",
+            "text": "2. 蒸压灰砂砖"
+          },
+          {
+            "column": "4",
+            "row": "2",
+            "text": "1.100"
+          },
+          {
+            "column": "5",
+            "row": "2",
+            "text": "1.00"
+          },
+          {
+            "column": "6",
+            "row": "2",
+            "text": "0.218"
+          },
+          {
+            "column": "3",
+            "row": "2",
+            "text": "240"
+          },
+          {
+            "column": "7",
+            "row": "2",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "2",
+            "text": ""
+          },
+          {
+            "column": "9",
+            "row": "2",
+            "text": ""
+          },
+          {
+            "column": "1",
+            "row": "3",
+            "text": ""
+          },
+          {
+            "column": "2",
+            "row": "3",
+            "text": "3. 找平层"
+          },
+          {
+            "column": "4",
+            "row": "3",
+            "text": "0.930"
+          },
+          {
+            "column": "5",
+            "row": "3",
+            "text": "1.00"
+          },
+          {
+            "column": "6",
+            "row": "3",
+            "text": "0.015"
+          },
+          {
+            "column": "3",
+            "row": "3",
+            "text": "15"
+          },
+          {
+            "column": "7",
+            "row": "3",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "3",
+            "text": ""
+          },
+          {
+            "column": "9",
+            "row": "3",
+            "text": ""
+          },
+          {
+            "column": "1",
+            "row": "4",
+            "text": ""
+          },
+          {
+            "column": "2",
+            "row": "4",
+            "text": "4. 粘结砂浆"
+          },
+          {
+            "column": "4",
+            "row": "4",
+            "text": "0.930"
+          },
+          {
+            "column": "5",
+            "row": "4",
+            "text": "1.00"
+          },
+          {
+            "column": "6",
+            "row": "4",
+            "text": "0.005"
+          },
+          {
+            "column": "3",
+            "row": "4",
+            "text": "5"
+          },
+          {
+            "column": "7",
+            "row": "4",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "4",
+            "text": ""
+          },
+          {
+            "column": "9",
+            "row": "4",
+            "text": ""
+          },
+          {
+            "column": "1",
+            "row": "5",
+            "text": ""
+          },
+          {
+            "column": "2",
+            "row": "5",
+            "text": "5. I型VICP复合保温板 · 包覆浆料"
+          },
+          {
+            "column": "4",
+            "row": "5",
+            "text": "0.080"
+          },
+          {
+            "column": "5",
+            "row": "5",
+            "text": "1.25"
+          },
+          {
+            "column": "6",
+            "row": "5",
+            "text": "0.050"
+          },
+          {
+            "column": "3",
+            "row": "5",
+            "text": "5"
+          },
+          {
+            "column": "7",
+            "row": "5",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "5",
+            "text": ""
+          },
+          {
+            "column": "9",
+            "row": "5",
+            "text": ""
+          },
+          {
+            "column": "1",
+            "row": "6",
+            "text": ""
+          },
+          {
+            "column": "2",
+            "row": "6",
+            "text": "5. I型VICP复合保温板 · 真空绝热板"
+          },
+          {
+            "column": "4",
+            "row": "6",
+            "text": "0.0025"
+          },
+          {
+            "column": "5",
+            "row": "6",
+            "text": "1.25"
+          },
+          {
+            "column": "6",
+            "row": "6",
+            "text": "1.600"
+          },
+          {
+            "column": "3",
+            "row": "6",
+            "text": "5"
+          },
+          {
+            "column": "7",
+            "row": "6",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "6",
+            "text": "2.116"
+          },
+          {
+            "column": "9",
+            "row": "6",
+            "text": "0.473"
+          },
+          {
+            "column": "1",
+            "row": "7",
+            "text": ""
+          },
+          {
+            "column": "6",
+            "row": "7",
+            "text": "2.560"
+          },
+          {
+            "column": "3",
+            "row": "7",
+            "text": "8"
+          },
+          {
+            "column": "7",
+            "row": "7",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "7",
+            "text": "3.076"
+          },
+          {
+            "column": "9",
+            "row": "7",
+            "text": "0.325"
+          },
+          {
+            "column": "1",
+            "row": "8",
+            "text": ""
+          },
+          {
+            "column": "6",
+            "row": "8",
+            "text": "3.200"
+          },
+          {
+            "column": "3",
+            "row": "8",
+            "text": "10"
+          },
+          {
+            "column": "7",
+            "row": "8",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "8",
+            "text": "3.716"
+          },
+          {
+            "column": "9",
+            "row": "8",
+            "text": "0.269"
+          },
+          {
+            "column": "1",
+            "row": "9",
+            "text": ""
+          },
+          {
+            "column": "6",
+            "row": "9",
+            "text": "4.800"
+          },
+          {
+            "column": "3",
+            "row": "9",
+            "text": "15"
+          },
+          {
+            "column": "7",
+            "row": "9",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "9",
+            "text": "5.316"
+          },
+          {
+            "column": "9",
+            "row": "9",
+            "text": "0.188"
+          },
+          {
+            "column": "1",
+            "row": "10",
+            "text": ""
+          },
+          {
+            "column": "6",
+            "row": "10",
+            "text": "6.400"
+          },
+          {
+            "column": "3",
+            "row": "10",
+            "text": "20"
+          },
+          {
+            "column": "7",
+            "row": "10",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "10",
+            "text": "6.916"
+          },
+          {
+            "column": "9",
+            "row": "10",
+            "text": "0.145"
+          },
+          {
+            "column": "1",
+            "row": "11",
+            "text": ""
+          },
+          {
+            "column": "6",
+            "row": "11",
+            "text": "8.000"
+          },
+          {
+            "column": "3",
+            "row": "11",
+            "text": "25"
+          },
+          {
+            "column": "7",
+            "row": "11",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "11",
+            "text": "8.516"
+          },
+          {
+            "column": "9",
+            "row": "11",
+            "text": "0.117"
+          },
+          {
+            "column": "1",
+            "row": "12",
+            "text": ""
+          },
+          {
+            "column": "6",
+            "row": "12",
+            "text": "9.600"
+          },
+          {
+            "column": "3",
+            "row": "12",
+            "text": "30"
+          },
+          {
+            "column": "7",
+            "row": "12",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "12",
+            "text": "10.116"
+          },
+          {
+            "column": "9",
+            "row": "12",
+            "text": "0.099"
+          },
+          {
+            "column": "1",
+            "row": "13",
+            "text": ""
+          },
+          {
+            "column": "2",
+            "row": "13",
+            "text": "5. I型VICP复合保温板 · 包覆浆料"
+          },
+          {
+            "column": "4",
+            "row": "13",
+            "text": "0.080"
+          },
+          {
+            "column": "5",
+            "row": "13",
+            "text": "1.25"
+          },
+          {
+            "column": "6",
+            "row": "13",
+            "text": "0.050"
+          },
+          {
+            "column": "3",
+            "row": "13",
+            "text": "5"
+          },
+          {
+            "column": "7",
+            "row": "13",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "13",
+            "text": ""
+          },
+          {
+            "column": "9",
+            "row": "13",
+            "text": ""
+          }
+        ],
+        "id": "reference-construction-0",
+        "label": "外墙C1-3I 型 VICP外墙蒸压灰砂砖 240mm"
+      },
+      {
+        "cells": [
+          {
+            "column": "1",
+            "row": "1",
+            "text": "外墙C1-4I 型 VICP外墙加气混凝土砌块 200mm"
+          },
+          {
+            "column": "1",
+            "row": "1",
+            "text": ""
+          },
+          {
+            "column": "2",
+            "row": "1",
+            "text": "1. 混合砂浆"
+          },
+          {
+            "column": "4",
+            "row": "1",
+            "text": "0.870"
+          },
+          {
+            "column": "5",
+            "row": "1",
+            "text": "1.00"
+          },
+          {
+            "column": "6",
+            "row": "1",
+            "text": "0.023"
+          },
+          {
+            "column": "3",
+            "row": "1",
+            "text": "20"
+          },
+          {
+            "column": "7",
+            "row": "1",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "1",
+            "text": ""
+          },
+          {
+            "column": "9",
+            "row": "1",
+            "text": ""
+          },
+          {
+            "column": "1",
+            "row": "2",
+            "text": ""
+          },
+          {
+            "column": "2",
+            "row": "2",
+            "text": "2. 加气混凝土砌块"
+          },
+          {
+            "column": "4",
+            "row": "2",
+            "text": "0.190"
+          },
+          {
+            "column": "5",
+            "row": "2",
+            "text": "1.25"
+          },
+          {
+            "column": "6",
+            "row": "2",
+            "text": "0.842"
+          },
+          {
+            "column": "3",
+            "row": "2",
+            "text": "200"
+          },
+          {
+            "column": "7",
+            "row": "2",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "2",
+            "text": ""
+          },
+          {
+            "column": "9",
+            "row": "2",
+            "text": ""
+          },
+          {
+            "column": "1",
+            "row": "3",
+            "text": ""
+          },
+          {
+            "column": "2",
+            "row": "3",
+            "text": "3. 找平层"
+          },
+          {
+            "column": "4",
+            "row": "3",
+            "text": "0.930"
+          },
+          {
+            "column": "5",
+            "row": "3",
+            "text": "1.00"
+          },
+          {
+            "column": "6",
+            "row": "3",
+            "text": "0.015"
+          },
+          {
+            "column": "3",
+            "row": "3",
+            "text": "15"
+          },
+          {
+            "column": "7",
+            "row": "3",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "3",
+            "text": ""
+          },
+          {
+            "column": "9",
+            "row": "3",
+            "text": ""
+          },
+          {
+            "column": "1",
+            "row": "4",
+            "text": ""
+          },
+          {
+            "column": "2",
+            "row": "4",
+            "text": "4. 粘结砂浆"
+          },
+          {
+            "column": "4",
+            "row": "4",
+            "text": "0.930"
+          },
+          {
+            "column": "5",
+            "row": "4",
+            "text": "1.00"
+          },
+          {
+            "column": "6",
+            "row": "4",
+            "text": "0.005"
+          },
+          {
+            "column": "3",
+            "row": "4",
+            "text": "5"
+          },
+          {
+            "column": "7",
+            "row": "4",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "4",
+            "text": ""
+          },
+          {
+            "column": "9",
+            "row": "4",
+            "text": ""
+          },
+          {
+            "column": "1",
+            "row": "5",
+            "text": ""
+          },
+          {
+            "column": "2",
+            "row": "5",
+            "text": "5. I型VICP复合保温板 · 包覆浆料"
+          },
+          {
+            "column": "4",
+            "row": "5",
+            "text": "0.080"
+          },
+          {
+            "column": "5",
+            "row": "5",
+            "text": "1.25"
+          },
+          {
+            "column": "6",
+            "row": "5",
+            "text": "0.050"
+          },
+          {
+            "column": "3",
+            "row": "5",
+            "text": "5"
+          },
+          {
+            "column": "7",
+            "row": "5",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "5",
+            "text": ""
+          },
+          {
+            "column": "9",
+            "row": "5",
+            "text": ""
+          },
+          {
+            "column": "1",
+            "row": "6",
+            "text": ""
+          },
+          {
+            "column": "2",
+            "row": "6",
+            "text": "5. I型VICP复合保温板 · 真空绝热板"
+          },
+          {
+            "column": "4",
+            "row": "6",
+            "text": "0.0025"
+          },
+          {
+            "column": "5",
+            "row": "6",
+            "text": "1.25"
+          },
+          {
+            "column": "6",
+            "row": "6",
+            "text": "1.600"
+          },
+          {
+            "column": "3",
+            "row": "6",
+            "text": "5"
+          },
+          {
+            "column": "7",
+            "row": "6",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "6",
+            "text": "2.740"
+          },
+          {
+            "column": "9",
+            "row": "6",
+            "text": "0.365"
+          },
+          {
+            "column": "1",
+            "row": "7",
+            "text": ""
+          },
+          {
+            "column": "6",
+            "row": "7",
+            "text": "2.560"
+          },
+          {
+            "column": "3",
+            "row": "7",
+            "text": "8"
+          },
+          {
+            "column": "7",
+            "row": "7",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "7",
+            "text": "3.700"
+          },
+          {
+            "column": "9",
+            "row": "7",
+            "text": "0.270"
+          },
+          {
+            "column": "1",
+            "row": "8",
+            "text": ""
+          },
+          {
+            "column": "6",
+            "row": "8",
+            "text": "3.200"
+          },
+          {
+            "column": "3",
+            "row": "8",
+            "text": "10"
+          },
+          {
+            "column": "7",
+            "row": "8",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "8",
+            "text": "4.340"
+          },
+          {
+            "column": "9",
+            "row": "8",
+            "text": "0.230"
+          },
+          {
+            "column": "1",
+            "row": "9",
+            "text": ""
+          },
+          {
+            "column": "6",
+            "row": "9",
+            "text": "4.800"
+          },
+          {
+            "column": "3",
+            "row": "9",
+            "text": "15"
+          },
+          {
+            "column": "7",
+            "row": "9",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "9",
+            "text": "5.940"
+          },
+          {
+            "column": "9",
+            "row": "9",
+            "text": "0.168"
+          },
+          {
+            "column": "1",
+            "row": "10",
+            "text": ""
+          },
+          {
+            "column": "6",
+            "row": "10",
+            "text": "6.400"
+          },
+          {
+            "column": "3",
+            "row": "10",
+            "text": "20"
+          },
+          {
+            "column": "7",
+            "row": "10",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "10",
+            "text": "7.540"
+          },
+          {
+            "column": "9",
+            "row": "10",
+            "text": "0.133"
+          },
+          {
+            "column": "1",
+            "row": "11",
+            "text": ""
+          },
+          {
+            "column": "6",
+            "row": "11",
+            "text": "8.000"
+          },
+          {
+            "column": "3",
+            "row": "11",
+            "text": "25"
+          },
+          {
+            "column": "7",
+            "row": "11",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "11",
+            "text": "9.140"
+          },
+          {
+            "column": "9",
+            "row": "11",
+            "text": "0.109"
+          },
+          {
+            "column": "1",
+            "row": "12",
+            "text": ""
+          },
+          {
+            "column": "6",
+            "row": "12",
+            "text": "9.600"
+          },
+          {
+            "column": "3",
+            "row": "12",
+            "text": "30"
+          },
+          {
+            "column": "7",
+            "row": "12",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "12",
+            "text": "10.740"
+          },
+          {
+            "column": "9",
+            "row": "12",
+            "text": "0.093"
+          },
+          {
+            "column": "1",
+            "row": "13",
+            "text": ""
+          },
+          {
+            "column": "2",
+            "row": "13",
+            "text": "5. I型VICP复合保温板 · 包覆浆料"
+          },
+          {
+            "column": "4",
+            "row": "13",
+            "text": "0.080"
+          },
+          {
+            "column": "5",
+            "row": "13",
+            "text": "1.25"
+          },
+          {
+            "column": "6",
+            "row": "13",
+            "text": "0.050"
+          },
+          {
+            "column": "3",
+            "row": "13",
+            "text": "5"
+          },
+          {
+            "column": "7",
+            "row": "13",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "13",
+            "text": ""
+          },
+          {
+            "column": "9",
+            "row": "13",
+            "text": ""
+          }
+        ],
+        "id": "reference-construction-1",
+        "label": "外墙C1-4I 型 VICP外墙加气混凝土砌块 200mm"
+      }
+    ]
+  },
+  {
+    "page": "89",
+    "groups": [
+      {
+        "cells": [
+          {
+            "column": "1",
+            "row": "1",
+            "text": "坡屋面（正置，级防水）I 型 VICP屋面坡屋面正置防水等级待核对钢筋混凝土楼板 120mm"
+          },
+          {
+            "column": "1",
+            "row": "1",
+            "text": ""
+          },
+          {
+            "column": "2",
+            "row": "1",
+            "text": "1. 混合砂浆"
+          },
+          {
+            "column": "4",
+            "row": "1",
+            "text": "0.870"
+          },
+          {
+            "column": "5",
+            "row": "1",
+            "text": "1.00"
+          },
+          {
+            "column": "6",
+            "row": "1",
+            "text": "0.023"
+          },
+          {
+            "column": "3",
+            "row": "1",
+            "text": "20"
+          },
+          {
+            "column": "7",
+            "row": "1",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "1",
+            "text": ""
+          },
+          {
+            "column": "9",
+            "row": "1",
+            "text": ""
+          },
+          {
+            "column": "1",
+            "row": "2",
+            "text": ""
+          },
+          {
+            "column": "2",
+            "row": "2",
+            "text": "2. 钢筋混凝土楼板"
+          },
+          {
+            "column": "4",
+            "row": "2",
+            "text": "1.740"
+          },
+          {
+            "column": "5",
+            "row": "2",
+            "text": "1.00"
+          },
+          {
+            "column": "6",
+            "row": "2",
+            "text": "0.069"
+          },
+          {
+            "column": "3",
+            "row": "2",
+            "text": "120"
+          },
+          {
+            "column": "7",
+            "row": "2",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "2",
+            "text": ""
+          },
+          {
+            "column": "9",
+            "row": "2",
+            "text": ""
+          },
+          {
+            "column": "1",
+            "row": "3",
+            "text": ""
+          },
+          {
+            "column": "2",
+            "row": "3",
+            "text": "3. 水泥砂浆找平层"
+          },
+          {
+            "column": "4",
+            "row": "3",
+            "text": "0.930"
+          },
+          {
+            "column": "5",
+            "row": "3",
+            "text": "1.00"
+          },
+          {
+            "column": "6",
+            "row": "3",
+            "text": "0.022"
+          },
+          {
+            "column": "3",
+            "row": "3",
+            "text": "20"
+          },
+          {
+            "column": "7",
+            "row": "3",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "3",
+            "text": ""
+          },
+          {
+            "column": "9",
+            "row": "3",
+            "text": ""
+          },
+          {
+            "column": "1",
+            "row": "4",
+            "text": ""
+          },
+          {
+            "column": "2",
+            "row": "4",
+            "text": "5. 粘结砂浆层"
+          },
+          {
+            "column": "4",
+            "row": "4",
+            "text": "0.930"
+          },
+          {
+            "column": "5",
+            "row": "4",
+            "text": "1.00"
+          },
+          {
+            "column": "6",
+            "row": "4",
+            "text": "0.005"
+          },
+          {
+            "column": "3",
+            "row": "4",
+            "text": "5"
+          },
+          {
+            "column": "7",
+            "row": "4",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "4",
+            "text": ""
+          },
+          {
+            "column": "9",
+            "row": "4",
+            "text": ""
+          },
+          {
+            "column": "1",
+            "row": "5",
+            "text": ""
+          },
+          {
+            "column": "2",
+            "row": "5",
+            "text": "6. I型VICP复合保温板 · Ⅰ型VICP复合保温板 包覆浆料"
+          },
+          {
+            "column": "4",
+            "row": "5",
+            "text": "0.080"
+          },
+          {
+            "column": "5",
+            "row": "5",
+            "text": "1.25"
+          },
+          {
+            "column": "6",
+            "row": "5",
+            "text": "0.050"
+          },
+          {
+            "column": "3",
+            "row": "5",
+            "text": "5"
+          },
+          {
+            "column": "7",
+            "row": "5",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "5",
+            "text": ""
+          },
+          {
+            "column": "9",
+            "row": "5",
+            "text": ""
+          },
+          {
+            "column": "1",
+            "row": "6",
+            "text": ""
+          },
+          {
+            "column": "2",
+            "row": "6",
+            "text": "6. I型VICP复合保温板 · Ⅰ型VICP复合保温板 真空绝热板"
+          },
+          {
+            "column": "4",
+            "row": "6",
+            "text": "0.0025"
+          },
+          {
+            "column": "5",
+            "row": "6",
+            "text": "1.25"
+          },
+          {
+            "column": "6",
+            "row": "6",
+            "text": "2.400"
+          },
+          {
+            "column": "3",
+            "row": "6",
+            "text": "5"
+          },
+          {
+            "column": "7",
+            "row": "6",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "6",
+            "text": "2.825"
+          },
+          {
+            "column": "9",
+            "row": "6",
+            "text": "0.354"
+          },
+          {
+            "column": "1",
+            "row": "7",
+            "text": ""
+          },
+          {
+            "column": "6",
+            "row": "7",
+            "text": "3.200"
+          },
+          {
+            "column": "3",
+            "row": "7",
+            "text": "10"
+          },
+          {
+            "column": "7",
+            "row": "7",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "7",
+            "text": "3.625"
+          },
+          {
+            "column": "9",
+            "row": "7",
+            "text": "0.276"
+          },
+          {
+            "column": "1",
+            "row": "8",
+            "text": ""
+          },
+          {
+            "column": "6",
+            "row": "8",
+            "text": "4.000"
+          },
+          {
+            "column": "3",
+            "row": "8",
+            "text": "15"
+          },
+          {
+            "column": "7",
+            "row": "8",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "8",
+            "text": "4.425"
+          },
+          {
+            "column": "9",
+            "row": "8",
+            "text": "0.226"
+          },
+          {
+            "column": "1",
+            "row": "9",
+            "text": ""
+          },
+          {
+            "column": "6",
+            "row": "9",
+            "text": "4.800"
+          },
+          {
+            "column": "3",
+            "row": "9",
+            "text": "20"
+          },
+          {
+            "column": "7",
+            "row": "9",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "9",
+            "text": "5.225"
+          },
+          {
+            "column": "9",
+            "row": "9",
+            "text": "0.191"
+          },
+          {
+            "column": "1",
+            "row": "10",
+            "text": ""
+          },
+          {
+            "column": "6",
+            "row": "10",
+            "text": "5.600"
+          },
+          {
+            "column": "3",
+            "row": "10",
+            "text": "25"
+          },
+          {
+            "column": "7",
+            "row": "10",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "10",
+            "text": "6.025"
+          },
+          {
+            "column": "9",
+            "row": "10",
+            "text": "0.166"
+          },
+          {
+            "column": "1",
+            "row": "11",
+            "text": ""
+          },
+          {
+            "column": "6",
+            "row": "11",
+            "text": "6.400"
+          },
+          {
+            "column": "3",
+            "row": "11",
+            "text": "30"
+          },
+          {
+            "column": "7",
+            "row": "11",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "11",
+            "text": "6.825"
+          },
+          {
+            "column": "9",
+            "row": "11",
+            "text": "0.147"
+          },
+          {
+            "column": "1",
+            "row": "12",
+            "text": ""
+          },
+          {
+            "column": "2",
+            "row": "12",
+            "text": "6. I型VICP复合保温板 · Ⅰ型VICP复合保温板 包覆浆料"
+          },
+          {
+            "column": "4",
+            "row": "12",
+            "text": "0.080"
+          },
+          {
+            "column": "5",
+            "row": "12",
+            "text": "1.25"
+          },
+          {
+            "column": "6",
+            "row": "12",
+            "text": "0.050"
+          },
+          {
+            "column": "3",
+            "row": "12",
+            "text": "5"
+          },
+          {
+            "column": "7",
+            "row": "12",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "12",
+            "text": ""
+          },
+          {
+            "column": "9",
+            "row": "12",
+            "text": ""
+          },
+          {
+            "column": "1",
+            "row": "13",
+            "text": ""
+          },
+          {
+            "column": "2",
+            "row": "13",
+            "text": "7. 配筋细石混凝土找平层"
+          },
+          {
+            "column": "4",
+            "row": "13",
+            "text": "1.740"
+          },
+          {
+            "column": "5",
+            "row": "13",
+            "text": "1.00"
+          },
+          {
+            "column": "6",
+            "row": "13",
+            "text": "0.029"
+          },
+          {
+            "column": "3",
+            "row": "13",
+            "text": "50"
+          },
+          {
+            "column": "7",
+            "row": "13",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "13",
+            "text": ""
+          },
+          {
+            "column": "9",
+            "row": "13",
+            "text": ""
+          },
+          {
+            "column": "1",
+            "row": "14",
+            "text": ""
+          },
+          {
+            "column": "2",
+            "row": "14",
+            "text": "9. 细石混凝土持钉层"
+          },
+          {
+            "column": "4",
+            "row": "14",
+            "text": "1.280"
+          },
+          {
+            "column": "5",
+            "row": "14",
+            "text": "1.00"
+          },
+          {
+            "column": "6",
+            "row": "14",
+            "text": "0.027"
+          },
+          {
+            "column": "3",
+            "row": "14",
+            "text": "35"
+          },
+          {
+            "column": "7",
+            "row": "14",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "14",
+            "text": ""
+          },
+          {
+            "column": "9",
+            "row": "14",
+            "text": ""
+          }
+        ],
+        "id": "reference-construction-0",
+        "label": "坡屋面（正置，级防水）I 型 VICP屋面坡屋面正置防水等级待核对钢筋混凝土楼板 120mm"
+      },
+      {
+        "cells": [
+          {
+            "column": "1",
+            "row": "1",
+            "text": "坡屋面（倒置，级防水）I 型 VICP屋面坡屋面倒置防水等级待核对钢筋混凝土楼板 120mm"
+          },
+          {
+            "column": "1",
+            "row": "1",
+            "text": ""
+          },
+          {
+            "column": "2",
+            "row": "1",
+            "text": "1. 混合砂浆"
+          },
+          {
+            "column": "4",
+            "row": "1",
+            "text": "0.870"
+          },
+          {
+            "column": "5",
+            "row": "1",
+            "text": "1.00"
+          },
+          {
+            "column": "6",
+            "row": "1",
+            "text": "0.023"
+          },
+          {
+            "column": "3",
+            "row": "1",
+            "text": "20"
+          },
+          {
+            "column": "7",
+            "row": "1",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "1",
+            "text": ""
+          },
+          {
+            "column": "9",
+            "row": "1",
+            "text": ""
+          },
+          {
+            "column": "1",
+            "row": "2",
+            "text": ""
+          },
+          {
+            "column": "2",
+            "row": "2",
+            "text": "2. 钢筋混凝土楼板"
+          },
+          {
+            "column": "4",
+            "row": "2",
+            "text": "1.740"
+          },
+          {
+            "column": "5",
+            "row": "2",
+            "text": "1.00"
+          },
+          {
+            "column": "6",
+            "row": "2",
+            "text": "0.069"
+          },
+          {
+            "column": "3",
+            "row": "2",
+            "text": "120"
+          },
+          {
+            "column": "7",
+            "row": "2",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "2",
+            "text": ""
+          },
+          {
+            "column": "9",
+            "row": "2",
+            "text": ""
+          },
+          {
+            "column": "1",
+            "row": "3",
+            "text": ""
+          },
+          {
+            "column": "2",
+            "row": "3",
+            "text": "3. 水泥砂浆找平层"
+          },
+          {
+            "column": "4",
+            "row": "3",
+            "text": "0.930"
+          },
+          {
+            "column": "5",
+            "row": "3",
+            "text": "1.00"
+          },
+          {
+            "column": "6",
+            "row": "3",
+            "text": "0.022"
+          },
+          {
+            "column": "3",
+            "row": "3",
+            "text": "20"
+          },
+          {
+            "column": "7",
+            "row": "3",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "3",
+            "text": ""
+          },
+          {
+            "column": "9",
+            "row": "3",
+            "text": ""
+          },
+          {
+            "column": "1",
+            "row": "4",
+            "text": ""
+          },
+          {
+            "column": "2",
+            "row": "4",
+            "text": "5. 粘结砂浆层"
+          },
+          {
+            "column": "4",
+            "row": "4",
+            "text": "0.930"
+          },
+          {
+            "column": "5",
+            "row": "4",
+            "text": "1.00"
+          },
+          {
+            "column": "6",
+            "row": "4",
+            "text": "0.005"
+          },
+          {
+            "column": "3",
+            "row": "4",
+            "text": "5"
+          },
+          {
+            "column": "7",
+            "row": "4",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "4",
+            "text": ""
+          },
+          {
+            "column": "9",
+            "row": "4",
+            "text": ""
+          },
+          {
+            "column": "1",
+            "row": "5",
+            "text": ""
+          },
+          {
+            "column": "2",
+            "row": "5",
+            "text": "6. I型VICP复合保温板 · Ⅰ型VICP复合保温板 包覆浆料"
+          },
+          {
+            "column": "4",
+            "row": "5",
+            "text": "0.080"
+          },
+          {
+            "column": "5",
+            "row": "5",
+            "text": "1.25"
+          },
+          {
+            "column": "6",
+            "row": "5",
+            "text": "0.050"
+          },
+          {
+            "column": "3",
+            "row": "5",
+            "text": "5"
+          },
+          {
+            "column": "7",
+            "row": "5",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "5",
+            "text": ""
+          },
+          {
+            "column": "9",
+            "row": "5",
+            "text": ""
+          },
+          {
+            "column": "1",
+            "row": "6",
+            "text": ""
+          },
+          {
+            "column": "2",
+            "row": "6",
+            "text": "6. I型VICP复合保温板 · Ⅰ型VICP复合保温板 真空绝热板"
+          },
+          {
+            "column": "4",
+            "row": "6",
+            "text": "0.0025"
+          },
+          {
+            "column": "5",
+            "row": "6",
+            "text": "1.25"
+          },
+          {
+            "column": "6",
+            "row": "6",
+            "text": "2.400"
+          },
+          {
+            "column": "3",
+            "row": "6",
+            "text": "5"
+          },
+          {
+            "column": "7",
+            "row": "6",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "6",
+            "text": "2.798"
+          },
+          {
+            "column": "9",
+            "row": "6",
+            "text": "0.357"
+          },
+          {
+            "column": "1",
+            "row": "7",
+            "text": ""
+          },
+          {
+            "column": "6",
+            "row": "7",
+            "text": "3.200"
+          },
+          {
+            "column": "3",
+            "row": "7",
+            "text": "10"
+          },
+          {
+            "column": "7",
+            "row": "7",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "7",
+            "text": "3.598"
+          },
+          {
+            "column": "9",
+            "row": "7",
+            "text": "0.278"
+          },
+          {
+            "column": "1",
+            "row": "8",
+            "text": ""
+          },
+          {
+            "column": "6",
+            "row": "8",
+            "text": "4.000"
+          },
+          {
+            "column": "3",
+            "row": "8",
+            "text": "15"
+          },
+          {
+            "column": "7",
+            "row": "8",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "8",
+            "text": "4.398"
+          },
+          {
+            "column": "9",
+            "row": "8",
+            "text": "0.227"
+          },
+          {
+            "column": "1",
+            "row": "9",
+            "text": ""
+          },
+          {
+            "column": "6",
+            "row": "9",
+            "text": "4.800"
+          },
+          {
+            "column": "3",
+            "row": "9",
+            "text": "20"
+          },
+          {
+            "column": "7",
+            "row": "9",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "9",
+            "text": "5.198"
+          },
+          {
+            "column": "9",
+            "row": "9",
+            "text": "0.192"
+          },
+          {
+            "column": "1",
+            "row": "10",
+            "text": ""
+          },
+          {
+            "column": "6",
+            "row": "10",
+            "text": "5.600"
+          },
+          {
+            "column": "3",
+            "row": "10",
+            "text": "25"
+          },
+          {
+            "column": "7",
+            "row": "10",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "10",
+            "text": "5.998"
+          },
+          {
+            "column": "9",
+            "row": "10",
+            "text": "0.167"
+          },
+          {
+            "column": "1",
+            "row": "11",
+            "text": ""
+          },
+          {
+            "column": "6",
+            "row": "11",
+            "text": "6.400"
+          },
+          {
+            "column": "3",
+            "row": "11",
+            "text": "30"
+          },
+          {
+            "column": "7",
+            "row": "11",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "11",
+            "text": "6.798"
+          },
+          {
+            "column": "9",
+            "row": "11",
+            "text": "0.147"
+          },
+          {
+            "column": "1",
+            "row": "12",
+            "text": ""
+          },
+          {
+            "column": "2",
+            "row": "12",
+            "text": "6. I型VICP复合保温板 · Ⅰ型VICP复合保温板 包覆浆料"
+          },
+          {
+            "column": "4",
+            "row": "12",
+            "text": "0.080"
+          },
+          {
+            "column": "5",
+            "row": "12",
+            "text": "1.25"
+          },
+          {
+            "column": "6",
+            "row": "12",
+            "text": "0.050"
+          },
+          {
+            "column": "3",
+            "row": "12",
+            "text": "5"
+          },
+          {
+            "column": "7",
+            "row": "12",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "12",
+            "text": ""
+          },
+          {
+            "column": "9",
+            "row": "12",
+            "text": ""
+          },
+          {
+            "column": "1",
+            "row": "13",
+            "text": ""
+          },
+          {
+            "column": "2",
+            "row": "13",
+            "text": "7. 配筋细石混凝土找平层"
+          },
+          {
+            "column": "4",
+            "row": "13",
+            "text": "1.740"
+          },
+          {
+            "column": "5",
+            "row": "13",
+            "text": "1.00"
+          },
+          {
+            "column": "6",
+            "row": "13",
+            "text": "0.029"
+          },
+          {
+            "column": "3",
+            "row": "13",
+            "text": "50"
+          },
+          {
+            "column": "7",
+            "row": "13",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "13",
+            "text": ""
+          },
+          {
+            "column": "9",
+            "row": "13",
+            "text": ""
+          }
+        ],
+        "id": "reference-construction-1",
+        "label": "坡屋面（倒置，级防水）I 型 VICP屋面坡屋面倒置防水等级待核对钢筋混凝土楼板 120mm"
+      }
+    ]
+  },
+  {
+    "page": "90",
+    "groups": [
+      {
+        "cells": [
+          {
+            "column": "1",
+            "row": "1",
+            "text": "平屋面（正置，级防水）II 型 VICP屋面平屋面正置防水等级待核对钢筋混凝土楼板 120mm"
+          },
+          {
+            "column": "1",
+            "row": "1",
+            "text": ""
+          },
+          {
+            "column": "2",
+            "row": "1",
+            "text": "1. 混合砂浆"
+          },
+          {
+            "column": "4",
+            "row": "1",
+            "text": "0.870"
+          },
+          {
+            "column": "5",
+            "row": "1",
+            "text": "1.00"
+          },
+          {
+            "column": "6",
+            "row": "1",
+            "text": "0.023"
+          },
+          {
+            "column": "3",
+            "row": "1",
+            "text": "20"
+          },
+          {
+            "column": "7",
+            "row": "1",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "1",
+            "text": ""
+          },
+          {
+            "column": "9",
+            "row": "1",
+            "text": ""
+          },
+          {
+            "column": "1",
+            "row": "2",
+            "text": ""
+          },
+          {
+            "column": "2",
+            "row": "2",
+            "text": "2. 钢筋混凝土楼板"
+          },
+          {
+            "column": "4",
+            "row": "2",
+            "text": "1.740"
+          },
+          {
+            "column": "5",
+            "row": "2",
+            "text": "1.00"
+          },
+          {
+            "column": "6",
+            "row": "2",
+            "text": "0.069"
+          },
+          {
+            "column": "3",
+            "row": "2",
+            "text": "120"
+          },
+          {
+            "column": "7",
+            "row": "2",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "2",
+            "text": ""
+          },
+          {
+            "column": "9",
+            "row": "2",
+            "text": ""
+          },
+          {
+            "column": "1",
+            "row": "3",
+            "text": ""
+          },
+          {
+            "column": "2",
+            "row": "3",
+            "text": "4. II型VICP复合保温板 · II型VICP复合保温板（包覆浆料）"
+          },
+          {
+            "column": "4",
+            "row": "3",
+            "text": "0.080"
+          },
+          {
+            "column": "5",
+            "row": "3",
+            "text": "1.25"
+          },
+          {
+            "column": "6",
+            "row": "3",
+            "text": "0.100"
+          },
+          {
+            "column": "3",
+            "row": "3",
+            "text": "10"
+          },
+          {
+            "column": "7",
+            "row": "3",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "3",
+            "text": ""
+          },
+          {
+            "column": "9",
+            "row": "3",
+            "text": ""
+          },
+          {
+            "column": "1",
+            "row": "4",
+            "text": ""
+          },
+          {
+            "column": "2",
+            "row": "4",
+            "text": "4. II型VICP复合保温板 · II型VICP复合保温板（真空绝热板）"
+          },
+          {
+            "column": "4",
+            "row": "4",
+            "text": "0.0025"
+          },
+          {
+            "column": "5",
+            "row": "4",
+            "text": "1.25"
+          },
+          {
+            "column": "6",
+            "row": "4",
+            "text": "2.400"
+          },
+          {
+            "column": "3",
+            "row": "4",
+            "text": "5"
+          },
+          {
+            "column": "7",
+            "row": "4",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "4",
+            "text": "2.969"
+          },
+          {
+            "column": "9",
+            "row": "4",
+            "text": "0.337"
+          },
+          {
+            "column": "1",
+            "row": "5",
+            "text": ""
+          },
+          {
+            "column": "6",
+            "row": "5",
+            "text": "3.200"
+          },
+          {
+            "column": "3",
+            "row": "5",
+            "text": "10"
+          },
+          {
+            "column": "7",
+            "row": "5",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "5",
+            "text": "3.769"
+          },
+          {
+            "column": "9",
+            "row": "5",
+            "text": "0.265"
+          },
+          {
+            "column": "1",
+            "row": "6",
+            "text": ""
+          },
+          {
+            "column": "6",
+            "row": "6",
+            "text": "4.000"
+          },
+          {
+            "column": "3",
+            "row": "6",
+            "text": "15"
+          },
+          {
+            "column": "7",
+            "row": "6",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "6",
+            "text": "4.569"
+          },
+          {
+            "column": "9",
+            "row": "6",
+            "text": "0.219"
+          },
+          {
+            "column": "1",
+            "row": "7",
+            "text": ""
+          },
+          {
+            "column": "6",
+            "row": "7",
+            "text": "4.800"
+          },
+          {
+            "column": "3",
+            "row": "7",
+            "text": "20"
+          },
+          {
+            "column": "7",
+            "row": "7",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "7",
+            "text": "5.369"
+          },
+          {
+            "column": "9",
+            "row": "7",
+            "text": "0.186"
+          },
+          {
+            "column": "1",
+            "row": "8",
+            "text": ""
+          },
+          {
+            "column": "6",
+            "row": "8",
+            "text": "5.600"
+          },
+          {
+            "column": "3",
+            "row": "8",
+            "text": "25"
+          },
+          {
+            "column": "7",
+            "row": "8",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "8",
+            "text": "6.169"
+          },
+          {
+            "column": "9",
+            "row": "8",
+            "text": "0.162"
+          },
+          {
+            "column": "1",
+            "row": "9",
+            "text": ""
+          },
+          {
+            "column": "6",
+            "row": "9",
+            "text": "6.400"
+          },
+          {
+            "column": "3",
+            "row": "9",
+            "text": "30"
+          },
+          {
+            "column": "7",
+            "row": "9",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "9",
+            "text": "6.969"
+          },
+          {
+            "column": "9",
+            "row": "9",
+            "text": "0.143"
+          },
+          {
+            "column": "1",
+            "row": "10",
+            "text": ""
+          },
+          {
+            "column": "2",
+            "row": "10",
+            "text": "4. II型VICP复合保温板 · II型VICP复合保温板（包覆浆料）"
+          },
+          {
+            "column": "4",
+            "row": "10",
+            "text": "0.080"
+          },
+          {
+            "column": "5",
+            "row": "10",
+            "text": "1.25"
+          },
+          {
+            "column": "6",
+            "row": "10",
+            "text": "0.100"
+          },
+          {
+            "column": "3",
+            "row": "10",
+            "text": "10"
+          },
+          {
+            "column": "7",
+            "row": "10",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "10",
+            "text": ""
+          },
+          {
+            "column": "9",
+            "row": "10",
+            "text": ""
+          },
+          {
+            "column": "1",
+            "row": "11",
+            "text": ""
+          },
+          {
+            "column": "2",
+            "row": "11",
+            "text": "5. LC7.5轻集料混凝土"
+          },
+          {
+            "column": "4",
+            "row": "11",
+            "text": "0.160"
+          },
+          {
+            "column": "5",
+            "row": "11",
+            "text": "1.50"
+          },
+          {
+            "column": "6",
+            "row": "11",
+            "text": "0.083"
+          },
+          {
+            "column": "3",
+            "row": "11",
+            "text": "30"
+          },
+          {
+            "column": "7",
+            "row": "11",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "11",
+            "text": ""
+          },
+          {
+            "column": "9",
+            "row": "11",
+            "text": ""
+          },
+          {
+            "column": "1",
+            "row": "12",
+            "text": ""
+          },
+          {
+            "column": "2",
+            "row": "12",
+            "text": "6. M15水泥砂浆"
+          },
+          {
+            "column": "4",
+            "row": "12",
+            "text": "0.930"
+          },
+          {
+            "column": "5",
+            "row": "12",
+            "text": "1.00"
+          },
+          {
+            "column": "6",
+            "row": "12",
+            "text": "0.022"
+          },
+          {
+            "column": "3",
+            "row": "12",
+            "text": "20"
+          },
+          {
+            "column": "7",
+            "row": "12",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "12",
+            "text": ""
+          },
+          {
+            "column": "9",
+            "row": "12",
+            "text": ""
+          },
+          {
+            "column": "1",
+            "row": "13",
+            "text": ""
+          },
+          {
+            "column": "2",
+            "row": "13",
+            "text": "7. M15水泥砂浆"
+          },
+          {
+            "column": "4",
+            "row": "13",
+            "text": "0.930"
+          },
+          {
+            "column": "5",
+            "row": "13",
+            "text": "1.00"
+          },
+          {
+            "column": "6",
+            "row": "13",
+            "text": "0.022"
+          },
+          {
+            "column": "3",
+            "row": "13",
+            "text": "20"
+          },
+          {
+            "column": "7",
+            "row": "13",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "13",
+            "text": ""
+          },
+          {
+            "column": "9",
+            "row": "13",
+            "text": ""
+          }
+        ],
+        "id": "reference-construction-0",
+        "label": "平屋面（正置，级防水）II 型 VICP屋面平屋面正置防水等级待核对钢筋混凝土楼板 120mm"
+      },
+      {
+        "cells": [
+          {
+            "column": "1",
+            "row": "1",
+            "text": "平屋面（倒置，级防水）II 型 VICP屋面平屋面倒置防水等级待核对钢筋混凝土楼板 120mm"
+          },
+          {
+            "column": "1",
+            "row": "1",
+            "text": ""
+          },
+          {
+            "column": "2",
+            "row": "1",
+            "text": "1. 混合砂浆"
+          },
+          {
+            "column": "4",
+            "row": "1",
+            "text": "0.870"
+          },
+          {
+            "column": "5",
+            "row": "1",
+            "text": "1.00"
+          },
+          {
+            "column": "6",
+            "row": "1",
+            "text": "0.023"
+          },
+          {
+            "column": "3",
+            "row": "1",
+            "text": "20"
+          },
+          {
+            "column": "7",
+            "row": "1",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "1",
+            "text": ""
+          },
+          {
+            "column": "9",
+            "row": "1",
+            "text": ""
+          },
+          {
+            "column": "1",
+            "row": "2",
+            "text": ""
+          },
+          {
+            "column": "2",
+            "row": "2",
+            "text": "2. 钢筋混凝土楼板"
+          },
+          {
+            "column": "4",
+            "row": "2",
+            "text": "1.740"
+          },
+          {
+            "column": "5",
+            "row": "2",
+            "text": "1.00"
+          },
+          {
+            "column": "6",
+            "row": "2",
+            "text": "0.069"
+          },
+          {
+            "column": "3",
+            "row": "2",
+            "text": "120"
+          },
+          {
+            "column": "7",
+            "row": "2",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "2",
+            "text": ""
+          },
+          {
+            "column": "9",
+            "row": "2",
+            "text": ""
+          },
+          {
+            "column": "1",
+            "row": "3",
+            "text": ""
+          },
+          {
+            "column": "2",
+            "row": "3",
+            "text": "3. 轻集料混凝土找坡层"
+          },
+          {
+            "column": "4",
+            "row": "3",
+            "text": "0.160"
+          },
+          {
+            "column": "5",
+            "row": "3",
+            "text": "1.50"
+          },
+          {
+            "column": "6",
+            "row": "3",
+            "text": "0.083"
+          },
+          {
+            "column": "3",
+            "row": "3",
+            "text": "30"
+          },
+          {
+            "column": "7",
+            "row": "3",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "3",
+            "text": ""
+          },
+          {
+            "column": "9",
+            "row": "3",
+            "text": ""
+          },
+          {
+            "column": "1",
+            "row": "4",
+            "text": ""
+          },
+          {
+            "column": "2",
+            "row": "4",
+            "text": "4. 水泥砂浆找平层"
+          },
+          {
+            "column": "4",
+            "row": "4",
+            "text": "0.930"
+          },
+          {
+            "column": "5",
+            "row": "4",
+            "text": "1.00"
+          },
+          {
+            "column": "6",
+            "row": "4",
+            "text": "0.022"
+          },
+          {
+            "column": "3",
+            "row": "4",
+            "text": "20"
+          },
+          {
+            "column": "7",
+            "row": "4",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "4",
+            "text": ""
+          },
+          {
+            "column": "9",
+            "row": "4",
+            "text": ""
+          },
+          {
+            "column": "1",
+            "row": "5",
+            "text": ""
+          },
+          {
+            "column": "2",
+            "row": "5",
+            "text": "6. 水泥砂浆找平层"
+          },
+          {
+            "column": "4",
+            "row": "5",
+            "text": "0.930"
+          },
+          {
+            "column": "5",
+            "row": "5",
+            "text": "1.00"
+          },
+          {
+            "column": "6",
+            "row": "5",
+            "text": "0.022"
+          },
+          {
+            "column": "3",
+            "row": "5",
+            "text": "20"
+          },
+          {
+            "column": "7",
+            "row": "5",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "5",
+            "text": ""
+          },
+          {
+            "column": "9",
+            "row": "5",
+            "text": ""
+          },
+          {
+            "column": "1",
+            "row": "6",
+            "text": ""
+          },
+          {
+            "column": "2",
+            "row": "6",
+            "text": "9. II型VICP复合保温板 · II型VICP复合保温板（包覆浆料）"
+          },
+          {
+            "column": "4",
+            "row": "6",
+            "text": "0.080"
+          },
+          {
+            "column": "5",
+            "row": "6",
+            "text": "1.25"
+          },
+          {
+            "column": "6",
+            "row": "6",
+            "text": "0.100"
+          },
+          {
+            "column": "3",
+            "row": "6",
+            "text": "10"
+          },
+          {
+            "column": "7",
+            "row": "6",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "6",
+            "text": ""
+          },
+          {
+            "column": "9",
+            "row": "6",
+            "text": ""
+          },
+          {
+            "column": "1",
+            "row": "7",
+            "text": ""
+          },
+          {
+            "column": "2",
+            "row": "7",
+            "text": "9. II型VICP复合保温板 · II型VICP复合保温板（真空绝热板）"
+          },
+          {
+            "column": "4",
+            "row": "7",
+            "text": "0.0025"
+          },
+          {
+            "column": "5",
+            "row": "7",
+            "text": "1.25"
+          },
+          {
+            "column": "6",
+            "row": "7",
+            "text": "2.400"
+          },
+          {
+            "column": "3",
+            "row": "7",
+            "text": "5"
+          },
+          {
+            "column": "7",
+            "row": "7",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "7",
+            "text": "2.969"
+          },
+          {
+            "column": "9",
+            "row": "7",
+            "text": "0.337"
+          },
+          {
+            "column": "1",
+            "row": "8",
+            "text": ""
+          },
+          {
+            "column": "6",
+            "row": "8",
+            "text": "3.200"
+          },
+          {
+            "column": "3",
+            "row": "8",
+            "text": "10"
+          },
+          {
+            "column": "7",
+            "row": "8",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "8",
+            "text": "3.769"
+          },
+          {
+            "column": "9",
+            "row": "8",
+            "text": "0.265"
+          },
+          {
+            "column": "1",
+            "row": "9",
+            "text": ""
+          },
+          {
+            "column": "6",
+            "row": "9",
+            "text": "4.000"
+          },
+          {
+            "column": "3",
+            "row": "9",
+            "text": "15"
+          },
+          {
+            "column": "7",
+            "row": "9",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "9",
+            "text": "4.569"
+          },
+          {
+            "column": "9",
+            "row": "9",
+            "text": "0.219"
+          },
+          {
+            "column": "1",
+            "row": "10",
+            "text": ""
+          },
+          {
+            "column": "6",
+            "row": "10",
+            "text": "4.800"
+          },
+          {
+            "column": "3",
+            "row": "10",
+            "text": "20"
+          },
+          {
+            "column": "7",
+            "row": "10",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "10",
+            "text": "5.369"
+          },
+          {
+            "column": "9",
+            "row": "10",
+            "text": "0.186"
+          },
+          {
+            "column": "1",
+            "row": "11",
+            "text": ""
+          },
+          {
+            "column": "6",
+            "row": "11",
+            "text": "5.600"
+          },
+          {
+            "column": "3",
+            "row": "11",
+            "text": "25"
+          },
+          {
+            "column": "7",
+            "row": "11",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "11",
+            "text": "6.169"
+          },
+          {
+            "column": "9",
+            "row": "11",
+            "text": "0.162"
+          },
+          {
+            "column": "1",
+            "row": "12",
+            "text": ""
+          },
+          {
+            "column": "6",
+            "row": "12",
+            "text": "6.400"
+          },
+          {
+            "column": "3",
+            "row": "12",
+            "text": "30"
+          },
+          {
+            "column": "7",
+            "row": "12",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "12",
+            "text": "6.969"
+          },
+          {
+            "column": "9",
+            "row": "12",
+            "text": "0.143"
+          },
+          {
+            "column": "1",
+            "row": "13",
+            "text": ""
+          },
+          {
+            "column": "2",
+            "row": "13",
+            "text": "9. II型VICP复合保温板 · II型VICP复合保温板（包覆浆料）"
+          },
+          {
+            "column": "4",
+            "row": "13",
+            "text": "0.080"
+          },
+          {
+            "column": "5",
+            "row": "13",
+            "text": "1.25"
+          },
+          {
+            "column": "6",
+            "row": "13",
+            "text": "0.100"
+          },
+          {
+            "column": "3",
+            "row": "13",
+            "text": "10"
+          },
+          {
+            "column": "7",
+            "row": "13",
+            "text": "—"
+          },
+          {
+            "column": "8",
+            "row": "13",
+            "text": ""
+          },
+          {
+            "column": "9",
+            "row": "13",
+            "text": ""
+          }
+        ],
+        "id": "reference-construction-1",
+        "label": "平屋面（倒置，级防水）II 型 VICP屋面平屋面倒置防水等级待核对钢筋混凝土楼板 120mm"
+      }
+    ]
+  }
+]

@@ -1,0 +1,5 @@
+import fs from 'node:fs';import os from 'node:os';import path from 'node:path';import dotenv from 'dotenv';import ssh2 from 'ssh2';
+export const config=dotenv.parse(fs.readFileSync('deploy/.env.deploy'));
+export const quote=s=>`'${s.replaceAll("'",`'"'"'`)}'`;
+export async function connect(){const conn=new ssh2.Client();await new Promise((resolve,reject)=>conn.on('ready',resolve).on('error',reject).connect({host:config.DEPLOY_SSH_HOST,port:Number(config.DEPLOY_SSH_PORT||22),username:config.DEPLOY_SSH_USER||'root',readyTimeout:15000,...(config.DEPLOY_SSH_PASSWORD?{password:config.DEPLOY_SSH_PASSWORD}:{privateKey:fs.readFileSync(config.DEPLOY_SSH_KEY||path.join(os.homedir(),'.ssh/id_rsa'))})}));return conn;}
+export function exec(conn,command){return new Promise((resolve,reject)=>conn.exec(command,(error,stream)=>{if(error)return reject(error);let out='',err='';stream.on('data',b=>out+=b);stream.stderr.on('data',b=>err+=b);stream.on('close',code=>code===0?resolve(out):reject(Error('远端命令失败('+code+') '+err.slice(-1000))));}));}

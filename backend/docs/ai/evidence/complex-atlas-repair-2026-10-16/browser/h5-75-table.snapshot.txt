@@ -1,0 +1,216 @@
+- generic: 本轮修复验收 · 真实组件 / 随机隔离库
+- generic: 正式HTTP/SSE、OSS；仅本次隔离用户与人工基线。
+- generic: 对话
+- generic: 新会话
+- generic: 重读历史
+- generic: 原页 89
+- generic: 原页 90
+- generic: 原页 75
+- generic: 印刷页码 75 · 正式来源详情只读全表
+- generic: 原图平台读取状态 ready
+- generic: 重新获取授权原图
+- generic: I型VICP复合保温装饰板保温系统
+- generic: （建筑外墙热工计算参考选用表）
+- generic: 原始页面
+- generic: 页面内容
+- generic: 当前未标注匹配档位
+- generic: 查看原始页面
+- generic: 完整表格可左右滑动。构造简图请查看原始页面。
+- generic: 完整热工表 · 全部档位（14 行）
+- generic: 
+- generic: 全屏看表格
+- table "完整构造热工表，可左右滑动":
+  - rowgroup:
+    - generic: 构造 / 原始标签
+    - generic: 构造层 / 材料
+    - text: 分层厚度
+    - generic: mm
+    - text: 导热系数
+    - generic: W/(m·K)
+    - generic: 修正系数 α
+    - text: 热阻
+    - generic: (m²·K)/W
+    - text: 产品整体热阻（源文待核）
+    - generic: (m²·K)/W
+    - generic: 外墙主断面
+    - text: 传热阻 R
+    - generic: (m²·K)/W
+    - text: 传热系数 K
+    - generic: W/(m²·K)
+  - rowgroup:
+    - generic: 外墙C1-3
+    - generic: I 型 VICP
+    - generic: 外墙
+    - generic: 蒸压灰砂砖 240mm
+    - generic: 1. 混合砂浆
+    - generic: "0.870"
+    - generic: "1.00"
+    - generic: "0.023"
+    - generic: "20"
+    - generic: —
+    - generic: 2. 蒸压灰砂砖
+    - generic: "1.100"
+    - generic: "1.00"
+    - generic: "0.218"
+    - generic: "240"
+    - generic: —
+    - generic: 3. 找平层
+    - generic: "0.930"
+    - generic: "1.00"
+    - generic: "0.015"
+    - generic: "15"
+    - generic: —
+    - generic: 4. 粘结砂浆
+    - generic: "0.930"
+    - generic: "1.00"
+    - generic: "0.005"
+    - generic: "5"
+    - generic: —
+    - generic: 5. I型VICP复合保温板 · 包覆浆料
+    - generic: "0.080"
+    - generic: "1.25"
+    - generic: "0.050"
+    - generic: "5"
+    - generic: —
+    - generic: 5. I型VICP复合保温板 · 真空绝热板
+    - generic: "0.0025"
+    - generic: "1.25"
+    - generic: "1.600"
+    - generic: "5"
+    - generic: —
+    - generic: "2.116"
+    - generic: "0.473"
+    - generic: "2.560"
+    - generic: "8"
+    - generic: —
+    - generic: "3.076"
+    - generic: "0.325"
+    - generic: "3.200"
+    - generic: "10"
+    - generic: —
+    - generic: "3.716"
+    - generic: "0.269"
+    - generic: "4.800"
+    - generic: "15"
+    - generic: —
+    - generic: "5.316"
+    - generic: "0.188"
+    - generic: "6.400"
+    - generic: "20"
+    - generic: —
+    - generic: "6.916"
+    - generic: "0.145"
+    - generic: "8.000"
+    - generic: "25"
+    - generic: —
+    - generic: "8.516"
+    - generic: "0.117"
+    - generic: "9.600"
+    - generic: "30"
+    - generic: —
+    - generic: "10.116"
+    - generic: "0.099"
+    - generic: 5. I型VICP复合保温板 · 包覆浆料
+    - generic: "0.080"
+    - generic: "1.25"
+    - generic: "0.050"
+    - generic: "5"
+    - generic: —
+  - rowgroup:
+    - generic: 外墙C1-4
+    - generic: I 型 VICP
+    - generic: 外墙
+    - generic: 加气混凝土砌块 200mm
+    - generic: 1. 混合砂浆
+    - generic: "0.870"
+    - generic: "1.00"
+    - generic: "0.023"
+    - generic: "20"
+    - generic: —
+    - generic: 2. 加气混凝土砌块
+    - generic: "0.190"
+    - generic: "1.25"
+    - generic: "0.842"
+    - generic: "200"
+    - generic: —
+    - generic: 3. 找平层
+    - generic: "0.930"
+    - generic: "1.00"
+    - generic: "0.015"
+    - generic: "15"
+    - generic: —
+    - generic: 4. 粘结砂浆
+    - generic: "0.930"
+    - generic: "1.00"
+    - generic: "0.005"
+    - generic: "5"
+    - generic: —
+    - generic: 5. I型VICP复合保温板 · 包覆浆料
+    - generic: "0.080"
+    - generic: "1.25"
+    - generic: "0.050"
+    - generic: "5"
+    - generic: —
+    - generic: 5. I型VICP复合保温板 · 真空绝热板
+    - generic: "0.0025"
+    - generic: "1.25"
+    - generic: "1.600"
+    - generic: "5"
+    - generic: —
+    - generic: "2.740"
+    - generic: "0.365"
+    - generic: "2.560"
+    - generic: "8"
+    - generic: —
+    - generic: "3.700"
+    - generic: "0.270"
+    - generic: "3.200"
+    - generic: "10"
+    - generic: —
+    - generic: "4.340"
+    - generic: "0.230"
+    - generic: "4.800"
+    - generic: "15"
+    - generic: —
+    - generic: "5.940"
+    - generic: "0.168"
+    - generic: "6.400"
+    - generic: "20"
+    - generic: —
+    - generic: "7.540"
+    - generic: "0.133"
+    - generic: "8.000"
+    - generic: "25"
+    - generic: —
+    - generic: "9.140"
+    - generic: "0.109"
+    - generic: "9.600"
+    - generic: "30"
+    - generic: —
+    - generic: "10.740"
+    - generic: "0.093"
+    - generic: 5. I型VICP复合保温板 · 包覆浆料
+    - generic: "0.080"
+    - generic: "1.25"
+    - generic: "0.050"
+    - generic: "5"
+    - generic: —
+- generic: 外墙C1-3 · 来源栏目：外墙主断面 / 传热阻 R（(m²·K)/W）。来源名称按原稿保留。
+- generic: 外墙C1-4 · 来源栏目：外墙主断面 / 传热阻 R（(m²·K)/W）。来源名称按原稿保留。
+- generic: 注：1.内表面换热阻0.11(m²·K)/W，外表面换热阻0.04(m²·K)/W。
+- generic: 2.加气混凝土砌块热工性能参照华北标图集 13BJ2-12建筑外保温（节能75%）。
+- generic: 人工源图基线夹具，非修复后的真实模型输出；原图防水等级字形待人工核对；产品整体热阻未单独给出。
+- generic: 第1组构造第1档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步
+- generic: 第1组构造第2档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步
+- generic: 第1组构造第3档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步
+- generic: 第1组构造第4档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步
+- generic: 第1组构造第5档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步
+- generic: 第1组构造第6档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步
+- generic: 第1组构造第7档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步
+- generic: 第2组构造第1档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步
+- generic: 第2组构造第2档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步
+- generic: 第2组构造第3档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步
+- generic: 第2组构造第4档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步
+- generic: 第2组构造第5档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步
+- generic: 第2组构造第6档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步
+- generic: 第2组构造第7档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步

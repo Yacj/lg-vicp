@@ -34,6 +34,7 @@ import { useKnowledgeReviewNavigation } from '@/composables/useKnowledgeReviewNa
 import { KNOWLEDGE_VERSION_LOCKED_HINT, useKnowledgeVersionEditable } from '@/composables/useKnowledgeVersionEditable'
 import { usePermissionAccess } from '@/composables/usePermissionAccess'
 import { businessUserError, businessUserMessage } from '@/utils/business-error'
+import { formatDate } from '@/utils/day'
 import {
   currentRecognitionCandidate,
   EMPTY_RECOGNITION_MAPPING_STATE,
@@ -43,6 +44,7 @@ import {
   RECOGNITION_NOT_FOUND_HINT,
 } from '@/utils/knowledge-recognition'
 import { recognitionDraftPayload as apiResult, copyRecognitionDraft as copyResult } from '@/utils/knowledge-recognition-draft'
+import { knowledgeVersionStatusMetaFor } from '@/utils/professional-status'
 
 const props = withDefaults(defineProps<{
   documentId: string
@@ -765,7 +767,7 @@ onMounted(() => {
         <div class="knowledge-review__fields" :aria-busy="detailLoading">
           <t-loading v-if="detailLoading" loading text="正在加载识别结果" />
           <div class="knowledge-review__page-heading">
-            <p v-if="recognition?.confirmedAt">上次人工确认：{{ recognition.confirmedById || '确认人待核' }} · {{ recognition.confirmedAt }} · {{ recognition.versionStatus }}</p>
+            <p v-if="recognition?.confirmedAt">上次人工确认：{{ formatDate(new Date(recognition.confirmedAt)) }} · {{ knowledgeVersionStatusMetaFor(recognition.versionStatus).label }}</p>
             <div>
               <strong>文件页序：{{ selected.physicalPageNumber }}</strong>
               <span>资料页码：{{ draft.pageLabel || '—' }}</span>

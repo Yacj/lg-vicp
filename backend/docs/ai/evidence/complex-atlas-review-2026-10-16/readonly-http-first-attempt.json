@@ -1,0 +1,282 @@
+{
+  "scope": "当前代码+历史隔离库只读GET/共享查询；没有自然模型、消息写入、审核/发布或迁移",
+  "databaseReadOnly": true,
+  "checks": [
+    {
+      "kind": "B",
+      "label": "89",
+      "endpoint": "source",
+      "http": 500,
+      "success": false,
+      "error": {
+        "code": 500,
+        "message": "服务器内部错误"
+      }
+    },
+    {
+      "kind": "B",
+      "label": "89",
+      "endpoint": "image",
+      "http": 500,
+      "type": "application/json; charset=utf-8",
+      "bytes": 92,
+      "sha256": "cdef8f8c28051dc778ee4a62d4f8f83d418bbe2345f61166048dc7fe2e938b3f"
+    },
+    {
+      "kind": "C",
+      "label": "89",
+      "endpoint": "source",
+      "http": 200,
+      "success": true,
+      "groups": 2
+    },
+    {
+      "kind": "C",
+      "label": "89",
+      "endpoint": "image",
+      "http": 500,
+      "type": "application/json; charset=utf-8",
+      "bytes": 92,
+      "sha256": "2068901352d884ebae7a87cf2e7a3f345c1df85562ee74d4745c03f16744b8fa"
+    },
+    {
+      "kind": "B",
+      "label": "90",
+      "endpoint": "source",
+      "http": 500,
+      "success": false,
+      "error": {
+        "code": 500,
+        "message": "服务器内部错误"
+      }
+    },
+    {
+      "kind": "B",
+      "label": "90",
+      "endpoint": "image",
+      "http": 500,
+      "type": "application/json; charset=utf-8",
+      "bytes": 92,
+      "sha256": "c944cc2683c59cdbb502ca34720c0b3a23c73bd56447e16d30695ef7408c8937"
+    },
+    {
+      "kind": "C",
+      "label": "90",
+      "endpoint": "source",
+      "http": 200,
+      "success": true,
+      "groups": 2
+    },
+    {
+      "kind": "C",
+      "label": "90",
+      "endpoint": "image",
+      "http": 500,
+      "type": "application/json; charset=utf-8",
+      "bytes": 92,
+      "sha256": "56eb6fa7e1354c657bbc32152fb86f5ec14d45b9939f0fcfc89ce0e2b372140c"
+    },
+    {
+      "kind": "B",
+      "label": "75",
+      "endpoint": "source",
+      "http": 500,
+      "success": false,
+      "error": {
+        "code": 500,
+        "message": "服务器内部错误"
+      }
+    },
+    {
+      "kind": "B",
+      "label": "75",
+      "endpoint": "image",
+      "http": 500,
+      "type": "application/json; charset=utf-8",
+      "bytes": 92,
+      "sha256": "ec77179c7016f5c3ec65065b941a710a89154f066725de8078631003aafbcefe"
+    },
+    {
+      "kind": "C",
+      "label": "75",
+      "endpoint": "source",
+      "http": 200,
+      "success": true,
+      "groups": 2
+    },
+    {
+      "kind": "C",
+      "label": "75",
+      "endpoint": "image",
+      "http": 500,
+      "type": "application/json; charset=utf-8",
+      "bytes": 92,
+      "sha256": "558d895b8948b265c62a6887ee44450386f5e6e108a8b1857b0d0509797d825b"
+    }
+  ],
+  "shared": [
+    {
+      "label": "89",
+      "thicknessMm": 20,
+      "matched": 2,
+      "groups": 2,
+      "modelEqual": true,
+      "rows": [
+        {
+          "label": "坡屋面（正置，级防水）",
+          "constructionId": "kp-b9f3f5e38c751b58004551af-0",
+          "placement": "UPRIGHT",
+          "base": "钢筋混凝土楼板",
+          "optionId": "kp-b9f3f5e38c751b58004551af-0-o3",
+          "r": 5.225,
+          "k": 0.191
+        },
+        {
+          "label": "坡屋面（倒置，级防水）",
+          "constructionId": "kp-b9f3f5e38c751b58004551af-1",
+          "placement": "INVERTED",
+          "base": "钢筋混凝土楼板",
+          "optionId": "kp-b9f3f5e38c751b58004551af-1-o3",
+          "r": 5.198,
+          "k": 0.192
+        }
+      ]
+    },
+    {
+      "label": "89",
+      "thicknessMm": 25,
+      "matched": 2,
+      "groups": 2,
+      "modelEqual": true,
+      "rows": [
+        {
+          "label": "坡屋面（正置，级防水）",
+          "constructionId": "kp-b9f3f5e38c751b58004551af-0",
+          "placement": "UPRIGHT",
+          "base": "钢筋混凝土楼板",
+          "optionId": "kp-b9f3f5e38c751b58004551af-0-o4",
+          "r": 6.025,
+          "k": 0.166
+        },
+        {
+          "label": "坡屋面（倒置，级防水）",
+          "constructionId": "kp-b9f3f5e38c751b58004551af-1",
+          "placement": "INVERTED",
+          "base": "钢筋混凝土楼板",
+          "optionId": "kp-b9f3f5e38c751b58004551af-1-o4",
+          "r": 5.998,
+          "k": 0.167
+        }
+      ]
+    },
+    {
+      "label": "90",
+      "thicknessMm": 20,
+      "matched": 2,
+      "groups": 2,
+      "modelEqual": true,
+      "rows": [
+        {
+          "label": "平屋面（正置，级防水）",
+          "constructionId": "kp-9fdc3660a7612b938800c5d3-0",
+          "placement": "UPRIGHT",
+          "base": "钢筋混凝土楼板",
+          "optionId": "kp-9fdc3660a7612b938800c5d3-0-o3",
+          "r": 5.369,
+          "k": 0.186
+        },
+        {
+          "label": "平屋面（倒置，级防水）",
+          "constructionId": "kp-9fdc3660a7612b938800c5d3-1",
+          "placement": "INVERTED",
+          "base": "钢筋混凝土楼板",
+          "optionId": "kp-9fdc3660a7612b938800c5d3-1-o3",
+          "r": 5.369,
+          "k": 0.186
+        }
+      ]
+    },
+    {
+      "label": "90",
+      "thicknessMm": 25,
+      "matched": 2,
+      "groups": 2,
+      "modelEqual": true,
+      "rows": [
+        {
+          "label": "平屋面（正置，级防水）",
+          "constructionId": "kp-9fdc3660a7612b938800c5d3-0",
+          "placement": "UPRIGHT",
+          "base": "钢筋混凝土楼板",
+          "optionId": "kp-9fdc3660a7612b938800c5d3-0-o4",
+          "r": 6.169,
+          "k": 0.162
+        },
+        {
+          "label": "平屋面（倒置，级防水）",
+          "constructionId": "kp-9fdc3660a7612b938800c5d3-1",
+          "placement": "INVERTED",
+          "base": "钢筋混凝土楼板",
+          "optionId": "kp-9fdc3660a7612b938800c5d3-1-o4",
+          "r": 6.169,
+          "k": 0.162
+        }
+      ]
+    },
+    {
+      "label": "75",
+      "thicknessMm": 20,
+      "matched": 2,
+      "groups": 2,
+      "modelEqual": true,
+      "rows": [
+        {
+          "label": "外墙C1-3",
+          "constructionId": "kp-67a87b7d07122117ba20891e-0",
+          "placement": null,
+          "base": "蒸压灰砂砖",
+          "optionId": "kp-67a87b7d07122117ba20891e-0-o4",
+          "r": 6.916,
+          "k": 0.145
+        },
+        {
+          "label": "外墙C1-4",
+          "constructionId": "kp-67a87b7d07122117ba20891e-1",
+          "placement": null,
+          "base": "加气混凝土砌块",
+          "optionId": "kp-67a87b7d07122117ba20891e-1-o4",
+          "r": 7.54,
+          "k": 0.133
+        }
+      ]
+    },
+    {
+      "label": "75",
+      "thicknessMm": 25,
+      "matched": 2,
+      "groups": 2,
+      "modelEqual": true,
+      "rows": [
+        {
+          "label": "外墙C1-3",
+          "constructionId": "kp-67a87b7d07122117ba20891e-0",
+          "placement": null,
+          "base": "蒸压灰砂砖",
+          "optionId": "kp-67a87b7d07122117ba20891e-0-o5",
+          "r": 8.516,
+          "k": 0.117
+        },
+        {
+          "label": "外墙C1-4",
+          "constructionId": "kp-67a87b7d07122117ba20891e-1",
+          "placement": null,
+          "base": "加气混凝土砌块",
+          "optionId": "kp-67a87b7d07122117ba20891e-1-o5",
+          "r": 9.14,
+          "k": 0.109
+        }
+      ]
+    }
+  ],
+  "blockedObjectOperations": []
+}

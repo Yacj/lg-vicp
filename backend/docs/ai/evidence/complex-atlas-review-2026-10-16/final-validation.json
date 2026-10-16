@@ -1,0 +1,26 @@
+{
+  "checkedAt": "2026-10-16T11:57:29.809Z",
+  "reportLocalLinks": 77,
+  "missingLinks": [],
+  "sourceCountsUnchanged": true,
+  "sourceWrites": 0,
+  "migrations": 0,
+  "deployments": 0,
+  "images": [
+    {
+      "page": "89",
+      "path": "C:/Users/zjj/AppData/Local/Temp/codex-clipboard-337dcafe-07cf-42cd-a23e-a0375e9b8e89.png",
+      "sha256": "6d48ac8f8a746eb6c012f8c9ad6c2bf24a4161ab65b00ee9222f351e41a4ba9c"
+    },
+    {
+      "page": "90",
+      "path": "C:/Users/zjj/AppData/Local/Temp/codex-clipboard-31f00e56-e9bb-4214-b18e-fa01f152823e.png",
+      "sha256": "3cda1d4a7da48652b779c637bf19418c0fd4b894dccaaf0fdb951b7a8d916aa3"
+    },
+    {
+      "page": "75",
+      "path": "C:/Users/zjj/AppData/Local/Temp/codex-clipboard-6c64e27d-c83e-4451-bf3c-3b76d729356f.png",
+      "sha256": "a712567ae0622aa41f14961f2cf6cd5ebe28e8ecf701391c0d6814dc3e6ebcea"
+    }
+  ]
+}

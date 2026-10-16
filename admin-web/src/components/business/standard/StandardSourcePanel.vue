@@ -368,7 +368,7 @@ function getActions(row: TableRowData): AppTableAction[] {
               <t-input v-model="row.label" maxlength="120" placeholder="如：地方标准公告" />
             </t-form-item>
             <t-form-item label="栏目地址" required-mark>
-              <t-input v-model="row.url" maxlength="1000" placeholder="https://..." />
+              <t-input v-model="row.url" maxlength="1000" placeholder="请输入标准公告栏目网址" />
             </t-form-item>
             <t-form-item label="分页方式">
               <t-select v-model="row.paginationMode" :options="paginationOptions" />

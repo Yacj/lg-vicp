@@ -1,0 +1,47 @@
+{
+  "scope": "真实依赖只读预检，不是业务UAT",
+  "startedAt": "2026-10-16T11:28:52.476Z",
+  "writes": 0,
+  "configuration": {
+    "DATABASE_URL": true,
+    "AI_UAT_DATABASE_ADMIN_URL": false,
+    "AI_UAT_CONFIG_DATABASE_URL": false,
+    "REDIS_URL": true,
+    "STORAGE_ACCESS_KEY": true,
+    "STORAGE_SECRET_KEY": true,
+    "AI_CONFIG_ENCRYPTION_KEY": true
+  },
+  "database": {
+    "status": "PASS",
+    "transactionReadOnly": "on",
+    "roleCanCreateDatabase": true
+  },
+  "sourceInventory": {
+    "thermal_reference_rows": 2,
+    "knowledge_pages": 79,
+    "solution_snapshots": 0,
+    "reports": 1,
+    "thermal_candidate_selections": 0,
+    "ai_conversations": 289
+  },
+  "models": [
+    {
+      "enabled": true,
+      "last_test_status": "PASSED",
+      "count": 1
+    }
+  ],
+  "scenes": [
+    {
+      "code": "general_chat",
+      "enabled": true,
+      "allow_tools": true,
+      "allow_knowledge_search": true
+    }
+  ],
+  "redis": {
+    "status": "PASS",
+    "operation": "PING_ONLY"
+  },
+  "finishedAt": "2026-10-16T11:28:52.773Z"
+}

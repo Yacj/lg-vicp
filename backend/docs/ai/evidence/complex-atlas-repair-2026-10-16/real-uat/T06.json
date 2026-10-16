@@ -1,0 +1,19 @@
+{
+  "id": "T06",
+  "group": "ambiguous",
+  "question": "只看倒置屋面25厚的K。",
+  "status": "FAIL",
+  "conversationId": "5b141ddc-bf7f-4406-92c7-ad459a49ba9b",
+  "answer": "想确认一下：构造属性或印刷页码未能核验，请明确原文。",
+  "facts": [],
+  "pages": [],
+  "historyReturned": true,
+  "persistedUrlFree": true,
+  "solutionStates": 0,
+  "reports": 0,
+  "snapshots": 0,
+  "error": {
+    "name": "AssertionError",
+    "message": "Expected values to be strictly equal:\n\n0 !== 2\n"
+  }
+}

@@ -1,0 +1,51 @@
+[
+  {
+    "name": "DRAFT不能向C端来源开放",
+    "passed": true,
+    "response": {
+      "http": 200,
+      "success": false,
+      "error": {
+        "code": 404,
+        "message": "知识资料不存在或尚未发布"
+      },
+      "requestId": "req-1"
+    }
+  },
+  {
+    "name": "别人的会话不可读取",
+    "response": {
+      "http": 200,
+      "success": false,
+      "error": {
+        "code": 404,
+        "message": "AI 会话不存在或无权查看"
+      },
+      "requestId": "req-15"
+    }
+  },
+  {
+    "name": "C端不可访问B端审核",
+    "response": {
+      "http": 200,
+      "success": false,
+      "error": {
+        "code": 403,
+        "message": "当前登录端无权访问后台接口"
+      },
+      "requestId": "req-l"
+    }
+  },
+  {
+    "name": "无令牌不可访问B端审核",
+    "response": {
+      "http": 401,
+      "success": false,
+      "error": {
+        "code": 401,
+        "message": "登录状态无效或已过期"
+      },
+      "requestId": "req-m"
+    }
+  }
+]

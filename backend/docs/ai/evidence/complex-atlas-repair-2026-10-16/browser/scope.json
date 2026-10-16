@@ -1,0 +1,27 @@
+{
+  "ui": "真实正式组件+隔离HTTP/SSE/OSS，使用专用验收入口，不是整站或原生端验收",
+  "tableRows": "12/12 PASS",
+  "h5Images": "3/3 2048x1471 PASS",
+  "bImages": "3/3 2048x1471 PASS",
+  "conversation": "T03→T11同会话+正式历史重读已执行，见请求日志",
+  "horizontalScroll": {
+    "headerLeft": 627,
+    "bodyLeft": 627,
+    "contentWidth": 961,
+    "visibleWidth": 334
+  },
+  "exactWidths": {
+    "requested": [
+      320,
+      375,
+      430
+    ],
+    "observedCssWidth": 360,
+    "status": "NOT_RUN",
+    "reason": "浏览器viewport覆盖及iframe/viewport元数据校准没有得到对应实际尺寸，不能将请求尺寸当测量结果"
+  },
+  "nativeApp": "NOT_RUN",
+  "miniProgram": "NOT_RUN",
+  "realSignedUrlExpiry": "NOT_RUN",
+  "fullProductRouteReload": "NOT_RUN"
+}

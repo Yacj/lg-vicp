@@ -1,0 +1,5 @@
+{
+  "command": "verify-complex-atlas-recognition --output new evidence --image-dir byte-identical temp copies",
+  "exitCode": 1,
+  "finishedAt": "2026-10-16T19:29:13.9261508+08:00"
+}

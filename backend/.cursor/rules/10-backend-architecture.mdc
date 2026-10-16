@@ -7,6 +7,8 @@ alwaysApply: false
 - PM2部署在数据库步骤/重载前验证Chromium、中文字体与真实PDF；默认复用，显式安装只支持白名单Linux。国内镜像保持锁文件归档路径，不覆盖.env/系统源；失败恢复dist且不继续数据库/PM2。见docs/reports/pm2-report-runtime-2026-10-14.md。
 
 - `src/app.ts` 只负责 Fastify 插件和路由注册。
+- 用户明确实际环境只使用阿里云 OSS，没有 MinIO；隔离测试也必须校验 OSS 配置和独立对象前缀，不启动或依赖 MinIO。凭据不得写入源码、日志或报告。
+- v2确认页VERIFY只读绑定本人同端24h状态和最近显示的当前授权版本/revision/构造/档位；不按待核数字反选，不生成Candidate，裸R按唯一确认来源列解释。B端图片签名失败保留确认JSON和表格，详见docs/ai/complex-atlas-repair-2026-10-16.md。
 - `src/modules/<模块>` 管理业务路由、schema 和服务。
 - `src/plugins` 管理数据库、Redis、队列、存储、认证、错误和 Swagger。
 - `src/workers` 管理耗时异步任务，API 不同步执行解析和导出。

@@ -1,0 +1,56 @@
+[
+  {
+    "event": "message",
+    "data": {
+      "messageId": "f7e49050-0002-49ed-9104-05c20439567b",
+      "userMessageId": "e901e32d-a8cd-45ef-9152-f12a85d20417",
+      "conversationId": "5b141ddc-bf7f-4406-92c7-ad459a49ba9b",
+      "requestId": "req-i"
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "analyzing",
+      "message": "正在分析问题..."
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "composing",
+      "message": "正在整理回答..."
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "想确认一下：构造属性或印刷页码未能核验，请明确原文。"
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "completed",
+      "message": "回答整理完成"
+    }
+  },
+  {
+    "event": "done",
+    "data": {
+      "messageId": "f7e49050-0002-49ed-9104-05c20439567b",
+      "conversationId": "5b141ddc-bf7f-4406-92c7-ad459a49ba9b",
+      "finishReason": "COMPLETED",
+      "usage": {},
+      "model": {
+        "id": "deepseek-chat"
+      },
+      "promptVersion": {
+        "id": "ae0f8064-e3d6-43c0-ab4c-174188be34e4",
+        "version": 3
+      },
+      "sources": [],
+      "latencyMs": 4366
+    }
+  }
+]

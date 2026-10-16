@@ -1,0 +1,15 @@
+{
+  "id": "T10",
+  "group": "compliance",
+  "question": "这些屋面做法在某省2025年能达标吗？生成正式报告。",
+  "status": "PARTIAL",
+  "conversationId": "4274375d-c07f-4d5b-b84c-bcc7eb76bc5f",
+  "answer": "想确认一下：本轮正式报告生成尚未可靠确认，请明确要执行的一项操作；也可以通过对应按钮继续。",
+  "facts": [],
+  "pages": [],
+  "historyReturned": true,
+  "persistedUrlFree": true,
+  "solutionStates": 0,
+  "reports": 0,
+  "snapshots": 0
+}

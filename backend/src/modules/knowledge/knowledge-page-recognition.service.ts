@@ -223,12 +223,18 @@ export async function getPageRecognition(app: FastifyInstance, pageId: string) {
   const version = await requireVersionForPage(app.db, page.versionId);
   const meta = readPageRecognitionMeta(page.metadata);
   let pageImageUrl: string | null = null;
+  const imageWarnings = [...(meta.imageWarnings ?? [])];
   if (page.pageImageObjectKey) {
-    pageImageUrl = await app.storage.createDownloadUrl(
-      page.pageImageObjectKey,
-      getPageImageDownloadName(page.pageImageObjectKey, page.physicalPageNumber),
-      3600
-    );
+    try {
+      pageImageUrl = await app.storage.createDownloadUrl(
+        page.pageImageObjectKey,
+        getPageImageDownloadName(page.pageImageObjectKey, page.physicalPageNumber),
+        3600
+      );
+    } catch {
+      imageWarnings.push("原图授权地址暂不可用，已保留确认表格；可重新获取原图后重试。");
+      app.log?.warn({ pageId: page.id }, "原图签名暂不可用，保留识别详情与确认表格");
+    }
   }
   let thermalSetEditable: boolean | null = null;
   const linkedRows = await app.db.select().from(thermalReferenceRows).where(eq(thermalReferenceRows.sourcePageId, page.id));
@@ -270,7 +276,7 @@ export async function getPageRecognition(app: FastifyInstance, pageId: string) {
     lastRecognitionErrorCode: meta.lastRecognitionErrorCode ?? null,
     recognitionRunId: meta.recognitionRunId ?? null,
     reviewIssues: assessBatchConfirmSafety(meta.draftStructuredData ?? meta.structuredData ?? { fullText: "", systems: [] }).reasons,
-    imageWarnings: meta.imageWarnings ?? [],
+    imageWarnings,
     versionStatus: version.status,
     versionEditable: isKnowledgeVersionEditable(version.status),
     thermalSetEditable

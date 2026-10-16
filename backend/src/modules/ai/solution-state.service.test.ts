@@ -23,7 +23,11 @@ vi.mock("../thermal/thermal-candidate.service.js", () => ({ queryThermalCandidat
 vi.mock("./tools/thermal-calculate.tool.js", async importOriginal => ({ ...await importOriginal<typeof import("./tools/thermal-calculate.tool.js")>(), emitReferencePages: mocks.pages }));
 vi.mock("./semantic-query.service.js", () => ({ parseSemanticQuery: mocks.semantic }));
 vi.mock("../thermal/thermal-query-dictionary.service.js", () => ({ loadThermalQueryDictionary: async () => ({ entities: [], aliases: [] }) }));
-vi.mock("./ai-conversation-state.service.js", () => ({ saveConversationTaskState: vi.fn() }));
+vi.mock("./ai-conversation-state.service.js", () => ({ saveConversationTaskState: async (app: any, conversationId: string, state: unknown) => {
+  const existing = app.db.rows(aiConversationStates).find((row: any) => row.conversationId === conversationId);
+  if (existing) existing.taskStateJson = state;
+  else app.db.rows(aiConversationStates).push({ conversationId, taskStateJson: state });
+} }));
 vi.mock("./tools/tool-runtime.js", async importOriginal => ({ ...await importOriginal<typeof import("./tools/tool-runtime.js")>(),
   runRegisteredTool: async (_ctx: unknown, _name: unknown, _args: unknown, _options: unknown, run: () => unknown) => run() }));
 vi.mock("./ai-reference-pages.service.js", async original => ({ ...await original<typeof import("./ai-reference-pages.service.js")>(), readConsumableReferencePages: mocks.readable }));

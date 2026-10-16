@@ -1,4 +1,211 @@
-# 复杂建筑热工图集三端闭环：阶段 0 现状审计
+# 复杂建筑热工图集三端闭环：阶段 1—5 实施后只读复核
+
+复核日期：2026-10-16（Asia/Hong_Kong，约 19:24—20:00）。本节基于 **`E:/code/lg` 当前工作区、HEAD `be72ff3`**；下文保留的 2026-10-15 阶段 0 记录是历史证据，不能用于判断当前版本。用户本轮要求检查方案落实及测试，不授权继续实施、迁移或部署。
+
+**结论：PARTIAL；尚未达到整套方案的联合验收条件。** 阶段 1—4 的主要合同及组件已经实现，后续修复也已让部分真实自然问答产生正确引用，不能沿用早期“自然 SSE 全部失败”的结论。但当前仍有可复现代码缺口、全量检查失败及关键 NOT_RUN 项。“阶段工作做过”不能等同于“阶段验收通过”。
+
+本轮新证据统一放在 [complex-atlas-review-2026-10-16](evidence/complex-atlas-review-2026-10-16/)。产品源码、数据库状态、旧确认 JSON、Candidate、Snapshot、PDF 未改；只更新本文及审计证据。构建工具自动产生的 App 声明文件/`pages.json` 改动已恢复到本轮开始时的干净状态。
+
+## R1. 按原方案逐阶段核验
+
+| 阶段 / 方案要求 | 当前落实情况 | 本轮结论与测试范围 |
+| --- | --- | --- |
+| 1：Schema/Prompt、原始标签、屋面属性、来源列、层/产品/构造 R 分离 | 已有可选 v2 合同、候选证据校验；不生成正式映射 ID；新结果进入 REVIEW_REQUIRED | **PARTIAL**。当前相关单测通过；历史最新真实识别 6 构造/38 档数值及身份通过，但防水字形、来源符号等仍需人工复核。本轮真实识别因凭据解密失败 NOT_RUN |
+| 1：无印刷编号也能审核、独立身份、旧 JSON 兼容 | 单页确认与热工同步分开；快照 hash + 页身份 + 组/档位 ID；旧 JSON 不补字段 | **PASS（单元/Fixture）/ PARTIAL（真实流程）**。本轮不执行确认或 Worker；没有“全 Pipeline 重跑”证明 |
+| 2：B 审核、来源列头、两组全表、问答比较表、原图 | 当前真实 Vue/TDesign 组件可显示/编辑 v2；原文 R 不再固定写 R₀；完整表接线存在 | **PARTIAL**。浏览器 Fixture 六次问答/12 行正确，审核控件/三页全表/原图有截图；真实 GET 遇存储故障时整个识别详情 500，不能完整降级 |
+| 3：发布确认事实查询、属性组合、同值不去重、后端比较 | 共享 `queryConfirmedPageFacts`，复用语义合同和现有工程过滤；不用虚假产品/方案 ID 补足 Candidate | **PASS（本轮隔离库共享服务 12 行）/ PARTIAL（全自然链）**。T11 无编号来源的数值核验有明确代码缺口；本轮不写消息，真实自然 SSE 未重跑 |
+| 3：RenderModel/引用/版本/权限/历史 | 两端可选 DTO 对齐，来源 ID 与确认 revision 绑定，历史重新读取/授权；签名 URL 不持久化 | **PASS（所列单测、GET 负例）/ PARTIAL（完整历史）**。本轮实测未登录 401、C 访问 B 拒绝、旧 revision 拒绝；跨项目全矩阵及真实历史重进仍未补齐 |
+| 4：独立结构化 UI、多个构造、全部档位、小屏、图表切换 | `AiMessageList` 下的结构化引用链与普通 mp-html 分开；原列名/单位透传 | **PASS（本轮 H5 来源 GET/Fixture 的所列显示项）/ PARTIAL（整端）**。真实 GET 三页 DOM 12/12；实际 320/375/430px 补测；原生 App/微信小程序/触控性能 NOT_RUN |
+| 4：原图授权、失败、续取、全屏与位置恢复 | 已新增授权原字节 GET，前端支持下载/临时路径及恢复；原图不重建 | **PARTIAL**。本地 PNG 实际浏览器解码/模拟 403 恢复通过；当前 MinIO ECONNREFUSED，真实授权图加载未通过；正式路由往返/真实过期恢复仍不足 |
+| 5：真实 T01—T12、旧 A3/Confirm/Snapshot/PDF、安全与全量检查 | 已有真实隔离 UAT 和后续四次尝试；缺少完整最终结案 | **FAIL（完整验收）**。最新历史 T11 未核验，T12 缺完整实测，报告/移动端不足；本轮 Backend 测试、Admin 构建、两端 lint/类型仍有失败 |
+
+阶段交付原文：[Backend 阶段 1](complex-atlas-phase1-2026-10-15.md)、[Admin 阶段 2](../../../admin-web/docs/ai/complex-atlas-phase2-2026-10-15.md)、[Backend 阶段 3](complex-atlas-phase3-2026-10-16.md)、[App 阶段 4](../../../app/docs/ai/complex-atlas-phase4-2026-10-16.md)、[阶段 5](complex-atlas-phase5-2026-10-16.md)。原报告中的 PARTIAL/FAIL 从未构成全阶段验收通过。
+
+## R2. 当前真实调用链、函数和合同
+
+```mermaid
+flowchart TD
+  A[原始PNG / 印刷页码与物理页序] --> B[Vision Prompt / generateObject / Zod]
+  B --> C[preparePageRecognitionCandidate / REVIEW_REQUIRED草稿]
+  C --> D[B端人工编辑 / savePageRecognitionDraft]
+  D --> E[confirmPageRecognition / confirmedStructuredData]
+  E --> F[版本索引 / 审核 / 发布门禁]
+  F --> G[Domain语义 / pageQuery / Backend Policy]
+  G --> H[共享确认页事实查询 / 确定性比较]
+  H --> I[RenderModel / 引用标记解析 / reference_pages SSE]
+  I --> J[B测试回答 / 命中比较 / 全表与原图]
+  I --> K[App Store / AiMessageList / 独立结构化表]
+  K --> L[来源详情GET / 原字节授权GET / 全屏表图]
+```
+
+| 环节 | 当前准确文件 / 函数 / 字段 | 状态及边界 |
+| --- | --- | --- |
+| 原 PNG 与页码 | `backend/src/shared/page-label.ts`；`physicalPageNumber` 与 `pageLabel/pageLabelSource/pageLabelVerified` 分开 | PASS（原件 hash、页码 DTO/单测）；不把上传页序冒充印刷页 |
+| 识别 | `backend/src/shared/page-recognition.ts` 的 layer/system/option/result schema 与 `PAGE_RECOGNITION_SYSTEM_PROMPT`；`knowledge-page-recognition.service.ts/buildPageRecognitionPrompt/runPageRecognitionJob` | PARTIAL；本轮模型未调用成功，Worker NOT_RUN |
+| 候选证据 | `page-recognition-evidence.ts/preparePageRecognitionCandidate/validatePageRecognitionEvidence`；`knowledge-page-recognition-output.ts/repairPageRecognitionText/normalizePageRecognitionAnnotations` | PASS（单测）；无事实补算；符号混入单位留空并 warning；不能代替人工看图 |
+| 审核确认 | `KnowledgeRecognitionReview.vue` → `RecognitionThermalSection.vue` / `RecognitionEvidenceSection.vue` → `knowledge-recognition-draft.ts`；`PUT /platform/knowledge/pages/:id/recognition-draft`、`POST .../confirm-recognition` | PARTIAL；当前浏览器看控件及内存 Fixture，未向数据库保存或确认 |
+| 正式同步/发布 | `knowledge-page-recognition.service.ts/confirmPageRecognition/syncThermalRowsFromConfirmedPage/assessBatchConfirmSafety`；`knowledge-version-guard.ts`；原版本 readiness/index/workflow | PASS（现有单测/静态边界），本轮真实确认/发布 NOT_RUN；缺产品 R 的资料不能伪造热工行 |
+| 构造/档位身份 | `knowledge-page-render.ts/buildKnowledgePageRenderModel`；`constructionId=kp-<revision>-<group>`、`optionId=...-o<index>`、v2 `confirmedRevision` | PASS（当前测试）；revision 含 pageId+完整确认 JSON；重排/重确认后引用失效，不承诺跨修订 ID 永久相同 |
+| 自然语义接入 | `ai-domain-turn-decision.service.ts/resolveDomainTurn` → `ai-domain-policy.ts/applyDomainPolicy` → `semantic-query.service.ts/parseSemanticQuery` → `thermal/semantic-query.ts/applySemanticQuery` | PARTIAL；当前 AST 规则检查通过；后续修复使用 pageQuery/readFields/集合，没有增加样本页码分支 |
+| B/C 共用事实 | `knowledge/confirmed-page-facts.ts/queryConfirmedPageFacts/confirmedFactExtremum`；B `knowledge-test-reference.ts/loadKnowledgeTestReferences`；C `ai-reference-pages.service.ts/loadPublishedKnowledgeReferences` | PASS（本轮真实隔离库结构化条件注入，6 次/12 行）；不等于自然语言分类通过 |
+| 文本与 SSE 引用 | `knowledge-test-reference.ts/formatConfirmedLookupAnswer/KnowledgeReferenceCitationStream`；`ai-generation.service.ts` 的 `reference_pages`/done；B `knowledge-workflow.service.ts` 的 `streamVersionTestQa` | PARTIAL；本轮真实业务自然 SSE NOT_RUN；本地 Fixture SSE 与历史真实原始 SSE 分开 |
+| 引用持久化/历史 | `ai-reference-pages.service.ts/persistMessageReferencePages/hydrateMessageReferencePages/restoreReferencePageMatches`；`confirmed-page-lookup-state.ts/currentConfirmedPageLookup` | PASS（相关单测），本人同端同会话/项目及24h约束；本轮历史 HTTP/SSE 正向 NOT_RUN |
+| B 展示 | `KnowledgeTestPanel` → `KnowledgeAnswerContent` → `KnowledgeAnswerReferencePage` → `KnowledgeStructuredContent` → `ThermalOptionTable`；详情 `KnowledgePageViewer`；原图 `KnowledgePageImage` | PASS（当前 Fixture 比较表和完整表）；真实详情依赖存储时 FAIL，见 R6 |
+| App 展示 | `store/assistant.ts` 的 `reference_pages`/done → `AiMessageList` → `AiReferenceAnswer` → `AiAnswerReferencePage` → `ReferencePageViewer` → `ThermalPageTable` / `StructuredThermalSection` | PASS（所列 H5 显示）；没有把来源表塞进 Markdown/字符串 HTML；完整真实自然会话/设备仍 PARTIAL |
+| 来源/原图 | `GET /api/v1/ai/knowledge/source-detail` → `knowledge-wiki-read.service.ts/resolveSourceDetail`；B/C `GET .../pages/:pageId/image` → `knowledge-page-image.ts/readPageImageBytes`；App `useReferencePageImage/useReferencePageResource` | 来源表 PASS；授权图片当前环境 FAIL（MinIO 拒绝连接），OSS/真机复验 NOT_RUN |
+
+以上 `backend/` 路径相对 `E:/code/lg`；B/App 组件路径分别是 `admin-web/src/components/business/knowledge/`、`app/src/components/ai/`。没有把“组件存在”记为端到端通过。
+
+兼容字段已存在：`schemaVersion=2`、`rawConstructionLabel`、`constructionCodeEvidence`、`applicationPart`、`roofForm`、`placement`、`waterproofGrade`、`sourceColumns.{fieldKey,label,groupLabel,symbol,unit,scope}`、`sourceRowLabel/fieldEvidence/layerValues`；查询 `readFields/placements/specClasses/constructionCodes`；引用 `versionId/confirmedRevision/pageLabelVerified`。保留旧 DTO 可选退化；没有依据要求新增数据库字段或迁移。
+
+## R3. 原图、真实识别 JSON 与 12 行对照
+
+三张本轮附件 SHA-256 与既有原件/Fixture 完全相同，未重画或修改：
+
+| 印刷页 | 原 PNG SHA-256 | 最新历史真实 raw / structured / RenderModel |
+| --- | --- | --- |
+| 89 | `6d48ac8f8a746eb6c012f8c9ad6c2bf24a4161ab65b00ee9222f351e41a4ba9c` | [raw](evidence/complex-atlas-fixes-2026-10-16/vision-rerun/page-89.raw.json) / [structured](evidence/complex-atlas-fixes-2026-10-16/vision-rerun/page-89.structured.json) / [render](evidence/complex-atlas-fixes-2026-10-16/vision-rerun/page-89.render.json) |
+| 90 | `3cda1d4a7da48652b779c637bf19418c0fd4b894dccaaf0fdb951b7a8d916aa3` | [raw](evidence/complex-atlas-fixes-2026-10-16/vision-rerun/page-90.raw.json) / [structured](evidence/complex-atlas-fixes-2026-10-16/vision-rerun/page-90.structured.json) / [render](evidence/complex-atlas-fixes-2026-10-16/vision-rerun/page-90.render.json) |
+| 75 | `a712567ae0622aa41f14961f2cf6cd5ebe28e8ecf701391c0d6814dc3e6ebcea` | [raw](evidence/complex-atlas-fixes-2026-10-16/vision-rerun/page-75.raw.json) / [structured](evidence/complex-atlas-fixes-2026-10-16/vision-rerun/page-75.structured.json) / [render](evidence/complex-atlas-fixes-2026-10-16/vision-rerun/page-75.render.json) |
+
+本轮尝试运行正式识别核心脚本，配置数据库只读保护已生效，但 `resolveDefaultVisionModel` 在解密阶段失败（`Unsupported state or unable to authenticate data`），没有发出三图模型请求。状态 **NOT_RUN（环境阻断）**，见 [model-preflight](evidence/complex-atlas-review-2026-10-16/model-preflight.json)、[vision/report](evidence/complex-atlas-review-2026-10-16/vision/report.json)。不修改密钥或模型配置来绕过；历史 raw 不冒充本轮新输出。
+
+历史最新三页均为 PARTIAL：89/90 各两构造、每组 5/10/15/20/25/30 共 6 档；75 两构造、每组 5/8/10/15/20/25/30 共 7 档。38/38 数值及身份检查通过，印刷页三页均识别正确。完整层名称、厚度、λ/α/R、原文、逐档证据均在上述 JSON，可逐项复查；单次成功不证明冻结版本的重复稳定性。
+
+- 89：坡屋面正置/倒置，I 型，钢筋混凝土楼板120mm；两组无印刷构造编码；包覆层/芯层独立，20/25mm 芯层 R 为4.800/5.600，产品整体 R 空；原表 R/K 不作换算。
+- 90：平屋面正置/倒置，II 型，钢筋混凝土楼板120mm；两组无印刷构造编码；同值仍有两个构造；包覆10mm、芯层档位独立，完整四条原施工备注保留。
+- 75：C1-3 蒸压灰砂砖240mm、C1-4 加气混凝土砌块200mm，I 型；两组各7档，20/25mm 芯层 R 为6.400/8.000，不能当产品整体 R。两条原备注保留。
+- 屋面防水字形在历史输出/人工 Fixture 中仍多为空或“级防水”，没有达到用户提供的 I 级人工基线；不能由 VICP I/II 型补齐。历史89页部分 symbol 混入单位被清空，90页又补写未印出的 λ/层 R 符号，需逐字人工审查。Schema/Prompt 的约束不等于模型已全遵守。
+- 人工 Fixture 的90页正置末三层仍有4/5/6编号错位；真实 UAT临时副本改为5/6/7，原 Fixture未改。因此 Fixture 的“12行数字通过”不代表完整层标签通过。
+
+三图组表头原文均为 **“外墙主断面”**，整构造指标列为 **“传热阻 R”**，不是 R₀；`totalThermalResistance` 对应该原表列。当前 B/H5 读取来源字段，不因屋面主题改原文组名。R 单位 `(m²·K)/W`，K 单位 `W/(m²·K)`。
+
+下表 PASS 范围：**本轮真实隔离库共享服务 + H5真实来源GET的DOM + B人工Fixture问答**；不是本轮 Vision 或自然 SSE 通过。
+
+| 页 | 构造 | mm | R | K | 本轮逐行/归属 |
+| --- | --- | ---: | ---: | ---: | --- |
+| 89 | I 型坡屋面正置 | 20 | 5.225 | 0.191 | PASS |
+| 89 | I 型坡屋面倒置 | 20 | 5.198 | 0.192 | PASS |
+| 89 | I 型坡屋面正置 | 25 | 6.025 | 0.166 | PASS |
+| 89 | I 型坡屋面倒置 | 25 | 5.998 | 0.167 | PASS |
+| 90 | II 型平屋面正置 | 20 | 5.369 | 0.186 | PASS，两组独立 |
+| 90 | II 型平屋面倒置 | 20 | 5.369 | 0.186 | PASS，两组独立 |
+| 90 | II 型平屋面正置 | 25 | 6.169 | 0.162 | PASS，两组独立 |
+| 90 | II 型平屋面倒置 | 25 | 6.169 | 0.162 | PASS，两组独立 |
+| 75 | C1-3 蒸压灰砂砖 | 20 | 6.916 | 0.145 | PASS |
+| 75 | C1-4 加气混凝土砌块 | 20 | 7.540 | 0.133 | PASS |
+| 75 | C1-3 蒸压灰砂砖 | 25 | 8.516 | 0.117 | PASS |
+| 75 | C1-4 加气混凝土砌块 | 25 | 9.140 | 0.109 | PASS |
+
+证据：[真实隔离库GET/六次共享查询](evidence/complex-atlas-review-2026-10-16/readonly-http.json)、[B/C Fixture HTTP/SSE及双方DTO](evidence/complex-atlas-review-2026-10-16/transport/transport-report.json)、[浏览器逐组同行12行断言](evidence/complex-atlas-review-2026-10-16/browser/twelve-rows-validation.json)、[可复现DOM检查脚本](evidence/complex-atlas-review-2026-10-16/verify-evidence.mjs)。后者结果 H5 Fixture 12/12、H5真实GET 12/12、B Fixture六次/12行通过；解析器不将空单元格转为数字0。
+
+## R4. B / H5 本轮浏览器证据
+
+使用当前真实组件和原三张 PNG。Fixture 壳只生成内存 HTTP/SSE，横幅明确标注；真实只读壳连接已存在的历史随机测试库 `vicp_ai_uat_9a34050a5be34f2595e147f227bc2a8a`，连接强制 `default_transaction_read_only=on`、后端仅允许GET、对象适配器只开放 get/stat/签名。没有新建库、运行迁移、投递队列、保存审核、发布或发送自然消息。实际 `authPlugin` 和正式GET路由参与，不把程序注入测试登录冒充完整登录验收。
+
+| UI 项 | 本轮证据 / 判断 |
+| --- | --- |
+| B 三页完整表 | [89](evidence/complex-atlas-review-2026-10-16/browser/b89-table.jpg)、[90](evidence/complex-atlas-review-2026-10-16/browser/b90-table.jpg)、[75](evidence/complex-atlas-review-2026-10-16/browser/b75-table.jpg)：PASS（Fixture），两组/层/原列头保留 |
+| B 识别审核控件 | [75审核](evidence/complex-atlas-review-2026-10-16/browser/b75-review.jpg)：PARTIAL，只查看真实审核组件，不执行数据库保存；旧阶段2已有内存保存/确认截图，不作本轮数据库通过 |
+| B 六次问答/12行比较 | [89](evidence/complex-atlas-review-2026-10-16/browser/b89-qa-fixture.jpg)、[90](evidence/complex-atlas-review-2026-10-16/browser/b90-qa-fixture.jpg)、[75](evidence/complex-atlas-review-2026-10-16/browser/b75-qa-fixture.jpg)、[逐次DOM](evidence/complex-atlas-review-2026-10-16/browser/b-six-qa-fixture.json)：PASS（Fixture SSE） |
+| B 原图 / 真实存储故障 | [本地90原PNG](evidence/complex-atlas-review-2026-10-16/browser/b90-original.jpg)：解码2048×1471；[真实GET故障](evidence/complex-atlas-review-2026-10-16/browser/b-real-storage-unavailable.jpg)：FAIL，整页仅“服务器内部错误” |
+| H5 三页真实来源GET全表 | [89](evidence/complex-atlas-review-2026-10-16/browser/h5-real-89-table.jpg)、[90](evidence/complex-atlas-review-2026-10-16/browser/h5-real-90-table.jpg)、[75](evidence/complex-atlas-review-2026-10-16/browser/h5-real-75-table.jpg)：12/12 DOM通过、每页2组；图片缺失时表格仍可读；此入口没有自然问答命中高亮 |
+| H5 聊天摘要/比较卡/全表 | [89](evidence/complex-atlas-review-2026-10-16/browser/h5-89-375.jpg)、[90](evidence/complex-atlas-review-2026-10-16/browser/h5-90-375.jpg)、[75](evidence/complex-atlas-review-2026-10-16/browser/h5-75-375.jpg)：PASS（Fixture）。独立结构化UI，完整38档仍在DOM，不是大段富文本 |
+| H5 命中与滚动 | [倒置命中](evidence/complex-atlas-review-2026-10-16/browser/h5-90-inverted-hit.jpg)、[观测](evidence/complex-atlas-review-2026-10-16/browser/h5-interactions.json)：可见完整表定位第二组；头/体内部scrollLeft同为595，scrollWidth961、容器366；重复事件后仍2组且倒置命中保留，见[重复事件](evidence/complex-atlas-review-2026-10-16/browser/h5-duplicate-final.json) |
+| H5 实际小屏 | [320](evidence/complex-atlas-review-2026-10-16/browser/h5-90-width-320.jpg)、[375](evidence/complex-atlas-review-2026-10-16/browser/h5-90-width-375.jpg)、[430](evidence/complex-atlas-review-2026-10-16/browser/h5-90-width-430.jpg)、[最终测量](evidence/complex-atlas-review-2026-10-16/browser/h5-widths-final.json)：实际clientWidth分别320/375/430。初次请求宽度与滚动条造成偏差的记录保留在interactions，不把335/445算成320/430 |
+| H5 原图与恢复 | [本地原PNG](evidence/complex-atlas-review-2026-10-16/browser/h5-90-original.jpg)、[模拟403](evidence/complex-atlas-review-2026-10-16/browser/h5-90-image-failed.jpg)、[恢复](evidence/complex-atlas-review-2026-10-16/browser/h5-90-image-recovered.jpg)：PASS（本地原字节与模拟故障）；不证明真实授权GET/OSS过期恢复成功 |
+| App/微信小程序、横竖屏旋转、触控性能 | NOT_RUN；H5窗口尺寸不替代运行目标 |
+| 实际Store历史、正式来源路由往返/全屏位置、真实过期续签 | 本轮NOT_RUN；旧Fixture及单测结果保持其原范围，不升级为真实验收 |
+
+测试壳源代码在本轮 `browser/` 和 `real-preview/`；旧D盘/旧用户临时路径已在副本改为本机路径。早期壳路径错误/原图适配器缺前缀的尝试已修正；最终真实API失败仍为当前 **MinIO ECONNREFUSED**，见 `readonly-http.json.errors`，不是凭历史 OSS 截图推定的新浏览器同因故障。
+
+## R5. 真实自然 T01—T12：历史修复复审与本轮边界
+
+最初阶段5报告确实FAIL，但当前代码还包含后续修复，必须同时读 [real-attempt4 原报告](evidence/complex-atlas-fixes-2026-10-16/real-attempt4/report.json) 及每轮原始 SSE。汇总见 [historical-evidence-review](evidence/complex-atlas-review-2026-10-16/historical-evidence-review.json)。**以下是历史真实模型/HTTP结果的复审，本轮真实自然问答未执行。**
+
+| ID | 最新历史证据与本次判断 |
+| --- | --- |
+| T01 | PASS（服务端数值/引用范围）：89页20mm两个独立构造均正确；当前整项原图仍未验收 |
+| T02 | PASS（服务端）：继承I型坡屋面、25mm倒置5.998/.167，未串90页 |
+| T03 | PASS（服务端）：90页两构造5.369/.186各自独立；不能只按两个重复数值断言 |
+| T04 | PARTIAL：实际回答明确“同值不等于做法相同”且分别列层；原脚本无功能断言，未形成对应可见UI联合证据 |
+| T05 | PASS（服务端）：两个不同基层及 .145/.133正确，后端极值比较为 .133 |
+| T06 | PASS（服务端）：全新会话返回89/90页两条倒置25mm事实，未锁死一种型号 |
+| T07 | PARTIAL（原脚本）；回答本身正确区分型号和防水等级，没有方案副作用；缺专项断言/完整UI链 |
+| T08 | PARTIAL（完整任务）：原脚本PASS只断言页90/两组/6+6档/4备注，原图是否实际加载未断言 |
+| T09 | PASS（概念回答范围）：已走确定性DEFINE，明确层/芯层、产品整体和构造不是同一指标，不再举4.8/换热阻混填；属于真实后续修复，不沿用早期FAIL |
+| T10 | PARTIAL：没有承诺达标或生成报告，提示缺对象和确认快照；该轮为独立新会话，没有验证“这些屋面”的连续来源上下文，也无正式报告正向证据 |
+| T11 | FAIL（当前代码专项复现）/ 历史PARTIAL：历史只要求构造编号；本轮增加已定位无编号来源后仍复现同样拒绝，见R6-01 |
+| T12 | PARTIAL / NOT_RUN：旧历史有普通历史读取，缺真实签名失效/网络恢复/会话刷新后来源高亮/正式路由恢复的完整联合证据 |
+
+E01/E02/E03的25mm补充查询也各有两条正确来源。历史数据由人工基线经程序模拟审核装载，不能描述为真实Vision自动确认产物。
+
+UAT脚本还有独立的测试质量缺口：`scripts/run-complex-atlas-uat.ts` 对T04/T07/T10/T11没有业务check，直接标PARTIAL；T11的`group=verify`是新会话；T10同样独立；T12未自动实现；`historyReturned`只记录未assert；`expected()`检查R/K存在及构造+option组合唯一，却不严格断言90页UPRIGHT/INVERTED的两个constructionId；B三次test-qa只记录而不assert；退出条件只检查FAIL/清理，不把PARTIAL或缺T12当完整验收失败。**脚本退出0仍不能说明计划验收通过。**
+
+最新attempt4只有`finishedTurnsAt/readyForBrowser`，没有`finishedAt/cleanup`；本轮只读核实该随机库仍存在。记录为“历史结案/资源清理证据缺失”，不假设其已清理，也不在本轮删除。
+
+## R6. 按根因分组的缺陷、准确定位与最小后续范围
+
+| 编号 / 优先级 | 根因及证据 | 需改或补测的准确文件；本轮不实施 |
+| --- | --- | --- |
+| R6-01 / P1 | **无编号构造无法完成数值VERIFY**：已授权本人会话、唯一90页正置20mm及正式引用，仍返回“请补充构造编号”；来源读取0次 | `backend/src/modules/ai/reference-fact-read.service.ts` 的codes.length门禁与`querySelectedKnowledgeCandidates`路径。应复用`confirmedPageLookup`及最近有权页/组/option/revision核验，不要求虚构编号/产品R。复现[源快照](evidence/complex-atlas-review-2026-10-16/audit-probes.test.ts.txt)、[失败日志](evidence/complex-atlas-review-2026-10-16/audit-probes.log)。独立审计测试1失败，不混入全量55计数；源保留为txt避免污染以后pnpm test |
+| R6-02 / P1 | **B详情依赖图片签名，存储失败使确认表也不可读**：当前正式GET三页均500/ECONNREFUSED；C来源GET同条件保留模型 | `backend/src/modules/knowledge/knowledge-page-recognition.service.ts/getPageRecognition` 的无保护`createDownloadUrl`。可参考现有`toReferencePageBlock`降级，保留确认模型/错误状态；无需重写表格、签名算法或数据库 |
+| R6-03 / P1 | 真实识别完整性仍PARTIAL：防水未核、89符号清空、90补写未印符号；最新单次38档通过不是重复稳定性 | `backend/src/shared/page-recognition.ts`、`page-recognition-evidence.ts`、`knowledge-page-recognition-output.ts`；先恢复可用授权配置、冻结版本重复实测并人工逐字段复核，不按页码修值 |
+| R6-04 / P1 | Fixture90页正置后三层编号错位，屋面防水等级仍缺；数字通过未覆盖全事实 | `backend/tests/fixtures/complex-atlas/page-90.json`、`app/src/test/fixtures/complex-atlas/page-90.json`及三端独立人工基线/对应测试。补逐层原标签/λ/α/备注断言，不能只断12个R/K |
+| R6-05 / P1 | 测试矩阵/断言不完整，缺T12、正确来源上下文和真实UI；历史attempt4缺结案 | `backend/scripts/run-complex-atlas-uat.ts`、B/App现有`complex-atlas`测试及浏览器取证壳。断言身份/来源/错误恢复/历史，完整门槛应拒绝PARTIAL/NOT_RUN；不以重放SSE代替自然模型 |
+| R6-06 / P1 | 本轮真实Vision环境阻断；真实图环境为MinIO而历史用OSS，连接被拒绝 | 运行环境/已有配置修复后重测；不改`.env`、不猜测或重写密钥、不把MinIO故障归因于旧OSS浏览器问题 |
+| R6-07 / P1 | 全量工程门槛未过：Backend55失败，Admin类型/构建9错，App第三方类型及两端lint失败 | 具体用例/错误见R7与checks-summary；必须先区分旧测试合同与实际实现，不能批量清格式掩盖失败。未登录HTTP401已符合当前规则，旧200断言需校正 |
+| R6-08 / P1 | A3正式检索当前无可消费资料：源库唯一版本DISABLED；旧脚本还断言同步`decideDomainTurn`直接识别开放语句 | `scripts/verify-cross-page-reference-readonly.ts`需真正走现有Domain语义合同；本轮只读核对原四行，不启用资料、不放回子串路由。正式查询回归NOT_RUN |
+| R6-09 / P2 | 历史正式报告、跨项目全矩阵、真机与真实过期恢复仍不足；阶段报告与后续修复证据未合并 | 补隔离正向Confirm→Snapshot→PDF、权限、移动目标及归档测试；对应环境不可运行时保持NOT_RUN |
+
+本轮无需改：热工计算引擎/Matcher主结构、报告冻结模型、采集Source/Skill、公开文库、产品或项目权限。现有`knowledge-page-render.ts/confirmed-page-facts.ts`、两端表格的本轮数值/分组显示通过，不建议无证据重写。建议修复优先级为R6-01/02 → 环境恢复与识别复核 → 验收脚本补齐 → 真正联合重跑；没有数据库迁移提案。
+
+## R7. 本轮实际命令与完整工程检查
+
+以下全部新跑；日志在本轮证据目录。未运行`--fix`，没有更新依赖。全量命令加单worker是控制资源，不是仅测改动文件。
+
+| 命令 / 范围 | 本轮结果 | 证据 |
+| --- | --- | --- |
+| Backend `pnpm lint` | PASS；AST10关键文件/31白名单及tsc | [log](evidence/complex-atlas-review-2026-10-16/backend-lint.log) |
+| Backend `pnpm test --maxWorkers=1 --reporter=default --reporter=json --outputFile=...` | **FAIL：201文件通过/7失败/1跳过；2303通过/55失败/1跳过** | [log](evidence/complex-atlas-review-2026-10-16/backend-test.log)、[JSON](evidence/complex-atlas-review-2026-10-16/backend-test.json) |
+| Backend `pnpm build` | PASS | [log](evidence/complex-atlas-review-2026-10-16/backend-build.log) |
+| Backend `pnpm db:check` | PASS，仅迁移文件静态检查，没有执行迁移 | [log](evidence/complex-atlas-review-2026-10-16/backend-db-check.log) |
+| Admin `pnpm test --maxWorkers=1 --testTimeout=30000 --reporter=default --reporter=json --outputFile=...` | PASS（1跳过）：109文件通过/1跳过，760测试通过/1跳过 | [log](evidence/complex-atlas-review-2026-10-16/admin-test.log)、[JSON](evidence/complex-atlas-review-2026-10-16/admin-test.json) |
+| Admin `pnpm lint` | FAIL：4199 errors / 415 warnings | [log](evidence/complex-atlas-review-2026-10-16/admin-lint.log) |
+| Admin `pnpm typecheck` / `pnpm build` | FAIL：`StandardSourcePanel.vue` row/index八处、`review-center/queue/index.vue` value一处 | [typecheck](evidence/complex-atlas-review-2026-10-16/admin-typecheck.log)、[build](evidence/complex-atlas-review-2026-10-16/admin-build.log) |
+| App `pnpm test` | PASS：148/148 | [log](evidence/complex-atlas-review-2026-10-16/app-test.log) |
+| App `pnpm lint` | FAIL：44 errors | [log](evidence/complex-atlas-review-2026-10-16/app-lint.log) |
+| App `pnpm type-check` | FAIL：第三方`@wot-ui/ui/wd-button.vue:21` ButtonOpenType不兼容 | [log](evidence/complex-atlas-review-2026-10-16/app-type-check.log) |
+| App `pnpm build:h5` | PASS（编译，不等于设备运行） | [log](evidence/complex-atlas-review-2026-10-16/app-build-h5.log) |
+| `verify-complex-atlas-recognition.ts --output <本轮目录> --image-dir <原字节临时副本>` | NOT_RUN（配置解密失败，未发模型请求）；脚本退出1 | [vision.log](evidence/complex-atlas-review-2026-10-16/vision.log) |
+| `verify-complex-atlas-query.ts <本轮transport目录>` | PASS（内存Fixture HTTP/SSE，6次12行，B/C/AppDTO一致） | [log](evidence/complex-atlas-review-2026-10-16/transport.log) |
+| 本轮`readonly-server.ts` | 真实来源C GET三页成功、六次共享查询12行正确；B识别详情和图GET失败，MinIO ECONNREFUSED | [report](evidence/complex-atlas-review-2026-10-16/readonly-http.json)；GET采用正式路由，预检用Fastify inject，浏览器另有真实本机HTTP |
+| 三项真实只读GET权限负例 | PASS：无令牌HTTP401；C访问B为HTTP200/error403；旧revision为HTTP200/error409 | [report](evidence/complex-atlas-review-2026-10-16/readonly-permissions.json) |
+| `verify-cross-page-reference-readonly.ts <本轮输出>` | NOT_RUN（业务查询）：当前无PUBLISHED资料，脚本退出1；源JSON另核实原A3四行 | [log](evidence/complex-atlas-review-2026-10-16/a3-original-script.log)、[源只读清点](evidence/complex-atlas-review-2026-10-16/source-inventory-readonly.json) |
+| T11专项审计复现，单独`vitest run <临时audit-probes.test.ts> --maxWorkers=1 ...` | FAIL：1/1；期望只读核验，实为要求编号、未读取来源 | [log](evidence/complex-atlas-review-2026-10-16/audit-probes.log)；执行后源改名txt，不进入后续全量扫描 |
+| `node .../verify-evidence.mjs` | PASS：H5 Fixture12/12、真实GET12/12；B六次/12行 | [log](evidence/complex-atlas-review-2026-10-16/browser/verification.log) |
+
+[失败逐项汇总](evidence/complex-atlas-review-2026-10-16/checks-summary.json)覆盖7个Backend失败文件：`domain-semantic-regression`、`reference-candidate-resolver.service`、`solution-advice-context`、`solution-advice.service`、`solution-state.service`、`solution.routes`、`reports.routes`。相对旧阶段5的52失败，本轮有51个同名失败、4个新增同类401断言失败，并非简单“旧52完全相同”。4项均期望HTTP200而实际401；本轮真实GET也确认401，符合当前AGENTS约定。其余失败不因属于旧代码就被豁免；本轮没有全部修正或宣称全量通过。
+
+## R8. 旧数据、报告和本轮数据影响
+
+只读源库前后：[environment](evidence/complex-atlas-review-2026-10-16/environment.json)、[environment-after](evidence/complex-atlas-review-2026-10-16/environment-after.json)。均为 `knowledge_pages=79, thermal_reference_rows=2, solution_snapshots=0, reports=1, thermal_candidate_selections=0, ai_conversations=289`。JSON中确认options为 **890**，四字段齐全830；890不是当前正式热工行数量。
+
+当前旧资料唯一版本为DISABLED，不能为了验收将其启用。原A3四基层III型45mm仍为：A3-1钢筋混凝土3.313/.302、A3-2混凝土空心砌块3.398/.294、A3-3蒸压灰砂砖3.416/.293、A3-4加气混凝土砌块4.040/.248，印刷页5/6。**原值只读核对PASS；实际发布检索NOT_RUN**。没有回填、重新识别/确认、热工同步或改写旧PDF；正式报告下载/内容哈希及Confirm→Snapshot→PDF本轮NOT_RUN，计数不变不等于这些回归通过。
+
+本轮真实读取只复用了已存在的历史隔离库，未创建/迁移/清空它，未写Redis或对象。新建的临时浏览器/测试服务已关闭，视口已恢复；本轮临时登录桥接文件清理，历史测试库及用户资料保持原状。原证据目录未被覆写，本轮日志另存。
+
+历史变更准确列表参见各阶段报告，另有[当前路径/存在性/SHA清单](evidence/complex-atlas-review-2026-10-16/historical-code-files.json)覆盖阶段3清单及App阶段4清单，不把它称作所有历史改动的完整归属证明。本轮产品源码改动列表为空；本文与证据是唯一交付。
+
+## R9. 下一步前置条件与停止位置
+
+先修复R6-01/02并补相应回归，再恢复可用模型/对象存储环境，冻结同一实现重跑3页识别与T01—T12。真实审核须覆盖全层/原文证据及缺防水字段；测试脚本须验证构造身份、完整历史/图片恢复和全部必测项。随后补齐真实B审核/自然问答UI、H5真实授权图、可运行移动目标及隔离Confirm→Snapshot→PDF与跨项目回归。现有问题没有提出迁移需求，也不构成生产部署授权。
+
+**本轮只读复核到此停止，等待用户回复继续。不实施修复、不部署、不迁移、不启用旧版本、不清理历史测试库或用户资料。**
+
+---
+
+# 历史记录：2026-10-15 阶段 0 现状审计（以下不是当前复核结论）
 
 审计日期：2026-10-15（Asia/Hong_Kong）。范围：当前 `D:/work/lg-vicp/{backend,admin-web,app}` 源码、三张用户原始 PNG、当前配置库的强制只读清点、真实 Vision 推理核心、现有测试，以及隔离 Fixture 下的真实 B / UniApp H5 组件。**结论为 PARTIAL，不能作为三端闭环验收通过。停在阶段 0。**
 

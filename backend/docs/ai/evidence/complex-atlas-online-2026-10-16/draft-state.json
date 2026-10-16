@@ -1,0 +1,36 @@
+{
+  "status": "RECOGNITION_QUEUED",
+  "pages": [
+    {
+      "label": "89",
+      "title": "建筑屋面热工计算参考选用表（I型VICP屋面保温系统）",
+      "physicalPageNumber": 1,
+      "fileId": "4291a9e6-c52c-4752-8d62-84d2585b7aa4",
+      "imageSha256": "6d48ac8f8a746eb6c012f8c9ad6c2bf24a4161ab65b00ee9222f351e41a4ba9c",
+      "pageId": "79f30c55-24fd-4e55-b679-82ae4ff26395",
+      "recognitionQueued": true
+    },
+    {
+      "label": "90",
+      "title": "建筑屋面热工计算参考选用表（II型VICP屋面保温系统）",
+      "physicalPageNumber": 2,
+      "fileId": "8a9bcd6d-8801-4db1-ae1e-fe0ef9fc1f4a",
+      "imageSha256": "3cda1d4a7da48652b779c637bf19418c0fd4b894dccaaf0fdb951b7a8d916aa3",
+      "pageId": "05db3443-054b-4f59-b5d5-9f9082427176",
+      "recognitionQueued": true
+    },
+    {
+      "label": "75",
+      "title": "建筑外墙热工计算参考选用表（I型VICP复合保温装饰板保温系统）",
+      "physicalPageNumber": 3,
+      "fileId": "ebcfbfe7-321c-42e4-8211-9ced0d7ce50b",
+      "imageSha256": "a712567ae0622aa41f14961f2cf6cd5ebe28e8ecf701391c0d6814dc3e6ebcea",
+      "pageId": "8435203d-2299-45b0-bae8-a618b2114beb",
+      "recognitionQueued": true
+    }
+  ],
+  "createdAt": "2026-10-16T13:27:38.027Z",
+  "documentId": "aa75a38b-9839-48de-a908-963d7f3e0ab1",
+  "versionId": "10a08a04-43c3-4a46-8117-cd217669e34f",
+  "reviewUrl": "https://lgadmin.zblack.cn/knowledge/documents/aa75a38b-9839-48de-a908-963d7f3e0ab1"
+}

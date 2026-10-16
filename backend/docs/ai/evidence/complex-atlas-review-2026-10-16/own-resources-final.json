@@ -1,0 +1,7 @@
+{
+  "scope": "只检查本轮服务和本轮临时凭据，保留历史测试库",
+  "temporaryCredentialsRemaining": 0,
+  "listeningPortsRemaining": 0,
+  "historicalDatabaseDeleted": false,
+  "productGeneratedFilesRestored": true
+}

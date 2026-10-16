@@ -99,6 +99,7 @@ async function runTurn(id: string, group: string, question: string, check?: (row
     const done = events.find(event => event.event === "done")!;
     const message = await environment!.db.select().from(s.aiMessages).where(eq(s.aiMessages.id, String(done.data.messageId)));
     record.historyReturned = Boolean(detail.messages?.some((item: any) => item.id === done.data.messageId));
+    assert.equal(record.historyReturned, true, "正式会话详情必须返回本轮已保存消息");
     record.persistedUrlFree = !/Signature=|OSSAccessKeyId=|X-Amz-Signature=/i.test(JSON.stringify(message));
     record.solutionStates = (await environment!.db.select().from(s.solutionStates).where(eq(s.solutionStates.conversationId, conversationId))).length;
     record.reports = (await environment!.db.select().from(s.reports)).length;
@@ -118,6 +119,7 @@ function expected(rows: ReturnType<typeof facts>, label: string, thickness: numb
   assert.equal(rows.length, values.length, "命中行数必须准确，不能串构造或多返回别的档位");
   values.forEach(([r, k]) => assert.ok(rows.some(row => row.page === label && Number(row.thickness) === thickness && Number(row.r) === r && Number(row.k) === k), `缺少来源事实 ${label}/${thickness}/${r}/${k}`));
   assert.equal(new Set(rows.map(row => `${row.constructionId}:${row.optionId}`)).size, rows.length);
+  assert.equal(new Set(rows.map(row => row.constructionId)).size, values.length, "同值两行仍须属于两个独立构造");
 }
 
 try {
@@ -193,18 +195,44 @@ try {
     ["89-20", "I型VICP坡屋面正置和倒置，20mm的传热系数分别多少？看下表。"],
     ["90-20", "II型平屋面正置和倒置的20mm参数一样吗？"],
     ["75-20", "外墙C1-3和C1-4都是20mm，哪个K小？基层什么材料？"],
-  ]) report.setup.push({ step: `B端知识库测试 ${name}`, result: await captureB(name!, question!) });
+    ["89-25", "I型VICP坡屋面正置和倒置25mm的R和K分别多少？"],
+    ["90-25", "II型平屋面正置和倒置25mm的R和K分别多少？"],
+    ["75-25", "外墙C1-3和C1-4的25mm参数分别多少？"],
+  ]) {
+    const result = await captureB(name!, question!);
+    const label = name!.slice(0, 2), thickness = Number(name!.slice(3));
+    const values = label === "89" ? thickness === 20 ? [[5.225,.191],[5.198,.192]] : [[6.025,.166],[5.998,.167]]
+      : label === "90" ? thickness === 20 ? [[5.369,.186],[5.369,.186]] : [[6.169,.162],[6.169,.162]]
+      : thickness === 20 ? [[6.916,.145],[7.540,.133]] : [[8.516,.117],[9.140,.109]];
+    let status = "PASS", error: string | undefined;
+    try { assert.equal(result.http, 200); expected(result.facts, label, thickness, values); }
+    catch (failure) { status = "FAIL"; error = (failure as Error).message; }
+    report.setup.push({ step: `B端知识库测试 ${name}`, status, error });
+  }
   await runTurn("T01", "roof-I", "I型VICP坡屋面正置和倒置，20mm的传热系数分别多少？看下表。", rows => expected(rows, "89", 20, [[5.225, .191], [5.198, .192]]));
   await runTurn("T02", "roof-I", "改成25厚，只看倒置。", rows => { expected(rows, "89", 25, [[5.998, .167]]); assert.equal(rows[0]!.placement, "INVERTED"); });
   await runTurn("T03", "roof-II", "II型平屋面正置和倒置的20mm参数一样吗？", (rows, _blocks, answer) => { expected(rows, "90", 20, [[5.369, .186], [5.369, .186]]); assert.match(answer,/5\.369/); assert.match(answer,/0\.186/); });
-  await runTurn("T04", "roof-II", "它们做法是不是也完全一样？");
+  await runTurn("T11", "roof-II", "确认一下这里的R=5.369是否正确，不是确认方案。", (rows, _blocks, answer) => {
+    expected(rows, "90", 20, [[5.369,.186],[5.369,.186]]);
+    assert.match(answer, /一致/); assert.doesNotMatch(answer, /请补充.*构造编号|产品层热阻|R₀/);
+  });
+  await runTurn("T04", "roof-II", "它们做法是不是也完全一样？", (rows, blocks, answer) => {
+    expected(rows, "90", 20, [[5.369,.186],[5.369,.186]]);
+    assert.match(answer, /不能据此认定构造做法完全相同/);
+    const groups = blocks[0]!.renderModel!.constructions;
+    assert.notDeepEqual(groups[0]!.layers, groups[1]!.layers);
+    assert.match(answer, /原始构造简图/);
+  });
   await runTurn("T05", "wall", "外墙C1-3和C1-4都是20mm，哪个K小？基层什么材料？", rows => { expected(rows, "75", 20, [[6.916, .145], [7.540, .133]]); assert.equal(new Set(rows.map(row => row.base)).size, 2); });
   await runTurn("T06", "ambiguous", "只看倒置屋面25厚的K。", rows => { assert.equal(rows.length,2); assert.deepEqual(new Set(rows.map(row=>row.page)),new Set(["89","90"])); assert.ok(rows.every(row=>row.placement==="INVERTED"&&row.thickness===25)); });
-  await runTurn("T07", "concept", "I型VICP和I级防水一样吗？");
+  await runTurn("T07", "concept", "I型VICP和I级防水一样吗？", (_rows, _blocks, answer) => {
+    assert.match(answer, /型号/); assert.match(answer, /防水/);
+    assert.match(answer, /不同|不一样|不是同一|不等同|不能等同|两种|两个/);
+    assert.doesNotMatch(answer, /请补充.*构造编号/);
+  });
   await runTurn("T08", "full-page", "把第90页原图、备注和完整厚度表打开。", (_rows, blocks) => { const page = blocks.find(block => block.page.pageLabel === "90"); assert.ok(page); assert.equal(page.renderModel?.constructions.length, 2); assert.deepEqual(page.renderModel?.constructions.map(item => item.options.length), [6, 6]); assert.equal(page.renderModel?.notes?.length, 4); });
   await runTurn("T09", "resistance", "20mm保温层的热阻是整体传热阻吗？", (_rows,_blocks,answer) => { assert.match(answer,/不是同一个指标/); assert.match(answer,/未单独给出/); assert.doesNotMatch(answer,/4\.8|0\.11|0\.04/); });
   await runTurn("T10", "compliance", "这些屋面做法在某省2025年能达标吗？生成正式报告。");
-  await runTurn("T11", "verify", "确认一下这里的R=5.369是否正确，不是确认方案。");
   await runTurn("E01", "extra-I", "I型VICP坡屋面正置和倒置25mm的R和K分别多少？", rows => expected(rows,"89",25,[[6.025,.166],[5.998,.167]]));
   await runTurn("E02", "extra-II", "II型平屋面正置和倒置25mm的R和K分别多少？", rows => expected(rows,"90",25,[[6.169,.162],[6.169,.162]]));
   await runTurn("E03", "extra-wall", "外墙C1-3和C1-4的25mm参数分别多少？", rows => expected(rows,"75",25,[[8.516,.117],[9.140,.109]]));
@@ -231,6 +259,9 @@ try {
   }
   await rm(privateFile, { force: true });
   report.finishedAt = new Date().toISOString(); await checkpoint();
-  if (report.environmentError || report.cases.some((item: { status: string }) => item.status === "FAIL") || report.cleanup !== "PASS") process.exitCode = 1;
+  report.status = report.environmentError || report.setup.some((item: any) => item.status === "FAIL") || report.cases.some((item: { status: string }) => item.status === "FAIL") || report.cleanup !== "PASS" ? "FAIL"
+    : report.cases.some((item: { status: string }) => item.status !== "PASS") || !report.browser ? "PARTIAL" : "PASS";
+  await checkpoint();
+  if (report.status === "FAIL") process.exitCode = 1;
   console.log("[UAT结束] 已保存报告；仅清理本次随机隔离环境，不修改源库和旧资料。");
 }

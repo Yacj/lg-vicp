@@ -32,7 +32,7 @@ describe("报告类型接口鉴权", () => {
         url: "/api/v1/reports/types?_t=1791801587628",
         headers: kind === "missing" ? {} : { authorization: `Bearer ${token}` }
       });
-      expect(response.statusCode).toBe(200);
+      expect(response.statusCode).toBe(401);
       expect(response.json()).toEqual({
         success: false,
         error: { code: 401, message: "登录状态无效或已过期" },

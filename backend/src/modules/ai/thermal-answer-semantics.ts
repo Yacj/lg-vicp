@@ -63,19 +63,24 @@ const CODE_BARE = /(?<![A-Za-z0-9])([A-Z]{1,4}\d+(?:[-–—]\d+)+)(?![A-Za-z0-9
 const PAGE_NORMALIZE = (value: string) => value.replace(/\s+/g, "").toLowerCase();
 
 /** 抽取一段文本内的全部语义事实（顺序保留，便于调试）。 */
-export function extractSemanticFacts(text: string): SemanticFact[] {
+export function extractSemanticFacts(text: string, source?: { bareRMetric: "PRODUCT_R" | "TOTAL_R" }): SemanticFact[] {
   if (!text) return [];
   const facts: SemanticFact[] = [];
   for (const label of METRIC_LABELS) {
     const re = new RegExp(label.pattern, "gi");
     let match: RegExpExecArray | null;
+    let consumedUntil = -1;
     while ((match = re.exec(text))) {
+      // 来源语义投影时，明确“产品热阻R=…”中的R属于同一完整指标，不能再次当裸R改义。
+      if (source && match.index < consumedUntil) continue;
       const number = METRIC_NUMBER.exec(text.slice(match.index + match[0].length));
       if (number) {
+        consumedUntil = match.index + match[0].length + number[0].length;
         const prefix = text.slice(0, match.index).split(/[。；;，,]/).at(-1) ?? "";
         facts.push(label.metric === "K" && /(?:标准|规范|已选|已确认).*限值|标准限值/.test(prefix)
           ? { kind: "standardLimit", value: Number(number[1]) }
-          : { kind: "metric", metric: label.metric, value: Number(number[1]) });
+          : { kind: "metric", metric: label.metric === "PRODUCT_R" && match[0].toUpperCase() === "R"
+            ? source?.bareRMetric ?? label.metric : label.metric, value: Number(number[1]) });
       }
       // 零宽或空匹配保护
       if (match.index === re.lastIndex) re.lastIndex += 1;

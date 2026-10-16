@@ -1,0 +1,4 @@
+{"command":"pnpm test","exitCode":0,"finishedAt":"2026-10-16T19:28:31.3363309+08:00"}
+{"command":"pnpm lint","exitCode":1,"finishedAt":"2026-10-16T19:28:58.8411940+08:00"}
+{"command":"pnpm type-check","exitCode":2,"finishedAt":"2026-10-16T19:29:27.7681454+08:00"}
+{"command":"pnpm build:h5","exitCode":0,"finishedAt":"2026-10-16T19:30:00.0580304+08:00"}

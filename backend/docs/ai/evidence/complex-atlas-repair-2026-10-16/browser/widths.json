@@ -1,0 +1,50 @@
+[
+  {
+    "width": 320,
+    "scrolls": [
+      {
+        "left": 627,
+        "scrollWidth": 961,
+        "width": 334
+      },
+      {
+        "left": 627,
+        "scrollWidth": 961,
+        "width": 334
+      }
+    ],
+    "viewport": 360
+  },
+  {
+    "width": 375,
+    "scrolls": [
+      {
+        "left": 627,
+        "scrollWidth": 961,
+        "width": 334
+      },
+      {
+        "left": 627,
+        "scrollWidth": 961,
+        "width": 334
+      }
+    ],
+    "viewport": 360
+  },
+  {
+    "width": 430,
+    "scrolls": [
+      {
+        "left": 627,
+        "scrollWidth": 961,
+        "width": 334
+      },
+      {
+        "left": 627,
+        "scrollWidth": 961,
+        "width": 334
+      }
+    ],
+    "viewport": 360
+  }
+]

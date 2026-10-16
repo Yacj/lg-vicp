@@ -50,7 +50,7 @@ const envSchema = z.object({
     (value) => Buffer.byteLength(value, "utf8") === 32,
     "必须恰好为 32 字节"
   ),
-  STORAGE_PROVIDER: z.enum(["minio", "oss"]).default("minio"),
+  STORAGE_PROVIDER: z.enum(["minio", "oss"]).default("oss"),
   STORAGE_BUCKET: z.string().min(3).default("lg-vicp"),
   STORAGE_ENDPOINT: z.string().default("localhost"),
   STORAGE_PORT: z.coerce.number().int().positive().default(9000),

@@ -1,0 +1,41 @@
+{
+  "scope": "真实只读隔离GET，未经登录、客户端隔离、旧revision；未改权限和状态",
+  "results": [
+    {
+      "name": "unauthenticated",
+      "http": 401,
+      "body": {
+        "success": false,
+        "error": {
+          "code": 401,
+          "message": "登录状态无效或已过期"
+        },
+        "requestId": "req-i"
+      }
+    },
+    {
+      "name": "client-to-admin",
+      "http": 200,
+      "body": {
+        "success": false,
+        "error": {
+          "code": 403,
+          "message": "当前登录端无权访问后台接口"
+        },
+        "requestId": "req-j"
+      }
+    },
+    {
+      "name": "stale-revision",
+      "http": 200,
+      "body": {
+        "success": false,
+        "error": {
+          "code": 409,
+          "message": "来源确认版本已变化，请重新查询"
+        },
+        "requestId": "req-k"
+      }
+    }
+  ]
+}

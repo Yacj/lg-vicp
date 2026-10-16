@@ -50,7 +50,7 @@ describe("智配 REST 输入与客户端权限", () => {
   it.each([["B_ADMIN", 403], [null, 401]] as const)("拒绝客户端 %s", async (client, code) => {
     const app = await appFor(client);
     try { const response = await app.inject(`/api/v1/ai/conversations/${conversationId}/solution`);
-      expect(response.statusCode).toBe(200); expect(response.json()).toMatchObject({ success: false, error: { code } }); }
+      expect(response.statusCode).toBe(client ? 200 : 401); expect(response.json()).toMatchObject({ success: false, error: { code } }); }
     finally { await app.close(); }
   });
   it("事实值注入与缺版本参数均被拒绝", async () => {

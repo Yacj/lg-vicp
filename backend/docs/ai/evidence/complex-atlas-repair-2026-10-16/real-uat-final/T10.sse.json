@@ -1,0 +1,56 @@
+[
+  {
+    "event": "message",
+    "data": {
+      "messageId": "7c1dcae4-a96f-4a53-b070-3bae95322e05",
+      "userMessageId": "339d659c-c9c4-4494-8b89-d041fcdfae47",
+      "conversationId": "4274375d-c07f-4d5b-b84c-bcc7eb76bc5f",
+      "requestId": "req-u"
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "analyzing",
+      "message": "正在分析问题..."
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "composing",
+      "message": "正在整理回答..."
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "想确认一下：本轮正式报告生成尚未可靠确认，请明确要执行的一项操作；也可以通过对应按钮继续。"
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "completed",
+      "message": "回答整理完成"
+    }
+  },
+  {
+    "event": "done",
+    "data": {
+      "messageId": "7c1dcae4-a96f-4a53-b070-3bae95322e05",
+      "conversationId": "4274375d-c07f-4d5b-b84c-bcc7eb76bc5f",
+      "finishReason": "COMPLETED",
+      "usage": {},
+      "model": {
+        "id": "deepseek-chat"
+      },
+      "promptVersion": {
+        "id": "ae0f8064-e3d6-43c0-ab4c-174188be34e4",
+        "version": 3
+      },
+      "sources": [],
+      "latencyMs": 2068
+    }
+  }
+]

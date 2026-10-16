@@ -1,0 +1,114 @@
+{
+  "image90": [
+    {
+      "complete": true,
+      "height": 1471,
+      "src": "http://127.0.0.1:5187/fixture/original/90.png",
+      "width": 2048
+    }
+  ],
+  "recovered": [
+    {
+      "complete": true,
+      "height": 1471,
+      "width": 2048
+    }
+  ],
+  "highlight": {
+    "active": [
+      {
+        "group": "answer-2484-page-0-construction-0",
+        "row": "7"
+      },
+      {
+        "group": "fixture-full-construction-1",
+        "row": "10"
+      }
+    ],
+    "scrolls": [
+      {
+        "children": [
+          {
+            "left": 0,
+            "scrollWidth": 0,
+            "width": 0
+          },
+          {
+            "left": 0,
+            "scrollWidth": 0,
+            "width": 0
+          }
+        ],
+        "class": "thermal-table__scroll thermal-table__head-scroll",
+        "scrollWidth": 0,
+        "width": 0
+      },
+      {
+        "children": [
+          {
+            "left": 0,
+            "scrollWidth": 0,
+            "width": 0
+          },
+          {
+            "left": 0,
+            "scrollWidth": 0,
+            "width": 0
+          }
+        ],
+        "class": "thermal-table__scroll thermal-table__body-scroll",
+        "scrollWidth": 0,
+        "width": 0
+      },
+      {
+        "children": [
+          {
+            "left": 0,
+            "scrollWidth": 366,
+            "width": 366
+          },
+          {
+            "left": 595,
+            "scrollWidth": 961,
+            "width": 366
+          }
+        ],
+        "class": "thermal-table__scroll thermal-table__head-scroll",
+        "scrollWidth": 366,
+        "width": 366
+      },
+      {
+        "children": [
+          {
+            "left": 0,
+            "scrollWidth": 366,
+            "width": 366
+          },
+          {
+            "left": 595,
+            "scrollWidth": 961,
+            "width": 366
+          }
+        ],
+        "class": "thermal-table__scroll thermal-table__body-scroll",
+        "scrollWidth": 366,
+        "width": 366
+      }
+    ]
+  },
+  "widths": [
+    {
+      "requested": 320,
+      "groups": 4,
+      "height": 936,
+      "width": 335
+    },
+    {
+      "requested": 430,
+      "groups": 4,
+      "height": 936,
+      "width": 445
+    }
+  ],
+  "scope": "真实组件+本地Fixture；原图故障为模拟403，不是实际OSS或授权API恢复"
+}

@@ -29,7 +29,7 @@ describe("只读来源定位与生命周期", () => {
   it("已被筛选排除的明确编码只读来源，不换当前候选/revision，多个来源不任选", async () => {
     const ctx = context("A1-2的数据来源"), rows = referenceReadFixture().candidates;
     ctx.taskState.lastReferenceLookup.candidates = [rows[0]];
-    ctx.taskState.lastReferenceLookup.query = { documentIds: ["doc"], filters: [{ metric: "K", targetValue: .1, mode: "MAX_LIMIT" }] };
+    ctx.taskState.lastReferenceLookup.query = { documentIds: ["doc"], knowledgeVersionIds: ["version"], filters: [{ metric: "K", targetValue: .1, mode: "MAX_LIMIT" }] };
     ctx.domainDecision.semantic = { reference: { items: [{ type: "CONSTRUCTION_CODE", value: "A1-2", evidence: "A1-2" }] } };
     const before = structuredClone(ctx.taskState);
     mocks.scoped.mockResolvedValue([rows[1]]);
