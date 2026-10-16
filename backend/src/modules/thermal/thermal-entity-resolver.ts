@@ -40,6 +40,16 @@ interface EntityHit {
   operation: "UPDATE" | "EXCLUDE" | "PREFER" | "REMOVE" | "REMOVE_EXCLUSION" | "REMOVE_PREFERENCE";
 }
 
+/** 正式名称的拉丁字母前缀必须从词元边界开始，I/II不能命中III的后缀。 */
+function catalogNameIndex(text: string, name: string): number {
+  if (name.length < 2) return -1;
+  let index = text.indexOf(name);
+  while (index >= 0 && /^[a-z0-9_-]/i.test(name) && /[a-z0-9_-]/i.test(text[index - 1] ?? " ")) {
+    index = text.indexOf(name, index + 1);
+  }
+  return index;
+}
+
 function classifyOperation(prefix: string): EntityHit["operation"] {
   if (/(?:取消|去掉)(?:排除|不选|不用)/.test(prefix)) return "REMOVE_EXCLUSION";
   if (/(?:取消|去掉)(?:优先|偏好)/.test(prefix)) return "REMOVE_PREFERENCE";
@@ -68,7 +78,7 @@ export function describeSystemEntityResolution(message: string, entities: QueryE
   const text = normalizeEntityText(message);
   const systemEntities = entities.filter(entity => entity.field === "systemId");
   const exact = systemEntities.flatMap(entity => entity.names.map(name => ({ entity, name: normalizeEntityText(name) })))
-    .filter(hit => text.includes(hit.name)).sort((a, b) => b.name.length - a.name.length)[0]?.entity;
+    .filter(hit => catalogNameIndex(text, hit.name) >= 0).sort((a, b) => b.name.length - a.name.length)[0]?.entity;
   if (exact) return { rawText: message, matchType: "EXACT", resolvedName: exact.names[0], family: normalizeSystemFamily(exact.names[0] ?? ""), familyIds: [], systemId: exact.value };
   // 族名来自正式体系名称的确定性派生，直接从目录里比对（不猜测自由文本）。
   const familyIds = [...new Set(systemEntities
@@ -130,7 +140,7 @@ export function resolveQueryEntities(message: string, query: ThermalQueryState, 
         }
         if (!delimited) return [];
       }
-      const index = normalized.length >= 2 ? text.indexOf(normalized) : -1;
+      const index = catalogNameIndex(text, normalized);
       if (index < 0) return [];
       const prefix = text.slice(0, index).split(/[,，;；。]/).at(-1) ?? "";
       return [{ entity, name, index, length: normalized.length, strength, operation: classifyOperation(prefix) }];
@@ -225,9 +235,10 @@ export function resolveQueryEntities(message: string, query: ThermalQueryState, 
       next.unresolved = next.unresolved?.filter(item => item.field !== field);
     }
   }
-  // 显式标注但不在正式名称/别名目录的实体保持歧义，不能用模型猜测替代。
+  // 这里只识别“字段:值 / 字段=值”的封闭标注；“是/为”属于开放语言，交给语义约束。
+  // 否则“基层是什么”会被误读成基层=什么，污染已通过语义校验的只读查询。
   for (const [field, names] of Object.entries(removalNames)) {
-    const explicit = new RegExp(`(?:${names})(?:为|是|[:：=])([^,，;；。\\n]+)`).exec(text);
+    const explicit = new RegExp(`(?:${names})[:：=]([^,，;；。\\n]+)`).exec(text);
     if (explicit && !selected.some(hit => hit.entity.field === field) && !/取消|不限制|不限/.test(explicit[1]!)) {
       Object.assign(next, { [field]: previous?.[field as typeof entityFields[number]] });
       next.unresolved = [...(next.unresolved ?? []).filter(item => item.field !== field), { field, reason: "指定实体尚未匹配到唯一正式名称或配置别名，请确认具体对象。" }];
@@ -239,7 +250,7 @@ export function resolveQueryEntities(message: string, query: ThermalQueryState, 
     && entity.names.some(name => normalizeSystemName(name).includes(normalizeEntityText(hit.name))))))
     next.unresolved = [...(next.unresolved ?? []), { field: "systemId", reason: "该体系族存在未映射的正式体系，请指定完整体系名称或编码。" }];
   // 短名称/族名只能提示需要映射，不能凭名称片段签发体系ID，也不能掉成只有K的宽查询。
-  if (!selected.some(hit => hit.entity.field === "systemId")) {
+  if (!next.systemHint && !selected.some(hit => hit.entity.field === "systemId")) {
     const terms = text.replace(/(?:有哪些|有什么|有没有|有么|方案|推荐|帮我|查询|想看|左右|附近|厚度|以内|以上|以下|不超过)/g, " ").match(/[\u4e00-\u9fa5]{2,}/g) ?? [];
     const partialSystem = entities.some(entity => entity.field === "systemId" && entity.names.some(name => {
       const normalized = normalizeSystemName(name);

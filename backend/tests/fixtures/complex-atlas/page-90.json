@@ -62,21 +62,12 @@
             "sourceGroupLabel": "II型VICP复合保温板"
           },
           {
-            "order": 4,
+            "order": 5,
             "name": "LC7.5轻集料混凝土",
             "thicknessMm": 30,
             "lambda": 0.16,
             "alpha": 1.5,
             "rValue": 0.083,
-            "sourceLayerLabel": "4"
-          },
-          {
-            "order": 5,
-            "name": "M15水泥砂浆",
-            "thicknessMm": 20,
-            "lambda": 0.93,
-            "alpha": 1,
-            "rValue": 0.022,
             "sourceLayerLabel": "5"
           },
           {
@@ -87,6 +78,15 @@
             "alpha": 1,
             "rValue": 0.022,
             "sourceLayerLabel": "6"
+          },
+          {
+            "order": 7,
+            "name": "M15水泥砂浆",
+            "thicknessMm": 20,
+            "lambda": 0.93,
+            "alpha": 1,
+            "rValue": 0.022,
+            "sourceLayerLabel": "7"
           }
         ],
         "options": [

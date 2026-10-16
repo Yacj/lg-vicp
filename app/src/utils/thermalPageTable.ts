@@ -15,9 +15,9 @@ export interface ThermalTableRow {
 /** 只按 Backend 明确标记的可变层嵌入档位；缺少关联时另列，绝不猜材料或补数值。 */
 export function thermalConstructionRows(construction: KnowledgeRenderConstruction): ThermalTableRow[] {
   const explicit = [...new Set(construction.options.flatMap(option => option.layerValues?.map(value => value.layerIndex) || []))]
-  const variable = construction.layers.filter(layer => layer.variable)
+  const variable = construction.layers.filter(layer => layer.variable && layer.sourceRegion !== 'DIAGRAM')
   const declared = explicit.length === 1 && construction.options.every(option => option.layerValues?.filter(value => value.layerIndex === explicit[0]).length === 1)
-  const variableLayer = declared && construction.layers[explicit[0]!]
+  const variableLayer = declared && construction.layers[explicit[0]!] && construction.layers[explicit[0]!]!.sourceRegion !== 'DIAGRAM'
     ? construction.layers[explicit[0]!]
     : !explicit.length && variable.length === 1 ? variable[0] : undefined
   const rows: ThermalTableRow[] = []
@@ -27,6 +27,8 @@ export function thermalConstructionRows(construction: KnowledgeRenderConstructio
     construction.options.forEach((option, optionIndex) => rows.push({ key: `option-${optionIndex}`, layer, layerIndex, order, option, optionIndex, groupStart, groupLength: construction.options.length }))
   }
   construction.layers.forEach((layer, index) => {
+    if (layer.sourceRegion === 'DIAGRAM')
+      return
     const order = layer.order ?? index + 1
     if (layer === variableLayer && construction.options.length)
       appendOptions(layer, order)

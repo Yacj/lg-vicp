@@ -1,0 +1,40 @@
+$ node deploy/deploy.local.mjs "--skip-db"
+[部署] 读取部署配置：E:\code\lg\backend\deploy\.env.deploy
+[部署] 使用 SSH 私钥：C:/Users/zjj/.ssh/id_ed25519
+[部署] 本地构建 dist（服务器不再执行 tsc）...
+$ pnpm clean && tsc -p tsconfig.json
+$ node scripts/clean.mjs
+[部署] 打包发布物（不含 .env / node_modules / src）...
+[部署] 包大小 2.0 MB -> 上传到 root@8.153.150.87:/www/wwwroot/lgapi.zblack.cn
+[部署] SSH 连接 root@8.153.150.87:22 ...
+[部署] 上传发布包...
+[部署] 服务器解压并落地（保留 .env，跳过数据库步骤后重载 PM2）...
+[1;32m[部署][0m 安装生产依赖（pnpm install --frozen-lockfile，不在服务器编译 TypeScript）...
+Already up to date
+Done in 1.1s using pnpm v11.17.0
+[1;32m[部署][0m 检查Chromium、中文字体及真实PDF输出（不连接业务数据库/队列/OSS）...
+[报告环境] 中文字体/真实PDF自检通过。
+[报告环境] 复用已有运行环境；不改写.env。
+[1;32m[部署][0m 纯代码发布：跳过数据库备份、迁移和 seed。
+[1;32m[部署][0m 启动/重载 PM2（lg-vicp-api / lg-vicp-worker）...
+[PM2] Applying action reloadProcessId on app [lg-vicp-worker](ids: [ 5 ])
+[PM2] Applying action reloadProcessId on app [lg-vicp-api](ids: [ 10 ])
+[PM2] [lg-vicp-worker](5) ✓
+[PM2] [lg-vicp-api](10) ✓
+┌────┬───────────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name              │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+├────┼───────────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+│ 10 │ lg-vicp-api       │ default     │ 0.1.0   │ fork    │ 875365   │ 12s    │ 46   │ online    │ 0%       │ 220.8mb  │ root     │ disabled │
+│ 5  │ lg-vicp-worker    │ default     │ 0.1.0   │ fork    │ 875366   │ 12s    │ 59   │ online    │ 0%       │ 242.3mb  │ root     │ disabled │
+└────┴───────────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+host metrics | cpu: 2.4% | ram usage: 63.7% | lo: ⇓ 0.002mb/s ⇑ 0.002mb/s | disk: ⇓ 0.015mb/s ⇑ 0.036mb/s / 84.93%
+[1;32m[部署][0m 等待健康检查 http://127.0.0.1:3000/health/live （最多 60 秒）...
+[1;32m[部署][0m 部署完成，服务已就绪。
+┌────┬───────────────────┬─────────────┬─────────┬─────────┬──────────┬────────┬──────┬───────────┬──────────┬──────────┬──────────┬──────────┐
+│ id │ name              │ namespace   │ version │ mode    │ pid      │ uptime │ ↺    │ status    │ cpu      │ mem      │ user     │ watching │
+├────┼───────────────────┼─────────────┼─────────┼─────────┼──────────┼────────┼──────┼───────────┼──────────┼──────────┼──────────┼──────────┤
+│ 10 │ lg-vicp-api       │ default     │ 0.1.0   │ fork    │ 875365   │ 13s    │ 46   │ online    │ 0%       │ 220.9mb  │ root     │ disabled │
+│ 5  │ lg-vicp-worker    │ default     │ 0.1.0   │ fork    │ 875366   │ 12s    │ 59   │ online    │ 0%       │ 242.4mb  │ root     │ disabled │
+└────┴───────────────────┴─────────────┴─────────┴─────────┴──────────┴────────┴──────┴───────────┴──────────┴──────────┴──────────┴──────────┘
+host metrics | cpu: 2.4% | ram usage: 63.7% | lo: ⇓ 0.002mb/s ⇑ 0.002mb/s | disk: ⇓ 0.015mb/s ⇑ 0.036mb/s / 84.93%
+[部署] 部署完成。本机反代请指向服务器 3000 端口，健康检查：http://<服务器>/health/live

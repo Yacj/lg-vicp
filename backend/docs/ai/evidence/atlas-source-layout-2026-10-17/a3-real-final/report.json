@@ -1,0 +1,257 @@
+{
+  "scope": "真实隔离DB/Redis/OSS/正式HTTP-SSE/真实模型；事实由人工基线装载，程序模拟审核，不冒充真实人工复核",
+  "startedAt": "2026-10-16T17:34:10.853Z",
+  "setup": [
+    {
+      "step": "未确认发布门禁",
+      "response": {
+        "http": 200,
+        "success": false,
+        "error": {
+          "code": 400,
+          "message": "当前版本尚未审核通过，不能发布。",
+          "details": {
+            "errorCode": "KNOWLEDGE_VERSION_NOT_APPROVED"
+          }
+        },
+        "requestId": "req-6"
+      }
+    },
+    {
+      "step": "正式审核发布接口",
+      "passed": true
+    },
+    {
+      "step": "B端知识库测试 a3-single",
+      "status": "FAIL",
+      "error": "命中行数必须准确，不能串构造或多返回别的档位\n\n0 !== 1\n"
+    },
+    {
+      "step": "B端知识库测试 a3-compare",
+      "status": "FAIL",
+      "error": "Expected values to be strictly equal:\n\n0 !== 4\n"
+    }
+  ],
+  "cases": [
+    {
+      "id": "A3_SINGLE",
+      "group": "a3-single",
+      "question": "Ⅲ型VICP薄抹灰外保温系统，A3-2构造45mm，传热系数是多少？基层是什么？",
+      "status": "FAIL",
+      "conversationId": "6a43efe5-d0db-4836-8889-ade1c4ebc3fa",
+      "answer": "想确认一下：该体系族尚无可靠正式映射，请指定完整体系名称或编码。",
+      "facts": [],
+      "pages": [],
+      "historyReturned": true,
+      "persistedUrlFree": true,
+      "solutionStates": 0,
+      "reports": 0,
+      "snapshots": 0,
+      "error": {
+        "name": "AssertionError",
+        "message": "命中行数必须准确，不能串构造或多返回别的档位\n\n0 !== 1\n"
+      }
+    },
+    {
+      "id": "A3_COMPARE",
+      "group": "a3-compare",
+      "question": "Ⅲ型VICP薄抹灰外保温系统，45mm厚度，不同基层的传热系数有什么区别？",
+      "status": "FAIL",
+      "conversationId": "9f4b6a1f-7645-4bcf-8777-ce7dbe3433c2",
+      "answer": "想确认一下：该体系族尚无可靠正式映射，请指定完整体系名称或编码。",
+      "facts": [],
+      "pages": [],
+      "historyReturned": true,
+      "persistedUrlFree": true,
+      "solutionStates": 0,
+      "reports": 0,
+      "snapshots": 0,
+      "error": {
+        "name": "AssertionError",
+        "message": "Expected values to be strictly equal:\n\n0 !== 4\n"
+      }
+    },
+    {
+      "id": "A3_FOLLOWUP",
+      "group": "a3-compare",
+      "question": "只看A3-2，基层是什么？",
+      "status": "FAIL",
+      "conversationId": "9f4b6a1f-7645-4bcf-8777-ce7dbe3433c2",
+      "answer": "本次已确认资料匹配 9 档、1 个独立构造，当前引用 6 档。\n\n- **A3-2**，基层混凝土空心砌块 190mm：板厚 **15mm**。来源：《复杂建筑热工图集 · 隔离人工基线（程序模拟审核）》，印刷页码 5。\n\n- **A3-2**，基层混凝土空心砌块 190mm：板厚 **18mm**。来源：《复杂建筑热工图集 · 隔离人工基线（程序模拟审核）》，印刷页码 5。\n\n- **A3-2**，基层混凝土空心砌块 190mm：板厚 **20mm**。来源：《复杂建筑热工图集 · 隔离人工基线（程序模拟审核）》，印刷页码 5。\n\n- **A3-2**，基层混凝土空心砌块 190mm：板厚 **25mm**。来源：《复杂建筑热工图集 · 隔离人工基线（程序模拟审核）》，印刷页码 5。\n\n- **A3-2**，基层混凝土空心砌块 190mm：板厚 **30mm**。来源：《复杂建筑热工图集 · 隔离人工基线（程序模拟审核）》，印刷页码 5。\n\n- **A3-2**，基层混凝土空心砌块 190mm：板厚 **35mm**。来源：《复杂建筑热工图集 · 隔离人工基线（程序模拟审核）》，印刷页码 5。\n\n其余匹配档位未全部列入回答；来源表保留完整页面及所有厚度，不以当前引用数量代表全表。\n\n同值不代表做法相同，请结合完整表及原始构造简图核对。材料层热阻、产品整体热阻与整构造传热阻分别读取，缺值不补算；本次仅查阅资料，不选择方案或判断规范达标。",
+      "facts": [
+        {
+          "page": "5",
+          "constructionId": "kp-b208f0b8fb4108a7f75f62c7-1",
+          "optionId": "kp-b208f0b8fb4108a7f75f62c7-1-o0",
+          "label": "A3-2",
+          "thickness": 15,
+          "r": 1.398,
+          "k": 0.715,
+          "base": "混凝土空心砌块",
+          "versionId": "45b8767d-25a1-4076-b1d3-d1d683aa6bb8",
+          "revision": "b208f0b8fb4108a7f75f62c7",
+          "fieldKeys": [
+            "thicknessMm"
+          ]
+        },
+        {
+          "page": "5",
+          "constructionId": "kp-b208f0b8fb4108a7f75f62c7-1",
+          "optionId": "kp-b208f0b8fb4108a7f75f62c7-1-o1",
+          "label": "A3-2",
+          "thickness": 18,
+          "r": 1.598,
+          "k": 0.626,
+          "base": "混凝土空心砌块",
+          "versionId": "45b8767d-25a1-4076-b1d3-d1d683aa6bb8",
+          "revision": "b208f0b8fb4108a7f75f62c7",
+          "fieldKeys": [
+            "thicknessMm"
+          ]
+        },
+        {
+          "page": "5",
+          "constructionId": "kp-b208f0b8fb4108a7f75f62c7-1",
+          "optionId": "kp-b208f0b8fb4108a7f75f62c7-1-o2",
+          "label": "A3-2",
+          "thickness": 20,
+          "r": 1.731,
+          "k": 0.578,
+          "base": "混凝土空心砌块",
+          "versionId": "45b8767d-25a1-4076-b1d3-d1d683aa6bb8",
+          "revision": "b208f0b8fb4108a7f75f62c7",
+          "fieldKeys": [
+            "thicknessMm"
+          ]
+        },
+        {
+          "page": "5",
+          "constructionId": "kp-b208f0b8fb4108a7f75f62c7-1",
+          "optionId": "kp-b208f0b8fb4108a7f75f62c7-1-o3",
+          "label": "A3-2",
+          "thickness": 25,
+          "r": 2.065,
+          "k": 0.484,
+          "base": "混凝土空心砌块",
+          "versionId": "45b8767d-25a1-4076-b1d3-d1d683aa6bb8",
+          "revision": "b208f0b8fb4108a7f75f62c7",
+          "fieldKeys": [
+            "thicknessMm"
+          ]
+        },
+        {
+          "page": "5",
+          "constructionId": "kp-b208f0b8fb4108a7f75f62c7-1",
+          "optionId": "kp-b208f0b8fb4108a7f75f62c7-1-o4",
+          "label": "A3-2",
+          "thickness": 30,
+          "r": 2.398,
+          "k": 0.417,
+          "base": "混凝土空心砌块",
+          "versionId": "45b8767d-25a1-4076-b1d3-d1d683aa6bb8",
+          "revision": "b208f0b8fb4108a7f75f62c7",
+          "fieldKeys": [
+            "thicknessMm"
+          ]
+        },
+        {
+          "page": "5",
+          "constructionId": "kp-b208f0b8fb4108a7f75f62c7-1",
+          "optionId": "kp-b208f0b8fb4108a7f75f62c7-1-o5",
+          "label": "A3-2",
+          "thickness": 35,
+          "r": 2.739,
+          "k": 0.365,
+          "base": "混凝土空心砌块",
+          "versionId": "45b8767d-25a1-4076-b1d3-d1d683aa6bb8",
+          "revision": "b208f0b8fb4108a7f75f62c7",
+          "fieldKeys": [
+            "thicknessMm"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "page": {
+            "documentId": "8283db2e-c434-4200-a2b6-aaedbdbfad7c",
+            "pageId": "bfea423b-ed39-4d58-86b8-7e9a6bda886e",
+            "documentTitle": "复杂建筑热工图集 · 隔离人工基线（程序模拟审核）",
+            "versionId": "45b8767d-25a1-4076-b1d3-d1d683aa6bb8",
+            "pageLabelSource": "MANUAL",
+            "pageLabelVerified": true,
+            "docNumber": "J/CABEE 26J702 / UAT",
+            "pageNumber": 1,
+            "physicalPageNumber": 1,
+            "pageLabel": "5",
+            "imageUrl": "[AUTHORIZED_URL_REDACTED]"
+          },
+          "revision": "b208f0b8fb4108a7f75f62c7",
+          "groups": 2,
+          "options": [
+            9,
+            9
+          ],
+          "notes": [
+            "内表面换热阻0.11 (m²·K)/W，外表面换热阻0.04 (m²·K)/W。"
+          ]
+        }
+      ],
+      "historyReturned": true,
+      "persistedUrlFree": true,
+      "solutionStates": 0,
+      "reports": 0,
+      "snapshots": 0,
+      "error": {
+        "name": "AssertionError",
+        "message": "命中行数必须准确，不能串构造或多返回别的档位\n\n6 !== 1\n"
+      }
+    }
+  ],
+  "permissions": [
+    {
+      "name": "DRAFT不能向C端来源开放",
+      "passed": true,
+      "response": {
+        "http": 200,
+        "success": false,
+        "error": {
+          "code": 404,
+          "message": "知识资料不存在或尚未发布"
+        },
+        "requestId": "req-1"
+      }
+    }
+  ],
+  "isolation": {
+    "database": "vicp_ai_uat_602181e72b304e49a41c40ddbfb7fe4e",
+    "prefix": "vicp-ai-uat-602181e72b304e49a41c40ddbfb7fe4e"
+  },
+  "fixture": {
+    "documentId": "8283db2e-c434-4200-a2b6-aaedbdbfad7c",
+    "versionId": "45b8767d-25a1-4076-b1d3-d1d683aa6bb8",
+    "factsOrigin": "MANUAL_SOURCE_BASELINE，非真实Vision确认产物",
+    "corrections": [
+      {
+        "scope": "隔离测试副本",
+        "page": 26,
+        "before": "旧页签6",
+        "after": "原图印刷页码26",
+        "productR": "原表材料层R单独保存，不冒充完整产品R"
+      }
+    ]
+  },
+  "objectKeys": [
+    "vicp-ai-uat-602181e72b304e49a41c40ddbfb7fe4e/complex-atlas/source-5.png",
+    "vicp-ai-uat-602181e72b304e49a41c40ddbfb7fe4e/knowledge/page-images/8283db2e-c434-4200-a2b6-aaedbdbfad7c/45b8767d-25a1-4076-b1d3-d1d683aa6bb8/p1-1dcc67e2-e67c-4150-a5b3-c7b37c48b135.png",
+    "vicp-ai-uat-602181e72b304e49a41c40ddbfb7fe4e/complex-atlas/source-26.png",
+    "vicp-ai-uat-602181e72b304e49a41c40ddbfb7fe4e/knowledge/page-images/8283db2e-c434-4200-a2b6-aaedbdbfad7c/45b8767d-25a1-4076-b1d3-d1d683aa6bb8/p2-e92eff6a-5fd1-47f8-8ea6-3f952e8b0b35.png"
+  ],
+  "browser": "NOT_RUN，本次只验证真实HTTP/SSE及历史，不冒充原生App验收",
+  "objectNamespace": {
+    "status": "PASS",
+    "generatedKeys": 4
+  },
+  "cleanup": "PASS",
+  "finishedAt": "2026-10-16T17:35:05.027Z",
+  "status": "FAIL"
+}

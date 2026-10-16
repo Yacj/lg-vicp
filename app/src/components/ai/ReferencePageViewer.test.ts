@@ -204,14 +204,15 @@ test('从查看参考页进入时可直接展示完整原图，有模型也不�
   assert.ok(!html.includes('thermal-table__header'))
 })
 
-test('编号和系统名称相同时编号格只显示一次，独立系统名称保留，完整构造与高亮不变', async () => {
+test('编号格仅显示原图标识，系统属性有独立入口，完整构造与高亮不变', async () => {
   const page = referenceFixture()
   const construction = page.renderModel!.constructions[0]!
   construction.systemName = ` ${construction.constructionCode} `
   const html = await render(ReferencePageViewer, { page })
   const codes = [...html.matchAll(/class="thermal-table__cell thermal-table__code"[^>]*>(.*?)<\/view>/gs)].map(match => match[1]!)
   assert.equal((codes[0]!.match(/A1-3/g) || []).length, 1)
-  assert.ok(codes[1]!.includes('I型VICP'))
+  assert.ok(!codes[1]!.includes('I型VICP'))
+  assert.ok(html.includes('查看构造属性'))
   assert.equal((html.match(/class="[^"]*thermal-table__field--hit/g) || []).length, 4)
   construction.constructionCode = null
   construction.title = '外墙A2-1'

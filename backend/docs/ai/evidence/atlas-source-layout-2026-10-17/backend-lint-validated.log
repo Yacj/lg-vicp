@@ -1,0 +1,3 @@
+$ pnpm semantic:check && tsc -p tsconfig.json --noEmit
+$ node scripts/check-semantic-matching.mjs
+语义匹配AST检查通过：10个关键文件，31个白名单表达式；开放意图规则禁止。

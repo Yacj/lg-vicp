@@ -1,0 +1,37 @@
+[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.overrides", "pnpm.patchedDependencies". See https://pnpm.io/settings for the new home of each setting.
+
+E:\code\lg\app\src\components\ai\ReferencePageViewer.test.ts
+   16:43  error  This line has 2 statements. Maximum allowed is 1  style/max-statements-per-line
+   17:46  error  This line has 2 statements. Maximum allowed is 1  style/max-statements-per-line
+   18:61  error  This line has 2 statements. Maximum allowed is 1  style/max-statements-per-line
+   48:39  error  This line has 2 statements. Maximum allowed is 1  style/max-statements-per-line
+  114:41  error  This line has 2 statements. Maximum allowed is 1  style/max-statements-per-line
+  163:37  error  This line has 2 statements. Maximum allowed is 1  style/max-statements-per-line
+  165:38  error  This line has 2 statements. Maximum allowed is 1  style/max-statements-per-line
+  171:49  error  This line has 2 statements. Maximum allowed is 1  style/max-statements-per-line
+
+E:\code\lg\app\src\components\ai\StructuredThermalSection.vue
+  54:35   warning  Expected 1 line break after opening tag (`<view>`), but no line breaks found    vue/singleline-html-element-content-newline
+  54:52   warning  Expected 1 line break before closing tag (`</view>`), but no line breaks found  vue/singleline-html-element-content-newline
+  55:125  warning  Expected 1 line break after opening tag (`<view>`), but no line breaks found    vue/singleline-html-element-content-newline
+  55:135  warning  Expected 1 line break before closing tag (`</view>`), but no line breaks found  vue/singleline-html-element-content-newline
+
+E:\code\lg\app\src\components\ai\ThermalPageTable.vue
+   87:144  warning  Expected 1 line break after opening tag (`<view>`), but no line breaks found    vue/singleline-html-element-content-newline
+   87:167  warning  Expected 1 line break before closing tag (`</view>`), but no line breaks found  vue/singleline-html-element-content-newline
+   88:80   warning  Expected 1 line break after opening tag (`<text>`), but no line breaks found    vue/singleline-html-element-content-newline
+   88:134  warning  Expected 1 line break before closing tag (`</text>`), but no line breaks found  vue/singleline-html-element-content-newline
+   89:113  warning  Expected 1 line break after opening tag (`<view>`), but no line breaks found    vue/singleline-html-element-content-newline
+   89:214  warning  Expected 1 line break before closing tag (`</view>`), but no line breaks found  vue/singleline-html-element-content-newline
+   92:70   warning  Expected 1 line break after opening tag (`<view>`), but no line breaks found    vue/singleline-html-element-content-newline
+   92:137  warning  Expected 1 line break after opening tag (`<text>`), but no line breaks found    vue/singleline-html-element-content-newline
+   92:180  warning  Expected 1 line break before closing tag (`</text>`), but no line breaks found  vue/singleline-html-element-content-newline
+   92:212  warning  Expected 1 line break before closing tag (`</view>`), but no line breaks found  vue/singleline-html-element-content-newline
+  140:35   warning  Expected 1 line break after opening tag (`<text>`), but no line breaks found    vue/singleline-html-element-content-newline
+  140:49   warning  Expected 1 line break before closing tag (`</text>`), but no line breaks found  vue/singleline-html-element-content-newline
+  141:82   warning  Expected 1 line break after opening tag (`<text>`), but no line breaks found    vue/singleline-html-element-content-newline
+  141:92   warning  Expected 1 line break before closing tag (`</text>`), but no line breaks found  vue/singleline-html-element-content-newline
+
+✖ 26 problems (8 errors, 18 warnings)
+  0 errors and 18 warnings potentially fixable with the `--fix` option.
+

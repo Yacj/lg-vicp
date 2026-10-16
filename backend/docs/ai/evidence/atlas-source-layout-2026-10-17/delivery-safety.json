@@ -1,0 +1,8 @@
+{
+  "filesScanned": 171,
+  "credentialLeakFiles": [],
+  "storageProvider": "oss",
+  "businessDatabaseWritesThisRound": false,
+  "productionDeploymentThisRound": true,
+  "productionDeploymentScope": "backend-only; user-authorized; --skip-db; no test rerun"
+}

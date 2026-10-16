@@ -3,6 +3,15 @@ import { describe, expect, it } from 'vitest'
 import { constructionTableRows, pageConstructionCellSpan, pageConstructionTableRows } from './knowledge-construction-table'
 
 describe('构造原表的数据投影', () => {
+  it('显式简图行单独展示，过滤不改变layerIndex或把档位绑到相邻层', () => {
+    const construction: KnowledgeConstructionContent = { layers: [{ name: '防水层', sourceRegion: 'DIAGRAM' }, { name: '保温板', sourceRegion: 'THERMAL_TABLE', sourceLayerLabel: '4' }], options: [{ thicknessMm: 20, layerValues: [{ layerIndex: 1, thicknessMm: 20, rValue: 3.2 }] }] }
+    const rows = constructionTableRows(construction)
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toMatchObject({ kind: 'option', layerIndex: 1, layer: { sourceLayerLabel: '4' } })
+    construction.options[0]!.layerValues![0]!.layerIndex = 0
+    const invalid = constructionTableRows(construction)
+    expect(invalid.filter(row => row.kind === 'option')[0]!.layer).toBeNull()
+  })
   it('保温层多厚度在原层位置展开，后续构造层保留在其后，输入不修改', () => {
     const construction: KnowledgeConstructionContent = {
       layers: [{ name: '砂浆', order: 1, rValue: 0.023 }, { name: '保温板', order: 2, variable: true }, { name: '抹面层', order: 3, rValue: 0.005 }],

@@ -18,11 +18,15 @@ import {
   knowledgeDocumentAssets,
   knowledgeDocumentVersions,
   knowledgeDocuments,
+  knowledgePageMappings,
   knowledgePages,
+  knowledgeSections,
+  knowledgeTocItems,
   parsingJobs,
   thermalReferenceRows,
   thermalReferenceSets
 } from "../../db/schema.js";
+import { toInsertBatches } from "../../db/batch-insert.js";
 import { writeAuditLog } from "../audit-logs/audit-log.service.js";
 import { isKnowledgeErrorCode, KnowledgeError } from "../../shared/knowledge-errors.js";
 import { assertVersionPublishable, bindVersionAsset, type KnowledgeAssetRole } from "./knowledge-original.service.js";
@@ -1180,6 +1184,249 @@ export async function rollbackVersion(
   return { message: `已基于版本 ${source.version} 生成新草稿（版本 ${draft.version}）`, version: draft };
 }
 
+/**
+ * 克隆页面识别元数据：保留识别结论与热工同步状态，清空指向旧版本识别任务的运行时引用。
+ * recognitionRunId / recognitionQueuedAt 属于「当前版本排队或执行中的任务」标识，
+ * 直接复制会让新版本误判为识别中，或被旧 Worker 回写覆盖。
+ */
+function clonePageMetadata(metadata: Record<string, unknown> | null | undefined): Record<string, unknown> | null {
+  if (!metadata || typeof metadata !== "object") return null;
+  return { ...metadata, recognitionRunId: null, recognitionQueuedAt: null };
+}
+
+/**
+ * 版本克隆（发布后修改）：从已发布 / 已停用版本派生新草稿，继承页面图、识别结果、
+ * 章节树、原文目录与页码映射，用户只需修改有问题的页，无需重新上传 / 解析 / 逐页识别确认。
+ *
+ * 与 rollbackVersion 的区别：rollbackVersion 只复制版本元信息并重置解析（内容需重新生成），
+ * 本函数保留全部内容。索引（page_blocks / chunks）不继承，新草稿置 INDEX_PENDING，
+ * 由既有「更新问答内容」重建流程产出，保证索引与页面内容严格一致。
+ *
+ * 文件（版本主文件 / 页图）按 fileId 与 objectKey 复用，不复制对象存储实体；
+ * 因此删除草稿时不得删除被源版本共用的文件（见 deleteDocumentVersion）。
+ */
+export async function cloneVersionAsDraft(
+  app: FastifyInstance,
+  request: FastifyRequest,
+  actor: AuthUser,
+  sourceVersionId: string,
+  input: { title?: string; changeNote?: string }
+) {
+  const source = await requireVersion(app, sourceVersionId);
+  if (source.status !== "PUBLISHED" && source.status !== "DISABLED") {
+    throw new ConflictError("仅已发布或已停用的版本可以派生草稿；草稿与审核中版本可直接编辑");
+  }
+
+  const result = await app.db.transaction(async (tx) => {
+    // 与发布 / 停用 / 启用共用文档行锁，避免并发克隆产生多个工作草稿
+    await lockPublicationDocument(tx, source.documentId);
+    const [existingDraft] = await tx.select({ id: knowledgeDocumentVersions.id })
+      .from(knowledgeDocumentVersions)
+      .where(and(
+        eq(knowledgeDocumentVersions.documentId, source.documentId),
+        eq(knowledgeDocumentVersions.status, "DRAFT")
+      )).limit(1);
+    if (existingDraft) throw new KnowledgeError("KNOWLEDGE_VERSION_DRAFT_EXISTS");
+
+    const versionNumber = await nextVersionNumber(tx, source.documentId);
+    const [created] = await tx.insert(knowledgeDocumentVersions).values({
+      // 显式生成主键：后续页面 / 章节 / 目录 / 映射都要立即引用新版本 id
+      id: randomUUID(),
+      documentId: source.documentId,
+      version: versionNumber,
+      // 文件按 fileId 复用，不复制对象存储实体
+      fileId: source.fileId,
+      title: input.title ?? source.title,
+      status: "DRAFT",
+      // 内容已继承，沿用源版本处理结论，不重新解析
+      pipelineStatus: source.pipelineStatus,
+      parseStatus: source.parseStatus,
+      pageCount: source.pageCount,
+      parser: source.parser,
+      evidenceLevel: source.evidenceLevel,
+      usageMode: source.usageMode,
+      effectiveDate: source.effectiveDate,
+      expiryDate: source.expiryDate,
+      changeNote: input.changeNote ?? `基于版本 ${source.version} 派生（内容继承，仅修改差异）`,
+      // 索引不继承：等待「更新问答内容」重建
+      indexStatus: "INDEX_PENDING",
+      indexDirty: true,
+      indexRevision: 0,
+      contentRevision: 0,
+      createdById: actor.id
+    }).returning();
+
+    // 1) 资产：同角色复用同一 fileId
+    const sourceAssets = await tx.select().from(knowledgeDocumentAssets)
+      .where(eq(knowledgeDocumentAssets.versionId, sourceVersionId));
+    if (sourceAssets.length > 0) {
+      await tx.insert(knowledgeDocumentAssets).values(sourceAssets.map(asset => ({
+        documentId: source.documentId,
+        versionId: created!.id,
+        fileId: asset.fileId,
+        role: asset.role,
+        isPrimary: asset.isPrimary,
+        createdById: actor.id
+      })));
+    }
+
+    // 2) 章节树：预生成新 id 完成旧→新映射；按 level 排序保证父行先于子行插入
+    const sourceSections = await tx.select().from(knowledgeSections)
+      .where(eq(knowledgeSections.versionId, sourceVersionId))
+      .orderBy(knowledgeSections.level, knowledgeSections.sortOrder);
+    const sectionIdMap = new Map<string, string>();
+    const sectionRows = sourceSections.map(section => {
+      const nextId = randomUUID();
+      sectionIdMap.set(section.id, nextId);
+      return {
+        id: nextId,
+        documentId: source.documentId,
+        versionId: created!.id,
+        parentId: null as string | null,
+        sectionKey: section.sectionKey,
+        title: section.title,
+        level: section.level,
+        headingPath: section.headingPath,
+        sortOrder: section.sortOrder,
+        startPage: section.startPage,
+        endPage: section.endPage,
+        searchText: section.searchText,
+        sourceAnchor: section.sourceAnchor
+      };
+    });
+    for (const [index, section] of sourceSections.entries()) {
+      const newParentId = section.parentId ? sectionIdMap.get(section.parentId) : null;
+      if (newParentId) sectionRows[index]!.parentId = newParentId;
+    }
+    for (const batch of toInsertBatches(sectionRows)) {
+      await tx.insert(knowledgeSections).values(batch);
+    }
+
+    // 3) 页面：继承原文与识别元数据；页图对象按 key 复用
+    const sourcePages = await tx.select().from(knowledgePages)
+      .where(eq(knowledgePages.versionId, sourceVersionId))
+      .orderBy(knowledgePages.physicalPageNumber);
+    const pageIdMap = new Map<string, string>();
+    const pageRows = sourcePages.map(page => {
+      const nextId = randomUUID();
+      pageIdMap.set(page.id, nextId);
+      return {
+        id: nextId,
+        documentId: source.documentId,
+        versionId: created!.id,
+        sectionId: page.sectionId ? sectionIdMap.get(page.sectionId) ?? null : null,
+        pageNumber: page.pageNumber,
+        physicalPageNumber: page.physicalPageNumber,
+        pageLabel: page.pageLabel,
+        pageLabelSource: page.pageLabelSource,
+        pageLabelConfidence: page.pageLabelConfidence,
+        pageLabelVerified: page.pageLabelVerified,
+        pageTitle: page.pageTitle,
+        parsedText: page.parsedText,
+        pageImageObjectKey: page.pageImageObjectKey,
+        sectionPath: page.sectionPath,
+        hasTables: page.hasTables,
+        hasImages: page.hasImages,
+        parseStatus: page.parseStatus,
+        metadata: clonePageMetadata(page.metadata)
+      };
+    });
+    for (const batch of toInsertBatches(pageRows)) {
+      await tx.insert(knowledgePages).values(batch);
+    }
+
+    // 4) 原文目录：parentId 自引用与 sectionId 都需要映射
+    const sourceToc = await tx.select().from(knowledgeTocItems)
+      .where(eq(knowledgeTocItems.versionId, sourceVersionId))
+      .orderBy(knowledgeTocItems.level, knowledgeTocItems.sortOrder);
+    const tocIdMap = new Map<string, string>();
+    const tocRows = sourceToc.map(item => {
+      const nextId = randomUUID();
+      tocIdMap.set(item.id, nextId);
+      return {
+        id: nextId,
+        documentId: source.documentId,
+        versionId: created!.id,
+        parentId: null as string | null,
+        level: item.level,
+        sortOrder: item.sortOrder,
+        title: item.title,
+        pageLabel: item.pageLabel,
+        physicalPageNumber: item.physicalPageNumber,
+        source: item.source,
+        confidence: item.confidence,
+        sectionId: item.sectionId ? sectionIdMap.get(item.sectionId) ?? null : null,
+        status: item.status,
+        createdById: actor.id,
+        updatedById: actor.id
+      };
+    });
+    for (const [index, item] of sourceToc.entries()) {
+      const newParentId = item.parentId ? tocIdMap.get(item.parentId) : null;
+      if (newParentId) tocRows[index]!.parentId = newParentId;
+    }
+    for (const batch of toInsertBatches(tocRows)) {
+      await tx.insert(knowledgeTocItems).values(batch);
+    }
+
+    // 5) 检索页→原文页映射：originalPageId 需要映射到新页面
+    const sourceMappings = await tx.select().from(knowledgePageMappings)
+      .where(eq(knowledgePageMappings.versionId, sourceVersionId))
+      .orderBy(knowledgePageMappings.searchPhysicalPageNumber);
+    const mappingRows: Array<typeof knowledgePageMappings.$inferInsert> = [];
+    for (const mapping of sourceMappings) {
+      const originalPageId = pageIdMap.get(mapping.originalPageId);
+      if (!originalPageId) continue;
+      mappingRows.push({
+        documentId: source.documentId,
+        versionId: created!.id,
+        originalPageId,
+        searchPhysicalPageNumber: mapping.searchPhysicalPageNumber,
+        pageLabel: mapping.pageLabel,
+        mappingMethod: mapping.mappingMethod,
+        confidence: mapping.confidence,
+        verified: mapping.verified,
+        createdById: actor.id
+      });
+    }
+    for (const batch of toInsertBatches(mappingRows)) {
+      await tx.insert(knowledgePageMappings).values(batch);
+    }
+
+    const inherited = {
+      pageCount: pageRows.length,
+      recognitionConfirmedCount: pageRows.filter(page =>
+        readPageRecognitionMeta(page.metadata).recognitionStatus === "CONFIRMED").length,
+      sectionCount: sectionIdMap.size,
+      tocItemCount: tocIdMap.size,
+      pageMappingCount: mappingRows.length,
+      assetCount: sourceAssets.length
+    };
+
+    await writeAuditLog({
+      db: tx, request, actor,
+      action: AUDIT_ACTIONS.KNOWLEDGE_VERSION_CLONED, targetType: "knowledge_document_version", targetId: created!.id,
+      afterJson: {
+        documentId: source.documentId,
+        sourceVersionId,
+        sourceVersion: source.version,
+        version: created!.version,
+        inherited
+      }
+    });
+
+    return { version: created!, inherited };
+  });
+
+  return {
+    message: `已基于版本 ${source.version} 创建草稿（版本 ${result.version.version}），修改后重新发布即可`,
+    documentId: source.documentId,
+    versionId: result.version.id,
+    version: result.version,
+    inherited: result.inherited
+  };
+}
+
 /** 删除草稿版本：仅 DRAFT 允许；级联清理页面/分块/术语/引用/解析任务与源文件对象 */
 export async function deleteDocumentVersion(
   app: FastifyInstance,
@@ -1191,24 +1438,47 @@ export async function deleteDocumentVersion(
   if (version.status !== "DRAFT") {
     throw new ConflictError("仅草稿版本可以删除；已审核或已发布的版本请使用停用");
   }
+  // 克隆版本与源版本共用 fileId：仅当文件不再被任何其他版本或资产引用时才删除文件实体。
+  // 否则会误删源版本正在使用的原文件（knowledge_document_assets.file_id 为 restrict 外键，直接删会失败）。
+  const removal: { fileId: string | null; objectKey: string | null } = { fileId: null, objectKey: null };
   await app.db.transaction(async (tx) => {
-    await tx.delete(knowledgeDocumentVersions).where(eq(knowledgeDocumentVersions.id, versionId));
     if (version.fileId) {
-      await tx.delete(files).where(eq(files.id, version.fileId));
+      const [otherVersion] = await tx.select({ id: knowledgeDocumentVersions.id })
+        .from(knowledgeDocumentVersions)
+        .where(and(
+          eq(knowledgeDocumentVersions.fileId, version.fileId),
+          ne(knowledgeDocumentVersions.id, versionId)
+        )).limit(1);
+      const [otherAsset] = await tx.select({ id: knowledgeDocumentAssets.id })
+        .from(knowledgeDocumentAssets)
+        .where(and(
+          eq(knowledgeDocumentAssets.fileId, version.fileId),
+          ne(knowledgeDocumentAssets.versionId, versionId)
+        )).limit(1);
+      if (!otherVersion && !otherAsset) {
+        const [row] = await tx.select({ id: files.id, objectKey: files.objectKey })
+          .from(files).where(eq(files.id, version.fileId)).limit(1);
+        if (row) {
+          removal.fileId = row.id;
+          removal.objectKey = row.objectKey;
+        }
+      }
+    }
+    await tx.delete(knowledgeDocumentVersions).where(eq(knowledgeDocumentVersions.id, versionId));
+    if (removal.fileId) {
+      await tx.delete(files).where(eq(files.id, removal.fileId));
     }
     await writeAuditLog({
       db: tx, request, actor,
       action: AUDIT_ACTIONS.KNOWLEDGE_VERSION_DELETED, targetType: "knowledge_document_version", targetId: versionId,
-      beforeJson: { version: version.version, title: version.title, status: version.status }
+      beforeJson: { version: version.version, title: version.title, status: version.status },
+      afterJson: { fileRemoved: Boolean(removal.fileId), fileRetainedForOtherVersions: Boolean(version.fileId && !removal.fileId) }
     });
   });
   // 删除 OSS/MinIO 对象（对象删除失败不阻断版本删除，任务文件会由后台清理）
   try {
-    const [file] = version.fileId
-      ? await app.db.select({ objectKey: files.objectKey }).from(files).where(eq(files.id, version.fileId)).limit(1)
-      : [undefined];
-    if (file) {
-      await app.storage.removeObject(file.objectKey);
+    if (removal.objectKey) {
+      await app.storage.removeObject(removal.objectKey);
     }
   } catch {
     app.log.warn({ versionId }, "版本源文件对象删除失败，将由后台任务清理");

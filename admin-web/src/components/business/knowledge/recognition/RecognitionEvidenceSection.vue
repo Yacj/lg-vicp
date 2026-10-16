@@ -33,12 +33,19 @@ function addLayerValue(option: RecognitionDraftOption, index: unknown): void {
 function addColumn(): void {
   system.value.sourceColumns = [...(system.value.sourceColumns ?? []), { fieldKey: 'thicknessMm', label: '', scope: 'UNKNOWN' }]
 }
+function updateDiagramNotes(text: string): void {
+  system.value.diagramNotes = text.split('\n').filter(line => line.trim())
+}
 </script>
 
 <template>
   <details class="recognition-evidence">
     <summary>原表栏目与逐档证据</summary>
     <p>逐字核对原图。材料层、芯层和完整产品的热阻不能互填；原图没有的值留空，不补算。仅核对资料不会选定方案。</p>
+    <div class="recognition-evidence__column">
+      <label v-for="(label, key) in { identifier: '编号栏原表头', diagram: '简图栏原表头', layers: '材料栏原表头' }" :key="key">{{ label }}<t-input :model-value="system.sourceTableHeaders?.[key] || ''" :disabled="readonly" @update:model-value="system.sourceTableHeaders = { ...system.sourceTableHeaders, [key]: $event || undefined }" /></label>
+    </div>
+    <label>构造简图文字说明（每行一条，与热工表材料行分开）<t-textarea :model-value="(system.diagramNotes || []).join('\n')" :disabled="readonly" @update:model-value="updateDiagramNotes" /></label>
     <div v-for="(column, index) in system.sourceColumns" :key="index" class="recognition-evidence__column">
       <label>工程字段<t-select v-model="column.fieldKey" :options="fields" :disabled="readonly" /></label>
       <label>原列名称<t-input v-model="column.label" :disabled="readonly" /></label>
@@ -55,6 +62,7 @@ function addColumn(): void {
     </t-button>
     <details v-for="(layer, index) in system.layers" :key="`layer-${index}`" class="recognition-evidence__row">
       <summary>{{ layer.name }}：原表层标签</summary>
+      <label>来源区域<t-select v-model="layer.sourceRegion" :disabled="readonly" :options="[{ label: '热工表构造层', value: 'THERMAL_TABLE' }, { label: '构造简图说明（不进入热工表）', value: 'DIAGRAM' }, { label: '来源待核对', value: 'UNKNOWN' }]" placeholder="旧资料尚未核对来源区域" /></label>
       <label>印刷层标签<t-input v-model="layer.sourceLayerLabel" :disabled="readonly" /></label>
       <label>合并单元格父标签<t-input v-model="layer.sourceGroupLabel" :disabled="readonly" /></label>
     </details>

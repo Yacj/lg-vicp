@@ -68,6 +68,7 @@ declare global {
   const computedWithControl: typeof import('@vueuse/core')['computedWithControl']
   const confirmedReportBody: typeof import('./utils/aiReportTask')['confirmedReportBody']
   const constructionAttributes: typeof import('./utils/thermalSourceLabels')['constructionAttributes']
+  const constructionDiagramNotes: typeof import('./utils/thermalSourceLabels')['constructionDiagramNotes']
   const constructionLabel: typeof import('./utils/thermalSourceLabels')['constructionLabel']
   const controlledComputed: typeof import('@vueuse/core')['controlledComputed']
   const controlledRef: typeof import('@vueuse/core')['controlledRef']
@@ -300,6 +301,7 @@ declare global {
   const sourceFromRetrieval: typeof import('./utils/aiSource')['sourceFromRetrieval']
   const sourcePageLabel: typeof import('./utils/aiSource')['sourcePageLabel']
   const sourceQuote: typeof import('./utils/aiSource')['sourceQuote']
+  const sourceTableHeader: typeof import('./utils/thermalSourceLabels')['sourceTableHeader']
   const splitAnswerLayers: typeof import('./utils/aiAnswerUx')['splitAnswerLayers']
   const storeToRefs: typeof import('pinia')['storeToRefs']
   const syncRef: typeof import('@vueuse/core')['syncRef']
@@ -618,6 +620,7 @@ declare module 'vue' {
     readonly computedWithControl: UnwrapRef<typeof import('@vueuse/core')['computedWithControl']>
     readonly confirmedReportBody: UnwrapRef<typeof import('./utils/aiReportTask')['confirmedReportBody']>
     readonly constructionAttributes: UnwrapRef<typeof import('./utils/thermalSourceLabels')['constructionAttributes']>
+    readonly constructionDiagramNotes: UnwrapRef<typeof import('./utils/thermalSourceLabels')['constructionDiagramNotes']>
     readonly constructionLabel: UnwrapRef<typeof import('./utils/thermalSourceLabels')['constructionLabel']>
     readonly controlledComputed: UnwrapRef<typeof import('@vueuse/core')['controlledComputed']>
     readonly controlledRef: UnwrapRef<typeof import('@vueuse/core')['controlledRef']>
@@ -850,6 +853,7 @@ declare module 'vue' {
     readonly sourceFromRetrieval: UnwrapRef<typeof import('./utils/aiSource')['sourceFromRetrieval']>
     readonly sourcePageLabel: UnwrapRef<typeof import('./utils/aiSource')['sourcePageLabel']>
     readonly sourceQuote: UnwrapRef<typeof import('./utils/aiSource')['sourceQuote']>
+    readonly sourceTableHeader: UnwrapRef<typeof import('./utils/thermalSourceLabels')['sourceTableHeader']>
     readonly splitAnswerLayers: UnwrapRef<typeof import('./utils/aiAnswerUx')['splitAnswerLayers']>
     readonly storeToRefs: UnwrapRef<typeof import('pinia')['storeToRefs']>
     readonly syncRef: UnwrapRef<typeof import('@vueuse/core')['syncRef']>

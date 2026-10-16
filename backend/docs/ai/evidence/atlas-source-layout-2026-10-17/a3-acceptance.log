@@ -1,0 +1,19 @@
+[隔离环境] 创建随机库、Redis/队列前缀与对象命名空间；源库只复制模型配置。
+[审核流程] 第5页经正式HTTP确认（隔离程序测试；未同步热工参考集）
+[审核流程] 第26页经正式HTTP确认（隔离程序测试；未同步热工参考集）
+AI SDK Warning System: To turn off warning logging, set the AI_SDK_LOG_WARNINGS global to false.
+(node:29108) Warning: AI SDK Warning (deepseek.chat / deepseek-chat): The feature "responseFormat" is not supported. JSON response format schema is only supported with structuredOutputs
+(Use `node --trace-warnings ...` to show where the warning was created)
+[B测试] a3-single HTTP 200，1页 / 1命中行
+(node:29108) Warning: AI SDK Warning (deepseek.chat / deepseek-chat): The feature "responseFormat" is not supported. JSON response format schema is only supported with structuredOutputs
+[B测试] a3-compare HTTP 200，2页 / 4命中行
+[真实C端] A3_SINGLE 开始：Ⅲ型VICP薄抹灰外保温系统，A3-2构造45mm，传热系数是多少？基层是什么？
+(node:29108) Warning: AI SDK Warning (deepseek.chat / deepseek-chat): The feature "responseFormat" is not supported. JSON response format schema is only supported with structuredOutputs
+[真实C端] A3_SINGLE PASS，1命中行
+[真实C端] A3_COMPARE 开始：Ⅲ型VICP薄抹灰外保温系统，45mm厚度，不同基层的传热系数有什么区别？
+(node:29108) Warning: AI SDK Warning (deepseek.chat / deepseek-chat): The feature "responseFormat" is not supported. JSON response format schema is only supported with structuredOutputs
+[真实C端] A3_COMPARE PASS，4命中行
+[真实C端] A3_FOLLOWUP 开始：只看A3-2，基层是什么？
+(node:29108) Warning: AI SDK Warning (deepseek.chat / deepseek-chat): The feature "responseFormat" is not supported. JSON response format schema is only supported with structuredOutputs
+[真实C端] A3_FOLLOWUP PASS，1命中行
+[UAT结束] 已保存报告；仅清理本次随机隔离环境，不修改源库和旧资料。

@@ -1,5 +1,7 @@
 # 蓝格 VICP 后端
 
+复杂图集表格与A3查询修复（2026-10-17）：热工表行使用可选sourceRegion，简图文字独立diagramNotes，原非数值列头由sourceTableHeaders透传；编号格不混入型号/基层，B/App保留原层号和分组。读取问句不以“是/为”推成实体赋值，I/II正式名称不能截获III后缀；完整体系名与只读追问走Domain→语义约束，不增加样本关键词路由。旧确认JSON/引用/快照/PDF不回填，无业务迁移。验收后按用户追加指令运行pnpm run deploy --skip-db发布后端，API/Worker及健康检查通过，此次未重跑测试；B/App仅提交代码。证据见docs/ai/atlas-source-layout-and-a3-2026-10-17.md。
+
 复杂图集审计后修复（2026-10-16）：确认页数值核验复用当前授权引用，签名失败保留B端表格；真实OSS/SSE及H5 DOM 12行通过，Backend2377测试通过1跳过，阶段5仍有未验项，详见[修复与复测记录](docs/ai/complex-atlas-repair-2026-10-16.md)。未迁移或回填业务库、未部署。
 
 2026-10-16 存储约束更新：当前项目所有实际环境与隔离验收统一使用阿里云 OSS，不使用 MinIO。本机配置`STORAGE_PROVIDER=oss`；OSS凭据和AI加密主密钥仅保存在忽略的`.env`中，不写入取证日志或报告。旧审计中的MinIO连接失败属于错误环境配置，不作为OSS故障结论。

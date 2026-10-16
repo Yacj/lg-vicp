@@ -4,6 +4,20 @@
 >
 > 边界：不改变现有版本状态机语义（`DRAFT` 仍是唯一可编辑态）；不引入草稿叠加层（draft overlay）；不改识别算法与已确认数据；前端不 Mock 未落地接口。
 
+## 0. 实现状态（2026-10-16）
+
+**后端与前端均已落地。**
+
+| 项 | 状态 |
+| --- | --- |
+| `POST /versions/:versionId/clone-as-draft` | 已实现（`knowledge-admin.service.ts` → `cloneVersionAsDraft`） |
+| 发布顶替 | 既有能力，无需新增参数（见 §3.2） |
+| 删除草稿的文件保护 | 已修（见 §4.3） |
+| 前端入口 | 详情页「更多 → 修改内容」+ 历史版本抽屉「以此版本修改」 |
+| 测试 | 后端 10 例（`knowledge-version-clone.test.ts`）；后端类型检查、知识库全量 391 例、前端类型检查与 760 例全量测试均通过 |
+
+§3.2 / §3.3 / §10 已按实际实现更新，其余章节保留原始契约与决策记录。
+
 ## 1. 问题
 
 ### 1.1 现状（代码事实）
@@ -90,27 +104,30 @@ Content-Type: application/json
 - 克隆应幂等可防重：前端禁用按钮 + 后端建议请求去重
 - `inherited` 用于前端展示"继承了多少内容"，非必须但便于反馈
 
-### 3.2 发布顶替（推荐）
+### 3.2 发布顶替（已具备，无需新增参数）
 
-```http
-POST /api/v1/platform/knowledge/versions/:versionId/publish
+**实现结论**：`publishVersion` 已经在发布事务内把同文档其他 `PUBLISHED` 版本置为 `DISABLED`，因此克隆草稿发布时天然顶替旧版本，不需要 `replacePublished` 参数：
 
-{ "replacePublished": true }
+```ts
+await tx.update(knowledgeDocumentVersions)
+  .set({ status: "DISABLED", updatedAt: new Date() })
+  .where(and(
+    eq(knowledgeDocumentVersions.documentId, version.documentId),
+    eq(knowledgeDocumentVersions.status, "PUBLISHED")
+  ));
 ```
 
-- `replacePublished: true`：同一事务内先停用同文档当前 `PUBLISHED` 版本，再发布目标版本
-- 缺省 `false`：保持现有行为，返回 `KNOWLEDGE_PUBLISHED_VERSION_CONFLICT`
-- 前端在"克隆草稿发布"路径固定传 `true`，消除"先手动停用旧版"的多余步骤。**若不做这一步，用户仍要手动停用，痛点未消干净。**
+`KNOWLEDGE_PUBLISHED_VERSION_CONFLICT` 仅出现在 `enableVersion`（重新启用已停用版本）路径，与本方案无关。
 
-### 3.3 workspace 返回口径（需后端明确）
+### 3.3 workspace 返回口径（已确认）
 
-同时存在 `PUBLISHED v3` 与 `DRAFT v4` 时：
+`findWorkingVersion`（`knowledge-workflow.service.ts:93`）取"同文档非 `DISABLED` 且版本号最大"的版本。因此同时存在 `PUBLISHED v3` 与 `DRAFT v4` 时：
 
-- `currentVersion` 应返回 `v4`（最新工作版本），`status = DRAFT`
+- `currentVersion` 返回 `v4`（`status = DRAFT`）→ 前端克隆后 `refresh()` 自动落到新草稿
 - `document.publishedVersionId` 仍指向 `v3`
 - 线上问答检索仍只走 `publishedVersionId`
 
-当前 `useKnowledgeLifecycle.ts:237` 的注释为"workspace 仅返回非 DISABLED 的工作版本"，需按上述口径确认后再实现前端。
+另外：克隆草稿的 `indexStatus = INDEX_PENDING`、`indexDirty = true`，因此 workspace 返回 `canPublish = false` 且 `publishBlockers` 含索引未就绪项 —— 前端会正确提示"需要更新问答内容"，无需额外改门禁。
 
 ## 4. 克隆范围
 
@@ -135,7 +152,8 @@ POST /api/v1/platform/knowledge/versions/:versionId/publish
 页面图与资产以 `fileId` **复用而非复制**。因此：
 
 - 删除草稿时不能删除被旧版本共用的文件
-- 建议后端以引用计数或软删除处理，前端不做文件级清理
+- **已实现**：`deleteDocumentVersion` 删除前检查该 `fileId` 是否仍被其他版本或 `knowledge_document_assets` 引用；有引用则只删版本行、保留文件与对象存储实体，审计日志记 `fileRetainedForOtherVersions`
+- 未引入引用计数表：存在性检查已足够，且 `knowledge_document_assets.file_id` 本身是 `restrict` 外键，误删会被数据库直接拦下
 
 ## 5. 前端改造清单
 
@@ -187,13 +205,24 @@ POST /api/v1/platform/knowledge/versions/:versionId/publish
 5. 克隆全程原发布版本保持可用，无问答中断
 6. 删除草稿不影响原版本与其文件
 
-## 10. 待后端确认项
+## 10. 实现记录与遗留
 
-1. `clone-as-draft` 是独立端点，还是复用 `POST /documents/:id/versions` 加 `sourceVersionId` 参数
-2. 热工确认行 / 参考集关联是否随版本克隆（涉及 `thermalSet` 的版本语义）
-3. 同时存在 `PUBLISHED` + `DRAFT` 时 `currentVersion` 的返回口径（见 §3.3）
-4. 文件引用复用下的删除策略（引用计数 vs 软删除）
-5. 克隆是否写审计日志（建议写入，含源版本号与 `changeNote`）
+### 10.1 已定决策
+
+| 原待确认项 | 结论 |
+| --- | --- |
+| 独立端点还是复用 `POST /documents/:id/versions` | 独立端点 `POST /versions/:versionId/clone-as-draft`；与 `rollback-to`（仅复制元信息、内容重新解析）语义区分 |
+| 同时存在 `PUBLISHED` + `DRAFT` 时 `currentVersion` 口径 | 返回版本号最大的非 `DISABLED` 版本（见 §3.3） |
+| 文件引用复用下的删除策略 | 存在性检查 + 保留文件（`deleteDocumentVersion` 已改，见 §4.3） |
+| 克隆是否写审计日志 | 写入 `knowledge.version_cloned`，含源版本号与继承统计 |
+| 热工确认行是否随版本克隆 | 随 `pages.metadata` 一并继承（`thermalSync` 状态保留），不单独重建正式热工行 |
+| 索引（blocks / chunks）是否继承 | 不继承。`rebuildPageDrivenVersionIndex` 会先删该版本的 blocks / chunks 再从页面重建，故克隆只复制页面层 |
+
+### 10.2 遗留
+
+1. **热工正式行的版本归属**：克隆草稿沿用源版本的 `thermalSync` 状态；草稿改页后重新确认会按既有确认流程重新同步正式热工行。该路径依赖 `knowledge-thermal-sync`，未在本次改动范围内。
+2. **克隆耗时**：页面数量大时克隆是同步事务，前端沿用请求超时、未加进度反馈。后续如需可改异步任务 + 进度轮询。
+3. **`rollback-to` 与 `clone-as-draft` 语义并存**：前者仍是"仅元信息 + 重新解析"，前端当前未使用；后续可评估是否统一。
 
 ## 11. 分期与降级
 

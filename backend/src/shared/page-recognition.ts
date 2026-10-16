@@ -49,6 +49,8 @@ export const pageRecognitionLayerValueSchema = z.object({
 });
 
 export const pageRecognitionLayerSchema = z.object({
+  /** 来源区域；不靠材料名或空值猜测简图行。旧确认 JSON 不补默认值。 */
+  sourceRegion: z.enum(["THERMAL_TABLE", "DIAGRAM", "UNKNOWN"]).optional(),
   order: z.number().int().nullable().optional(),
   sourceLayerLabel: z.string().nullable().optional(),
   /** 例如复合板内的上包覆/芯层/下包覆；只抄原表共同父标签。 */
@@ -95,6 +97,9 @@ export const pageRecognitionSystemSchema = z.object({
   /** 原图等级原文；不能从 VICP specClass 推导。 */
   waterproofGrade: z.string().nullable().optional(),
   sourceColumns: z.array(pageRecognitionSourceColumnSchema).optional(),
+  sourceTableHeaders: z.object({ identifier: z.string().min(1).optional(), diagram: z.string().min(1).optional(), layers: z.string().min(1).optional() }).optional(),
+  /** 构造简图旁的做法说明，逐条抄录；不作为热工计算表材料行。 */
+  diagramNotes: z.array(z.string()).optional(),
   baseMaterial: z.string().nullable().optional(),
   baseThicknessMm: z.number().nullable().optional(),
   layers: z.array(pageRecognitionLayerSchema).optional(),
@@ -178,9 +183,15 @@ export const PAGE_RECOGNITION_SYSTEM_PROMPT = [
   "不要修正 R、不要判断业务是否合规、不要自动发布正式数据。",
   "必须保持 thicknessMm / productThermalResistance / totalThermalResistance / kValue 的同行对应关系。",
   "先依据表头、视觉分组、合并单元格范围和行列对齐划分systems；一个页面存在多个构造时分成多个systems元素。同厚度、R/K完全相同的两组仍是不同构造，禁止合并或去重。每组全部厚度按原图顺序放入options，不只提取常见档位。",
+  "右侧整构造R/K可能画在贯穿整组的无内部横线单元格中，但格内有多行数字列表。必须按该组可变厚度列表的原始上下顺序逐项配对R/K；没有画横线不代表没有逐档数值。仅在数量、对齐关系或字形无法确认时留空并具体指出歧义，不因合并单元格将整列判为未提供。",
+  "严格区分‘构造简图’区域与右侧‘构造层/分层厚度/导热系数/修正系数/热阻’表格区域。layers只抄热工表中真实列出的材料行，sourceRegion=THERMAL_TABLE，sourceLayerLabel逐字保留原表层号（允许跳号）；不得用简图的11条做法替换只有6行的热工表，不得将简图层号与表格层号按数组位置拼接。",
+  "构造简图旁的文字做法（包括按工程设计的隔汽层、防水层、保护层等）逐条原样保存为各组diagramNotes，并在fullText保留；不自动插入layers。不要依据名称、相同厚度或相似数字从简图给热工表补行补值。无法区分区域的层标sourceRegion=UNKNOWN并写warning，不猜测归属。",
+  "sourceTableHeaders逐字抄identifier=编号栏表头、diagram=构造简图栏表头、layers=构造层栏表头；没有的表头省略。编号中字形‘-’与‘=’必须对照原图，不根据旧识别结果或相邻构造推断。",
+  "sourceLayerLabel仅记录该热工表行印出的层号字形，如‘1’、‘4’、‘9’，材料名称单独写name；不要填‘1.混合砂浆’再在name重复‘混合砂浆’。如果表内没有可辨层号则填null，不用数组顺序补号。",
   "rawConstructionLabel逐字保留原图构造分组标签。constructionCode仅在原图构造编号栏明确印有编号时填写，并在constructionCodeEvidence逐字抄该编号；没有编号填null。材料层序号、图示数字、组序号不能作为构造编号，也不得伪造A/C编码。",
   "独立依据图片提取applicationPart=EXTERNAL_WALL|ROOF、roofForm=SLOPED|FLAT、placement=UPRIGHT|INVERTED；无证据填null。specClass=I|II|III表示VICP型号，waterproofGrade只抄防水等级原文，不能相互推导；不清楚的等级填null并写warning。基层材料及基层厚度与可变保温芯层厚度分开。",
   "构造编号栏的带文字标签仍可能包含真实编号：逐字保留整个rawConstructionLabel，同时将该栏实际印出的构造编号及相同constructionCodeEvidence单独记录；不能因编号旁有部位文字而遗漏编号。部位从标题、构造标签和简图共同核对；baseMaterial/baseThicknessMm从同组实际基层材料行抄录，不能因材料行已有记录而省略组级基层字段。",
+  "编号栏的部位前缀不是排除编号的理由：例如原文‘外墙A1-3’本身已经明确印出了编号，必须填写rawConstructionLabel='外墙A1-3'、constructionCode='A1-3'、constructionCodeEvidence='A1-3'；不能声称它只是标签而将编号留空。相反，只有‘平屋面（正置，…）’而无印刷编码时编号才留null。此规则只由原图编号栏字形判断，不按页码、固定标题或旧结果套用。",
   "waterproofGrade必须含可辨认的等级及‘级’，只有‘级防水’而等级字形缺失时填null并写warning。图中没有印出的λ或R符号不能在sourceColumns.symbol里补写；技术字段名与原文符号分开。",
   "sourceColumns逐列抄原文label/groupLabel/symbol/unit，scope=LAYER|PRODUCT|CONSTRUCTION|UNKNOWN，fieldKey对应正式字段。rValue是材料层列；完整产品列才映射productThermalResistance。右侧整构造R列按证据映射totalThermalResistance，语义不能证明时scope=UNKNOWN、值null并写warning。原图写R不能改为R₀，源文组名即使与屋面主题看似不符也要原样保留，不能纠正原稿。",
   "sourceColumns每项fieldKey必须是一个非空正式字段名：厚度thicknessMm、导热系数lambda、修正系数alpha、材料层热阻rValue、明确的完整产品热阻productThermalResistance、整构造传热阻totalThermalResistance、传热系数kValue。fieldKey不能填null或中文表头；不能确定归属的栏目保留在fullText并写warnings。",

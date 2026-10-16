@@ -1,0 +1,130 @@
+{
+  "id": "A3_COMPARE",
+  "group": "a3-compare",
+  "question": "Ⅲ型VICP薄抹灰外保温系统，45mm厚度，不同基层的传热系数有什么区别？",
+  "status": "PASS",
+  "conversationId": "1b7e2565-dfe6-41bf-a1fc-e7248797d294",
+  "answer": "本次已确认资料匹配 4 档、4 个独立构造，当前引用 4 档。\n\n- **A3-1**，基层钢筋混凝土 200mm：板厚 **45mm**，传热系数 K **0.302 W/(m²·K)**。来源：《复杂建筑热工图集 · 隔离人工基线（程序模拟审核）》，印刷页码 5。\n\n- **A3-2**，基层混凝土空心砌块 190mm：板厚 **45mm**，传热系数 K **0.294 W/(m²·K)**。来源：《复杂建筑热工图集 · 隔离人工基线（程序模拟审核）》，印刷页码 5。\n\n- **外墙A3-3**，基层蒸压灰砂砖 240mm：板厚 **45mm**，传热系数 K **0.293 W/(m²·K)**。来源：《复杂建筑热工图集 · 隔离人工基线（程序模拟审核）》，印刷页码 26。\n\n- **外墙A3-4**，基层加气混凝土砌块 200mm：板厚 **45mm**，传热系数 K **0.248 W/(m²·K)**。来源：《复杂建筑热工图集 · 隔离人工基线（程序模拟审核）》，印刷页码 26。\n\n同值不代表做法相同，请结合完整表及原始构造简图核对。材料层热阻、产品整体热阻与整构造传热阻分别读取，缺值不补算；本次仅查阅资料，不选择方案或判断规范达标。",
+  "facts": [
+    {
+      "page": "5",
+      "constructionId": "kp-f79333f9ad242d5aaeb09197-0",
+      "optionId": "kp-f79333f9ad242d5aaeb09197-0-o7",
+      "label": "A3-1",
+      "thickness": 45,
+      "r": 3.313,
+      "k": 0.302,
+      "base": "钢筋混凝土",
+      "versionId": "b14a8f26-b5b3-4494-8c65-24978c354bb3",
+      "revision": "f79333f9ad242d5aaeb09197",
+      "fieldKeys": [
+        "thicknessMm",
+        "kValue"
+      ]
+    },
+    {
+      "page": "5",
+      "constructionId": "kp-f79333f9ad242d5aaeb09197-1",
+      "optionId": "kp-f79333f9ad242d5aaeb09197-1-o7",
+      "label": "A3-2",
+      "thickness": 45,
+      "r": 3.398,
+      "k": 0.294,
+      "base": "混凝土空心砌块",
+      "versionId": "b14a8f26-b5b3-4494-8c65-24978c354bb3",
+      "revision": "f79333f9ad242d5aaeb09197",
+      "fieldKeys": [
+        "thicknessMm",
+        "kValue"
+      ]
+    },
+    {
+      "page": "26",
+      "constructionId": "kp-d5d8216884fc74dd67a2dd90-0",
+      "optionId": "kp-d5d8216884fc74dd67a2dd90-0-o7",
+      "label": "外墙A3-3",
+      "thickness": 45,
+      "r": 3.416,
+      "k": 0.293,
+      "base": "蒸压灰砂砖",
+      "versionId": "b14a8f26-b5b3-4494-8c65-24978c354bb3",
+      "revision": "d5d8216884fc74dd67a2dd90",
+      "fieldKeys": [
+        "thicknessMm",
+        "kValue"
+      ]
+    },
+    {
+      "page": "26",
+      "constructionId": "kp-d5d8216884fc74dd67a2dd90-1",
+      "optionId": "kp-d5d8216884fc74dd67a2dd90-1-o7",
+      "label": "外墙A3-4",
+      "thickness": 45,
+      "r": 4.04,
+      "k": 0.248,
+      "base": "加气混凝土砌块",
+      "versionId": "b14a8f26-b5b3-4494-8c65-24978c354bb3",
+      "revision": "d5d8216884fc74dd67a2dd90",
+      "fieldKeys": [
+        "thicknessMm",
+        "kValue"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "page": {
+        "documentId": "97662205-a1a5-499d-be95-4374c7a6bc30",
+        "pageId": "1f88615e-e1a2-4209-bf75-6433ea1c29e8",
+        "documentTitle": "复杂建筑热工图集 · 隔离人工基线（程序模拟审核）",
+        "versionId": "b14a8f26-b5b3-4494-8c65-24978c354bb3",
+        "pageLabelSource": "MANUAL",
+        "pageLabelVerified": true,
+        "docNumber": "J/CABEE 26J702 / UAT",
+        "pageNumber": 1,
+        "physicalPageNumber": 1,
+        "pageLabel": "5",
+        "imageUrl": "[AUTHORIZED_URL_REDACTED]"
+      },
+      "revision": "f79333f9ad242d5aaeb09197",
+      "groups": 2,
+      "options": [
+        9,
+        9
+      ],
+      "notes": [
+        "内表面换热阻0.11 (m²·K)/W，外表面换热阻0.04 (m²·K)/W。"
+      ]
+    },
+    {
+      "page": {
+        "documentId": "97662205-a1a5-499d-be95-4374c7a6bc30",
+        "pageId": "b660f287-3176-4831-995b-682446eb9678",
+        "documentTitle": "复杂建筑热工图集 · 隔离人工基线（程序模拟审核）",
+        "versionId": "b14a8f26-b5b3-4494-8c65-24978c354bb3",
+        "pageLabelSource": "MANUAL",
+        "pageLabelVerified": true,
+        "docNumber": "J/CABEE 26J702 / UAT",
+        "pageNumber": 2,
+        "physicalPageNumber": 2,
+        "pageLabel": "26",
+        "imageUrl": "[AUTHORIZED_URL_REDACTED]"
+      },
+      "revision": "d5d8216884fc74dd67a2dd90",
+      "groups": 2,
+      "options": [
+        9,
+        9
+      ],
+      "notes": [
+        "注：1. 内表面换热阻0.11（m²·K）/W，外表面换热阻0.04（m²·K）/W。",
+        "2. 加气混凝土砌块热工性能参照华北标图集13BJ2-12建筑外保温（节能75%）。"
+      ]
+    }
+  ],
+  "historyReturned": true,
+  "persistedUrlFree": true,
+  "solutionStates": 0,
+  "reports": 0,
+  "snapshots": 0
+}

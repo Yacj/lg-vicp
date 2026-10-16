@@ -1,0 +1,133 @@
+{
+  "name": "single",
+  "readOnly": {
+    "transaction_read_only": "on"
+  },
+  "decision": {
+    "intent": "REFERENCE_QUERY",
+    "mutation": "QUERY",
+    "evidenceSpans": [
+      "Ⅲ型VICP薄抹灰外保温系统，A3-2构造45mm，传热系数是多少？基层是什么？"
+    ],
+    "parserSource": "LLM",
+    "semantic": {
+      "pageQuery": {
+        "readFields": [
+          "kValue",
+          "baseMaterial"
+        ],
+        "queryMode": "NEW_QUERY",
+        "intent": "REFERENCE_LOOKUP",
+        "constraints": [
+          {
+            "type": "ENTITY",
+            "operation": "SET",
+            "field": "specClass",
+            "entityText": "Ⅲ型",
+            "resolvedText": "Ⅲ型",
+            "metric": null,
+            "operator": null,
+            "value": null,
+            "evidence": "Ⅲ型VICP薄抹灰外保温系统",
+            "hard": true,
+            "confidence": 0.95
+          },
+          {
+            "type": "ENTITY",
+            "operation": "SET",
+            "field": "schemeCode",
+            "entityText": "A3-2",
+            "resolvedText": "A3-2",
+            "metric": null,
+            "operator": null,
+            "value": null,
+            "evidence": "A3-2构造45mm",
+            "hard": true,
+            "confidence": 0.95
+          },
+          {
+            "type": "THICKNESS",
+            "operation": "SET",
+            "field": null,
+            "entityText": "45mm",
+            "resolvedText": "45mm",
+            "metric": null,
+            "operator": "EXACT",
+            "value": 45,
+            "evidence": "A3-2构造45mm",
+            "hard": true,
+            "confidence": 0.95
+          }
+        ],
+        "preferences": [],
+        "unresolved": [],
+        "confidence": 0.95
+      },
+      "intent": "REFERENCE_QUERY",
+      "confidence": 0.95,
+      "evidence": "Ⅲ型VICP薄抹灰外保温系统，A3-2构造45mm，传热系数是多少？基层是什么？",
+      "unresolved": null,
+      "reportType": null,
+      "factRead": null,
+      "relation": "NEW",
+      "continuedGoal": null,
+      "comparison": null,
+      "referenceTime": null,
+      "adviceMode": null,
+      "constraintPatch": [],
+      "reference": {
+        "scope": "NONE",
+        "revision": null,
+        "items": []
+      },
+      "requestedEffect": "QUERY",
+      "effectRequest": null,
+      "ambiguity": []
+    },
+    "requiresCandidateQuery": false,
+    "restoreAdviceGoal": false,
+    "referenceScope": "LATEST_VISIBLE",
+    "policyReason": "READ_ONLY_QUERY"
+  },
+  "catalogMatches": {
+    "preferences": {},
+    "unresolved": [],
+    "removedFields": []
+  },
+  "checked": {
+    "intent": "REFERENCE_LOOKUP",
+    "filters": [],
+    "mode": "MAX_LIMIT",
+    "toleranceAdjusted": false,
+    "schemeCode": "A3-2",
+    "specClass": "III",
+    "thicknessMm": 45,
+    "readFields": [
+      "kValue",
+      "baseMaterial"
+    ],
+    "queryMode": "NEW_QUERY",
+    "semanticConfidence": 0.95,
+    "unresolved": [],
+    "conditionTrace": [
+      {
+        "field": "schemeCode",
+        "value": "A3-2",
+        "source": "USER_EXPLICIT",
+        "classification": "HARD_CONSTRAINT"
+      },
+      {
+        "field": "specClass",
+        "value": "III",
+        "source": "USER_EXPLICIT",
+        "classification": "HARD_CONSTRAINT"
+      },
+      {
+        "field": "thicknessMm",
+        "value": 45,
+        "source": "USER_EXPLICIT",
+        "classification": "HARD_CONSTRAINT"
+      }
+    ]
+  }
+}

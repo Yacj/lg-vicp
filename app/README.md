@@ -1,3 +1,5 @@
+复杂图集表格（2026-10-17）：沿用后端来源列头、原层号和分组；简图说明可展开，完整表保留全部档位，产品整体R无值时不固定增列。B/App使用同一确认事实，旧资料不在客户端纠正。验证范围及不足见[三端修复记录](../backend/docs/ai/atlas-source-layout-and-a3-2026-10-17.md)。
+
 <p align="center">
   <img alt="logo" src="https://starter.wot-ui.cn/logo.svg" width="200">
 </p>

@@ -16,6 +16,8 @@ import { repairDomainSemanticText } from "./domain-semantic-output.js";
 import { applySemanticQuery, describeNumberRoles } from "../thermal/semantic-query.js";
 import { loadThermalQueryDictionary } from "../thermal/thermal-query-dictionary.service.js";
 export const DOMAIN_SEMANTIC_PROMPT = [
+  "原话明确给出完整体系名称时，pageQuery必须用ENTITY field=systemHint逐字保留体系名称，并另列specClass；不能只留下型号/构造编号而漏掉薄抹灰、复合板等体系区别。体系在正式目录未登记也可以作为确认页的文本硬条件，不需要用户改名称或配置目录别名。例如‘Ⅲ型VICP薄抹灰外保温系统’须保留该原文systemHint及Ⅲ型specClass，不映射成I/II型目录ID。",
+  "已有previousQuery后只读追问某构造的基层/指标（包括明确构造编号）使用REFERENCE_REFINE、requestedEffect=QUERY、pageQuery.queryMode=REFINE_QUERY；仅更新原话指定的schemeCode等条件并保留其余体系/板厚，readFields填写所问列。不切换成依赖正式Candidate的REFERENCE_DETAIL，也不要求选择或确认方案。",
   "先区分读取参数与设置指标目标。询问某厚度的K/R是多少、是否相同、哪个较小，不是给定指标目标：不得生成value=null的METRIC约束，不要求用户提供目标值、唯一基层或选择方案。只有明确目标数值才产生METRIC条件。constraintPatch没有项目/候选条件修改时必须为[]，不能为null。",
   "图集pageQuery是本轮读取条件的完整合同。型号、部位、构造、页码、板厚必须在pageQuery.constraints，不能只放顶层constraintPatch。明确板厚用THICKNESS、field=null、operator=EXACT、value=毫米数值；厚度范围用MIN_LIMIT/MAX_LIMIT。pageQuery非空时顶层constraintPatch=[]；指标读取不生成METRIC。",
   "每个构造属性独立成一个ENTITY。entityText只复制该字段自身的最小原话字形，不能拼接其他属性；例如placement只接受正置/倒置，applicationPart只接受屋面/外墙/坡屋面/平屋面，roofForm只接受坡屋面/平屋面。原话同时表达多个属性时逐字段保留，不能只保留位置而漏掉部位；不得根据未说出的型号、坡平或页码补条件。evidence可以保留含这些属性的完整连续原话。",

@@ -1,0 +1,19 @@
+{
+  "id": "A3_SINGLE",
+  "group": "a3-single",
+  "question": "Ⅲ型VICP薄抹灰外保温系统，A3-2构造45mm，传热系数是多少？基层是什么？",
+  "status": "FAIL",
+  "conversationId": "6a43efe5-d0db-4836-8889-ade1c4ebc3fa",
+  "answer": "想确认一下：该体系族尚无可靠正式映射，请指定完整体系名称或编码。",
+  "facts": [],
+  "pages": [],
+  "historyReturned": true,
+  "persistedUrlFree": true,
+  "solutionStates": 0,
+  "reports": 0,
+  "snapshots": 0,
+  "error": {
+    "name": "AssertionError",
+    "message": "命中行数必须准确，不能串构造或多返回别的档位\n\n0 !== 1\n"
+  }
+}

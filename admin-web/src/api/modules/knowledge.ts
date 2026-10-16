@@ -48,6 +48,8 @@ import type {
   KnowledgeUploadIntentInput,
   KnowledgeUsageMode,
   KnowledgeVersionAssetsResult,
+  KnowledgeVersionCloneInput,
+  KnowledgeVersionCloneResult,
   KnowledgeVersionIndex,
   KnowledgeVersionInput,
   KnowledgeVersionPagesResult,
@@ -338,6 +340,24 @@ export function enableKnowledgeVersion(versionId: string): Promise<{ message: st
 export function rollbackKnowledgeVersion(documentId: string, versionId: string): Promise<{ version: KnowledgeDocumentVersion }> {
   return api.post<{ version: KnowledgeDocumentVersion }>(
     `${KNOWLEDGE_PREFIX}/documents/${encodeURIComponent(documentId)}/rollback-to/${encodeURIComponent(versionId)}`,
+  )
+}
+
+/**
+ * 版本克隆（发布后修改）：从已发布 / 已停用版本派生新草稿，
+ * 继承页面图、识别确认结果、章节树、原文目录与页码映射，用户只需修改有问题的页，
+ * 不必重新上传 / 解析 / 逐页识别确认。
+ *
+ * 索引不继承：新草稿的问答内容需先在「概览」中重建，再审核发布。
+ * 同文档已有草稿时后端返回 KNOWLEDGE_VERSION_DRAFT_EXISTS。
+ */
+export function cloneKnowledgeVersionAsDraft(
+  versionId: string,
+  input: KnowledgeVersionCloneInput = {},
+): Promise<KnowledgeVersionCloneResult> {
+  return api.post<KnowledgeVersionCloneResult>(
+    `${KNOWLEDGE_PREFIX}/versions/${encodeURIComponent(versionId)}/clone-as-draft`,
+    input,
   )
 }
 

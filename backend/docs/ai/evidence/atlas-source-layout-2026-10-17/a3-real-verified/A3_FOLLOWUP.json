@@ -1,0 +1,19 @@
+{
+  "id": "A3_FOLLOWUP",
+  "group": "a3-compare",
+  "question": "只看A3-2，基层是什么？",
+  "status": "FAIL",
+  "conversationId": "1b7e2565-dfe6-41bf-a1fc-e7248797d294",
+  "answer": "当前没有可定位的候选，请先查询已有档位或选择方案。",
+  "facts": [],
+  "pages": [],
+  "historyReturned": true,
+  "persistedUrlFree": true,
+  "solutionStates": 0,
+  "reports": 0,
+  "snapshots": 0,
+  "error": {
+    "name": "AssertionError",
+    "message": "命中行数必须准确，不能串构造或多返回别的档位\n\n0 !== 1\n"
+  }
+}

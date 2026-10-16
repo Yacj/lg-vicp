@@ -1,0 +1,37 @@
+[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.overrides", "pnpm.patchedDependencies". See https://pnpm.io/settings for the new home of each setting.
+
+> wotprojectname@2.0.0 build:h5 E:\code\lg\app
+> uni build
+
+Compiler version: 5.24（vue3）
+Compiling...
+command, mode ->  build production
+UNI_PLATFORM ->  h5
+环境变量 env ->  {
+  VITE_CJS_IGNORE_WARNING: 'true',
+  VITE_ROOT_DIR: 'E:\\code\\lg\\app',
+  VITE_USER_NODE_ENV: 'production'
+}
+  [38;5;69;1muni-ku:bundle-optimizer [INFO] [main] 当前构建平台: h5
+
+uni-app 有新版本发布，请执行 `npx @dcloudio/uvm@latest` 更新，更新日志详见：https://download1.dcloud.net.cn/hbuilderx/changelog/5.26.2026091802.html
+​Browserslist: browsers data (caniuse-lite) is 10 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme​
+node:internal/fs/promises:636
+  return new FileHandle(await PromisePrototypeThen(
+                        ^
+
+Error: UNKNOWN: unknown error, open 'E:\code\lg\app\src\components.d.ts'
+    at async open (node:internal/fs/promises:636:25)
+    at async writeFile (node:internal/fs/promises:1205:14)
+    at async writeFile (file:///E:/code/lg/app/node_modules/.pnpm/@uni-helper+vite-plugin-uni-components@0.2.6_rollup@4.14.3/node_modules/@uni-helper/vite-plugin-uni-components/dist/index.mjs:181:10)
+    at async writeDeclaration (file:///E:/code/lg/app/node_modules/.pnpm/@uni-helper+vite-plugin-uni-components@0.2.6_rollup@4.14.3/node_modules/@uni-helper/vite-plugin-uni-components/dist/index.mjs:190:5) {
+  errno: -4094,
+  code: 'UNKNOWN',
+  syscall: 'open',
+  path: 'E:\\code\\lg\\app\\src\\components.d.ts'
+}
+
+Node.js v22.22.1
+ ELIFECYCLE  Command failed with exit code 1.

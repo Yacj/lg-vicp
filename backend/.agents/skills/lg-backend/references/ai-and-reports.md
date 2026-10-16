@@ -1,3 +1,5 @@
+复杂图集表格与A3查询修复（2026-10-17）：热工表行使用可选sourceRegion，简图文字独立diagramNotes，原非数值列头由sourceTableHeaders透传；编号格不混入型号/基层，B/App保留原层号和分组。读取问句不以“是/为”推成实体赋值，I/II正式名称不能截获III后缀；完整体系名与只读追问走Domain→语义约束，不增加样本关键词路由。旧确认JSON/引用/快照/PDF不回填，无业务迁移或生产部署。证据见docs/ai/atlas-source-layout-and-a3-2026-10-17.md。
+
 2026-10-16 复杂图集阶段5真实联合UAT：验收FAIL。隔离库共享服务及H5来源详情12行通过，真实自然SSE未形成引用闭环，芯层R误称产品R、浏览器原图加载仍失败；旧890确认档不回填，A3原值正确但查询回归未过。测试配置源强制只读、全部对象操作统一隔离前缀，派生副本遗漏已精确清理并重跑验证。未部署/迁移业务库/改写旧PDF，见docs/ai/complex-atlas-phase5-2026-10-16.md。
 
 <!-- 2026-08 原文导航收口：CHUNK_REBUILD 仅重建派生 Section/Block/Chunk，保留 Page ID、预览、人工页签、CONFIRMED TOC 与人工映射；双源只从 SEARCH_SOURCE 读取并且未映射页不索引。检索统一限制当前 PUBLISHED、未过期、AI_ENABLED 版本；BROWSE_ONLY 仅浏览；来源详情通过映射返回 ORIGINAL，未映射时不伪造页码。B 端草稿验证走 `POST /api/v1/platform/knowledge/versions/:versionId/test-qa`（`searchWikiHierarchy({ versionId })`，允许 DRAFT），不得把该限定并入生产 `/api/v1/ai/knowledge-qa`。 -->

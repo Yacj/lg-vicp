@@ -8,6 +8,46 @@ import { buildKnowledgePageRenderModel } from "./knowledge-page-render.js";
 const fixture = (page: number) => pageRecognitionResultSchema.parse(JSON.parse(readFileSync(new URL(`../../tests/fixtures/complex-atlas/page-${page}.json`, import.meta.url), "utf8")).data);
 
 describe("复杂热工页：原图数字与工程身份", () => {
+  it.each([22, 53])("原图%s：简图说明与热工行分离，原表层号与列头原样透传", page => {
+    const data = fixture(page), before = JSON.stringify(data);
+    const checked = validatePageRecognitionEvidence(data);
+    expect(checked.issues).toEqual([]);
+    const model = buildKnowledgePageRenderModel(`source-${page}`, checked.data)!;
+    expect(model.pageLabel).toBe(String(page));
+    for (const group of model.constructions) {
+      expect(group.layers).toHaveLength(6);
+      expect(group.layers.every(layer => layer.sourceRegion === "THERMAL_TABLE")).toBe(true);
+      expect(group.layers.some(layer => layer.name.includes("按工程设计"))).toBe(false);
+      expect(group.sourceTableHeaders).toEqual({ identifier: "编号", diagram: "构造简图", layers: "构造层" });
+      expect(group.options.every(option => option.productThermalResistance == null && option.layerValues?.[0]?.rValue != null)).toBe(true);
+    }
+    if (page === 53) {
+      expect(model.constructions[0]!.layers.map(layer => layer.sourceLayerLabel)).toEqual(["1", "2", "4", "5", "6", "7"]);
+      expect(model.constructions[1]!.layers.map(layer => layer.sourceLayerLabel)).toEqual(["1", "2", "3", "4", "6", "9"]);
+      expect(model.constructions[0]!.diagramNotes).toHaveLength(11);
+      expect(model.constructions[0]!.options.map(option => option.kValue)).toEqual(model.constructions[1]!.options.map(option => option.kValue));
+      expect(model.constructions[0]!.options[0]!.optionId).not.toBe(model.constructions[1]!.options[0]!.optionId);
+    } else {
+      expect(model.constructions[0]!.constructionCode).toBe("A1-3");
+      expect(model.constructions[0]!.options[1]!.totalThermalResistance).toBe(3.297);
+    }
+    expect(JSON.stringify(data)).toBe(before);
+  });
+
+  it("简图行不能承载材料层档位引用；来源不明、等号编号提示核对但不擅自改事实", () => {
+    const data = fixture(53), group = data.systems[0]!;
+    group.layers![2]!.sourceRegion = "DIAGRAM";
+    group.layers![3]!.sourceRegion = "UNKNOWN";
+    group.constructionCode = "A1=3"; group.rawConstructionLabel = "外墙A1=3"; group.constructionCodeEvidence = "A1=3";
+    const checked = validatePageRecognitionEvidence(data);
+    expect(checked.data.systems[0]!.options!.every(option => option.layerValues?.length === 0)).toBe(true);
+    expect(checked.issues.join(" ")).toContain("指向构造简图");
+    expect(checked.data.warnings!.join(" ")).toContain("来源区域待核");
+    expect(checked.data.warnings!.join(" ")).toContain("等号");
+    expect(checked.data.systems[0]!.constructionCode).toBe("A1=3");
+    expect(buildKnowledgePageRenderModel("page", checked.data)!.constructions[0]!.layers.some(layer => layer.sourceRegion === "DIAGRAM" && layer.variable)).toBe(false);
+  });
+
   it.each([89, 90, 75])("第%s页保留独立构造、全部档位、λ/α及层/产品/整体R边界", page => {
     const data = fixture(page);
     const before = JSON.stringify(data);

@@ -1,0 +1,40 @@
+$ vitest run "--maxWorkers=1"
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - `__dirname` (vitest.config.ts:9:25). Use `import.meta.dirname` instead
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 E:/code/lg/admin-web
+
+ ❯ src/utils/complex-atlas.test.ts (9 tests | 1 failed) 583ms
+   ❯ 三页复杂图集合同（人工源图Fixture，不是正式资料） (9)
+     × 53页编号栏不夹型号/基层，简图说明单列且热工表保留六行与原层号 77ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/utils/complex-atlas.test.ts > 三页复杂图集合同（人工源图Fixture，不是正式资料） > 53页编号栏不夹型号/基层，简图说明单列且热工表保留六行与原层号
+AssertionError: expected '构造简图' to contain '隔汽层：按工程设计'
+
+Expected: "隔汽层：按工程设计"
+Received: "构造简图"
+
+ ❯ src/utils/complex-atlas.test.ts:59:70
+     57|     if (page === 53) {
+     58|       expect(el.querySelector('thead')!.textContent).toContain('构造简图')
+     59|       expect(el.querySelector('tbody .construction-diagram')!.textCont…
+       |                                                                      ^
+     60|       expect([...el.querySelectorAll('.construction-material')].some(i…
+     61|       expect(el.querySelectorAll('tr[data-row-kind="option"]')).toHave…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 108 passed | 1 skipped (110)
+      Tests  1 failed | 762 passed | 1 skipped (764)
+   Start at  01:12:57
+   Duration  544.23s (import 53%, environment 39%, setup 4%, tests 2%, transform 1%)
+
+Environment  jsdom was created 110 times · 201.96s total, 39% of tracked time
+             create it once per worker with pool: 'vmThreads' (keeps per-file isolation) or isolate: false (shares it across files)
+             learn more: https://vitest.dev/guide/improving-performance#test-environments
+
+[ELIFECYCLE] Test failed. See above for more details.

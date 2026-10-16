@@ -1,0 +1,56 @@
+[
+  {
+    "event": "message",
+    "data": {
+      "messageId": "e11aef16-c4dd-43f1-bed6-6d4c9cc1eecd",
+      "userMessageId": "0e8f3025-65d8-4cdb-acf7-cdffb5da92f1",
+      "conversationId": "3aa3bd41-da85-4805-8b2f-c4118584b091",
+      "requestId": "req-3"
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "analyzing",
+      "message": "正在分析问题..."
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "composing",
+      "message": "正在整理回答..."
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "想确认一下：该体系族尚无可靠正式映射，请指定完整体系名称或编码。"
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "completed",
+      "message": "回答整理完成"
+    }
+  },
+  {
+    "event": "done",
+    "data": {
+      "messageId": "e11aef16-c4dd-43f1-bed6-6d4c9cc1eecd",
+      "conversationId": "3aa3bd41-da85-4805-8b2f-c4118584b091",
+      "finishReason": "COMPLETED",
+      "usage": {},
+      "model": {
+        "id": "deepseek-chat"
+      },
+      "promptVersion": {
+        "id": "ae0f8064-e3d6-43c0-ab4c-174188be34e4",
+        "version": 3
+      },
+      "sources": [],
+      "latencyMs": 5359
+    }
+  }
+]

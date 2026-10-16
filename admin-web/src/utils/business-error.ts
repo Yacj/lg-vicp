@@ -105,6 +105,7 @@ const BUSINESS_MESSAGE_REPLACEMENTS: Array<[RegExp, string]> = [
   [/PAGE_RECOGNITION_MAPPING_INVALID/g, '选择的构造方案或产品规格和识别结果对不上，请重新选择。'],
   [/PAGE_RECOGNITION_MAPPING_NOT_FOUND/g, '未匹配到正式构造方案或产品规格，请先补充正式业务数据。'],
   [/KNOWLEDGE_VERSION_NOT_EDITABLE/g, '当前版本不可编辑，请创建新版本。'],
+  [/KNOWLEDGE_VERSION_DRAFT_EXISTS/g, '该知识库已有草稿版本，请先编辑或删除已有草稿。'],
   [/KNOWLEDGE_INDEX_NOT_READY/g, '问答内容还未准备好，请先更新问答内容。'],
   [/KNOWLEDGE_INDEX_STALE/g, '资料内容已变化，请先更新问答内容。'],
   [/THERMAL_REFERENCE_SET_NOT_EDITABLE/g, '当前热工参考集已发布，本次确认不会修改正式热工数据。'],
@@ -162,6 +163,7 @@ export const BUSINESS_ERROR_CODE_MESSAGES: Record<string, string> = {
 
   // ── 防御性登记：后端当前未随 details.errorCode 透出，保留以免上游补齐后前端漏译 ──
   KNOWLEDGE_VERSION_NOT_EDITABLE: '当前版本不可编辑，请创建新版本。',
+  KNOWLEDGE_VERSION_DRAFT_EXISTS: '该知识库已有草稿版本，请先编辑或删除已有草稿。',
   KNOWLEDGE_VERSION_NOT_FOUND: '找不到这个知识版本，请刷新后重试。',
   KNOWLEDGE_PAGE_NOT_FOUND: '找不到这个页面，请刷新后重试。',
   KNOWLEDGE_PAGE_REQUIRED: '请先上传资料页面，再进行识别和校验。',

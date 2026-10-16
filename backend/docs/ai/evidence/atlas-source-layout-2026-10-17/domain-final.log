@@ -1,0 +1,10 @@
+
+ RUN  v4.1.10 E:/code/lg/backend
+
+·······················································································
+
+ Test Files  3 passed (3)
+      Tests  87 passed (87)
+   Start at  01:43:34
+   Duration  2.25s (transform 970ms, setup 0ms, import 2.41s, tests 126ms, environment 0ms)
+

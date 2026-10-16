@@ -1,0 +1,133 @@
+{
+  "name": "compare",
+  "readOnly": {
+    "transaction_read_only": "on"
+  },
+  "decision": {
+    "intent": "REFERENCE_QUERY",
+    "mutation": "QUERY",
+    "evidenceSpans": [
+      "Ⅲ型VICP薄抹灰外保温系统，45mm厚度，不同基层的传热系数有什么区别？"
+    ],
+    "parserSource": "LLM",
+    "semantic": {
+      "pageQuery": {
+        "readFields": [
+          "kValue",
+          "baseMaterial"
+        ],
+        "queryMode": "NEW_QUERY",
+        "intent": "REFERENCE_LOOKUP",
+        "constraints": [
+          {
+            "type": "ENTITY",
+            "operation": "SET",
+            "field": "specClass",
+            "entityText": "Ⅲ型",
+            "resolvedText": null,
+            "metric": null,
+            "operator": null,
+            "value": null,
+            "evidence": "Ⅲ型VICP薄抹灰外保温系统",
+            "hard": true,
+            "confidence": 0.95
+          },
+          {
+            "type": "ENTITY",
+            "operation": "SET",
+            "field": "systemHint",
+            "entityText": "VICP薄抹灰外保温系统",
+            "resolvedText": null,
+            "metric": null,
+            "operator": null,
+            "value": null,
+            "evidence": "Ⅲ型VICP薄抹灰外保温系统",
+            "hard": true,
+            "confidence": 0.95
+          },
+          {
+            "type": "THICKNESS",
+            "operation": "SET",
+            "field": null,
+            "entityText": "45mm",
+            "resolvedText": null,
+            "metric": null,
+            "operator": "EXACT",
+            "value": 45,
+            "evidence": "45mm厚度",
+            "hard": true,
+            "confidence": 0.95
+          }
+        ],
+        "preferences": [],
+        "unresolved": [],
+        "confidence": 0.95
+      },
+      "intent": "REFERENCE_QUERY",
+      "confidence": 0.95,
+      "evidence": "Ⅲ型VICP薄抹灰外保温系统，45mm厚度，不同基层的传热系数有什么区别？",
+      "unresolved": null,
+      "reportType": null,
+      "factRead": null,
+      "relation": "NEW",
+      "continuedGoal": null,
+      "comparison": null,
+      "referenceTime": null,
+      "adviceMode": null,
+      "constraintPatch": [],
+      "reference": {
+        "scope": "NONE",
+        "revision": null,
+        "items": []
+      },
+      "requestedEffect": "QUERY",
+      "effectRequest": null,
+      "ambiguity": []
+    },
+    "requiresCandidateQuery": false,
+    "restoreAdviceGoal": false,
+    "referenceScope": "LATEST_VISIBLE",
+    "policyReason": "READ_ONLY_QUERY"
+  },
+  "catalogMatches": {
+    "preferences": {},
+    "unresolved": [],
+    "removedFields": []
+  },
+  "checked": {
+    "intent": "REFERENCE_LOOKUP",
+    "filters": [],
+    "mode": "MAX_LIMIT",
+    "toleranceAdjusted": false,
+    "systemHint": "VICP薄抹灰外保温系统",
+    "specClass": "III",
+    "thicknessMm": 45,
+    "readFields": [
+      "kValue",
+      "baseMaterial"
+    ],
+    "queryMode": "NEW_QUERY",
+    "semanticConfidence": 0.95,
+    "unresolved": [],
+    "conditionTrace": [
+      {
+        "field": "systemHint",
+        "value": "VICP薄抹灰外保温系统",
+        "source": "USER_EXPLICIT",
+        "classification": "HARD_CONSTRAINT"
+      },
+      {
+        "field": "specClass",
+        "value": "III",
+        "source": "USER_EXPLICIT",
+        "classification": "HARD_CONSTRAINT"
+      },
+      {
+        "field": "thicknessMm",
+        "value": 45,
+        "source": "USER_EXPLICIT",
+        "classification": "HARD_CONSTRAINT"
+      }
+    ]
+  }
+}

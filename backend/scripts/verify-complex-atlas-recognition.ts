@@ -17,16 +17,18 @@ import { buildKnowledgePageRenderModel } from "../src/shared/knowledge-page-rend
 
 const args = process.argv.slice(2);
 const argument = (name: string) => { const index = args.indexOf(name); return index >= 0 ? args[index + 1] : undefined; };
-if (args.some((value, index) => index % 2 === 0 && !["--output", "--image-dir"].includes(value)) || args.length % 2) {
-  throw new Error("仅支持--output目录、--image-dir原PNG目录");
+if (args.some((value, index) => index % 2 === 0 && !["--output", "--image-dir", "--manifest"].includes(value)) || args.length % 2) {
+  throw new Error("仅支持--output目录、--image-dir原PNG目录、--manifest原图清单");
 }
 const out = path.resolve(argument("--output") ?? `logs/complex-atlas-phase1/${Date.now()}`);
 const imageDir = argument("--image-dir") ?? process.env.TEMP ?? ".";
-const inputs = [
+const inputs: ReadonlyArray<readonly [string, string]> = argument("--manifest")
+  ? JSON.parse(await readFile(path.resolve(argument("--manifest")!), "utf8"))
+  : [
   ["89", "codex-clipboard-eb1ba37f-00cc-4d70-90d7-ec2373efc972.png"],
   ["90", "codex-clipboard-e99d2331-2e5f-47e3-9bce-9d134480de54.png"],
   ["75", "codex-clipboard-67016163-25ee-4378-9429-da43841aa84f.png"]
-] as const;
+];
 const client = postgres(process.env.DATABASE_URL!, { max: 1, connect_timeout: 5,
   connection: { options: "-c default_transaction_read_only=on" }, onnotice: () => {} });
 const report: { scope: string; readOnly?: unknown; pages: unknown[]; environmentError?: unknown } = {
@@ -36,7 +38,7 @@ const code = (value?: string | null) => value?.normalize("NFKC").replace(/^外�
 function compare(expected: PageRecognitionResult, actual: PageRecognitionResult) {
   return expected.systems.flatMap(system => {
     const own = actual.systems.filter(item => item.applicationPart === system.applicationPart
-      && item.specClass === system.specClass && item.placement === system.placement && item.roofForm === system.roofForm
+      && item.specClass === system.specClass && (item.placement ?? null) === (system.placement ?? null) && (item.roofForm ?? null) === (system.roofForm ?? null)
       && code(item.constructionCode) === code(system.constructionCode));
     return (system.options ?? []).map(option => {
       const matched = own.length === 1 ? own[0]!.options?.filter(item => item.thicknessMm === option.thicknessMm) ?? [] : [];
@@ -55,7 +57,7 @@ try {
   const vision = await resolveDefaultVisionModel(drizzle(client, { schema }));
   for (const [page, filename] of inputs) {
     const source = JSON.parse(await readFile(path.resolve(`tests/fixtures/complex-atlas/page-${page}.json`), "utf8")) as { imageSha256: string; data: PageRecognitionResult };
-    const bytes = await readFile(path.join(imageDir, filename));
+    const bytes = await readFile(path.resolve(imageDir, filename));
     const sha256 = createHash("sha256").update(bytes).digest("hex");
     if (sha256 !== source.imageSha256) throw new Error("原图哈希与基线不符，停止识别，未修改原件");
     console.log(`[复杂图集] 开始原图${page}，模型${vision.modelId}；原图身份已核对。`);
@@ -75,11 +77,18 @@ try {
       await writeFile(path.join(out, `page-${page}.structured.json`), JSON.stringify(data, null, 2));
       await writeFile(path.join(out, `page-${page}.render.json`), JSON.stringify(buildKnowledgePageRenderModel(`fixture-${page}`, data), null, 2));
       const checks = compare(source.data, data);
+      const sourceSeparation = source.data.systems.every(system => !system.sourceTableHeaders) ? "NOT_RUN" : data.systems.length === source.data.systems.length && source.data.systems.every((expected, i) => {
+        const actual = data.systems[i];
+        return actual?.layers?.length === expected.layers?.length
+          && actual?.layers?.every(layer => layer.sourceRegion === "THERMAL_TABLE")
+          && JSON.stringify(actual?.layers?.map(layer => layer.sourceLayerLabel)) === JSON.stringify(expected.layers?.map(layer => layer.sourceLayerLabel))
+          && (actual?.diagramNotes?.length ?? 0) === (expected.diagramNotes?.length ?? 0);
+      }) ? "PASS" : "FAIL";
       const failed = data.pageLabel !== page || data.systems.length !== source.data.systems.length
-        || checks.some(item => item.numericAndIdentity !== "PASS" || item.productSemantic !== "PASS");
+        || checks.some(item => item.numericAndIdentity !== "PASS" || item.productSemantic !== "PASS") || sourceSeparation === "FAIL";
       if (failed) process.exitCode = 1;
       report.pages.push({ page, status: failed ? "FAIL" : "PARTIAL", explanation: "单次真实推理；所有结果仍REVIEW_REQUIRED，未人工确认、未正式发布",
-        groups: data.systems.length, pageLabel: data.pageLabel, printedPage: data.pageLabel === page ? "PASS" : "FAIL",
+        groups: data.systems.length, pageLabel: data.pageLabel, printedPage: data.pageLabel === page ? "PASS" : "FAIL", sourceSeparation,
         notes: data.notes, warnings: data.warnings, checks });
       console.log(`[复杂图集] 原图${page}返回${data.systems.length}组，${checks.filter(item => item.numericAndIdentity === "PASS").length}/${checks.length}档R/K及身份一致。`);
     } catch (error) {

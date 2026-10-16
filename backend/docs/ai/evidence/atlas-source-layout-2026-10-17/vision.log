@@ -1,0 +1,11 @@
+[复杂图集] 开始原图22，模型deepseek-chat；原图身份已核对。
+AI SDK Warning System: To turn off warning logging, set the AI_SDK_LOG_WARNINGS global to false.
+(node:11624) DeprecationWarning: AI SDK Warning: Deprecated: ""image" content part". The "image" content part type is deprecated. Use a "file" part with mediaType: 'image' (or a more specific image/* subtype) instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:11624) Warning: AI SDK Warning (deepseek.chat / deepseek-chat): The feature "responseFormat" is not supported. JSON response format schema is only supported with structuredOutputs
+[复杂图集] 原图22返回2组，0/18档R/K及身份一致。
+[复杂图集] 开始原图53，模型deepseek-chat；原图身份已核对。
+(node:11624) DeprecationWarning: AI SDK Warning: Deprecated: ""image" content part". The "image" content part type is deprecated. Use a "file" part with mediaType: 'image' (or a more specific image/* subtype) instead.
+(node:11624) Warning: AI SDK Warning (deepseek.chat / deepseek-chat): The feature "responseFormat" is not supported. JSON response format schema is only supported with structuredOutputs
+[复杂图集] 原图53返回2组，12/12档R/K及身份一致。
+[复杂图集] 证据已保存：E:\code\lg\backend\docs\ai\evidence\atlas-source-layout-2026-10-17\vision；没有数据库写入、迁移或正式确认。

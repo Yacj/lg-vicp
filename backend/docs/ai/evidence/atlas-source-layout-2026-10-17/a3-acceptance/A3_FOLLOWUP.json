@@ -1,0 +1,56 @@
+{
+  "id": "A3_FOLLOWUP",
+  "group": "a3-compare",
+  "question": "只看A3-2，基层是什么？",
+  "status": "PASS",
+  "conversationId": "756b361b-295c-4d6f-944c-9b0d48f9e7b9",
+  "answer": "本次已确认资料匹配 1 档、1 个独立构造，当前引用 1 档。\n\n- **A3-2**，基层混凝土空心砌块 190mm：板厚 **45mm**。来源：《复杂建筑热工图集 · 隔离人工基线（程序模拟审核）》，印刷页码 5。\n\n同值不代表做法相同，请结合完整表及原始构造简图核对。材料层热阻、产品整体热阻与整构造传热阻分别读取，缺值不补算；本次仅查阅资料，不选择方案或判断规范达标。",
+  "facts": [
+    {
+      "page": "5",
+      "constructionId": "kp-b3b5a75f8f6a832d774c63a6-1",
+      "optionId": "kp-b3b5a75f8f6a832d774c63a6-1-o7",
+      "label": "A3-2",
+      "thickness": 45,
+      "r": 3.398,
+      "k": 0.294,
+      "base": "混凝土空心砌块",
+      "versionId": "f419c619-7a64-4074-b022-1a2f155cee24",
+      "revision": "b3b5a75f8f6a832d774c63a6",
+      "fieldKeys": [
+        "thicknessMm"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "page": {
+        "documentId": "29b5ef2b-186f-4c6a-a115-5f693bdb5c09",
+        "pageId": "80f35784-475c-412c-8b5e-0c53ab4f383c",
+        "documentTitle": "复杂建筑热工图集 · 隔离人工基线（程序模拟审核）",
+        "versionId": "f419c619-7a64-4074-b022-1a2f155cee24",
+        "pageLabelSource": "MANUAL",
+        "pageLabelVerified": true,
+        "docNumber": "J/CABEE 26J702 / UAT",
+        "pageNumber": 1,
+        "physicalPageNumber": 1,
+        "pageLabel": "5",
+        "imageUrl": "[AUTHORIZED_URL_REDACTED]"
+      },
+      "revision": "b3b5a75f8f6a832d774c63a6",
+      "groups": 2,
+      "options": [
+        9,
+        9
+      ],
+      "notes": [
+        "内表面换热阻0.11 (m²·K)/W，外表面换热阻0.04 (m²·K)/W。"
+      ]
+    }
+  ],
+  "historyReturned": true,
+  "persistedUrlFree": true,
+  "solutionStates": 0,
+  "reports": 0,
+  "snapshots": 0
+}

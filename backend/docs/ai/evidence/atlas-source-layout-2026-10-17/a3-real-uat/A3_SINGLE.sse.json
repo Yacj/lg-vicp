@@ -1,0 +1,56 @@
+[
+  {
+    "event": "message",
+    "data": {
+      "messageId": "21906944-029c-4ee6-a5c3-0185941b40c2",
+      "userMessageId": "287ec3da-56d9-460c-82c8-083b748fdf27",
+      "conversationId": "0af7e3ec-3546-4579-90bf-4b6a79e8d183",
+      "requestId": "req-3"
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "analyzing",
+      "message": "正在分析问题..."
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "composing",
+      "message": "正在整理回答..."
+    }
+  },
+  {
+    "event": "delta",
+    "data": {
+      "text": "想确认一下：明确指定的对象未被完整保留，请确认。"
+    }
+  },
+  {
+    "event": "progress",
+    "data": {
+      "stage": "completed",
+      "message": "回答整理完成"
+    }
+  },
+  {
+    "event": "done",
+    "data": {
+      "messageId": "21906944-029c-4ee6-a5c3-0185941b40c2",
+      "conversationId": "0af7e3ec-3546-4579-90bf-4b6a79e8d183",
+      "finishReason": "COMPLETED",
+      "usage": {},
+      "model": {
+        "id": "deepseek-chat"
+      },
+      "promptVersion": {
+        "id": "ae0f8064-e3d6-43c0-ab4c-174188be34e4",
+        "version": 3
+      },
+      "sources": [],
+      "latencyMs": 5037
+    }
+  }
+]

@@ -1,0 +1,19 @@
+{
+  "id": "A3_COMPARE",
+  "group": "a3-compare",
+  "question": "Ⅲ型VICP薄抹灰外保温系统，45mm厚度，不同基层的传热系数有什么区别？",
+  "status": "FAIL",
+  "conversationId": "526f1cf1-9286-4557-b0b3-f23ac0d8300b",
+  "answer": "想确认一下：明确指定的对象未被完整保留，请确认。",
+  "facts": [],
+  "pages": [],
+  "historyReturned": true,
+  "persistedUrlFree": true,
+  "solutionStates": 0,
+  "reports": 0,
+  "snapshots": 0,
+  "error": {
+    "name": "AssertionError",
+    "message": "Expected values to be strictly equal:\n\n0 !== 4\n"
+  }
+}

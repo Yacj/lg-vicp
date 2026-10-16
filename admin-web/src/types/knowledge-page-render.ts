@@ -15,6 +15,7 @@ export interface ThermalRenderOption extends Pick<PageRecognitionOption, 'source
 }
 
 export interface KnowledgeRenderLayer {
+  sourceRegion?: 'THERMAL_TABLE' | 'DIAGRAM' | 'UNKNOWN'
   sourceLayerLabel?: string | null
   sourceGroupLabel?: string | null
   layerId?: string
@@ -28,7 +29,7 @@ export interface KnowledgeRenderLayer {
   variable?: boolean
 }
 
-export interface KnowledgeRenderConstruction extends Pick<PageRecognitionSystem, 'rawConstructionLabel' | 'applicationPart' | 'roofForm' | 'placement' | 'waterproofGrade' | 'sourceColumns' | 'specClass' | 'baseMaterial' | 'baseThicknessMm'> {
+export interface KnowledgeRenderConstruction extends Pick<PageRecognitionSystem, 'rawConstructionLabel' | 'applicationPart' | 'roofForm' | 'placement' | 'waterproofGrade' | 'sourceColumns' | 'sourceTableHeaders' | 'diagramNotes' | 'specClass' | 'baseMaterial' | 'baseThicknessMm'> {
   constructionId: string
   constructionCode?: string | null
   title?: string | null

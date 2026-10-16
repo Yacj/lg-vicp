@@ -21,6 +21,7 @@ export interface RecognitionDraftOption extends Pick<PageRecognitionOption, 'sou
 }
 
 export interface RecognitionDraftLayer {
+  sourceRegion?: 'THERMAL_TABLE' | 'DIAGRAM' | 'UNKNOWN'
   sourceLayerLabel?: string
   sourceGroupLabel?: string
   order?: number
@@ -32,6 +33,8 @@ export interface RecognitionDraftLayer {
 }
 
 export interface RecognitionDraftSystem {
+  sourceTableHeaders?: { identifier?: string, diagram?: string, layers?: string }
+  diagramNotes?: string[]
   rawConstructionLabel?: string
   constructionCodeEvidence?: string
   applicationPart?: 'EXTERNAL_WALL' | 'ROOF'

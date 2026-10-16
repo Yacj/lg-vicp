@@ -1,0 +1,2 @@
+$ pnpm clean && tsc -p tsconfig.json
+$ node scripts/clean.mjs

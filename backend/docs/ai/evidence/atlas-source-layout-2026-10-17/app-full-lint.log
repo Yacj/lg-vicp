@@ -1,0 +1,82 @@
+[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.overrides", "pnpm.patchedDependencies". See https://pnpm.io/settings for the new home of each setting.
+
+> wotprojectname@2.0.0 lint E:\code\lg\app
+> eslint .
+
+
+E:\code\lg\app\src\components\ai\ReferencePageViewer.test.ts
+   16:43  error  This line has 2 statements. Maximum allowed is 1  style/max-statements-per-line
+   17:46  error  This line has 2 statements. Maximum allowed is 1  style/max-statements-per-line
+   18:61  error  This line has 2 statements. Maximum allowed is 1  style/max-statements-per-line
+   48:39  error  This line has 2 statements. Maximum allowed is 1  style/max-statements-per-line
+  114:41  error  This line has 2 statements. Maximum allowed is 1  style/max-statements-per-line
+  163:37  error  This line has 2 statements. Maximum allowed is 1  style/max-statements-per-line
+  165:38  error  This line has 2 statements. Maximum allowed is 1  style/max-statements-per-line
+  171:49  error  This line has 2 statements. Maximum allowed is 1  style/max-statements-per-line
+
+E:\code\lg\app\src\composables\useReferencePageHighlight.test.ts
+  13:21  error  This line has 2 statements. Maximum allowed is 1  style/max-statements-per-line
+  16:22  error  This line has 3 statements. Maximum allowed is 1  style/max-statements-per-line
+  19:29  error  This line has 2 statements. Maximum allowed is 1  style/max-statements-per-line
+  20:29  error  This line has 3 statements. Maximum allowed is 1  style/max-statements-per-line
+  22:19  error  This line has 3 statements. Maximum allowed is 1  style/max-statements-per-line
+  23:19  error  This line has 3 statements. Maximum allowed is 1  style/max-statements-per-line
+
+E:\code\lg\app\src\composables\useReferencePageImage.test.ts
+   4:1   error  Expected "pinia" (external) to come before "./useReferencePageImage" (sibling)  perfectionist/sort-imports
+  82:58  error  This line has 2 statements. Maximum allowed is 1                                style/max-statements-per-line
+  83:45  error  This line has 2 statements. Maximum allowed is 1                                style/max-statements-per-line
+  99:34  error  Expect newline after if                                                         antfu/if-newline
+
+E:\code\lg\app\src\composables\useReferencePageImage.ts
+  14:31  error  Expect newline after if  antfu/if-newline
+  22:21  error  Expect newline after if  antfu/if-newline
+
+E:\code\lg\app\src\pages\profile\index.vue
+  184:10  error  'openPassword' is defined but never used. Allowed unused vars must match /^_/u  unused-imports/no-unused-vars
+
+E:\code\lg\app\src\services\platform\index.ts
+  101:7   error  'message' is never reassigned. Use 'const' instead  prefer-const
+  284:40  error  This line has 2 statements. Maximum allowed is 1    style/max-statements-per-line
+
+E:\code\lg\app\src\store\manualThemeStore.ts
+   6:21  error  'primary2' is assigned a value but never used. Allowed unused vars must match /^_/u  unused-imports/no-unused-vars
+   6:41  error  'primary7' is assigned a value but never used. Allowed unused vars must match /^_/u  unused-imports/no-unused-vars
+   6:51  error  'primary8' is assigned a value but never used. Allowed unused vars must match /^_/u  unused-imports/no-unused-vars
+  13:9   error  'elevated' is assigned a value but never used. Allowed unused vars must match /^_/u  unused-imports/no-unused-vars
+
+E:\code\lg\app\src\test\fixtures\referencePage.ts
+  6:5    error  Should not have line breaks between items, in node ObjectExpression  antfu/consistent-list-newline
+  7:29   error  Should have line breaks between items, in node ObjectExpression      antfu/consistent-list-newline
+  7:53   error  Should have line breaks between items, in node ObjectExpression      antfu/consistent-list-newline
+  7:75   error  Should have line breaks between items, in node ObjectExpression      antfu/consistent-list-newline
+  7:151  error  Should have line breaks between items, in node ObjectExpression      antfu/consistent-list-newline
+
+E:\code\lg\app\src\utils\aiComparison.ts
+   98:12  error  Capturing group number 1 is defined but never used                                              regexp/no-unused-capturing-group
+  258:51  error  Capturing group number 1 is defined but never used                                              regexp/no-unused-capturing-group
+  261:45  error  Unexpected the disjunction of single element alternatives. Use character class '[...]' instead  regexp/prefer-character-class
+  261:47  error  Unexpected useless alternative. This alternative is already covered by 'k' and can be removed   regexp/no-dupe-disjunctions
+
+E:\code\lg\app\src\utils\aiStream.test.ts
+  2:1  error  Expected "../test/fixtures/referencePage" to come before "./aiStream.ts"  perfectionist/sort-imports
+
+E:\code\lg\app\src\utils\aiUserSelection.test.ts
+   10:1  error  Expected "./aiAgentUi.ts" to come before "./aiUserSelection.ts"  perfectionist/sort-imports
+  136:3  error  There should be no space before this paren                       style/space-in-parens
+
+E:\code\lg\app\src\utils\referencePage.test.ts
+  60:43  error  Expected parentheses around arrow function argument having a body with curly braces  style/arrow-parens
+  60:61  error  This line has 2 statements. Maximum allowed is 1                                     style/max-statements-per-line
+
+E:\code\lg\app\src\utils\wechatPhoneLogin.test.ts
+  8:3  error  Expected "describeAuthFailure" to come before "WECHAT_UNSUPPORTED_MESSAGE"  perfectionist/sort-named-imports
+
+E:\code\lg\app\vite.config.ts
+  21:25  error  'SKIP_OPEN_DEVTOOLS' is assigned a value but never used. Allowed unused vars must match /^_/u  unused-imports/no-unused-vars
+  26:9   error  'localEnv' is assigned a value but never used. Allowed unused vars must match /^_/u            unused-imports/no-unused-vars
+
+✖ 44 problems (44 errors, 0 warnings)
+  16 errors and 0 warnings potentially fixable with the `--fix` option.
+
+ ELIFECYCLE  Command failed with exit code 1.

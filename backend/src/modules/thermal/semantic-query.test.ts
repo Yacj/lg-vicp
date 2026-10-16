@@ -17,6 +17,34 @@ const metric = (evidence: string, operator: "EXACT" | "APPROX" | "MAX_LIMIT" | "
 const parsed = (constraints: SemanticQuery["constraints"], queryMode: SemanticQuery["queryMode"] = "NEW_QUERY"): SemanticQuery => ({ queryMode, intent: "REFERENCE_LOOKUP", constraints, preferences: [], unresolved: [], confidence: 0.99 });
 
 describe("统一语义分类的确定性边界", () => {
+  it.each(["Ⅲ型VICP薄抹灰外保温系统", "III型 VICP 薄抹灰外保温系统", "iii型vicp薄抹灰外保温系统"])("未登记的%s不能被正式I/II型名称后缀截获", name => {
+    const entities = [
+      { field: "systemId" as const, value: "sys-I", names: ["I型VICP薄抹灰外保温系统"] },
+      { field: "systemId" as const, value: "sys-II", names: ["II型VICP薄抹灰外保温系统"] },
+    ];
+    expect(resolveQueryEntities(name, {}, entities).systemId).toBeUndefined();
+    const exact = resolveQueryEntities(name, {}, [...entities, { field: "systemId", value: "sys-III", names: ["III型VICP薄抹灰外保温系统"] }]);
+    expect(exact.systemId).toBe("sys-III");
+  });
+  it.each(["基层是什么？", "基层是哪个材料？", "基层为何不同？", "构造是什么？", "体系是什么？"])("读取问题%s不作为未知实体赋值，不污染已校验的构造/厚度条件", question => {
+    const message = `Ⅲ型VICP薄抹灰外保温系统，A3-2构造45mm，传热系数是多少？${question}`;
+    const entity = (field: "systemHint" | "specClass" | "schemeCode", text: string) => ({ ...metric(text), type: "ENTITY" as const,
+      field, entityText: text, resolvedText: text, metric: null, operator: null, value: null });
+    const semantic = { ...parsed([entity("systemHint", "Ⅲ型VICP薄抹灰外保温系统"), entity("specClass", "Ⅲ型"), entity("schemeCode", "A3-2"),
+      { ...metric("45mm", "EXACT", 45), type: "THICKNESS" as const, metric: null }]), readFields: ["kValue", "baseMaterial"] };
+    const query = applySemanticQuery(message, semantic, dictionary);
+    expect(query).toMatchObject({ schemeCode: "A3-2", specClass: "III", thicknessMm: 45, readFields: ["kValue", "baseMaterial"], unresolved: [] });
+    expect(query.substrateMaterial).toBeUndefined();
+  });
+  it.each(["基层:陌生材料", "基层材料=陌生材料", "体系：陌生体系", "构造=陌生编号", "产品目录:陌生产品"])("封闭字段标注%s仍拒绝未知实体", message => {
+    expect(resolveQueryEntities(message, {}, []).unresolved?.length).toBeGreaterThan(0);
+  });
+  it("自然表达的未知基层约束仍由语义实体校验拒绝，不能因移除‘是’捷径而宽查", () => {
+    const message = "基层是陌生材料，45mm";
+    const proposal = parsed([{ ...metric("基层是陌生材料"), type: "ENTITY", field: "substrateMaterial", entityText: "陌生材料", resolvedText: "陌生材料", metric: null, value: null, operator: null }]);
+    const query = applySemanticQuery(message, proposal, { entities: [], aliases: [] });
+    expect(query.unresolved).toContainEqual(expect.objectContaining({ field: "substrateMaterial" }));
+  });
   it("仅品牌提示仍按原文硬匹配，不因去品牌归一为空而漏查，也不接受其他品牌", () => {
     const query = { systemHint: "VICP", filters: [{ metric: "K" as const, targetValue: .3, mode: "APPROX" as const }] };
     expect(validateCandidateAgainstQueryState({ systemName: "III型VICP薄抹灰外保温系统", kValue: .302 }, query).passed).toBe(true);

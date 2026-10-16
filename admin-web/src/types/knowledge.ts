@@ -308,6 +308,30 @@ export interface KnowledgeVersionInput {
   searchSourceFileId?: string
 }
 
+/** 版本克隆入参：从已发布/已停用版本派生新草稿（内容继承，仅修改差异） */
+export interface KnowledgeVersionCloneInput {
+  /** 新草稿标题；缺省沿用源版本标题 */
+  title?: string
+  /** 修改说明，写入新版本 changeNote，便于审计追溯 */
+  changeNote?: string
+}
+
+/** 版本克隆结果：inherited 用于向用户说明继承了多少内容 */
+export interface KnowledgeVersionCloneResult {
+  message: string
+  documentId: string
+  versionId: string
+  version: KnowledgeDocumentVersion
+  inherited: {
+    pageCount: number
+    recognitionConfirmedCount: number
+    sectionCount: number
+    tocItemCount: number
+    pageMappingCount: number
+    assetCount: number
+  }
+}
+
 export interface KnowledgeUploadIntentInput {
   fileName?: string
   mimeType?: string
@@ -777,6 +801,7 @@ export interface KnowledgePage extends KnowledgePagePresentation {
 export type PageRecognitionStatus = 'PENDING' | 'PROCESSING' | 'REVIEW_REQUIRED' | 'CONFIRMED' | 'FAILED'
 
 export interface PageRecognitionLayer {
+  sourceRegion?: 'THERMAL_TABLE' | 'DIAGRAM' | 'UNKNOWN'
   sourceLayerLabel?: string | null
   sourceGroupLabel?: string | null
   order?: number | null
@@ -821,6 +846,8 @@ export interface PageRecognitionOption {
 }
 
 export interface PageRecognitionSystem {
+  sourceTableHeaders?: { identifier?: string, diagram?: string, layers?: string }
+  diagramNotes?: string[]
   rawConstructionLabel?: string | null
   constructionCodeEvidence?: string | null
   applicationPart?: 'EXTERNAL_WALL' | 'ROOF' | null

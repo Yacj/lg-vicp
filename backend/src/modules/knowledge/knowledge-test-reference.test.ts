@@ -27,6 +27,25 @@ const page: ReferencePageBlock = { type: "REFERENCE_PAGE", page: { documentId: "
 const optionId = model.constructions[0]!.options[0]!.optionId;
 
 describe("已确认页面模型与回答引用", () => {
+  it("只问K和基层时只投影所问列，引用不夹带产品R或整体R；模型仍保留完整表", () => {
+    const answer = formatConfirmedLookupAnswer([page], [optionId], [], { readOnlyPageFacts: true, readFields: ["kValue", "baseMaterial"] });
+    expect(answer).toContain("传热系数 K **0.303**");
+    expect(answer).not.toContain("**2.880");
+    expect(answer).not.toContain("**3.297");
+    expect(answer).toContain(`[[KP:${optionId}:thicknessMm,kValue]]`);
+    expect(page.renderModel!.constructions[0]!.options[0]!.totalThermalResistance).toBe(3.297);
+  });
+  it("只读做法说明分别引用热工材料与简图文字，不再把简图行混入热工顺序", () => {
+    const annotated = structuredClone(page);
+    const construction = annotated.renderModel!.constructions[0]!;
+    construction.diagramNotes = ["3. 隔汽层：按工程设计"];
+    construction.layers.push({ name: "单独的简图注记", sourceRegion: "DIAGRAM", order: 9, layerId: "diagram-9" });
+    const answer = formatConfirmedLookupAnswer([annotated], [optionId], [], { readOnlyPageFacts: true, readFields: ["layers"] });
+    expect(answer).toContain("构造简图原文说明：3. 隔汽层：按工程设计");
+    expect(answer).not.toContain("单独的简图注记");
+    expect(answer).toContain("基层（240mm）");
+    expect(answer).toContain(`[[KP:${optionId}:thicknessMm]]`);
+  });
   it("旧确认字段中整个体系名为构造编码时只读兼容，描述文字不猜编号，快照不修改", () => {
     const legacy = structuredClone(snapshot);
     legacy.pageTitle = "III型VICP薄抹灰外保温系统";

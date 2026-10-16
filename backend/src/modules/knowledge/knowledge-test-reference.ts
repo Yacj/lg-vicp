@@ -120,12 +120,14 @@ export function formatConfirmedLookupAnswer(pages: readonly ReferencePageBlock[]
     if (copy.readFields?.includes("layers")) {
       const groups = [...new Map(records.map(record => [record.construction.constructionId, record])).values()];
       layerLines.push("即使参数相同，也不能据此认定构造做法完全相同。以下分别列出确认热工表记录的材料层顺序；完整防水、隔汽和施工做法仍需核对原始构造简图。",
-        ...groups.map(({ page, construction, option }) => `- **${construction.rawConstructionLabel || construction.constructionCode || construction.systemName || "原页构造"}**：${construction.layers.map(layer => `${layer.sourceLayerLabel || layer.order || ""} ${layer.name}${layer.thicknessMm != null ? `（${layer.thicknessMm}mm）` : "（逐档可变）"}`).join(" → ")}。来源印刷页码 ${page.page.pageLabel ?? "待核"}。[[KP:${option.optionId}:thicknessMm]]`),
+        ...groups.map(({ page, construction, option }) => `- **${construction.rawConstructionLabel || construction.constructionCode || construction.systemName || "原页构造"}**：${construction.layers.filter(layer => layer.sourceRegion !== "DIAGRAM").map(layer => `${layer.sourceLayerLabel || layer.order || ""} ${layer.name}${layer.thicknessMm != null ? `（${layer.thicknessMm}mm）` : "（逐档可变）"}`).join(" → ")}。${construction.diagramNotes?.length ? `构造简图原文说明：${construction.diagramNotes.join("；")}。` : ""}来源印刷页码 ${page.page.pageLabel ?? "待核"}。[[KP:${option.optionId}:thicknessMm]]`),
       );
       if (!copy.readFields.some(field => ["kValue", "totalThermalResistance", "productThermalResistance"].includes(field))) return [...layerLines, ...originalNotes].join("\n\n");
     }
     const lines = records.map(({ page, construction, option }) => {
-      const parameters = (["productThermalResistance", "totalThermalResistance", "kValue"] as const).flatMap(field => {
+      const metricFields = ["productThermalResistance", "totalThermalResistance", "kValue"] as const;
+      const requested = copy.readFields?.length ? metricFields.filter(field => copy.readFields!.includes(field)) : metricFields;
+      const parameters = requested.flatMap(field => {
         const value = option[field]; if (value == null) return [];
         const columns = construction.sourceColumns?.filter(column => column.fieldKey === field);
         const column = columns?.length === 1 ? columns[0] : undefined;
@@ -133,9 +135,9 @@ export function formatConfirmedLookupAnswer(pages: readonly ReferencePageBlock[]
           : field === "totalThermalResistance" ? "整构造传热阻（源文符号待核）" : field === "productThermalResistance" ? "产品整体热阻" : "传热系数 K";
         return [`${label} **${value.toFixed(3)}${column?.unit ? ` ${column.unit}` : ""}**`];
       });
-      const fields = THERMAL_PAGE_FIELDS.filter(field => option[field] != null);
+      const fields = THERMAL_PAGE_FIELDS.filter(field => option[field] != null && (field === "thicknessMm" || requested.includes(field)));
       const base = construction.baseMaterial ? `，基层${construction.baseMaterial}${construction.baseThicknessMm != null ? ` ${construction.baseThicknessMm}mm` : ""}` : "";
-      return `- **${construction.rawConstructionLabel || construction.constructionCode || construction.systemName || "原页构造"}**${base}：板厚 **${option.thicknessMm}mm**，${parameters.join("，")}。来源：《${page.page.documentTitle}》${page.page.pageLabel ? `，印刷页码 ${page.page.pageLabel}` : "，印刷页码待核"}。[[KP:${option.optionId}:${fields.join(",")}]]`;
+      return `- **${construction.rawConstructionLabel || construction.constructionCode || construction.systemName || "原页构造"}**${base}：板厚 **${option.thicknessMm}mm**${parameters.length ? `，${parameters.join("，")}` : ""}。来源：《${page.page.documentTitle}》${page.page.pageLabel ? `，印刷页码 ${page.page.pageLabel}` : "，印刷页码待核"}。[[KP:${option.optionId}:${fields.join(",")}]]`;
     });
     const extreme = copy.extremum ? `在全部 ${total} 条匹配档位内，${copy.extremum.metric === "K" ? "传热系数 K" : copy.extremum.metric === "TOTAL_R" ? "整构造传热阻" : "产品整体热阻"}${copy.extremum.direction === "MIN" ? "最小" : "最大"}为 ${copy.extremum.value.toFixed(3)}，共 ${copy.extremum.tiedCount} 条并列。` : "";
     return [`本次已确认资料匹配 ${total} 档、${copy.totalGroups ?? records.length} 个独立构造，当前引用 ${records.length} 档。`, ...lines,

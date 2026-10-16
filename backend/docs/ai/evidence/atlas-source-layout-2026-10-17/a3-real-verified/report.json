@@ -1,0 +1,251 @@
+{
+  "scope": "真实隔离DB/Redis/OSS/正式HTTP-SSE/真实模型；事实由人工基线装载，程序模拟审核，不冒充真实人工复核",
+  "startedAt": "2026-10-16T17:36:59.966Z",
+  "setup": [
+    {
+      "step": "未确认发布门禁",
+      "response": {
+        "http": 200,
+        "success": false,
+        "error": {
+          "code": 400,
+          "message": "当前版本尚未审核通过，不能发布。",
+          "details": {
+            "errorCode": "KNOWLEDGE_VERSION_NOT_APPROVED"
+          }
+        },
+        "requestId": "req-6"
+      }
+    },
+    {
+      "step": "正式审核发布接口",
+      "passed": true
+    },
+    {
+      "step": "B端知识库测试 a3-single",
+      "status": "FAIL",
+      "error": "命中行数必须准确，不能串构造或多返回别的档位\n\n0 !== 1\n"
+    },
+    {
+      "step": "B端知识库测试 a3-compare",
+      "status": "PASS"
+    }
+  ],
+  "cases": [
+    {
+      "id": "A3_SINGLE",
+      "group": "a3-single",
+      "question": "Ⅲ型VICP薄抹灰外保温系统，A3-2构造45mm，传热系数是多少？基层是什么？",
+      "status": "FAIL",
+      "conversationId": "3aa3bd41-da85-4805-8b2f-c4118584b091",
+      "answer": "想确认一下：该体系族尚无可靠正式映射，请指定完整体系名称或编码。",
+      "facts": [],
+      "pages": [],
+      "historyReturned": true,
+      "persistedUrlFree": true,
+      "solutionStates": 0,
+      "reports": 0,
+      "snapshots": 0,
+      "error": {
+        "name": "AssertionError",
+        "message": "命中行数必须准确，不能串构造或多返回别的档位\n\n0 !== 1\n"
+      }
+    },
+    {
+      "id": "A3_COMPARE",
+      "group": "a3-compare",
+      "question": "Ⅲ型VICP薄抹灰外保温系统，45mm厚度，不同基层的传热系数有什么区别？",
+      "status": "PASS",
+      "conversationId": "1b7e2565-dfe6-41bf-a1fc-e7248797d294",
+      "answer": "本次已确认资料匹配 4 档、4 个独立构造，当前引用 4 档。\n\n- **A3-1**，基层钢筋混凝土 200mm：板厚 **45mm**，传热系数 K **0.302 W/(m²·K)**。来源：《复杂建筑热工图集 · 隔离人工基线（程序模拟审核）》，印刷页码 5。\n\n- **A3-2**，基层混凝土空心砌块 190mm：板厚 **45mm**，传热系数 K **0.294 W/(m²·K)**。来源：《复杂建筑热工图集 · 隔离人工基线（程序模拟审核）》，印刷页码 5。\n\n- **外墙A3-3**，基层蒸压灰砂砖 240mm：板厚 **45mm**，传热系数 K **0.293 W/(m²·K)**。来源：《复杂建筑热工图集 · 隔离人工基线（程序模拟审核）》，印刷页码 26。\n\n- **外墙A3-4**，基层加气混凝土砌块 200mm：板厚 **45mm**，传热系数 K **0.248 W/(m²·K)**。来源：《复杂建筑热工图集 · 隔离人工基线（程序模拟审核）》，印刷页码 26。\n\n同值不代表做法相同，请结合完整表及原始构造简图核对。材料层热阻、产品整体热阻与整构造传热阻分别读取，缺值不补算；本次仅查阅资料，不选择方案或判断规范达标。",
+      "facts": [
+        {
+          "page": "5",
+          "constructionId": "kp-f79333f9ad242d5aaeb09197-0",
+          "optionId": "kp-f79333f9ad242d5aaeb09197-0-o7",
+          "label": "A3-1",
+          "thickness": 45,
+          "r": 3.313,
+          "k": 0.302,
+          "base": "钢筋混凝土",
+          "versionId": "b14a8f26-b5b3-4494-8c65-24978c354bb3",
+          "revision": "f79333f9ad242d5aaeb09197",
+          "fieldKeys": [
+            "thicknessMm",
+            "kValue"
+          ]
+        },
+        {
+          "page": "5",
+          "constructionId": "kp-f79333f9ad242d5aaeb09197-1",
+          "optionId": "kp-f79333f9ad242d5aaeb09197-1-o7",
+          "label": "A3-2",
+          "thickness": 45,
+          "r": 3.398,
+          "k": 0.294,
+          "base": "混凝土空心砌块",
+          "versionId": "b14a8f26-b5b3-4494-8c65-24978c354bb3",
+          "revision": "f79333f9ad242d5aaeb09197",
+          "fieldKeys": [
+            "thicknessMm",
+            "kValue"
+          ]
+        },
+        {
+          "page": "26",
+          "constructionId": "kp-d5d8216884fc74dd67a2dd90-0",
+          "optionId": "kp-d5d8216884fc74dd67a2dd90-0-o7",
+          "label": "外墙A3-3",
+          "thickness": 45,
+          "r": 3.416,
+          "k": 0.293,
+          "base": "蒸压灰砂砖",
+          "versionId": "b14a8f26-b5b3-4494-8c65-24978c354bb3",
+          "revision": "d5d8216884fc74dd67a2dd90",
+          "fieldKeys": [
+            "thicknessMm",
+            "kValue"
+          ]
+        },
+        {
+          "page": "26",
+          "constructionId": "kp-d5d8216884fc74dd67a2dd90-1",
+          "optionId": "kp-d5d8216884fc74dd67a2dd90-1-o7",
+          "label": "外墙A3-4",
+          "thickness": 45,
+          "r": 4.04,
+          "k": 0.248,
+          "base": "加气混凝土砌块",
+          "versionId": "b14a8f26-b5b3-4494-8c65-24978c354bb3",
+          "revision": "d5d8216884fc74dd67a2dd90",
+          "fieldKeys": [
+            "thicknessMm",
+            "kValue"
+          ]
+        }
+      ],
+      "pages": [
+        {
+          "page": {
+            "documentId": "97662205-a1a5-499d-be95-4374c7a6bc30",
+            "pageId": "1f88615e-e1a2-4209-bf75-6433ea1c29e8",
+            "documentTitle": "复杂建筑热工图集 · 隔离人工基线（程序模拟审核）",
+            "versionId": "b14a8f26-b5b3-4494-8c65-24978c354bb3",
+            "pageLabelSource": "MANUAL",
+            "pageLabelVerified": true,
+            "docNumber": "J/CABEE 26J702 / UAT",
+            "pageNumber": 1,
+            "physicalPageNumber": 1,
+            "pageLabel": "5",
+            "imageUrl": "[AUTHORIZED_URL_REDACTED]"
+          },
+          "revision": "f79333f9ad242d5aaeb09197",
+          "groups": 2,
+          "options": [
+            9,
+            9
+          ],
+          "notes": [
+            "内表面换热阻0.11 (m²·K)/W，外表面换热阻0.04 (m²·K)/W。"
+          ]
+        },
+        {
+          "page": {
+            "documentId": "97662205-a1a5-499d-be95-4374c7a6bc30",
+            "pageId": "b660f287-3176-4831-995b-682446eb9678",
+            "documentTitle": "复杂建筑热工图集 · 隔离人工基线（程序模拟审核）",
+            "versionId": "b14a8f26-b5b3-4494-8c65-24978c354bb3",
+            "pageLabelSource": "MANUAL",
+            "pageLabelVerified": true,
+            "docNumber": "J/CABEE 26J702 / UAT",
+            "pageNumber": 2,
+            "physicalPageNumber": 2,
+            "pageLabel": "26",
+            "imageUrl": "[AUTHORIZED_URL_REDACTED]"
+          },
+          "revision": "d5d8216884fc74dd67a2dd90",
+          "groups": 2,
+          "options": [
+            9,
+            9
+          ],
+          "notes": [
+            "注：1. 内表面换热阻0.11（m²·K）/W，外表面换热阻0.04（m²·K）/W。",
+            "2. 加气混凝土砌块热工性能参照华北标图集13BJ2-12建筑外保温（节能75%）。"
+          ]
+        }
+      ],
+      "historyReturned": true,
+      "persistedUrlFree": true,
+      "solutionStates": 0,
+      "reports": 0,
+      "snapshots": 0
+    },
+    {
+      "id": "A3_FOLLOWUP",
+      "group": "a3-compare",
+      "question": "只看A3-2，基层是什么？",
+      "status": "FAIL",
+      "conversationId": "1b7e2565-dfe6-41bf-a1fc-e7248797d294",
+      "answer": "当前没有可定位的候选，请先查询已有档位或选择方案。",
+      "facts": [],
+      "pages": [],
+      "historyReturned": true,
+      "persistedUrlFree": true,
+      "solutionStates": 0,
+      "reports": 0,
+      "snapshots": 0,
+      "error": {
+        "name": "AssertionError",
+        "message": "命中行数必须准确，不能串构造或多返回别的档位\n\n0 !== 1\n"
+      }
+    }
+  ],
+  "permissions": [
+    {
+      "name": "DRAFT不能向C端来源开放",
+      "passed": true,
+      "response": {
+        "http": 200,
+        "success": false,
+        "error": {
+          "code": 404,
+          "message": "知识资料不存在或尚未发布"
+        },
+        "requestId": "req-1"
+      }
+    }
+  ],
+  "isolation": {
+    "database": "vicp_ai_uat_dd91b7d356694803800ef5c5e0121c82",
+    "prefix": "vicp-ai-uat-dd91b7d356694803800ef5c5e0121c82"
+  },
+  "fixture": {
+    "documentId": "97662205-a1a5-499d-be95-4374c7a6bc30",
+    "versionId": "b14a8f26-b5b3-4494-8c65-24978c354bb3",
+    "factsOrigin": "MANUAL_SOURCE_BASELINE，非真实Vision确认产物",
+    "corrections": [
+      {
+        "scope": "隔离测试副本",
+        "page": 26,
+        "before": "旧页签6",
+        "after": "原图印刷页码26",
+        "productR": "原表材料层R单独保存，不冒充完整产品R"
+      }
+    ]
+  },
+  "objectKeys": [
+    "vicp-ai-uat-dd91b7d356694803800ef5c5e0121c82/complex-atlas/source-5.png",
+    "vicp-ai-uat-dd91b7d356694803800ef5c5e0121c82/knowledge/page-images/97662205-a1a5-499d-be95-4374c7a6bc30/b14a8f26-b5b3-4494-8c65-24978c354bb3/p1-17533fec-0832-4da9-8bd6-f841bca46ad2.png",
+    "vicp-ai-uat-dd91b7d356694803800ef5c5e0121c82/complex-atlas/source-26.png",
+    "vicp-ai-uat-dd91b7d356694803800ef5c5e0121c82/knowledge/page-images/97662205-a1a5-499d-be95-4374c7a6bc30/b14a8f26-b5b3-4494-8c65-24978c354bb3/p2-e70c02b3-885f-4319-970c-377b73accf3e.png"
+  ],
+  "browser": "NOT_RUN，本次只验证真实HTTP/SSE及历史，不冒充原生App验收",
+  "objectNamespace": {
+    "status": "PASS",
+    "generatedKeys": 4
+  },
+  "cleanup": "PASS",
+  "finishedAt": "2026-10-16T17:37:48.671Z",
+  "status": "FAIL"
+}

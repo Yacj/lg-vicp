@@ -1,0 +1,71 @@
+{
+  "name": "a3-single",
+  "query": "Ⅲ型VICP薄抹灰外保温系统，A3-2构造45mm，传热系数是多少？基层是什么？",
+  "http": 200,
+  "contentType": "text/event-stream; charset=utf-8",
+  "events": [
+    {
+      "event": "message",
+      "data": {
+        "messageId": "208ec5ed-ddd1-42f6-8d2a-4800d7f85660",
+        "userMessageId": "f1bf1509-d521-4692-b73b-4b255b971ad7",
+        "conversationId": "b825eaaf-dc19-4252-98a4-26414b258aeb",
+        "requestId": "req-c"
+      }
+    },
+    {
+      "event": "progress",
+      "data": {
+        "stage": "analyzing",
+        "message": "正在分析问题..."
+      }
+    },
+    {
+      "event": "progress",
+      "data": {
+        "stage": "checking",
+        "message": "正在核对检索资料和计算结果..."
+      }
+    },
+    {
+      "event": "progress",
+      "data": {
+        "stage": "composing",
+        "message": "正在整理回答..."
+      }
+    },
+    {
+      "event": "delta",
+      "data": {
+        "text": "明确指定的对象未被完整保留，请确认。"
+      }
+    },
+    {
+      "event": "progress",
+      "data": {
+        "stage": "completed",
+        "message": "回答整理完成"
+      }
+    },
+    {
+      "event": "done",
+      "data": {
+        "messageId": "208ec5ed-ddd1-42f6-8d2a-4800d7f85660",
+        "conversationId": "b825eaaf-dc19-4252-98a4-26414b258aeb",
+        "finishReason": "COMPLETED",
+        "usage": {},
+        "model": {
+          "id": "deepseek-chat"
+        },
+        "promptVersion": {
+          "id": "f3f5a2ff-8436-4101-b11a-6ed5ce8b3c26",
+          "version": 1
+        },
+        "sources": [],
+        "latencyMs": 4880
+      }
+    }
+  ],
+  "blocks": [],
+  "facts": []
+}

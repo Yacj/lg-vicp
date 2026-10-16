@@ -38,7 +38,7 @@ export function pageConstructionTableRows(constructions: KnowledgeConstructionCo
 }
 
 export function pageConstructionCellSpan(row: KnowledgePageTableRow, rowIndex: number, colKey: string): { rowspan?: number } {
-  if (colKey === 'constructionCode' && rowIndex === row.constructionStart) return { rowspan: row.constructionLength }
+  if (['constructionCode', 'diagramNotes'].includes(colKey) && rowIndex === row.constructionStart) return { rowspan: row.constructionLength }
   if (row.kind === 'option' && rowIndex === row.groupStart && ['name', 'lambda', 'alpha'].includes(colKey)) {
     return { rowspan: row.groupLength }
   }
@@ -47,13 +47,13 @@ export function pageConstructionCellSpan(row: KnowledgePageTableRow, rowIndex: n
 
 /** 只展开后端明确关联的材料档位；不能确定对应层时，档位单独列在同一张表中。 */
 export function constructionTableRows(construction: KnowledgeConstructionContent): KnowledgeConstructionRow[] {
-  const variableLayers = construction.layers.filter(layer => layer.variable)
+  const variableLayers = construction.layers.filter(layer => layer.variable && layer.sourceRegion !== 'DIAGRAM')
   const indices = new Set(construction.options.flatMap(option => option.layerValues?.map(value => value.layerIndex) ?? []))
   const declaredIndex = indices.size === 1 ? [...indices][0] : undefined
-  const declaredLayer = declaredIndex != null && construction.options.every(option => option.layerValues?.some(value => value.layerIndex === declaredIndex))
-    ? construction.layers[declaredIndex]
+  const declaredLayer = declaredIndex != null && construction.options.every(option => option.layerValues?.filter(value => value.layerIndex === declaredIndex).length === 1)
+    && construction.layers[declaredIndex]?.sourceRegion !== 'DIAGRAM' ? construction.layers[declaredIndex]
     : undefined
-  const variableLayer = declaredLayer ?? (variableLayers.length === 1 ? variableLayers[0] : undefined)
+  const variableLayer = declaredLayer ?? (indices.size === 0 && variableLayers.length === 1 ? variableLayers[0] : undefined)
   const rows: KnowledgeConstructionRow[] = []
   const appendOptions = (layer: KnowledgeRenderLayer | null, order: number | null, layerIndex?: number): void => {
     const groupStart = rows.length
@@ -67,6 +67,7 @@ export function constructionTableRows(construction: KnowledgeConstructionContent
     }))
   }
   construction.layers.forEach((layer, index) => {
+    if (layer.sourceRegion === 'DIAGRAM') return
     const order = layer.order ?? index + 1
     if (layer === variableLayer && construction.options.length) {
       appendOptions(layer, order, index)

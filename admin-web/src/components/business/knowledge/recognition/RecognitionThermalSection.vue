@@ -96,7 +96,7 @@ function removeOption(system: RecognitionDraftSystem, index: number): void {
       </t-form>
 
       <div class="recognition-thermal__subhead">
-        <strong>构造层</strong>
+        <strong>材料行（按原图热工表录入；简图文字在下方单独核对）</strong>
         <t-button v-if="!readonly" size="small" variant="text" @click="addLayer(system)">
           新增一层
         </t-button>

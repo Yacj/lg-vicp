@@ -1,0 +1,2679 @@
+{
+  "http": 200,
+  "success": true,
+  "data": {
+    "message": "页面识别已确认",
+    "pageId": "bfea423b-ed39-4d58-86b8-7e9a6bda886e",
+    "recognitionStatus": "CONFIRMED",
+    "chunkCount": 1,
+    "thermal": {
+      "upserted": 0,
+      "warnings": [
+        "页面已确认并可用于资料问答；未选择可编辑的热工参考集，参考档位尚未同步到方案查询"
+      ],
+      "skipped": 0,
+      "mappingIssues": []
+    },
+    "recognition": {
+      "pageId": "bfea423b-ed39-4d58-86b8-7e9a6bda886e",
+      "versionId": "45b8767d-25a1-4076-b1d3-d1d683aa6bb8",
+      "documentId": "8283db2e-c434-4200-a2b6-aaedbdbfad7c",
+      "physicalPageNumber": 1,
+      "pageLabel": "5",
+      "pageTitle": "建筑外墙热工计算参考选用表（III型VICP薄抹灰外保温系统）",
+      "parsedText": "建筑外墙热工计算参考选用表（III型VICP薄抹灰外保温系统）\n\n编号 构造简图 构造层 分层厚度(mm) 导热系数[W/(m·K)] 修正系数α 热阻[(m²·K)/W] 外墙主断面 传热阻R[(m²·K)/W] 传热系数K[W/(m²·K)]\n\n外墙A3-1\n1. 混合砂浆 20 0.870 1.00 0.023\n2. 钢筋混凝土 200 1.740 1.00 0.115\n3. 找平层 15 0.930 1.00 0.015\n4. 粘结砂浆 5 0.930 1.00 0.015\n5. III型VICP复合保温板\n15 0.012 1.25 1.000 1.313 0.762\n18 0.012 1.25 1.200 1.513 0.661\n20 0.012 1.25 1.333 1.649 0.606\n25 0.012 1.25 1.667 1.980 0.505\n30 0.012 1.25 2.000 2.313 0.432\n35 0.012 1.25 2.333 2.649 0.378\n40 0.012 1.25 2.667 2.980 0.334\n45 0.012 1.25 3.000 3.313 0.302\n50 0.012 1.25 3.333 3.649 0.274\n6. 抹面胶浆 5 0.930 1.00 0.005\n\n外墙A3-2\n1. 混合砂浆 20 0.870 1.00 0.023\n2. 混凝土空心砌块 190 0.950 1.00 0.200\n3. 找平层 15 0.930 1.00 0.015\n4. 粘结砂浆 5 0.930 1.00 0.005\n5. III型VICP复合保温板\n15 0.012 1.25 1.000 1.398 0.715\n18 0.012 1.25 1.200 1.598 0.626\n20 0.012 1.25 1.333 1.731 0.578\n25 0.012 1.25 1.667 2.065 0.484\n30 0.012 1.25 2.000 2.398 0.417\n35 0.012 1.25 2.333 2.739 0.365\n40 0.012 1.25 2.667 3.065 0.326\n45 0.012 1.25 3.000 3.398 0.294\n50 0.012 1.25 3.333 3.739 0.267\n6. 抹面胶浆 5 0.930 1.00 0.005\n\n注：内表面换热阻0.11 (m²·K)/W，外表面换热阻0.04 (m²·K)/W。\n图名 建筑外墙热工计算参考选用表\n图集号 J/CABEE 26J702\n页次 25",
+      "pageImageUrl": "[AUTHORIZED_URL_REDACTED]",
+      "recognitionStatus": "CONFIRMED",
+      "recognitionModel": null,
+      "recognitionConfidence": null,
+      "recognitionWarnings": [
+        "第1组构造第1档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第1组构造第2档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第1组构造第3档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第1组构造第4档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第1组构造第5档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第1组构造第6档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第1组构造第7档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第1组构造第8档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第1组构造第9档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第2组构造第1档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第2组构造第2档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第2组构造第3档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第2组构造第4档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第2组构造第5档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第2组构造第6档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第2组构造第7档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第2组构造第8档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第2组构造第9档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "页面已确认并可用于资料问答；未选择可编辑的热工参考集，参考档位尚未同步到方案查询"
+      ],
+      "thermalSync": {
+        "pageState": "PAGE_CONFIRMED",
+        "status": "NOT_SYNCED",
+        "referenceState": "THERMAL_REFERENCE_NOT_SYNCED",
+        "expectedOptions": 18,
+        "syncedRows": 0,
+        "missingRows": 18,
+        "message": "已确认，但尚未完整同步到正式方案查询"
+      },
+      "structuredData": {
+        "notes": [
+          "内表面换热阻0.11 (m²·K)/W，外表面换热阻0.04 (m²·K)/W。"
+        ],
+        "systems": [
+          {
+            "layers": [
+              {
+                "name": "混合砂浆",
+                "alpha": 1,
+                "order": 1,
+                "lambda": 0.87,
+                "rValue": 0.023,
+                "thicknessMm": 20,
+                "sourceRegion": "THERMAL_TABLE",
+                "sourceLayerLabel": "1"
+              },
+              {
+                "name": "钢筋混凝土",
+                "alpha": 1,
+                "order": 2,
+                "lambda": 1.74,
+                "rValue": 0.115,
+                "thicknessMm": 200,
+                "sourceRegion": "THERMAL_TABLE",
+                "sourceLayerLabel": "2"
+              },
+              {
+                "name": "找平层",
+                "alpha": 1,
+                "order": 3,
+                "lambda": 0.93,
+                "rValue": 0.015,
+                "thicknessMm": 15,
+                "sourceRegion": "THERMAL_TABLE",
+                "sourceLayerLabel": "3"
+              },
+              {
+                "name": "粘结砂浆",
+                "alpha": 1,
+                "order": 4,
+                "lambda": 0.93,
+                "rValue": 0.015,
+                "thicknessMm": 5,
+                "sourceRegion": "THERMAL_TABLE",
+                "sourceLayerLabel": "4"
+              },
+              {
+                "name": "III型VICP复合保温板",
+                "alpha": 1.25,
+                "order": 5,
+                "lambda": 0.012,
+                "rValue": null,
+                "thicknessMm": null,
+                "sourceRegion": "THERMAL_TABLE",
+                "sourceLayerLabel": "5"
+              },
+              {
+                "name": "抹面胶浆",
+                "alpha": 1,
+                "order": 6,
+                "lambda": 0.93,
+                "rValue": 0.005,
+                "thicknessMm": 5,
+                "sourceRegion": "THERMAL_TABLE",
+                "sourceLayerLabel": "6"
+              }
+            ],
+            "options": [
+              {
+                "kValue": 0.762,
+                "layerValues": [
+                  {
+                    "rValue": 1,
+                    "layerIndex": 4,
+                    "rValueText": "1",
+                    "thicknessMm": 15,
+                    "thicknessText": "15"
+                  }
+                ],
+                "thicknessMm": 15,
+                "fieldEvidence": {
+                  "kValue": "0.762",
+                  "thicknessMm": "15",
+                  "totalThermalResistance": "1.313"
+                },
+                "totalThermalResistance": 1.313,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.661,
+                "layerValues": [
+                  {
+                    "rValue": 1.2,
+                    "layerIndex": 4,
+                    "rValueText": "1.2",
+                    "thicknessMm": 18,
+                    "thicknessText": "18"
+                  }
+                ],
+                "thicknessMm": 18,
+                "fieldEvidence": {
+                  "kValue": "0.661",
+                  "thicknessMm": "18",
+                  "totalThermalResistance": "1.513"
+                },
+                "totalThermalResistance": 1.513,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.606,
+                "layerValues": [
+                  {
+                    "rValue": 1.333,
+                    "layerIndex": 4,
+                    "rValueText": "1.333",
+                    "thicknessMm": 20,
+                    "thicknessText": "20"
+                  }
+                ],
+                "thicknessMm": 20,
+                "fieldEvidence": {
+                  "kValue": "0.606",
+                  "thicknessMm": "20",
+                  "totalThermalResistance": "1.649"
+                },
+                "totalThermalResistance": 1.649,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.505,
+                "layerValues": [
+                  {
+                    "rValue": 1.667,
+                    "layerIndex": 4,
+                    "rValueText": "1.667",
+                    "thicknessMm": 25,
+                    "thicknessText": "25"
+                  }
+                ],
+                "thicknessMm": 25,
+                "fieldEvidence": {
+                  "kValue": "0.505",
+                  "thicknessMm": "25",
+                  "totalThermalResistance": "1.98"
+                },
+                "totalThermalResistance": 1.98,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.432,
+                "layerValues": [
+                  {
+                    "rValue": 2,
+                    "layerIndex": 4,
+                    "rValueText": "2",
+                    "thicknessMm": 30,
+                    "thicknessText": "30"
+                  }
+                ],
+                "thicknessMm": 30,
+                "fieldEvidence": {
+                  "kValue": "0.432",
+                  "thicknessMm": "30",
+                  "totalThermalResistance": "2.313"
+                },
+                "totalThermalResistance": 2.313,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.378,
+                "layerValues": [
+                  {
+                    "rValue": 2.333,
+                    "layerIndex": 4,
+                    "rValueText": "2.333",
+                    "thicknessMm": 35,
+                    "thicknessText": "35"
+                  }
+                ],
+                "thicknessMm": 35,
+                "fieldEvidence": {
+                  "kValue": "0.378",
+                  "thicknessMm": "35",
+                  "totalThermalResistance": "2.649"
+                },
+                "totalThermalResistance": 2.649,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.334,
+                "layerValues": [
+                  {
+                    "rValue": 2.667,
+                    "layerIndex": 4,
+                    "rValueText": "2.667",
+                    "thicknessMm": 40,
+                    "thicknessText": "40"
+                  }
+                ],
+                "thicknessMm": 40,
+                "fieldEvidence": {
+                  "kValue": "0.334",
+                  "thicknessMm": "40",
+                  "totalThermalResistance": "2.98"
+                },
+                "totalThermalResistance": 2.98,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.302,
+                "layerValues": [
+                  {
+                    "rValue": 3,
+                    "layerIndex": 4,
+                    "rValueText": "3",
+                    "thicknessMm": 45,
+                    "thicknessText": "45"
+                  }
+                ],
+                "thicknessMm": 45,
+                "fieldEvidence": {
+                  "kValue": "0.302",
+                  "thicknessMm": "45",
+                  "totalThermalResistance": "3.313"
+                },
+                "totalThermalResistance": 3.313,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.274,
+                "layerValues": [
+                  {
+                    "rValue": 3.333,
+                    "layerIndex": 4,
+                    "rValueText": "3.333",
+                    "thicknessMm": 50,
+                    "thicknessText": "50"
+                  }
+                ],
+                "thicknessMm": 50,
+                "fieldEvidence": {
+                  "kValue": "0.274",
+                  "thicknessMm": "50",
+                  "totalThermalResistance": "3.649"
+                },
+                "totalThermalResistance": 3.649,
+                "productThermalResistance": null
+              }
+            ],
+            "specClass": "III",
+            "systemName": "外墙A3-1",
+            "baseMaterial": "钢筋混凝土",
+            "diagramNotes": [],
+            "sourceColumns": [
+              {
+                "unit": "mm",
+                "label": "分层厚度",
+                "scope": "LAYER",
+                "fieldKey": "thicknessMm"
+              },
+              {
+                "unit": "W/(m·K)",
+                "label": "导热系数",
+                "scope": "LAYER",
+                "fieldKey": "lambda"
+              },
+              {
+                "unit": "",
+                "label": "修正系数",
+                "scope": "LAYER",
+                "fieldKey": "alpha"
+              },
+              {
+                "unit": "(m²·K)/W",
+                "label": "热阻",
+                "scope": "LAYER",
+                "fieldKey": "rValue"
+              },
+              {
+                "unit": "(m²·K)/W",
+                "label": "传热阻",
+                "scope": "CONSTRUCTION",
+                "symbol": "R",
+                "fieldKey": "totalThermalResistance",
+                "groupLabel": "外墙主断面"
+              },
+              {
+                "unit": "W/(m²·K)",
+                "label": "传热系数",
+                "scope": "CONSTRUCTION",
+                "symbol": "K",
+                "fieldKey": "kValue",
+                "groupLabel": "外墙主断面"
+              }
+            ],
+            "applicationPart": "EXTERNAL_WALL",
+            "baseThicknessMm": 200,
+            "constructionCode": "A3-1",
+            "sourceTableHeaders": {
+              "layers": "构造层",
+              "diagram": "构造简图",
+              "identifier": "编号"
+            },
+            "rawConstructionLabel": "A3-1",
+            "constructionCodeEvidence": "A3-1"
+          },
+          {
+            "layers": [
+              {
+                "name": "混合砂浆",
+                "alpha": 1,
+                "order": 1,
+                "lambda": 0.87,
+                "rValue": 0.023,
+                "thicknessMm": 20,
+                "sourceRegion": "THERMAL_TABLE",
+                "sourceLayerLabel": "1"
+              },
+              {
+                "name": "混凝土空心砌块",
+                "alpha": 1,
+                "order": 2,
+                "lambda": 0.95,
+                "rValue": 0.2,
+                "thicknessMm": 190,
+                "sourceRegion": "THERMAL_TABLE",
+                "sourceLayerLabel": "2"
+              },
+              {
+                "name": "找平层",
+                "alpha": 1,
+                "order": 3,
+                "lambda": 0.93,
+                "rValue": 0.015,
+                "thicknessMm": 15,
+                "sourceRegion": "THERMAL_TABLE",
+                "sourceLayerLabel": "3"
+              },
+              {
+                "name": "粘结砂浆",
+                "alpha": 1,
+                "order": 4,
+                "lambda": 0.93,
+                "rValue": 0.005,
+                "thicknessMm": 5,
+                "sourceRegion": "THERMAL_TABLE",
+                "sourceLayerLabel": "4"
+              },
+              {
+                "name": "III型VICP复合保温板",
+                "alpha": 1.25,
+                "order": 5,
+                "lambda": 0.012,
+                "rValue": null,
+                "thicknessMm": null,
+                "sourceRegion": "THERMAL_TABLE",
+                "sourceLayerLabel": "5"
+              },
+              {
+                "name": "抹面胶浆",
+                "alpha": 1,
+                "order": 6,
+                "lambda": 0.93,
+                "rValue": 0.005,
+                "thicknessMm": 5,
+                "sourceRegion": "THERMAL_TABLE",
+                "sourceLayerLabel": "6"
+              }
+            ],
+            "options": [
+              {
+                "kValue": 0.715,
+                "layerValues": [
+                  {
+                    "rValue": 1,
+                    "layerIndex": 4,
+                    "rValueText": "1",
+                    "thicknessMm": 15,
+                    "thicknessText": "15"
+                  }
+                ],
+                "thicknessMm": 15,
+                "fieldEvidence": {
+                  "kValue": "0.715",
+                  "thicknessMm": "15",
+                  "totalThermalResistance": "1.398"
+                },
+                "totalThermalResistance": 1.398,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.626,
+                "layerValues": [
+                  {
+                    "rValue": 1.2,
+                    "layerIndex": 4,
+                    "rValueText": "1.2",
+                    "thicknessMm": 18,
+                    "thicknessText": "18"
+                  }
+                ],
+                "thicknessMm": 18,
+                "fieldEvidence": {
+                  "kValue": "0.626",
+                  "thicknessMm": "18",
+                  "totalThermalResistance": "1.598"
+                },
+                "totalThermalResistance": 1.598,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.578,
+                "layerValues": [
+                  {
+                    "rValue": 1.333,
+                    "layerIndex": 4,
+                    "rValueText": "1.333",
+                    "thicknessMm": 20,
+                    "thicknessText": "20"
+                  }
+                ],
+                "thicknessMm": 20,
+                "fieldEvidence": {
+                  "kValue": "0.578",
+                  "thicknessMm": "20",
+                  "totalThermalResistance": "1.731"
+                },
+                "totalThermalResistance": 1.731,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.484,
+                "layerValues": [
+                  {
+                    "rValue": 1.667,
+                    "layerIndex": 4,
+                    "rValueText": "1.667",
+                    "thicknessMm": 25,
+                    "thicknessText": "25"
+                  }
+                ],
+                "thicknessMm": 25,
+                "fieldEvidence": {
+                  "kValue": "0.484",
+                  "thicknessMm": "25",
+                  "totalThermalResistance": "2.065"
+                },
+                "totalThermalResistance": 2.065,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.417,
+                "layerValues": [
+                  {
+                    "rValue": 2,
+                    "layerIndex": 4,
+                    "rValueText": "2",
+                    "thicknessMm": 30,
+                    "thicknessText": "30"
+                  }
+                ],
+                "thicknessMm": 30,
+                "fieldEvidence": {
+                  "kValue": "0.417",
+                  "thicknessMm": "30",
+                  "totalThermalResistance": "2.398"
+                },
+                "totalThermalResistance": 2.398,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.365,
+                "layerValues": [
+                  {
+                    "rValue": 2.333,
+                    "layerIndex": 4,
+                    "rValueText": "2.333",
+                    "thicknessMm": 35,
+                    "thicknessText": "35"
+                  }
+                ],
+                "thicknessMm": 35,
+                "fieldEvidence": {
+                  "kValue": "0.365",
+                  "thicknessMm": "35",
+                  "totalThermalResistance": "2.739"
+                },
+                "totalThermalResistance": 2.739,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.326,
+                "layerValues": [
+                  {
+                    "rValue": 2.667,
+                    "layerIndex": 4,
+                    "rValueText": "2.667",
+                    "thicknessMm": 40,
+                    "thicknessText": "40"
+                  }
+                ],
+                "thicknessMm": 40,
+                "fieldEvidence": {
+                  "kValue": "0.326",
+                  "thicknessMm": "40",
+                  "totalThermalResistance": "3.065"
+                },
+                "totalThermalResistance": 3.065,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.294,
+                "layerValues": [
+                  {
+                    "rValue": 3,
+                    "layerIndex": 4,
+                    "rValueText": "3",
+                    "thicknessMm": 45,
+                    "thicknessText": "45"
+                  }
+                ],
+                "thicknessMm": 45,
+                "fieldEvidence": {
+                  "kValue": "0.294",
+                  "thicknessMm": "45",
+                  "totalThermalResistance": "3.398"
+                },
+                "totalThermalResistance": 3.398,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.267,
+                "layerValues": [
+                  {
+                    "rValue": 3.333,
+                    "layerIndex": 4,
+                    "rValueText": "3.333",
+                    "thicknessMm": 50,
+                    "thicknessText": "50"
+                  }
+                ],
+                "thicknessMm": 50,
+                "fieldEvidence": {
+                  "kValue": "0.267",
+                  "thicknessMm": "50",
+                  "totalThermalResistance": "3.739"
+                },
+                "totalThermalResistance": 3.739,
+                "productThermalResistance": null
+              }
+            ],
+            "specClass": "III",
+            "systemName": "外墙A3-2",
+            "baseMaterial": "混凝土空心砌块",
+            "diagramNotes": [],
+            "sourceColumns": [
+              {
+                "unit": "mm",
+                "label": "分层厚度",
+                "scope": "LAYER",
+                "fieldKey": "thicknessMm"
+              },
+              {
+                "unit": "W/(m·K)",
+                "label": "导热系数",
+                "scope": "LAYER",
+                "fieldKey": "lambda"
+              },
+              {
+                "unit": "",
+                "label": "修正系数",
+                "scope": "LAYER",
+                "fieldKey": "alpha"
+              },
+              {
+                "unit": "(m²·K)/W",
+                "label": "热阻",
+                "scope": "LAYER",
+                "fieldKey": "rValue"
+              },
+              {
+                "unit": "(m²·K)/W",
+                "label": "传热阻",
+                "scope": "CONSTRUCTION",
+                "symbol": "R",
+                "fieldKey": "totalThermalResistance",
+                "groupLabel": "外墙主断面"
+              },
+              {
+                "unit": "W/(m²·K)",
+                "label": "传热系数",
+                "scope": "CONSTRUCTION",
+                "symbol": "K",
+                "fieldKey": "kValue",
+                "groupLabel": "外墙主断面"
+              }
+            ],
+            "applicationPart": "EXTERNAL_WALL",
+            "baseThicknessMm": 190,
+            "constructionCode": "A3-2",
+            "sourceTableHeaders": {
+              "layers": "构造层",
+              "diagram": "构造简图",
+              "identifier": "编号"
+            },
+            "rawConstructionLabel": "A3-2",
+            "constructionCodeEvidence": "A3-2"
+          }
+        ],
+        "fullText": "建筑外墙热工计算参考选用表（III型VICP薄抹灰外保温系统）\n\n编号 构造简图 构造层 分层厚度(mm) 导热系数[W/(m·K)] 修正系数α 热阻[(m²·K)/W] 外墙主断面 传热阻R[(m²·K)/W] 传热系数K[W/(m²·K)]\n\n外墙A3-1\n1. 混合砂浆 20 0.870 1.00 0.023\n2. 钢筋混凝土 200 1.740 1.00 0.115\n3. 找平层 15 0.930 1.00 0.015\n4. 粘结砂浆 5 0.930 1.00 0.015\n5. III型VICP复合保温板\n15 0.012 1.25 1.000 1.313 0.762\n18 0.012 1.25 1.200 1.513 0.661\n20 0.012 1.25 1.333 1.649 0.606\n25 0.012 1.25 1.667 1.980 0.505\n30 0.012 1.25 2.000 2.313 0.432\n35 0.012 1.25 2.333 2.649 0.378\n40 0.012 1.25 2.667 2.980 0.334\n45 0.012 1.25 3.000 3.313 0.302\n50 0.012 1.25 3.333 3.649 0.274\n6. 抹面胶浆 5 0.930 1.00 0.005\n\n外墙A3-2\n1. 混合砂浆 20 0.870 1.00 0.023\n2. 混凝土空心砌块 190 0.950 1.00 0.200\n3. 找平层 15 0.930 1.00 0.015\n4. 粘结砂浆 5 0.930 1.00 0.005\n5. III型VICP复合保温板\n15 0.012 1.25 1.000 1.398 0.715\n18 0.012 1.25 1.200 1.598 0.626\n20 0.012 1.25 1.333 1.731 0.578\n25 0.012 1.25 1.667 2.065 0.484\n30 0.012 1.25 2.000 2.398 0.417\n35 0.012 1.25 2.333 2.739 0.365\n40 0.012 1.25 2.667 3.065 0.326\n45 0.012 1.25 3.000 3.398 0.294\n50 0.012 1.25 3.333 3.739 0.267\n6. 抹面胶浆 5 0.930 1.00 0.005\n\n注：内表面换热阻0.11 (m²·K)/W，外表面换热阻0.04 (m²·K)/W。\n图名 建筑外墙热工计算参考选用表\n图集号 J/CABEE 26J702\n页次 25",
+        "warnings": [
+          "第1组构造第1档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第1组构造第2档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第1组构造第3档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第1组构造第4档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第1组构造第5档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第1组构造第6档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第1组构造第7档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第1组构造第8档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第1组构造第9档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第2组构造第1档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第2组构造第2档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第2组构造第3档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第2组构造第4档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第2组构造第5档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第2组构造第6档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第2组构造第7档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第2组构造第8档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第2组构造第9档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步"
+        ],
+        "pageLabel": "5",
+        "pageTitle": "建筑外墙热工计算参考选用表（III型VICP薄抹灰外保温系统）",
+        "schemaVersion": 2,
+        "pageLabelEvidence": "5"
+      },
+      "draftStructuredData": {
+        "notes": [
+          "内表面换热阻0.11 (m²·K)/W，外表面换热阻0.04 (m²·K)/W。"
+        ],
+        "systems": [
+          {
+            "layers": [
+              {
+                "name": "混合砂浆",
+                "alpha": 1,
+                "order": 1,
+                "lambda": 0.87,
+                "rValue": 0.023,
+                "thicknessMm": 20,
+                "sourceRegion": "THERMAL_TABLE",
+                "sourceLayerLabel": "1"
+              },
+              {
+                "name": "钢筋混凝土",
+                "alpha": 1,
+                "order": 2,
+                "lambda": 1.74,
+                "rValue": 0.115,
+                "thicknessMm": 200,
+                "sourceRegion": "THERMAL_TABLE",
+                "sourceLayerLabel": "2"
+              },
+              {
+                "name": "找平层",
+                "alpha": 1,
+                "order": 3,
+                "lambda": 0.93,
+                "rValue": 0.015,
+                "thicknessMm": 15,
+                "sourceRegion": "THERMAL_TABLE",
+                "sourceLayerLabel": "3"
+              },
+              {
+                "name": "粘结砂浆",
+                "alpha": 1,
+                "order": 4,
+                "lambda": 0.93,
+                "rValue": 0.015,
+                "thicknessMm": 5,
+                "sourceRegion": "THERMAL_TABLE",
+                "sourceLayerLabel": "4"
+              },
+              {
+                "name": "III型VICP复合保温板",
+                "alpha": 1.25,
+                "order": 5,
+                "lambda": 0.012,
+                "rValue": null,
+                "thicknessMm": null,
+                "sourceRegion": "THERMAL_TABLE",
+                "sourceLayerLabel": "5"
+              },
+              {
+                "name": "抹面胶浆",
+                "alpha": 1,
+                "order": 6,
+                "lambda": 0.93,
+                "rValue": 0.005,
+                "thicknessMm": 5,
+                "sourceRegion": "THERMAL_TABLE",
+                "sourceLayerLabel": "6"
+              }
+            ],
+            "options": [
+              {
+                "kValue": 0.762,
+                "layerValues": [
+                  {
+                    "rValue": 1,
+                    "layerIndex": 4,
+                    "rValueText": "1",
+                    "thicknessMm": 15,
+                    "thicknessText": "15"
+                  }
+                ],
+                "thicknessMm": 15,
+                "fieldEvidence": {
+                  "kValue": "0.762",
+                  "thicknessMm": "15",
+                  "totalThermalResistance": "1.313"
+                },
+                "totalThermalResistance": 1.313,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.661,
+                "layerValues": [
+                  {
+                    "rValue": 1.2,
+                    "layerIndex": 4,
+                    "rValueText": "1.2",
+                    "thicknessMm": 18,
+                    "thicknessText": "18"
+                  }
+                ],
+                "thicknessMm": 18,
+                "fieldEvidence": {
+                  "kValue": "0.661",
+                  "thicknessMm": "18",
+                  "totalThermalResistance": "1.513"
+                },
+                "totalThermalResistance": 1.513,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.606,
+                "layerValues": [
+                  {
+                    "rValue": 1.333,
+                    "layerIndex": 4,
+                    "rValueText": "1.333",
+                    "thicknessMm": 20,
+                    "thicknessText": "20"
+                  }
+                ],
+                "thicknessMm": 20,
+                "fieldEvidence": {
+                  "kValue": "0.606",
+                  "thicknessMm": "20",
+                  "totalThermalResistance": "1.649"
+                },
+                "totalThermalResistance": 1.649,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.505,
+                "layerValues": [
+                  {
+                    "rValue": 1.667,
+                    "layerIndex": 4,
+                    "rValueText": "1.667",
+                    "thicknessMm": 25,
+                    "thicknessText": "25"
+                  }
+                ],
+                "thicknessMm": 25,
+                "fieldEvidence": {
+                  "kValue": "0.505",
+                  "thicknessMm": "25",
+                  "totalThermalResistance": "1.98"
+                },
+                "totalThermalResistance": 1.98,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.432,
+                "layerValues": [
+                  {
+                    "rValue": 2,
+                    "layerIndex": 4,
+                    "rValueText": "2",
+                    "thicknessMm": 30,
+                    "thicknessText": "30"
+                  }
+                ],
+                "thicknessMm": 30,
+                "fieldEvidence": {
+                  "kValue": "0.432",
+                  "thicknessMm": "30",
+                  "totalThermalResistance": "2.313"
+                },
+                "totalThermalResistance": 2.313,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.378,
+                "layerValues": [
+                  {
+                    "rValue": 2.333,
+                    "layerIndex": 4,
+                    "rValueText": "2.333",
+                    "thicknessMm": 35,
+                    "thicknessText": "35"
+                  }
+                ],
+                "thicknessMm": 35,
+                "fieldEvidence": {
+                  "kValue": "0.378",
+                  "thicknessMm": "35",
+                  "totalThermalResistance": "2.649"
+                },
+                "totalThermalResistance": 2.649,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.334,
+                "layerValues": [
+                  {
+                    "rValue": 2.667,
+                    "layerIndex": 4,
+                    "rValueText": "2.667",
+                    "thicknessMm": 40,
+                    "thicknessText": "40"
+                  }
+                ],
+                "thicknessMm": 40,
+                "fieldEvidence": {
+                  "kValue": "0.334",
+                  "thicknessMm": "40",
+                  "totalThermalResistance": "2.98"
+                },
+                "totalThermalResistance": 2.98,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.302,
+                "layerValues": [
+                  {
+                    "rValue": 3,
+                    "layerIndex": 4,
+                    "rValueText": "3",
+                    "thicknessMm": 45,
+                    "thicknessText": "45"
+                  }
+                ],
+                "thicknessMm": 45,
+                "fieldEvidence": {
+                  "kValue": "0.302",
+                  "thicknessMm": "45",
+                  "totalThermalResistance": "3.313"
+                },
+                "totalThermalResistance": 3.313,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.274,
+                "layerValues": [
+                  {
+                    "rValue": 3.333,
+                    "layerIndex": 4,
+                    "rValueText": "3.333",
+                    "thicknessMm": 50,
+                    "thicknessText": "50"
+                  }
+                ],
+                "thicknessMm": 50,
+                "fieldEvidence": {
+                  "kValue": "0.274",
+                  "thicknessMm": "50",
+                  "totalThermalResistance": "3.649"
+                },
+                "totalThermalResistance": 3.649,
+                "productThermalResistance": null
+              }
+            ],
+            "specClass": "III",
+            "systemName": "外墙A3-1",
+            "baseMaterial": "钢筋混凝土",
+            "diagramNotes": [],
+            "sourceColumns": [
+              {
+                "unit": "mm",
+                "label": "分层厚度",
+                "scope": "LAYER",
+                "fieldKey": "thicknessMm"
+              },
+              {
+                "unit": "W/(m·K)",
+                "label": "导热系数",
+                "scope": "LAYER",
+                "fieldKey": "lambda"
+              },
+              {
+                "unit": "",
+                "label": "修正系数",
+                "scope": "LAYER",
+                "fieldKey": "alpha"
+              },
+              {
+                "unit": "(m²·K)/W",
+                "label": "热阻",
+                "scope": "LAYER",
+                "fieldKey": "rValue"
+              },
+              {
+                "unit": "(m²·K)/W",
+                "label": "传热阻",
+                "scope": "CONSTRUCTION",
+                "symbol": "R",
+                "fieldKey": "totalThermalResistance",
+                "groupLabel": "外墙主断面"
+              },
+              {
+                "unit": "W/(m²·K)",
+                "label": "传热系数",
+                "scope": "CONSTRUCTION",
+                "symbol": "K",
+                "fieldKey": "kValue",
+                "groupLabel": "外墙主断面"
+              }
+            ],
+            "applicationPart": "EXTERNAL_WALL",
+            "baseThicknessMm": 200,
+            "constructionCode": "A3-1",
+            "sourceTableHeaders": {
+              "layers": "构造层",
+              "diagram": "构造简图",
+              "identifier": "编号"
+            },
+            "rawConstructionLabel": "A3-1",
+            "constructionCodeEvidence": "A3-1"
+          },
+          {
+            "layers": [
+              {
+                "name": "混合砂浆",
+                "alpha": 1,
+                "order": 1,
+                "lambda": 0.87,
+                "rValue": 0.023,
+                "thicknessMm": 20,
+                "sourceRegion": "THERMAL_TABLE",
+                "sourceLayerLabel": "1"
+              },
+              {
+                "name": "混凝土空心砌块",
+                "alpha": 1,
+                "order": 2,
+                "lambda": 0.95,
+                "rValue": 0.2,
+                "thicknessMm": 190,
+                "sourceRegion": "THERMAL_TABLE",
+                "sourceLayerLabel": "2"
+              },
+              {
+                "name": "找平层",
+                "alpha": 1,
+                "order": 3,
+                "lambda": 0.93,
+                "rValue": 0.015,
+                "thicknessMm": 15,
+                "sourceRegion": "THERMAL_TABLE",
+                "sourceLayerLabel": "3"
+              },
+              {
+                "name": "粘结砂浆",
+                "alpha": 1,
+                "order": 4,
+                "lambda": 0.93,
+                "rValue": 0.005,
+                "thicknessMm": 5,
+                "sourceRegion": "THERMAL_TABLE",
+                "sourceLayerLabel": "4"
+              },
+              {
+                "name": "III型VICP复合保温板",
+                "alpha": 1.25,
+                "order": 5,
+                "lambda": 0.012,
+                "rValue": null,
+                "thicknessMm": null,
+                "sourceRegion": "THERMAL_TABLE",
+                "sourceLayerLabel": "5"
+              },
+              {
+                "name": "抹面胶浆",
+                "alpha": 1,
+                "order": 6,
+                "lambda": 0.93,
+                "rValue": 0.005,
+                "thicknessMm": 5,
+                "sourceRegion": "THERMAL_TABLE",
+                "sourceLayerLabel": "6"
+              }
+            ],
+            "options": [
+              {
+                "kValue": 0.715,
+                "layerValues": [
+                  {
+                    "rValue": 1,
+                    "layerIndex": 4,
+                    "rValueText": "1",
+                    "thicknessMm": 15,
+                    "thicknessText": "15"
+                  }
+                ],
+                "thicknessMm": 15,
+                "fieldEvidence": {
+                  "kValue": "0.715",
+                  "thicknessMm": "15",
+                  "totalThermalResistance": "1.398"
+                },
+                "totalThermalResistance": 1.398,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.626,
+                "layerValues": [
+                  {
+                    "rValue": 1.2,
+                    "layerIndex": 4,
+                    "rValueText": "1.2",
+                    "thicknessMm": 18,
+                    "thicknessText": "18"
+                  }
+                ],
+                "thicknessMm": 18,
+                "fieldEvidence": {
+                  "kValue": "0.626",
+                  "thicknessMm": "18",
+                  "totalThermalResistance": "1.598"
+                },
+                "totalThermalResistance": 1.598,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.578,
+                "layerValues": [
+                  {
+                    "rValue": 1.333,
+                    "layerIndex": 4,
+                    "rValueText": "1.333",
+                    "thicknessMm": 20,
+                    "thicknessText": "20"
+                  }
+                ],
+                "thicknessMm": 20,
+                "fieldEvidence": {
+                  "kValue": "0.578",
+                  "thicknessMm": "20",
+                  "totalThermalResistance": "1.731"
+                },
+                "totalThermalResistance": 1.731,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.484,
+                "layerValues": [
+                  {
+                    "rValue": 1.667,
+                    "layerIndex": 4,
+                    "rValueText": "1.667",
+                    "thicknessMm": 25,
+                    "thicknessText": "25"
+                  }
+                ],
+                "thicknessMm": 25,
+                "fieldEvidence": {
+                  "kValue": "0.484",
+                  "thicknessMm": "25",
+                  "totalThermalResistance": "2.065"
+                },
+                "totalThermalResistance": 2.065,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.417,
+                "layerValues": [
+                  {
+                    "rValue": 2,
+                    "layerIndex": 4,
+                    "rValueText": "2",
+                    "thicknessMm": 30,
+                    "thicknessText": "30"
+                  }
+                ],
+                "thicknessMm": 30,
+                "fieldEvidence": {
+                  "kValue": "0.417",
+                  "thicknessMm": "30",
+                  "totalThermalResistance": "2.398"
+                },
+                "totalThermalResistance": 2.398,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.365,
+                "layerValues": [
+                  {
+                    "rValue": 2.333,
+                    "layerIndex": 4,
+                    "rValueText": "2.333",
+                    "thicknessMm": 35,
+                    "thicknessText": "35"
+                  }
+                ],
+                "thicknessMm": 35,
+                "fieldEvidence": {
+                  "kValue": "0.365",
+                  "thicknessMm": "35",
+                  "totalThermalResistance": "2.739"
+                },
+                "totalThermalResistance": 2.739,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.326,
+                "layerValues": [
+                  {
+                    "rValue": 2.667,
+                    "layerIndex": 4,
+                    "rValueText": "2.667",
+                    "thicknessMm": 40,
+                    "thicknessText": "40"
+                  }
+                ],
+                "thicknessMm": 40,
+                "fieldEvidence": {
+                  "kValue": "0.326",
+                  "thicknessMm": "40",
+                  "totalThermalResistance": "3.065"
+                },
+                "totalThermalResistance": 3.065,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.294,
+                "layerValues": [
+                  {
+                    "rValue": 3,
+                    "layerIndex": 4,
+                    "rValueText": "3",
+                    "thicknessMm": 45,
+                    "thicknessText": "45"
+                  }
+                ],
+                "thicknessMm": 45,
+                "fieldEvidence": {
+                  "kValue": "0.294",
+                  "thicknessMm": "45",
+                  "totalThermalResistance": "3.398"
+                },
+                "totalThermalResistance": 3.398,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.267,
+                "layerValues": [
+                  {
+                    "rValue": 3.333,
+                    "layerIndex": 4,
+                    "rValueText": "3.333",
+                    "thicknessMm": 50,
+                    "thicknessText": "50"
+                  }
+                ],
+                "thicknessMm": 50,
+                "fieldEvidence": {
+                  "kValue": "0.267",
+                  "thicknessMm": "50",
+                  "totalThermalResistance": "3.739"
+                },
+                "totalThermalResistance": 3.739,
+                "productThermalResistance": null
+              }
+            ],
+            "specClass": "III",
+            "systemName": "外墙A3-2",
+            "baseMaterial": "混凝土空心砌块",
+            "diagramNotes": [],
+            "sourceColumns": [
+              {
+                "unit": "mm",
+                "label": "分层厚度",
+                "scope": "LAYER",
+                "fieldKey": "thicknessMm"
+              },
+              {
+                "unit": "W/(m·K)",
+                "label": "导热系数",
+                "scope": "LAYER",
+                "fieldKey": "lambda"
+              },
+              {
+                "unit": "",
+                "label": "修正系数",
+                "scope": "LAYER",
+                "fieldKey": "alpha"
+              },
+              {
+                "unit": "(m²·K)/W",
+                "label": "热阻",
+                "scope": "LAYER",
+                "fieldKey": "rValue"
+              },
+              {
+                "unit": "(m²·K)/W",
+                "label": "传热阻",
+                "scope": "CONSTRUCTION",
+                "symbol": "R",
+                "fieldKey": "totalThermalResistance",
+                "groupLabel": "外墙主断面"
+              },
+              {
+                "unit": "W/(m²·K)",
+                "label": "传热系数",
+                "scope": "CONSTRUCTION",
+                "symbol": "K",
+                "fieldKey": "kValue",
+                "groupLabel": "外墙主断面"
+              }
+            ],
+            "applicationPart": "EXTERNAL_WALL",
+            "baseThicknessMm": 190,
+            "constructionCode": "A3-2",
+            "sourceTableHeaders": {
+              "layers": "构造层",
+              "diagram": "构造简图",
+              "identifier": "编号"
+            },
+            "rawConstructionLabel": "A3-2",
+            "constructionCodeEvidence": "A3-2"
+          }
+        ],
+        "fullText": "建筑外墙热工计算参考选用表（III型VICP薄抹灰外保温系统）\n\n编号 构造简图 构造层 分层厚度(mm) 导热系数[W/(m·K)] 修正系数α 热阻[(m²·K)/W] 外墙主断面 传热阻R[(m²·K)/W] 传热系数K[W/(m²·K)]\n\n外墙A3-1\n1. 混合砂浆 20 0.870 1.00 0.023\n2. 钢筋混凝土 200 1.740 1.00 0.115\n3. 找平层 15 0.930 1.00 0.015\n4. 粘结砂浆 5 0.930 1.00 0.015\n5. III型VICP复合保温板\n15 0.012 1.25 1.000 1.313 0.762\n18 0.012 1.25 1.200 1.513 0.661\n20 0.012 1.25 1.333 1.649 0.606\n25 0.012 1.25 1.667 1.980 0.505\n30 0.012 1.25 2.000 2.313 0.432\n35 0.012 1.25 2.333 2.649 0.378\n40 0.012 1.25 2.667 2.980 0.334\n45 0.012 1.25 3.000 3.313 0.302\n50 0.012 1.25 3.333 3.649 0.274\n6. 抹面胶浆 5 0.930 1.00 0.005\n\n外墙A3-2\n1. 混合砂浆 20 0.870 1.00 0.023\n2. 混凝土空心砌块 190 0.950 1.00 0.200\n3. 找平层 15 0.930 1.00 0.015\n4. 粘结砂浆 5 0.930 1.00 0.005\n5. III型VICP复合保温板\n15 0.012 1.25 1.000 1.398 0.715\n18 0.012 1.25 1.200 1.598 0.626\n20 0.012 1.25 1.333 1.731 0.578\n25 0.012 1.25 1.667 2.065 0.484\n30 0.012 1.25 2.000 2.398 0.417\n35 0.012 1.25 2.333 2.739 0.365\n40 0.012 1.25 2.667 3.065 0.326\n45 0.012 1.25 3.000 3.398 0.294\n50 0.012 1.25 3.333 3.739 0.267\n6. 抹面胶浆 5 0.930 1.00 0.005\n\n注：内表面换热阻0.11 (m²·K)/W，外表面换热阻0.04 (m²·K)/W。\n图名 建筑外墙热工计算参考选用表\n图集号 J/CABEE 26J702\n页次 25",
+        "warnings": [
+          "第1组构造第1档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第1组构造第2档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第1组构造第3档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第1组构造第4档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第1组构造第5档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第1组构造第6档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第1组构造第7档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第1组构造第8档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第1组构造第9档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第2组构造第1档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第2组构造第2档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第2组构造第3档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第2组构造第4档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第2组构造第5档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第2组构造第6档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第2组构造第7档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第2组构造第8档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第2组构造第9档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步"
+        ],
+        "pageLabel": "5",
+        "pageTitle": "建筑外墙热工计算参考选用表（III型VICP薄抹灰外保温系统）",
+        "schemaVersion": 2,
+        "pageLabelEvidence": "5"
+      },
+      "confirmedStructuredData": {
+        "notes": [
+          "内表面换热阻0.11 (m²·K)/W，外表面换热阻0.04 (m²·K)/W。"
+        ],
+        "systems": [
+          {
+            "layers": [
+              {
+                "name": "混合砂浆",
+                "alpha": 1,
+                "order": 1,
+                "lambda": 0.87,
+                "rValue": 0.023,
+                "thicknessMm": 20,
+                "sourceRegion": "THERMAL_TABLE",
+                "sourceLayerLabel": "1"
+              },
+              {
+                "name": "钢筋混凝土",
+                "alpha": 1,
+                "order": 2,
+                "lambda": 1.74,
+                "rValue": 0.115,
+                "thicknessMm": 200,
+                "sourceRegion": "THERMAL_TABLE",
+                "sourceLayerLabel": "2"
+              },
+              {
+                "name": "找平层",
+                "alpha": 1,
+                "order": 3,
+                "lambda": 0.93,
+                "rValue": 0.015,
+                "thicknessMm": 15,
+                "sourceRegion": "THERMAL_TABLE",
+                "sourceLayerLabel": "3"
+              },
+              {
+                "name": "粘结砂浆",
+                "alpha": 1,
+                "order": 4,
+                "lambda": 0.93,
+                "rValue": 0.015,
+                "thicknessMm": 5,
+                "sourceRegion": "THERMAL_TABLE",
+                "sourceLayerLabel": "4"
+              },
+              {
+                "name": "III型VICP复合保温板",
+                "alpha": 1.25,
+                "order": 5,
+                "lambda": 0.012,
+                "rValue": null,
+                "thicknessMm": null,
+                "sourceRegion": "THERMAL_TABLE",
+                "sourceLayerLabel": "5"
+              },
+              {
+                "name": "抹面胶浆",
+                "alpha": 1,
+                "order": 6,
+                "lambda": 0.93,
+                "rValue": 0.005,
+                "thicknessMm": 5,
+                "sourceRegion": "THERMAL_TABLE",
+                "sourceLayerLabel": "6"
+              }
+            ],
+            "options": [
+              {
+                "kValue": 0.762,
+                "layerValues": [
+                  {
+                    "rValue": 1,
+                    "layerIndex": 4,
+                    "rValueText": "1",
+                    "thicknessMm": 15,
+                    "thicknessText": "15"
+                  }
+                ],
+                "thicknessMm": 15,
+                "fieldEvidence": {
+                  "kValue": "0.762",
+                  "thicknessMm": "15",
+                  "totalThermalResistance": "1.313"
+                },
+                "totalThermalResistance": 1.313,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.661,
+                "layerValues": [
+                  {
+                    "rValue": 1.2,
+                    "layerIndex": 4,
+                    "rValueText": "1.2",
+                    "thicknessMm": 18,
+                    "thicknessText": "18"
+                  }
+                ],
+                "thicknessMm": 18,
+                "fieldEvidence": {
+                  "kValue": "0.661",
+                  "thicknessMm": "18",
+                  "totalThermalResistance": "1.513"
+                },
+                "totalThermalResistance": 1.513,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.606,
+                "layerValues": [
+                  {
+                    "rValue": 1.333,
+                    "layerIndex": 4,
+                    "rValueText": "1.333",
+                    "thicknessMm": 20,
+                    "thicknessText": "20"
+                  }
+                ],
+                "thicknessMm": 20,
+                "fieldEvidence": {
+                  "kValue": "0.606",
+                  "thicknessMm": "20",
+                  "totalThermalResistance": "1.649"
+                },
+                "totalThermalResistance": 1.649,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.505,
+                "layerValues": [
+                  {
+                    "rValue": 1.667,
+                    "layerIndex": 4,
+                    "rValueText": "1.667",
+                    "thicknessMm": 25,
+                    "thicknessText": "25"
+                  }
+                ],
+                "thicknessMm": 25,
+                "fieldEvidence": {
+                  "kValue": "0.505",
+                  "thicknessMm": "25",
+                  "totalThermalResistance": "1.98"
+                },
+                "totalThermalResistance": 1.98,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.432,
+                "layerValues": [
+                  {
+                    "rValue": 2,
+                    "layerIndex": 4,
+                    "rValueText": "2",
+                    "thicknessMm": 30,
+                    "thicknessText": "30"
+                  }
+                ],
+                "thicknessMm": 30,
+                "fieldEvidence": {
+                  "kValue": "0.432",
+                  "thicknessMm": "30",
+                  "totalThermalResistance": "2.313"
+                },
+                "totalThermalResistance": 2.313,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.378,
+                "layerValues": [
+                  {
+                    "rValue": 2.333,
+                    "layerIndex": 4,
+                    "rValueText": "2.333",
+                    "thicknessMm": 35,
+                    "thicknessText": "35"
+                  }
+                ],
+                "thicknessMm": 35,
+                "fieldEvidence": {
+                  "kValue": "0.378",
+                  "thicknessMm": "35",
+                  "totalThermalResistance": "2.649"
+                },
+                "totalThermalResistance": 2.649,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.334,
+                "layerValues": [
+                  {
+                    "rValue": 2.667,
+                    "layerIndex": 4,
+                    "rValueText": "2.667",
+                    "thicknessMm": 40,
+                    "thicknessText": "40"
+                  }
+                ],
+                "thicknessMm": 40,
+                "fieldEvidence": {
+                  "kValue": "0.334",
+                  "thicknessMm": "40",
+                  "totalThermalResistance": "2.98"
+                },
+                "totalThermalResistance": 2.98,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.302,
+                "layerValues": [
+                  {
+                    "rValue": 3,
+                    "layerIndex": 4,
+                    "rValueText": "3",
+                    "thicknessMm": 45,
+                    "thicknessText": "45"
+                  }
+                ],
+                "thicknessMm": 45,
+                "fieldEvidence": {
+                  "kValue": "0.302",
+                  "thicknessMm": "45",
+                  "totalThermalResistance": "3.313"
+                },
+                "totalThermalResistance": 3.313,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.274,
+                "layerValues": [
+                  {
+                    "rValue": 3.333,
+                    "layerIndex": 4,
+                    "rValueText": "3.333",
+                    "thicknessMm": 50,
+                    "thicknessText": "50"
+                  }
+                ],
+                "thicknessMm": 50,
+                "fieldEvidence": {
+                  "kValue": "0.274",
+                  "thicknessMm": "50",
+                  "totalThermalResistance": "3.649"
+                },
+                "totalThermalResistance": 3.649,
+                "productThermalResistance": null
+              }
+            ],
+            "specClass": "III",
+            "systemName": "外墙A3-1",
+            "baseMaterial": "钢筋混凝土",
+            "diagramNotes": [],
+            "sourceColumns": [
+              {
+                "unit": "mm",
+                "label": "分层厚度",
+                "scope": "LAYER",
+                "fieldKey": "thicknessMm"
+              },
+              {
+                "unit": "W/(m·K)",
+                "label": "导热系数",
+                "scope": "LAYER",
+                "fieldKey": "lambda"
+              },
+              {
+                "unit": "",
+                "label": "修正系数",
+                "scope": "LAYER",
+                "fieldKey": "alpha"
+              },
+              {
+                "unit": "(m²·K)/W",
+                "label": "热阻",
+                "scope": "LAYER",
+                "fieldKey": "rValue"
+              },
+              {
+                "unit": "(m²·K)/W",
+                "label": "传热阻",
+                "scope": "CONSTRUCTION",
+                "symbol": "R",
+                "fieldKey": "totalThermalResistance",
+                "groupLabel": "外墙主断面"
+              },
+              {
+                "unit": "W/(m²·K)",
+                "label": "传热系数",
+                "scope": "CONSTRUCTION",
+                "symbol": "K",
+                "fieldKey": "kValue",
+                "groupLabel": "外墙主断面"
+              }
+            ],
+            "applicationPart": "EXTERNAL_WALL",
+            "baseThicknessMm": 200,
+            "constructionCode": "A3-1",
+            "sourceTableHeaders": {
+              "layers": "构造层",
+              "diagram": "构造简图",
+              "identifier": "编号"
+            },
+            "rawConstructionLabel": "A3-1",
+            "constructionCodeEvidence": "A3-1"
+          },
+          {
+            "layers": [
+              {
+                "name": "混合砂浆",
+                "alpha": 1,
+                "order": 1,
+                "lambda": 0.87,
+                "rValue": 0.023,
+                "thicknessMm": 20,
+                "sourceRegion": "THERMAL_TABLE",
+                "sourceLayerLabel": "1"
+              },
+              {
+                "name": "混凝土空心砌块",
+                "alpha": 1,
+                "order": 2,
+                "lambda": 0.95,
+                "rValue": 0.2,
+                "thicknessMm": 190,
+                "sourceRegion": "THERMAL_TABLE",
+                "sourceLayerLabel": "2"
+              },
+              {
+                "name": "找平层",
+                "alpha": 1,
+                "order": 3,
+                "lambda": 0.93,
+                "rValue": 0.015,
+                "thicknessMm": 15,
+                "sourceRegion": "THERMAL_TABLE",
+                "sourceLayerLabel": "3"
+              },
+              {
+                "name": "粘结砂浆",
+                "alpha": 1,
+                "order": 4,
+                "lambda": 0.93,
+                "rValue": 0.005,
+                "thicknessMm": 5,
+                "sourceRegion": "THERMAL_TABLE",
+                "sourceLayerLabel": "4"
+              },
+              {
+                "name": "III型VICP复合保温板",
+                "alpha": 1.25,
+                "order": 5,
+                "lambda": 0.012,
+                "rValue": null,
+                "thicknessMm": null,
+                "sourceRegion": "THERMAL_TABLE",
+                "sourceLayerLabel": "5"
+              },
+              {
+                "name": "抹面胶浆",
+                "alpha": 1,
+                "order": 6,
+                "lambda": 0.93,
+                "rValue": 0.005,
+                "thicknessMm": 5,
+                "sourceRegion": "THERMAL_TABLE",
+                "sourceLayerLabel": "6"
+              }
+            ],
+            "options": [
+              {
+                "kValue": 0.715,
+                "layerValues": [
+                  {
+                    "rValue": 1,
+                    "layerIndex": 4,
+                    "rValueText": "1",
+                    "thicknessMm": 15,
+                    "thicknessText": "15"
+                  }
+                ],
+                "thicknessMm": 15,
+                "fieldEvidence": {
+                  "kValue": "0.715",
+                  "thicknessMm": "15",
+                  "totalThermalResistance": "1.398"
+                },
+                "totalThermalResistance": 1.398,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.626,
+                "layerValues": [
+                  {
+                    "rValue": 1.2,
+                    "layerIndex": 4,
+                    "rValueText": "1.2",
+                    "thicknessMm": 18,
+                    "thicknessText": "18"
+                  }
+                ],
+                "thicknessMm": 18,
+                "fieldEvidence": {
+                  "kValue": "0.626",
+                  "thicknessMm": "18",
+                  "totalThermalResistance": "1.598"
+                },
+                "totalThermalResistance": 1.598,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.578,
+                "layerValues": [
+                  {
+                    "rValue": 1.333,
+                    "layerIndex": 4,
+                    "rValueText": "1.333",
+                    "thicknessMm": 20,
+                    "thicknessText": "20"
+                  }
+                ],
+                "thicknessMm": 20,
+                "fieldEvidence": {
+                  "kValue": "0.578",
+                  "thicknessMm": "20",
+                  "totalThermalResistance": "1.731"
+                },
+                "totalThermalResistance": 1.731,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.484,
+                "layerValues": [
+                  {
+                    "rValue": 1.667,
+                    "layerIndex": 4,
+                    "rValueText": "1.667",
+                    "thicknessMm": 25,
+                    "thicknessText": "25"
+                  }
+                ],
+                "thicknessMm": 25,
+                "fieldEvidence": {
+                  "kValue": "0.484",
+                  "thicknessMm": "25",
+                  "totalThermalResistance": "2.065"
+                },
+                "totalThermalResistance": 2.065,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.417,
+                "layerValues": [
+                  {
+                    "rValue": 2,
+                    "layerIndex": 4,
+                    "rValueText": "2",
+                    "thicknessMm": 30,
+                    "thicknessText": "30"
+                  }
+                ],
+                "thicknessMm": 30,
+                "fieldEvidence": {
+                  "kValue": "0.417",
+                  "thicknessMm": "30",
+                  "totalThermalResistance": "2.398"
+                },
+                "totalThermalResistance": 2.398,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.365,
+                "layerValues": [
+                  {
+                    "rValue": 2.333,
+                    "layerIndex": 4,
+                    "rValueText": "2.333",
+                    "thicknessMm": 35,
+                    "thicknessText": "35"
+                  }
+                ],
+                "thicknessMm": 35,
+                "fieldEvidence": {
+                  "kValue": "0.365",
+                  "thicknessMm": "35",
+                  "totalThermalResistance": "2.739"
+                },
+                "totalThermalResistance": 2.739,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.326,
+                "layerValues": [
+                  {
+                    "rValue": 2.667,
+                    "layerIndex": 4,
+                    "rValueText": "2.667",
+                    "thicknessMm": 40,
+                    "thicknessText": "40"
+                  }
+                ],
+                "thicknessMm": 40,
+                "fieldEvidence": {
+                  "kValue": "0.326",
+                  "thicknessMm": "40",
+                  "totalThermalResistance": "3.065"
+                },
+                "totalThermalResistance": 3.065,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.294,
+                "layerValues": [
+                  {
+                    "rValue": 3,
+                    "layerIndex": 4,
+                    "rValueText": "3",
+                    "thicknessMm": 45,
+                    "thicknessText": "45"
+                  }
+                ],
+                "thicknessMm": 45,
+                "fieldEvidence": {
+                  "kValue": "0.294",
+                  "thicknessMm": "45",
+                  "totalThermalResistance": "3.398"
+                },
+                "totalThermalResistance": 3.398,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.267,
+                "layerValues": [
+                  {
+                    "rValue": 3.333,
+                    "layerIndex": 4,
+                    "rValueText": "3.333",
+                    "thicknessMm": 50,
+                    "thicknessText": "50"
+                  }
+                ],
+                "thicknessMm": 50,
+                "fieldEvidence": {
+                  "kValue": "0.267",
+                  "thicknessMm": "50",
+                  "totalThermalResistance": "3.739"
+                },
+                "totalThermalResistance": 3.739,
+                "productThermalResistance": null
+              }
+            ],
+            "specClass": "III",
+            "systemName": "外墙A3-2",
+            "baseMaterial": "混凝土空心砌块",
+            "diagramNotes": [],
+            "sourceColumns": [
+              {
+                "unit": "mm",
+                "label": "分层厚度",
+                "scope": "LAYER",
+                "fieldKey": "thicknessMm"
+              },
+              {
+                "unit": "W/(m·K)",
+                "label": "导热系数",
+                "scope": "LAYER",
+                "fieldKey": "lambda"
+              },
+              {
+                "unit": "",
+                "label": "修正系数",
+                "scope": "LAYER",
+                "fieldKey": "alpha"
+              },
+              {
+                "unit": "(m²·K)/W",
+                "label": "热阻",
+                "scope": "LAYER",
+                "fieldKey": "rValue"
+              },
+              {
+                "unit": "(m²·K)/W",
+                "label": "传热阻",
+                "scope": "CONSTRUCTION",
+                "symbol": "R",
+                "fieldKey": "totalThermalResistance",
+                "groupLabel": "外墙主断面"
+              },
+              {
+                "unit": "W/(m²·K)",
+                "label": "传热系数",
+                "scope": "CONSTRUCTION",
+                "symbol": "K",
+                "fieldKey": "kValue",
+                "groupLabel": "外墙主断面"
+              }
+            ],
+            "applicationPart": "EXTERNAL_WALL",
+            "baseThicknessMm": 190,
+            "constructionCode": "A3-2",
+            "sourceTableHeaders": {
+              "layers": "构造层",
+              "diagram": "构造简图",
+              "identifier": "编号"
+            },
+            "rawConstructionLabel": "A3-2",
+            "constructionCodeEvidence": "A3-2"
+          }
+        ],
+        "fullText": "建筑外墙热工计算参考选用表（III型VICP薄抹灰外保温系统）\n\n编号 构造简图 构造层 分层厚度(mm) 导热系数[W/(m·K)] 修正系数α 热阻[(m²·K)/W] 外墙主断面 传热阻R[(m²·K)/W] 传热系数K[W/(m²·K)]\n\n外墙A3-1\n1. 混合砂浆 20 0.870 1.00 0.023\n2. 钢筋混凝土 200 1.740 1.00 0.115\n3. 找平层 15 0.930 1.00 0.015\n4. 粘结砂浆 5 0.930 1.00 0.015\n5. III型VICP复合保温板\n15 0.012 1.25 1.000 1.313 0.762\n18 0.012 1.25 1.200 1.513 0.661\n20 0.012 1.25 1.333 1.649 0.606\n25 0.012 1.25 1.667 1.980 0.505\n30 0.012 1.25 2.000 2.313 0.432\n35 0.012 1.25 2.333 2.649 0.378\n40 0.012 1.25 2.667 2.980 0.334\n45 0.012 1.25 3.000 3.313 0.302\n50 0.012 1.25 3.333 3.649 0.274\n6. 抹面胶浆 5 0.930 1.00 0.005\n\n外墙A3-2\n1. 混合砂浆 20 0.870 1.00 0.023\n2. 混凝土空心砌块 190 0.950 1.00 0.200\n3. 找平层 15 0.930 1.00 0.015\n4. 粘结砂浆 5 0.930 1.00 0.005\n5. III型VICP复合保温板\n15 0.012 1.25 1.000 1.398 0.715\n18 0.012 1.25 1.200 1.598 0.626\n20 0.012 1.25 1.333 1.731 0.578\n25 0.012 1.25 1.667 2.065 0.484\n30 0.012 1.25 2.000 2.398 0.417\n35 0.012 1.25 2.333 2.739 0.365\n40 0.012 1.25 2.667 3.065 0.326\n45 0.012 1.25 3.000 3.398 0.294\n50 0.012 1.25 3.333 3.739 0.267\n6. 抹面胶浆 5 0.930 1.00 0.005\n\n注：内表面换热阻0.11 (m²·K)/W，外表面换热阻0.04 (m²·K)/W。\n图名 建筑外墙热工计算参考选用表\n图集号 J/CABEE 26J702\n页次 25",
+        "warnings": [
+          "第1组构造第1档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第1组构造第2档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第1组构造第3档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第1组构造第4档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第1组构造第5档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第1组构造第6档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第1组构造第7档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第1组构造第8档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第1组构造第9档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第2组构造第1档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第2组构造第2档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第2组构造第3档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第2组构造第4档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第2组构造第5档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第2组构造第6档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第2组构造第7档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第2组构造第8档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第2组构造第9档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步"
+        ],
+        "pageLabel": "5",
+        "pageTitle": "建筑外墙热工计算参考选用表（III型VICP薄抹灰外保温系统）",
+        "schemaVersion": 2,
+        "pageLabelEvidence": "5"
+      },
+      "renderModel": {
+        "schemaVersion": 2,
+        "confirmedRevision": "b208f0b8fb4108a7f75f62c7",
+        "pageTitle": "建筑外墙热工计算参考选用表（III型VICP薄抹灰外保温系统）",
+        "pageLabel": "5",
+        "constructions": [
+          {
+            "constructionId": "kp-b208f0b8fb4108a7f75f62c7-0",
+            "constructionCode": "A3-1",
+            "systemName": "外墙A3-1",
+            "rawConstructionLabel": "A3-1",
+            "applicationPart": "EXTERNAL_WALL",
+            "sourceColumns": [
+              {
+                "unit": "mm",
+                "label": "分层厚度",
+                "scope": "LAYER",
+                "fieldKey": "thicknessMm"
+              },
+              {
+                "unit": "W/(m·K)",
+                "label": "导热系数",
+                "scope": "LAYER",
+                "fieldKey": "lambda"
+              },
+              {
+                "unit": "",
+                "label": "修正系数",
+                "scope": "LAYER",
+                "fieldKey": "alpha"
+              },
+              {
+                "unit": "(m²·K)/W",
+                "label": "热阻",
+                "scope": "LAYER",
+                "fieldKey": "rValue"
+              },
+              {
+                "unit": "(m²·K)/W",
+                "label": "传热阻",
+                "scope": "CONSTRUCTION",
+                "symbol": "R",
+                "fieldKey": "totalThermalResistance",
+                "groupLabel": "外墙主断面"
+              },
+              {
+                "unit": "W/(m²·K)",
+                "label": "传热系数",
+                "scope": "CONSTRUCTION",
+                "symbol": "K",
+                "fieldKey": "kValue",
+                "groupLabel": "外墙主断面"
+              }
+            ],
+            "sourceTableHeaders": {
+              "layers": "构造层",
+              "diagram": "构造简图",
+              "identifier": "编号"
+            },
+            "diagramNotes": [],
+            "specClass": "III",
+            "baseMaterial": "钢筋混凝土",
+            "baseThicknessMm": 200,
+            "layers": [
+              {
+                "name": "混合砂浆",
+                "alpha": 1,
+                "order": 1,
+                "lambda": 0.87,
+                "rValue": 0.023,
+                "thicknessMm": 20,
+                "sourceRegion": "THERMAL_TABLE",
+                "sourceLayerLabel": "1",
+                "layerId": "kp-b208f0b8fb4108a7f75f62c7-0-l0"
+              },
+              {
+                "name": "钢筋混凝土",
+                "alpha": 1,
+                "order": 2,
+                "lambda": 1.74,
+                "rValue": 0.115,
+                "thicknessMm": 200,
+                "sourceRegion": "THERMAL_TABLE",
+                "sourceLayerLabel": "2",
+                "layerId": "kp-b208f0b8fb4108a7f75f62c7-0-l1"
+              },
+              {
+                "name": "找平层",
+                "alpha": 1,
+                "order": 3,
+                "lambda": 0.93,
+                "rValue": 0.015,
+                "thicknessMm": 15,
+                "sourceRegion": "THERMAL_TABLE",
+                "sourceLayerLabel": "3",
+                "layerId": "kp-b208f0b8fb4108a7f75f62c7-0-l2"
+              },
+              {
+                "name": "粘结砂浆",
+                "alpha": 1,
+                "order": 4,
+                "lambda": 0.93,
+                "rValue": 0.015,
+                "thicknessMm": 5,
+                "sourceRegion": "THERMAL_TABLE",
+                "sourceLayerLabel": "4",
+                "layerId": "kp-b208f0b8fb4108a7f75f62c7-0-l3"
+              },
+              {
+                "name": "III型VICP复合保温板",
+                "alpha": 1.25,
+                "order": 5,
+                "lambda": 0.012,
+                "rValue": null,
+                "thicknessMm": null,
+                "sourceRegion": "THERMAL_TABLE",
+                "sourceLayerLabel": "5",
+                "layerId": "kp-b208f0b8fb4108a7f75f62c7-0-l4",
+                "variable": true
+              },
+              {
+                "name": "抹面胶浆",
+                "alpha": 1,
+                "order": 6,
+                "lambda": 0.93,
+                "rValue": 0.005,
+                "thicknessMm": 5,
+                "sourceRegion": "THERMAL_TABLE",
+                "sourceLayerLabel": "6",
+                "layerId": "kp-b208f0b8fb4108a7f75f62c7-0-l5"
+              }
+            ],
+            "material": {
+              "name": "III型VICP复合保温板",
+              "lambda": 0.012,
+              "alpha": 1.25
+            },
+            "options": [
+              {
+                "optionId": "kp-b208f0b8fb4108a7f75f62c7-0-o0",
+                "thicknessMm": 15,
+                "productThermalResistance": null,
+                "totalThermalResistance": 1.313,
+                "kValue": 0.762,
+                "fieldEvidence": {
+                  "kValue": "0.762",
+                  "thicknessMm": "15",
+                  "totalThermalResistance": "1.313"
+                },
+                "layerValues": [
+                  {
+                    "rValue": 1,
+                    "layerIndex": 4,
+                    "rValueText": "1",
+                    "thicknessMm": 15,
+                    "thicknessText": "15"
+                  }
+                ]
+              },
+              {
+                "optionId": "kp-b208f0b8fb4108a7f75f62c7-0-o1",
+                "thicknessMm": 18,
+                "productThermalResistance": null,
+                "totalThermalResistance": 1.513,
+                "kValue": 0.661,
+                "fieldEvidence": {
+                  "kValue": "0.661",
+                  "thicknessMm": "18",
+                  "totalThermalResistance": "1.513"
+                },
+                "layerValues": [
+                  {
+                    "rValue": 1.2,
+                    "layerIndex": 4,
+                    "rValueText": "1.2",
+                    "thicknessMm": 18,
+                    "thicknessText": "18"
+                  }
+                ]
+              },
+              {
+                "optionId": "kp-b208f0b8fb4108a7f75f62c7-0-o2",
+                "thicknessMm": 20,
+                "productThermalResistance": null,
+                "totalThermalResistance": 1.649,
+                "kValue": 0.606,
+                "fieldEvidence": {
+                  "kValue": "0.606",
+                  "thicknessMm": "20",
+                  "totalThermalResistance": "1.649"
+                },
+                "layerValues": [
+                  {
+                    "rValue": 1.333,
+                    "layerIndex": 4,
+                    "rValueText": "1.333",
+                    "thicknessMm": 20,
+                    "thicknessText": "20"
+                  }
+                ]
+              },
+              {
+                "optionId": "kp-b208f0b8fb4108a7f75f62c7-0-o3",
+                "thicknessMm": 25,
+                "productThermalResistance": null,
+                "totalThermalResistance": 1.98,
+                "kValue": 0.505,
+                "fieldEvidence": {
+                  "kValue": "0.505",
+                  "thicknessMm": "25",
+                  "totalThermalResistance": "1.98"
+                },
+                "layerValues": [
+                  {
+                    "rValue": 1.667,
+                    "layerIndex": 4,
+                    "rValueText": "1.667",
+                    "thicknessMm": 25,
+                    "thicknessText": "25"
+                  }
+                ]
+              },
+              {
+                "optionId": "kp-b208f0b8fb4108a7f75f62c7-0-o4",
+                "thicknessMm": 30,
+                "productThermalResistance": null,
+                "totalThermalResistance": 2.313,
+                "kValue": 0.432,
+                "fieldEvidence": {
+                  "kValue": "0.432",
+                  "thicknessMm": "30",
+                  "totalThermalResistance": "2.313"
+                },
+                "layerValues": [
+                  {
+                    "rValue": 2,
+                    "layerIndex": 4,
+                    "rValueText": "2",
+                    "thicknessMm": 30,
+                    "thicknessText": "30"
+                  }
+                ]
+              },
+              {
+                "optionId": "kp-b208f0b8fb4108a7f75f62c7-0-o5",
+                "thicknessMm": 35,
+                "productThermalResistance": null,
+                "totalThermalResistance": 2.649,
+                "kValue": 0.378,
+                "fieldEvidence": {
+                  "kValue": "0.378",
+                  "thicknessMm": "35",
+                  "totalThermalResistance": "2.649"
+                },
+                "layerValues": [
+                  {
+                    "rValue": 2.333,
+                    "layerIndex": 4,
+                    "rValueText": "2.333",
+                    "thicknessMm": 35,
+                    "thicknessText": "35"
+                  }
+                ]
+              },
+              {
+                "optionId": "kp-b208f0b8fb4108a7f75f62c7-0-o6",
+                "thicknessMm": 40,
+                "productThermalResistance": null,
+                "totalThermalResistance": 2.98,
+                "kValue": 0.334,
+                "fieldEvidence": {
+                  "kValue": "0.334",
+                  "thicknessMm": "40",
+                  "totalThermalResistance": "2.98"
+                },
+                "layerValues": [
+                  {
+                    "rValue": 2.667,
+                    "layerIndex": 4,
+                    "rValueText": "2.667",
+                    "thicknessMm": 40,
+                    "thicknessText": "40"
+                  }
+                ]
+              },
+              {
+                "optionId": "kp-b208f0b8fb4108a7f75f62c7-0-o7",
+                "thicknessMm": 45,
+                "productThermalResistance": null,
+                "totalThermalResistance": 3.313,
+                "kValue": 0.302,
+                "fieldEvidence": {
+                  "kValue": "0.302",
+                  "thicknessMm": "45",
+                  "totalThermalResistance": "3.313"
+                },
+                "layerValues": [
+                  {
+                    "rValue": 3,
+                    "layerIndex": 4,
+                    "rValueText": "3",
+                    "thicknessMm": 45,
+                    "thicknessText": "45"
+                  }
+                ]
+              },
+              {
+                "optionId": "kp-b208f0b8fb4108a7f75f62c7-0-o8",
+                "thicknessMm": 50,
+                "productThermalResistance": null,
+                "totalThermalResistance": 3.649,
+                "kValue": 0.274,
+                "fieldEvidence": {
+                  "kValue": "0.274",
+                  "thicknessMm": "50",
+                  "totalThermalResistance": "3.649"
+                },
+                "layerValues": [
+                  {
+                    "rValue": 3.333,
+                    "layerIndex": 4,
+                    "rValueText": "3.333",
+                    "thicknessMm": 50,
+                    "thicknessText": "50"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "constructionId": "kp-b208f0b8fb4108a7f75f62c7-1",
+            "constructionCode": "A3-2",
+            "systemName": "外墙A3-2",
+            "rawConstructionLabel": "A3-2",
+            "applicationPart": "EXTERNAL_WALL",
+            "sourceColumns": [
+              {
+                "unit": "mm",
+                "label": "分层厚度",
+                "scope": "LAYER",
+                "fieldKey": "thicknessMm"
+              },
+              {
+                "unit": "W/(m·K)",
+                "label": "导热系数",
+                "scope": "LAYER",
+                "fieldKey": "lambda"
+              },
+              {
+                "unit": "",
+                "label": "修正系数",
+                "scope": "LAYER",
+                "fieldKey": "alpha"
+              },
+              {
+                "unit": "(m²·K)/W",
+                "label": "热阻",
+                "scope": "LAYER",
+                "fieldKey": "rValue"
+              },
+              {
+                "unit": "(m²·K)/W",
+                "label": "传热阻",
+                "scope": "CONSTRUCTION",
+                "symbol": "R",
+                "fieldKey": "totalThermalResistance",
+                "groupLabel": "外墙主断面"
+              },
+              {
+                "unit": "W/(m²·K)",
+                "label": "传热系数",
+                "scope": "CONSTRUCTION",
+                "symbol": "K",
+                "fieldKey": "kValue",
+                "groupLabel": "外墙主断面"
+              }
+            ],
+            "sourceTableHeaders": {
+              "layers": "构造层",
+              "diagram": "构造简图",
+              "identifier": "编号"
+            },
+            "diagramNotes": [],
+            "specClass": "III",
+            "baseMaterial": "混凝土空心砌块",
+            "baseThicknessMm": 190,
+            "layers": [
+              {
+                "name": "混合砂浆",
+                "alpha": 1,
+                "order": 1,
+                "lambda": 0.87,
+                "rValue": 0.023,
+                "thicknessMm": 20,
+                "sourceRegion": "THERMAL_TABLE",
+                "sourceLayerLabel": "1",
+                "layerId": "kp-b208f0b8fb4108a7f75f62c7-1-l0"
+              },
+              {
+                "name": "混凝土空心砌块",
+                "alpha": 1,
+                "order": 2,
+                "lambda": 0.95,
+                "rValue": 0.2,
+                "thicknessMm": 190,
+                "sourceRegion": "THERMAL_TABLE",
+                "sourceLayerLabel": "2",
+                "layerId": "kp-b208f0b8fb4108a7f75f62c7-1-l1"
+              },
+              {
+                "name": "找平层",
+                "alpha": 1,
+                "order": 3,
+                "lambda": 0.93,
+                "rValue": 0.015,
+                "thicknessMm": 15,
+                "sourceRegion": "THERMAL_TABLE",
+                "sourceLayerLabel": "3",
+                "layerId": "kp-b208f0b8fb4108a7f75f62c7-1-l2"
+              },
+              {
+                "name": "粘结砂浆",
+                "alpha": 1,
+                "order": 4,
+                "lambda": 0.93,
+                "rValue": 0.005,
+                "thicknessMm": 5,
+                "sourceRegion": "THERMAL_TABLE",
+                "sourceLayerLabel": "4",
+                "layerId": "kp-b208f0b8fb4108a7f75f62c7-1-l3"
+              },
+              {
+                "name": "III型VICP复合保温板",
+                "alpha": 1.25,
+                "order": 5,
+                "lambda": 0.012,
+                "rValue": null,
+                "thicknessMm": null,
+                "sourceRegion": "THERMAL_TABLE",
+                "sourceLayerLabel": "5",
+                "layerId": "kp-b208f0b8fb4108a7f75f62c7-1-l4",
+                "variable": true
+              },
+              {
+                "name": "抹面胶浆",
+                "alpha": 1,
+                "order": 6,
+                "lambda": 0.93,
+                "rValue": 0.005,
+                "thicknessMm": 5,
+                "sourceRegion": "THERMAL_TABLE",
+                "sourceLayerLabel": "6",
+                "layerId": "kp-b208f0b8fb4108a7f75f62c7-1-l5"
+              }
+            ],
+            "material": {
+              "name": "III型VICP复合保温板",
+              "lambda": 0.012,
+              "alpha": 1.25
+            },
+            "options": [
+              {
+                "optionId": "kp-b208f0b8fb4108a7f75f62c7-1-o0",
+                "thicknessMm": 15,
+                "productThermalResistance": null,
+                "totalThermalResistance": 1.398,
+                "kValue": 0.715,
+                "fieldEvidence": {
+                  "kValue": "0.715",
+                  "thicknessMm": "15",
+                  "totalThermalResistance": "1.398"
+                },
+                "layerValues": [
+                  {
+                    "rValue": 1,
+                    "layerIndex": 4,
+                    "rValueText": "1",
+                    "thicknessMm": 15,
+                    "thicknessText": "15"
+                  }
+                ]
+              },
+              {
+                "optionId": "kp-b208f0b8fb4108a7f75f62c7-1-o1",
+                "thicknessMm": 18,
+                "productThermalResistance": null,
+                "totalThermalResistance": 1.598,
+                "kValue": 0.626,
+                "fieldEvidence": {
+                  "kValue": "0.626",
+                  "thicknessMm": "18",
+                  "totalThermalResistance": "1.598"
+                },
+                "layerValues": [
+                  {
+                    "rValue": 1.2,
+                    "layerIndex": 4,
+                    "rValueText": "1.2",
+                    "thicknessMm": 18,
+                    "thicknessText": "18"
+                  }
+                ]
+              },
+              {
+                "optionId": "kp-b208f0b8fb4108a7f75f62c7-1-o2",
+                "thicknessMm": 20,
+                "productThermalResistance": null,
+                "totalThermalResistance": 1.731,
+                "kValue": 0.578,
+                "fieldEvidence": {
+                  "kValue": "0.578",
+                  "thicknessMm": "20",
+                  "totalThermalResistance": "1.731"
+                },
+                "layerValues": [
+                  {
+                    "rValue": 1.333,
+                    "layerIndex": 4,
+                    "rValueText": "1.333",
+                    "thicknessMm": 20,
+                    "thicknessText": "20"
+                  }
+                ]
+              },
+              {
+                "optionId": "kp-b208f0b8fb4108a7f75f62c7-1-o3",
+                "thicknessMm": 25,
+                "productThermalResistance": null,
+                "totalThermalResistance": 2.065,
+                "kValue": 0.484,
+                "fieldEvidence": {
+                  "kValue": "0.484",
+                  "thicknessMm": "25",
+                  "totalThermalResistance": "2.065"
+                },
+                "layerValues": [
+                  {
+                    "rValue": 1.667,
+                    "layerIndex": 4,
+                    "rValueText": "1.667",
+                    "thicknessMm": 25,
+                    "thicknessText": "25"
+                  }
+                ]
+              },
+              {
+                "optionId": "kp-b208f0b8fb4108a7f75f62c7-1-o4",
+                "thicknessMm": 30,
+                "productThermalResistance": null,
+                "totalThermalResistance": 2.398,
+                "kValue": 0.417,
+                "fieldEvidence": {
+                  "kValue": "0.417",
+                  "thicknessMm": "30",
+                  "totalThermalResistance": "2.398"
+                },
+                "layerValues": [
+                  {
+                    "rValue": 2,
+                    "layerIndex": 4,
+                    "rValueText": "2",
+                    "thicknessMm": 30,
+                    "thicknessText": "30"
+                  }
+                ]
+              },
+              {
+                "optionId": "kp-b208f0b8fb4108a7f75f62c7-1-o5",
+                "thicknessMm": 35,
+                "productThermalResistance": null,
+                "totalThermalResistance": 2.739,
+                "kValue": 0.365,
+                "fieldEvidence": {
+                  "kValue": "0.365",
+                  "thicknessMm": "35",
+                  "totalThermalResistance": "2.739"
+                },
+                "layerValues": [
+                  {
+                    "rValue": 2.333,
+                    "layerIndex": 4,
+                    "rValueText": "2.333",
+                    "thicknessMm": 35,
+                    "thicknessText": "35"
+                  }
+                ]
+              },
+              {
+                "optionId": "kp-b208f0b8fb4108a7f75f62c7-1-o6",
+                "thicknessMm": 40,
+                "productThermalResistance": null,
+                "totalThermalResistance": 3.065,
+                "kValue": 0.326,
+                "fieldEvidence": {
+                  "kValue": "0.326",
+                  "thicknessMm": "40",
+                  "totalThermalResistance": "3.065"
+                },
+                "layerValues": [
+                  {
+                    "rValue": 2.667,
+                    "layerIndex": 4,
+                    "rValueText": "2.667",
+                    "thicknessMm": 40,
+                    "thicknessText": "40"
+                  }
+                ]
+              },
+              {
+                "optionId": "kp-b208f0b8fb4108a7f75f62c7-1-o7",
+                "thicknessMm": 45,
+                "productThermalResistance": null,
+                "totalThermalResistance": 3.398,
+                "kValue": 0.294,
+                "fieldEvidence": {
+                  "kValue": "0.294",
+                  "thicknessMm": "45",
+                  "totalThermalResistance": "3.398"
+                },
+                "layerValues": [
+                  {
+                    "rValue": 3,
+                    "layerIndex": 4,
+                    "rValueText": "3",
+                    "thicknessMm": 45,
+                    "thicknessText": "45"
+                  }
+                ]
+              },
+              {
+                "optionId": "kp-b208f0b8fb4108a7f75f62c7-1-o8",
+                "thicknessMm": 50,
+                "productThermalResistance": null,
+                "totalThermalResistance": 3.739,
+                "kValue": 0.267,
+                "fieldEvidence": {
+                  "kValue": "0.267",
+                  "thicknessMm": "50",
+                  "totalThermalResistance": "3.739"
+                },
+                "layerValues": [
+                  {
+                    "rValue": 3.333,
+                    "layerIndex": 4,
+                    "rValueText": "3.333",
+                    "thicknessMm": 50,
+                    "thicknessText": "50"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "notes": [
+          "内表面换热阻0.11 (m²·K)/W，外表面换热阻0.04 (m²·K)/W。"
+        ],
+        "warnings": [
+          "第1组构造第1档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第1组构造第2档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第1组构造第3档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第1组构造第4档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第1组构造第5档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第1组构造第6档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第1组构造第7档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第1组构造第8档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第1组构造第9档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第2组构造第1档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第2组构造第2档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第2组构造第3档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第2组构造第4档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第2组构造第5档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第2组构造第6档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第2组构造第7档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第2组构造第8档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第2组构造第9档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步"
+        ]
+      },
+      "confirmedAt": "2026-10-16T17:34:34.101Z",
+      "confirmedById": "caa8cdcb-26b9-464a-849c-187ca36101da",
+      "confirmedBy": "caa8cdcb-26b9-464a-849c-187ca36101da",
+      "lastRecognitionAt": null,
+      "lastRecognitionError": null,
+      "lastRecognitionErrorCode": null,
+      "recognitionRunId": null,
+      "reviewIssues": [
+        "第1组构造第1档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第1组构造第2档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第1组构造第3档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第1组构造第4档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第1组构造第5档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第1组构造第6档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第1组构造第7档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第1组构造第8档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第1组构造第9档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第2组构造第1档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第2组构造第2档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第2组构造第3档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第2组构造第4档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第2组构造第5档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第2组构造第6档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第2组构造第7档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第2组构造第8档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "第2组构造第9档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+        "选项缺少 thickness / 产品层热阻 / 总传热阻 / K 中的完整字段，跳过正式热工行写入"
+      ],
+      "imageWarnings": [],
+      "versionStatus": "DRAFT",
+      "versionEditable": true,
+      "thermalSetEditable": null
+    }
+  },
+  "requestId": "req-7"
+}

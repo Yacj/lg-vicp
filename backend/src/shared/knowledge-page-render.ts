@@ -27,7 +27,7 @@ export interface KnowledgePageRenderModel {
   schemaVersion?: 2;
   pageTitle?: string | null;
   pageLabel?: string | null;
-  constructions: (Pick<System, "rawConstructionLabel" | "applicationPart" | "roofForm" | "placement" | "waterproofGrade" | "sourceColumns"> & {
+  constructions: (Pick<System, "rawConstructionLabel" | "applicationPart" | "roofForm" | "placement" | "waterproofGrade" | "sourceColumns" | "sourceTableHeaders" | "diagramNotes"> & {
     constructionId: string;
     constructionCode?: string | null;
     systemName?: string | null;
@@ -57,12 +57,13 @@ export function buildKnowledgePageRenderModel(pageId: string, data: PageRecognit
       const codeOnlyName = !system.constructionCode && system.systemName && constructionCode && canonical(system.systemName) === canonical(constructionCode);
       const options = system.options ?? [];
       const layers = system.layers ?? [];
-      const variableLayers = layers.filter(layer => layer.thicknessMm == null && layer.rValue == null && layer.lambda != null && layer.alpha != null);
+      const variableLayers = layers.filter(layer => layer.sourceRegion !== "DIAGRAM" && layer.thicknessMm == null && layer.rValue == null && layer.lambda != null && layer.alpha != null);
       const variable = options.length > 1 && variableLayers.length === 1 ? variableLayers[0] : undefined;
       return {
         constructionId, constructionCode, systemName: codeOnlyName ? data.pageTitle : system.systemName,
         rawConstructionLabel: system.rawConstructionLabel, applicationPart: system.applicationPart, roofForm: system.roofForm,
         placement: system.placement, waterproofGrade: system.waterproofGrade, sourceColumns: system.sourceColumns,
+        sourceTableHeaders: system.sourceTableHeaders, diagramNotes: system.diagramNotes,
         specClass: system.specClass, baseMaterial: system.baseMaterial, baseThicknessMm: system.baseThicknessMm,
         layers: layers.map((layer, index) => ({ ...layer, layerId: `${constructionId}-l${index}`, ...(layer === variable ? { variable: true } : {}) })),
         ...(variable ? { material: { name: variable.name, lambda: variable.lambda, alpha: variable.alpha } } : {}),

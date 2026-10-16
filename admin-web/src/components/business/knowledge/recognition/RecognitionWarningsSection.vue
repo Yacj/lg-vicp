@@ -52,11 +52,11 @@ const failureMessage = computed(() => {
     <p v-if="lastRecognitionError" class="recognition-warnings__locator">
       文件第 {{ physicalPageNumber ?? '—' }} 页 · 错误码 {{ lastRecognitionErrorCode || '旧任务未记录' }} · 任务编号 {{ recognitionRunId || '未记录' }}
     </p>
-    <t-alert v-if="reviewIssues.length" theme="warning" title="需要人工核对">
+    <!-- <t-alert v-if="reviewIssues.length" theme="warning" title="需要人工核对">
       <ul class="recognition-warnings__issues">
         <li v-for="(issue, index) in reviewIssues" :key="index">{{ businessUserMessage(issue) }}</li>
       </ul>
-    </t-alert>
+    </t-alert> -->
     <t-alert
       v-if="confirmed"
       theme="warning"

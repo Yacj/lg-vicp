@@ -1,0 +1,1994 @@
+{
+  "scope": "正式组件浏览器UI+人工基线Fixture，非真实SSE联测",
+  "status": "PASS",
+  "checks": [
+    {
+      "width": 320,
+      "page": "53",
+      "construction": "平屋面（正置，Ⅰ级防水）",
+      "thicknessMm": 15,
+      "r": 2.769,
+      "k": 0.361,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "53",
+      "construction": "平屋面（正置，Ⅰ级防水）",
+      "thicknessMm": 20,
+      "r": 3.569,
+      "k": 0.28,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "53",
+      "construction": "平屋面（正置，Ⅰ级防水）",
+      "thicknessMm": 25,
+      "r": 4.369,
+      "k": 0.229,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "53",
+      "construction": "平屋面（正置，Ⅰ级防水）",
+      "thicknessMm": 30,
+      "r": 5.169,
+      "k": 0.193,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "53",
+      "construction": "平屋面（正置，Ⅰ级防水）",
+      "thicknessMm": 35,
+      "r": 5.969,
+      "k": 0.168,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "53",
+      "construction": "平屋面（正置，Ⅰ级防水）",
+      "thicknessMm": 40,
+      "r": 6.769,
+      "k": 0.148,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "53",
+      "construction": "平屋面（倒置，Ⅰ级防水）",
+      "thicknessMm": 15,
+      "r": 2.769,
+      "k": 0.361,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "53",
+      "construction": "平屋面（倒置，Ⅰ级防水）",
+      "thicknessMm": 20,
+      "r": 3.569,
+      "k": 0.28,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "53",
+      "construction": "平屋面（倒置，Ⅰ级防水）",
+      "thicknessMm": 25,
+      "r": 4.369,
+      "k": 0.229,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "53",
+      "construction": "平屋面（倒置，Ⅰ级防水）",
+      "thicknessMm": 30,
+      "r": 5.169,
+      "k": 0.193,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "53",
+      "construction": "平屋面（倒置，Ⅰ级防水）",
+      "thicknessMm": 35,
+      "r": 5.969,
+      "k": 0.168,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "53",
+      "construction": "平屋面（倒置，Ⅰ级防水）",
+      "thicknessMm": 40,
+      "r": 6.769,
+      "k": 0.148,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "22",
+      "construction": "外墙A1-3",
+      "thicknessMm": 15,
+      "r": 2.816,
+      "k": 0.355,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "22",
+      "construction": "外墙A1-3",
+      "thicknessMm": 18,
+      "r": 3.297,
+      "k": 0.303,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "22",
+      "construction": "外墙A1-3",
+      "thicknessMm": 20,
+      "r": 3.616,
+      "k": 0.277,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "22",
+      "construction": "外墙A1-3",
+      "thicknessMm": 25,
+      "r": 4.416,
+      "k": 0.226,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "22",
+      "construction": "外墙A1-3",
+      "thicknessMm": 30,
+      "r": 5.216,
+      "k": 0.192,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "22",
+      "construction": "外墙A1-3",
+      "thicknessMm": 35,
+      "r": 6.016,
+      "k": 0.166,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "22",
+      "construction": "外墙A1-3",
+      "thicknessMm": 40,
+      "r": 6.816,
+      "k": 0.147,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "22",
+      "construction": "外墙A1-3",
+      "thicknessMm": 45,
+      "r": 7.616,
+      "k": 0.131,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "22",
+      "construction": "外墙A1-3",
+      "thicknessMm": 50,
+      "r": 8.416,
+      "k": 0.119,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "22",
+      "construction": "外墙A1-4",
+      "thicknessMm": 15,
+      "r": 3.44,
+      "k": 0.291,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "22",
+      "construction": "外墙A1-4",
+      "thicknessMm": 18,
+      "r": 3.92,
+      "k": 0.255,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "22",
+      "construction": "外墙A1-4",
+      "thicknessMm": 20,
+      "r": 4.24,
+      "k": 0.236,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "22",
+      "construction": "外墙A1-4",
+      "thicknessMm": 25,
+      "r": 5.04,
+      "k": 0.198,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "22",
+      "construction": "外墙A1-4",
+      "thicknessMm": 30,
+      "r": 5.84,
+      "k": 0.171,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "22",
+      "construction": "外墙A1-4",
+      "thicknessMm": 35,
+      "r": 6.64,
+      "k": 0.151,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "22",
+      "construction": "外墙A1-4",
+      "thicknessMm": 40,
+      "r": 7.44,
+      "k": 0.134,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "22",
+      "construction": "外墙A1-4",
+      "thicknessMm": 45,
+      "r": 8.24,
+      "k": 0.121,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "22",
+      "construction": "外墙A1-4",
+      "thicknessMm": 50,
+      "r": 9.04,
+      "k": 0.11,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "90",
+      "construction": "平屋面（正置，级防水）",
+      "thicknessMm": 5,
+      "r": 2.969,
+      "k": 0.337,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "90",
+      "construction": "平屋面（正置，级防水）",
+      "thicknessMm": 10,
+      "r": 3.769,
+      "k": 0.265,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "90",
+      "construction": "平屋面（正置，级防水）",
+      "thicknessMm": 15,
+      "r": 4.569,
+      "k": 0.219,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "90",
+      "construction": "平屋面（正置，级防水）",
+      "thicknessMm": 20,
+      "r": 5.369,
+      "k": 0.186,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "90",
+      "construction": "平屋面（正置，级防水）",
+      "thicknessMm": 25,
+      "r": 6.169,
+      "k": 0.162,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "90",
+      "construction": "平屋面（正置，级防水）",
+      "thicknessMm": 30,
+      "r": 6.969,
+      "k": 0.143,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "90",
+      "construction": "平屋面（倒置，级防水）",
+      "thicknessMm": 5,
+      "r": 2.969,
+      "k": 0.337,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "90",
+      "construction": "平屋面（倒置，级防水）",
+      "thicknessMm": 10,
+      "r": 3.769,
+      "k": 0.265,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "90",
+      "construction": "平屋面（倒置，级防水）",
+      "thicknessMm": 15,
+      "r": 4.569,
+      "k": 0.219,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "90",
+      "construction": "平屋面（倒置，级防水）",
+      "thicknessMm": 20,
+      "r": 5.369,
+      "k": 0.186,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "90",
+      "construction": "平屋面（倒置，级防水）",
+      "thicknessMm": 25,
+      "r": 6.169,
+      "k": 0.162,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "90",
+      "construction": "平屋面（倒置，级防水）",
+      "thicknessMm": 30,
+      "r": 6.969,
+      "k": 0.143,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "89",
+      "construction": "坡屋面（正置，级防水）",
+      "thicknessMm": 5,
+      "r": 2.825,
+      "k": 0.354,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "89",
+      "construction": "坡屋面（正置，级防水）",
+      "thicknessMm": 10,
+      "r": 3.625,
+      "k": 0.276,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "89",
+      "construction": "坡屋面（正置，级防水）",
+      "thicknessMm": 15,
+      "r": 4.425,
+      "k": 0.226,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "89",
+      "construction": "坡屋面（正置，级防水）",
+      "thicknessMm": 20,
+      "r": 5.225,
+      "k": 0.191,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "89",
+      "construction": "坡屋面（正置，级防水）",
+      "thicknessMm": 25,
+      "r": 6.025,
+      "k": 0.166,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "89",
+      "construction": "坡屋面（正置，级防水）",
+      "thicknessMm": 30,
+      "r": 6.825,
+      "k": 0.147,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "89",
+      "construction": "坡屋面（倒置，级防水）",
+      "thicknessMm": 5,
+      "r": 2.798,
+      "k": 0.357,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "89",
+      "construction": "坡屋面（倒置，级防水）",
+      "thicknessMm": 10,
+      "r": 3.598,
+      "k": 0.278,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "89",
+      "construction": "坡屋面（倒置，级防水）",
+      "thicknessMm": 15,
+      "r": 4.398,
+      "k": 0.227,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "89",
+      "construction": "坡屋面（倒置，级防水）",
+      "thicknessMm": 20,
+      "r": 5.198,
+      "k": 0.192,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "89",
+      "construction": "坡屋面（倒置，级防水）",
+      "thicknessMm": 25,
+      "r": 5.998,
+      "k": 0.167,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "89",
+      "construction": "坡屋面（倒置，级防水）",
+      "thicknessMm": 30,
+      "r": 6.798,
+      "k": 0.147,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "75",
+      "construction": "外墙C1-3",
+      "thicknessMm": 5,
+      "r": 2.116,
+      "k": 0.473,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "75",
+      "construction": "外墙C1-3",
+      "thicknessMm": 8,
+      "r": 3.076,
+      "k": 0.325,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "75",
+      "construction": "外墙C1-3",
+      "thicknessMm": 10,
+      "r": 3.716,
+      "k": 0.269,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "75",
+      "construction": "外墙C1-3",
+      "thicknessMm": 15,
+      "r": 5.316,
+      "k": 0.188,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "75",
+      "construction": "外墙C1-3",
+      "thicknessMm": 20,
+      "r": 6.916,
+      "k": 0.145,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "75",
+      "construction": "外墙C1-3",
+      "thicknessMm": 25,
+      "r": 8.516,
+      "k": 0.117,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "75",
+      "construction": "外墙C1-3",
+      "thicknessMm": 30,
+      "r": 10.116,
+      "k": 0.099,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "75",
+      "construction": "外墙C1-4",
+      "thicknessMm": 5,
+      "r": 2.74,
+      "k": 0.365,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "75",
+      "construction": "外墙C1-4",
+      "thicknessMm": 8,
+      "r": 3.7,
+      "k": 0.27,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "75",
+      "construction": "外墙C1-4",
+      "thicknessMm": 10,
+      "r": 4.34,
+      "k": 0.23,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "75",
+      "construction": "外墙C1-4",
+      "thicknessMm": 15,
+      "r": 5.94,
+      "k": 0.168,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "75",
+      "construction": "外墙C1-4",
+      "thicknessMm": 20,
+      "r": 7.54,
+      "k": 0.133,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "75",
+      "construction": "外墙C1-4",
+      "thicknessMm": 25,
+      "r": 9.14,
+      "k": 0.109,
+      "status": "PASS"
+    },
+    {
+      "width": 320,
+      "page": "75",
+      "construction": "外墙C1-4",
+      "thicknessMm": 30,
+      "r": 10.74,
+      "k": 0.093,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "53",
+      "construction": "平屋面（正置，Ⅰ级防水）",
+      "thicknessMm": 15,
+      "r": 2.769,
+      "k": 0.361,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "53",
+      "construction": "平屋面（正置，Ⅰ级防水）",
+      "thicknessMm": 20,
+      "r": 3.569,
+      "k": 0.28,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "53",
+      "construction": "平屋面（正置，Ⅰ级防水）",
+      "thicknessMm": 25,
+      "r": 4.369,
+      "k": 0.229,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "53",
+      "construction": "平屋面（正置，Ⅰ级防水）",
+      "thicknessMm": 30,
+      "r": 5.169,
+      "k": 0.193,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "53",
+      "construction": "平屋面（正置，Ⅰ级防水）",
+      "thicknessMm": 35,
+      "r": 5.969,
+      "k": 0.168,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "53",
+      "construction": "平屋面（正置，Ⅰ级防水）",
+      "thicknessMm": 40,
+      "r": 6.769,
+      "k": 0.148,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "53",
+      "construction": "平屋面（倒置，Ⅰ级防水）",
+      "thicknessMm": 15,
+      "r": 2.769,
+      "k": 0.361,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "53",
+      "construction": "平屋面（倒置，Ⅰ级防水）",
+      "thicknessMm": 20,
+      "r": 3.569,
+      "k": 0.28,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "53",
+      "construction": "平屋面（倒置，Ⅰ级防水）",
+      "thicknessMm": 25,
+      "r": 4.369,
+      "k": 0.229,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "53",
+      "construction": "平屋面（倒置，Ⅰ级防水）",
+      "thicknessMm": 30,
+      "r": 5.169,
+      "k": 0.193,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "53",
+      "construction": "平屋面（倒置，Ⅰ级防水）",
+      "thicknessMm": 35,
+      "r": 5.969,
+      "k": 0.168,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "53",
+      "construction": "平屋面（倒置，Ⅰ级防水）",
+      "thicknessMm": 40,
+      "r": 6.769,
+      "k": 0.148,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "22",
+      "construction": "外墙A1-3",
+      "thicknessMm": 15,
+      "r": 2.816,
+      "k": 0.355,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "22",
+      "construction": "外墙A1-3",
+      "thicknessMm": 18,
+      "r": 3.297,
+      "k": 0.303,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "22",
+      "construction": "外墙A1-3",
+      "thicknessMm": 20,
+      "r": 3.616,
+      "k": 0.277,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "22",
+      "construction": "外墙A1-3",
+      "thicknessMm": 25,
+      "r": 4.416,
+      "k": 0.226,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "22",
+      "construction": "外墙A1-3",
+      "thicknessMm": 30,
+      "r": 5.216,
+      "k": 0.192,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "22",
+      "construction": "外墙A1-3",
+      "thicknessMm": 35,
+      "r": 6.016,
+      "k": 0.166,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "22",
+      "construction": "外墙A1-3",
+      "thicknessMm": 40,
+      "r": 6.816,
+      "k": 0.147,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "22",
+      "construction": "外墙A1-3",
+      "thicknessMm": 45,
+      "r": 7.616,
+      "k": 0.131,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "22",
+      "construction": "外墙A1-3",
+      "thicknessMm": 50,
+      "r": 8.416,
+      "k": 0.119,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "22",
+      "construction": "外墙A1-4",
+      "thicknessMm": 15,
+      "r": 3.44,
+      "k": 0.291,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "22",
+      "construction": "外墙A1-4",
+      "thicknessMm": 18,
+      "r": 3.92,
+      "k": 0.255,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "22",
+      "construction": "外墙A1-4",
+      "thicknessMm": 20,
+      "r": 4.24,
+      "k": 0.236,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "22",
+      "construction": "外墙A1-4",
+      "thicknessMm": 25,
+      "r": 5.04,
+      "k": 0.198,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "22",
+      "construction": "外墙A1-4",
+      "thicknessMm": 30,
+      "r": 5.84,
+      "k": 0.171,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "22",
+      "construction": "外墙A1-4",
+      "thicknessMm": 35,
+      "r": 6.64,
+      "k": 0.151,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "22",
+      "construction": "外墙A1-4",
+      "thicknessMm": 40,
+      "r": 7.44,
+      "k": 0.134,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "22",
+      "construction": "外墙A1-4",
+      "thicknessMm": 45,
+      "r": 8.24,
+      "k": 0.121,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "22",
+      "construction": "外墙A1-4",
+      "thicknessMm": 50,
+      "r": 9.04,
+      "k": 0.11,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "90",
+      "construction": "平屋面（正置，级防水）",
+      "thicknessMm": 5,
+      "r": 2.969,
+      "k": 0.337,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "90",
+      "construction": "平屋面（正置，级防水）",
+      "thicknessMm": 10,
+      "r": 3.769,
+      "k": 0.265,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "90",
+      "construction": "平屋面（正置，级防水）",
+      "thicknessMm": 15,
+      "r": 4.569,
+      "k": 0.219,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "90",
+      "construction": "平屋面（正置，级防水）",
+      "thicknessMm": 20,
+      "r": 5.369,
+      "k": 0.186,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "90",
+      "construction": "平屋面（正置，级防水）",
+      "thicknessMm": 25,
+      "r": 6.169,
+      "k": 0.162,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "90",
+      "construction": "平屋面（正置，级防水）",
+      "thicknessMm": 30,
+      "r": 6.969,
+      "k": 0.143,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "90",
+      "construction": "平屋面（倒置，级防水）",
+      "thicknessMm": 5,
+      "r": 2.969,
+      "k": 0.337,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "90",
+      "construction": "平屋面（倒置，级防水）",
+      "thicknessMm": 10,
+      "r": 3.769,
+      "k": 0.265,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "90",
+      "construction": "平屋面（倒置，级防水）",
+      "thicknessMm": 15,
+      "r": 4.569,
+      "k": 0.219,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "90",
+      "construction": "平屋面（倒置，级防水）",
+      "thicknessMm": 20,
+      "r": 5.369,
+      "k": 0.186,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "90",
+      "construction": "平屋面（倒置，级防水）",
+      "thicknessMm": 25,
+      "r": 6.169,
+      "k": 0.162,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "90",
+      "construction": "平屋面（倒置，级防水）",
+      "thicknessMm": 30,
+      "r": 6.969,
+      "k": 0.143,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "89",
+      "construction": "坡屋面（正置，级防水）",
+      "thicknessMm": 5,
+      "r": 2.825,
+      "k": 0.354,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "89",
+      "construction": "坡屋面（正置，级防水）",
+      "thicknessMm": 10,
+      "r": 3.625,
+      "k": 0.276,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "89",
+      "construction": "坡屋面（正置，级防水）",
+      "thicknessMm": 15,
+      "r": 4.425,
+      "k": 0.226,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "89",
+      "construction": "坡屋面（正置，级防水）",
+      "thicknessMm": 20,
+      "r": 5.225,
+      "k": 0.191,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "89",
+      "construction": "坡屋面（正置，级防水）",
+      "thicknessMm": 25,
+      "r": 6.025,
+      "k": 0.166,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "89",
+      "construction": "坡屋面（正置，级防水）",
+      "thicknessMm": 30,
+      "r": 6.825,
+      "k": 0.147,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "89",
+      "construction": "坡屋面（倒置，级防水）",
+      "thicknessMm": 5,
+      "r": 2.798,
+      "k": 0.357,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "89",
+      "construction": "坡屋面（倒置，级防水）",
+      "thicknessMm": 10,
+      "r": 3.598,
+      "k": 0.278,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "89",
+      "construction": "坡屋面（倒置，级防水）",
+      "thicknessMm": 15,
+      "r": 4.398,
+      "k": 0.227,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "89",
+      "construction": "坡屋面（倒置，级防水）",
+      "thicknessMm": 20,
+      "r": 5.198,
+      "k": 0.192,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "89",
+      "construction": "坡屋面（倒置，级防水）",
+      "thicknessMm": 25,
+      "r": 5.998,
+      "k": 0.167,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "89",
+      "construction": "坡屋面（倒置，级防水）",
+      "thicknessMm": 30,
+      "r": 6.798,
+      "k": 0.147,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "75",
+      "construction": "外墙C1-3",
+      "thicknessMm": 5,
+      "r": 2.116,
+      "k": 0.473,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "75",
+      "construction": "外墙C1-3",
+      "thicknessMm": 8,
+      "r": 3.076,
+      "k": 0.325,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "75",
+      "construction": "外墙C1-3",
+      "thicknessMm": 10,
+      "r": 3.716,
+      "k": 0.269,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "75",
+      "construction": "外墙C1-3",
+      "thicknessMm": 15,
+      "r": 5.316,
+      "k": 0.188,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "75",
+      "construction": "外墙C1-3",
+      "thicknessMm": 20,
+      "r": 6.916,
+      "k": 0.145,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "75",
+      "construction": "外墙C1-3",
+      "thicknessMm": 25,
+      "r": 8.516,
+      "k": 0.117,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "75",
+      "construction": "外墙C1-3",
+      "thicknessMm": 30,
+      "r": 10.116,
+      "k": 0.099,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "75",
+      "construction": "外墙C1-4",
+      "thicknessMm": 5,
+      "r": 2.74,
+      "k": 0.365,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "75",
+      "construction": "外墙C1-4",
+      "thicknessMm": 8,
+      "r": 3.7,
+      "k": 0.27,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "75",
+      "construction": "外墙C1-4",
+      "thicknessMm": 10,
+      "r": 4.34,
+      "k": 0.23,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "75",
+      "construction": "外墙C1-4",
+      "thicknessMm": 15,
+      "r": 5.94,
+      "k": 0.168,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "75",
+      "construction": "外墙C1-4",
+      "thicknessMm": 20,
+      "r": 7.54,
+      "k": 0.133,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "75",
+      "construction": "外墙C1-4",
+      "thicknessMm": 25,
+      "r": 9.14,
+      "k": 0.109,
+      "status": "PASS"
+    },
+    {
+      "width": 375,
+      "page": "75",
+      "construction": "外墙C1-4",
+      "thicknessMm": 30,
+      "r": 10.74,
+      "k": 0.093,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "53",
+      "construction": "平屋面（正置，Ⅰ级防水）",
+      "thicknessMm": 15,
+      "r": 2.769,
+      "k": 0.361,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "53",
+      "construction": "平屋面（正置，Ⅰ级防水）",
+      "thicknessMm": 20,
+      "r": 3.569,
+      "k": 0.28,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "53",
+      "construction": "平屋面（正置，Ⅰ级防水）",
+      "thicknessMm": 25,
+      "r": 4.369,
+      "k": 0.229,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "53",
+      "construction": "平屋面（正置，Ⅰ级防水）",
+      "thicknessMm": 30,
+      "r": 5.169,
+      "k": 0.193,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "53",
+      "construction": "平屋面（正置，Ⅰ级防水）",
+      "thicknessMm": 35,
+      "r": 5.969,
+      "k": 0.168,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "53",
+      "construction": "平屋面（正置，Ⅰ级防水）",
+      "thicknessMm": 40,
+      "r": 6.769,
+      "k": 0.148,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "53",
+      "construction": "平屋面（倒置，Ⅰ级防水）",
+      "thicknessMm": 15,
+      "r": 2.769,
+      "k": 0.361,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "53",
+      "construction": "平屋面（倒置，Ⅰ级防水）",
+      "thicknessMm": 20,
+      "r": 3.569,
+      "k": 0.28,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "53",
+      "construction": "平屋面（倒置，Ⅰ级防水）",
+      "thicknessMm": 25,
+      "r": 4.369,
+      "k": 0.229,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "53",
+      "construction": "平屋面（倒置，Ⅰ级防水）",
+      "thicknessMm": 30,
+      "r": 5.169,
+      "k": 0.193,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "53",
+      "construction": "平屋面（倒置，Ⅰ级防水）",
+      "thicknessMm": 35,
+      "r": 5.969,
+      "k": 0.168,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "53",
+      "construction": "平屋面（倒置，Ⅰ级防水）",
+      "thicknessMm": 40,
+      "r": 6.769,
+      "k": 0.148,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "22",
+      "construction": "外墙A1-3",
+      "thicknessMm": 15,
+      "r": 2.816,
+      "k": 0.355,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "22",
+      "construction": "外墙A1-3",
+      "thicknessMm": 18,
+      "r": 3.297,
+      "k": 0.303,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "22",
+      "construction": "外墙A1-3",
+      "thicknessMm": 20,
+      "r": 3.616,
+      "k": 0.277,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "22",
+      "construction": "外墙A1-3",
+      "thicknessMm": 25,
+      "r": 4.416,
+      "k": 0.226,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "22",
+      "construction": "外墙A1-3",
+      "thicknessMm": 30,
+      "r": 5.216,
+      "k": 0.192,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "22",
+      "construction": "外墙A1-3",
+      "thicknessMm": 35,
+      "r": 6.016,
+      "k": 0.166,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "22",
+      "construction": "外墙A1-3",
+      "thicknessMm": 40,
+      "r": 6.816,
+      "k": 0.147,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "22",
+      "construction": "外墙A1-3",
+      "thicknessMm": 45,
+      "r": 7.616,
+      "k": 0.131,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "22",
+      "construction": "外墙A1-3",
+      "thicknessMm": 50,
+      "r": 8.416,
+      "k": 0.119,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "22",
+      "construction": "外墙A1-4",
+      "thicknessMm": 15,
+      "r": 3.44,
+      "k": 0.291,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "22",
+      "construction": "外墙A1-4",
+      "thicknessMm": 18,
+      "r": 3.92,
+      "k": 0.255,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "22",
+      "construction": "外墙A1-4",
+      "thicknessMm": 20,
+      "r": 4.24,
+      "k": 0.236,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "22",
+      "construction": "外墙A1-4",
+      "thicknessMm": 25,
+      "r": 5.04,
+      "k": 0.198,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "22",
+      "construction": "外墙A1-4",
+      "thicknessMm": 30,
+      "r": 5.84,
+      "k": 0.171,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "22",
+      "construction": "外墙A1-4",
+      "thicknessMm": 35,
+      "r": 6.64,
+      "k": 0.151,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "22",
+      "construction": "外墙A1-4",
+      "thicknessMm": 40,
+      "r": 7.44,
+      "k": 0.134,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "22",
+      "construction": "外墙A1-4",
+      "thicknessMm": 45,
+      "r": 8.24,
+      "k": 0.121,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "22",
+      "construction": "外墙A1-4",
+      "thicknessMm": 50,
+      "r": 9.04,
+      "k": 0.11,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "90",
+      "construction": "平屋面（正置，级防水）",
+      "thicknessMm": 5,
+      "r": 2.969,
+      "k": 0.337,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "90",
+      "construction": "平屋面（正置，级防水）",
+      "thicknessMm": 10,
+      "r": 3.769,
+      "k": 0.265,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "90",
+      "construction": "平屋面（正置，级防水）",
+      "thicknessMm": 15,
+      "r": 4.569,
+      "k": 0.219,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "90",
+      "construction": "平屋面（正置，级防水）",
+      "thicknessMm": 20,
+      "r": 5.369,
+      "k": 0.186,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "90",
+      "construction": "平屋面（正置，级防水）",
+      "thicknessMm": 25,
+      "r": 6.169,
+      "k": 0.162,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "90",
+      "construction": "平屋面（正置，级防水）",
+      "thicknessMm": 30,
+      "r": 6.969,
+      "k": 0.143,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "90",
+      "construction": "平屋面（倒置，级防水）",
+      "thicknessMm": 5,
+      "r": 2.969,
+      "k": 0.337,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "90",
+      "construction": "平屋面（倒置，级防水）",
+      "thicknessMm": 10,
+      "r": 3.769,
+      "k": 0.265,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "90",
+      "construction": "平屋面（倒置，级防水）",
+      "thicknessMm": 15,
+      "r": 4.569,
+      "k": 0.219,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "90",
+      "construction": "平屋面（倒置，级防水）",
+      "thicknessMm": 20,
+      "r": 5.369,
+      "k": 0.186,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "90",
+      "construction": "平屋面（倒置，级防水）",
+      "thicknessMm": 25,
+      "r": 6.169,
+      "k": 0.162,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "90",
+      "construction": "平屋面（倒置，级防水）",
+      "thicknessMm": 30,
+      "r": 6.969,
+      "k": 0.143,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "89",
+      "construction": "坡屋面（正置，级防水）",
+      "thicknessMm": 5,
+      "r": 2.825,
+      "k": 0.354,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "89",
+      "construction": "坡屋面（正置，级防水）",
+      "thicknessMm": 10,
+      "r": 3.625,
+      "k": 0.276,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "89",
+      "construction": "坡屋面（正置，级防水）",
+      "thicknessMm": 15,
+      "r": 4.425,
+      "k": 0.226,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "89",
+      "construction": "坡屋面（正置，级防水）",
+      "thicknessMm": 20,
+      "r": 5.225,
+      "k": 0.191,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "89",
+      "construction": "坡屋面（正置，级防水）",
+      "thicknessMm": 25,
+      "r": 6.025,
+      "k": 0.166,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "89",
+      "construction": "坡屋面（正置，级防水）",
+      "thicknessMm": 30,
+      "r": 6.825,
+      "k": 0.147,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "89",
+      "construction": "坡屋面（倒置，级防水）",
+      "thicknessMm": 5,
+      "r": 2.798,
+      "k": 0.357,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "89",
+      "construction": "坡屋面（倒置，级防水）",
+      "thicknessMm": 10,
+      "r": 3.598,
+      "k": 0.278,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "89",
+      "construction": "坡屋面（倒置，级防水）",
+      "thicknessMm": 15,
+      "r": 4.398,
+      "k": 0.227,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "89",
+      "construction": "坡屋面（倒置，级防水）",
+      "thicknessMm": 20,
+      "r": 5.198,
+      "k": 0.192,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "89",
+      "construction": "坡屋面（倒置，级防水）",
+      "thicknessMm": 25,
+      "r": 5.998,
+      "k": 0.167,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "89",
+      "construction": "坡屋面（倒置，级防水）",
+      "thicknessMm": 30,
+      "r": 6.798,
+      "k": 0.147,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "75",
+      "construction": "外墙C1-3",
+      "thicknessMm": 5,
+      "r": 2.116,
+      "k": 0.473,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "75",
+      "construction": "外墙C1-3",
+      "thicknessMm": 8,
+      "r": 3.076,
+      "k": 0.325,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "75",
+      "construction": "外墙C1-3",
+      "thicknessMm": 10,
+      "r": 3.716,
+      "k": 0.269,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "75",
+      "construction": "外墙C1-3",
+      "thicknessMm": 15,
+      "r": 5.316,
+      "k": 0.188,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "75",
+      "construction": "外墙C1-3",
+      "thicknessMm": 20,
+      "r": 6.916,
+      "k": 0.145,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "75",
+      "construction": "外墙C1-3",
+      "thicknessMm": 25,
+      "r": 8.516,
+      "k": 0.117,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "75",
+      "construction": "外墙C1-3",
+      "thicknessMm": 30,
+      "r": 10.116,
+      "k": 0.099,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "75",
+      "construction": "外墙C1-4",
+      "thicknessMm": 5,
+      "r": 2.74,
+      "k": 0.365,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "75",
+      "construction": "外墙C1-4",
+      "thicknessMm": 8,
+      "r": 3.7,
+      "k": 0.27,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "75",
+      "construction": "外墙C1-4",
+      "thicknessMm": 10,
+      "r": 4.34,
+      "k": 0.23,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "75",
+      "construction": "外墙C1-4",
+      "thicknessMm": 15,
+      "r": 5.94,
+      "k": 0.168,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "75",
+      "construction": "外墙C1-4",
+      "thicknessMm": 20,
+      "r": 7.54,
+      "k": 0.133,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "75",
+      "construction": "外墙C1-4",
+      "thicknessMm": 25,
+      "r": 9.14,
+      "k": 0.109,
+      "status": "PASS"
+    },
+    {
+      "width": 430,
+      "page": "75",
+      "construction": "外墙C1-4",
+      "thicknessMm": 30,
+      "r": 10.74,
+      "k": 0.093,
+      "status": "PASS"
+    }
+  ],
+  "alignments": [
+    {
+      "client": "H5",
+      "width": 320,
+      "page": 53,
+      "alignment": {
+        "head": 550,
+        "body": 550,
+        "difference": 0
+      }
+    },
+    {
+      "client": "H5",
+      "width": 320,
+      "page": 22,
+      "alignment": {
+        "head": 550,
+        "body": 550,
+        "difference": 0
+      }
+    },
+    {
+      "client": "H5",
+      "width": 320,
+      "page": 90,
+      "alignment": {
+        "head": 550,
+        "body": 550,
+        "difference": 0
+      }
+    },
+    {
+      "client": "H5",
+      "width": 320,
+      "page": 89,
+      "alignment": {
+        "head": 550,
+        "body": 550,
+        "difference": 0
+      }
+    },
+    {
+      "client": "H5",
+      "width": 320,
+      "page": 75,
+      "alignment": {
+        "head": 550,
+        "body": 550,
+        "difference": 0
+      }
+    },
+    {
+      "client": "H5",
+      "width": 375,
+      "page": 53,
+      "alignment": {
+        "head": 495,
+        "body": 495,
+        "difference": 0
+      }
+    },
+    {
+      "client": "H5",
+      "width": 375,
+      "page": 22,
+      "alignment": {
+        "head": 495,
+        "body": 495,
+        "difference": 0
+      }
+    },
+    {
+      "client": "H5",
+      "width": 375,
+      "page": 90,
+      "alignment": {
+        "head": 495,
+        "body": 495,
+        "difference": 0
+      }
+    },
+    {
+      "client": "H5",
+      "width": 375,
+      "page": 89,
+      "alignment": {
+        "head": 495,
+        "body": 495,
+        "difference": 0
+      }
+    },
+    {
+      "client": "H5",
+      "width": 375,
+      "page": 75,
+      "alignment": {
+        "head": 495,
+        "body": 495,
+        "difference": 0
+      }
+    },
+    {
+      "client": "H5",
+      "width": 430,
+      "page": 53,
+      "alignment": {
+        "head": 440,
+        "body": 440,
+        "difference": 0
+      }
+    },
+    {
+      "client": "H5",
+      "width": 430,
+      "page": 22,
+      "alignment": {
+        "head": 440,
+        "body": 440,
+        "difference": 0
+      }
+    },
+    {
+      "client": "H5",
+      "width": 430,
+      "page": 90,
+      "alignment": {
+        "head": 440,
+        "body": 440,
+        "difference": 0
+      }
+    },
+    {
+      "client": "H5",
+      "width": 430,
+      "page": 89,
+      "alignment": {
+        "head": 440,
+        "body": 440,
+        "difference": 0
+      }
+    },
+    {
+      "client": "H5",
+      "width": 430,
+      "page": 75,
+      "alignment": {
+        "head": 440,
+        "body": 440,
+        "difference": 0
+      }
+    }
+  ]
+}

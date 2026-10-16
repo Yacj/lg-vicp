@@ -5,7 +5,7 @@ import type { KnowledgePageTableRow } from '@/utils/knowledge-construction-table
 import { computed, h } from 'vue'
 import { formatRenderNumber, formatThermalNumber, optionHasWarning } from '@/utils/knowledge-page-render'
 import { pageConstructionCellSpan, pageConstructionTableRows } from '@/utils/knowledge-construction-table'
-import { constructionAttributes, constructionLabel, thermalColumnHeader, thermalGroupHeader } from '@/utils/knowledge-thermal-labels'
+import { constructionAttributes, constructionDiagramNotes, constructionLabel, sourceTableHeader, thermalColumnHeader, thermalGroupHeader } from '@/utils/knowledge-thermal-labels'
 
 const props = withDefaults(defineProps<{
   construction?: KnowledgeConstructionContent
@@ -26,7 +26,7 @@ function optionCell(row: KnowledgePageTableRow, key: ThermalFieldKey): ReturnTyp
   if (row.kind !== 'option') return ''
   return h('span', {
     class: { 'field-hit': rowMatches(row).some(match => match.fieldKeys?.includes(key)) },
-    title: key === 'productThermalResistance' ? '产品层热阻 R' : undefined,
+    title: key === 'productThermalResistance' ? thermalColumnHeader(constructions.value, key).label : undefined,
   }, key === 'thicknessMm' ? formatRenderNumber(row.option[key]) : formatThermalNumber(row.option[key]))
 }
 function heading(field: Parameters<typeof thermalColumnHeader>[1]) {
@@ -37,11 +37,12 @@ function heading(field: Parameters<typeof thermalColumnHeader>[1]) {
 }
 const columns = computed<PrimaryTableCol<TableRowData>[]>(() => {
   const result: PrimaryTableCol<TableRowData>[] = [
-    { colKey: 'constructionCode', title: '构造 / 原始标签', width: 190, align: 'center', className: 'construction-code', cell: (_, { row }) => {
+    { colKey: 'constructionCode', title: sourceTableHeader(constructions.value, 'identifier'), width: 130, align: 'center', className: 'construction-code', cell: (_, { row }) => {
       const item = row as KnowledgePageTableRow
-      return h('div', [h('strong', constructionLabel(item.construction)), ...constructionAttributes(item.construction).map(text => h('small', text))])
+      return h('strong', constructionLabel(item.construction))
     } },
-    { colKey: 'name', title: '构造层', width: 220, className: 'construction-material', cell: (_, { row }) => {
+    ...(constructions.value.some(item => constructionDiagramNotes(item).length) ? [{ colKey: 'diagramNotes', title: sourceTableHeader(constructions.value, 'diagram'), width: 250, className: 'construction-diagram', cell: (_: unknown, { row }: { row: TableRowData }) => h('div', [h('small', '文字说明；简图请查看原始页面'), ...constructionDiagramNotes((row as KnowledgePageTableRow).construction).map(note => h('p', note))]) }] : []),
+    { colKey: 'name', title: sourceTableHeader(constructions.value, 'layers'), width: 220, className: 'construction-material', cell: (_, { row }) => {
       const item = row as KnowledgePageTableRow
       const name = item.layer?.name || item.construction.material?.name || '厚度档位'
       return h('div', [item.layer?.sourceGroupLabel ? h('small', item.layer.sourceGroupLabel) : null, item.layer?.sourceLayerLabel ? `${item.layer.sourceLayerLabel} · ${name}` : `${item.order != null ? `${item.order}. ` : ''}${name}`])
@@ -99,12 +100,21 @@ function rowClassName({ row, rowIndex }: { row: TableRowData, rowIndex: number }
 
 <template>
   <div class="thermal-option-table" tabindex="0" aria-label="构造热工表，可横向滚动">
+    <p v-if="constructions.some(item => item.layers.some(layer => !layer.sourceRegion || layer.sourceRegion === 'UNKNOWN'))" class="thermal-option-table__attributes">部分材料行的来源区域尚未核对，请结合原图查看；需重新审核后才能调整材料行及热阻归属。</p>
+    <details class="thermal-option-table__attributes">
+      <summary>查看构造属性（型号、基层及屋面做法）</summary>
+      <p v-for="(construction, index) in constructions" :key="construction.constructionId || index"><strong>{{ constructionLabel(construction) }}</strong> · {{ constructionAttributes(construction).join(' · ') || '暂无附加属性' }}</p>
+    </details>
     <t-table :data="data" :columns="columns" :rowspan-and-colspan="spans" row-key="viewerKey" :max-height="720" :style="{ minWidth: hasWarnings ? '1100px' : '1000px' }" table-content-width="100%" :row-attributes="rowAttributes" :row-class-name="rowClassName" vertical-align="middle" size="small" bordered />
   </div>
 </template>
 
 <style scoped>
 .thermal-option-table { min-width: 0; overflow-x: auto; font-variant-numeric: tabular-nums; }
+.thermal-option-table__attributes { margin-bottom: var(--td-size-3); color: var(--td-text-color-secondary); }
+.thermal-option-table__attributes summary { cursor: pointer; }
+.thermal-option-table :deep(.construction-diagram) { white-space: normal; font-size: var(--td-font-size-body-small); line-height: 1.6; }
+.thermal-option-table :deep(.construction-diagram p) { margin: var(--td-size-1) 0; }
 .thermal-option-table:focus-visible { outline: 2px solid var(--td-brand-color); outline-offset: 2px; }
 .thermal-option-table :deep(th), .thermal-option-table :deep(td) { white-space: nowrap; }
 .thermal-option-table :deep(.construction-material), .thermal-option-table :deep(.construction-code) { white-space: normal; overflow-wrap: anywhere; }

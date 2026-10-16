@@ -1,0 +1,108 @@
+{
+  "scope": "两轮真实模型及隔离HTTP/SSE；原图45mm人工事实基线；非生产会话",
+  "status": "PASS",
+  "checks": [
+    {
+      "run": "a3-acceptance",
+      "name": "b-a3-single",
+      "count": 1,
+      "ks": [
+        0.294
+      ],
+      "status": "PASS"
+    },
+    {
+      "run": "a3-acceptance",
+      "name": "b-a3-compare",
+      "count": 4,
+      "ks": [
+        0.248,
+        0.293,
+        0.294,
+        0.302
+      ],
+      "status": "PASS"
+    },
+    {
+      "run": "a3-acceptance",
+      "name": "A3_SINGLE",
+      "count": 1,
+      "ks": [
+        0.294
+      ],
+      "status": "PASS"
+    },
+    {
+      "run": "a3-acceptance",
+      "name": "A3_COMPARE",
+      "count": 4,
+      "ks": [
+        0.248,
+        0.293,
+        0.294,
+        0.302
+      ],
+      "status": "PASS"
+    },
+    {
+      "run": "a3-acceptance",
+      "name": "A3_FOLLOWUP",
+      "count": 1,
+      "ks": [
+        0.294
+      ],
+      "status": "PASS"
+    },
+    {
+      "run": "a3-repeat",
+      "name": "b-a3-single",
+      "count": 1,
+      "ks": [
+        0.294
+      ],
+      "status": "PASS"
+    },
+    {
+      "run": "a3-repeat",
+      "name": "b-a3-compare",
+      "count": 4,
+      "ks": [
+        0.248,
+        0.293,
+        0.294,
+        0.302
+      ],
+      "status": "PASS"
+    },
+    {
+      "run": "a3-repeat",
+      "name": "A3_SINGLE",
+      "count": 1,
+      "ks": [
+        0.294
+      ],
+      "status": "PASS"
+    },
+    {
+      "run": "a3-repeat",
+      "name": "A3_COMPARE",
+      "count": 4,
+      "ks": [
+        0.248,
+        0.293,
+        0.294,
+        0.302
+      ],
+      "status": "PASS"
+    },
+    {
+      "run": "a3-repeat",
+      "name": "A3_FOLLOWUP",
+      "count": 1,
+      "ks": [
+        0.294
+      ],
+      "status": "PASS"
+    }
+  ]
+}

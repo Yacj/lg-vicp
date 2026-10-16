@@ -23,6 +23,8 @@ export function validatePageRecognitionEvidence(data: PageRecognitionResult): { 
     const group = `第${groupIndex + 1}组构造`;
     let constructionCode = system.constructionCode;
     const rawLabel = glyphs(system.rawConstructionLabel);
+    if (constructionCode && /=/.test(constructionCode)) warnings.push(`${group}的构造编号含等号，请对照原图核对连字符；不自动改写编号`);
+    if (system.layers?.some(layer => layer.sourceRegion === "UNKNOWN")) warnings.push(`${group}存在来源区域待核的材料行，请区分热工表与构造简图后再确认`);
     if (constructionCode) {
       const code = glyphs(constructionCode);
       const printed = glyphs(system.constructionCodeEvidence);
@@ -72,8 +74,8 @@ export function validatePageRecognitionEvidence(data: PageRecognitionResult): { 
       if (option.layerValues) {
         const used = new Set<number>();
         checked.layerValues = option.layerValues.flatMap(value => {
-          if (!system.layers?.[value.layerIndex] || used.has(value.layerIndex)) {
-            issue(`${row}的材料层引用越界或重复，已拒绝该层档位，不跨构造绑定`);
+          if (!system.layers?.[value.layerIndex] || used.has(value.layerIndex) || system.layers[value.layerIndex]?.sourceRegion === "DIAGRAM") {
+            issue(`${row}的材料层引用越界、重复或指向构造简图，已拒绝该层档位，不跨来源绑定`);
             return [];
           }
           used.add(value.layerIndex);

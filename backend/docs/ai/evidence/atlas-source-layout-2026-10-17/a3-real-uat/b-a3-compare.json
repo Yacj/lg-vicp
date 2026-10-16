@@ -1,0 +1,71 @@
+{
+  "name": "a3-compare",
+  "query": "Ⅲ型VICP薄抹灰外保温系统，45mm厚度，不同基层的传热系数有什么区别？",
+  "http": 200,
+  "contentType": "text/event-stream; charset=utf-8",
+  "events": [
+    {
+      "event": "message",
+      "data": {
+        "messageId": "b0badd7c-8962-4c3f-8162-e2255bebc133",
+        "userMessageId": "1a88b0b6-3e47-4be7-afde-b407dff654aa",
+        "conversationId": "95db0fcf-3abf-4c83-83b9-3e1f0488e26b",
+        "requestId": "req-d"
+      }
+    },
+    {
+      "event": "progress",
+      "data": {
+        "stage": "analyzing",
+        "message": "正在分析问题..."
+      }
+    },
+    {
+      "event": "progress",
+      "data": {
+        "stage": "checking",
+        "message": "正在核对检索资料和计算结果..."
+      }
+    },
+    {
+      "event": "progress",
+      "data": {
+        "stage": "composing",
+        "message": "正在整理回答..."
+      }
+    },
+    {
+      "event": "delta",
+      "data": {
+        "text": "明确指定的对象未被完整保留，请确认。"
+      }
+    },
+    {
+      "event": "progress",
+      "data": {
+        "stage": "completed",
+        "message": "回答整理完成"
+      }
+    },
+    {
+      "event": "done",
+      "data": {
+        "messageId": "b0badd7c-8962-4c3f-8162-e2255bebc133",
+        "conversationId": "95db0fcf-3abf-4c83-83b9-3e1f0488e26b",
+        "finishReason": "COMPLETED",
+        "usage": {},
+        "model": {
+          "id": "deepseek-chat"
+        },
+        "promptVersion": {
+          "id": "f3f5a2ff-8436-4101-b11a-6ed5ce8b3c26",
+          "version": 1
+        },
+        "sources": [],
+        "latencyMs": 5271
+      }
+    }
+  ],
+  "blocks": [],
+  "facts": []
+}

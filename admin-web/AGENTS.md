@@ -1,5 +1,7 @@
 # 蓝格 VICP 管理后台工程规则
 
+复杂图集表格（2026-10-17）：编号栏只显示原图标识；型号/基层独立呈现，diagramNotes和显式DIAGRAM行只在简图说明区展示，不混入热工行。保留sourceRegion/sourceTableHeaders及原始层号，过滤展示不能重排layerIndex。旧记录不猜来源、不改热阻归属。见../backend/docs/ai/atlas-source-layout-and-a3-2026-10-17.md。
+
 复杂热工来源表（2026-10-15）：识别草稿编辑必须保留 v2 的 sourceColumns/fieldEvidence/layerValues 及原构造标签；空编号不补码，层热阻不填产品热阻。表头由后端来源字段驱动，旧页缺字段保守展示，不能固定写 R₀ 或按屋面更名源文表组。无编号引用只用服务端构造/行 ID 与回答位置；Fixture 浏览器验证不得冒充真实 Backend/OSS 验收。见 docs/ai/complex-atlas-phase2-2026-10-15.md。
 
 ## 项目定位

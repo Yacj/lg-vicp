@@ -11,6 +11,7 @@ import { ok } from "../../shared/response.js";
 import { readPageImageBytes } from "./knowledge-page-image.js";
 import {
   approveVersion,
+  cloneVersionAsDraft,
   completeVersionUpload,
   createAlias,
   createCategory,
@@ -547,6 +548,23 @@ export async function knowledgeRoutes(app: FastifyInstance) {
   }, async (request) => {
     const actor = requirePermission(request, KNOWLEDGE_PERMISSIONS.DOC_PUBLISH);
     return ok(request, await rollbackVersion(app, request, actor, request.params.id, request.params.versionId));
+  });
+
+  route.post("/versions/:versionId/clone-as-draft", {
+    preHandler: [app.authenticate, requireClient(AUTH_CLIENTS.B_ADMIN)],
+    schema: {
+      tags: ["B端 / 平台 / 知识库"],
+      summary: "版本克隆：从已发布/已停用版本派生新草稿（继承页面/识别/章节/目录/映射，索引待重建）",
+      params: versionParams,
+      body: z.object({
+        title: z.string().trim().min(1).max(200).optional(),
+        changeNote: z.string().trim().max(500).optional()
+      })
+    }
+  }, async (request) => {
+    // 克隆属于「内容修改」动作，需要编辑权限；产出物仍是草稿，对外发布仍需 DOC_PUBLISH
+    const actor = requirePermission(request, KNOWLEDGE_PERMISSIONS.DOC_UPDATE);
+    return ok(request, await cloneVersionAsDraft(app, request, actor, request.params.versionId, request.body));
   });
 
   route.delete("/versions/:versionId", {

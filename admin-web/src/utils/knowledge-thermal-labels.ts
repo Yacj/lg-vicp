@@ -2,6 +2,14 @@ import type { PageRecognitionSourceColumn } from '@/types/knowledge'
 import type { KnowledgeConstructionContent } from '@/types/knowledge-page-render'
 
 type Field = PageRecognitionSourceColumn['fieldKey']
+export function sourceTableHeader(constructions: KnowledgeConstructionContent[], key: 'identifier' | 'diagram' | 'layers'): string {
+  const labels = constructions.map(item => item.sourceTableHeaders?.[key])
+  return labels[0] && labels.every(label => label === labels[0]) ? labels[0] : { identifier: '编号', diagram: '构造简图', layers: '构造层' }[key]
+}
+
+export function constructionDiagramNotes(construction: KnowledgeConstructionContent): string[] {
+  return [...(construction.diagramNotes ?? []), ...construction.layers.filter(layer => layer.sourceRegion === 'DIAGRAM').map(layer => `${layer.sourceLayerLabel || layer.order || ''} ${layer.name}`.trim())]
+}
 const fallback: Record<Field, { label: string, unit: string }> = {
   thicknessMm: { label: '分层厚度', unit: 'mm' },
   lambda: { label: '导热系数', unit: 'W/(m·K)' },

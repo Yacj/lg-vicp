@@ -21,6 +21,8 @@ export interface ThermalRenderOption {
   warnings?: string[]
 }
 export interface KnowledgeRenderConstruction {
+  sourceTableHeaders?: { identifier?: string, diagram?: string, layers?: string }
+  diagramNotes?: string[]
   rawConstructionLabel?: string | null
   applicationPart?: 'EXTERNAL_WALL' | 'ROOF' | null
   roofForm?: 'SLOPED' | 'FLAT' | null
@@ -34,7 +36,7 @@ export interface KnowledgeRenderConstruction {
   specClass?: string | null
   baseMaterial?: string | null
   baseThicknessMm?: RenderNumber
-  layers: Array<{ sourceLayerLabel?: string | null, sourceGroupLabel?: string | null, layerId?: string, order?: number | null, name: string, thicknessMm?: RenderNumber, lambda?: RenderNumber, alpha?: RenderNumber, rValue?: RenderNumber, variable?: boolean }>
+  layers: Array<{ sourceRegion?: 'THERMAL_TABLE' | 'DIAGRAM' | 'UNKNOWN', sourceLayerLabel?: string | null, sourceGroupLabel?: string | null, layerId?: string, order?: number | null, name: string, thicknessMm?: RenderNumber, lambda?: RenderNumber, alpha?: RenderNumber, rValue?: RenderNumber, variable?: boolean }>
   material?: { name: string, lambda?: RenderNumber, alpha?: RenderNumber } | null
   options: ThermalRenderOption[]
   notes?: string[]

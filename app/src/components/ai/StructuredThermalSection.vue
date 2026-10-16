@@ -3,7 +3,7 @@ import type { KnowledgeRenderConstruction, ReferenceHighlight } from '@/api/refe
 import { computed, ref } from 'vue'
 import { readableReferenceAnnotations } from '@/utils/referenceAnnotations'
 import { formatReferenceNumber } from '@/utils/referencePage'
-import { constructionAttributes, constructionLabel } from '@/utils/thermalSourceLabels'
+import { constructionAttributes, constructionDiagramNotes, constructionLabel } from '@/utils/thermalSourceLabels'
 import ThermalOptionCard from './ThermalOptionCard.vue'
 
 const props = withDefaults(defineProps<{ construction: KnowledgeRenderConstruction, matches: ReferenceHighlight[], active?: ReferenceHighlight, anchor: string, highlightEnabled?: boolean }>(), { highlightEnabled: true })
@@ -39,7 +39,7 @@ const hasHidden = computed(() => visibleOptions.value.length < props.constructio
       {{ fullConstruction ? '收起构造层' : '查看完整构造' }}
     </wd-button>
     <view v-if="fullConstruction" class="mt-3 space-y-2">
-      <view v-for="(layer, index) in construction.layers" :key="layer.layerId || index" class="thermal-layer text-3">
+      <view v-for="(layer, index) in construction.layers.filter(item => item.sourceRegion !== 'DIAGRAM')" :key="layer.layerId || index" class="thermal-layer text-3">
         <view class="font-medium">
           {{ layer.sourceLayerLabel || layer.order || index + 1 }}. {{ layer.name }}
         </view>
@@ -48,6 +48,14 @@ const hasHidden = computed(() => visibleOptions.value.length < props.constructio
         </view>
         <view class="app-muted mt-1 leading-5">
           λ {{ formatReferenceNumber(layer.lambda) }} · α {{ formatReferenceNumber(layer.alpha) }}
+        </view>
+      </view>
+      <view v-if="constructionDiagramNotes(construction).length" class="thermal-layer text-3">
+        <view class="font-medium">
+          构造简图文字说明（简图见原始页面）
+        </view>
+        <view v-for="(note, index) in constructionDiagramNotes(construction)" :key="index" class="app-muted mt-1 leading-5">
+          {{ note }}
         </view>
       </view>
     </view>

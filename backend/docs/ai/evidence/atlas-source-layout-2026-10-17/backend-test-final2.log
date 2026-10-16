@@ -1,0 +1,197 @@
+$ vitest run "--reporter=dot"
+
+ RUN  v4.1.10 E:/code/lg/backend
+
+·········································································································································································································································································································································stdout | src/workers/docx-to-pdf.test.ts > docx-to-pdf > 成功后 pdfPath/tempDir 仍存在，由调用方两次 readFile 后再 cleanup
+DOCX render start {
+  documentId: undefined,
+  versionId: undefined,
+  jobId: 'job-lifecycle',
+  tempDir: 'C:\\Users\\zjj\\AppData\\Local\\Temp\\vicp-docx-render\\job-lifecycle-S1IFph',
+  sofficePath: '/usr/bin/soffice',
+  timeoutMs: 5000
+}
+
+stdout | src/workers/docx-to-pdf.test.ts > docx-to-pdf > 成功后 pdfPath/tempDir 仍存在，由调用方两次 readFile 后再 cleanup
+LibreOffice convert complete {
+  documentId: undefined,
+  versionId: undefined,
+  jobId: 'job-lifecycle',
+  tempDir: 'C:\\Users\\zjj\\AppData\\Local\\Temp\\vicp-docx-render\\job-lifecycle-S1IFph',
+  exitCode: 0,
+  durationMs: 9,
+  pdfPath: 'C:\\Users\\zjj\\AppData\\Local\\Temp\\vicp-docx-render\\job-lifecycle-S1IFph\\input.pdf'
+}
+
+stdout | src/workers/docx-to-pdf.test.ts > docx-to-pdf > soffice 可用时返回 pdfPath，并隔离临时目录
+DOCX render start {
+  documentId: undefined,
+  versionId: undefined,
+  jobId: 'job-a',
+  tempDir: 'C:\\Users\\zjj\\AppData\\Local\\Temp\\vicp-docx-render\\job-a-lPB6Xc',
+  sofficePath: '/usr/bin/soffice',
+  timeoutMs: 5000
+}
+
+stdout | src/workers/docx-to-pdf.test.ts > docx-to-pdf > soffice 可用时返回 pdfPath，并隔离临时目录
+LibreOffice convert complete {
+  documentId: undefined,
+  versionId: undefined,
+  jobId: 'job-a',
+  tempDir: 'C:\\Users\\zjj\\AppData\\Local\\Temp\\vicp-docx-render\\job-a-lPB6Xc',
+  exitCode: 0,
+  durationMs: 5,
+  pdfPath: 'C:\\Users\\zjj\\AppData\\Local\\Temp\\vicp-docx-render\\job-a-lPB6Xc\\input.pdf'
+}
+
+stdout | src/workers/docx-to-pdf.test.ts > docx-to-pdf > 并发两个 DOCX 使用不同临时目录
+DOCX render start {
+  documentId: undefined,
+  versionId: undefined,
+  jobId: 'job-1',
+  tempDir: 'C:\\Users\\zjj\\AppData\\Local\\Temp\\vicp-docx-render\\job-1-lDLSSt',
+  sofficePath: '/usr/bin/soffice',
+  timeoutMs: 5000
+}
+
+stdout | src/workers/docx-to-pdf.test.ts > docx-to-pdf > 并发两个 DOCX 使用不同临时目录
+DOCX render start {
+  documentId: undefined,
+  versionId: undefined,
+  jobId: 'job-2',
+  tempDir: 'C:\\Users\\zjj\\AppData\\Local\\Temp\\vicp-docx-render\\job-2-UfUz2x',
+  sofficePath: '/usr/bin/soffice',
+  timeoutMs: 5000
+}
+
+stdout | src/workers/docx-to-pdf.test.ts > docx-to-pdf > 并发两个 DOCX 使用不同临时目录
+LibreOffice convert complete {
+  documentId: undefined,
+  versionId: undefined,
+  jobId: 'job-1',
+  tempDir: 'C:\\Users\\zjj\\AppData\\Local\\Temp\\vicp-docx-render\\job-1-lDLSSt',
+  exitCode: 0,
+  durationMs: 6,
+  pdfPath: 'C:\\Users\\zjj\\AppData\\Local\\Temp\\vicp-docx-render\\job-1-lDLSSt\\input.pdf'
+}
+
+stdout | src/workers/docx-to-pdf.test.ts > docx-to-pdf > 并发两个 DOCX 使用不同临时目录
+LibreOffice convert complete {
+  documentId: undefined,
+  versionId: undefined,
+  jobId: 'job-2',
+  tempDir: 'C:\\Users\\zjj\\AppData\\Local\\Temp\\vicp-docx-render\\job-2-UfUz2x',
+  exitCode: 0,
+  durationMs: 6,
+  pdfPath: 'C:\\Users\\zjj\\AppData\\Local\\Temp\\vicp-docx-render\\job-2-UfUz2x\\input.pdf'
+}
+
+stdout | src/workers/docx-to-pdf.test.ts > docx-to-pdf > soffice 不存在时抛 SOFFICE_NOT_FOUND，并清理临时目录
+DOCX render start {
+  documentId: undefined,
+  versionId: undefined,
+  jobId: 'missing',
+  tempDir: 'C:\\Users\\zjj\\AppData\\Local\\Temp\\vicp-docx-render\\missing-ImeQmX',
+  sofficePath: '/usr/bin/soffice',
+  timeoutMs: 5000
+}
+
+stderr | src/workers/docx-to-pdf.test.ts > docx-to-pdf > soffice 不存在时抛 SOFFICE_NOT_FOUND，并清理临时目录
+DOCX render failed {
+  documentId: undefined,
+  versionId: undefined,
+  jobId: 'missing',
+  tempDir: 'C:\\Users\\zjj\\AppData\\Local\\Temp\\vicp-docx-render\\missing-ImeQmX',
+  code: 'SOFFICE_NOT_FOUND',
+  durationMs: 6,
+  sofficePath: '/usr/bin/soffice'
+}
+
+stdout | src/workers/docx-to-pdf.test.ts > docx-to-pdf > 转换超时会 kill 子进程并抛 DOCX_RENDER_TIMEOUT
+DOCX render start {
+  documentId: undefined,
+  versionId: undefined,
+  jobId: 'timeout',
+  tempDir: 'C:\\Users\\zjj\\AppData\\Local\\Temp\\vicp-docx-render\\timeout-xYZvlY',
+  sofficePath: '/usr/bin/soffice',
+  timeoutMs: 40
+}
+
+stderr | src/workers/docx-to-pdf.test.ts > docx-to-pdf > 转换超时会 kill 子进程并抛 DOCX_RENDER_TIMEOUT
+DOCX render failed {
+  documentId: undefined,
+  versionId: undefined,
+  jobId: 'timeout',
+  tempDir: 'C:\\Users\\zjj\\AppData\\Local\\Temp\\vicp-docx-render\\timeout-xYZvlY',
+  code: 'DOCX_RENDER_TIMEOUT',
+  message: 'DOCX 转 PDF 超时，页面预览未生成',
+  durationMs: 57,
+  timeoutMs: 40,
+  stderr: ''
+}
+
+······························stdout | src/workers/docx-to-pdf.test.ts > docx-to-pdf > 退出码非 0 时抛 DOCX_RENDER_FAILED
+DOCX render start {
+  documentId: undefined,
+  versionId: undefined,
+  jobId: 'fail',
+  tempDir: 'C:\\Users\\zjj\\AppData\\Local\\Temp\\vicp-docx-render\\fail-YlrGHo',
+  sofficePath: '/usr/bin/soffice',
+  timeoutMs: 5000
+}
+
+stderr | src/workers/docx-to-pdf.test.ts > docx-to-pdf > 退出码非 0 时抛 DOCX_RENDER_FAILED
+DOCX render failed {
+  documentId: undefined,
+  versionId: undefined,
+  jobId: 'fail',
+  tempDir: 'C:\\Users\\zjj\\AppData\\Local\\Temp\\vicp-docx-render\\fail-YlrGHo',
+  code: 'DOCX_RENDER_FAILED',
+  message: 'DOCX 转 PDF 失败，页面预览未生成',
+  durationMs: 3,
+  exitCode: 1,
+  stderr: 'convert failed'
+}
+
+stdout | src/workers/docx-to-pdf.test.ts > docx-to-pdf > 退出成功但缺少 PDF 时抛 DOCX_RENDER_OUTPUT_MISSING
+DOCX render start {
+  documentId: undefined,
+  versionId: undefined,
+  jobId: 'no-pdf',
+  tempDir: 'C:\\Users\\zjj\\AppData\\Local\\Temp\\vicp-docx-render\\no-pdf-8thz0j',
+  sofficePath: '/usr/bin/soffice',
+  timeoutMs: 5000
+}
+
+stderr | src/workers/docx-to-pdf.test.ts > docx-to-pdf > 退出成功但缺少 PDF 时抛 DOCX_RENDER_OUTPUT_MISSING
+DOCX render failed {
+  documentId: undefined,
+  versionId: undefined,
+  jobId: 'no-pdf',
+  tempDir: 'C:\\Users\\zjj\\AppData\\Local\\Temp\\vicp-docx-render\\no-pdf-8thz0j',
+  code: 'DOCX_RENDER_OUTPUT_MISSING',
+  message: 'LibreOffice 未产出 PDF 文件，页面预览未生成',
+  durationMs: 3,
+  exitCode: 0,
+  stderr: ''
+}
+
+stderr | src/workers/report.worker.test.ts > OSS失败中间attempt保持GENERATING，最后失败收敛并保留同一报告快照
+报告失败通知未送达 {
+  reportId: 'report',
+  taskId: 'task',
+  errorCode: 'REPORT_NOTIFICATION_FAILED'
+}
+
+···········································································································································································································································································································································································································································································································································································································································································stdout | src/modules/knowledge/knowledge-page-recognition.test.ts > 页面图片识别提示词 > 系统规则经 instructions 传给 AI SDK，图片和页码保留在用户消息
+AI SDK Warning System: To turn off warning logging, set the AI_SDK_LOG_WARNINGS global to false.
+
+(node:20936) DeprecationWarning: AI SDK Warning: Deprecated: ""image" content part". The "image" content part type is deprecated. Use a "file" part with mediaType: 'image' (or a more specific image/* subtype) instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+···············································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································································-·····
+
+ Test Files  211 passed | 1 skipped (212)
+      Tests  2406 passed | 1 skipped (2407)
+   Start at  01:37:14
+   Duration  56.68s (transform 9.19s, setup 0ms, import 127.90s, tests 28.02s, environment 28ms)
+

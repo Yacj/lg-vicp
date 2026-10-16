@@ -41,6 +41,26 @@ afterEach(() => {
 })
 
 describe('三页复杂图集合同（人工源图Fixture，不是正式资料）', () => {
+  it.each([22, 53])('%s页编号栏不夹型号/基层，简图说明单列且热工表保留六行与原层号', async (page) => {
+    const source = fixture(page)
+    const copy = recognitionDraftPayload(copyRecognitionDraft(source))
+    expect(copy.systems[0]!.diagramNotes).toEqual(source.systems[0]!.diagramNotes)
+    expect(copy.systems[0]!.sourceTableHeaders).toEqual(source.systems[0]!.sourceTableHeaders)
+    expect(copy.systems[0]!.layers?.[0]!.sourceRegion).toBe('THERMAL_TABLE')
+    const render = model(page)
+    const el = await mount(ThermalOptionTable, { constructions: render.constructions })
+    expect(el.querySelector('thead')!.textContent).toContain('编号')
+    expect(el.querySelector('thead')!.textContent).not.toContain('产品整体热阻')
+    const code = el.querySelector('tbody .construction-code')!
+    expect(code.textContent).toBe(source.systems[0]!.rawConstructionLabel)
+    expect(code.textContent).not.toContain('240mm')
+    if (page === 53) {
+      expect(el.querySelector('thead')!.textContent).toContain('构造简图')
+      expect(el.querySelector('tbody .construction-diagram')!.textContent).toContain('隔汽层：按工程设计')
+      expect([...el.querySelectorAll('.construction-material')].some(item => item.textContent?.includes('按工程设计'))).toBe(false)
+      expect(el.querySelectorAll('tr[data-row-kind="option"]')).toHaveLength(12)
+    }
+  })
   it('确认版本约束经过DTO归一化后保留，旧引用不高亮新模型', () => {
     const current = model(90)
     current.confirmedRevision = 'current'

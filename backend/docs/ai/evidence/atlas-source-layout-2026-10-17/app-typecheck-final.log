@@ -1,0 +1,7 @@
+[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.overrides", "pnpm.patchedDependencies". See https://pnpm.io/settings for the new home of each setting.
+
+> wotprojectname@2.0.0 type-check E:\code\lg\app
+> vue-tsc --noEmit
+
+node_modules/@wot-ui/ui/components/wd-button/wd-button.vue(21,6): error TS2322: Type 'ButtonOpenType | undefined' is not assignable to type '_ButtonOpenType | undefined'.
+ ELIFECYCLE  Command failed with exit code 2.

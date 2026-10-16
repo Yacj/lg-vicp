@@ -21,6 +21,7 @@ import { validatePageRecognitionEvidence } from "../src/shared/page-recognition-
 import type { ReferencePageBlock } from "../src/modules/ai/reference-page.js";
 
 const out = path.resolve(process.env.ATLAS_UAT_OUTPUT ?? "docs/ai/evidence/complex-atlas-phase5/real-uat");
+const a3Only = process.argv.includes("--a3-only");
 await mkdir(out, { recursive: true });
 const report: Record<string, any> = { scope: "真实隔离DB/Redis/OSS/正式HTTP-SSE/真实模型；事实由人工基线装载，程序模拟审核，不冒充真实人工复核", startedAt: new Date().toISOString(), setup: [], cases: [], permissions: [] };
 const privateFile = path.join(os.tmpdir(), `vicp-atlas-uat-${randomUUID()}.json`);
@@ -111,6 +112,7 @@ async function runTurn(id: string, group: string, question: string, check?: (row
   } catch (error) {
     record.status = "FAIL"; record.error = { name: (error as Error).name, message: (error as Error).message };
   } finally {
+    if (a3Only && environment) await save("backend-decisions.json", (await environment.db.select({ action: s.auditLogs.action, after: s.auditLogs.afterJson }).from(s.auditLogs)).filter(row => row.action.startsWith("ai.") && /domain|semantic|query/.test(row.action))).catch(() => {});
     clearInterval(progress); await save(`${id}.sse.json`, captured); await save(`${id}.json`, record); await checkpoint();
     console.log(`[真实C端] ${id} ${record.status}，${record.facts?.length ?? 0}命中行`);
   }
@@ -154,13 +156,12 @@ try {
   clientToken = environment.app.jwt.sign({ sub: user.id, tokenType: "access", clientType: "C_APP", aud: "client", role: "NORMAL_USER", jti: randomUUID() }, { expiresIn: "2h" });
   const created = requireSuccess(await api(adminBase, "/api/v1/platform/knowledge/documents", adminToken, { title: "复杂建筑热工图集 · 隔离人工基线（程序模拟审核）", docType: "DETAIL_ATLAS", docNumber: "J/CABEE 26J702 / UAT" }));
   documentId = created.documentId; versionId = created.versionId;
-  report.fixture = { documentId, versionId, factsOrigin: "MANUAL_SOURCE_BASELINE，非真实Vision确认产物", corrections: [{ page: 90, group: 0, layerIndices: [5, 6, 7], before: ["4", "5", "6"], after: ["5", "6", "7"], evidence: "原图上半表LC7.5及两行M15的源序号；仅临时副本，原夹具不改" }] };
-  for (const [index, label] of ["89", "90", "75"].entries()) {
+  report.fixture = { documentId, versionId, factsOrigin: "MANUAL_SOURCE_BASELINE，非真实Vision确认产物", corrections: [] };
+  for (const [index, label] of (a3Only ? ["5", "26"] : ["89", "90", "75"]).entries()) {
     const fixture = JSON.parse(await readFile(`tests/fixtures/complex-atlas/page-${label}.json`, "utf8"));
     const data = pageRecognitionResultSchema.parse(fixture.data);
-    if (label === "90") [5, 6, 7].forEach((layerIndex, i) => { data.systems[0]!.layers![layerIndex]!.order = i + 5; data.systems[0]!.layers![layerIndex]!.sourceLayerLabel = String(i + 5); });
     assert.equal(validatePageRecognitionEvidence(data).issues.length, 0);
-    const bytes = await readFile(`../admin-web/docs/ai/evidence/complex-atlas-phase2/source-page-${label}.png`);
+    const bytes = await readFile(fixture.imagePath ?? `../admin-web/docs/ai/evidence/complex-atlas-phase2/source-page-${label}.png`);
     assert.equal(createHash("sha256").update(bytes).digest("hex"), fixture.imageSha256);
     const key = `${environment.prefix}/complex-atlas/source-${label}.png`;
     // 只在当前随机命名空间装载原件；文件资产是测试准备，不冒称上传UI验收。
@@ -172,7 +173,7 @@ try {
     requireSuccess(draft); await save(`page-${label}.draft.json`, draft);
     await save(`page-${label}.manual-baseline.json`, data);
   }
-  const draftSource = await api(environment.baseUrl, `/api/v1/ai/knowledge/source-detail?pageId=${pages["89"]!.id}`, clientToken);
+  const draftSource = await api(environment.baseUrl, `/api/v1/ai/knowledge/source-detail?pageId=${pages[a3Only ? "5" : "89"]!.id}`, clientToken);
   report.permissions.push({ name: "DRAFT不能向C端来源开放", passed: draftSource.success === false, response: draftSource });
   report.setup.push({ step: "未确认发布门禁", response: await api(adminBase, `/api/v1/platform/knowledge/versions/${versionId}/publish`, adminToken, {}) });
   for (const [label, page] of Object.entries(pages)) {
@@ -188,6 +189,25 @@ try {
   await checkpoint();
   if (process.argv.includes("--setup-only")) {
     report.setupOnly = "PASS";
+    assert.ok(report.objectKeys.every((key: string) => key.startsWith(`${environment!.prefix}/`)));
+    report.objectNamespace = { status: "PASS", generatedKeys: report.objectKeys.length };
+  } else if (a3Only) {
+    report.fixture.corrections = [{ scope: "隔离测试副本", page: 26, before: "旧页签6", after: "原图印刷页码26", productR: "原表材料层R单独保存，不冒充完整产品R" }];
+    const single = "Ⅲ型VICP薄抹灰外保温系统，A3-2构造45mm，传热系数是多少？基层是什么？";
+    const comparison = "Ⅲ型VICP薄抹灰外保温系统，45mm厚度，不同基层的传热系数有什么区别？";
+    const checkSingle = (rows: ReturnType<typeof facts>) => { expected(rows, "5", 45, [[3.398, .294]]); assert.equal(rows[0]!.base, "混凝土空心砌块"); };
+    const checkComparison = (rows: ReturnType<typeof facts>) => { assert.equal(rows.length, 4); assert.deepEqual(rows.map(row => Number(row.k)).sort(), [.248, .293, .294, .302]); assert.equal(rows.filter(row => row.page === "26").length, 2); };
+    for (const [name, question, check] of [["a3-single", single, checkSingle], ["a3-compare", comparison, checkComparison]] as const) {
+      const result = await captureB(name, question);
+      let status = "PASS", error: string | undefined;
+      try { assert.equal(result.http, 200); check(result.facts); } catch (failure) { status = "FAIL"; error = (failure as Error).message; }
+      report.setup.push({ step: `B端知识库测试 ${name}`, status, error });
+    }
+    await runTurn("A3_SINGLE", "a3-single", single, checkSingle);
+    await runTurn("A3_COMPARE", "a3-compare", comparison, checkComparison);
+    await runTurn("A3_FOLLOWUP", "a3-compare", "只看A3-2，基层是什么？", checkSingle);
+    report.browser = false;
+    report.browserNote = "NOT_RUN，本次只验证真实HTTP/SSE及历史，不冒充原生App验收";
     assert.ok(report.objectKeys.every((key: string) => key.startsWith(`${environment!.prefix}/`)));
     report.objectNamespace = { status: "PASS", generatedKeys: report.objectKeys.length };
   } else {
@@ -259,6 +279,7 @@ try {
   }
   await rm(privateFile, { force: true });
   report.finishedAt = new Date().toISOString(); await checkpoint();
+  report.httpSseStatus = report.environmentError || report.setup.some((item: any) => item.status === "FAIL") || report.cases.some((item: { status: string }) => item.status === "FAIL") || report.cleanup !== "PASS" ? "FAIL" : "PASS";
   report.status = report.environmentError || report.setup.some((item: any) => item.status === "FAIL") || report.cases.some((item: { status: string }) => item.status === "FAIL") || report.cleanup !== "PASS" ? "FAIL"
     : report.cases.some((item: { status: string }) => item.status !== "PASS") || !report.browser ? "PARTIAL" : "PASS";
   await checkpoint();

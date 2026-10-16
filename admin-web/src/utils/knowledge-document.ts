@@ -25,7 +25,7 @@ export function renderKnowledgeDocument(content: string, ranges: Array<Pick<High
 export function recognitionConstructionContent(system: PageRecognitionSystem): KnowledgeConstructionContent {
   const layers = system.layers ?? []
   const options = system.options ?? []
-  const variableCandidates = options.length > 1 ? layers.filter(layer => layer.thicknessMm == null && layer.rValue == null && layer.lambda != null && layer.alpha != null) : []
+  const variableCandidates = options.length > 1 ? layers.filter(layer => layer.sourceRegion !== 'DIAGRAM' && layer.thicknessMm == null && layer.rValue == null && layer.lambda != null && layer.alpha != null) : []
   const variableLayer = variableCandidates.length === 1 ? variableCandidates[0] : undefined
   return {
     rawConstructionLabel: system.rawConstructionLabel,
@@ -34,6 +34,8 @@ export function recognitionConstructionContent(system: PageRecognitionSystem): K
     placement: system.placement,
     waterproofGrade: system.waterproofGrade,
     sourceColumns: system.sourceColumns,
+    sourceTableHeaders: system.sourceTableHeaders,
+    diagramNotes: system.diagramNotes,
     specClass: system.specClass,
     baseMaterial: system.baseMaterial,
     baseThicknessMm: system.baseThicknessMm,

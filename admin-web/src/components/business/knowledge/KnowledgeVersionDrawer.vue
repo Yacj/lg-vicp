@@ -12,12 +12,16 @@ const props = defineProps<{
   currentVersionId?: string | null
   canEnable?: boolean
   enabling?: boolean
+  /** 是否允许从已发布 / 已停用版本派生新草稿 */
+  canClone?: boolean
+  cloning?: boolean
 }>()
 
 const emit = defineEmits<{
   'update:visible': [visible: boolean]
   'select': [version: KnowledgeDocumentVersion]
   'enable': [version: KnowledgeDocumentVersion]
+  'clone': [version: KnowledgeDocumentVersion]
 }>()
 
 const sorted = computed(() => [...props.versions].sort((a, b) => b.version - a.version))
@@ -70,6 +74,15 @@ function versionUserLabel(version: KnowledgeDocumentVersion): string {
         </div>
         <t-space size="small">
           <AppStatusTag :label="versionUserLabel(version)" size="small" />
+          <t-button
+            v-if="canClone && (version.status === 'PUBLISHED' || version.status === 'DISABLED')"
+            size="small"
+            variant="outline"
+            :loading="cloning"
+            @click.stop="emit('clone', version)"
+          >
+            以此版本修改
+          </t-button>
           <t-button
             v-if="canEnable && version.status === 'DISABLED'"
             size="small"

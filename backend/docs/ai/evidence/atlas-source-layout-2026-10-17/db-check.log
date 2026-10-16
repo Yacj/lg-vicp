@@ -1,0 +1,4 @@
+$ drizzle-kit check
+No config path provided, using default 'drizzle.config.ts'
+Reading config file 'E:\code\lg\backend\drizzle.config.ts'
+Everything's fine 🐶🔥

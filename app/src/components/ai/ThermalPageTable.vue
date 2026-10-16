@@ -5,7 +5,7 @@ import { computed, getCurrentInstance, nextTick, onMounted, ref, watch } from 'v
 import { readableReferenceAnnotations } from '@/utils/referenceAnnotations'
 import { formatReferenceNumber } from '@/utils/referencePage'
 import { thermalConstructionRows, thermalLayerValue } from '@/utils/thermalPageTable'
-import { constructionAttributes, constructionLabel, thermalColumnHeader, thermalGroupHeader } from '@/utils/thermalSourceLabels'
+import { constructionAttributes, constructionDiagramNotes, constructionLabel, sourceTableHeader, thermalColumnHeader, thermalGroupHeader } from '@/utils/thermalSourceLabels'
 
 defineOptions({ options: { virtualHost: true } })
 const props = withDefaults(defineProps<{ constructions: KnowledgeRenderConstruction[], matches: ReferenceHighlight[], active?: ReferenceHighlight, highlightEnabled?: boolean, anchorPrefix?: string, viewportHeight?: number }>(), { highlightEnabled: true, anchorPrefix: 'reference' })
@@ -26,7 +26,7 @@ const anchor = (constructionIndex: number, optionIndex?: number) => `${props.anc
 const groups = computed(() => props.constructions.map((construction, index) => {
   const label = constructionLabel(construction)
   const system = construction.systemName?.trim() || ''
-  return { construction, index, label, attributes: constructionAttributes(construction), system: system !== label && system !== construction.title?.trim() ? system : '', rows: thermalConstructionRows(construction) }
+  return { construction, index, label, attributes: constructionAttributes(construction), system: system !== label && system !== construction.title?.trim() ? system : '', diagramNotes: constructionDiagramNotes(construction), rows: thermalConstructionRows(construction) }
 }))
 const column = (field: Parameters<typeof thermalColumnHeader>[1]) => thermalColumnHeader(props.constructions, field)
 const groupHeader = computed(() => thermalGroupHeader(props.constructions))
@@ -55,10 +55,25 @@ function syncScroll(event: { detail: { scrollLeft: number } }) {
 watch(() => `${props.active?.constructionId || ''}:${props.active?.optionId || ''}`, () => {
   scrollLeft.value = props.active?.optionId && props.active.fieldKeys?.some(key => key === 'kValue' || key === 'totalThermalResistance') ? 10000 : 0
 }, { immediate: true })
-const fields: ThermalFieldKey[] = ['thicknessMm', 'productThermalResistance', 'totalThermalResistance', 'kValue']
+const showAttributes = ref(false)
+const showDiagram = ref(false)
+const hasDiagramNotes = computed(() => groups.value.some(group => group.diagramNotes.length))
+const hasDiagram = computed(() => hasDiagramNotes.value && showDiagram.value)
+const hasProduct = computed(() => props.constructions.some(group => group.options.some(option => option.productThermalResistance != null)))
+const fields = computed<ThermalFieldKey[]>(() => ['thicknessMm', ...(hasProduct.value ? ['productThermalResistance' as const] : []), 'totalThermalResistance', 'kValue'])
+const layout = computed(() => {
+  const material = hasDiagram.value ? 3 : 2
+  const rValue = material + 4
+  const totalThermalResistance = rValue + (hasProduct.value ? 2 : 1)
+  return { material, thicknessMm: material + 1, lambda: material + 2, alpha: material + 3, rValue, productThermalResistance: rValue + 1, totalThermalResistance, kValue: totalThermalResistance + 1 }
+})
+const tableStyle = computed(() => ({
+  '--thermal-table-width': `max(100%, ${845 + (hasProduct.value ? 115 : 0) + (hasDiagram.value ? 230 : 0)}px)`,
+  '--thermal-table-columns': ['100fr', ...(hasDiagram.value ? ['230fr'] : []), '190fr', '75fr', '90fr', '70fr', '90fr', ...(hasProduct.value ? ['115fr'] : []), '120fr', '110fr'].join(' '),
+}))
+const headingPosition = (column: number) => ({ gridColumn: String(column), gridRow: '1 / span 2' })
 // UniApp 的 scroll-into-view 同时调整 X/Y，锚定真实指标格，避免定位时把 K 列滚回左侧。
 const anchorField = computed(() => (['kValue', 'totalThermalResistance', 'productThermalResistance', 'thicknessMm'] as ThermalFieldKey[]).find(field => props.active?.fieldKeys?.includes(field)) || 'thicknessMm')
-const columns = [3, 7, 8, 9]
 const ownedMatches = (construction: KnowledgeRenderConstruction, row: ThermalTableRow) => props.matches.filter(match => match.constructionId === construction.constructionId && (!match.optionId || match.optionId === row.option?.optionId))
 const isHit = (construction: KnowledgeRenderConstruction, row: ThermalTableRow) => props.highlightEnabled && ownedMatches(construction, row).length > 0
 const fieldHit = (construction: KnowledgeRenderConstruction, row: ThermalTableRow, field: ThermalFieldKey) => isHit(construction, row) && ownedMatches(construction, row).some(match => match.fieldKeys?.includes(field))
@@ -67,38 +82,57 @@ const value = (row: ThermalTableRow, field: ThermalFieldKey) => formatReferenceN
 </script>
 
 <template>
-  <view class="thermal-table-scroll" :style="viewportHeight ? { height: `${viewportHeight}px` } : undefined" role="table" aria-label="完整构造热工表，可左右滑动">
+  <view class="thermal-table-scroll" :style="[tableStyle, viewportHeight ? { height: `${viewportHeight}px` } : {}]" role="table" aria-label="完整构造热工表，可左右滑动">
+    <view v-if="!viewportHeight" class="thermal-table__attributes">
+      <view v-if="constructions.some(item => item.layers.some(layer => !layer.sourceRegion || layer.sourceRegion === 'UNKNOWN'))" class="mb-2">
+        部分材料行的来源区域尚未核对，请结合原图查看。
+      </view>
+      <text class="app-primary-text" @click="showAttributes = !showAttributes">
+        {{ showAttributes ? '收起构造属性' : '查看构造属性（型号、基层及屋面做法）' }}
+      </text>
+      <view v-for="group in showAttributes ? groups : []" :key="group.construction.constructionId" class="mt-2">
+        {{ group.label }} · {{ [group.system, ...group.attributes].filter(Boolean).join(' · ') || '暂无附加属性' }}
+      </view>
+    </view>
     <scroll-view scroll-x :scroll-left="scrollLeft" class="thermal-table__scroll thermal-table__head-scroll" @scroll="syncScroll">
+      <view v-if="hasDiagramNotes" class="thermal-table__attributes">
+        <text class="app-primary-text" @click="showDiagram = !showDiagram">
+          {{ showDiagram ? '收起构造简图说明' : '展开构造简图说明' }}
+        </text><text> · 左右滑动查看全部列</text>
+      </view>
       <view class="thermal-table">
         <view class="thermal-table__header" role="rowgroup">
           <view class="thermal-table__cell thermal-table__heading thermal-table__code-heading" style="grid-column: 1; grid-row: 1 / span 2">
-            构造 / 原始标签
+            {{ sourceTableHeader(constructions, 'identifier') }}
           </view>
-          <view class="thermal-table__cell thermal-table__heading" style="grid-column: 2; grid-row: 1 / span 2">
-            构造层 / 材料
+          <view v-if="hasDiagram" class="thermal-table__cell thermal-table__heading" :style="headingPosition(2)">
+            {{ sourceTableHeader(constructions, 'diagram') }}
           </view>
-          <view class="thermal-table__cell thermal-table__heading" style="grid-column: 3; grid-row: 1 / span 2">
+          <view class="thermal-table__cell thermal-table__heading" :style="headingPosition(layout.material)">
+            {{ sourceTableHeader(constructions, 'layers') }}
+          </view>
+          <view class="thermal-table__cell thermal-table__heading" :style="headingPosition(layout.thicknessMm)">
             {{ column('thicknessMm').label }}<text>{{ column('thicknessMm').unit }}</text>
           </view>
-          <view class="thermal-table__cell thermal-table__heading" style="grid-column: 4; grid-row: 1 / span 2">
+          <view class="thermal-table__cell thermal-table__heading" :style="headingPosition(layout.lambda)">
             {{ column('lambda').label }}<text>{{ column('lambda').unit }}</text>
           </view>
-          <view class="thermal-table__cell thermal-table__heading" style="grid-column: 5; grid-row: 1 / span 2">
+          <view class="thermal-table__cell thermal-table__heading" :style="headingPosition(layout.alpha)">
             {{ column('alpha').label }}
           </view>
-          <view class="thermal-table__cell thermal-table__heading" style="grid-column: 6; grid-row: 1 / span 2">
+          <view class="thermal-table__cell thermal-table__heading" :style="headingPosition(layout.rValue)">
             {{ column('rValue').label }}<text>{{ column('rValue').unit }}</text>
           </view>
-          <view class="thermal-table__cell thermal-table__heading" style="grid-column: 7; grid-row: 1 / span 2">
+          <view v-if="hasProduct" class="thermal-table__cell thermal-table__heading" :style="headingPosition(layout.productThermalResistance)">
             {{ column('productThermalResistance').label }}<text>{{ column('productThermalResistance').unit }}</text>
           </view>
-          <view class="thermal-table__cell thermal-table__heading" style="grid-column: 8 / span 2; grid-row: 1">
+          <view class="thermal-table__cell thermal-table__heading" :style="{ gridColumn: `${layout.totalThermalResistance} / span 2`, gridRow: '1' }">
             {{ groupHeader }}
           </view>
-          <view class="thermal-table__cell thermal-table__heading" style="grid-column: 8; grid-row: 2">
+          <view class="thermal-table__cell thermal-table__heading" :style="{ gridColumn: String(layout.totalThermalResistance), gridRow: '2' }">
             {{ column('totalThermalResistance').label }}<text>{{ column('totalThermalResistance').unit }}</text>
           </view>
-          <view class="thermal-table__cell thermal-table__heading" style="grid-column: 9; grid-row: 2">
+          <view class="thermal-table__cell thermal-table__heading" :style="{ gridColumn: String(layout.kValue), gridRow: '2' }">
             {{ column('kValue').label }}<text>{{ column('kValue').unit }}</text>
           </view>
         </view>
@@ -111,32 +145,34 @@ const value = (row: ThermalTableRow, field: ThermalFieldKey) => formatReferenceN
       <view v-for="group in groups" :id="anchor(group.index)" :key="group.construction.constructionId" class="thermal-table__body" :style="{ gridTemplateRows: `repeat(${Math.max(1, group.rows.length)}, minmax(34px, auto))` }" role="rowgroup">
         <view class="thermal-table__cell thermal-table__code" :style="cellPosition(1, 0, Math.max(1, group.rows.length))">
           <text>{{ group.label }}</text>
-          <text v-if="group.system" class="app-muted mt-1 text-2.5">
-            {{ group.system }}
+        </view>
+        <view v-if="hasDiagram" class="thermal-table__cell thermal-table__diagram" :style="cellPosition(2, 0, Math.max(1, group.rows.length))">
+          <text class="app-muted">
+            文字说明；简图请查看原始页面
           </text>
-          <text v-for="attribute in group.attributes" :key="attribute" class="app-muted mt-1 text-2.5">
-            {{ attribute }}
+          <text v-for="(note, noteIndex) in group.diagramNotes" :key="noteIndex">
+            {{ note }}
           </text>
         </view>
         <template v-for="(row, rowIndex) in group.rows" :key="row.key">
           <view class="thermal-table__row-marker" :class="{ 'thermal-table__row--hit': isHit(group.construction, row), 'thermal-table__row--active': highlightEnabled && active?.constructionId === group.construction.constructionId && active.optionId === row.option?.optionId }" :style="{ gridColumn: '1 / -1', gridRow: String(rowIndex + 1) }" />
           <template v-if="!row.option || rowIndex === row.groupStart">
-            <view class="thermal-table__cell thermal-table__material" :style="cellPosition(2, rowIndex, row.groupLength)">
+            <view class="thermal-table__cell thermal-table__material" :style="cellPosition(layout.material, rowIndex, row.groupLength)">
               {{ row.layer?.sourceLayerLabel ? `${row.layer.sourceLayerLabel}. ` : row.order != null ? `${row.order}. ` : '' }}{{ row.layer?.sourceGroupLabel ? `${row.layer.sourceGroupLabel} · ` : '' }}{{ row.layer?.name || group.construction.material?.name || '厚度档位' }}
             </view>
-            <view class="thermal-table__cell" :style="cellPosition(4, rowIndex, row.groupLength)">
+            <view class="thermal-table__cell" :style="cellPosition(layout.lambda, rowIndex, row.groupLength)">
               {{ formatReferenceNumber(row.layer?.lambda ?? (row.option ? group.construction.material?.lambda : null), 3) }}
             </view>
-            <view class="thermal-table__cell" :style="cellPosition(5, rowIndex, row.groupLength)">
+            <view class="thermal-table__cell" :style="cellPosition(layout.alpha, rowIndex, row.groupLength)">
               {{ formatReferenceNumber(row.layer?.alpha ?? (row.option ? group.construction.material?.alpha : null), 2) }}
             </view>
           </template>
-          <view class="thermal-table__cell" :style="cellPosition(6, rowIndex)">
+          <view class="thermal-table__cell" :style="cellPosition(layout.rValue, rowIndex)">
             {{ formatReferenceNumber(thermalLayerValue(row, 'rValue'), 3) }}
           </view>
-          <view v-for="(field, index) in fields" :id="row.option && field === anchorField ? anchor(group.index, row.optionIndex) : undefined" :key="field" class="thermal-table__cell" :class="{ 'thermal-table__wall': index > 1, 'thermal-table__last': rowIndex === group.rows.length - 1 }" :style="cellPosition(columns[index]!, rowIndex)">
+          <view v-for="field in fields" :id="row.option && field === anchorField ? anchor(group.index, row.optionIndex) : undefined" :key="field" class="thermal-table__cell" :class="{ 'thermal-table__wall': field === 'totalThermalResistance' || field === 'kValue', 'thermal-table__last': rowIndex === group.rows.length - 1 }" :style="cellPosition(layout[field], rowIndex)">
             <text :class="{ 'thermal-table__field--hit': fieldHit(group.construction, row, field) }">
-              {{ row.option || index < 2 ? value(row, field) : '' }}
+              {{ row.option || field === 'thicknessMm' ? value(row, field) : '' }}
             </text>
             <text v-if="field === 'kValue' && readableReferenceAnnotations(row.option?.warnings).length" class="app-warning text-2.5">
               需核对
@@ -154,14 +190,14 @@ const value = (row: ThermalTableRow, field: ThermalFieldKey) => formatReferenceN
 <style scoped lang="scss">
 .thermal-table-scroll {
   // 固定上限控制宽屏列宽，rpx 使窄屏更紧凑；八列保留可读的最小宽度。
-  --thermal-table-width: max(100%, 960px);
-  --thermal-table-columns: 100fr 190fr 75fr 90fr 70fr 90fr 115fr 120fr 110fr;
   width: 100%;
   min-width: 0;
   font-variant-numeric: tabular-nums;
   font-size: clamp(12px, 26rpx, 13px);
   color: var(--app-text-primary);
 }
+.thermal-table__attributes { padding: var(--app-space-2); font-size: var(--app-font-size-sm); color: var(--app-text-secondary); }
+.thermal-table__diagram { align-items: flex-start; justify-content: center; white-space: normal; line-height: 1.6; gap: var(--app-space-1); }
 .thermal-table__head-scroll { flex-shrink: 0; }
 .thermal-table__scroll { width: 100%; min-width: 0; }
 .thermal-table__scroll :deep(.uni-scroll-view::-webkit-scrollbar) { display: none; width: 0; height: 0; }

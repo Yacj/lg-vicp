@@ -12,6 +12,7 @@ import { useRoute, useRouter } from 'vue-router'
 import {
   approveKnowledgeVersion,
   bindKnowledgeSearchSource,
+  cloneKnowledgeVersionAsDraft,
   deleteKnowledgeDocument,
   disableKnowledgeVersion,
   fetchKnowledgeCategories,
@@ -71,6 +72,10 @@ const advancedVisible = ref(false)
 const editVisible = ref(false)
 const replaceVisible = ref(false)
 const publishVisible = ref(false)
+const cloneVisible = ref(false)
+const cloneTarget = ref<KnowledgeDocumentVersion | null>(null)
+const cloneChangeNote = ref('')
+const cloning = ref(false)
 const activeTab = ref<string>('overview')
 const activeSection = computed(() => {
   if (['gallery', 'recognition', 'structured'].includes(activeTab.value)) return 'processing'
@@ -127,10 +132,20 @@ const previewFile = computed(() => {
   }
   return { id: file.id, originalName: file.name, mimeType: file.mimeType || 'application/pdf' }
 })
+/** 可派生草稿的源版本：当前发布版本优先，其次为保留的停用版本。 */
+const cloneSourceVersion = computed<KnowledgeDocumentVersion | null>(() =>
+  versions.value.find(version => version.status === 'PUBLISHED') ?? retainedVersion.value ?? null,
+)
+/** 已有草稿时直接编辑即可，不再提供「修改内容」。 */
+const hasDraftVersion = computed(() => workspace.value?.currentVersion?.status === 'DRAFT')
+const canClone = computed(() => canEdit.value && Boolean(cloneSourceVersion.value) && !hasDraftVersion.value)
 const moreActions = computed<KnowledgeHeaderAction[]>(() => {
   const actions: KnowledgeHeaderAction[] = []
   if (canEdit.value) {
     actions.push({ key: 'edit', label: '编辑基本信息' })
+  }
+  if (canClone.value) {
+    actions.push({ key: 'clone', label: '修改内容' })
   }
   if (canUpload.value && workspace.value?.actions.canReplaceFile) {
     actions.push({ key: 'replace', label: '更换文件' })
@@ -195,6 +210,9 @@ const deleteAction = useConfirmedCrudAction<void, unknown>({
 function onMore(key: string): void {
   if (key === 'edit') {
     editVisible.value = true
+  }
+  if (key === 'clone') {
+    openClone()
   }
   if (key === 'replace') {
     replaceVisible.value = true
@@ -322,6 +340,42 @@ async function publish(): Promise<void> {
   }
   catch (cause) {
     MessagePlugin.error(businessUserError(cause))
+  }
+}
+
+/** 打开「修改内容」：默认以当前发布版本为源，历史版本抽屉可指定其他版本。 */
+function openClone(version?: KnowledgeDocumentVersion | null): void {
+  const source = version ?? cloneSourceVersion.value
+  if (!source) {
+    return
+  }
+  cloneTarget.value = source
+  cloneChangeNote.value = ''
+  cloneVisible.value = true
+}
+
+/** 克隆出新草稿后停留「处理资料」，由用户改完页面再更新问答内容并发布。 */
+async function confirmClone(): Promise<void> {
+  const source = cloneTarget.value
+  if (!source || cloning.value) {
+    return
+  }
+  cloning.value = true
+  try {
+    const result = await cloneKnowledgeVersionAsDraft(source.id, {
+      changeNote: cloneChangeNote.value.trim() || undefined,
+    })
+    MessagePlugin.success(`已创建草稿 v${result.version.version}，请核对页面并更新问答内容后重新发布`)
+    cloneVisible.value = false
+    versionVisible.value = false
+    activeTab.value = 'gallery'
+    await Promise.all([refresh(), loadVersions()])
+  }
+  catch (cause) {
+    MessagePlugin.error(businessUserError(cause))
+  }
+  finally {
+    cloning.value = false
   }
 }
 
@@ -529,10 +583,12 @@ onMounted(() => {
     />
     <KnowledgeVersionDrawer
       v-model:visible="versionVisible"
+      :can-clone="canEdit"
       :can-enable="canPublish"
-      :enabling="enabling"
+      :cloning="cloning"
       :current-version-id="versionId"
       :versions="versions"
+      @clone="openClone"
       @enable="enable"
     />
     <KnowledgeAdvancedDrawer
@@ -618,6 +674,36 @@ onMounted(() => {
         </t-button>
       </t-space>
     </t-dialog>
+
+    <t-dialog
+      :footer="false"
+      header="修改内容"
+      :visible="cloneVisible"
+      @close="cloneVisible = false"
+      @update:visible="(value: boolean) => cloneVisible = value"
+    >
+      <p class="knowledge-clone-hint">
+        将基于 v{{ cloneTarget?.version }} 创建一份新草稿：页面图、识别结果、章节与页码映射会一并继承，
+        原发布版本继续对外服务。只需修改有问题的页面，再更新问答内容并发布即可。
+      </p>
+      <t-form label-align="top" :data="{ changeNote: cloneChangeNote }">
+        <t-form-item label="修改说明（可选）" name="changeNote">
+          <t-input
+            v-model="cloneChangeNote"
+            :maxlength="200"
+            placeholder="例如：修正第 12 页导热系数"
+          />
+        </t-form-item>
+      </t-form>
+      <t-space>
+        <t-button theme="primary" :loading="cloning" @click="confirmClone">
+          创建草稿
+        </t-button>
+        <t-button variant="outline" @click="cloneVisible = false">
+          取消
+        </t-button>
+      </t-space>
+    </t-dialog>
   </AppPage>
 </template>
 
@@ -654,6 +740,12 @@ onMounted(() => {
 .knowledge-publish-hint {
   margin: 0 0 var(--td-size-5);
   color: var(--td-text-color-secondary);
+}
+
+.knowledge-clone-hint {
+  margin: 0 0 var(--td-size-4);
+  color: var(--td-text-color-secondary);
+  line-height: 1.6;
 }
 
 .knowledge-publish-blockers {

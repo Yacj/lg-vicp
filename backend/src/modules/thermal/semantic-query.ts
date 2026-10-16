@@ -245,7 +245,9 @@ export function applySemanticQuery(message: string, semanticInput: unknown, dict
   }
   if (/或者|\bor\b/i.test(text)) reject("relationship", "请确认多个条件是否需要同时满足，当前不支持OR查询。");
   // 目录中明确命中的硬实体不能被模型省略或收窄为任意一条记录。
-  const explicitEntities = resolveQueryEntities(text, {}, dictionary.entities, dictionary.aliases);
+  // 已由原话连续证据核验的体系文本是只读硬筛选条件；目录没有该体系不等于不能查确认页。
+  // 不让旧的局部族名建议再把完整systemHint改为“未映射”，也不据此签发目录ID。
+  const explicitEntities = resolveQueryEntities(text, query.systemHint ? { systemHint: query.systemHint } : {}, dictionary.entities, dictionary.aliases);
   for (const unresolved of explicitEntities.unresolved ?? []) reject(unresolved.field, unresolved.reason);
   for (const field of entityFields) {
     const expected = explicitEntities[field];

@@ -1,0 +1,1300 @@
+[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.overrides", "pnpm.patchedDependencies". See https://pnpm.io/settings for the new home of each setting.
+
+> wotprojectname@2.0.0 test E:\code\lg\app
+> node scripts/run-tests.mjs
+
+TAP version 13
+# Subtest: 创建即支持详情跳转；任务完成、审核与发布分别展示；无 PDF 不显示下载承诺
+ok 1 - 创建即支持详情跳转；任务完成、审核与发布分别展示；无 PDF 不显示下载承诺
+  ---
+  duration_ms: 66.5576
+  type: 'test'
+  ...
+# Subtest: 工作区显示候选、历史已选、推荐和中文 Stage，推荐不自动成为 Final
+ok 2 - 工作区显示候选、历史已选、推荐和中文 Stage，推荐不自动成为 Final
+  ---
+  duration_ms: 33.2512
+  type: 'test'
+  ...
+# Subtest: PRODUCT 缺参数提示待补齐，不显示伪造的零值热工数
+ok 3 - PRODUCT 缺参数提示待补齐，不显示伪造的零值热工数
+  ---
+  duration_ms: 3.3715
+  type: 'test'
+  ...
+# Subtest: KEEP 后冲突仍显示；新冲突恢复保留按钮，不把其标成满足条件
+ok 4 - KEEP 后冲突仍显示；新冲突恢复保留按钮，不把其标成满足条件
+  ---
+  duration_ms: 5.3137
+  type: 'test'
+  ...
+# Subtest: comparison 显示 selected-only 的 A,C 及后台参数/推荐，不补选 B
+ok 5 - comparison 显示 selected-only 的 A,C 及后台参数/推荐，不补选 B
+  ---
+  duration_ms: 1.7754
+  type: 'test'
+  ...
+# Subtest: READY_TO_CONFIRM 显示全部 Final 参数来源，CONFIRMED 只读摘要及 revise/start-new 入口
+ok 6 - READY_TO_CONFIRM 显示全部 Final 参数来源，CONFIRMED 只读摘要及 revise/start-new 入口
+  ---
+  duration_ms: 8.1419
+  type: 'test'
+  ...
+# Subtest: 实际按钮按 candidateId ADD；最终多选 draft 仅 SET_FINAL 提交并随 Backend State 重置
+ok 7 - 实际按钮按 candidateId ADD；最终多选 draft 仅 SET_FINAL 提交并随 Backend State 重置
+  ---
+  duration_ms: 27.9888
+  type: 'test'
+  ...
+# Subtest: 实际 CONFIRM 防重复；未处理冲突禁用确认；snapshot 展开显示最终/备选/warnings
+ok 8 - 实际 CONFIRM 防重复；未处理冲突禁用确认；snapshot 展开显示最终/备选/warnings
+  ---
+  duration_ms: 8.0625
+  type: 'test'
+  ...
+# Subtest: PDF 按钮只允许严格 CONFIRMED 和 Snapshot；加载、历史恢复、普通建议不会自动发事件
+ok 9 - PDF 按钮只允许严格 CONFIRMED 和 Snapshot；加载、历史恢复、普通建议不会自动发事件
+  ---
+  duration_ms: 8.2605
+  type: 'test'
+  ...
+# Subtest: 正常参考页只有正式标题、完整图片和一个全屏按钮
+ok 10 - 正常参考页只有正式标题、完整图片和一个全屏按钮
+  ---
+  duration_ms: 10.1768
+  type: 'test'
+  ...
+# Subtest: 加载中与续签显示进度，失败或缺图使用 Empty 和重试，不渲染空白图片
+ok 11 - 加载中与续签显示进度，失败或缺图使用 Empty 和重试，不渲染空白图片
+  ---
+  duration_ms: 6.8844
+  type: 'test'
+  ...
+# Subtest: 标题调整保留正式型号，不修改一般页标题
+ok 12 - 标题调整保留正式型号，不修改一般页标题
+  ---
+  duration_ms: 0.1721
+  type: 'test'
+  ...
+# [Vue warn]: Failed to resolve component: scroll-view
+# If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+# [Vue warn]: Failed to resolve component: scroll-view
+# If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+# [Vue warn]: Failed to resolve component: scroll-view
+# If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+# [Vue warn]: Failed to resolve component: scroll-view
+# If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+# [Vue warn]: Failed to resolve component: scroll-view
+# If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+# [Vue warn]: Failed to resolve component: scroll-view
+# If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+# [Vue warn]: Failed to resolve component: scroll-view
+# If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+# [Vue warn]: Failed to resolve component: scroll-view
+# If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+# [Vue warn]: Failed to resolve component: scroll-view
+# If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+# [Vue warn]: Failed to resolve component: scroll-view
+# If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+# [Vue warn]: Failed to resolve component: scroll-view
+# If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+# [Vue warn]: Failed to resolve component: scroll-view
+# If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+# [Vue warn]: Failed to resolve component: scroll-view
+# If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+# [Vue warn]: Failed to resolve component: scroll-view
+# If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+# Subtest: 复杂图集三页按来源列头显示 6 个独立构造、全部档位和原备注，命中对比含 R/K
+ok 13 - 复杂图集三页按来源列头显示 6 个独立构造、全部档位和原备注，命中对比含 R/K
+  ---
+  duration_ms: 41.5947
+  type: 'test'
+  ...
+# Subtest: 方案卡默认只强调厚度和 K，来源是引用区域，双 R 可展开，不显示技术标识
+ok 14 - 方案卡默认只强调厚度和 K，来源是引用区域，双 R 可展开，不显示技术标识
+  ---
+  duration_ms: 2.05
+  type: 'test'
+  ...
+# Subtest: 默认同页一张完整表格，公共层和所有厚度保留，命中四字段突出且原图互斥
+ok 15 - 默认同页一张完整表格，公共层和所有厚度保留，命中四字段突出且原图互斥
+  ---
+  duration_ms: 4.6535
+  type: 'test'
+  ...
+# Subtest: 历史表格的识别字段说明不出现在对话或参考页，也不触发虚假告警
+ok 16 - 历史表格的识别字段说明不出现在对话或参考页，也不触发虚假告警
+  ---
+  duration_ms: 5.4192
+  type: 'test'
+  ...
+# Subtest: 原页业务备注和具体缺失提示保留，缺省备注可正常展示表格
+ok 17 - 原页业务备注和具体缺失提示保留，缺省备注可正常展示表格
+  ---
+  duration_ms: 4.1959
+  type: 'test'
+  ...
+# Subtest: 无 renderModel 老消息默认完整 contain 原图及全屏入口，图片错误可重试
+ok 18 - 无 renderModel 老消息默认完整 contain 原图及全屏入口，图片错误可重试
+  ---
+  duration_ms: 2.2771
+  type: 'test'
+  ...
+# Subtest: 取消高亮不移除命中规格；同值的另一个构造不会突出
+ok 19 - 取消高亮不移除命中规格；同值的另一个构造不会突出
+  ---
+  duration_ms: 7.2102
+  type: 'test'
+  ...
+# Subtest: 正式查表摘要下直接展示完整表格高亮，说明和结论保留，不显示参数卡
+ok 20 - 正式查表摘要下直接展示完整表格高亮，说明和结论保留，不显示参数卡
+  ---
+  duration_ms: 33.2362
+  type: 'test'
+  ...
+# Subtest: 跨页默认完整展示两页表格，其余有展开入口，独立锚点保留结论和来源
+ok 21 - 跨页默认完整展示两页表格，其余有展开入口，独立锚点保留结论和来源
+  ---
+  duration_ms: 11.675
+  type: 'test'
+  ...
+# Subtest: 回答同页两段两命中共用完整表格，不重复原图或缩减未命中档位
+ok 22 - 回答同页两段两命中共用完整表格，不重复原图或缩减未命中档位
+  ---
+  duration_ms: 5.0497
+  type: 'test'
+  ...
+# Subtest: 老消息无模型内嵌完整原页，缺失图片提供参考页入口，不伪造高亮
+ok 23 - 老消息无模型内嵌完整原页，缺失图片提供参考页入口，不伪造高亮
+  ---
+  duration_ms: 5.2721
+  type: 'test'
+  ...
+# Subtest: 查询双 R 时所问指标直接可见，正式字段不因简洁模式被隐藏
+ok 24 - 查询双 R 时所问指标直接可见，正式字段不因简洁模式被隐藏
+  ---
+  duration_ms: 0.6074
+  type: 'test'
+  ...
+# Subtest: 系统名是主标题，表名括号小字，中文参数在标题下，表格工具栏保留完整表格高亮
+ok 25 - 系统名是主标题，表名括号小字，中文参数在标题下，表格工具栏保留完整表格高亮
+  ---
+  duration_ms: 1.9831
+  type: 'test'
+  ...
+# Subtest: 从查看参考页进入时可直接展示完整原图，有模型也不自动切回表格
+ok 26 - 从查看参考页进入时可直接展示完整原图，有模型也不自动切回表格
+  ---
+  duration_ms: 1.4746
+  type: 'test'
+  ...
+# Subtest: 编号和系统名称相同时编号格只显示一次，独立系统名称保留，完整构造与高亮不变
+not ok 27 - 编号和系统名称相同时编号格只显示一次，独立系统名称保留，完整构造与高亮不变
+  ---
+  duration_ms: 20.6406
+  type: 'test'
+  location: 'E:\\code\\lg\\app\\src\\components\\ai\\ReferencePageViewer.test.ts:208:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The expression evaluated to a falsy value:
+    
+      assert.ok(codes[1].includes('I型VICP'))
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///E:/code/lg/app/src/components/ai/ReferencePageViewer.test.ts:215:12)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# [Vue warn]: Failed to resolve component: wd-icon
+# If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+# [Vue warn]: Failed to resolve component: wd-icon
+# If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+# [Vue warn]: Failed to resolve component: wd-icon
+# If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+# [Vue warn]: Failed to resolve component: wd-icon
+# If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+# [Vue warn]: Failed to resolve component: wd-icon
+# If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+# [Vue warn]: Failed to resolve component: wd-icon
+# If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+# [Vue warn]: Failed to resolve component: wd-icon
+# If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+# [Vue warn]: Failed to resolve component: wd-icon
+# If this is a native custom element, make sure to exclude it from component resolution via compilerOptions.isCustomElement.
+# Subtest: 历史报告卡保留标题/日期，生成、失败、审核、已发布分别显示；未知发布状态不猜测
+ok 28 - 历史报告卡保留标题/日期，生成、失败、审核、已发布分别显示；未知发布状态不猜测
+  ---
+  duration_ms: 16.8874
+  type: 'test'
+  ...
+# Subtest: 选择方案优先定位，同页多命中切换，取消/重新显示；切换原图不重复滚动
+ok 29 - 选择方案优先定位，同页多命中切换，取消/重新显示；切换原图不重复滚动
+  ---
+  duration_ms: 5.0924
+  type: 'test'
+  ...
+# Subtest: 重复流事件不重置当前组或取消状态，显式定位和重新排序保留正确身份
+ok 30 - 重复流事件不重置当前组或取消状态，显式定位和重新排序保留正确身份
+  ---
+  duration_ms: 4.0657
+  type: 'test'
+  ...
+# [ReferencePageImage] 图片读取失败 download failed
+# [ReferencePageImage] 图片读取失败 图片内容不可读取
+# [ReferencePageImage] 图片读取失败 原图读取被拒绝，请刷新来源或重新登录
+# Subtest: 原生读取签名图片后使用返回的临时路径，读取失败不会留下空白图片
+ok 31 - 原生读取签名图片后使用返回的临时路径，读取失败不会留下空白图片
+  ---
+  duration_ms: 2.3094
+  type: 'test'
+  ...
+# Subtest: 切换图片和离开页面后迟到的原生读取结果不覆盖当前状态
+ok 32 - 切换图片和离开页面后迟到的原生读取结果不覆盖当前状态
+  ---
+  duration_ms: 6.5683
+  type: 'test'
+  ...
+# Subtest: 使用 uni.getImageInfo 下载解码图片，空路径或无效尺寸按失败处理
+ok 33 - 使用 uni.getImageInfo 下载解码图片，空路径或无效尺寸按失败处理
+  ---
+  duration_ms: 3.8105
+  type: 'test'
+  ...
+# Subtest: 已知来源页使用当前登录态读取原字节，权限失败不回退旧签名
+ok 34 - 已知来源页使用当前登录态读取原字节，权限失败不回退旧签名
+  ---
+  duration_ms: 6.2424
+  type: 'test'
+  ...
+# [ReferencePage] 来源详情加载失败 {
+#   documentId: undefined,
+#   pageId: 'page',
+#   sectionId: undefined,
+#   blockId: undefined,
+#   chunkId: undefined,
+#   message: '来源确认版本已变化，请返回对话重新查询',
+#   code: undefined,
+#   requestId: undefined
+# }
+# [ReferencePage] 来源详情加载失败 {
+#   documentId: undefined,
+#   pageId: 'page',
+#   sectionId: undefined,
+#   blockId: undefined,
+#   chunkId: undefined,
+#   message: 'network',
+#   code: undefined,
+#   requestId: undefined
+# }
+# [ReferencePage] 来源详情加载失败 {
+#   documentId: undefined,
+#   pageId: 'page',
+#   sectionId: undefined,
+#   blockId: undefined,
+#   chunkId: undefined,
+#   message: 'network',
+#   code: undefined,
+#   requestId: undefined
+# }
+# [ReferencePage] 来源详情加载失败 {
+#   documentId: undefined,
+#   pageId: 'other',
+#   sectionId: undefined,
+#   blockId: undefined,
+#   chunkId: undefined,
+#   message: '引用页面不一致',
+#   code: undefined,
+#   requestId: undefined
+# }
+# [ReferencePage] 来源详情加载失败 {
+#   documentId: undefined,
+#   pageId: 'page',
+#   sectionId: undefined,
+#   blockId: undefined,
+#   chunkId: undefined,
+#   message: '知识资料版本不存在或尚未发布',
+#   code: 404,
+#   requestId: 'request'
+# }
+# Subtest: 签名图片过期重新请求 Backend 一次，再失败提供手动重试
+ok 35 - 签名图片过期重新请求 Backend 一次，再失败提供手动重试
+  ---
+  duration_ms: 3.4887
+  type: 'test'
+  ...
+# Subtest: 确认快照变化拒绝把新原图绑到旧引用
+ok 36 - 确认快照变化拒绝把新原图绑到旧引用
+  ---
+  duration_ms: 1.2091
+  type: 'test'
+  ...
+# Subtest: 续签网络失败保留表格与已加载详情，页面首次加载失败可重试
+ok 37 - 续签网络失败保留表格与已加载详情，页面首次加载失败可重试
+  ---
+  duration_ms: 0.9084
+  type: 'test'
+  ...
+# Subtest: Backend 返回其他页时拒绝错页，取消/并发加载不覆盖当前页面
+ok 38 - Backend 返回其他页时拒绝错页，取消/并发加载不覆盖当前页面
+  ---
+  duration_ms: 0.7124
+  type: 'test'
+  ...
+# Subtest: 来源失效保留 Backend 具体原因，过期请求的失败不覆盖当前页
+ok 39 - 来源失效保留 Backend 具体原因，过期请求的失败不覆盖当前页
+  ---
+  duration_ms: 0.8208
+  type: 'test'
+  ...
+# Subtest: 详情独立轮询到真实 report READY；task COMPLETED 不提前停止，无 PDF 不可下载
+ok 40 - 详情独立轮询到真实 report READY；task COMPLETED 不提前停止，无 PDF 不可下载
+  ---
+  duration_ms: 3.0567
+  type: 'test'
+  ...
+# Subtest: 审核态不无限轮询，PDF 和 publishedAt 分别决定文件与发布
+ok 41 - 审核态不无限轮询，PDF 和 publishedAt 分别决定文件与发布
+  ---
+  duration_ms: 0.8775
+  type: 'test'
+  ...
+# Subtest: 旧 JSON 草稿不是队列任务，不自动轮询或触发生成
+ok 42 - 旧 JSON 草稿不是队列任务，不自动轮询或触发生成
+  ---
+  duration_ms: 0.6015
+  type: 'test'
+  ...
+# Subtest: 隐藏/卸载取消定时器和迟到请求；重新进入立即刷新
+ok 43 - 隐藏/卸载取消定时器和迟到请求；重新进入立即刷新
+  ---
+  duration_ms: 0.4154
+  type: 'test'
+  ...
+# Subtest: 账号切换同 reportId 清旧内容；错误归属响应和无登录状态不复用旧详情
+ok 44 - 账号切换同 reportId 清旧内容；错误归属响应和无登录状态不复用旧详情
+  ---
+  duration_ms: 0.5249
+  type: 'test'
+  ...
+# Subtest: 网络失败保留已加载内容，权限/404 失败清缓存并展示后端原文
+ok 45 - 网络失败保留已加载内容，权限/404 失败清缓存并展示后端原文
+  ---
+  duration_ms: 0.5054
+  type: 'test'
+  ...
+# Subtest: 失败重试只用原 reportId；遵循真实 GENERATING/新 task，不伪造 READY
+ok 46 - 失败重试只用原 reportId；遵循真实 GENERATING/新 task，不伪造 READY
+  ---
+  duration_ms: 1.3957
+  type: 'test'
+  ...
+# Subtest: 重试被拒保留真实 FAILED；重试中的卸载/账号变化不回写
+ok 47 - 重试被拒保留真实 FAILED；重试中的卸载/账号变化不回写
+  ---
+  duration_ms: 0.4889
+  type: 'test'
+  ...
+# Subtest: 重试请求未结束时手动刷新不能用旧 FAILED 覆盖重试后的状态
+ok 48 - 重试请求未结束时手动刷新不能用旧 FAILED 覆盖重试后的状态
+  ---
+  duration_ms: 0.5537
+  type: 'test'
+  ...
+# Subtest: 旧轮询响应不能释放重新进入页面后新请求的刷新锁
+ok 49 - 旧轮询响应不能释放重新进入页面后新请求的刷新锁
+  ---
+  duration_ms: 0.5832
+  type: 'test'
+  ...
+# ok  旧 REPORT_TYPE_OPTIONS 不再主导
+# ok  energy_design 不再作为生成入口
+# ok  design_note 不再作为生成入口
+# ok  marketing_copy 不再作为生成入口
+# ok  动态报告类型优先使用 GET /reports/types
+# ok  无 projectId 仍可展示类型名
+# ok  历史 code 仅作展示回退
+# 7 passed, 0 failed
+# Subtest: src\\constants\\reports.test.ts
+ok 10 - src\\constants\\reports.test.ts
+  ---
+  duration_ms: 2464.965
+  type: 'test'
+  ...
+# Subtest: 正式空 JSON 报告使用 PDF 区；READY 无文件、生成中、失败、审核和发布明确区分
+ok 51 - 正式空 JSON 报告使用 PDF 区；READY 无文件、生成中、失败、审核和发布明确区分
+  ---
+  duration_ms: 1780.21
+  type: 'test'
+  ...
+# Subtest: 旧 AI/历史技术 JSON 章节保持展示，权限失败只展示后端原因
+ok 52 - 旧 AI/历史技术 JSON 章节保持展示，权限失败只展示后端原因
+  ---
+  duration_ms: 408.8801
+  type: 'test'
+  ...
+# Subtest: 真实页面点击分别实时请求 preview/download；App/微信展示保存并打开，隐藏停止详情刷新
+ok 53 - 真实页面点击分别实时请求 preview/download；App/微信展示保存并打开，隐藏停止详情刷新
+  ---
+  duration_ms: 212.9678
+  type: 'test'
+  ...
+# Subtest: 真实报告列表页面保留分页、项目筛选、下拉刷新；返回列表重新读取历史状态
+ok 54 - 真实报告列表页面保留分页、项目筛选、下拉刷新；返回列表重新读取历史状态
+  ---
+  duration_ms: 634.4139
+  type: 'test'
+  ...
+# Subtest: 隐藏/项目或账号变化后的旧分页响应不读取详情或恢复旧列表
+ok 55 - 隐藏/项目或账号变化后的旧分页响应不读取详情或恢复旧列表
+  ---
+  duration_ms: 448.0443
+  type: 'test'
+  ...
+# Subtest: H5 在签发 URL 前同步开新窗口；预览定位物理页，下载使用 attachment 地址
+ok 56 - H5 在签发 URL 前同步开新窗口；预览定位物理页，下载使用 attachment 地址
+  ---
+  duration_ms: 331.8767
+  type: 'test'
+  ...
+# Subtest: H5 拦截窗口不请求签名；签发失败关闭空窗口并保留后端消息
+ok 57 - H5 拦截窗口不请求签名；签发失败关闭空窗口并保留后端消息
+  ---
+  duration_ms: 202.0205
+  type: 'test'
+  ...
+# Subtest: 每次操作获取新地址，明确过期 TTL 最多续签一次且不持久缓存
+ok 58 - 每次操作获取新地址，明确过期 TTL 最多续签一次且不持久缓存
+  ---
+  duration_ms: 128.6811
+  type: 'test'
+  ...
+# Subtest: App/微信临时文件预览，微信显式 PDF 类型；保存仅在下载动作触发
+ok 59 - App/微信临时文件预览，微信显式 PDF 类型；保存仅在下载动作触发
+  ---
+  duration_ms: 224.23
+  type: 'test'
+  ...
+# Subtest: 原生下载 401/403 续签一次；404、网络、打开、保存失败不伪报成功
+ok 60 - 原生下载 401/403 续签一次；404、网络、打开、保存失败不伪报成功
+  ---
+  duration_ms: 357.3798
+  type: 'test'
+  ...
+# Subtest: 离开页面或账号变化后的签发/下载结果不再打开文件；旧图片与物理页定位兼容
+ok 61 - 离开页面或账号变化后的签发/下载结果不再打开文件；旧图片与物理页定位兼容
+  ---
+  duration_ms: 57.7684
+  type: 'test'
+  ...
+# Subtest: 下载 403 时已切换账号不再向新账号续签；保存完成前离开不再打开
+ok 62 - 下载 403 时已切换账号不再向新账号续签；保存完成前离开不再打开
+  ---
+  duration_ms: 49.6
+  type: 'test'
+  ...
+# Subtest: 签发途中失效关闭 H5 窗口；不支持文件能力的平台展示明确错误
+ok 63 - 签发途中失效关闭 H5 窗口；不支持文件能力的平台展示明确错误
+  ---
+  duration_ms: 29.0194
+  type: 'test'
+  ...
+# Subtest: 真实 assistant 动作创建→同一 sessionReport→详情轮询，READY 不覆盖普通聊天
+ok 64 - 真实 assistant 动作创建→同一 sessionReport→详情轮询，READY 不覆盖普通聊天
+  ---
+  duration_ms: 621.2034
+  type: 'test'
+  ...
+# Subtest: 页面隐藏、账号/会话切换期间的轮询响应不回写或重新安排计时器
+ok 65 - 页面隐藏、账号/会话切换期间的轮询响应不回写或重新安排计时器
+  ---
+  duration_ms: 624.7912
+  type: 'test'
+  ...
+# Subtest: 静默 GENERATE_REPORT 被拒，单报告选项保持可见，未发送 resume 请求
+ok 66 - 静默 GENERATE_REPORT 被拒，单报告选项保持可见，未发送 resume 请求
+  ---
+  duration_ms: 159.2042
+  type: 'test'
+  ...
+# Subtest: 失败重试消费服务端实际 GENERATING 和新 taskId，保持原 reportId
+ok 67 - 失败重试消费服务端实际 GENERATING 和新 taskId，保持原 reportId
+  ---
+  duration_ms: 286.1927
+  type: 'test'
+  ...
+# Subtest: 退出后同账号重登同会话，旧创建成功不能覆盖新任务或释放新请求锁
+ok 68 - 退出后同账号重登同会话，旧创建成功不能覆盖新任务或释放新请求锁
+  ---
+  duration_ms: 251.1918
+  type: 'test'
+  ...
+# Subtest: 正式 PDF 排队/生成/完成期间，普通聊天 delta 仍写入当前回答
+ok 69 - 正式 PDF 排队/生成/完成期间，普通聊天 delta 仍写入当前回答
+  ---
+  duration_ms: 426.5686
+  type: 'test'
+  ...
+# Subtest: SSE report_queued 与 REST 复用同一任务，只抑制该报告对应消息的 delta
+ok 70 - SSE report_queued 与 REST 复用同一任务，只抑制该报告对应消息的 delta
+  ---
+  duration_ms: 207.5463
+  type: 'test'
+  ...
+# Subtest: 报告轮询遇到 401/403/404 显示后端原文并停止，不伪造 FAILED/READY
+ok 71 - 报告轮询遇到 401/403/404 显示后端原文并停止，不伪造 FAILED/READY
+  ---
+  duration_ms: 553.9129
+  type: 'test'
+  ...
+# Subtest: 轮询错误归属不绑定；DRAFT 不继续轮询；临时网络失败仍可恢复
+ok 72 - 轮询错误归属不绑定；DRAFT 不继续轮询；临时网络失败仍可恢复
+  ---
+  duration_ms: 577.9756
+  type: 'test'
+  ...
+# Subtest: 重试错误 reportId 不改当前任务，权限失败在任务卡显示后端消息
+ok 73 - 重试错误 reportId 不改当前任务，权限失败在任务卡显示后端消息
+  ---
+  duration_ms: 232.84
+  type: 'test'
+  ...
+# Subtest: Fixture Final→Confirm→显式创建→生成→PDF 详情→历史恢复，工程参数不改写
+ok 74 - Fixture Final→Confirm→显式创建→生成→PDF 详情→历史恢复，工程参数不改写
+  ---
+  duration_ms: 237.4013
+  type: 'test'
+  ...
+# Subtest: 历史恢复的迟到响应不覆盖新报告，账号/会话变化和同账号重登均失效
+ok 75 - 历史恢复的迟到响应不覆盖新报告，账号/会话变化和同账号重登均失效
+  ---
+  duration_ms: 466.9407
+  type: 'test'
+  ...
+# Subtest: Fixture Confirm 不创建报告，显式创建才发送当前快照且不修改方案事实
+ok 76 - Fixture Confirm 不创建报告，显式创建才发送当前快照且不修改方案事实
+  ---
+  duration_ms: 12.7665
+  type: 'test'
+  ...
+# Subtest: 双击只提交一次；READY/FAILED reused 不伪造新任务或强制排队
+ok 77 - 双击只提交一次；READY/FAILED reused 不伪造新任务或强制排队
+  ---
+  duration_ms: 4.9583
+  type: 'test'
+  ...
+# Subtest: 错误类型/创建人响应不绑定；创建失败保留 Backend 包络消息并可重试
+ok 78 - 错误类型/创建人响应不绑定；创建失败保留 Backend 包络消息并可重试
+  ---
+  duration_ms: 7.3609
+  type: 'test'
+  ...
+# Subtest: 后端拒绝展示原消息，释放锁，用户可按原 Snapshot 再试
+ok 79 - 后端拒绝展示原消息，释放锁，用户可按原 Snapshot 再试
+  ---
+  duration_ms: 2.0135
+  type: 'test'
+  ...
+# Subtest: 换会话、重进、账号切换、Snapshot 切换后的迟到成功或失败均不绑定新上下文
+ok 80 - 换会话、重进、账号切换、Snapshot 切换后的迟到成功或失败均不绑定新上下文
+  ---
+  duration_ms: 21.7133
+  type: 'test'
+  ...
+# Subtest: 继续调整点击即废弃报告请求，不等修订响应
+ok 81 - 继续调整点击即废弃报告请求，不等修订响应
+  ---
+  duration_ms: 1.8381
+  type: 'test'
+  ...
+# Subtest: 旧请求返回不能释放新 Snapshot 的创建锁
+ok 82 - 旧请求返回不能释放新 Snapshot 的创建锁
+  ---
+  duration_ms: 7.7102
+  type: 'test'
+  ...
+# Subtest: 缺快照、非本人会话以及错误归属响应拒绝绑定
+ok 83 - 缺快照、非本人会话以及错误归属响应拒绝绑定
+  ---
+  duration_ms: 6.6573
+  type: 'test'
+  ...
+# Subtest: 历史恢复 Stage/Selected/Conflict/Final，清理旧比较与快照
+ok 84 - 历史恢复 Stage/Selected/Conflict/Final，清理旧比较与快照
+  ---
+  duration_ms: 7.3608
+  type: 'test'
+  ...
+# Subtest: ADD/REMOVE 以 response 为唯一状态；按钮与自然语言 SSE 共用 State
+ok 85 - ADD/REMOVE 以 response 为唯一状态；按钮与自然语言 SSE 共用 State
+  ---
+  duration_ms: 2.78
+  type: 'test'
+  ...
+# Subtest: 待响应不乐观选中；重复点击只发一次；仅 Solution 操作处于 loading
+ok 86 - 待响应不乐观选中；重复点击只发一次；仅 Solution 操作处于 loading
+  ---
+  duration_ms: 2.1329
+  type: 'test'
+  ...
+# Subtest: version/revision conflict 自动 GET 刷新，不重试旧 mutation
+ok 87 - version/revision conflict 自动 GET 刷新，不重试旧 mutation
+  ---
+  duration_ms: 47.8038
+  type: 'test'
+  ...
+# Subtest: source changed 刷新并提示重查；刷新失败保留状态供手动重试
+ok 88 - source changed 刷新并提示重查；刷新失败保留状态供手动重试
+  ---
+  duration_ms: 2.8887
+  type: 'test'
+  ...
+# Subtest: COMPARE 只提交 selected IDs，保存独立结果；状态更新作废旧比较
+ok 89 - COMPARE 只提交 selected IDs，保存独立结果；状态更新作废旧比较
+  ---
+  duration_ms: 1.8472
+  type: 'test'
+  ...
+# Subtest: SET_FINAL 多选 -> READY_TO_CONFIRM -> CONFIRM -> 冻结快照；REVISE 新 id 不修改旧 snapshot
+ok 90 - SET_FINAL 多选 -> READY_TO_CONFIRM -> CONFIRM -> 冻结快照；REVISE 新 id 不修改旧 snapshot
+  ---
+  duration_ms: 5.0158
+  type: 'test'
+  ...
+# Subtest: 新的 conflict 完全使用 Backend keptForComparison，不继承本地旧处理结果
+ok 91 - 新的 conflict 完全使用 Backend keptForComparison，不继承本地旧处理结果
+  ---
+  duration_ms: 1.4483
+  type: 'test'
+  ...
+# Subtest: 会话切换拒绝迟到 action/get/snapshot；SSE 新版本不被旧 REST 响应倒退
+ok 92 - 会话切换拒绝迟到 action/get/snapshot；SSE 新版本不被旧 REST 响应倒退
+  ---
+  duration_ms: 3.0544
+  type: 'test'
+  ...
+# Subtest: 同一会话离开后重进，旧请求仍被 revision 拦截；snapshot 查看也是隔离的
+ok 93 - 同一会话离开后重进，旧请求仍被 revision 拦截；snapshot 查看也是隔离的
+  ---
+  duration_ms: 3.3142
+  type: 'test'
+  ...
+# Subtest: REVISE/START_NEW 切换后，旧 GET 和旧 SSE 不能恢复已退休的 state
+ok 94 - REVISE/START_NEW 切换后，旧 GET 和旧 SSE 不能恢复已退休的 state
+  ---
+  duration_ms: 2.8695
+  type: 'test'
+  ...
+# ok  中文状态对用户可见
+# ok  toolName 不对用户可见
+# ok  running 状态不对用户可见
+# ok  ToolCall 不对用户可见
+# ok  Agent step 不对用户可见
+# ok  JSON 不对用户可见
+# ok  热工进行中文案
+# ok  知识库进行中文案
+# ok  对比过程不暴露 tool 名
+# ok  不把 tool 状态当正文
+# ok  知识库完成文案
+# ok  项目资料完成不说 Context
+# ok  产品咨询不暴露 tool 名
+# ok  多方案解析为 choice
+# ok  方案按钮文案
+# ok  点击方案后 Resume 文案
+# ok  内部仍可保留 id，UI 不展示技术字段
+# ok  产品对比等待为统一 selection
+# ok  产品对比 selectionKind=PRODUCT
+# ok  对比选择使用 Checkbox 而不是 Radio
+# ok  至少选择 1 项才可确认
+# ok  确认按钮文案
+# ok  选项展示关键特点
+# ok  多选卡片不写死 K 值
+# ok  记忆冲突解析
+# ok  冲突原值
+# ok  冲突新值
+# ok  使用新值 Resume
+# ok  保留原值 Resume
+# ok  方案对象格式化
+# ok  工具完成后使用用户文案
+# ok  工具完成后标记完成
+# ok  来源按资料+章节+页码去重
+# ok  去重结果不含 chunkId
+# 34 passed, 0 failed
+# Subtest: src\\utils\\aiAgentUi.test.ts
+ok 17 - src\\utils\\aiAgentUi.test.ts
+  ---
+  duration_ms: 2967.086
+  type: 'test'
+  ...
+# ok  用户问来源时可展开
+# ok  问资料来源
+# ok  专业内容可分层
+# ok  默认先展示结论
+# ok  详细说明默认折叠
+# ok  报告完成简洁提示
+# ok  报告不复制全部产品资料
+# ok  Comparison Card 同版本不重复
+# ok  新增产品时替换卡片
+# ok  首次对比插入卡片
+# ok  变化后仍使用同一 comparisonId
+# ok  上一轮对比后的产品卡不重复
+# ok  可定位上一轮用户问题
+# ok  人工 delta 拼接逐字等于原串
+# ok  列表跨 delta 不丢项
+# ok  粗体与列表跨 delta 不改写
+# ok  跨 delta 粗体可渲染
+# ok  跨 delta 列表可渲染
+# ok  历史正文不被 Regex 改写
+# ok  旧正文中的过程句也原样保留
+# ok  历史不因新版 Regex 删除 Tool 名
+# 21 passed, 0 failed
+# Subtest: src\\utils\\aiAnswerUx.test.ts
+ok 18 - src\\utils\\aiAnswerUx.test.ts
+  ---
+  duration_ms: 3965.9915
+  type: 'test'
+  ...
+# ok  2产品比较可解析
+# ok  读取 comparisonId
+# ok  读取 version
+# ok  动态维度不渲染总分
+# ok  资料不足显示暂无可靠资料
+# ok  无热工时不展示热工明细
+# ok  无热工时给出自然语言说明
+# ok  热工不暴露内部状态码
+# ok  文案不含最佳方案
+# ok  3产品比较保持动态列顺序
+# ok  3产品动态维度取值
+# ok  无显式 id 时也能生成 comparisonId/version
+# ok  有热工数据块时展示
+# ok  热工先展示核心数值
+# ok  计算过程放入详情
+# ok  有热工时也不展示状态码
+# ok  性价比分数不作为固定维度
+# ok  权重不作为固定维度
+# ok  普通动态维度可渲染
+# ok  产品咨询卡片使用摘要而不是 tool 名
+# ok  产品卡不暴露 tool 名
+# ok  多选1个可确认
+# ok  多选多个可确认
+# ok  未选时不可确认
+# ok  已选择计数
+# ok  确认后报告状态文案
+# ok  报告基于已确认产品
+# ok  旧 fields 投影也过滤排名
+# ok  旧 fields 空值显示暂无可靠资料
+# ok  同结果 version 稳定
+# 30 passed, 0 failed
+# Subtest: src\\utils\\aiComparison.test.ts
+ok 19 - src\\utils\\aiComparison.test.ts
+  ---
+  duration_ms: 3295.2506
+  type: 'test'
+  ...
+# Subtest: 正式段落位置保留，两个方案放到各自列表说明下，完整正文不改写
+ok 98 - 正式段落位置保留，两个方案放到各自列表说明下，完整正文不改写
+  ---
+  duration_ms: 10.4061
+  type: 'test'
+  ...
+# Subtest: 没有正式段落关联或关联代码块时，方案优先展示，不根据相同数字猜位置
+ok 99 - 没有正式段落关联或关联代码块时，方案优先展示，不根据相同数字猜位置
+  ---
+  duration_ms: 1.3411
+  type: 'test'
+  ...
+# Subtest: 同段落同页多命中只生成一个来源组，跨页分别保留
+ok 100 - 同段落同页多命中只生成一个来源组，跨页分别保留
+  ---
+  duration_ms: 0.7648
+  type: 'test'
+  ...
+# Subtest: 同一档位引用到两段说明时关联位置不被合并丢失
+ok 101 - 同一档位引用到两段说明时关联位置不被合并丢失
+  ---
+  duration_ms: 0.5042
+  type: 'test'
+  ...
+# Subtest: 流式初步命中、最终段落引用与 done 扁平来源合并，不重复展示待定位卡片
+ok 102 - 流式初步命中、最终段落引用与 done 扁平来源合并，不重复展示待定位卡片
+  ---
+  duration_ms: 2.116
+  type: 'test'
+  ...
+# Subtest: 历史加载保留同一条未改写消息的已接收来源，跨会话/改写/明确清空时不恢复
+ok 103 - 历史加载保留同一条未改写消息的已接收来源，跨会话/改写/明确清空时不恢复
+  ---
+  duration_ms: 1.2669
+  type: 'test'
+  ...
+# Subtest: 仅后端标记的正式方案摘要可替换；普通引用、失效标识和原始结论保留
+ok 104 - 仅后端标记的正式方案摘要可替换；普通引用、失效标识和原始结论保留
+  ---
+  duration_ms: 1.74
+  type: 'test'
+  ...
+# Subtest: 内嵌全文表格同页跨段只展示一次，全部命中合并，跨资料相同 pageId 不混合
+ok 105 - 内嵌全文表格同页跨段只展示一次，全部命中合并，跨资料相同 pageId 不混合
+  ---
+  duration_ms: 1.8346
+  type: 'test'
+  ...
+# ok  QUEUED
+# ok  DRAFT 视为进入队列
+# ok  QUEUED 文案
+# ok  GENERATING
+# ok  旧 PROCESSING 不闪失败
+# ok  GENERATING 文案
+# ok  内部 retry 保持生成中
+# ok  生成中继续轮询
+# ok  内部 retry 不展示失败
+# ok  READY
+# ok  审核中仍视为已生成
+# ok  READY 文案
+# ok  聊天正文不塞报告全文
+# ok  READY 后停止轮询
+# ok  FAILED
+# ok  FAILED 文案
+# ok  FAILED 后停止轮询，允许 retry
+# ok  retry 后回到 QUEUED
+# ok  CANCELLED
+# ok  页面退出后终态不再轮询
+# ok  页面回来后恢复 QUEUED 轮询
+# 21 passed, 0 failed
+# Subtest: src\\utils\\aiReportTask.test.ts
+ok 21 - src\\utils\\aiReportTask.test.ts
+  ---
+  duration_ms: 3610.4917
+  type: 'test'
+  ...
+# Subtest: solution_state 解析正式状态、selected-only comparison 和不可变 snapshot
+ok 107 - solution_state 解析正式状态、selected-only comparison 和不可变 snapshot
+  ---
+  duration_ms: 2.7196
+  type: 'test'
+  ...
+# Subtest: done solutionState 兜底；产品 comparison_ready 协议仍独立
+ok 108 - done solutionState 兜底；产品 comparison_ready 协议仍独立
+  ---
+  duration_ms: 3.1759
+  type: 'test'
+  ...
+# Subtest: re-query 候选按 position 排序，历史 selected position=null 仍显示
+ok 109 - re-query 候选按 position 排序，历史 selected position=null 仍显示
+  ---
+  duration_ms: 2.4816
+  type: 'test'
+  ...
+# Subtest: 折叠候选不隐藏 selected/conflict/final；推荐不自动选中
+ok 110 - 折叠候选不隐藏 selected/conflict/final；推荐不自动选中
+  ---
+  duration_ms: 0.7853
+  type: 'test'
+  ...
+# Subtest: 所有动作传最新 version/revision 和 candidateId，不提交序号
+ok 111 - 所有动作传最新 version/revision 和 candidateId，不提交序号
+  ---
+  duration_ms: 0.7351
+  type: 'test'
+  ...
+# Subtest: 来源 route 保留正式 pageId/pageLabel/optionId；缺失产品事实不伪造数值
+ok 112 - 来源 route 保留正式 pageId/pageLabel/optionId；缺失产品事实不伪造数值
+  ---
+  duration_ms: 0.3384
+  type: 'test'
+  ...
+# Subtest: 识别 Backend HTTP 数值码内嵌 details.errorCode，所有指定错误均有独立提示
+ok 113 - 识别 Backend HTTP 数值码内嵌 details.errorCode，所有指定错误均有独立提示
+  ---
+  duration_ms: 0.2507
+  type: 'test'
+  ...
+# Subtest: 跨启动保留正式已选/Final/Conflict，丢弃 action 锁和签名快照；旧缓存和串会话安全降级
+ok 114 - 跨启动保留正式已选/Final/Conflict，丢弃 action 锁和签名快照；旧缓存和串会话安全降级
+  ---
+  duration_ms: 0.7312
+  type: 'test'
+  ...
+# Subtest: Client 投影只消费正式展示字段，不复制 Backend debug/raw candidates/provenance
+ok 115 - Client 投影只消费正式展示字段，不复制 Backend debug/raw candidates/provenance
+  ---
+  duration_ms: 0.4842
+  type: 'test'
+  ...
+# Subtest: 参考页命名跳转保留来源、原文件和命中参数，使用实际安装的路由序列化
+ok 116 - 参考页命名跳转保留来源、原文件和命中参数，使用实际安装的路由序列化
+  ---
+  duration_ms: 3.9486
+  type: 'test'
+  ...
+# ok  waiting_user_input 映射为同一等待事件
+# ok  恢复 COMPARISON_SELECTION
+# ok  多选标记
+# ok  不向 C 端暴露 snapshotId
+# ok  USER_SELECTION 事件
+# ok  统一 selectionKind
+# ok  单来源自动选择标记
+# ok  报告入队后结束 AI loading
+# ok  入队状态
+# ok  入队不暴露 snapshotId
+# ok  报告开始状态
+# ok  报告开始不暴露 snapshotId
+# ok  报告完成
+# ok  报告带回已确认产品
+# ok  报告完成不暴露 snapshotId
+# ok  产品咨询卡片事件
+# ok  tool 事件可解析但 UI 不展示名称
+# ok  仅 toolName 的状态也可驱动等待文案
+# ok  带 stage 的 agent_status 不重复进入聊天状态
+# ok  同页引用在 SSE 边界合并
+# ok  SSE 保留正式档位标识
+# ok  done 保留完整模型及全部构造
+# ok  done 别名不重复处理引用
+# 23 passed, 0 failed
+# Subtest: src\\utils\\aiStream.test.ts
+ok 24 - src\\utils\\aiStream.test.ts
+  ---
+  duration_ms: 4466.0757
+  type: 'test'
+  ...
+# ok  AiSelectionCard 单选：REPORT_TYPE
+# ok  AiSelectionCard 单选不是 Checkbox
+# ok  报告类型确认按钮为继续
+# ok  报告类型不出现 1. 2. 3. 编号
+# ok  AiSelectionCard 多选：PRODUCT
+# ok  多选至少 1 项可确认
+# ok  未选择时不可确认
+# ok  Knowledge Source 2 个进入选择卡
+# ok  Knowledge Source 使用统一协议
+# ok  Knowledge Source 2 个可多选
+# ok  2 个来源展示选择卡
+# ok  图集确认按钮
+# ok  图集展示适用范围
+# ok  Knowledge Source 3 个仍多选
+# ok  3 个来源展示选择卡
+# ok  单来源不打断：隐藏选择卡
+# ok  单来源 autoSelectWhenSingle 直接确认
+# ok  单来源返回唯一 id
+# ok  Report Type 结构化选择
+# ok  Report Type 单选
+# ok  不要求用户输入 1
+# ok  单选切换而不是叠加
+# ok  Backend 已推断类型时不弹选择卡
+# ok  无 projectId 仍可用 code 提交
+# ok  产品多选统一到 USER_SELECTION
+# ok  产品选择 Checkbox
+# ok  PRODUCT 展示关键摘要
+# 27 passed, 0 failed
+# Subtest: src\\utils\\aiUserSelection.test.ts
+ok 25 - src\\utils\\aiUserSelection.test.ts
+  ---
+  duration_ms: 3729.2887
+  type: 'test'
+  ...
+# ok  保留内部路径和 query
+# ok  补齐前导斜杠
+# ok  解码一次编码的 redirect
+# ok  拒绝登录页
+# ok  拒绝注册页
+# ok  拒绝密码页作为回跳
+# ok  拒绝外部地址
+# ok  拒绝协议相对地址
+# ok  拒绝路径穿越
+# ok  解析详情路径
+# ok  解析详情 query
+# ok  登录页不能作为回跳目标
+# ok  首页是 tabBar
+# ok  带 query 的 tabBar 仍识别
+# ok  详情页不是 tabBar
+# ok  home 与导航常量保持同步
+# ok  projects 与导航常量保持同步
+# ok  assistant 与导航常量保持同步
+# ok  profile 与导航常量保持同步
+# ok  named 导航把 redirect 放进 params
+# ok  没有 redirect 时不带 params
+# ok  优先读 query
+# ok  兼容 params
+# ok  兼容数组 query
+# ok  query 指向登录页时丢弃
+# ok  普通页用 replace 保留页面栈
+# ok  普通页回跳路径
+# ok  普通页带回 query
+# ok  tabBar 用 reLaunch
+# ok  tabBar 去掉 query
+# ok  无 redirect 回首页
+# ok  默认回 home
+# ok  replace 失败时回退 replaceAll
+# ok  最终失败时不向外抛错
+# 34 passed, 0 failed
+# Subtest: src\\utils\\authRedirect.test.ts
+ok 26 - src\\utils\\authRedirect.test.ts
+  ---
+  duration_ms: 2958.8835
+  type: 'test'
+  ...
+# ok  passwordSet=false 显示设置
+# ok  passwordSet=true 显示修改
+# ok  设置密码复用短信验证码
+# ok  短信发送校验手机号
+# ok  设置密码提交短信与新密码
+# ok  忘记密码走同一短信表单
+# ok  确认密码必须一致
+# ok  验证码必须为 6 位
+# 8 passed, 0 failed
+# Subtest: src\\utils\\clientPassword.test.ts
+ok 27 - src\\utils\\clientPassword.test.ts
+  ---
+  duration_ms: 2606.258
+  type: 'test'
+  ...
+# ok  合法表单可提交
+# ok  固定 C 端 clientType
+# ok  提交手机号
+# ok  不传 role
+# ok  不传 adminLoginEnabled
+# ok  当前接口不传昵称
+# ok  当前接口不传验证码
+# ok  不传公司/渠道字段
+# ok  未勾选协议不可提交
+# ok  确认密码必须一致
+# ok  手机号格式校验
+# 11 passed, 0 failed
+# Subtest: src\\utils\\clientRegister.test.ts
+ok 28 - src\\utils\\clientRegister.test.ts
+  ---
+  duration_ms: 2569.6567
+  type: 'test'
+  ...
+# Subtest: 三页全部 38 档、12 行基线和同值双身份均保留，层热阻不拿产品热阻补位
+ok 122 - 三页全部 38 档、12 行基线和同值双身份均保留，层热阻不拿产品热阻补位
+  ---
+  duration_ms: 9.3262
+  type: 'test'
+  ...
+# Subtest: 来源 R₀ 仅按证据显示，缺失、重复及冲突保守退化；换版不继承旧来源状态和 URL
+ok 123 - 来源 R₀ 仅按证据显示，缺失、重复及冲突保守退化；换版不继承旧来源状态和 URL
+  ---
+  duration_ms: 1.3794
+  type: 'test'
+  ...
+# Subtest: 显式层索引优先，重复或多层证据不挪用产品热阻，旧 DTO 允许空层热阻
+ok 124 - 显式层索引优先，重复或多层证据不挪用产品热阻，旧 DTO 允许空层热阻
+  ---
+  duration_ms: 0.779
+  type: 'test'
+  ...
+# ok  新建可见范围不含 PUBLIC
+# ok  可写可见范围为 PRIVATE/DEPARTMENT
+# ok  PUBLIC 不能作为新建值
+# ok  历史 PUBLIC 仅展示兼容
+# ok  历史 PUBLIC 展示文案
+# ok  部门可见文案
+# ok  私有文案
+# ok  PRIVATE 不提交部门字段
+# ok  DEPARTMENT 必须选择部门
+# ok  0 个部门不能提交 DEPARTMENT
+# ok  DEPARTMENT 提交部门与包含下级
+# ok  可不包含下级部门
+# ok  无部门时禁用部门可见
+# ok  有部门时允许部门可见
+# ok  仅一个部门时自动选择
+# ok  多个部门不自动选择
+# ok  已选部门保持不变
+# ok  用可选部门名展示
+# ok  优先使用 Backend 附带部门名
+# ok  没有部门名时不暴露 departmentId
+# ok  部门可见可展示部门名与下级
+# ok  公开案例入口解析为 public
+# ok  我的项目不走 public
+# ok  我的项目调用 getMy
+# ok  公开项目调用 getPublic
+# ok  scope=public 不得落到 getMy
+# 26 passed, 0 failed
+# Subtest: src\\utils\\projectVisibility.test.ts
+ok 30 - src\\utils\\projectVisibility.test.ts
+  ---
+  duration_ms: 2600.9215
+  type: 'test'
+  ...
+# Subtest: 确认版本约束在协议归一化后仍保留，旧引用不能标到新模型
+ok 126 - 确认版本约束在协议归一化后仍保留，旧引用不能标到新模型
+  ---
+  duration_ms: 1.9708
+  type: 'test'
+  ...
+# Subtest: 来源标题视觉分层仅使用页面标题或明确统一系统名，原图路由有安全默认值
+ok 127 - 来源标题视觉分层仅使用页面标题或明确统一系统名，原图路由有安全默认值
+  ---
+  duration_ms: 1.3263
+  type: 'test'
+  ...
+# Subtest: 同页多方案合并一页与字段；跨页分别保留，输入不修改
+ok 128 - 同页多方案合并一页与字段；跨页分别保留，输入不修改
+  ---
+  duration_ms: 1.0126
+  type: 'test'
+  ...
+# Subtest: 卡片使用正式行参数，错误 summary 不覆盖，缺失值不推导
+ok 129 - 卡片使用正式行参数，错误 summary 不覆盖，缺失值不推导
+  ---
+  duration_ms: 0.6795
+  type: 'test'
+  ...
+# Subtest: 相同数字和相同 optionId 必须限定构造，失效/跨页/歧义标识不猜测
+ok 130 - 相同数字和相同 optionId 必须限定构造，失效/跨页/歧义标识不猜测
+  ---
+  duration_ms: 0.2696
+  type: 'test'
+  ...
+# Subtest: 旧页图片兼容，无模型的候选条不能伪造档位高亮
+ok 131 - 旧页图片兼容，无模型的候选条不能伪造档位高亮
+  ---
+  duration_ms: 0.3394
+  type: 'test'
+  ...
+# Subtest: highlights 标识协议同样可用，数字格式补三位但不降低正式精度
+ok 132 - highlights 标识协议同样可用，数字格式补三位但不降低正式精度
+  ---
+  duration_ms: 1.2888
+  type: 'test'
+  ...
+# Subtest: 持久化删除 signed URL，原内存数据不变，标识和模型可恢复
+ok 133 - 持久化删除 signed URL，原内存数据不变，标识和模型可恢复
+  ---
+  duration_ms: 2.3532
+  type: 'test'
+  ...
+# Subtest: 表格路由只携带来源标识和匹配位置，不携带模型或签名图片
+ok 134 - 表格路由只携带来源标识和匹配位置，不携带模型或签名图片
+  ---
+  duration_ms: 2.2173
+  type: 'test'
+  ...
+# Subtest: 同页不同消息按原消息定位，缺失或不一致的来源不使用其他消息代替
+ok 135 - 同页不同消息按原消息定位，缺失或不一致的来源不使用其他消息代替
+  ---
+  duration_ms: 1.6551
+  type: 'test'
+  ...
+# Subtest: 冻结表格只读取指定快照，保留全部档位和正式选项定位
+ok 136 - 冻结表格只读取指定快照，保留全部档位和正式选项定位
+  ---
+  duration_ms: 0.4633
+  type: 'test'
+  ...
+# Subtest: 全屏旧路由不能把换版或已失效档位绑定到新模型首行
+ok 137 - 全屏旧路由不能把换版或已失效档位绑定到新模型首行
+  ---
+  duration_ms: 1.609
+  type: 'test'
+  ...
+# Subtest: 待确认、缺快照、跨会话及旧生成阶段不可创建；CONFIRMED 只发送真实绑定 ID
+ok 138 - 待确认、缺快照、跨会话及旧生成阶段不可创建；CONFIRMED 只发送真实绑定 ID
+  ---
+  duration_ms: 1.9851
+  type: 'test'
+  ...
+# Subtest: 复用 READY/FAILED 沿用报告和任务 ID，兼容旧创建响应
+ok 139 - 复用 READY/FAILED 沿用报告和任务 ID，兼容旧创建响应
+  ---
+  duration_ms: 0.8033
+  type: 'test'
+  ...
+# Subtest: report、task、审核、发布、真实 PDF 格式互不替代
+ok 140 - report、task、审核、发布、真实 PDF 格式互不替代
+  ---
+  duration_ms: 0.7002
+  type: 'test'
+  ...
+# Subtest: 单项报告选择必须可见并由用户触发，普通知识来源继续允许自动选中
+ok 141 - 单项报告选择必须可见并由用户触发，普通知识来源继续允许自动选中
+  ---
+  duration_ms: 0.7752
+  type: 'test'
+  ...
+# Subtest: 启动恢复清除创建锁/错误/请求 revision，不保存签名 URL 或快照缓存
+ok 142 - 启动恢复清除创建锁/错误/请求 revision，不保存签名 URL 或快照缓存
+  ---
+  duration_ms: 0.6943
+  type: 'test'
+  ...
+# Subtest: 执行真实 reports 模块：创建、PDF 预览及下载精确使用既有 request
+ok 143 - 执行真实 reports 模块：创建、PDF 预览及下载精确使用既有 request
+  ---
+  duration_ms: 80.4507
+  type: 'test'
+  ...
+# Subtest: 报告列表通过真实详情 publishedAt 补充，最多四个并发，不按 APPROVED 猜发布
+ok 144 - 报告列表通过真实详情 publishedAt 补充，最多四个并发，不按 APPROVED 猜发布
+  ---
+  duration_ms: 5.7593
+  type: 'test'
+  ...
+# Subtest: 权限/网络失败与错 reportId 不推断发布；离开列表停止后续读取
+ok 145 - 权限/网络失败与错 reportId 不推断发布；离开列表停止后续读取
+  ---
+  duration_ms: 0.8138
+  type: 'test'
+  ...
+# Subtest: 简图文字不混入热工行，保留跳号及原始layerIndex；不从空值或名称猜来源
+ok 146 - 简图文字不混入热工行，保留跳号及原始layerIndex；不从空值或名称猜来源
+  ---
+  duration_ms: 2.6749
+  type: 'test'
+  ...
+# Subtest: 可变材料嵌入完整档位，公共参数合并，同页各构造保持正式选项身份
+ok 147 - 可变材料嵌入完整档位，公共参数合并，同页各构造保持正式选项身份
+  ---
+  duration_ms: 0.6325
+  type: 'test'
+  ...
+# Subtest: 单厚度、无选项、空构造、多个可变层都不猜关联或补算数值
+ok 148 - 单厚度、无选项、空构造、多个可变层都不猜关联或补算数值
+  ---
+  duration_ms: 0.2968
+  type: 'test'
+  ...
+# ok  小程序展示微信快速登录
+# ok  H5 不展示微信快速登录
+# ok  App 不调用小程序登录
+# ok  首次微信登录进入首页
+# ok  首次登录不强制公司行业渠道部门
+# ok  再次微信登录进入首页
+# ok  手机号已有账号仍提交两个 code
+# ok  不提交明文手机号
+# ok  请求体只有 loginCode 与 phoneCode
+# ok  拒绝手机号授权使用自然提示
+# ok  wx.login 失败不报技术错误
+# ok  未拿到 loginCode 前不提交旧 code
+# ok  微信 code 失效提示重新授权
+# ok  用户被禁用使用账号文案
+# ok  密码未设置文案
+# ok  未确认协议不发起登录
+# ok  未确认协议不保留 phoneCode
+# ok  登录中禁止重复提交
+# ok  非微信环境不调用登录
+# ok  无部门不视为登录失败
+# ok  首次微信用户无部门仍可登录
+# ok  会话不保存临时 code
+# ok  code 字段标记为临时
+# 23 passed, 0 failed
+# Subtest: src\\utils\\wechatPhoneLogin.test.ts
+ok 36 - src\\utils\\wechatPhoneLogin.test.ts
+  ---
+  duration_ms: 1871.5542
+  type: 'test'
+  ...
+1..149
+# tests 149
+# suites 0
+# pass 148
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 18341.9026
+ ELIFECYCLE  Test failed. See above for more details.
