@@ -10,3 +10,7 @@ coverage/
 logs/
 .deploy-release.tgz
 *.log
+
+# 本地构建备份与工具工作目录，不入库
+dist.bak-*/
+.workbuddy/
