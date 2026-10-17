@@ -169,6 +169,18 @@ interface ConditionState {
   missing: ConditionName[];
 }
 
+/** 指标类条件的 condition 名称（新旧接口两套命名都算） */
+const METRIC_CONDITIONS: ReadonlySet<ConditionName> = new Set<ConditionName>([
+  "K", "TOTAL_R", "PRODUCT_R", "targetValue", "targetK", "targetResistance"
+]);
+export const isMetricCondition = (name: ConditionName): boolean => METRIC_CONDITIONS.has(name);
+
+/**
+ * 指标列在整行缺失时：既不能算命中，也不能算「不满足」。
+ * 该行不得进入候选（否则会返回一条没有该指标的记录），但诊断归入「数据缺失」。
+ */
+const hasMissingMetric = (state: ConditionState): boolean => state.missing.some(isMetricCondition);
+
 /** 解析 K 查询模式（缺省 MAX_LIMIT，保持历史口径） */
 export function resolveKLookupMode(q: CandidateQueryConditions): ThermalLookupMode {
   return q.mode ?? q.kMode ?? DEFAULT_K_LOOKUP_MODE;
@@ -225,7 +237,11 @@ export function evaluateConditions(row: CandidateRow, q: CandidateQueryCondition
     // 新多条件按指标标注；旧接口保留原 condition 名称。
     const name: ConditionName = q.filters?.length ? filter.metric : filter.metric === q.metric ? "targetValue"
       : filter.metric === "K" ? "targetK" : "targetResistance";
-    matchesMetric(getCandidateMetricValue(row, filter.metric), filter.targetValue, filter.mode, filter.tolerance)
+    const value = getCandidateMetricValue(row, filter.metric);
+    // 该行没有记录这个指标（null/undefined）≠ 指标不满足：
+    // 前者是「数据缺失」，后者是「有值但不达标」，诊断必须分开（不得把缺列说成不达标）。
+    if (value == null) { missing.push(name); continue; }
+    matchesMetric(value, filter.targetValue, filter.mode, filter.tolerance)
       ? matched.push(name) : unmatched.push(name);
   }
   if (q.buildingType !== undefined) {
@@ -338,7 +354,8 @@ export function matchThermalCandidates(rows: CandidateRow[], q: CandidateQueryCo
 
       const state = evaluateConditions(row, q);
       // 厚度分类只能放宽厚度本身，不能跳过 K、型号、体系等其他约束。
-      if (state.unmatched.some((condition) => condition !== "thickness")) continue;
+      // 指标列整行缺失同样不能进入候选（否则会返回一条没有该指标的记录）。
+      if (state.unmatched.some((condition) => condition !== "thickness") || hasMissingMetric(state)) continue;
 
       if (hasExactThickness) {
         // 组内已有厚度命中档：只取厚度命中的行（其余厚度档不进入候选）
@@ -363,6 +380,10 @@ export function matchThermalCandidates(rows: CandidateRow[], q: CandidateQueryCo
   const globalMissingConditions: ConditionName[] = [];
   if (q.substrateThickness !== undefined && !rowsWithData.has("substrateThickness")) globalMissingConditions.push("substrateThickness");
   if (q.buildingType !== undefined && !rowsWithData.has("buildingType")) globalMissingConditions.push("buildingType");
+  // 整张已发布表都没有该指标列：属于「无字段」，与「有字段但无匹配」必须分开诊断。
+  for (const filter of normalizeThermalLookupQuery(q).filters) {
+    if (!rows.some((row) => getCandidateMetricValue(row, filter.metric) != null)) globalMissingConditions.push(filter.metric);
+  }
 
   const candidates = [...exact, ...neighbors].sort(buildCandidateSorter(q));
   // 目标 K 值排序信息（按查询模式）：

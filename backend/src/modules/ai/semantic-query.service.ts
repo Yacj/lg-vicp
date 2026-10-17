@@ -46,7 +46,8 @@ export type SemanticLookupResolution = ReturnType<typeof normalizeConversationLo
 
 /** Fast Path → 受控分类调用 → 目录验证 → SSOT；模型参数不覆盖用户语义。 */
 export async function parseSemanticQuery(ctx: Context, input: ThermalQueryState = {}, dictionaryInput?: SemanticDictionary, requireSemantic = false): Promise<SemanticLookupResolution> {
-  const message = normalizeSemanticText(ctx.userMessage ?? "");
+  const message = normalizeSemanticText(ctx.domainDecision?.mutation === "QUERY" && ctx.domainDecision.queryContextMessageId
+    ? ctx.domainDecision.queryEvidenceText ?? ctx.userMessage ?? "" : ctx.userMessage ?? "");
   const pageLookup = ctx.domainDecision?.semantic?.pageQuery ? currentConfirmedPageLookup(ctx.taskState?.confirmedPageLookup, ctx.conversation) : undefined;
   const last = pageLookup ? { query: pageLookup.query, candidates: [], createdAt: pageLookup.createdAt } : ctx.taskState?.lastReferenceLookup;
   const proposed = ctx.domainDecision?.mutation === "QUERY" ? ctx.domainDecision.semantic?.pageQuery : undefined;
@@ -61,7 +62,8 @@ export async function parseSemanticQuery(ctx: Context, input: ThermalQueryState 
   const dictionary = dictionaryInput ?? await loadThermalQueryDictionary(ctx.app.db);
   if (proposed) {
     const relation = ctx.domainDecision?.semantic?.relation;
-    const queryMode = relation === "REFINE" || relation === "CONTINUE" ? "REFINE_QUERY" : relation === "NEW" || relation === "SWITCH_TOPIC" ? "NEW_QUERY" : proposed.queryMode;
+    const queryMode = ctx.domainDecision?.queryContextMessageId ? proposed.queryMode
+      : relation === "REFINE" || relation === "CONTINUE" ? "REFINE_QUERY" : relation === "NEW" || relation === "SWITCH_TOPIC" ? "NEW_QUERY" : proposed.queryMode;
     const query = proposed.intent === "REFERENCE_LOOKUP" ? applySemanticQuery(message, { ...proposed, queryMode }, dictionary, last?.query)
       : { unresolved: [{ field: "intent", reason: "资料查询提案的读取目标不一致，请明确要查询的参数。" }] };
     return { query: { ...query, intent: "REFERENCE_LOOKUP", parserSource: "LLM" }, lifecycle: queryMode,

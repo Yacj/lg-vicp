@@ -8,6 +8,7 @@ import type { ToolRuntimeContext } from "./tools/tool-runtime.js";
 import type { ReferenceLookupCandidate } from "./conversation-task.js";
 import { buildAllowedAnswerFacts } from "./thermal-answer-validation.js";
 import { decideDomainTurn } from "./ai-domain-turn-decision.js";
+import { readHistoricalConfirmedPage } from "./confirmed-page-reference-read.js";
 
 export type ReferenceReadContext = Pick<ToolRuntimeContext, "app" | "request" | "user" | "conversation" | "userMessage" | "taskState" | "onEvent" | "domainDecision" | "candidateQueryRevision"> & { candidatePublication?: "READ_ONLY_ADVICE" };
 /** 重验会话/客户端/项目，只读取当前确认来源，不重新绑定旧optionId。 */
@@ -87,6 +88,8 @@ export async function resolveCandidateReference(ctx: ReferenceReadContext) {
   return { candidates: selected, pages, sources, reason: undefined, query: lookup.query, confirmedFinalIds };
 }
 export async function resolveReferenceRead(ctx: ReferenceReadContext) {
+  const historicalPage = await readHistoricalConfirmedPage(ctx);
+  if (historicalPage) return historicalPage;
   const resolved = await resolveCandidateReference(ctx);
   const query = { ...resolved.query,
     ...(resolved.reason ? { unresolved: [{ field: "reference", reason: resolved.reason }] } : {}) };

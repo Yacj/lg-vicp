@@ -11,7 +11,7 @@ const payload = (): ReportSnapshotPayload => {
 };
 it("中文工程章节、单位、独立项目、缺标准未核验；不打印原始对象合同", () => {
   const html = renderTemplateHtml(payload());
-  for (const value of ["最终", "产品 R", "总 R₀", "W/(m²·K)", "(m²·K)/W", "板厚 mm", "混凝土", "0.1245", "7.5", "8.03", "未进行地区/项目合规性核验", "独立已确认方案"])
+  for (const value of ["最终", "产品层热阻 R", "总热阻 R₀", "W/(m²·K)", "(m²·K)/W", "产品厚度 mm", "混凝土", "0.1245", "7.5", "8.03", "未进行地区/项目合规性核验", "独立已确认方案"])
     expect(html).toContain(value);
   expect(html).not.toContain("<th>candidateId</th>"); expect(html).not.toContain("符合规范"); expect(html).not.toContain("备选方案对比");
 });

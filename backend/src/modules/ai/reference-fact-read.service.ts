@@ -20,14 +20,23 @@ export function compareReferenceNumbers(a: ReferenceLookupCandidate, b: Referenc
   return `${metricLabel[metric]}：${left.toFixed(3)} ${left > right ? ">" : left < right ? "<" : "="} ${right.toFixed(3)}。`;
 }
 
+/** 用户给定数值的算术关系与来源核验分开；不能把此结果当作确认工程参数。 */
+export function compareClaimedMetricNumbers(message: string) {
+  const claims = extractSemanticFacts(message).filter(fact => fact.kind === "metric");
+  if (claims.length !== 2 || claims[0]!.metric !== claims[1]!.metric || claims.some(claim => !Number.isFinite(claim.value) || claim.value <= 0)) return "";
+  const [left, right] = claims;
+  return `按你给出的同种指标数值，${left!.value.toFixed(3)} ${left!.value > right!.value ? ">" : left!.value < right!.value ? "<" : "="} ${right!.value.toFixed(3)}。这只是所给数值的大小关系，尚未证明它们对应指定型号、厚度或正式来源。\n`;
+}
+
 /** 只读事实查询不发布候选，不写QueryState、SolutionState、Snapshot或Report。 */
 export async function resolveReferenceFactRead(ctx: ReferenceReadContext, hits: readonly WikiHit[]) {
   const request = ctx.domainDecision?.semantic?.factRead;
-  if (!request || ctx.domainDecision?.mutation !== "NONE") return undefined;
+  if (!request || ctx.domainDecision?.mutation !== "NONE"
+    || ctx.domainDecision.intent !== "KNOWLEDGE_EXPLAIN" && ctx.domainDecision.intent !== "REFERENCE_DETAIL") return undefined;
   const session = await assertSolutionAccess(ctx.app.db, ctx.user, ctx.conversation.id);
   const respond = (answer: string, candidates: ReferenceLookupCandidate[] = [], pages: ReferencePageBlock[] = [], code = "FACT_IDENTITY_REQUIRED") => {
     const sources = pages.map(page => ({ documentId: page.page.documentId, pageId: page.page.pageId, title: page.page.documentTitle, pageLabel: page.page.pageLabel }));
-    const facts = buildAllowedAnswerFacts({}, candidates); facts.canonicalAnswers = [answer];
+    const facts = buildAllowedAnswerFacts({}, candidates); facts.canonicalAnswers = [(request.mode === "COMPARE" && !candidates.length ? compareClaimedMetricNumbers(ctx.userMessage ?? "") : "") + answer];
     return { facts, candidates, sources, referencePages: pages, readOnly: true as const, needsClarification: !candidates.length, validationCode: code };
   };
   if (session.projectId !== ctx.conversation.projectId) return respond("会话所属项目已变化，请重新查询。");
@@ -50,18 +59,22 @@ export async function resolveReferenceFactRead(ctx: ReferenceReadContext, hits: 
   const prefix = request.historyClaim && codes.length ? codes.map(code => historyMentionStatus(code, history)
     ? `当前会话先前的助手回答提到过 ${code}；以下重新核验资料。`
     : `在当前可核验的会话记录中，助手此前未提到 ${code}。下面按独立资料查询说明。`).join("\n") + "\n" : "";
-  // 核对省略的构造仅可来自最近一次实际助手回答中的唯一编码；不从待核对数字反选身份。
-  if (!codes.length && request.mode === "VERIFY") {
+  // 核对/追问省略的身份仅可来自最近一次实际助手回答中的唯一编码；不从待核对数字反选身份。
+  let codesFromHistory = false;
+  if (!codes.length && (request.mode === "VERIFY" || request.mode === "EXPLAIN")) {
     const prior = history.find(row => constructionCodes(row.content).length);
     codes = [...new Set(prior ? constructionCodes(prior.content) : [])];
+    codesFromHistory = codes.length > 0;
   }
   const specs = requestedSpecClasses(message);
   if (request.mode !== "COMPARE" && codes.length !== 1) return respond(prefix + "请补充要核对的构造编号；若已有多个构造，还需明确对应来源和保温板厚度。");
   const recentLocators = history.flatMap(row => Date.now() - row.createdAt.getTime() <= 24 * 3600_000 ? referencePageLocators(row.metadata) : []);
   const currentScope = lookup && !lookup.candidateResultInvalid && lookup.projectId === session.projectId
     && Date.now() - Date.parse(lookup.createdAt) <= 24 * 3600_000 ? lookup.query : undefined;
-  // 新的独立查询只用本轮已授权检索命中；省略核对只能使用会话已消费来源，不宽查。
-  const useHistory = request.mode === "VERIFY" && !constructionCodes(message).length;
+  // 新的独立查询只用本轮已授权检索命中；省略核对/追问只能使用会话已消费来源，不宽查。
+  // 只有确实存在可回溯的原页定位时才用历史范围，否则退回本轮命中，避免「有身份无来源」。
+  const useHistory = !constructionCodes(message).length && recentLocators.length > 0
+    && (request.mode === "VERIFY" || codesFromHistory);
   const historyRows = useHistory ? await readConsumableReferencePages(ctx.app, recentLocators.map(item => item.pageId), session.projectId) : [];
   const documentIds = useHistory ? historyRows.map(row => row.document.id) : hits.map(hit => hit.documentId);
   const versionIds = useHistory ? historyRows.map(row => row.version.id) : hits.map(hit => hit.versionId);

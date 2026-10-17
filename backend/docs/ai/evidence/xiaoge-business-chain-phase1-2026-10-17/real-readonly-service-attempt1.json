@@ -1,0 +1,375 @@
+{
+  "kind": "read_only_service_probe_not_http_uat",
+  "startedAt": "2026-10-17T06:53:47.354Z",
+  "storage": "empty_url_stub_no_oss",
+  "attempt": 1,
+  "cases": [
+    {
+      "id": "K_0.2",
+      "query": {
+        "intent": "REFERENCE_LOOKUP",
+        "filters": [
+          {
+            "metric": "K",
+            "targetValue": 0.2,
+            "mode": "APPROX"
+          }
+        ],
+        "parserSource": "LLM",
+        "unresolved": [],
+        "conditionTrace": [
+          {
+            "field": "K",
+            "value": 0.2,
+            "mode": "APPROX",
+            "source": "USER_EXPLICIT",
+            "classification": "HARD_CONSTRAINT"
+          }
+        ]
+      },
+      "formalCandidateCount": 1,
+      "formalQualifications": [
+        {
+          "candidateId": "da25c17b-dc57-4f21-948d-44c168cdb609",
+          "confirmationEligible": false,
+          "qualification": "READ_ONLY_REFERENCE"
+        }
+      ],
+      "knowledgeReadOnlyCount": 119,
+      "diagnostics": {
+        "scope": "JOINT",
+        "issues": [],
+        "scannedCount": 892,
+        "identityCount": 892,
+        "matchedCount": 120,
+        "missingMetrics": [],
+        "metricScopes": [
+          {
+            "metric": "K",
+            "values": [
+              0.085,
+              0.09,
+              0.091,
+              0.092,
+              0.093,
+              0.094,
+              0.096,
+              0.098
+            ],
+            "count": 305,
+            "rowCount": 884,
+            "truncated": true
+          }
+        ],
+        "partialMissingMetrics": [
+          {
+            "metric": "K",
+            "missingRows": 8,
+            "totalRows": 892
+          }
+        ],
+        "coverage": "AUTHORIZED_PUBLISHED_ONLY"
+      },
+      "formalDiagnostics": {
+        "scope": "THERMAL_ROW",
+        "issues": [],
+        "scannedCount": 2,
+        "identityCount": 2,
+        "matchedCount": 1,
+        "missingMetrics": [],
+        "metricScopes": [
+          {
+            "metric": "K",
+            "values": [
+              0.1884,
+              0.2322
+            ],
+            "count": 2,
+            "rowCount": 2,
+            "truncated": false
+          }
+        ],
+        "partialMissingMetrics": [],
+        "coverage": "AUTHORIZED_PUBLISHED_ONLY"
+      },
+      "sourceAssociations": [],
+      "sourceConflicts": [],
+      "returnedPages": [
+        {
+          "pageId": "514f3b87-3218-4f8c-ad88-e1bb8e550c8c",
+          "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+          "optionIds": [
+            "kp-9a75bcb2da7e88b48fd46159-1-o6",
+            "kp-9a75bcb2da7e88b48fd46159-0-o7",
+            "kp-9a75bcb2da7e88b48fd46159-0-o8",
+            "kp-9a75bcb2da7e88b48fd46159-1-o7",
+            "kp-9a75bcb2da7e88b48fd46159-1-o5"
+          ]
+        },
+        {
+          "pageId": "5dcec0bb-e89e-4220-8cd1-3d75516c9757",
+          "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+          "optionIds": [
+            "kp-5c5175a0d3dde556ce2f633c-1-o3",
+            "kp-5c5175a0d3dde556ce2f633c-0-o4"
+          ]
+        },
+        {
+          "pageId": "aa9f0632-4d09-41cd-98b7-9e207b427467",
+          "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+          "optionIds": [
+            "kp-d482a959267c5d91dc4486c3-1-o0",
+            "kp-d482a959267c5d91dc4486c3-0-o1"
+          ]
+        }
+      ],
+      "answer": "以下为满足当前筛选条件的正式参考行；只读，尚未绑定可确认原页：\nVICP复合保温板外墙；基层 钢筋混凝土 200 mm；方案 VICP-LAYERED；规格 VICP-BOARD-25；厚度 35 mm；产品层热阻 R=5 m²·K/W；总热阻 R₀=5.3068 m²·K/W；K=0.1884 W/(m²·K)。\n来源：VICP热工计算表格公式（正式热工参考集（已审核发布）），可查看原始来源页面（未记录印刷页码）。\n\n以下为已确认页面的只读参考，不构成正式方案候选：\n本次已确认资料匹配 119 档、88 个独立构造，当前引用 9 档。\n\n- **外墙A2-4**，基层加气混凝土砌块 200mm：板厚 **40mm**，产品整体热阻 **4.000**，整构造传热阻（源文符号待核） **5.040**，传热系数 K **0.198**。来源：《测试知识库》，印刷页码 4。\n\n- **外墙A1=4**，基层加气混凝土砌块 200mm：板厚 **25mm**，产品整体热阻 **4.000**，整构造传热阻（源文符号待核） **5.040**，传热系数 K **0.198**。来源：《测试知识库》，印刷页码 2。\n\n- **外墙C1-4**，基层加气混凝土砌块 200mm：板厚 **25mm**，产品整体热阻 **4.000**，整构造传热阻（源文符号待核） **5.044**，传热系数 K **0.198**。来源：《测试知识库》，印刷页码 20。\n\n- **外墙A2-3**，基层蒸压灰砂砖 240mm：板厚 **45mm**，产品整体热阻 **4.500**，整构造传热阻（源文符号待核） **4.916**，传热系数 K **0.203**。来源：《测试知识库》，印刷页码 4。\n\n- **外墙A1=3**，基层蒸压灰砂砖 240mm：板厚 **30mm**，产品整体热阻 **4.800**，整构造传热阻（源文符号待核） **5.216**，传热系数 K **0.192**。来源：《测试知识库》，印刷页码 2。\n\n- **外墙C1-3**，基层蒸压灰砂砖 240mm：板厚 **30mm**，产品整体热阻 **4.800**，整构造传热阻（源文符号待核） **5.220**，传热系数 K **0.191**。来源：《测试知识库》，印刷页码 20。\n\n- **外墙A2-3**，基层蒸压灰砂砖 240mm：板厚 **50mm**，产品整体热阻 **5.000**，整构造传热阻（源文符号待核） **5.416**，传热系数 K **0.185**。来源：《测试知识库》，印刷页码 4。\n\n- **外墙A2-4**，基层加气混凝土砌块 200mm：板厚 **45mm**，产品整体热阻 **4.500**，整构造传热阻（源文符号待核） **5.540**，传热系数 K **0.181**。来源：《测试知识库》，印刷页码 4。\n\n- **外墙A2-4**，基层加气混凝土砌块 200mm：板厚 **35mm**，产品整体热阻 **3.500**，整构造传热阻（源文符号待核） **4.540**，传热系数 K **0.220**。来源：《测试知识库》，印刷页码 4。\n\n其余匹配档位未全部列入回答；来源表保留完整页面及所有厚度，不以当前引用数量代表全表。\n\n同值不代表做法相同，请结合完整表及原始构造简图核对。材料层热阻、产品整体热阻与整构造传热阻分别读取，缺值不补算；本次仅查阅资料，不选择方案或判断规范达标。\n\n部分确认记录未提供所问独立指标，结果仅覆盖具备该指标的记录。\n\n仅覆盖当前有权访问、已发布生效的确认范围；参考值不构成计算或合规结论。"
+    },
+    {
+      "id": "PRODUCT_R_0.3",
+      "query": {
+        "intent": "REFERENCE_LOOKUP",
+        "filters": [
+          {
+            "metric": "PRODUCT_R",
+            "targetValue": 0.3,
+            "mode": "APPROX"
+          }
+        ],
+        "parserSource": "LLM",
+        "unresolved": [],
+        "conditionTrace": [
+          {
+            "field": "PRODUCT_R",
+            "value": 0.3,
+            "mode": "APPROX",
+            "source": "USER_EXPLICIT",
+            "classification": "HARD_CONSTRAINT"
+          }
+        ]
+      },
+      "formalCandidateCount": 0,
+      "formalQualifications": [],
+      "knowledgeReadOnlyCount": 0,
+      "diagnostics": {
+        "scope": "JOINT",
+        "issues": [
+          "NO_MATCHING_VALUE"
+        ],
+        "scannedCount": 892,
+        "identityCount": 892,
+        "matchedCount": 0,
+        "missingMetrics": [],
+        "metricScopes": [
+          {
+            "metric": "PRODUCT_R",
+            "values": [
+              0.1,
+              0.567,
+              0.661,
+              0.693,
+              0.756,
+              0.826,
+              0.866,
+              0.945
+            ],
+            "count": 59,
+            "rowCount": 802,
+            "truncated": true
+          }
+        ],
+        "partialMissingMetrics": [
+          {
+            "metric": "PRODUCT_R",
+            "missingRows": 90,
+            "totalRows": 892
+          }
+        ],
+        "coverage": "AUTHORIZED_PUBLISHED_ONLY"
+      },
+      "formalDiagnostics": {
+        "scope": "THERMAL_ROW",
+        "issues": [
+          "NO_MATCHING_VALUE"
+        ],
+        "scannedCount": 2,
+        "identityCount": 2,
+        "matchedCount": 0,
+        "missingMetrics": [],
+        "metricScopes": [
+          {
+            "metric": "PRODUCT_R",
+            "values": [
+              4,
+              5
+            ],
+            "count": 2,
+            "rowCount": 2,
+            "truncated": false
+          }
+        ],
+        "partialMissingMetrics": [],
+        "coverage": "AUTHORIZED_PUBLISHED_ONLY"
+      },
+      "sourceAssociations": [],
+      "sourceConflicts": [],
+      "returnedPages": [],
+      "answer": "本次联合读取的正式参考数据和已确认资料中有当前身份的数据，但未找到同时满足所述目标值及其他筛选条件的档位。\n保留其余筛选条件后，产品层热阻 R可核验取值共 59 种，本次仅列前 8 种：0.1、0.567、0.661、0.693、0.756、0.826、0.866、0.945。这些是范围内取值，未作为命中。\n当前身份范围部分记录未单独提供产品层热阻 R，结果只覆盖提供该指标的记录，不代表全部构造。\n本次仅覆盖有权访问、已发布且生效的确认数据；未发布、不可访问及未确认资料不在本次范围内。"
+    },
+    {
+      "id": "PRODUCT_R_0.3_III_35",
+      "query": {
+        "intent": "REFERENCE_LOOKUP",
+        "filters": [
+          {
+            "metric": "PRODUCT_R",
+            "targetValue": 0.3,
+            "mode": "APPROX"
+          }
+        ],
+        "specClass": "III",
+        "thicknessMm": 35,
+        "parserSource": "LLM",
+        "unresolved": [],
+        "conditionTrace": [
+          {
+            "field": "specClass",
+            "value": "III",
+            "source": "USER_EXPLICIT",
+            "classification": "HARD_CONSTRAINT"
+          },
+          {
+            "field": "thicknessMm",
+            "value": 35,
+            "source": "USER_EXPLICIT",
+            "classification": "HARD_CONSTRAINT"
+          },
+          {
+            "field": "PRODUCT_R",
+            "value": 0.3,
+            "mode": "APPROX",
+            "source": "USER_EXPLICIT",
+            "classification": "HARD_CONSTRAINT"
+          }
+        ]
+      },
+      "formalCandidateCount": 0,
+      "formalQualifications": [],
+      "knowledgeReadOnlyCount": 0,
+      "diagnostics": {
+        "scope": "JOINT",
+        "issues": [
+          "NO_MATCHING_VALUE"
+        ],
+        "scannedCount": 892,
+        "identityCount": 20,
+        "matchedCount": 0,
+        "missingMetrics": [],
+        "metricScopes": [
+          {
+            "metric": "PRODUCT_R",
+            "values": [
+              2.333
+            ],
+            "count": 1,
+            "rowCount": 20,
+            "truncated": false
+          }
+        ],
+        "partialMissingMetrics": [],
+        "coverage": "AUTHORIZED_PUBLISHED_ONLY"
+      },
+      "formalDiagnostics": {
+        "scope": "THERMAL_ROW",
+        "issues": [
+          "IDENTITY_NOT_FOUND"
+        ],
+        "scannedCount": 2,
+        "identityCount": 0,
+        "matchedCount": 0,
+        "missingMetrics": [],
+        "metricScopes": [],
+        "partialMissingMetrics": [],
+        "coverage": "AUTHORIZED_PUBLISHED_ONLY"
+      },
+      "sourceAssociations": [],
+      "sourceConflicts": [],
+      "returnedPages": [],
+      "answer": "本次联合读取的正式参考数据和已确认资料中有当前身份的数据，但未找到同时满足所述目标值及其他筛选条件的档位。\n保留其余筛选条件后，产品层热阻 R可核验取值为：2.333。这些是范围内取值，未作为命中。\n本次仅覆盖有权访问、已发布且生效的确认数据；未发布、不可访问及未确认资料不在本次范围内。"
+    },
+    {
+      "id": "ROOF_PAGE_90_PRODUCT_R",
+      "query": {
+        "intent": "REFERENCE_LOOKUP",
+        "filters": [
+          {
+            "metric": "PRODUCT_R",
+            "targetValue": 0.3,
+            "mode": "APPROX"
+          }
+        ],
+        "applicationPart": "ROOF",
+        "pageLabel": "90",
+        "parserSource": "LLM",
+        "unresolved": [],
+        "conditionTrace": [
+          {
+            "field": "applicationPart",
+            "value": "ROOF",
+            "source": "USER_EXPLICIT",
+            "classification": "HARD_CONSTRAINT"
+          },
+          {
+            "field": "pageLabel",
+            "value": "90",
+            "source": "USER_EXPLICIT",
+            "classification": "HARD_CONSTRAINT"
+          },
+          {
+            "field": "PRODUCT_R",
+            "value": 0.3,
+            "mode": "APPROX",
+            "source": "USER_EXPLICIT",
+            "classification": "HARD_CONSTRAINT"
+          }
+        ]
+      },
+      "formalCandidateCount": 0,
+      "formalQualifications": [],
+      "knowledgeReadOnlyCount": 0,
+      "diagnostics": {
+        "scope": "JOINT",
+        "issues": [
+          "IDENTITY_NOT_FOUND"
+        ],
+        "scannedCount": 2,
+        "identityCount": 0,
+        "matchedCount": 0,
+        "missingMetrics": [],
+        "metricScopes": [],
+        "partialMissingMetrics": [],
+        "coverage": "AUTHORIZED_PUBLISHED_ONLY"
+      },
+      "formalDiagnostics": {
+        "scope": "THERMAL_ROW",
+        "issues": [
+          "IDENTITY_NOT_FOUND"
+        ],
+        "scannedCount": 2,
+        "identityCount": 0,
+        "matchedCount": 0,
+        "missingMetrics": [],
+        "metricScopes": [],
+        "partialMissingMetrics": [],
+        "coverage": "AUTHORIZED_PUBLISHED_ONLY"
+      },
+      "sourceAssociations": [],
+      "sourceConflicts": [],
+      "returnedPages": [],
+      "answer": "本次联合读取的正式参考数据和已确认资料中没有同时符合当前体系、型号、基层、厚度及来源限制的记录，尚不能按该身份判断目标值。\n本次仅覆盖有权访问、已发布且生效的确认数据；未发布、不可访问及未确认资料不在本次范围内。"
+    }
+  ],
+  "readOnlyBefore": "on",
+  "readOnlyAfter": "on",
+  "completedAt": "2026-10-17T06:53:59.529Z"
+}

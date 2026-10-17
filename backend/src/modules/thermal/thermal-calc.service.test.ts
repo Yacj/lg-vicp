@@ -407,3 +407,94 @@ describe("executeThermalCalc REFERENCE_TABLE 图集查表", () => {
     expect(result.compliant).toBeNull();
   });
 });
+
+describe("executeThermalCalc 产品层唯一性（不得静默给错值）", () => {
+  const secondProductLayer = {
+    id: "layer-p2", schemeId: "scheme-1", layerOrder: 2, layerType: "PRODUCT_LAYER",
+    layerName: "真空绝热板芯材", materialId: "mat-vacuum", thickness: null,
+    evidenceSource: "图集 X", evidenceRef: "P9", evidenceLevel: "A"
+  };
+
+  it("多个 PRODUCT_LAYER → CALC_PRODUCT_LAYER_INVALID，不计算、不落库", async () => {
+    // 若放行，每个子层都会拿到全产品厚度（35mm 芯材 → R=11.2 而非 4.8），属数量级错误。
+    const { db, insertCalls } = makeDb([
+      [schemeRow],
+      [productLayerRow, secondProductLayer],
+      [optionRow],
+      []
+    ]);
+    const execution = await executeThermalCalc(app(db), request, actor, { ...calcInput, thicknessMm: 35 });
+
+    expect(execution.valid).toBe(false);
+    expect(execution.errors[0]).toMatchObject({ field: "schemeId", code: "CALC_PRODUCT_LAYER_INVALID" });
+    expect(execution.errors[0]!.message).toContain("2 个产品层");
+    expect(execution.record).toBeNull();
+    expect(insertCalls).toHaveLength(0);
+  });
+
+  it("没有 PRODUCT_LAYER → CALC_PRODUCT_LAYER_INVALID（不得按 0 热阻继续算）", async () => {
+    const { db, insertCalls } = makeDb([
+      [schemeRow],
+      [baseLayerRow],
+      [optionRow],
+      []
+    ]);
+    const execution = await executeThermalCalc(app(db), request, actor, calcInput);
+    expect(execution.valid).toBe(false);
+    expect(execution.errors[0]).toMatchObject({ field: "schemeId", code: "CALC_PRODUCT_LAYER_INVALID" });
+    expect(insertCalls).toHaveLength(0);
+  });
+
+  it("REFERENCE_TABLE 不受产品层数量限制（查表不读构造层）", async () => {
+    const { db, insertCalls } = makeDb([
+      [schemeRow],
+      [productLayerRow, secondProductLayer],
+      [optionRow],
+      [],
+      [ruleRow],
+      [],
+      [limitRow],
+      [{ id: "set-1", code: "ATLAS-2026", version: 1, name: "图集 X", status: "PUBLISHED" }],
+      [{ setId: "set-1" }],
+      [{
+        id: "row-1", setId: "set-1", schemeId: "scheme-1", productSpecId: "spec-1", thicknessMm: 35,
+        productThermalResistance: 5, totalThermalResistance: 5.306822098, kValue: 0.1884366918,
+        rawThickness: "35", rawProductResistance: "5", rawTotalResistance: "5.306822098", rawKValue: "0.1884366918",
+        evidenceSource: "VICP热工计算表格公式", evidenceRef: "Sheet1", evidenceLevel: "A"
+      }],
+      [recordRow({ mode: "REFERENCE_TABLE" })],
+      []
+    ]);
+    const execution = await executeThermalCalc(app(db), request, actor, { ...calcInput, mode: "REFERENCE_TABLE", thicknessMm: 35 });
+
+    expect(execution.valid).toBe(true);
+    const result = (insertCalls[0] as Record<string, unknown>).resultJson as Record<string, unknown>;
+    expect((result.candidates as Array<Record<string, unknown>>)[0]).toMatchObject({
+      thicknessMm: 35, productThermalResistance: 5, totalThermalResistance: 5.306822098, kValue: 0.1884366918
+    });
+  });
+
+  it("输入厚度按 mm→m 换算写入快照（35mm → 0.035m）", async () => {
+    const { db, insertCalls } = makeDb([
+      [schemeRow],
+      [productLayerRow, baseLayerRow],
+      [{ ...optionRow, minThickness: 10, maxThickness: 50 }],
+      [],
+      [ruleRow],
+      [],
+      [limitRow],
+      [],
+      [matProd],
+      [],
+      [matBase],
+      [recordRow()],
+      []
+    ]);
+    const execution = await executeThermalCalc(app(db), request, actor, { ...calcInput, thicknessMm: 35 });
+    expect(execution.valid).toBe(true);
+    const layers = (insertCalls[0] as Record<string, unknown>).layersJson as Array<Record<string, unknown>>;
+    expect(layers[0]).toMatchObject({ layerType: "PRODUCT_LAYER", thicknessM: 0.035 });
+    // 非产品层仍用方案自身厚度，不随输入厚度变化
+    expect(layers[1]).toMatchObject({ layerType: "BASE_LAYER", thicknessM: 0.02 });
+  });
+});

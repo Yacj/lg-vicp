@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({ model: vi.fn(), runtime: vi.fn() }));
 vi.mock("ai", () => ({ generateObject: mocks.model }));
 vi.mock("./ai-runtime.service.js", () => ({ resolveSceneRuntime: mocks.runtime }));
 vi.mock("./reference-fact-history.js", () => ({ readReferenceFactHistory: async () => [] }));
+vi.mock("./query-clarification-context.js", () => ({ readQueryClarification: async () => null }));
 const conversation = { id: "context-conversation", projectId: null };
 const lookup = { query: {}, candidates: [{ id: "never-from-history" }], candidateQueryRevision: 7, projectId: null, createdAt: new Date().toISOString() };
 beforeEach(() => { vi.clearAllMocks(); mocks.runtime.mockResolvedValue({ primary: { languageModel: {} } }); mocks.model.mockImplementation(async options => ({ object: domainSemanticFixture(JSON.parse(options.prompt).message, "SOLUTION_ADVICE") })); });

@@ -113,6 +113,7 @@ export interface ThermalCalcResultSummary {
   kValue: number | null
   limitKValue: number | null
   compliant: boolean | null
+  /** 产品层总厚度（mm）：产品层不止一层时是各产品子层厚度之和，不等于保温层厚度 */
   thicknessMm: number | null
   interiorSurfaceResistance: number | null
   exteriorSurfaceResistance: number | null
@@ -123,6 +124,8 @@ export interface ThermalCalcResultSummary {
   standardClause: string | null
   /** 图集查表命中参考行数；非查表模式为 0 */
   candidateCount: number
+  /** 构造层快照里的产品层行数：>1 表示产品由多个子层组成，厚度不能按单层理解 */
+  productLayerCount: number
 }
 
 /**
@@ -138,6 +141,8 @@ export function thermalCalcResultSummary(record: ThermalCalcRecord): ThermalCalc
   const input = asRecord(record.input)
   const compliant = typeof result.compliant === 'boolean' ? result.compliant : null
   const candidates = thermalCalcReferenceCandidates(record)
+  const productLayerCount = (Array.isArray(record.layers) ? record.layers : [])
+    .map(asRecord).filter(layer => asText(layer.layerType) === 'PRODUCT_LAYER').length
   const primary = candidates[0] ?? null
   return {
     productResistance: asNumber(result.productResistanceRounded)
@@ -160,7 +165,16 @@ export function thermalCalcResultSummary(record: ThermalCalcRecord): ThermalCalc
     standardName: asText(standard.basisName) ?? asText(standard.regionName),
     standardClause: asText(standard.clauseRef),
     candidateCount: candidates.length,
+    productLayerCount,
   }
+}
+
+/**
+ * 厚度标签：产品层不止一层时必须说「产品总厚度」，
+ * 否则「保温层厚度」会被理解成单层板厚（甲方 Excel 分层例是 10+15+10=35mm）。
+ */
+export function thermalCalcThicknessLabel(summary: ThermalCalcResultSummary): string {
+  return summary.productLayerCount > 1 ? `产品总厚度（${summary.productLayerCount} 个子层）` : '产品厚度'
 }
 
 /** 结果依据与来源回溯（图集证据优先，其次计算规则/标准限值快照）。 */
@@ -203,35 +217,58 @@ export function thermalCalcEvidenceLabel(evidence: ThermalCalcEvidence): string 
 export interface ThermalCalcLayerRow {
   order: number
   name: string
+  /** 构造层类型：PRODUCT_LAYER / BASE_LAYER / FIXING_LAYER / VARIABLE_LAYER（快照缺省为 null） */
+  layerType: string | null
+  /** 层类型中文名（快照缺类型时为空，不猜） */
+  layerTypeLabel: string
   thicknessMm: number | null
   lambda: number | null
   correctionFactor: number | null
   rValue: number | null
 }
 
+/** 构造层类型中文名（与后端 layerType 枚举一一对应）。 */
+export const THERMAL_LAYER_TYPE_LABELS: Record<string, string> = {
+  PRODUCT_LAYER: '产品层',
+  BASE_LAYER: '基层',
+  FIXING_LAYER: '固定层',
+  VARIABLE_LAYER: '可变层',
+}
+
 /**
  * 构造层表格行：材料 / 厚度 / λ / 修正系数 α / 热阻 R。
  * 数值全部来自冻结快照（layers + steps），仅把 m 换算为 mm，不重算 R。
+ *
+ * R 必须按步骤 key 里的层序取（`layer_N` / `product_N`），不能按数组下标猜：
+ * - EQUIVALENT（整体当量法）下产品层步骤 key 是 `product_N`，不在 `layer_*` 里；
+ * - `includeNonProductLayers=false` 时非产品层根本不产生步骤。
+ * 这两种情况步骤数都少于层数，按下标兜底会把别的层的 R 贴到这一层（层表 R 错位）。
+ * 没有对应步骤时如实留空，不得用相邻层的数值顶替。
  */
 export function thermalCalcLayerRows(record: ThermalCalcRecord): ThermalCalcLayerRow[] {
   const rawLayers = (Array.isArray(record.layers) ? record.layers : []).map(asRecord)
   const steps = (Array.isArray(record.steps) ? record.steps : []).map(asRecord)
-  const layerStepValues = steps
-    .filter(step => typeof step.key === 'string' && step.key.startsWith('layer_'))
-    .sort((a, b) => Number(String(a.key).replace('layer_', '')) - Number(String(b.key).replace('layer_', '')))
-    .map(step => asNumber(step.rounded) ?? asNumber(step.value))
-  const byOrder = new Map<number, number | null>()
-  layerStepValues.forEach((value, index) => byOrder.set(index + 1, value))
+  const rByOrder = new Map<number, number | null>()
+  for (const step of steps) {
+    const matched = typeof step.key === 'string' ? /^(?:layer|product)_(\d+)$/.exec(step.key) : null
+    if (!matched) {
+      continue
+    }
+    rByOrder.set(Number(matched[1]), asNumber(step.rounded) ?? asNumber(step.value))
+  }
   return rawLayers.map((layer, index) => {
     const order = asNumber(layer.layerOrder) ?? index + 1
     const thicknessM = asNumber(layer.thicknessM)
+    const layerType = asText(layer.layerType)
     return {
       order,
       name: asText(layer.layerName) ?? '未命名构造层',
+      layerType,
+      layerTypeLabel: layerType ? THERMAL_LAYER_TYPE_LABELS[layerType] ?? layerType : '',
       thicknessMm: thicknessM != null ? Math.round(thicknessM * 1000 * 100) / 100 : asNumber(layer.thicknessMm),
       lambda: asNumber(layer.lambda),
       correctionFactor: asNumber(layer.correctionFactor),
-      rValue: byOrder.get(order) ?? layerStepValues[index] ?? null,
+      rValue: rByOrder.get(order) ?? null,
     }
   }).sort((a, b) => a.order - b.order)
 }

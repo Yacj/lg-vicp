@@ -4,10 +4,12 @@ import {
   THERMAL_CALC_MODE_OPTIONS,
   thermalCalcEvidence,
   thermalCalcEvidenceLabel,
+  thermalCalcLayerRows,
   thermalCalcModeLabel,
   thermalCalcReferenceCandidates,
   thermalCalcResultSummary,
   thermalCalcSourceLabel,
+  thermalCalcThicknessLabel,
 } from './thermal-calc'
 
 function createRecord(overrides: Partial<ThermalCalcRecord> = {}): ThermalCalcRecord {
@@ -214,5 +216,97 @@ describe('thermal calc mode labels', () => {
     expect(thermalCalcSourceLabel('REFERENCE_TABLE')).toBe('图集参考值')
     expect(thermalCalcSourceLabel('EQUIVALENT')).toBe('系统计算结果')
     expect(thermalCalcSourceLabel('LAYERED')).toBe('系统计算结果')
+  })
+})
+
+/**
+ * 阶段3：层表 R 必须按步骤 key 里的层序绑定。
+ * 旧实现按「步骤数组下标」兜底，在下面两种真实场景下会把别的层的 R 贴到这一层：
+ * - EQUIVALENT（整体当量法）产品层步骤 key 是 product_N，不在 layer_* 里；
+ * - includeNonProductLayers=false 时非产品层根本不产生步骤。
+ */
+describe('thermalCalcLayerRows · 层热阻按层序绑定', () => {
+  const layeredRecord = (overrides: Partial<ThermalCalcRecord> = {}): ThermalCalcRecord => createRecord({
+    mode: 'LAYERED',
+    layers: [
+      { layerOrder: 1, layerType: 'PRODUCT_LAYER', layerName: 'VICP 板', thicknessM: 0.035, lambda: 0.008, correctionFactor: 1.25 },
+      { layerOrder: 2, layerType: 'BASE_LAYER', layerName: '钢筋混凝土', thicknessM: 0.2, lambda: 1.74, correctionFactor: 1 },
+      { layerOrder: 3, layerType: 'FIXING_LAYER', layerName: '粘结砂浆', thicknessM: 0.01, lambda: 0.93, correctionFactor: 1 },
+    ],
+    steps: [
+      { key: 'layer_1', value: 3.5, rounded: 3.5 },
+      { key: 'layer_2', value: 0.1149, rounded: 0.1149 },
+      { key: 'layer_3', value: 0.0108, rounded: 0.0108 },
+    ],
+    ...overrides,
+  })
+
+  it('LAYERED：每层取到自己那一步的 R', () => {
+    const rows = thermalCalcLayerRows(layeredRecord())
+    expect(rows.map(row => row.order)).toEqual([1, 2, 3])
+    expect(rows.map(row => row.rValue)).toEqual([3.5, 0.1149, 0.0108])
+    expect(rows.map(row => row.layerTypeLabel)).toEqual(['产品层', '基层', '固定层'])
+  })
+
+  it('EQUIVALENT：产品层步骤 key 为 product_N，仍能绑定到产品层', () => {
+    const record = layeredRecord({
+      mode: 'EQUIVALENT',
+      steps: [
+        { key: 'product_1', value: 3.5, rounded: 3.5 },
+        { key: 'layer_2', value: 0.1149, rounded: 0.1149 },
+        { key: 'layer_3', value: 0.0108, rounded: 0.0108 },
+      ],
+    })
+    const rows = thermalCalcLayerRows(record)
+    expect(rows[0]!.rValue).toBe(3.5)
+    expect(rows[1]!.rValue).toBe(0.1149)
+    expect(rows[2]!.rValue).toBe(0.0108)
+  })
+
+  it('includeNonProductLayers=false：没有步骤的层留空，不得用相邻层的 R 顶替', () => {
+    const record = layeredRecord({ steps: [{ key: 'layer_1', value: 3.5, rounded: 3.5 }] })
+    const rows = thermalCalcLayerRows(record)
+    expect(rows[0]!.rValue).toBe(3.5)
+    // 旧实现会在这里给出 3.5（下标兜底），把产品层 R 贴到基层上。
+    expect(rows[1]!.rValue).toBeNull()
+    expect(rows[2]!.rValue).toBeNull()
+  })
+
+  it('层序不连续（快照只保留部分层）时按 key 取，不按下标平移', () => {
+    const record = layeredRecord({
+      layers: [
+        { layerOrder: 2, layerType: 'BASE_LAYER', layerName: '钢筋混凝土', thicknessM: 0.2, lambda: 1.74, correctionFactor: 1 },
+        { layerOrder: 5, layerType: 'FIXING_LAYER', layerName: '粘结砂浆', thicknessM: 0.01, lambda: 0.93, correctionFactor: 1 },
+      ],
+      steps: [
+        { key: 'layer_2', value: 0.1149, rounded: 0.1149 },
+        { key: 'layer_5', value: 0.0108, rounded: 0.0108 },
+      ],
+    })
+    expect(thermalCalcLayerRows(record).map(row => row.rValue)).toEqual([0.1149, 0.0108])
+  })
+})
+
+describe('厚度标签绑定产品层，不冒充保温层厚度', () => {
+  it('单产品层显示「产品厚度」', () => {
+    const summary = thermalCalcResultSummary(createRecord({
+      input: { thicknessMm: 25 },
+      layers: [{ layerOrder: 1, layerType: 'PRODUCT_LAYER', layerName: 'VICP 板' }],
+    }))
+    expect(summary.productLayerCount).toBe(1)
+    expect(thermalCalcThicknessLabel(summary)).toBe('产品厚度')
+  })
+
+  it('多产品子层显示「产品总厚度（N 个子层）」', () => {
+    const summary = thermalCalcResultSummary(createRecord({
+      input: { thicknessMm: 35 },
+      layers: [
+        { layerOrder: 1, layerType: 'PRODUCT_LAYER', layerName: '包覆层' },
+        { layerOrder: 2, layerType: 'PRODUCT_LAYER', layerName: '芯材' },
+        { layerOrder: 3, layerType: 'PRODUCT_LAYER', layerName: '包覆层' },
+      ],
+    }))
+    expect(summary.productLayerCount).toBe(3)
+    expect(thermalCalcThicknessLabel(summary)).toBe('产品总厚度（3 个子层）')
   })
 })

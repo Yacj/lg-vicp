@@ -544,6 +544,27 @@ export async function executeThermalCalc(
 
   // 1) 构造方案与产品选项（已发布生效）
   const scheme = await getPublishedConstructionSchemeDetail(app.db, input.schemeId);
+
+  // 产品层必须唯一（REFERENCE_TABLE 不读构造层，不受此限）：
+  // 计算把「输入厚度」当作唯一产品层厚度写入，多个产品层会让每个子层都拿到全产品厚度
+  // （例如 35mm 芯材 -> R=11.2 而不是 4.8），因此必须显式拒绝，不得静默给出错值。
+  // 多子层产品（包覆浆料+真空绝热板+包覆浆料）的正确建模需先经甲方确认并走公式版本治理。
+  const productLayers = scheme.layers.filter((l) => l.layerType === "PRODUCT_LAYER");
+  if (input.mode !== "REFERENCE_TABLE" && productLayers.length !== 1) {
+    return {
+      valid: false,
+      errors: [{
+        field: "schemeId",
+        code: "CALC_PRODUCT_LAYER_INVALID",
+        message: productLayers.length === 0
+          ? "该构造方案没有产品层，无法进行热工计算；请在构造设置中把保温产品标记为产品层后重新发布。"
+          : `该构造方案有 ${productLayers.length} 个产品层，当前计算只支持 1 个产品层：多子层产品不能把全产品厚度写入每个子层。请先在后台按产品组/子层建模后再计算。`
+      }],
+      notes,
+      record: null
+    };
+  }
+
   const option = scheme.productOptions.find((o) => o.productSpecId === input.productSpecId);
   if (!option) {
     return {
@@ -615,7 +636,7 @@ export async function executeThermalCalc(
   }
 
   // 5) 产品层参数（EQUIVALENT：已发布产品参数；LAYERED：产品层材料参数）
-  const productLayer = scheme.layers.find((l) => l.layerType === "PRODUCT_LAYER");
+  const productLayer = productLayers[0];
   let equivalentParams: { conductivity: number; correctionFactor: number; snapshots: Record<string, unknown>[] } | null = null;
   if (input.mode === "EQUIVALENT") {
     if (!rule) {
@@ -816,6 +837,8 @@ export async function executeThermalCalc(
         mode: input.mode,
         productResistance: outcome.productResistance,
         productResistanceRounded: outcome.productResistanceRounded,
+        // 口径标签随结果冻结在同一快照里；旧记录没有该字段，读取方必须按缺失处理。
+        productResistanceScope: outcome.productResistanceScope,
         totalResistance: outcome.totalResistance,
         totalResistanceRounded: outcome.totalResistanceRounded,
         kValue: outcome.kValue,

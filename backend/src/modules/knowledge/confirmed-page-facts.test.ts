@@ -34,6 +34,16 @@ const semantic = (constraints: SemanticQuery["constraints"], queryMode: Semantic
 const entity = (field: any, entityText: string, evidence = entityText, operation: any = "SET"): SemanticQuery["constraints"][number] => ({ type: "ENTITY", field, entityText, evidence, operation, resolvedText: null, metric: null, operator: null, value: null, hard: true, confidence: .99 });
 
 describe("确认图集只读事实（人工源图Fixture，非真实模型或DB）", () => {
+  it("旧确认表只按明确正式表名只读定位部位，v2缺部位不猜且源JSON不变", () => {
+    const data: PageRecognitionResult = { fullText: "", pageTitle: "建筑外墙热工计算参考选用表（III型VICP薄抹灰外保温系统）", systems: [{ constructionCode: "A3-2", specClass: "III", options: [{ thicknessMm: 45, kValue: .294, totalThermalResistance: 3.398 }] }] };
+    const snapshot = { page: { id: "legacy", versionId: "version", pageLabel: "5" }, data, model: buildKnowledgePageRenderModel("legacy", data)! };
+    const before = structuredClone(data);
+    expect(queryConfirmedPageFacts([snapshot], query({ applicationPart: "EXTERNAL_WALL", thicknessMm: 45 }))).toHaveLength(1);
+    expect(queryConfirmedPageFacts([snapshot], query({ applicationPart: "ROOF", thicknessMm: 45 }))).toHaveLength(0);
+    expect(data).toEqual(before);
+    data.schemaVersion = 2; snapshot.model = buildKnowledgePageRenderModel("legacy", data)!;
+    expect(queryConfirmedPageFacts([snapshot], query({ applicationPart: "EXTERNAL_WALL", thicknessMm: 45 }))).toHaveLength(0);
+  });
   it("同页标题的体系名称可作为证据，构造原标签不必重复VICP；其他体系仍不匹配", () => {
     expect(queryConfirmedPageFacts(atlasSnapshots(), query({systemHint:"VICP",roofForm:"SLOPED",specClass:"I",thicknessMm:20}))).toHaveLength(2);
     expect(queryConfirmedPageFacts(atlasSnapshots(), query({systemHint:"不存在的体系",roofForm:"SLOPED",thicknessMm:20}))).toHaveLength(0);

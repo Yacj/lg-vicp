@@ -7,7 +7,11 @@ export type CandidateResultContext = Pick<ToolRuntimeContext, "app" | "request" 
 /** Candidate Result不表达选择/Final/方案阶段，也不含签名URL。 */
 export function candidateResultDto(lookup: LastReferenceLookup) {
   return { queryRevision: lookup.candidateQueryRevision, candidates: lookup.candidates.map((candidate, index) => ({
+    // 仅说明当前来源资格，不构成CONFIRM授权；最终仍由事务内来源/版本重验决定。
+    confirmationEligible: candidate.sourceType === "CALCULATED" ? Boolean(candidate.calculationId)
+      : candidate.referenceKind !== "KNOWLEDGE_PAGE" && Boolean(candidate.sourcePageId && candidate.sourceVersionId && candidate.optionId),
     candidateId: candidate.id, position: index + 1, sourceType: candidate.sourceType ?? "REFERENCE",
+    referenceKind: candidate.referenceKind ?? "THERMAL_ROW", sourceVersionId: candidate.sourceVersionId,
     constructionCode: candidate.constructionCode ?? candidate.schemeCode, systemName: candidate.systemName,
     productName: candidate.productName, thicknessMm: candidate.thicknessMm,
     productThermalResistance: candidate.productThermalResistance, totalThermalResistance: candidate.totalThermalResistance,

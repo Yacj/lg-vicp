@@ -16,7 +16,8 @@ import { compactCandidateResult } from "./tools/thermal-lookup.js";
 import { referenceSolutionCandidate, type SolutionCandidateSnapshot } from "./solution-workflow.js";
 import { confirmedReferenceQuery } from "./structured-reference-query.js";
 import type { ThermalQueryState } from "../thermal/thermal-query-state.js";
-import { queryConfirmedPageFacts, confirmedFactExtremum } from "../knowledge/confirmed-page-facts.js";
+import { queryConfirmedPageFacts, confirmedFactExtremum, inspectConfirmedPageFacts, type ConfirmedPageFact } from "../knowledge/confirmed-page-facts.js";
+import type { ConstraintCandidate } from "../thermal/thermal-query-state.js";
 
 /** 只重查上次已展示/显式选择的资料范围；不把热工表未命中升级为全库宽查。 */
 export async function querySelectedKnowledgeCandidates(app: FastifyInstance, query: ThermalQueryState, projectId: string | null) {
@@ -67,20 +68,24 @@ export async function toReferencePageBlock(app: FastifyInstance, { page, documen
 }
 
 /** C 端只从本轮有权检索/选中的当前发布版本读取确认档位，不复用 B 端草稿接口。 */
-export async function loadPublishedKnowledgeReferences(app: FastifyInstance, hits: readonly WikiHit[], projectId: string | null, message: string, lookup?: ReturnType<typeof normalizeConversationLookupQuery>["query"]): Promise<KnowledgeTestReferenceContext & { solutionCandidates?: SolutionCandidateSnapshot[] }> {
+export async function loadPublishedKnowledgeReferences(app: FastifyInstance, hits: readonly WikiHit[], projectId: string | null, message: string, lookup?: ReturnType<typeof normalizeConversationLookupQuery>["query"], options?: { completePublishedScope: boolean }): Promise<KnowledgeTestReferenceContext & {
+  solutionCandidates?: SolutionCandidateSnapshot[]; diagnosticRows?: ConstraintCandidate[]; confirmedFacts?: ConfirmedPageFact[]; allConfirmedFacts?: ConfirmedPageFact[];
+}> {
   // 语义已grounding的独立查表不能依赖全文检索top-N；继承/显式资料范围仍严格保留。
-  const freshFactScope = lookup?.parserSource === "LLM" && lookup.intent === "REFERENCE_LOOKUP"
+  const freshFactScope = options?.completePublishedScope || lookup?.parserSource === "LLM" && lookup.intent === "REFERENCE_LOOKUP"
     && !lookup.documentIds && !lookup.knowledgeVersionIds
-    && Boolean(lookup.pageLabel || lookup.applicationPart || lookup.roofForm || lookup.placement || lookup.placements?.length || lookup.constructionCodes?.length || lookup.schemeCode || lookup.specClass);
+    && Boolean(lookup.filters?.length || lookup.pageLabel || lookup.applicationPart || lookup.roofForm || lookup.placement || lookup.placements?.length || lookup.constructionCodes?.length || lookup.schemeCode || lookup.specClass);
   const versionIds = [...new Set(lookup?.knowledgeVersionIds ?? hits.map(hit => hit.versionId))];
   if (!versionIds.length && !freshFactScope) return { context: "", pages: [] };
   const normalized = confirmedReferenceQuery(message, lookup);
-  const numeric = normalized.authoritative;
+  const numeric = normalized.authoritative || Boolean(options?.completePublishedScope && lookup && !lookup.unresolved?.length);
   const sourceIds = [...new Set(hits.map(hit => hit.pageId).filter((id): id is string => Boolean(id)))];
   const rows = freshFactScope ? await app.db.select({ id: knowledgePages.id }).from(knowledgePages)
     .innerJoin(knowledgeDocuments, eq(knowledgeDocuments.id, knowledgePages.documentId))
     .where(and(eq(knowledgePages.versionId, knowledgeDocuments.currentVersionId), eq(knowledgeDocuments.status, "ACTIVE"), isNull(knowledgeDocuments.deletedAt),
       projectId ? or(isNull(knowledgeDocuments.projectId), eq(knowledgeDocuments.projectId, projectId)) : isNull(knowledgeDocuments.projectId),
+      lookup?.documentIds ? inArray(knowledgePages.documentId, lookup.documentIds) : undefined,
+      lookup?.knowledgeVersionIds ? inArray(knowledgePages.versionId, lookup.knowledgeVersionIds) : undefined,
       lookup?.pageLabel ? eq(knowledgePages.pageLabel, lookup.pageLabel) : undefined))
     : await app.db.select({ id: knowledgePages.id }).from(knowledgePages)
       .where(and(inArray(knowledgePages.versionId, versionIds), numeric ? undefined : inArray(knowledgePages.id, sourceIds)));
@@ -91,7 +96,8 @@ export async function loadPublishedKnowledgeReferences(app: FastifyInstance, hit
   });
   if (!snapshots.length && !numeric) return { context: "", pages: [] };
   const matchingDiagnostics = { excludedMissingCoreFields: 0, excludedMissingBaseMaterial: 0 };
-  const pageFacts = numeric && snapshots.some(snapshot => snapshot.data.schemaVersion === 2) ? queryConfirmedPageFacts(snapshots, normalized.query) : undefined;
+  const inspection = numeric ? inspectConfirmedPageFacts(snapshots, normalized.query) : undefined;
+  const pageFacts = numeric && (options?.completePublishedScope || snapshots.some(snapshot => snapshot.data.schemaVersion === 2)) ? inspection!.facts : undefined;
   const matched = numeric && !pageFacts ? matchConfirmedPageOptions(snapshots, message, normalized.query, normalized.structured, matchingDiagnostics) : undefined;
   const ids = pageFacts ? [...new Set(pageFacts.map(fact => fact.pageId))].slice(0, REFERENCE_PAGE_LIMIT)
     : matched ? [...new Set(matched.map(candidate => candidate.sourcePageId!))].slice(0, REFERENCE_PAGE_LIMIT) : sourceIds.slice(0, REFERENCE_PAGE_LIMIT);
@@ -115,9 +121,10 @@ export async function loadPublishedKnowledgeReferences(app: FastifyInstance, hit
   const scopedQuery = { ...normalized.query, documentIds: [...new Set(readable.map(row => row.document.id))],
     knowledgeVersionIds: [...new Set(readable.map(row => row.version.id))] };
   return { pages, ...budget, authoritative: numeric, ...(pageFacts ? { readOnlyPageFacts: true } : {}), solutionCandidates, totalMatched, totalGroups, matchingDiagnostics, query: scopedQuery,
+    queryDiagnostics: inspection?.diagnostics, diagnosticRows: inspection?.rows, confirmedFacts: inspection?.facts, allConfirmedFacts: inspection?.all,
     ...(numeric ? { answer: formatConfirmedLookupAnswer(pages, budget.citationOptionIds, normalized.query.filters ?? [],
       { scopeLabel: "本次参考资料中", emptyHint: "当前没有可核验的完整确认档位，可以调整厚度、构造或资料范围再查询。", compact: true,
-        totalMatched, totalGroups, readFields: normalized.query.readFields, structured: normalized.structured, readOnlyPageFacts: Boolean(pageFacts), extremum: pageFacts ? confirmedFactExtremum(pageFacts, normalized.query) : undefined }) } : {}) };
+        totalMatched, totalGroups, readFields: normalized.query.readFields, structured: normalized.structured, readOnlyPageFacts: Boolean(pageFacts), diagnostics: inspection?.diagnostics, extremum: pageFacts ? confirmedFactExtremum(pageFacts, normalized.query) : undefined }) } : {}) };
 }
 
 /** 元数据仅取正式标识，数值与表格重读当前确认快照；旧快照 ID 失效就省略引用。 */

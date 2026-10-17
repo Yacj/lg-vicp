@@ -1,11 +1,13 @@
 import { normalizeSubstrateMaterial } from "./thermal-substrate-facts.js";
 import type { ReferenceLookupCandidate } from "./conversation-task.js";
-import { normalizeThermalLookupQuery } from "../thermal/thermal-lookup-mode.js";
+import { normalizeThermalLookupQuery, THERMAL_METRIC_LABELS, type ThermalLookupMetric } from "../thermal/thermal-lookup-mode.js";
 import { formatLookupThickness } from "../thermal/thermal-lookup-thickness.js";
 import { validateCandidateAgainstQueryState, type ThermalQueryState } from "../thermal/thermal-query-state.js";
 import type { ThermalCalculationPresentation } from "../thermal/thermal-calc-presentation.js";
 import { answerHasForbiddenClaim, segmentAnswer, type SemanticFact, type SemanticMetric } from "./thermal-answer-semantics.js";
 import { normalizeSystemName, normalizeSystemFamily, normalizeEntityText } from "../thermal/thermal-query-state.js";
+import { sameReferenceConstruction } from "./reference-source-identity.js";
+import { renderReferenceQueryDiagnostics, type ReferenceQueryDiagnostics } from "../thermal/reference-query-diagnostics.js";
 
 /**
  * 本次热工计算的可核验结果（REFERENCE_TABLE / 计算模式）。
@@ -21,6 +23,11 @@ export interface CalculationFacts {
   kValue?: number | null;
   totalResistance?: number | null;
   productThermalResistance?: number | null;
+  /**
+   * 产品热阻口径。`PRODUCT_LAYER_ROWS_ONLY`（LAYERED 只累加产品层行）时
+   * 不得表述为「产品整体热阻」，也不得与产品整体 R 互相换算。
+   */
+  productThermalResistanceScope?: "PRODUCT_EQUIVALENT_TOTAL" | "PRODUCT_LAYER_ROWS_ONLY" | null;
   /** 各构造层的 λ / α（逐层冻结，避免把 A 层的 λ 拼到 B 层的厚度上） */
   layers?: ReadonlyArray<{ materialName?: string; thicknessMm?: number; lambda?: number | null; correctionFactor?: number | null }>;
   sourcePageLabel?: string | null;
@@ -34,6 +41,9 @@ export interface CalculationFacts {
 }
 
 export interface AllowedAnswerFacts {
+  queryDiagnostics?: ReferenceQueryDiagnostics;
+  /** 已核验的只读原子事实；只供回答核验，绝不发布为Candidate。 */
+  readOnlyReferences?: ReadonlyArray<Readonly<ReferenceLookupCandidate>>;
   query: ThermalQueryState;
   /** 正式命中候选（原子事实，逐条冻结） */
   candidates: ReadonlyArray<Readonly<ReferenceLookupCandidate>>;
@@ -45,14 +55,93 @@ export interface AllowedAnswerFacts {
   /** 本次热工计算的冻结结果（与 candidates 互不影响） */
   calculation?: CalculationFacts;
   matchedCount?: number;
+  /** 零命中时该指标在范围内的真实取值（只读事实：用于说明「有哪些档位」，不代表命中） */
+  metricScope?: { metric: ThermalLookupMetric; values: number[]; count: number };
+  /** 整张已发布表都缺该指标列：属于「无字段」，与「有字段但无匹配」分开回答 */
+  missingMetricFields?: ThermalLookupMetric[];
+  /**
+   * 同一构造同一厚度在两个来源上数值不一致（正式热工参考集 vs 已确认图集页）。
+   * 两个来源的审核链路不同，不能静默择一，也不能互相覆盖。
+   */
+  sourceConflicts?: ReferenceSourceConflict[];
   /** 确定性 fallback 文本：LLM 生成失败或事实校验连续失败时使用 */
   canonicalAnswers: string[];
 }
 
+/**
+ * 热工数值的两个来源，审核链路不同，展示时必须可区分：
+ * - THERMAL_ROW：后台导入/审核发布的正式热工参考集行（thermal_reference_rows）；
+ * - KNOWLEDGE_PAGE：图集页识别确认后的结构化档位（confirmedStructuredData）。
+ * 两者都不是「更准」的关系，而是不同授权路径；同一构造同一厚度可能不一致。
+ */
+export const REFERENCE_SOURCE_LABELS = {
+  THERMAL_ROW: "正式热工参考集（已审核发布）",
+  KNOWLEDGE_PAGE: "已确认图集页（页面识别确认）"
+} as const;
+
+export interface ReferenceSourceConflict {
+  thermalRowId?: string; optionId?: string; sourceVersionId?: string | null;
+  /** 构造身份（方案编码优先，退到构造编码/体系名）+ 厚度 */
+  identity: string;
+  thicknessMm: number | null;
+  metric: ThermalLookupMetric;
+  thermalRow?: number;
+  knowledgePage?: number;
+}
+
+const sourceKindOf = (candidate: Readonly<ReferenceLookupCandidate>): keyof typeof REFERENCE_SOURCE_LABELS =>
+  candidate.referenceKind === "KNOWLEDGE_PAGE" ? "KNOWLEDGE_PAGE" : "THERMAL_ROW";
+
+const referenceIdentity = (candidate: Readonly<ReferenceLookupCandidate>): string =>
+  candidate.schemeCode ?? candidate.constructionCode ?? candidate.schemeId ?? candidate.systemName ?? "未标注构造";
+
+/**
+ * 跨来源数值冲突检测（纯函数）。
+ * 只比较「同一构造 + 同一厚度」上同一指标的取值；不同构造/厚度一律不比较，
+ * 避免把甲方 Excel 里「整体 25mm」与「分层 35mm」这类不同条件的例子判成冲突。
+ */
+export function detectReferenceSourceConflicts(
+  candidates: ReadonlyArray<Readonly<ReferenceLookupCandidate>>
+): ReferenceSourceConflict[] {
+  const conflicts: ReferenceSourceConflict[] = [];
+  const pages = [...new Map(candidates.filter(candidate => sourceKindOf(candidate) === "KNOWLEDGE_PAGE")
+    .map(candidate => [JSON.stringify([candidate.sourceVersionId, candidate.sourcePageId, candidate.optionId ?? candidate.id]), candidate])).values()];
+  for (const thermal of candidates.filter(candidate => sourceKindOf(candidate) === "THERMAL_ROW")) {
+    const related = pages.filter(page => sameReferenceConstruction(thermal, page));
+    if (related.length !== 1) continue; // 映射歧义不能靠编号或数值反选。
+    const group = { thermalRow: thermal, knowledgePage: related[0]! };
+    for (const metric of ["K", "TOTAL_R", "PRODUCT_R"] as const) {
+      const left = candidateMetricValue(group.thermalRow, metric);
+      const right = candidateMetricValue(group.knowledgePage, metric);
+      if (left == null || right == null) continue;
+      if (closeTo(left, right, FACT_EPSILON)) continue;
+      conflicts.push({
+        thermalRowId: thermal.id, optionId: group.knowledgePage.optionId, sourceVersionId: thermal.sourceVersionId,
+        identity: referenceIdentity(thermal),
+        thicknessMm: group.thermalRow.thicknessMm ?? null,
+        metric,
+        thermalRow: left,
+        knowledgePage: right
+      });
+    }
+  }
+  return conflicts;
+}
+
+/** 冲突的可读说明（确定性文本，供 fallback 与模型事实清单共用）。 */
+export function renderSourceConflict(conflict: ReferenceSourceConflict): string {
+  const scope = `${conflict.identity}${conflict.thicknessMm != null ? ` ${conflict.thicknessMm} mm` : ""}`;
+  return `${scope}的${THERMAL_METRIC_LABELS[conflict.metric]}在两个来源上不一致：${REFERENCE_SOURCE_LABELS.THERMAL_ROW}为 ${conflict.thermalRow}，${REFERENCE_SOURCE_LABELS.KNOWLEDGE_PAGE}为 ${conflict.knowledgePage}。`;
+}
+
 export interface BuildAllowedFactsOptions {
+  queryDiagnostics?: ReferenceQueryDiagnostics;
+  readOnlyReferences?: ReferenceLookupCandidate[];
   identityMatchedButMetricFailed?: ReferenceLookupCandidate[];
   nearbyCandidates?: ReferenceLookupCandidate[];
   sourcePages?: Array<{ sourcePageLabel?: string | null; pageLabel?: string | null }>;
+  metricScope?: { metric: ThermalLookupMetric; values: number[]; count: number };
+  missingMetricFields?: ThermalLookupMetric[];
 }
 
 function describeQuery(query: ThermalQueryState) {
@@ -74,8 +163,9 @@ function renderCandidate(candidate: Readonly<ReferenceLookupCandidate>, detailed
     detailed && candidate.alpha != null ? `α=${candidate.alpha}` : undefined
   ].filter(Boolean);
   const source = candidate.sourcePageLabel?.trim() ? `印刷页码 ${candidate.sourcePageLabel.trim()}` : "可查看原始来源页面（未记录印刷页码）";
-  return `${values.join("；")}。\n来源：${candidate.evidenceSource || "正式参考资料"}，${source}。`;
+  return `${values.join("；")}。\n来源：${candidate.evidenceSource || "正式参考资料"}（${REFERENCE_SOURCE_LABELS[sourceKindOf(candidate)]}），${source}。`;
 }
+export { renderCandidate as renderReferenceCandidate };
 
 /**
  * 澄清文案：reason 字段只存「缺什么」的名词短语，这里统一渲染成自然的短问句。
@@ -96,7 +186,7 @@ export function renderClarification(query: ThermalQueryState, message = ""): str
     return "这几个条件是都要同时满足（AND），还是满足其中一个就行？目前只支持同时满足。";
   }
   const phrases = unresolved.map(item => stripLeadIn(item.reason)).filter(Boolean);
-  if (phrases.length) return `想确认一下：${phrases.join("；")}。`;
+  if (phrases.length) { const text = phrases.join("；"); return `想确认一下：${text}${/[？?]$/.test(text) ? "" : "。"}`; }
   return "想确认一下你这次要查的具体条件。";
 }
 
@@ -119,9 +209,23 @@ export function buildAllowedAnswerFacts(
   const identity = (options.identityMatchedButMetricFailed ?? []).map(candidate => Object.freeze(structuredClone(candidate)));
   const detail = /详细|参数|怎么算|计算过程|技术字段/.test(message);
   const scope = describeQuery(query);
+  const missingMetrics = options.missingMetricFields ?? [];
+  const metricScope = options.metricScope;
+  // 跨来源冲突：正式热工参考集与已确认图集页对同一构造同一厚度给出不同数值。
+  // 两个来源审核链路不同，任何一方都不是「更准」，因此不允许静默择一。
+  const sourceConflicts = detectReferenceSourceConflicts([...facts, ...nearby, ...identity]);
   let answer: string;
   if (query.unresolved?.length) answer = renderClarification(query, message);
+  else if (!facts.length && options.queryDiagnostics) answer = renderReferenceQueryDiagnostics(options.queryDiagnostics);
+  // 「无字段」优先于「无匹配」：表里根本没有这一列时，说「没有满足条件的方案」是误导。
+  else if (!facts.length && missingMetrics.length) answer = `当前已发布参考表没有记录${missingMetrics.map((metric) => THERMAL_METRIC_LABELS[metric]).join("、")} 字段，无法按该指标筛选。可以改按传热系数 K 或总热阻 R₀ 查询，或直接查看原始页面。`;
   else if (!facts.length && identity.length) answer = `不满足所问热工指标条件。指定方案和厚度的实际正式值如下：\n${identity.slice(0, 3).map(candidate => renderCandidate(candidate, detail)).join("\n")}`;
+  // 只有指标条件、零命中：把「没有档位」改成「档位有哪些」，避免把指标口径差异说成资料没有方案。
+  else if (!facts.length && metricScope) answer = [
+    `按${scope || "该热工指标"}查询：当前已发布参考表中没有接近该值的档位。`,
+    `已发布档位在${THERMAL_METRIC_LABELS[metricScope.metric]}上的实际取值为 ${metricScope.values.join("、")}。`,
+    "以上取值仅用于解释当前读取范围，不是命中；其他筛选条件继续保留。"
+  ].join("\n");
   else if (!facts.length) answer = `当前已发布参考表中没有找到同时满足${scope ? `「${scope}」` : "当前条件"}的正式方案。\n如需，我可以继续查图集原文或按你指定的新条件筛选。`;
   else {
     const number = /第([一二三四五六七八九十]|\d+)个/.exec(message);
@@ -132,9 +236,17 @@ export function buildAllowedAnswerFacts(
     const approx = normalizeThermalLookupQuery(query).filters.some(filter => filter.mode === "APPROX");
     answer = `${approx ? "有接近目标且满足当前筛选条件的正式参考方案。" : "有满足当前筛选条件的正式参考方案。"}\n${selected.map(candidate => renderCandidate(candidate, detail)).join("\n")}\n可继续按厚度或热工指标筛选。`;
   }
+  // 冲突提示只追加，不替换结论：数值照常给出，但必须说明两个来源不一致、需核对。
+  if (sourceConflicts.length) answer += `\n注意：${sourceConflicts.map(renderSourceConflict).join("\n")}两处来源的审核链路不同，请以原始图集页核对后再用于正式计算。`;
   return { query: structuredClone(query), candidates: Object.freeze(facts), nearbyCandidates: Object.freeze(nearby),
+    queryDiagnostics: options.queryDiagnostics,
+    readOnlyReferences: options.readOnlyReferences?.map(row => Object.freeze(structuredClone(row))),
     identityMatchedButMetricFailed: Object.freeze(identity),
-    sourcePages: options.sourcePages, matchedCount, canonicalAnswers: [answer] };
+    sourcePages: options.sourcePages, matchedCount,
+    ...(metricScope ? { metricScope } : {}),
+    ...(missingMetrics.length ? { missingMetricFields: missingMetrics } : {}),
+    ...(sourceConflicts.length ? { sourceConflicts } : {}),
+    canonicalAnswers: [answer] };
 }
 
 /**
@@ -160,10 +272,11 @@ function factLine(candidate: Readonly<ReferenceLookupCandidate>, detailed: boole
     candidate.thicknessMm != null ? `厚度 ${candidate.thicknessMm} mm` : undefined,
     candidate.substrateThickness != null ? `基层厚度 ${candidate.substrateThickness} mm` : undefined,
     candidate.productThermalResistance != null ? `产品层热阻 R=${candidate.productThermalResistance}` : undefined,
-    candidate.totalThermalResistance != null ? `整墙总热阻 R₀=${candidate.totalThermalResistance}` : undefined,
+    candidate.totalThermalResistance != null ? `整构造总热阻 R₀=${candidate.totalThermalResistance}` : undefined,
     candidate.kValue != null ? `传热系数 K=${candidate.kValue}` : undefined,
     detailed && candidate.lambda != null ? `导热系数 λ=${candidate.lambda}` : undefined,
     detailed && candidate.alpha != null ? `修正系数 α=${candidate.alpha}` : undefined,
+    `来源类型 ${REFERENCE_SOURCE_LABELS[sourceKindOf(candidate)]}`,
     candidate.sourcePageLabel?.trim() ? `印刷页码 ${candidate.sourcePageLabel.trim()}` : "印刷页码 未记录"
   ].filter(Boolean).join("；");
 }
@@ -176,6 +289,11 @@ export function renderAllowedFactsForModel(facts: AllowedAnswerFacts, detailed =
   const query = facts.query;
   const lines: string[] = ["【本次已核验事实（唯一可用信息源）】",
     `查询条件：${describeQuery(query) || "（未给出明确的热工条件）"}`];
+  if (facts.queryDiagnostics) lines.push(renderReferenceQueryDiagnostics(facts.queryDiagnostics));
+  if (facts.readOnlyReferences?.length) {
+    lines.push("以下仅为已确认原页只读事实，不具备正式方案确认资格：");
+    facts.readOnlyReferences.forEach(row => lines.push(factLine(row, detailed)));
+  }
   if (query.unresolved?.length) {
     lines.push("状态：需要先向用户澄清，不要给出任何方案或数值：");
     for (const item of query.unresolved) lines.push(`- ${item.reason}`);
@@ -184,7 +302,13 @@ export function renderAllowedFactsForModel(facts: AllowedAnswerFacts, detailed =
     lines.push(`命中候选（共 ${facts.candidates.length} 条，只可引用以下事实）：`);
     facts.candidates.forEach((candidate, index) => lines.push(`${index + 1}. ${factLine(candidate, detailed)}`));
   } else if (!query.unresolved?.length) {
-    lines.push("命中候选：无。当前已发布参考表中没有同时满足上述条件的正式方案。");
+    if (facts.missingMetricFields?.length) {
+      lines.push(`命中候选：无。当前已发布参考表没有记录${facts.missingMetricFields.map((metric) => THERMAL_METRIC_LABELS[metric]).join("、")} 字段（数据缺列，不是「有该字段但没有满足条件的档位」）。`);
+    } else if (facts.metricScope) {
+      lines.push(`命中候选：无。已发布档位在${THERMAL_METRIC_LABELS[facts.metricScope.metric]}上的实际取值为 ${facts.metricScope.values.join("、")}；这些只可用于说明「有哪些取值」，不是命中，也不得据此推断用户想问哪个指标。`);
+    } else {
+      lines.push("命中候选：无。当前已发布参考表中没有同时满足上述条件的正式方案。");
+    }
   }
   if (facts.nearbyCandidates?.length) {
     lines.push("相邻但未完全满足条件的候选（必须明确说未满足，不得称为命中）：");
@@ -194,6 +318,11 @@ export function renderAllowedFactsForModel(facts: AllowedAnswerFacts, detailed =
     const calculation = facts.calculation;
     lines.push("本次正式计算的冻结结果：");
     for (const candidate of calculationAsCandidates(calculation)) lines.push(factLine(candidate, detailed));
+    // 口径必须与数值一起给出，否则「产品层热阻」会被表达成「产品整体热阻」。
+    if (calculation.productThermalResistanceScope === "PRODUCT_LAYER_ROWS_ONLY" && calculation.productThermalResistance != null)
+      lines.push("产品层热阻口径：当前只累加产品层（PRODUCT_LAYER）行，可能未包含包覆等子层；不得表述为「产品整体热阻」，也不得用它与产品整体 R 换算或补齐差额。");
+    else if (calculation.productThermalResistanceScope === "PRODUCT_EQUIVALENT_TOTAL")
+      lines.push("产品层热阻口径：按产品当量参数累加全部产品层，代表产品整体热阻。");
     if (calculation.standardLimitK != null) lines.push(`已选标准限值 K≤${calculation.standardLimitK}`);
     if (calculation.standardNames?.length) lines.push(`标准依据：${calculation.standardNames.join("、")}`);
     if (calculation.complianceAuthorized && calculation.compliant != null)
@@ -203,6 +332,10 @@ export function renderAllowedFactsForModel(facts: AllowedAnswerFacts, detailed =
   if (facts.identityMatchedButMetricFailed?.length) {
     lines.push("以下只匹配方案身份与厚度，指标未满足，不得当成正式命中：");
     facts.identityMatchedButMetricFailed.forEach(candidate => lines.push(`${factLine(candidate, detailed)}；未满足条件：${validateCandidateAgainstQueryState(candidate, query).failed.join("、")}`));
+  }
+  if (facts.sourceConflicts?.length) {
+    lines.push("跨来源数值不一致（两个来源审核链路不同，必须如实说明并建议核对原页，不得静默择一或互相覆盖）：");
+    facts.sourceConflicts.forEach(conflict => lines.push(`- ${renderSourceConflict(conflict)}`));
   }
   const pages = [...new Set([...facts.candidates, ...(facts.nearbyCandidates ?? []), ...(facts.identityMatchedButMetricFailed ?? [])]
     .map(candidate => candidate.sourcePageLabel?.trim()).filter((item): item is string => Boolean(item)))];
@@ -217,10 +350,11 @@ export function renderAllowedFactsForModel(facts: AllowedAnswerFacts, detailed =
 export const REFERENCE_LOOKUP_ANSWER_SYSTEM_PROMPT = [
   "你是蓝格智配的热工参考查询助手，回答用户关于已发布图集 / 参考表中保温构造方案的提问。",
   "只能用【本次已核验事实】作答：不得新增、改写、换算或推算任何数值、厚度、页码、方案编码，也不得引入事实清单之外的方案。查询目标与候选实值要分别表述。",
-  "允许自然、口语化的中文表达。同一批事实可以有多种说法，例如「60mm 双层方案，板自身热阻 8.000，整墙总热阻 8.313，K≈0.120」或「60mm，产品层热阻 8.000，总热阻 8.313」都可以，但数值必须与事实清单完全一致。",
+  "允许自然、口语化的中文表达。同一批事实可以有多种说法，例如「60mm 双层方案，板自身热阻 8.000，整构造总热阻 8.313，K≈0.120」或「60mm，产品层热阻 8.000，总热阻 8.313」都可以，但数值必须与事实清单完全一致。构造可能是屋面、外墙或装饰板，因此不要一律说成「整墙」。",
   "不得出现「最高 / 最低 / 最大 / 最小 / 唯一 / 全部 / 所有 / 没有其他 / 仅此」，也不得说「达标 / 合规 / 符合标准或规范限值」——除非事实清单里明确给出该结论。",
   "事实清单标注「需要先向用户澄清」时，只用一句话自然地问清歧义，不要给出任何方案。",
-  "命中候选为空时，如实说明当前已发布参考表没有同时满足条件的正式方案，可建议继续查图集原文或更换条件。",
+  "事实清单区分了来源类型（正式热工参考集 / 已确认图集页）时，说明数值要带上来源；同一构造同一厚度在两个来源上不一致时，如实说明不一致并建议核对原页，不得择一当作定论，也不得把两个来源的数字混着说。",
+  "命中候选为空时，如实说明当前已发布参考表没有同时满足条件的正式方案，可建议继续查图集原文或更换条件。若事实清单说明是「数据缺列」或给出了该指标的实际取值，就按清单原意说明，不得改口成「资料里没有方案」。",
   "用户只问了某个指标时，就只回答该指标相关事实，不必把清单里的每一项都念一遍。默认3～8行，一个主方案，可补充最多两条相关方案；详细追问才展开参数。",
   "不要输出内部字段名，不要用 Markdown 重写整张构造表，不要展开热工公式，不要加标题。"
 ].join("\n");
@@ -334,7 +468,7 @@ function factMatches(fact: SemanticFact, candidate: Readonly<ReferenceLookupCand
  *    无编码片段的事实须由候选池中任意一条满足；越界数字、被改写的指标、编造页码一律拒绝。
  * 只校验带语义标签的事实；没有标签的裸数字不参与判定，因此自然表达不同也能通过。
  */
-export function validateAnswerFacts(answer: string, allowedFacts: Pick<AllowedAnswerFacts, "canonicalAnswers"> & Partial<Pick<AllowedAnswerFacts, "candidates" | "nearbyCandidates" | "identityMatchedButMetricFailed" | "sourcePages" | "query" | "calculation">>) {
+export function validateAnswerFacts(answer: string, allowedFacts: Pick<AllowedAnswerFacts, "canonicalAnswers"> & Partial<Pick<AllowedAnswerFacts, "candidates" | "nearbyCandidates" | "identityMatchedButMetricFailed" | "sourcePages" | "query" | "calculation" | "metricScope" | "readOnlyReferences" | "queryDiagnostics">>) {
   // 没有事实集时无法核验任何生成文本，调用方直接使用已构造的fallback。
   const hasFactContext = allowedFacts.query !== undefined || allowedFacts.candidates !== undefined
     || allowedFacts.nearbyCandidates !== undefined || allowedFacts.sourcePages !== undefined
@@ -346,6 +480,7 @@ export function validateAnswerFacts(answer: string, allowedFacts: Pick<AllowedAn
 
   const query = allowedFacts.query ?? {};
   const pool = [...(allowedFacts.candidates ?? []), ...(allowedFacts.nearbyCandidates ?? []),
+    ...(allowedFacts.readOnlyReferences ?? []),
     ...(allowedFacts.identityMatchedButMetricFailed ?? []),
     ...(allowedFacts.calculation ? calculationAsCandidates(allowedFacts.calculation) : [])];
   const allowed: AllowedAnswerFacts = {
@@ -359,6 +494,12 @@ export function validateAnswerFacts(answer: string, allowedFacts: Pick<AllowedAn
   const queryFactMatches = (fact: SemanticFact) => fact.kind === "metric"
     ? normalizeThermalLookupQuery(query).filters.some(filter => filter.metric === fact.metric && closeTo(fact.value, filter.targetValue, FACT_EPSILON))
     : fact.kind === "thickness" && [query.thicknessMm, query.thicknessMin, query.thicknessMax].some(bound => bound != null && closeTo(fact.value, bound, FACT_EPSILON));
+
+  // 零命中时允许复述「该指标在已发布档位中的真实取值」——这是只读事实，不是命中候选。
+  const scopeMetric = allowedFacts.metricScope;
+  const scopes = [...(scopeMetric ? [scopeMetric] : []), ...(allowedFacts.queryDiagnostics?.metricScopes ?? [])];
+  const scopeFactMatches = (fact: SemanticFact) => fact.kind === "metric" && scopes.some(scope => scope.metric === fact.metric
+    && scope.values.some(value => closeTo(value, fact.value, FACT_EPSILON)));
 
   let sawFact = false;
   let bundlePool = pool;
@@ -385,8 +526,9 @@ export function validateAnswerFacts(answer: string, allowedFacts: Pick<AllowedAn
         return { passed: false, code: "INVALID_FACT" as const };
       }
     } else if (!matching.length) {
-      // 无编码片段：任一候选能同时满足即可；候选池为空时只允许复述查询目标值/厚度条件。
-      if (pool.length > 0 || !segment.facts.every(queryFactMatches)) {
+      // 无编码片段：任一候选能同时满足即可；候选池为空时只允许复述查询目标值/厚度条件，
+      // 或复述「该指标在已发布档位中的真实取值」（零命中场景，只读事实）。
+      if (pool.length > 0 || !segment.facts.every(fact => queryFactMatches(fact) || scopeFactMatches(fact))) {
         return { passed: false, code: "INVALID_FACT" as const };
       }
     }
@@ -405,7 +547,7 @@ export function validateAnswerFacts(answer: string, allowedFacts: Pick<AllowedAn
 }
 
 export async function validateOrRepairThermalAnswer(answer: string, canonicalAnswers: string[], retry: (canonical: string) => Promise<string>,
-  allowedFacts?: Partial<Pick<AllowedAnswerFacts, "candidates" | "nearbyCandidates" | "identityMatchedButMetricFailed" | "sourcePages" | "query" | "calculation">>) {
+  allowedFacts?: Partial<Pick<AllowedAnswerFacts, "candidates" | "nearbyCandidates" | "identityMatchedButMetricFailed" | "sourcePages" | "query" | "calculation" | "metricScope">>) {
   const allowed = { canonicalAnswers, ...allowedFacts };
   if (!allowedFacts) return { text: canonicalAnswers[0]!, repaired: false, fallback: true };
   if (validateAnswerFacts(answer, allowed).passed) return { text: answer.trim(), repaired: false, fallback: false };

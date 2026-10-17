@@ -57,6 +57,20 @@ nodeTest('来源 route 保留正式 pageId/pageLabel/optionId；缺失产品事�
   assert.equal(solutionMetrics(candidate).find(metric => metric.label === '传热系数 K')?.value, 0.303)
 })
 
+nodeTest('指标标签绑定产品层语义：厚度不是保温层厚度，产品层 R 不是总热阻', () => {
+  const metrics = solutionMetrics(solutionCandidate('A', 1))
+  const labels = metrics.map(metric => metric.label)
+  // 「保温层厚度」会被理解成单层板厚；这里展示的是产品层总厚度。
+  assert.ok(!labels.includes('保温层厚度'))
+  assert.ok(labels.includes('产品厚度'))
+  assert.ok(labels.includes('产品层热阻 R'))
+  assert.ok(labels.includes('总热阻 R₀'))
+  // 两个 R 是两个指标，单位相同但含义不同，不能互相顶替。
+  const productR = metrics.find(metric => metric.label === '产品层热阻 R')
+  const totalR = metrics.find(metric => metric.label === '总热阻 R₀')
+  assert.notEqual(productR?.value, totalR?.value)
+})
+
 nodeTest('识别 Backend HTTP 数值码内嵌 details.errorCode，所有指定错误均有独立提示', () => {
   assert.equal(solutionErrorCode({ data: { error: { code: 400, details: { errorCode: 'SOLUTION_VERSION_CONFLICT' } } } }), 'SOLUTION_VERSION_CONFLICT')
   for (const code of ['SOLUTION_VERSION_CONFLICT', 'SOLUTION_COMPARE_MINIMUM', 'SOLUTION_HARD_CONFLICT', 'SOLUTION_CONFLICT_UNHANDLED', 'SOLUTION_FINAL_REQUIRED', 'SOLUTION_FACTS_INCOMPLETE', 'SOLUTION_SOURCE_CHANGED']) assert.ok(solutionErrorMessages[code])

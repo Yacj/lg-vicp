@@ -317,7 +317,8 @@ function formatLastReferenceLookupContext(lookup: LastReferenceLookup): string {
       item.lambda !== undefined ? `λ=${item.lambda}` : null,
       item.alpha !== undefined ? `α=${item.alpha}` : null,
       item.productThermalResistance !== undefined ? `产品层热阻 ${item.productThermalResistance}` : null,
-      item.totalThermalResistance !== undefined ? `外墙主断面总热阻 R₀ ${item.totalThermalResistance}` : null,
+      // 总热阻属于「整构造」，构造不一定是外墙：不得硬编码成「外墙主断面」。
+      item.totalThermalResistance !== undefined ? `总热阻 R₀ ${item.totalThermalResistance}` : null,
       item.sourcePageId ? `sourcePageId=${item.sourcePageId}，原页标签 ${item.sourcePageLabel ?? "未标注"}` : null,
       item.specClass ? `${item.specClass}型` : null,
       item.kValue !== undefined ? `K=${item.kValue}` : null,

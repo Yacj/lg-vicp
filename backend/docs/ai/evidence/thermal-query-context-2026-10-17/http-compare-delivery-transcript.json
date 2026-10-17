@@ -1,0 +1,766 @@
+{
+  "scope": "只读逻辑克隆现有DB结构/数据；不运行迁移或seed；随机隔离DB/Redis，源OSS只读且禁止写入",
+  "startedAt": "2026-10-17T02:16:52.844Z",
+  "finishedAt": "2026-10-17T02:19:15.958Z",
+  "rows": [
+    {
+      "round": 1,
+      "caseId": "arithmetic",
+      "conversationId": "ae9775b2-1ea2-4340-ae68-fe67a068378c",
+      "user": "I型15mm R=4.8与II型50mm R=5.0谁大？",
+      "answer": "按你给出的同种指标数值，4.800 < 5.000。这只是所给数值的大小关系，尚未证明它们对应指定型号、厚度或正式来源。\n每个型号还对应多个构造来源，请指定构造编号和厚度后比较。",
+      "decision": {
+        "goal": "KNOWLEDGE_EXPLAIN",
+        "patch": [],
+        "intent": "GENERAL",
+        "source": "INTENT",
+        "factRead": {
+          "mode": "COMPARE",
+          "metric": "PRODUCT_R",
+          "evidence": "I型15mm R=4.8与II型50mm R=5.0谁大？",
+          "historyClaim": false
+        },
+        "mutation": "NONE",
+        "relation": "NEW",
+        "taskType": "GENERAL",
+        "pageQuery": null,
+        "toolRoute": [
+          "backend:knowledge",
+          "backend:reference_read"
+        ],
+        "toolUsage": {
+          "report": false,
+          "thermal": false,
+          "knowledge": true
+        },
+        "adviceMode": null,
+        "candidateIds": [],
+        "domainIntent": "KNOWLEDGE_EXPLAIN",
+        "parserSource": "LLM",
+        "policyReason": "READ_ONLY_SEMANTIC",
+        "queryChanged": false,
+        "reportQueued": false,
+        "effectRequest": null,
+        "sourcePageIds": [],
+        "answerContract": "KNOWLEDGE",
+        "factValidation": "VALID_FACTS",
+        "referenceScope": "LATEST_VISIBLE",
+        "candidateIdList": [],
+        "requestedEffect": "READ_ONLY",
+        "referencePageIds": [],
+        "semanticEvidence": "I型15mm R=4.8与II型50mm R=5.0谁大？",
+        "semanticReference": {
+          "items": [],
+          "scope": "NONE",
+          "revision": null
+        },
+        "factValidationCode": "FACT_IDENTITY_REQUIRED",
+        "queryChangedFields": [],
+        "semanticConfidence": 0.9,
+        "solutionStateMutated": false,
+        "candidateSnapshotSource": []
+      },
+      "counts": {
+        "states": 0,
+        "snapshots": 0,
+        "reports": 0
+      },
+      "elapsedMs": 9048,
+      "events": [
+        "done"
+      ],
+      "references": []
+    },
+    {
+      "round": 1,
+      "caseId": "factVerify",
+      "conversationId": "79273441-9759-4d46-822e-fe76a66b9844",
+      "user": "A3-2 45mm 的 K 是多少？",
+      "answer": "本次已确认资料匹配 1 档、1 个独立构造，当前引用 1 档。\n\n- **A3-2**，基层混凝土空心砌块 190mm：板厚 **45mm**，传热系数 K **0.294**。来源：《测试知识库》，印刷页码 5。\n\n同值不代表做法相同，请结合完整表及原始构造简图核对。材料层热阻、产品整体热阻与整构造传热阻分别读取，缺值不补算；本次仅查阅资料，不选择方案或判断规范达标。",
+      "decision": {
+        "goal": "REFERENCE_QUERY",
+        "patch": [],
+        "intent": "REFERENCE_LOOKUP",
+        "source": "INTENT",
+        "factRead": null,
+        "mutation": "QUERY",
+        "relation": "NEW",
+        "taskType": "GENERAL",
+        "pageQuery": {
+          "intent": "REFERENCE_LOOKUP",
+          "queryMode": "NEW_QUERY",
+          "confidence": 0.95,
+          "readFields": [
+            "kValue"
+          ],
+          "unresolved": [],
+          "constraints": [
+            {
+              "hard": true,
+              "type": "ENTITY",
+              "field": "schemeCode",
+              "value": null,
+              "metric": null,
+              "evidence": "A3-2",
+              "operator": null,
+              "operation": "SET",
+              "confidence": 0.95,
+              "entityText": "A3-2",
+              "resolvedText": "A3-2"
+            },
+            {
+              "hard": true,
+              "type": "THICKNESS",
+              "field": null,
+              "value": 45,
+              "metric": null,
+              "evidence": "45mm",
+              "operator": "EXACT",
+              "operation": "SET",
+              "confidence": 0.95,
+              "entityText": "45mm",
+              "resolvedText": "45"
+            }
+          ],
+          "preferences": []
+        },
+        "toolRoute": [
+          "backend:knowledge",
+          "backend:reference_query"
+        ],
+        "toolUsage": {
+          "report": false,
+          "thermal": false,
+          "knowledge": true
+        },
+        "adviceMode": null,
+        "candidateIds": [],
+        "domainIntent": "REFERENCE_QUERY",
+        "parserSource": "LLM",
+        "policyReason": "READ_ONLY_QUERY",
+        "queryChanged": false,
+        "reportQueued": false,
+        "effectRequest": null,
+        "sourcePageIds": [],
+        "answerContract": "REFERENCE_LOOKUP",
+        "referenceScope": "LATEST_VISIBLE",
+        "candidateIdList": [],
+        "requestedEffect": "QUERY",
+        "referencePageIds": [
+          "60a1b3a1-9887-4450-8b03-dbe6570526df"
+        ],
+        "semanticEvidence": "A3-2 45mm 的 K 是多少？",
+        "semanticReference": {
+          "items": [
+            {
+              "type": "CONSTRUCTION_CODE",
+              "value": "A3-2",
+              "evidence": "A3-2"
+            },
+            {
+              "type": "THICKNESS",
+              "value": 45,
+              "evidence": "45mm"
+            }
+          ],
+          "scope": "NONE",
+          "revision": null
+        },
+        "factValidationCode": "NOT_EVALUATED",
+        "queryChangedFields": [],
+        "semanticConfidence": 0.95,
+        "solutionStateMutated": false,
+        "candidateSnapshotSource": []
+      },
+      "counts": {
+        "states": 0,
+        "snapshots": 0,
+        "reports": 0
+      },
+      "elapsedMs": 11722,
+      "query": {
+        "mode": "MAX_LIMIT",
+        "intent": "REFERENCE_LOOKUP",
+        "filters": [],
+        "queryMode": "NEW_QUERY",
+        "readFields": [
+          "kValue"
+        ],
+        "schemeCode": "A3-2",
+        "unresolved": [],
+        "documentIds": [
+          "baedb3e4-0935-4322-94e1-a02e4d4178ad"
+        ],
+        "thicknessMm": 45,
+        "parserSource": "LLM",
+        "conditionTrace": [
+          {
+            "field": "schemeCode",
+            "value": "A3-2",
+            "source": "USER_EXPLICIT",
+            "classification": "HARD_CONSTRAINT"
+          },
+          {
+            "field": "thicknessMm",
+            "value": 45,
+            "source": "USER_EXPLICIT",
+            "classification": "HARD_CONSTRAINT"
+          }
+        ],
+        "toleranceAdjusted": false,
+        "semanticConfidence": 0.95,
+        "knowledgeVersionIds": [
+          "b93a1099-4f32-45b4-8683-b3a3ef5bb64e"
+        ]
+      },
+      "events": [
+        "reference_pages",
+        "done"
+      ],
+      "references": [
+        {
+          "pageId": "60a1b3a1-9887-4450-8b03-dbe6570526df",
+          "documentId": "baedb3e4-0935-4322-94e1-a02e4d4178ad",
+          "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+          "pageLabel": "5",
+          "matches": [
+            {
+              "constructionId": "kp-8f0230b10fb3e3016159d4f1-1",
+              "optionId": "kp-8f0230b10fb3e3016159d4f1-1-o7",
+              "fieldKeys": [
+                "thicknessMm",
+                "kValue"
+              ],
+              "constructionCode": "A3-2",
+              "specClass": "III",
+              "baseMaterial": "混凝土空心砌块",
+              "baseThicknessMm": 190,
+              "option": {
+                "optionId": "kp-8f0230b10fb3e3016159d4f1-1-o7",
+                "thicknessMm": 45,
+                "productThermalResistance": 3,
+                "totalThermalResistance": 3.398,
+                "kValue": 0.294
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "round": 1,
+      "caseId": "factVerify",
+      "conversationId": "79273441-9759-4d46-822e-fe76a66b9844",
+      "user": "帮我确认一下K=0.294这个数字对不对。",
+      "answer": "- **A3-2**：板厚 45mm，传热系数 K=0.294，与所问 0.294一致。来源印刷页码 5。\n\n这是资料事实核对，未确认正式方案；同值的不同构造分别保留。",
+      "decision": {
+        "goal": "KNOWLEDGE_EXPLAIN",
+        "patch": [],
+        "intent": "GENERAL",
+        "source": "INTENT",
+        "factRead": {
+          "mode": "VERIFY",
+          "metric": "K",
+          "evidence": "帮我确认一下K=0.294这个数字对不对。",
+          "historyClaim": false
+        },
+        "mutation": "NONE",
+        "relation": "CONTINUE",
+        "taskType": "GENERAL",
+        "toolRoute": [
+          "backend:knowledge",
+          "backend:reference_read"
+        ],
+        "toolUsage": {
+          "report": false,
+          "thermal": false,
+          "knowledge": true
+        },
+        "adviceMode": null,
+        "candidateIds": [],
+        "domainIntent": "KNOWLEDGE_EXPLAIN",
+        "parserSource": "LLM",
+        "policyReason": "READ_ONLY_SEMANTIC",
+        "queryChanged": false,
+        "reportQueued": false,
+        "effectRequest": null,
+        "sourcePageIds": [],
+        "answerContract": "KNOWLEDGE",
+        "referenceScope": "LATEST_VISIBLE",
+        "candidateIdList": [],
+        "requestedEffect": "READ_ONLY",
+        "referencePageIds": [
+          "60a1b3a1-9887-4450-8b03-dbe6570526df"
+        ],
+        "semanticEvidence": "帮我确认一下K=0.294这个数字对不对。",
+        "semanticReference": {
+          "items": [],
+          "scope": "LAST_VISIBLE_CANDIDATES",
+          "revision": null
+        },
+        "factValidationCode": "CONFIRMED_PAGE_FACT_VERIFY",
+        "queryChangedFields": [],
+        "semanticConfidence": 0.95,
+        "solutionStateMutated": false,
+        "candidateSnapshotSource": []
+      },
+      "counts": {
+        "states": 0,
+        "snapshots": 0,
+        "reports": 0
+      },
+      "elapsedMs": 4015,
+      "query": {
+        "mode": "MAX_LIMIT",
+        "intent": "REFERENCE_LOOKUP",
+        "filters": [],
+        "queryMode": "NEW_QUERY",
+        "readFields": [
+          "kValue"
+        ],
+        "schemeCode": "A3-2",
+        "unresolved": [],
+        "documentIds": [
+          "baedb3e4-0935-4322-94e1-a02e4d4178ad"
+        ],
+        "thicknessMm": 45,
+        "parserSource": "LLM",
+        "conditionTrace": [
+          {
+            "field": "schemeCode",
+            "value": "A3-2",
+            "source": "USER_EXPLICIT",
+            "classification": "HARD_CONSTRAINT"
+          },
+          {
+            "field": "thicknessMm",
+            "value": 45,
+            "source": "USER_EXPLICIT",
+            "classification": "HARD_CONSTRAINT"
+          }
+        ],
+        "toleranceAdjusted": false,
+        "semanticConfidence": 0.95,
+        "knowledgeVersionIds": [
+          "b93a1099-4f32-45b4-8683-b3a3ef5bb64e"
+        ]
+      },
+      "events": [
+        "reference_pages",
+        "done"
+      ],
+      "references": [
+        {
+          "pageId": "60a1b3a1-9887-4450-8b03-dbe6570526df",
+          "documentId": "baedb3e4-0935-4322-94e1-a02e4d4178ad",
+          "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+          "pageLabel": "5",
+          "matches": [
+            {
+              "constructionId": "kp-8f0230b10fb3e3016159d4f1-1",
+              "optionId": "kp-8f0230b10fb3e3016159d4f1-1-o7",
+              "fieldKeys": [
+                "thicknessMm",
+                "kValue"
+              ],
+              "constructionCode": "A3-2",
+              "specClass": "III",
+              "baseMaterial": "混凝土空心砌块",
+              "baseThicknessMm": 190,
+              "option": {
+                "optionId": "kp-8f0230b10fb3e3016159d4f1-1-o7",
+                "thicknessMm": 45,
+                "productThermalResistance": 3,
+                "totalThermalResistance": 3.398,
+                "kValue": 0.294
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "caseId": "arithmetic",
+      "conversationId": "7f6cdbfd-e669-4c24-b4ce-78297dfbf952",
+      "user": "I型15mm R=4.8与II型50mm R=5.0谁大？",
+      "answer": "按你给出的同种指标数值，4.800 < 5.000。这只是所给数值的大小关系，尚未证明它们对应指定型号、厚度或正式来源。\n每个型号还对应多个构造来源，请指定构造编号和厚度后比较。",
+      "decision": {
+        "goal": "KNOWLEDGE_EXPLAIN",
+        "patch": [],
+        "intent": "GENERAL",
+        "source": "INTENT",
+        "factRead": {
+          "mode": "COMPARE",
+          "metric": "PRODUCT_R",
+          "evidence": "I型15mm R=4.8与II型50mm R=5.0谁大？",
+          "historyClaim": false
+        },
+        "mutation": "NONE",
+        "relation": "NEW",
+        "taskType": "GENERAL",
+        "pageQuery": null,
+        "toolRoute": [
+          "backend:knowledge",
+          "backend:reference_read"
+        ],
+        "toolUsage": {
+          "report": false,
+          "thermal": false,
+          "knowledge": true
+        },
+        "adviceMode": null,
+        "candidateIds": [],
+        "domainIntent": "KNOWLEDGE_EXPLAIN",
+        "parserSource": "LLM",
+        "policyReason": "READ_ONLY_SEMANTIC",
+        "queryChanged": false,
+        "reportQueued": false,
+        "effectRequest": null,
+        "sourcePageIds": [],
+        "answerContract": "KNOWLEDGE",
+        "factValidation": "VALID_FACTS",
+        "referenceScope": "LATEST_VISIBLE",
+        "candidateIdList": [],
+        "requestedEffect": "READ_ONLY",
+        "referencePageIds": [],
+        "semanticEvidence": "I型15mm R=4.8与II型50mm R=5.0谁大？",
+        "semanticReference": {
+          "items": [],
+          "scope": "NONE",
+          "revision": null
+        },
+        "factValidationCode": "FACT_IDENTITY_REQUIRED",
+        "queryChangedFields": [],
+        "semanticConfidence": 0.9,
+        "solutionStateMutated": false,
+        "candidateSnapshotSource": []
+      },
+      "counts": {
+        "states": 0,
+        "snapshots": 0,
+        "reports": 0
+      },
+      "elapsedMs": 8384,
+      "events": [
+        "done"
+      ],
+      "references": []
+    },
+    {
+      "round": 2,
+      "caseId": "factVerify",
+      "conversationId": "b9f54766-7344-45b1-add8-83a53f832ff1",
+      "user": "A3-2 45mm 的 K 是多少？",
+      "answer": "本次已确认资料匹配 1 档、1 个独立构造，当前引用 1 档。\n\n- **A3-2**，基层混凝土空心砌块 190mm：板厚 **45mm**，传热系数 K **0.294**。来源：《测试知识库》，印刷页码 5。\n\n同值不代表做法相同，请结合完整表及原始构造简图核对。材料层热阻、产品整体热阻与整构造传热阻分别读取，缺值不补算；本次仅查阅资料，不选择方案或判断规范达标。",
+      "decision": {
+        "goal": "REFERENCE_QUERY",
+        "patch": [],
+        "intent": "REFERENCE_LOOKUP",
+        "source": "INTENT",
+        "factRead": null,
+        "mutation": "QUERY",
+        "relation": "NEW",
+        "taskType": "GENERAL",
+        "pageQuery": {
+          "intent": "REFERENCE_LOOKUP",
+          "queryMode": "NEW_QUERY",
+          "confidence": 0.95,
+          "readFields": [
+            "kValue"
+          ],
+          "unresolved": [],
+          "constraints": [
+            {
+              "hard": true,
+              "type": "ENTITY",
+              "field": "schemeCode",
+              "value": null,
+              "metric": null,
+              "evidence": "A3-2",
+              "operator": null,
+              "operation": "SET",
+              "confidence": 0.95,
+              "entityText": "A3-2",
+              "resolvedText": "A3-2"
+            },
+            {
+              "hard": true,
+              "type": "THICKNESS",
+              "field": null,
+              "value": 45,
+              "metric": null,
+              "evidence": "45mm",
+              "operator": "EXACT",
+              "operation": "SET",
+              "confidence": 0.95,
+              "entityText": "45mm",
+              "resolvedText": "45"
+            }
+          ],
+          "preferences": []
+        },
+        "toolRoute": [
+          "backend:knowledge",
+          "backend:reference_query"
+        ],
+        "toolUsage": {
+          "report": false,
+          "thermal": false,
+          "knowledge": true
+        },
+        "adviceMode": null,
+        "candidateIds": [],
+        "domainIntent": "REFERENCE_QUERY",
+        "parserSource": "LLM",
+        "policyReason": "READ_ONLY_QUERY",
+        "queryChanged": false,
+        "reportQueued": false,
+        "effectRequest": null,
+        "sourcePageIds": [],
+        "answerContract": "REFERENCE_LOOKUP",
+        "referenceScope": "LATEST_VISIBLE",
+        "candidateIdList": [],
+        "requestedEffect": "QUERY",
+        "referencePageIds": [
+          "60a1b3a1-9887-4450-8b03-dbe6570526df"
+        ],
+        "semanticEvidence": "A3-2 45mm 的 K 是多少？",
+        "semanticReference": {
+          "items": [
+            {
+              "type": "CONSTRUCTION_CODE",
+              "value": "A3-2",
+              "evidence": "A3-2"
+            },
+            {
+              "type": "THICKNESS",
+              "value": 45,
+              "evidence": "45mm"
+            }
+          ],
+          "scope": "NONE",
+          "revision": null
+        },
+        "factValidationCode": "NOT_EVALUATED",
+        "queryChangedFields": [],
+        "semanticConfidence": 0.95,
+        "solutionStateMutated": false,
+        "candidateSnapshotSource": []
+      },
+      "counts": {
+        "states": 0,
+        "snapshots": 0,
+        "reports": 0
+      },
+      "elapsedMs": 7546,
+      "query": {
+        "mode": "MAX_LIMIT",
+        "intent": "REFERENCE_LOOKUP",
+        "filters": [],
+        "queryMode": "NEW_QUERY",
+        "readFields": [
+          "kValue"
+        ],
+        "schemeCode": "A3-2",
+        "unresolved": [],
+        "documentIds": [
+          "baedb3e4-0935-4322-94e1-a02e4d4178ad"
+        ],
+        "thicknessMm": 45,
+        "parserSource": "LLM",
+        "conditionTrace": [
+          {
+            "field": "schemeCode",
+            "value": "A3-2",
+            "source": "USER_EXPLICIT",
+            "classification": "HARD_CONSTRAINT"
+          },
+          {
+            "field": "thicknessMm",
+            "value": 45,
+            "source": "USER_EXPLICIT",
+            "classification": "HARD_CONSTRAINT"
+          }
+        ],
+        "toleranceAdjusted": false,
+        "semanticConfidence": 0.95,
+        "knowledgeVersionIds": [
+          "b93a1099-4f32-45b4-8683-b3a3ef5bb64e"
+        ]
+      },
+      "events": [
+        "reference_pages",
+        "done"
+      ],
+      "references": [
+        {
+          "pageId": "60a1b3a1-9887-4450-8b03-dbe6570526df",
+          "documentId": "baedb3e4-0935-4322-94e1-a02e4d4178ad",
+          "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+          "pageLabel": "5",
+          "matches": [
+            {
+              "constructionId": "kp-8f0230b10fb3e3016159d4f1-1",
+              "optionId": "kp-8f0230b10fb3e3016159d4f1-1-o7",
+              "fieldKeys": [
+                "thicknessMm",
+                "kValue"
+              ],
+              "constructionCode": "A3-2",
+              "specClass": "III",
+              "baseMaterial": "混凝土空心砌块",
+              "baseThicknessMm": 190,
+              "option": {
+                "optionId": "kp-8f0230b10fb3e3016159d4f1-1-o7",
+                "thicknessMm": 45,
+                "productThermalResistance": 3,
+                "totalThermalResistance": 3.398,
+                "kValue": 0.294
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "caseId": "factVerify",
+      "conversationId": "b9f54766-7344-45b1-add8-83a53f832ff1",
+      "user": "帮我确认一下K=0.294这个数字对不对。",
+      "answer": "- **A3-2**：板厚 45mm，传热系数 K=0.294，与所问 0.294一致。来源印刷页码 5。\n\n这是资料事实核对，未确认正式方案；同值的不同构造分别保留。",
+      "decision": {
+        "goal": "KNOWLEDGE_EXPLAIN",
+        "patch": [],
+        "intent": "GENERAL",
+        "source": "INTENT",
+        "factRead": {
+          "mode": "VERIFY",
+          "metric": "K",
+          "evidence": "帮我确认一下K=0.294这个数字对不对。",
+          "historyClaim": false
+        },
+        "mutation": "NONE",
+        "relation": "CONTINUE",
+        "taskType": "GENERAL",
+        "toolRoute": [
+          "backend:knowledge",
+          "backend:reference_read"
+        ],
+        "toolUsage": {
+          "report": false,
+          "thermal": false,
+          "knowledge": true
+        },
+        "adviceMode": null,
+        "candidateIds": [],
+        "domainIntent": "KNOWLEDGE_EXPLAIN",
+        "parserSource": "LLM",
+        "policyReason": "READ_ONLY_SEMANTIC",
+        "queryChanged": false,
+        "reportQueued": false,
+        "effectRequest": null,
+        "sourcePageIds": [],
+        "answerContract": "KNOWLEDGE",
+        "referenceScope": "LATEST_VISIBLE",
+        "candidateIdList": [],
+        "requestedEffect": "READ_ONLY",
+        "referencePageIds": [
+          "60a1b3a1-9887-4450-8b03-dbe6570526df"
+        ],
+        "semanticEvidence": "帮我确认一下K=0.294这个数字对不对。",
+        "semanticReference": {
+          "items": [],
+          "scope": "LAST_VISIBLE_CANDIDATES",
+          "revision": null
+        },
+        "factValidationCode": "CONFIRMED_PAGE_FACT_VERIFY",
+        "queryChangedFields": [],
+        "semanticConfidence": 0.95,
+        "solutionStateMutated": false,
+        "candidateSnapshotSource": []
+      },
+      "counts": {
+        "states": 0,
+        "snapshots": 0,
+        "reports": 0
+      },
+      "elapsedMs": 3418,
+      "query": {
+        "mode": "MAX_LIMIT",
+        "intent": "REFERENCE_LOOKUP",
+        "filters": [],
+        "queryMode": "NEW_QUERY",
+        "readFields": [
+          "kValue"
+        ],
+        "schemeCode": "A3-2",
+        "unresolved": [],
+        "documentIds": [
+          "baedb3e4-0935-4322-94e1-a02e4d4178ad"
+        ],
+        "thicknessMm": 45,
+        "parserSource": "LLM",
+        "conditionTrace": [
+          {
+            "field": "schemeCode",
+            "value": "A3-2",
+            "source": "USER_EXPLICIT",
+            "classification": "HARD_CONSTRAINT"
+          },
+          {
+            "field": "thicknessMm",
+            "value": 45,
+            "source": "USER_EXPLICIT",
+            "classification": "HARD_CONSTRAINT"
+          }
+        ],
+        "toleranceAdjusted": false,
+        "semanticConfidence": 0.95,
+        "knowledgeVersionIds": [
+          "b93a1099-4f32-45b4-8683-b3a3ef5bb64e"
+        ]
+      },
+      "events": [
+        "reference_pages",
+        "done"
+      ],
+      "references": [
+        {
+          "pageId": "60a1b3a1-9887-4450-8b03-dbe6570526df",
+          "documentId": "baedb3e4-0935-4322-94e1-a02e4d4178ad",
+          "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+          "pageLabel": "5",
+          "matches": [
+            {
+              "constructionId": "kp-8f0230b10fb3e3016159d4f1-1",
+              "optionId": "kp-8f0230b10fb3e3016159d4f1-1-o7",
+              "fieldKeys": [
+                "thicknessMm",
+                "kValue"
+              ],
+              "constructionCode": "A3-2",
+              "specClass": "III",
+              "baseMaterial": "混凝土空心砌块",
+              "baseThicknessMm": 190,
+              "option": {
+                "optionId": "kp-8f0230b10fb3e3016159d4f1-1-o7",
+                "thicknessMm": 45,
+                "productThermalResistance": 3,
+                "totalThermalResistance": 3.398,
+                "kValue": 0.294
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "cleanup": {
+    "redisKeysRemaining": 0,
+    "databaseAbsent": true,
+    "errors": [],
+    "objectsWritten": 0
+  },
+  "sourcePagesUnchanged": true
+}

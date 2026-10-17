@@ -5,6 +5,7 @@ import { normalizeEntityText } from "../thermal/thermal-query-state.js";
 import { resolveQueryEntities, type QueryEntity } from "../thermal/thermal-entity-resolver.js";
 import { assertSolutionAccess } from "./solution-state.service.js";
 import { isReferencePageConsumable } from "./reference-page-access.js";
+import { buildProductAnswerFacts, formatProductFactsAnswer } from "./product-answer.js";
 import type { ReferenceReadContext } from "./reference-candidate-resolver.service.js";
 export interface ProductSearchInput { keyword?: string; productType?: string; specClass?: "I"|"II"|"III"; productIds?: string[]; limit?: number }
 
@@ -57,10 +58,11 @@ export async function resolveProductConsultation(ctx: ReferenceReadContext) {
   const data=ambiguous||needIdentity&&!named.length&&!types.length&&!specClass ? {products:[],sources:[],hasMore:false} : await searchProductCatalog(ctx,{productIds:named.length?named.map(item=>item.id):undefined,
     productType:types[0],specClass,limit:12});
   const needsClarification=ambiguous||needIdentity&&!named.length&&!types.length&&!specClass;
-  const answer=needsClarification ? "请指定要查看的产品名称、目录简称或型号。" : data.products.length
-    ? `当前正式产品目录${data.hasMore?"中部分产品":"检索结果"}：\n${data.products.map(item=>`${item.name}${item.productType?`（${item.productType}）`:""}${item.specClass?`，${item.specClass}型`:""}${item.summary?`：${item.summary}`:""}${item.thicknessOptionsMm.length?`；可选板厚 ${item.thicknessOptionsMm.join("/")}mm`:""}${item.thermalConductivity!=null?`；λ=${item.thermalConductivity}`:""}${item.correctionFactor!=null?`；α=${item.correctionFactor}`:""}`).join("\n")}\n适用场景及比较结论须以已发布资料或审核规则为依据。`
-    : "正式产品目录未找到符合条件的产品，不能补写不存在的型号或参数。";
+  // 事实取得到此结束：下面只产出「事实合同 + 仅事实回答」，
+  // 解释组织交给回答层（模型），并按已核验事实校验数值，不再用固定参数清单直出。
+  const facts=buildProductAnswerFacts({products:data.products,sources:data.sources,hasMore:data.hasMore,decision:ctx.domainDecision});
+  const answer=needsClarification ? "请指定要查看的产品名称、目录简称或型号。" : formatProductFactsAnswer(facts);
   ctx.onEvent?.("product_cards",{products:data.products});
   if(data.sources.length)ctx.onEvent?.("sources",{sources:data.sources});
-  return {...data,needsClarification,answer};
+  return {...data,needsClarification,facts,answer};
 }

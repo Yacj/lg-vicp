@@ -104,6 +104,16 @@ export function resolveKTolerance(
 export const THERMAL_LOOKUP_METRICS = ["K", "TOTAL_R", "PRODUCT_R"] as const;
 export type ThermalLookupMetric = (typeof THERMAL_LOOKUP_METRICS)[number];
 
+/**
+ * 指标的中文名（单一事实源，用于诊断/提示文案）。
+ * 「产品层热阻 R」严格指产品整体热阻；真空芯材自身热阻是另一个事实，不得混用此标签。
+ */
+export const THERMAL_METRIC_LABELS: Record<ThermalLookupMetric, string> = {
+  K: "传热系数 K",
+  TOTAL_R: "总热阻 R₀",
+  PRODUCT_R: "产品层热阻 R"
+};
+
 /** 图集保留三位小数；R 默认窗口覆盖 3.297≈3.3 和 2.880≈2.9。 */
 export const THERMAL_LOOKUP_RULES = {
   K: { approximate: DEFAULT_K_APPROX_TOLERANCE, maximum: 0.05, epsilon: DEFAULT_K_EXACT_EPSILON },
@@ -246,6 +256,8 @@ export function classifyNumberRole(text: string, raw: string, index: number): Nu
   const before = text.slice(Math.max(0, index - 4), index);
   const after = text.slice(end);
   if (THICKNESS_UNIT.test(after)) return "THICKNESS";
+  // SM-NUMBER-ROLE-02：数字+型为型号格式，不可作为远处K/R的目标值。
+  if (/^\s*型/.test(after)) return "MODEL_CODE_PART";
   if (PAGE_PREFIX.test(before)) return "PAGE_NUMBER";
   if (MONEY_SUFFIX.test(after)) return "COUNT";
   if (COUNT_SUFFIX.test(after)) return "COUNT";

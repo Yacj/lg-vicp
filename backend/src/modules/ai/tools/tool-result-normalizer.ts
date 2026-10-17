@@ -10,6 +10,7 @@ import type { ProductComparisonResult } from "../compare-product.js";
 import type { ReferenceLookupCandidate } from "../conversation-task.js";
 import { formatLookupThickness, type LookupThickness } from "../../thermal/thermal-lookup-thickness.js";
 import type { ThermalLookupFilter } from "../../thermal/thermal-lookup-mode.js";
+import { THERMAL_METRIC_LABELS } from "../../thermal/thermal-lookup-mode.js";
 import { THERMAL_FACT_RULES } from "../thermal-answer-facts.js";
 import { renderAllowedFactsForModel, type AllowedAnswerFacts } from "../thermal-answer-validation.js";
 
@@ -41,6 +42,8 @@ export type NormalizedProductData = {
     specifications?: Array<Record<string, unknown>>;
   }>;
   missingNotes: string[];
+  /** 回答形式指引：介绍性问题与技术参数问题用同一批事实，但表达不同 */
+  instruction: string;
 };
 
 export type NormalizedProjectState = {
@@ -67,6 +70,9 @@ export type NormalizedThermal = {
   valid: boolean;
   K: unknown;
   R: unknown;
+  /** 产品层热阻与它的口径；LAYERED 只累加产品层行时不得称为产品整体 R。 */
+  productResistance?: unknown;
+  productResistanceScope?: "PRODUCT_EQUIVALENT_TOTAL" | "PRODUCT_LAYER_ROWS_ONLY" | null;
   pass: boolean | null;
   notes: string[];
   process?: Array<{ title?: string; formula?: string; value?: unknown }>;
@@ -140,6 +146,13 @@ export function normalizeSearchKnowledgeForModel(input: {
   return { hits, available: true, instruction: "来源仅使用印刷页码标签，缺失时提示查看原始页面。热工数值关系以同一条已确认结构化候选为准；文字只补充说明，禁止跨构造拼参数或根据几个命中宣称最高、唯一。" };
 }
 
+/**
+ * 产品目录归一化。
+ *
+ * 真实失败：「你们VICP产品主要有什么？我不是工程师」只被回了一串目录技术字段（λ/α/板厚/型号分类）。
+ * 原因不是事实缺失，而是缺少回答形式指引——介绍性问题和技术参数问题可以共用同一批已审核事实，
+ * 但表达必须随用户目标变化。这里只给表达边界，不新增任何事实。
+ */
 export function normalizeProductDataForModel(input: {
   products: Array<{ id: string; name: string; summary: string | null; knowledgeDocumentIds?: string[] }
     & Partial<Pick<NormalizedProductData["products"][number], "productType"|"specClass"|"thermalConductivity"|"correctionFactor"|"thicknessOptionsMm"|"specifications">>>;
@@ -148,6 +161,7 @@ export function normalizeProductDataForModel(input: {
   const missingNotes = (input.missingProductIds ?? []).length > 0
     ? [USER_LANGUAGE_NOTES.missingProduct]
     : [];
+  const hasSummary = input.products.some((item) => (item.summary ?? "").trim());
   return {
     products: input.products.map((item) => ({
       id: item.id,
@@ -157,7 +171,15 @@ export function normalizeProductDataForModel(input: {
       , ...Object.fromEntries(["productType","specClass","thermalConductivity","correctionFactor","thicknessOptionsMm","specifications"]
         .flatMap(key=>key in item ? [[key,(item as unknown as Record<string,unknown>)[key]]] : []))
     })),
-    missingNotes
+    missingNotes,
+    instruction: [
+      "用户问「有什么产品」「主要做什么」「我不是工程师」这类介绍性问题时，用业务语言说清这是什么产品、解决什么问题、适合什么场景，不要一上来罗列导热系数、修正系数、板厚和型号分类。",
+      "用户明确问技术参数、型号或厚度时再展开对应字段，同一批事实可以有两种说法，但数值和名称必须与上面完全一致。",
+      hasSummary
+        ? "产品介绍只依据 name 与 summary；summary 没写的内容不要补。"
+        : "这些产品当前没有已审核的介绍文案，只能说明名称和已有技术字段，并告知可查看原始资料。",
+      "不要补充未审核的宣传结论（例如行业领先、节能百分之多少、寿命多少年、获奖或认证），也不要拿技术字段当卖点复述。"
+    ].join("\n")
   };
 }
 
@@ -231,7 +253,8 @@ export function normalizeReferenceLookupForModel(input: LookupThickness & {
 }): NormalizedReferenceLookup {
   const mode = input.lookupMode;
   const multiple = (input.filters?.length ?? 0) > 1;
-  const metricLabel = input.metric === "TOTAL_R" ? "外墙主断面总热阻 R₀" : input.metric === "PRODUCT_R" ? "产品层热阻 R" : "传热系数 K";
+  // 指标标签取单一事实源：构造不一定是外墙，不得把总热阻一律写成「外墙主断面」。
+  const metricLabel = input.metric ? THERMAL_METRIC_LABELS[input.metric] : THERMAL_METRIC_LABELS.K;
   const modeInstruction = input.filters?.length === 0 && input.targetValue == null ? "" : multiple
     ? "本次包含多个热工条件，候选必须同时满足全部条件。有结果时说明找到同时符合这些筛选条件的参考方案；无结果时说明没有找到同时满足全部条件的正式参考方案。列出 K、总热阻、产品层热阻、厚度、构造与原始页，不得输出内部条件数组、枚举或宣称规范达标。"
     : mode === "APPROX"
@@ -247,7 +270,8 @@ export function normalizeReferenceLookupForModel(input: LookupThickness & {
   const fallbackInstruction = fallback
     ? "注意：没有找到符合用户所述保温体系的正式方案，下方是其他体系中接近目标的参考结果。必须先用一句话说明「没有找到符合该体系的正式方案」，再说明下面是其他体系的接近结果，禁止让用户误以为这些就是该体系方案。"
     : "";
-  const base = input.found
+  const base = input.allowedFacts?.queryDiagnostics ? "本轮已完成正式参考集与确认页读取。失败原因只按queryDiagnostics及canonicalAnswers说明，不猜测原因；只读事实不能称为可确认的正式候选。"
+    : input.found
     ? `${fallback ? "第一句说明没有找到符合用户所述体系条件的正式参考方案，随后说明其他体系的参考结果。" : "指标明确且候选满足全部条件时第一行直接回答有。指标歧义先澄清。"}只使用本结果中的数值。不要把整张构造表再用 Markdown 重写。页面图片由系统单独返回。不要把地区、气候区、基层、建筑类型当成查询前置，也不要展开热工公式。不要暴露内部字段名（如 thermal_reference_rows、systemHint、candidate score）。`
     : "当前已发布参考表没有完全满足条件的正式方案，如实说明即可；可以建议继续查图集原文。相邻项必须说明未满足哪些条件，不得冒充命中或宣称全量最接近。";
   return {
@@ -292,6 +316,8 @@ export function normalizeThermalForModel(input: {
   valid: boolean;
   K: unknown;
   R: unknown;
+  productResistance?: unknown;
+  productResistanceScope?: "PRODUCT_EQUIVALENT_TOTAL" | "PRODUCT_LAYER_ROWS_ONLY" | null;
   pass?: boolean | null;
   notes?: string[];
   errors?: Array<{ message?: string } | string>;
@@ -299,15 +325,20 @@ export function normalizeThermalForModel(input: {
 }): NormalizedThermal {
   const errorNotes = (input.errors ?? []).map((item) => typeof item === "string" ? item : item.message ?? "")
     .filter(Boolean);
+  const scopeNote = input.productResistanceScope === "PRODUCT_LAYER_ROWS_ONLY"
+    ? "产品层热阻只累加产品层（PRODUCT_LAYER）行，可能未含包覆等子层：不得说成产品整体热阻，也不要用它反推产品整体 R。"
+    : input.productResistanceScope === "PRODUCT_EQUIVALENT_TOTAL" ? "产品层热阻按产品当量参数累加，代表产品整体热阻。" : "";
   return {
     valid: input.valid,
     K: input.K,
     R: input.R,
+    ...(input.productResistance != null ? { productResistance: input.productResistance } : {}),
+    ...(input.productResistanceScope ? { productResistanceScope: input.productResistanceScope } : {}),
     pass: input.pass ?? null,
     notes: [...(input.notes ?? []), ...errorNotes],
-    instruction: input.valid
+    instruction: [input.valid
       ? "先给结果，再给简短解释。计算过程只有用户问“怎么算的”时再展开。"
-      : USER_LANGUAGE_NOTES.missingThermal
+      : USER_LANGUAGE_NOTES.missingThermal, scopeNote].filter(Boolean).join("\n")
   };
 }
 

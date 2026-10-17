@@ -9,6 +9,7 @@ import { buildThermalQueryDebug, logThermalQueryDebug, toRejectedCandidateDebug 
 import { parseSemanticQuery } from "./semantic-query.service.js";
 import { publishCandidateResult } from "./candidate-result.service.js";
 import { resolveComplianceRead } from "./compliance-read.service.js";
+import { resolveConfirmedReferenceAnswer } from "./ai-reference-pages.service.js";
 
 /**
  * 未启用 Agent 的查表仍走同一查询状态与约束服务，不能让普通 streamText 绕过事实门禁。
@@ -24,6 +25,7 @@ export async function resolveReferenceQueryWithoutAgent(ctx: ReferenceReadContex
   if (decision.intent === "CLARIFY") {
     const facts = buildAllowedAnswerFacts({ unresolved: [{ field: "intent", reason: decision.unresolved?.[0]
       ?? "请确认适用的地区标准和建筑类型后判断是否达标。" }] }, []);
+    if (decision.semantic?.requestedEffect === "REPORT_GENERATION") facts.canonicalAnswers[0] += "\n正式方案报告需要先明确最终方案并显式确认，形成已确认方案快照；是否达标还需独立核验正式标准和适用条件。本轮没有确认方案或生成报告。";
     return { facts, sources: [], referencePages: [], needsClarification: true };
   }
   if (decision.mutation !== "QUERY") {
@@ -63,7 +65,12 @@ export async function resolveReferenceQueryWithoutAgent(ctx: ReferenceReadContex
   delete state.confirmedPageLookup;
   await publishCandidateResult({ ...ctx, candidatePublication: "READ_ONLY_ADVICE" }, { query, candidates: pages.candidates, createdAt: new Date().toISOString() });
   const facts = buildAllowedAnswerFacts(query, pages.candidates, ctx.userMessage ?? "", result.matchedCount, {
-    nearbyCandidates: nearbyPages.candidates, identityMatchedButMetricFailed: identityPages.candidates, sourcePages: [...pages.sources, ...identityPages.sources] as Array<{ pageLabel?: string | null }>
+    nearbyCandidates: nearbyPages.candidates, identityMatchedButMetricFailed: identityPages.candidates, sourcePages: [...pages.sources, ...identityPages.sources] as Array<{ pageLabel?: string | null }>,
+    queryDiagnostics: result.queryDiagnostics, metricScope: result.metricScope, missingMetricFields: result.missingMetricFields, readOnlyReferences: result.readOnlyFacts
   });
-  return { facts, sources: [...pages.sources, ...identityPages.sources], referencePages: [...(pages.blocks ?? []), ...(identityPages.blocks ?? [])], needsClarification: Boolean(query.unresolved?.length) };
+  const rendered = resolveConfirmedReferenceAnswer(result.readOnlyReferences.answer!, result.readOnlyReferences.pages);
+  facts.canonicalAnswers = [rendered.text];
+  return { facts, candidates: pages.candidates, readOnly: true as const,
+    sources: rendered.pages.map(page => ({ documentId: page.page.documentId, pageId: page.page.pageId, title: page.page.documentTitle, pageLabel: page.page.pageLabel })),
+    referencePages: rendered.pages, needsClarification: Boolean(query.unresolved?.length) };
 }

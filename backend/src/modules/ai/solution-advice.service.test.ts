@@ -11,6 +11,7 @@ vi.mock("./ai-reference-pages.service.js", async original => ({ ...await origina
 vi.mock("ai", async original => ({ ...await original<typeof import("ai")>(), generateObject: mocks.model }));
 vi.mock("./ai-runtime.service.js", () => ({ resolveSceneRuntime: mocks.runtime }));
 vi.mock("./reference-fact-history.js", () => ({ readReferenceFactHistory: async () => [] }));
+vi.mock("./query-clarification-context.js", () => ({ readQueryClarification: async () => null }));
 vi.mock("../reports/report-snapshot.service.js", () => ({ generateTemplateReport: mocks.report }));
 vi.mock("../thermal/thermal-query-dictionary.service.js", () => ({ loadThermalQueryDictionary: mocks.dictionary }));
 vi.mock("../thermal/thermal-calc.service.js", () => ({ executeThermalCalc: mocks.calc }));
@@ -65,6 +66,15 @@ beforeEach(() => {
 });
 
 describe("方案建议多轮事实门禁（模拟数据库，非线上UAT）", () => {
+  it("优缺点基于同一确认构造，列数值及适用局限，不编价格寿命或替换墙体", async () => {
+    const app = appFixture(), state = await queriedState(app), message = "先不要确认，也不要生成报告，列一下优缺点。";
+    mocks.model.mockResolvedValue({ object: domainSemanticFixture(message, "SOLUTION_ADVICE", { adviceFocus: "PROS_CONS" }) });
+    const before = structuredClone(state.lastReferenceLookup), result = (await adviceTurn(app, state, message)).result;
+    expect(result.verified).toBe(true); expect(result.answer).toContain("优点："); expect(result.answer).toContain("局限：");
+    expect(result.answer).toContain("K=0.294"); expect(result.answer).toContain("不能为了较小K值替换实际墙体基层");
+    expect(result.answer).toContain("未给出可核验的价格、寿命"); expect(state.lastReferenceLookup).toEqual(before);
+    expect(app.db.insert).not.toHaveBeenCalled(); expect(mocks.mutate).not.toHaveBeenCalled(); expect(mocks.report).not.toHaveBeenCalled();
+  });
   it("四基层查询→出方案→移除地区建筑范围，建议有四个基层分支和确认来源，业务表零写入", async () => {
     const app = appFixture(); let state = await queriedState(app);
     const formalTables = { solution_states: [], solution_snapshots: [], reports: [] };

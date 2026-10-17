@@ -1,0 +1,2165 @@
+{
+  "run": {
+    "startedAt": "2026-10-17T07:43:21.576Z",
+    "fixtureVersion": "vicp-business-uat-1",
+    "reasoning": "OFF",
+    "styleJudge": "DETERMINISTIC_STYLE",
+    "gitRevision": "f747eace4353711c27431757111db73b2f9988b6",
+    "runtimePolicy": {
+      "chat": {
+        "taskType": "CHAT",
+        "maxOutputTokens": 4096,
+        "timeoutMs": 60000,
+        "tools": false,
+        "maxSteps": 1,
+        "structuredOutput": false
+      },
+      "agent": {
+        "taskType": "PROJECT_AGENT",
+        "maxOutputTokens": 4096,
+        "timeoutMs": 120000,
+        "tools": true,
+        "maxSteps": 8,
+        "structuredOutput": false
+      }
+    },
+    "database": "vicp_ai_uat_220bc2ca4d6841bc8328ac75887a738c",
+    "runtimeConfig": {
+      "models": [
+        {
+          "id": "6963f25b-73fd-4612-8a77-d3c58e323dbe",
+          "model": "deepseek-chat",
+          "reasoningLevel": "MAX"
+        }
+      ],
+      "defaultModelId": "6963f25b-73fd-4612-8a77-d3c58e323dbe",
+      "reasoningModelId": "6963f25b-73fd-4612-8a77-d3c58e323dbe"
+    },
+    "cleanup": "COMPLETED",
+    "finishedAt": "2026-10-17T07:44:30.360Z"
+  },
+  "summary": {
+    "plannedCases": 1,
+    "plannedTurns": 3,
+    "executedTurns": 3,
+    "pass": 0,
+    "warning": 1,
+    "fail": 2,
+    "blocked": 0,
+    "hardFails": 5,
+    "intent": {
+      "checked": 3,
+      "passed": 0,
+      "rate": 0
+    },
+    "parameters": {
+      "checked": 3,
+      "passed": 2,
+      "rate": 0.6666666666666666
+    },
+    "facts": {
+      "checked": 3,
+      "passed": 2,
+      "rate": 0.6666666666666666
+    },
+    "state": {
+      "checked": 3,
+      "passed": 1,
+      "rate": 0.3333333333333333
+    },
+    "source": {
+      "checked": 3,
+      "passed": 1,
+      "rate": 0.3333333333333333
+    },
+    "referencePage": {
+      "required": 1,
+      "passed": 0
+    }
+  },
+  "results": [
+    {
+      "caseId": "SALES-017",
+      "persona": "SALES",
+      "scenario": "真实传热8.3保温板问句先区分产品R与总R",
+      "turn": 1,
+      "user": "有传热8.3的保温板么",
+      "expected": {
+        "intent": "REFERENCE_LOOKUP",
+        "toolsAny": [],
+        "hardFailRules": [
+          "HARD_CONDITION",
+          "METRIC_CONFUSION",
+          "FABRICATED_PAGE",
+          "RESULT_TYPE",
+          "UNSUPPORTED_COMPLIANCE",
+          "STALE_CONDITIONS",
+          "THICKNESS_VIOLATION"
+        ],
+        "clarification": true,
+        "answerIncludes": [
+          "热阻"
+        ]
+      },
+      "checks": [
+        {
+          "group": "intent",
+          "passed": false,
+          "type": "ROUTING",
+          "detail": "预期intent=REFERENCE_LOOKUP，实际=GENERAL",
+          "hard": false
+        },
+        {
+          "group": "intent",
+          "passed": true,
+          "type": "RETRIEVAL",
+          "detail": "本轮工具调用均成功，不能将业务失败当作可用结果",
+          "hard": false
+        },
+        {
+          "group": "quality",
+          "passed": true,
+          "type": "ANSWER_CONTRACT",
+          "detail": "最终消息已完成且有用户可见回答",
+          "hard": false
+        },
+        {
+          "group": "quality",
+          "passed": true,
+          "type": "UX_COPY",
+          "detail": "不暴露内部开发术语",
+          "hard": false
+        },
+        {
+          "group": "quality",
+          "passed": true,
+          "type": "ANSWER_CONTRACT",
+          "detail": "回答包含必要概念 热阻",
+          "hard": false
+        },
+        {
+          "group": "quality",
+          "passed": true,
+          "type": "ANSWER_CONTRACT",
+          "detail": "资料/语义不足时短澄清或说明缺少依据",
+          "hard": false
+        },
+        {
+          "group": "facts",
+          "passed": true,
+          "type": "HALLUCINATION",
+          "detail": "合规肯定结论必须有正式地区标准快照",
+          "hard": true
+        },
+        {
+          "group": "facts",
+          "passed": true,
+          "type": "HALLUCINATION",
+          "detail": "最终文字不混淆产品R/总R/K",
+          "hard": true
+        },
+        {
+          "group": "facts",
+          "passed": true,
+          "type": "HALLUCINATION",
+          "detail": "最终文字不混淆产品R/总R/K",
+          "hard": true
+        },
+        {
+          "group": "facts",
+          "passed": true,
+          "type": "HALLUCINATION",
+          "detail": "最终文字不混淆产品R/总R/K",
+          "hard": true
+        },
+        {
+          "group": "parameters",
+          "passed": true,
+          "type": "PARSER",
+          "detail": "工具参数属于本轮真实消息",
+          "hard": false
+        },
+        {
+          "group": "state",
+          "passed": true,
+          "type": "STATE",
+          "detail": "工具状态属于独立当前会话",
+          "hard": false
+        },
+        {
+          "group": "source",
+          "passed": true,
+          "type": "SOURCE",
+          "detail": "来源性宣称须有本轮可追溯证据",
+          "hard": false
+        },
+        {
+          "group": "state",
+          "passed": true,
+          "type": "STATE",
+          "detail": "SSE完成后客户端详情返回同一最终消息"
+        }
+      ],
+      "quality": {
+        "score": 10,
+        "method": "DETERMINISTIC_STYLE",
+        "reasons": []
+      },
+      "score": 80,
+      "status": "WARN",
+      "actual": {
+        "message": {
+          "id": "03611b04-2910-48cd-b75d-1e5f8a924a53",
+          "conversationId": "aaea2f4c-9361-468b-8b47-67d0d37f165e",
+          "userId": null,
+          "role": "ASSISTANT",
+          "status": "COMPLETED",
+          "content": "想确认一下：“传热8.3”指标含义不明确：是整墙传热系数K、整构造热阻R，还是产品热阻？",
+          "reasoningMode": "OFF",
+          "provider": "DeepSeek",
+          "model": "deepseek-chat",
+          "providerId": "c9f8f4c4-f149-4e33-9f29-5efe3f9c51c4",
+          "modelId": "6963f25b-73fd-4612-8a77-d3c58e323dbe",
+          "promptTemplateVersion": 3,
+          "promptVersionId": "ae0f8064-e3d6-43c0-ab4c-174188be34e4",
+          "tokenInput": null,
+          "tokenOutput": null,
+          "reasoningTokens": null,
+          "durationMs": 3118,
+          "startedAt": {},
+          "finishedAt": {},
+          "errorMessage": null,
+          "errorCode": null,
+          "requestId": "req-2",
+          "stopReason": null,
+          "metadata": {
+            "reasoning": {
+              "mode": "OFF",
+              "downgradeNote": null,
+              "reasoningModelUsed": false
+            },
+            "queryScope": {
+              "id": "aaea2f4c-9361-468b-8b47-67d0d37f165e",
+              "userId": "3a3a2560-4ad2-44ed-9c6c-54d8c370807b",
+              "clientApp": "pc_ai",
+              "projectId": null
+            },
+            "agentEnabled": false,
+            "allowedTools": [
+              "search_knowledge",
+              "get_product_data",
+              "thermal",
+              "compare_products",
+              "compare_solutions",
+              "generate_report"
+            ],
+            "capabilities": {
+              "idle": false,
+              "needProductData": false,
+              "needThermalTool": false,
+              "needReportContext": false,
+              "needComparisonTool": false,
+              "needProjectContext": false,
+              "needKnowledgeSearch": false,
+              "needReferenceLookup": false,
+              "explicitKnowledgeRequest": false
+            },
+            "finishReason": "COMPLETED",
+            "reasoningMode": "OFF",
+            "backendDecision": {
+              "goal": "CLARIFY",
+              "patch": [],
+              "intent": "GENERAL",
+              "source": "INTENT",
+              "factRead": null,
+              "mutation": "NONE",
+              "relation": "NEW",
+              "taskType": "GENERAL",
+              "toolRoute": [
+                "backend:clarify"
+              ],
+              "toolUsage": {
+                "report": false,
+                "thermal": false,
+                "knowledge": false
+              },
+              "adviceMode": null,
+              "candidateIds": [],
+              "domainIntent": "CLARIFY",
+              "parserSource": "LLM",
+              "policyReason": "SEMANTIC_AMBIGUOUS",
+              "queryChanged": false,
+              "reportQueued": false,
+              "effectRequest": null,
+              "sourcePageIds": [],
+              "answerContract": "CLARIFY",
+              "candidateIdList": [],
+              "requestedEffect": "READ_ONLY",
+              "referencePageIds": [],
+              "semanticEvidence": "有传热8.3的保温板么",
+              "semanticReference": {
+                "items": [],
+                "scope": "NONE",
+                "revision": null
+              },
+              "factValidationCode": "NOT_EVALUATED_CLARIFICATION",
+              "queryChangedFields": [],
+              "semanticConfidence": 0.55,
+              "solutionStateMutated": false,
+              "candidateSnapshotSource": []
+            }
+          },
+          "createdAt": {}
+        },
+        "tools": [],
+        "runs": [],
+        "calculations": [],
+        "task": {
+          "taskType": "GENERAL",
+          "adviceBusinessContext": {
+            "conversationId": "aaea2f4c-9361-468b-8b47-67d0d37f165e",
+            "projectId": null,
+            "createdAt": "2026-10-17T07:44:16.462Z",
+            "candidateScopeActive": false,
+            "recentGoals": [
+              {
+                "intent": "CLARIFY",
+                "userGoal": "有传热8.3的保温板么",
+                "assistantQuestion": "想确认一下：“传热8.3”指标含义不明确：是整墙传热系数K、整构造热阻R，还是产品热阻？"
+              }
+            ]
+          }
+        },
+        "events": [
+          {
+            "event": "message",
+            "data": {
+              "messageId": "03611b04-2910-48cd-b75d-1e5f8a924a53",
+              "userMessageId": "fe234048-40a5-4433-9bd5-0e2a3dd0fddb",
+              "conversationId": "aaea2f4c-9361-468b-8b47-67d0d37f165e",
+              "requestId": "req-2"
+            }
+          },
+          {
+            "event": "progress",
+            "data": {
+              "stage": "analyzing",
+              "message": "正在分析问题..."
+            }
+          },
+          {
+            "event": "progress",
+            "data": {
+              "stage": "composing",
+              "message": "正在整理回答..."
+            }
+          },
+          {
+            "event": "delta",
+            "data": {
+              "text": "想确认一下：“传热8.3”指标含义不明确：是整墙传热系数K、整构造热阻R，还是产品热阻？"
+            }
+          },
+          {
+            "event": "progress",
+            "data": {
+              "stage": "completed",
+              "message": "回答整理完成"
+            }
+          },
+          {
+            "event": "done",
+            "data": {
+              "messageId": "03611b04-2910-48cd-b75d-1e5f8a924a53",
+              "conversationId": "aaea2f4c-9361-468b-8b47-67d0d37f165e",
+              "finishReason": "COMPLETED",
+              "usage": {},
+              "model": {
+                "id": "deepseek-chat"
+              },
+              "promptVersion": {
+                "id": "ae0f8064-e3d6-43c0-ab4c-174188be34e4",
+                "version": 3
+              },
+              "sources": [],
+              "latencyMs": 3540
+            }
+          }
+        ]
+      }
+    },
+    {
+      "caseId": "SALES-017",
+      "persona": "SALES",
+      "scenario": "真实传热8.3保温板问句先区分产品R与总R",
+      "turn": 2,
+      "user": "我说的是传热系数K，改查0.3左右",
+      "expected": {
+        "intent": "REFERENCE_LOOKUP",
+        "toolsAny": [
+          "thermal"
+        ],
+        "operation": "LOOKUP_CANDIDATES",
+        "hardFailRules": [
+          "HARD_CONDITION",
+          "METRIC_CONFUSION",
+          "FABRICATED_PAGE",
+          "RESULT_TYPE",
+          "UNSUPPORTED_COMPLIANCE",
+          "STALE_CONDITIONS",
+          "THICKNESS_VIOLATION"
+        ],
+        "query": {
+          "filters": [
+            {
+              "metric": "K",
+              "mode": "APPROX",
+              "targetValue": 0.3
+            }
+          ]
+        },
+        "expectedCandidate": {
+          "schemeCode": "A1-3",
+          "specClass": "I",
+          "thicknessMm": 18,
+          "productThermalResistance": 2.88,
+          "totalThermalResistance": 3.297,
+          "kValue": 0.303,
+          "sourcePageLabel": "22"
+        }
+      },
+      "checks": [
+        {
+          "group": "intent",
+          "passed": true,
+          "type": "ROUTING",
+          "detail": "预期intent=REFERENCE_LOOKUP，实际=REFERENCE_LOOKUP",
+          "hard": false
+        },
+        {
+          "group": "intent",
+          "passed": true,
+          "type": "RETRIEVAL",
+          "detail": "本轮工具调用均成功，不能将业务失败当作可用结果",
+          "hard": false
+        },
+        {
+          "group": "intent",
+          "passed": false,
+          "type": "ROUTING",
+          "detail": "本轮实际工具须包含 thermal",
+          "hard": false
+        },
+        {
+          "group": "intent",
+          "passed": false,
+          "type": "ROUTING",
+          "detail": "热工操作=LOOKUP_CANDIDATES",
+          "hard": false
+        },
+        {
+          "group": "parameters",
+          "passed": false,
+          "type": "PARSER",
+          "detail": "会话权威条件与预期相同（含明确清除的字段）",
+          "hard": true
+        },
+        {
+          "group": "state",
+          "passed": false,
+          "type": "STATE",
+          "detail": "条件变化实际重新查询完整正式数据",
+          "hard": true
+        },
+        {
+          "group": "facts",
+          "passed": false,
+          "type": "RETRIEVAL",
+          "detail": "预期正式行存在且数值/规格/来源一致",
+          "hard": false
+        },
+        {
+          "group": "quality",
+          "passed": true,
+          "type": "ANSWER_CONTRACT",
+          "detail": "最终消息已完成且有用户可见回答",
+          "hard": false
+        },
+        {
+          "group": "quality",
+          "passed": true,
+          "type": "UX_COPY",
+          "detail": "不暴露内部开发术语",
+          "hard": false
+        },
+        {
+          "group": "source",
+          "passed": false,
+          "type": "SOURCE",
+          "detail": "原页ID/印刷页码与正式行一致",
+          "hard": true
+        },
+        {
+          "group": "source",
+          "passed": false,
+          "type": "SOURCE",
+          "detail": "原页ID/印刷页码与正式行一致",
+          "hard": true
+        },
+        {
+          "group": "facts",
+          "passed": false,
+          "type": "HALLUCINATION",
+          "detail": "合规肯定结论必须有正式地区标准快照",
+          "hard": true
+        },
+        {
+          "group": "facts",
+          "passed": true,
+          "type": "HALLUCINATION",
+          "detail": "最终文字不混淆产品R/总R/K",
+          "hard": true
+        },
+        {
+          "group": "facts",
+          "passed": true,
+          "type": "HALLUCINATION",
+          "detail": "最终文字不混淆产品R/总R/K",
+          "hard": true
+        },
+        {
+          "group": "facts",
+          "passed": true,
+          "type": "HALLUCINATION",
+          "detail": "最终文字不混淆产品R/总R/K",
+          "hard": true
+        },
+        {
+          "group": "state",
+          "passed": true,
+          "type": "STATE",
+          "detail": "SSE完成后客户端详情返回同一最终消息"
+        },
+        {
+          "group": "source",
+          "passed": true,
+          "type": "SOURCE",
+          "detail": "真实来源详情定位到fixture原页",
+          "hard": true
+        },
+        {
+          "group": "source",
+          "passed": true,
+          "type": "SOURCE",
+          "detail": "SSE及来源详情均包含完整确认页面模型",
+          "hard": true
+        },
+        {
+          "group": "source",
+          "passed": true,
+          "type": "SOURCE",
+          "detail": "正式ID、卡片四项参数、整页档位及历史来源完全一致",
+          "hard": true
+        },
+        {
+          "group": "state",
+          "passed": true,
+          "type": "STATE",
+          "detail": "消息元数据不保存过期签名URL"
+        },
+        {
+          "group": "source",
+          "passed": true,
+          "type": "SOURCE",
+          "detail": "ReferencePage签名地址实际可下载PNG原页"
+        },
+        {
+          "group": "source",
+          "passed": true,
+          "type": "SOURCE",
+          "detail": "真实来源详情定位到fixture原页",
+          "hard": true
+        },
+        {
+          "group": "source",
+          "passed": true,
+          "type": "SOURCE",
+          "detail": "SSE及来源详情均包含完整确认页面模型",
+          "hard": true
+        },
+        {
+          "group": "source",
+          "passed": true,
+          "type": "SOURCE",
+          "detail": "正式ID、卡片四项参数、整页档位及历史来源完全一致",
+          "hard": true
+        },
+        {
+          "group": "state",
+          "passed": true,
+          "type": "STATE",
+          "detail": "消息元数据不保存过期签名URL"
+        },
+        {
+          "group": "source",
+          "passed": true,
+          "type": "SOURCE",
+          "detail": "ReferencePage签名地址实际可下载PNG原页"
+        }
+      ],
+      "quality": {
+        "score": 10,
+        "method": "DETERMINISTIC_STYLE",
+        "reasons": []
+      },
+      "score": 10,
+      "status": "FAIL",
+      "actual": {
+        "message": {
+          "id": "4d3f8776-4ae2-4680-8f76-d0889a1e4a38",
+          "conversationId": "aaea2f4c-9361-468b-8b47-67d0d37f165e",
+          "userId": null,
+          "role": "ASSISTANT",
+          "status": "COMPLETED",
+          "content": "以下为已确认页面的只读参考，不构成正式方案候选：\n本次已确认资料匹配 2 档、2 个独立构造，当前引用 2 档。\n\n- **A1-3**：板厚 **18mm**，产品整体热阻 **2.880**，整构造传热阻（源文符号待核） **3.297**，传热系数 K **0.303**。来源：《销售与设计院UAT测试图集》，印刷页码 22。\n\n- **A1-4**：板厚 **20mm**，产品整体热阻 **3.200**，整构造传热阻（源文符号待核） **3.390**，传热系数 K **0.295**。来源：《销售与设计院UAT测试图集》，印刷页码 23。\n\n同值不代表做法相同，请结合完整表及原始构造简图核对。材料层热阻、产品整体热阻与整构造传热阻分别读取，缺值不补算；本次仅查阅资料，不选择方案或判断规范达标。\n\n部分来源未通过当前确认档位校验，已排除；可核验结果如上。\n\n仅覆盖当前有权访问、已发布生效的确认范围；参考值不构成计算或合规结论。",
+          "reasoningMode": "OFF",
+          "provider": "DeepSeek",
+          "model": "deepseek-chat",
+          "providerId": "c9f8f4c4-f149-4e33-9f29-5efe3f9c51c4",
+          "modelId": "6963f25b-73fd-4612-8a77-d3c58e323dbe",
+          "promptTemplateVersion": 3,
+          "promptVersionId": "ae0f8064-e3d6-43c0-ab4c-174188be34e4",
+          "tokenInput": null,
+          "tokenOutput": null,
+          "reasoningTokens": null,
+          "durationMs": 4403,
+          "startedAt": {},
+          "finishedAt": {},
+          "errorMessage": null,
+          "errorCode": null,
+          "requestId": "req-4",
+          "stopReason": null,
+          "metadata": {
+            "reasoning": {
+              "mode": "OFF",
+              "downgradeNote": null,
+              "reasoningModelUsed": false
+            },
+            "queryScope": {
+              "id": "aaea2f4c-9361-468b-8b47-67d0d37f165e",
+              "userId": "3a3a2560-4ad2-44ed-9c6c-54d8c370807b",
+              "clientApp": "pc_ai",
+              "projectId": null
+            },
+            "agentEnabled": false,
+            "allowedTools": [
+              "search_knowledge",
+              "get_product_data",
+              "thermal",
+              "compare_products",
+              "compare_solutions",
+              "generate_report"
+            ],
+            "capabilities": {
+              "idle": false,
+              "needProductData": false,
+              "needThermalTool": false,
+              "needReportContext": false,
+              "needComparisonTool": false,
+              "needProjectContext": false,
+              "needKnowledgeSearch": true,
+              "needReferenceLookup": true,
+              "explicitKnowledgeRequest": true
+            },
+            "finishReason": "COMPLETED",
+            "reasoningMode": "OFF",
+            "referencePages": [
+              {
+                "pageId": "611204ac-cdd0-4cd7-b9ff-f8f39e829826",
+                "matches": [
+                  {
+                    "pageId": "611204ac-cdd0-4cd7-b9ff-f8f39e829826",
+                    "summary": {
+                      "alpha": 1.25,
+                      "kValue": 0.303,
+                      "lambda": 0.005,
+                      "systemType": "I型 VICP薄抹灰外保温系统",
+                      "thicknessMm": 18,
+                      "constructionCode": "A1-3",
+                      "totalThermalResistance": 3.297,
+                      "productThermalResistance": 2.88
+                    },
+                    "optionId": "kp-b21d169d5019f6abf43f2fa9-0-o0",
+                    "fieldKeys": [
+                      "thicknessMm",
+                      "productThermalResistance",
+                      "totalThermalResistance",
+                      "kValue"
+                    ],
+                    "highlights": [
+                      {
+                        "field": "thicknessMm",
+                        "label": "厚度",
+                        "value": "18 mm"
+                      },
+                      {
+                        "field": "productR",
+                        "label": "产品整体热阻（源文待核）",
+                        "value": "2.88"
+                      },
+                      {
+                        "field": "rValue",
+                        "label": "整构造传热阻（源文符号待核）",
+                        "value": "3.297"
+                      },
+                      {
+                        "field": "kValue",
+                        "label": "传热系数 K",
+                        "value": "0.303"
+                      }
+                    ],
+                    "answerOffset": 167,
+                    "constructionId": "kp-b21d169d5019f6abf43f2fa9-0"
+                  }
+                ],
+                "summary": {
+                  "alpha": 1.25,
+                  "kValue": 0.303,
+                  "lambda": 0.005,
+                  "systemType": "I型 VICP薄抹灰外保温系统",
+                  "thicknessMm": 18,
+                  "constructionCode": "A1-3",
+                  "totalThermalResistance": 3.297,
+                  "productThermalResistance": 2.88
+                },
+                "docNumber": null,
+                "pageLabel": "22",
+                "versionId": "d3bc8e66-d98c-4b82-8770-0b1816508285",
+                "documentId": "c57f6e14-ac19-465c-81e2-d531f346dfcc",
+                "highlights": [
+                  {
+                    "field": "thicknessMm",
+                    "label": "厚度",
+                    "value": "18 mm"
+                  },
+                  {
+                    "field": "productR",
+                    "label": "产品整体热阻（源文待核）",
+                    "value": "2.88"
+                  },
+                  {
+                    "field": "rValue",
+                    "label": "整构造传热阻（源文符号待核）",
+                    "value": "3.297"
+                  },
+                  {
+                    "field": "kValue",
+                    "label": "传热系数 K",
+                    "value": "0.303"
+                  }
+                ],
+                "renderModel": {
+                  "pageLabel": "22",
+                  "pageTitle": "通用UAT热工测试页",
+                  "constructions": [
+                    {
+                      "layers": [
+                        {
+                          "name": "测试基层",
+                          "alpha": 1,
+                          "order": 1,
+                          "lambda": 0.9,
+                          "layerId": "kp-b21d169d5019f6abf43f2fa9-0-l0",
+                          "thicknessMm": 240
+                        },
+                        {
+                          "name": "VICP测试保温板",
+                          "alpha": 1.25,
+                          "order": 2,
+                          "lambda": 0.005,
+                          "rValue": null,
+                          "layerId": "kp-b21d169d5019f6abf43f2fa9-0-l1",
+                          "variable": true,
+                          "thicknessMm": null
+                        }
+                      ],
+                      "options": [
+                        {
+                          "kValue": 0.303,
+                          "optionId": "kp-b21d169d5019f6abf43f2fa9-0-o0",
+                          "thicknessMm": 18,
+                          "totalThermalResistance": 3.297,
+                          "productThermalResistance": 2.88
+                        },
+                        {
+                          "kValue": 0.226,
+                          "optionId": "kp-b21d169d5019f6abf43f2fa9-0-o1",
+                          "thicknessMm": 25,
+                          "totalThermalResistance": 4.417,
+                          "productThermalResistance": 4
+                        }
+                      ],
+                      "material": {
+                        "name": "VICP测试保温板",
+                        "alpha": 1.25,
+                        "lambda": 0.005
+                      },
+                      "specClass": "I",
+                      "systemName": "I型 VICP薄抹灰外保温系统",
+                      "constructionId": "kp-b21d169d5019f6abf43f2fa9-0",
+                      "constructionCode": "A1-3"
+                    }
+                  ]
+                },
+                "documentTitle": "销售与设计院UAT测试图集",
+                "primaryFieldKeys": [
+                  "thicknessMm",
+                  "kValue"
+                ],
+                "pageImageObjectKey": "vicp-ai-uat-220bc2ca4d6841bc8328ac75887a738c/page-22.png",
+                "physicalPageNumber": 22
+              },
+              {
+                "pageId": "56936b2f-5458-4711-a636-fc36cef91d28",
+                "matches": [
+                  {
+                    "pageId": "56936b2f-5458-4711-a636-fc36cef91d28",
+                    "summary": {
+                      "kValue": 0.295,
+                      "systemType": "I型 VICP薄抹灰外保温系统",
+                      "thicknessMm": 20,
+                      "constructionCode": "A1-4",
+                      "totalThermalResistance": 3.39,
+                      "productThermalResistance": 3.2
+                    },
+                    "optionId": "kp-51d019f4511b4567cc9ec9c5-0-o0",
+                    "fieldKeys": [
+                      "thicknessMm",
+                      "productThermalResistance",
+                      "totalThermalResistance",
+                      "kValue"
+                    ],
+                    "highlights": [
+                      {
+                        "field": "thicknessMm",
+                        "label": "厚度",
+                        "value": "20 mm"
+                      },
+                      {
+                        "field": "productR",
+                        "label": "产品整体热阻（源文待核）",
+                        "value": "3.2"
+                      },
+                      {
+                        "field": "rValue",
+                        "label": "整构造传热阻（源文符号待核）",
+                        "value": "3.39"
+                      },
+                      {
+                        "field": "kValue",
+                        "label": "传热系数 K",
+                        "value": "0.295"
+                      }
+                    ],
+                    "answerOffset": 278,
+                    "constructionId": "kp-51d019f4511b4567cc9ec9c5-0"
+                  }
+                ],
+                "summary": {
+                  "kValue": 0.295,
+                  "systemType": "I型 VICP薄抹灰外保温系统",
+                  "thicknessMm": 20,
+                  "constructionCode": "A1-4",
+                  "totalThermalResistance": 3.39,
+                  "productThermalResistance": 3.2
+                },
+                "docNumber": null,
+                "pageLabel": "23",
+                "versionId": "d3bc8e66-d98c-4b82-8770-0b1816508285",
+                "documentId": "c57f6e14-ac19-465c-81e2-d531f346dfcc",
+                "highlights": [
+                  {
+                    "field": "thicknessMm",
+                    "label": "厚度",
+                    "value": "20 mm"
+                  },
+                  {
+                    "field": "productR",
+                    "label": "产品整体热阻（源文待核）",
+                    "value": "3.2"
+                  },
+                  {
+                    "field": "rValue",
+                    "label": "整构造传热阻（源文符号待核）",
+                    "value": "3.39"
+                  },
+                  {
+                    "field": "kValue",
+                    "label": "传热系数 K",
+                    "value": "0.295"
+                  }
+                ],
+                "renderModel": {
+                  "pageLabel": "23",
+                  "pageTitle": "通用UAT热工测试页",
+                  "constructions": [
+                    {
+                      "layers": [
+                        {
+                          "name": "测试基层",
+                          "alpha": 1,
+                          "order": 1,
+                          "lambda": 0.9,
+                          "layerId": "kp-51d019f4511b4567cc9ec9c5-0-l0",
+                          "thicknessMm": 100
+                        },
+                        {
+                          "name": "VICP测试保温板",
+                          "alpha": 1.25,
+                          "order": 2,
+                          "lambda": 0.005,
+                          "rValue": null,
+                          "layerId": "kp-51d019f4511b4567cc9ec9c5-0-l1",
+                          "thicknessMm": null
+                        }
+                      ],
+                      "options": [
+                        {
+                          "kValue": 0.295,
+                          "optionId": "kp-51d019f4511b4567cc9ec9c5-0-o0",
+                          "thicknessMm": 20,
+                          "totalThermalResistance": 3.39,
+                          "productThermalResistance": 3.2
+                        }
+                      ],
+                      "specClass": "I",
+                      "systemName": "I型 VICP薄抹灰外保温系统",
+                      "constructionId": "kp-51d019f4511b4567cc9ec9c5-0",
+                      "constructionCode": "A1-4"
+                    }
+                  ]
+                },
+                "documentTitle": "销售与设计院UAT测试图集",
+                "primaryFieldKeys": [
+                  "thicknessMm",
+                  "kValue"
+                ],
+                "pageImageObjectKey": "vicp-ai-uat-220bc2ca4d6841bc8328ac75887a738c/page-23.png",
+                "physicalPageNumber": 23
+              }
+            ],
+            "backendDecision": {
+              "goal": "REFERENCE_QUERY",
+              "patch": [],
+              "intent": "REFERENCE_LOOKUP",
+              "source": "INTENT",
+              "factRead": null,
+              "mutation": "QUERY",
+              "relation": "CONTINUE",
+              "taskType": "GENERAL",
+              "pageQuery": {
+                "intent": "REFERENCE_LOOKUP",
+                "queryMode": "NEW_QUERY",
+                "confidence": 0.9,
+                "unresolved": [],
+                "constraints": [
+                  {
+                    "hard": true,
+                    "type": "METRIC",
+                    "field": null,
+                    "value": 0.3,
+                    "metric": "K",
+                    "evidence": "改查0.3左右",
+                    "operator": "APPROX",
+                    "operation": "SET",
+                    "confidence": 0.9,
+                    "entityText": "0.3左右",
+                    "resolvedText": null
+                  }
+                ],
+                "preferences": []
+              },
+              "toolRoute": [
+                "backend:knowledge",
+                "backend:reference_query"
+              ],
+              "toolUsage": {
+                "report": false,
+                "thermal": false,
+                "knowledge": true
+              },
+              "adviceMode": null,
+              "candidateIds": [],
+              "domainIntent": "REFERENCE_QUERY",
+              "parserSource": "LLM",
+              "policyReason": "READ_ONLY_QUERY",
+              "queryChanged": true,
+              "reportQueued": false,
+              "effectRequest": null,
+              "sourcePageIds": [],
+              "answerContract": "REFERENCE_LOOKUP",
+              "factValidation": "REFERENCE_QUERY_VERIFIED",
+              "queryLifecycle": "NEW_QUERY",
+              "referenceScope": "LATEST_VISIBLE",
+              "candidateIdList": [],
+              "requestedEffect": "QUERY",
+              "referencePageIds": [
+                "611204ac-cdd0-4cd7-b9ff-f8f39e829826",
+                "56936b2f-5458-4711-a636-fc36cef91d28"
+              ],
+              "semanticEvidence": "我说的是传热系数K，改查0.3左右",
+              "semanticReference": {
+                "items": [],
+                "scope": "NONE",
+                "revision": null
+              },
+              "factValidationCode": "REFERENCE_QUERY_VERIFIED",
+              "queryChangedFields": [
+                "intent",
+                "filters",
+                "metric",
+                "targetValue",
+                "mode",
+                "tolerance",
+                "effectiveTolerance",
+                "toleranceAdjusted",
+                "queryMode",
+                "semanticConfidence",
+                "parserSource",
+                "unresolved",
+                "conditionTrace",
+                "documentIds",
+                "knowledgeVersionIds"
+              ],
+              "semanticConfidence": 0.9,
+              "solutionStateMutated": false,
+              "queryContextMessageId": "fe234048-40a5-4433-9bd5-0e2a3dd0fddb",
+              "candidateSnapshotSource": [],
+              "referenceQueryDiagnostics": {
+                "scope": "JOINT",
+                "issues": [
+                  "SOURCE_NOT_VERIFIABLE"
+                ],
+                "coverage": "AUTHORIZED_PUBLISHED_ONLY",
+                "matchedCount": 2,
+                "metricScopes": [
+                  {
+                    "count": 4,
+                    "metric": "K",
+                    "values": [
+                      0.226,
+                      0.295,
+                      0.303,
+                      0.343
+                    ],
+                    "rowCount": 8,
+                    "truncated": false
+                  }
+                ],
+                "scannedCount": 8,
+                "identityCount": 8,
+                "missingMetrics": [],
+                "rejectedSourceCount": 2,
+                "partialMissingMetrics": []
+              }
+            }
+          },
+          "createdAt": {}
+        },
+        "tools": [],
+        "runs": [],
+        "calculations": [],
+        "task": {
+          "taskType": "GENERAL",
+          "confirmedPageLookup": {
+            "query": {
+              "intent": "REFERENCE_LOOKUP",
+              "filters": [
+                {
+                  "metric": "K",
+                  "targetValue": 0.3,
+                  "mode": "APPROX",
+                  "tolerance": 0.02,
+                  "toleranceSource": "DEFAULT",
+                  "effectiveTolerance": 0.02,
+                  "toleranceAdjusted": false
+                }
+              ],
+              "metric": "K",
+              "targetValue": 0.3,
+              "mode": "APPROX",
+              "tolerance": 0.02,
+              "effectiveTolerance": 0.02,
+              "toleranceAdjusted": false,
+              "queryMode": "NEW_QUERY",
+              "semanticConfidence": 0.9,
+              "parserSource": "LLM",
+              "documentIds": [
+                "c57f6e14-ac19-465c-81e2-d531f346dfcc"
+              ],
+              "knowledgeVersionIds": [
+                "d3bc8e66-d98c-4b82-8770-0b1816508285"
+              ],
+              "unresolved": [],
+              "conditionTrace": [
+                {
+                  "field": "K",
+                  "value": 0.3,
+                  "mode": "APPROX",
+                  "source": "USER_EXPLICIT",
+                  "classification": "HARD_CONSTRAINT"
+                }
+              ]
+            },
+            "createdAt": "2026-10-17T07:44:22.375Z",
+            "conversationId": "aaea2f4c-9361-468b-8b47-67d0d37f165e",
+            "userId": "3a3a2560-4ad2-44ed-9c6c-54d8c370807b",
+            "projectId": null,
+            "clientApp": "pc_ai"
+          },
+          "adviceBusinessContext": {
+            "conversationId": "aaea2f4c-9361-468b-8b47-67d0d37f165e",
+            "projectId": null,
+            "createdAt": "2026-10-17T07:44:22.898Z",
+            "candidateScopeActive": true,
+            "recentGoals": [
+              {
+                "intent": "CLARIFY",
+                "userGoal": "有传热8.3的保温板么",
+                "assistantQuestion": "想确认一下：“传热8.3”指标含义不明确：是整墙传热系数K、整构造热阻R，还是产品热阻？"
+              },
+              {
+                "intent": "REFERENCE_QUERY",
+                "userGoal": "我说的是传热系数K，改查0.3左右",
+                "assistantQuestion": "以下为已确认页面的只读参考，不构成正式方案候选：\n本次已确认资料匹配 2 档、2 个独立构造，当前引用 2 档。\n\n- **A1-3**：板厚 **18mm**，产品整体热阻 **2.880**，整构造传热阻（源文符号待核） **3.297**，传热系数 K **0.303**。来源：《销售与设计院UAT测试图集》，印刷页码 22。\n\n- **A1-4**：板厚 **20mm**，产品整体热阻 **3.200**，整构造传热阻（源文符号待核） **3.390**，传热系数 K **0.295**。来源：《销售与设计院UAT测试图集》，印刷页码 23。\n\n同值不代表做法相同，请结合完整表及原始构"
+              }
+            ]
+          }
+        },
+        "events": [
+          {
+            "event": "message",
+            "data": {
+              "messageId": "4d3f8776-4ae2-4680-8f76-d0889a1e4a38",
+              "userMessageId": "4cdd73d0-ccbc-44a4-809f-8a74098daf5b",
+              "conversationId": "aaea2f4c-9361-468b-8b47-67d0d37f165e",
+              "requestId": "req-4"
+            }
+          },
+          {
+            "event": "progress",
+            "data": {
+              "stage": "analyzing",
+              "message": "正在分析问题..."
+            }
+          },
+          {
+            "event": "progress",
+            "data": {
+              "stage": "checking",
+              "message": "正在核对检索资料和计算结果..."
+            }
+          },
+          {
+            "event": "progress",
+            "data": {
+              "stage": "composing",
+              "message": "正在整理回答..."
+            }
+          },
+          {
+            "event": "delta",
+            "data": {
+              "text": "以下为已确认页面的只读参考，不构成正式方案候选：\n本次已确认资料匹配 2 档、2 个独立构造，当前引用 2 档。\n\n- **A1-3**：板厚 **18mm**，产品整体热阻 **2.880**，整构造传热阻（源文符号待核） **3.297**，传热系数 K **0.303**。来源：《销售与设计院UAT测试图集》，印刷页码 22。\n\n- **A1-4**：板厚 **20mm**，产品整体热阻 **3.200**，整构造传热阻（源文符号待核） **3.390**，传热系数 K **0.295**。来源：《销售与设计院UAT测试图集》，印刷页码 23。\n\n同值不代表做法相同，请结合完整表及原始构造简图核对。材料层热阻、产品整体热阻与整构造传热阻分别读取，缺值不补算；本次仅查阅资料，不选择方案或判断规范达标。\n\n部分来源未通过当前确认档位校验，已排除；可核验结果如上。\n\n仅覆盖当前有权访问、已发布生效的确认范围；参考值不构成计算或合规结论。"
+            }
+          },
+          {
+            "event": "reference_pages",
+            "data": {
+              "referencePages": [
+                {
+                  "type": "REFERENCE_PAGE",
+                  "page": {
+                    "documentId": "c57f6e14-ac19-465c-81e2-d531f346dfcc",
+                    "pageId": "611204ac-cdd0-4cd7-b9ff-f8f39e829826",
+                    "documentTitle": "销售与设计院UAT测试图集",
+                    "versionId": "d3bc8e66-d98c-4b82-8770-0b1816508285",
+                    "pageLabelSource": "MANUAL",
+                    "pageLabelVerified": true,
+                    "docNumber": null,
+                    "pageNumber": 22,
+                    "physicalPageNumber": 22,
+                    "pageLabel": "22",
+                    "imageUrl": "https://lcvp-files.oss-cn-beijing.aliyuncs.com/vicp-ai-uat-220bc2ca4d6841bc8328ac75887a738c/page-22.png"
+                  },
+                  "renderModel": {
+                    "pageTitle": "通用UAT热工测试页",
+                    "pageLabel": "22",
+                    "constructions": [
+                      {
+                        "constructionId": "kp-b21d169d5019f6abf43f2fa9-0",
+                        "constructionCode": "A1-3",
+                        "systemName": "I型 VICP薄抹灰外保温系统",
+                        "specClass": "I",
+                        "layers": [
+                          {
+                            "name": "测试基层",
+                            "alpha": 1,
+                            "order": 1,
+                            "lambda": 0.9,
+                            "thicknessMm": 240,
+                            "layerId": "kp-b21d169d5019f6abf43f2fa9-0-l0"
+                          },
+                          {
+                            "name": "VICP测试保温板",
+                            "alpha": 1.25,
+                            "order": 2,
+                            "lambda": 0.005,
+                            "rValue": null,
+                            "thicknessMm": null,
+                            "layerId": "kp-b21d169d5019f6abf43f2fa9-0-l1",
+                            "variable": true
+                          }
+                        ],
+                        "material": {
+                          "name": "VICP测试保温板",
+                          "lambda": 0.005,
+                          "alpha": 1.25
+                        },
+                        "options": [
+                          {
+                            "optionId": "kp-b21d169d5019f6abf43f2fa9-0-o0",
+                            "thicknessMm": 18,
+                            "productThermalResistance": 2.88,
+                            "totalThermalResistance": 3.297,
+                            "kValue": 0.303
+                          },
+                          {
+                            "optionId": "kp-b21d169d5019f6abf43f2fa9-0-o1",
+                            "thicknessMm": 25,
+                            "productThermalResistance": 4,
+                            "totalThermalResistance": 4.417,
+                            "kValue": 0.226
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  "matches": [
+                    {
+                      "optionId": "kp-b21d169d5019f6abf43f2fa9-0-o0",
+                      "fieldKeys": [
+                        "thicknessMm",
+                        "productThermalResistance",
+                        "totalThermalResistance",
+                        "kValue"
+                      ],
+                      "answerOffset": 167,
+                      "pageId": "611204ac-cdd0-4cd7-b9ff-f8f39e829826",
+                      "constructionId": "kp-b21d169d5019f6abf43f2fa9-0",
+                      "candidateId": "kp-b21d169d5019f6abf43f2fa9-0-o0",
+                      "summary": {
+                        "systemType": "I型 VICP薄抹灰外保温系统",
+                        "constructionCode": "A1-3",
+                        "thicknessMm": 18,
+                        "productThermalResistance": 2.88,
+                        "totalThermalResistance": 3.297,
+                        "kValue": 0.303
+                      },
+                      "highlights": [
+                        {
+                          "field": "thicknessMm",
+                          "label": "厚度",
+                          "value": "18 mm"
+                        },
+                        {
+                          "field": "productR",
+                          "label": "产品整体热阻（源文待核）",
+                          "value": "2.88"
+                        },
+                        {
+                          "field": "rValue",
+                          "label": "整构造传热阻（源文符号待核）",
+                          "value": "3.297"
+                        },
+                        {
+                          "field": "kValue",
+                          "label": "传热系数 K",
+                          "value": "0.303"
+                        }
+                      ]
+                    }
+                  ],
+                  "summary": {
+                    "systemType": "I型 VICP薄抹灰外保温系统",
+                    "constructionCode": "A1-3",
+                    "thicknessMm": 18,
+                    "productThermalResistance": 2.88,
+                    "totalThermalResistance": 3.297,
+                    "kValue": 0.303
+                  },
+                  "highlights": [
+                    {
+                      "field": "thicknessMm",
+                      "label": "厚度",
+                      "value": "18 mm"
+                    },
+                    {
+                      "field": "productR",
+                      "label": "产品整体热阻（源文待核）",
+                      "value": "2.88"
+                    },
+                    {
+                      "field": "rValue",
+                      "label": "整构造传热阻（源文符号待核）",
+                      "value": "3.297"
+                    },
+                    {
+                      "field": "kValue",
+                      "label": "传热系数 K",
+                      "value": "0.303"
+                    }
+                  ],
+                  "primaryFieldKeys": [
+                    "thicknessMm",
+                    "kValue"
+                  ]
+                },
+                {
+                  "type": "REFERENCE_PAGE",
+                  "page": {
+                    "documentId": "c57f6e14-ac19-465c-81e2-d531f346dfcc",
+                    "pageId": "56936b2f-5458-4711-a636-fc36cef91d28",
+                    "documentTitle": "销售与设计院UAT测试图集",
+                    "versionId": "d3bc8e66-d98c-4b82-8770-0b1816508285",
+                    "pageLabelSource": "MANUAL",
+                    "pageLabelVerified": true,
+                    "docNumber": null,
+                    "pageNumber": 23,
+                    "physicalPageNumber": 23,
+                    "pageLabel": "23",
+                    "imageUrl": "https://lcvp-files.oss-cn-beijing.aliyuncs.com/vicp-ai-uat-220bc2ca4d6841bc8328ac75887a738c/page-23.png"
+                  },
+                  "renderModel": {
+                    "pageTitle": "通用UAT热工测试页",
+                    "pageLabel": "23",
+                    "constructions": [
+                      {
+                        "constructionId": "kp-51d019f4511b4567cc9ec9c5-0",
+                        "constructionCode": "A1-4",
+                        "systemName": "I型 VICP薄抹灰外保温系统",
+                        "specClass": "I",
+                        "layers": [
+                          {
+                            "name": "测试基层",
+                            "alpha": 1,
+                            "order": 1,
+                            "lambda": 0.9,
+                            "thicknessMm": 100,
+                            "layerId": "kp-51d019f4511b4567cc9ec9c5-0-l0"
+                          },
+                          {
+                            "name": "VICP测试保温板",
+                            "alpha": 1.25,
+                            "order": 2,
+                            "lambda": 0.005,
+                            "rValue": null,
+                            "thicknessMm": null,
+                            "layerId": "kp-51d019f4511b4567cc9ec9c5-0-l1"
+                          }
+                        ],
+                        "options": [
+                          {
+                            "optionId": "kp-51d019f4511b4567cc9ec9c5-0-o0",
+                            "thicknessMm": 20,
+                            "productThermalResistance": 3.2,
+                            "totalThermalResistance": 3.39,
+                            "kValue": 0.295
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  "matches": [
+                    {
+                      "optionId": "kp-51d019f4511b4567cc9ec9c5-0-o0",
+                      "fieldKeys": [
+                        "thicknessMm",
+                        "productThermalResistance",
+                        "totalThermalResistance",
+                        "kValue"
+                      ],
+                      "answerOffset": 278,
+                      "pageId": "56936b2f-5458-4711-a636-fc36cef91d28",
+                      "constructionId": "kp-51d019f4511b4567cc9ec9c5-0",
+                      "candidateId": "kp-51d019f4511b4567cc9ec9c5-0-o0",
+                      "summary": {
+                        "systemType": "I型 VICP薄抹灰外保温系统",
+                        "constructionCode": "A1-4",
+                        "thicknessMm": 20,
+                        "productThermalResistance": 3.2,
+                        "totalThermalResistance": 3.39,
+                        "kValue": 0.295
+                      },
+                      "highlights": [
+                        {
+                          "field": "thicknessMm",
+                          "label": "厚度",
+                          "value": "20 mm"
+                        },
+                        {
+                          "field": "productR",
+                          "label": "产品整体热阻（源文待核）",
+                          "value": "3.2"
+                        },
+                        {
+                          "field": "rValue",
+                          "label": "整构造传热阻（源文符号待核）",
+                          "value": "3.39"
+                        },
+                        {
+                          "field": "kValue",
+                          "label": "传热系数 K",
+                          "value": "0.295"
+                        }
+                      ]
+                    }
+                  ],
+                  "summary": {
+                    "systemType": "I型 VICP薄抹灰外保温系统",
+                    "constructionCode": "A1-4",
+                    "thicknessMm": 20,
+                    "productThermalResistance": 3.2,
+                    "totalThermalResistance": 3.39,
+                    "kValue": 0.295
+                  },
+                  "highlights": [
+                    {
+                      "field": "thicknessMm",
+                      "label": "厚度",
+                      "value": "20 mm"
+                    },
+                    {
+                      "field": "productR",
+                      "label": "产品整体热阻（源文待核）",
+                      "value": "3.2"
+                    },
+                    {
+                      "field": "rValue",
+                      "label": "整构造传热阻（源文符号待核）",
+                      "value": "3.39"
+                    },
+                    {
+                      "field": "kValue",
+                      "label": "传热系数 K",
+                      "value": "0.295"
+                    }
+                  ],
+                  "primaryFieldKeys": [
+                    "thicknessMm",
+                    "kValue"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "event": "progress",
+            "data": {
+              "stage": "completed",
+              "message": "回答整理完成"
+            }
+          },
+          {
+            "event": "done",
+            "data": {
+              "messageId": "4d3f8776-4ae2-4680-8f76-d0889a1e4a38",
+              "conversationId": "aaea2f4c-9361-468b-8b47-67d0d37f165e",
+              "finishReason": "COMPLETED",
+              "usage": {},
+              "model": {
+                "id": "deepseek-chat"
+              },
+              "promptVersion": {
+                "id": "ae0f8064-e3d6-43c0-ab4c-174188be34e4",
+                "version": 3
+              },
+              "sources": [],
+              "referencePages": [
+                {
+                  "type": "REFERENCE_PAGE",
+                  "page": {
+                    "documentId": "c57f6e14-ac19-465c-81e2-d531f346dfcc",
+                    "pageId": "611204ac-cdd0-4cd7-b9ff-f8f39e829826",
+                    "documentTitle": "销售与设计院UAT测试图集",
+                    "versionId": "d3bc8e66-d98c-4b82-8770-0b1816508285",
+                    "pageLabelSource": "MANUAL",
+                    "pageLabelVerified": true,
+                    "docNumber": null,
+                    "pageNumber": 22,
+                    "physicalPageNumber": 22,
+                    "pageLabel": "22",
+                    "imageUrl": "https://lcvp-files.oss-cn-beijing.aliyuncs.com/vicp-ai-uat-220bc2ca4d6841bc8328ac75887a738c/page-22.png"
+                  },
+                  "renderModel": {
+                    "pageTitle": "通用UAT热工测试页",
+                    "pageLabel": "22",
+                    "constructions": [
+                      {
+                        "constructionId": "kp-b21d169d5019f6abf43f2fa9-0",
+                        "constructionCode": "A1-3",
+                        "systemName": "I型 VICP薄抹灰外保温系统",
+                        "specClass": "I",
+                        "layers": [
+                          {
+                            "name": "测试基层",
+                            "alpha": 1,
+                            "order": 1,
+                            "lambda": 0.9,
+                            "thicknessMm": 240,
+                            "layerId": "kp-b21d169d5019f6abf43f2fa9-0-l0"
+                          },
+                          {
+                            "name": "VICP测试保温板",
+                            "alpha": 1.25,
+                            "order": 2,
+                            "lambda": 0.005,
+                            "rValue": null,
+                            "thicknessMm": null,
+                            "layerId": "kp-b21d169d5019f6abf43f2fa9-0-l1",
+                            "variable": true
+                          }
+                        ],
+                        "material": {
+                          "name": "VICP测试保温板",
+                          "lambda": 0.005,
+                          "alpha": 1.25
+                        },
+                        "options": [
+                          {
+                            "optionId": "kp-b21d169d5019f6abf43f2fa9-0-o0",
+                            "thicknessMm": 18,
+                            "productThermalResistance": 2.88,
+                            "totalThermalResistance": 3.297,
+                            "kValue": 0.303
+                          },
+                          {
+                            "optionId": "kp-b21d169d5019f6abf43f2fa9-0-o1",
+                            "thicknessMm": 25,
+                            "productThermalResistance": 4,
+                            "totalThermalResistance": 4.417,
+                            "kValue": 0.226
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  "matches": [
+                    {
+                      "optionId": "kp-b21d169d5019f6abf43f2fa9-0-o0",
+                      "fieldKeys": [
+                        "thicknessMm",
+                        "productThermalResistance",
+                        "totalThermalResistance",
+                        "kValue"
+                      ],
+                      "answerOffset": 167,
+                      "pageId": "611204ac-cdd0-4cd7-b9ff-f8f39e829826",
+                      "constructionId": "kp-b21d169d5019f6abf43f2fa9-0",
+                      "candidateId": "kp-b21d169d5019f6abf43f2fa9-0-o0",
+                      "summary": {
+                        "systemType": "I型 VICP薄抹灰外保温系统",
+                        "constructionCode": "A1-3",
+                        "thicknessMm": 18,
+                        "productThermalResistance": 2.88,
+                        "totalThermalResistance": 3.297,
+                        "kValue": 0.303
+                      },
+                      "highlights": [
+                        {
+                          "field": "thicknessMm",
+                          "label": "厚度",
+                          "value": "18 mm"
+                        },
+                        {
+                          "field": "productR",
+                          "label": "产品整体热阻（源文待核）",
+                          "value": "2.88"
+                        },
+                        {
+                          "field": "rValue",
+                          "label": "整构造传热阻（源文符号待核）",
+                          "value": "3.297"
+                        },
+                        {
+                          "field": "kValue",
+                          "label": "传热系数 K",
+                          "value": "0.303"
+                        }
+                      ]
+                    }
+                  ],
+                  "summary": {
+                    "systemType": "I型 VICP薄抹灰外保温系统",
+                    "constructionCode": "A1-3",
+                    "thicknessMm": 18,
+                    "productThermalResistance": 2.88,
+                    "totalThermalResistance": 3.297,
+                    "kValue": 0.303
+                  },
+                  "highlights": [
+                    {
+                      "field": "thicknessMm",
+                      "label": "厚度",
+                      "value": "18 mm"
+                    },
+                    {
+                      "field": "productR",
+                      "label": "产品整体热阻（源文待核）",
+                      "value": "2.88"
+                    },
+                    {
+                      "field": "rValue",
+                      "label": "整构造传热阻（源文符号待核）",
+                      "value": "3.297"
+                    },
+                    {
+                      "field": "kValue",
+                      "label": "传热系数 K",
+                      "value": "0.303"
+                    }
+                  ],
+                  "primaryFieldKeys": [
+                    "thicknessMm",
+                    "kValue"
+                  ]
+                },
+                {
+                  "type": "REFERENCE_PAGE",
+                  "page": {
+                    "documentId": "c57f6e14-ac19-465c-81e2-d531f346dfcc",
+                    "pageId": "56936b2f-5458-4711-a636-fc36cef91d28",
+                    "documentTitle": "销售与设计院UAT测试图集",
+                    "versionId": "d3bc8e66-d98c-4b82-8770-0b1816508285",
+                    "pageLabelSource": "MANUAL",
+                    "pageLabelVerified": true,
+                    "docNumber": null,
+                    "pageNumber": 23,
+                    "physicalPageNumber": 23,
+                    "pageLabel": "23",
+                    "imageUrl": "https://lcvp-files.oss-cn-beijing.aliyuncs.com/vicp-ai-uat-220bc2ca4d6841bc8328ac75887a738c/page-23.png"
+                  },
+                  "renderModel": {
+                    "pageTitle": "通用UAT热工测试页",
+                    "pageLabel": "23",
+                    "constructions": [
+                      {
+                        "constructionId": "kp-51d019f4511b4567cc9ec9c5-0",
+                        "constructionCode": "A1-4",
+                        "systemName": "I型 VICP薄抹灰外保温系统",
+                        "specClass": "I",
+                        "layers": [
+                          {
+                            "name": "测试基层",
+                            "alpha": 1,
+                            "order": 1,
+                            "lambda": 0.9,
+                            "thicknessMm": 100,
+                            "layerId": "kp-51d019f4511b4567cc9ec9c5-0-l0"
+                          },
+                          {
+                            "name": "VICP测试保温板",
+                            "alpha": 1.25,
+                            "order": 2,
+                            "lambda": 0.005,
+                            "rValue": null,
+                            "thicknessMm": null,
+                            "layerId": "kp-51d019f4511b4567cc9ec9c5-0-l1"
+                          }
+                        ],
+                        "options": [
+                          {
+                            "optionId": "kp-51d019f4511b4567cc9ec9c5-0-o0",
+                            "thicknessMm": 20,
+                            "productThermalResistance": 3.2,
+                            "totalThermalResistance": 3.39,
+                            "kValue": 0.295
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  "matches": [
+                    {
+                      "optionId": "kp-51d019f4511b4567cc9ec9c5-0-o0",
+                      "fieldKeys": [
+                        "thicknessMm",
+                        "productThermalResistance",
+                        "totalThermalResistance",
+                        "kValue"
+                      ],
+                      "answerOffset": 278,
+                      "pageId": "56936b2f-5458-4711-a636-fc36cef91d28",
+                      "constructionId": "kp-51d019f4511b4567cc9ec9c5-0",
+                      "candidateId": "kp-51d019f4511b4567cc9ec9c5-0-o0",
+                      "summary": {
+                        "systemType": "I型 VICP薄抹灰外保温系统",
+                        "constructionCode": "A1-4",
+                        "thicknessMm": 20,
+                        "productThermalResistance": 3.2,
+                        "totalThermalResistance": 3.39,
+                        "kValue": 0.295
+                      },
+                      "highlights": [
+                        {
+                          "field": "thicknessMm",
+                          "label": "厚度",
+                          "value": "20 mm"
+                        },
+                        {
+                          "field": "productR",
+                          "label": "产品整体热阻（源文待核）",
+                          "value": "3.2"
+                        },
+                        {
+                          "field": "rValue",
+                          "label": "整构造传热阻（源文符号待核）",
+                          "value": "3.39"
+                        },
+                        {
+                          "field": "kValue",
+                          "label": "传热系数 K",
+                          "value": "0.295"
+                        }
+                      ]
+                    }
+                  ],
+                  "summary": {
+                    "systemType": "I型 VICP薄抹灰外保温系统",
+                    "constructionCode": "A1-4",
+                    "thicknessMm": 20,
+                    "productThermalResistance": 3.2,
+                    "totalThermalResistance": 3.39,
+                    "kValue": 0.295
+                  },
+                  "highlights": [
+                    {
+                      "field": "thicknessMm",
+                      "label": "厚度",
+                      "value": "20 mm"
+                    },
+                    {
+                      "field": "productR",
+                      "label": "产品整体热阻（源文待核）",
+                      "value": "3.2"
+                    },
+                    {
+                      "field": "rValue",
+                      "label": "整构造传热阻（源文符号待核）",
+                      "value": "3.39"
+                    },
+                    {
+                      "field": "kValue",
+                      "label": "传热系数 K",
+                      "value": "0.295"
+                    }
+                  ],
+                  "primaryFieldKeys": [
+                    "thicknessMm",
+                    "kValue"
+                  ]
+                }
+              ],
+              "latencyMs": 4750
+            }
+          }
+        ]
+      }
+    },
+    {
+      "caseId": "SALES-017",
+      "persona": "SALES",
+      "scenario": "真实传热8.3保温板问句先区分产品R与总R",
+      "turn": 3,
+      "user": "刚才第一个图集哪一页？",
+      "expected": {
+        "intent": "REFERENCE_LOOKUP",
+        "toolsAny": [
+          "thermal"
+        ],
+        "operation": "LOOKUP_CANDIDATES",
+        "hardFailRules": [
+          "HARD_CONDITION",
+          "METRIC_CONFUSION",
+          "FABRICATED_PAGE",
+          "RESULT_TYPE",
+          "UNSUPPORTED_COMPLIANCE",
+          "STALE_CONDITIONS",
+          "THICKNESS_VIOLATION"
+        ],
+        "reusePreviousCandidate": true,
+        "referencePageRequired": true,
+        "resultType": "REFERENCE"
+      },
+      "checks": [
+        {
+          "group": "intent",
+          "passed": true,
+          "type": "ROUTING",
+          "detail": "预期intent=REFERENCE_LOOKUP，实际=REFERENCE_LOOKUP",
+          "hard": false
+        },
+        {
+          "group": "intent",
+          "passed": true,
+          "type": "RETRIEVAL",
+          "detail": "本轮工具调用均成功，不能将业务失败当作可用结果",
+          "hard": false
+        },
+        {
+          "group": "intent",
+          "passed": false,
+          "type": "ROUTING",
+          "detail": "本轮实际工具须包含 thermal",
+          "hard": false
+        },
+        {
+          "group": "intent",
+          "passed": false,
+          "type": "ROUTING",
+          "detail": "热工操作=LOOKUP_CANDIDATES",
+          "hard": false
+        },
+        {
+          "group": "state",
+          "passed": false,
+          "type": "STATE",
+          "detail": "原页/参数追问实际沿用上一轮候选",
+          "hard": false
+        },
+        {
+          "group": "quality",
+          "passed": true,
+          "type": "ANSWER_CONTRACT",
+          "detail": "最终消息已完成且有用户可见回答",
+          "hard": false
+        },
+        {
+          "group": "quality",
+          "passed": true,
+          "type": "UX_COPY",
+          "detail": "不暴露内部开发术语",
+          "hard": false
+        },
+        {
+          "group": "source",
+          "passed": false,
+          "type": "SOURCE",
+          "detail": "本轮SSE真实返回ReferencePage",
+          "hard": false
+        },
+        {
+          "group": "facts",
+          "passed": true,
+          "type": "HALLUCINATION",
+          "detail": "合规肯定结论必须有正式地区标准快照",
+          "hard": true
+        },
+        {
+          "group": "facts",
+          "passed": true,
+          "type": "ANSWER_CONTRACT",
+          "detail": "图集原始行不能说成重新计算值",
+          "hard": true
+        },
+        {
+          "group": "facts",
+          "passed": true,
+          "type": "HALLUCINATION",
+          "detail": "最终文字不混淆产品R/总R/K",
+          "hard": true
+        },
+        {
+          "group": "facts",
+          "passed": true,
+          "type": "HALLUCINATION",
+          "detail": "最终文字不混淆产品R/总R/K",
+          "hard": true
+        },
+        {
+          "group": "facts",
+          "passed": true,
+          "type": "HALLUCINATION",
+          "detail": "最终文字不混淆产品R/总R/K",
+          "hard": true
+        },
+        {
+          "group": "parameters",
+          "passed": true,
+          "type": "PARSER",
+          "detail": "工具参数属于本轮真实消息",
+          "hard": false
+        },
+        {
+          "group": "state",
+          "passed": true,
+          "type": "STATE",
+          "detail": "SSE完成后客户端详情返回同一最终消息"
+        }
+      ],
+      "quality": {
+        "score": 10,
+        "method": "DETERMINISTIC_STYLE",
+        "reasons": []
+      },
+      "score": 55,
+      "status": "FAIL",
+      "actual": {
+        "message": {
+          "id": "2ffa2782-923c-48b6-aa5f-861c1bd612c3",
+          "conversationId": "aaea2f4c-9361-468b-8b47-67d0d37f165e",
+          "userId": null,
+          "role": "ASSISTANT",
+          "status": "COMPLETED",
+          "content": "当前没有可定位的候选，请先查询已有档位或选择方案。",
+          "reasoningMode": "OFF",
+          "provider": "DeepSeek",
+          "model": "deepseek-chat",
+          "providerId": "c9f8f4c4-f149-4e33-9f29-5efe3f9c51c4",
+          "modelId": "6963f25b-73fd-4612-8a77-d3c58e323dbe",
+          "promptTemplateVersion": 3,
+          "promptVersionId": "ae0f8064-e3d6-43c0-ab4c-174188be34e4",
+          "tokenInput": null,
+          "tokenOutput": null,
+          "reasoningTokens": null,
+          "durationMs": 2574,
+          "startedAt": {},
+          "finishedAt": {},
+          "errorMessage": null,
+          "errorCode": null,
+          "requestId": "req-8",
+          "stopReason": null,
+          "metadata": {
+            "reasoning": {
+              "mode": "OFF",
+              "downgradeNote": null,
+              "reasoningModelUsed": false
+            },
+            "queryScope": {
+              "id": "aaea2f4c-9361-468b-8b47-67d0d37f165e",
+              "userId": "3a3a2560-4ad2-44ed-9c6c-54d8c370807b",
+              "clientApp": "pc_ai",
+              "projectId": null
+            },
+            "agentEnabled": false,
+            "allowedTools": [
+              "search_knowledge",
+              "get_product_data",
+              "thermal",
+              "compare_products",
+              "compare_solutions",
+              "generate_report"
+            ],
+            "capabilities": {
+              "idle": false,
+              "needProductData": false,
+              "needThermalTool": false,
+              "needReportContext": false,
+              "needComparisonTool": false,
+              "needProjectContext": false,
+              "needKnowledgeSearch": true,
+              "needReferenceLookup": true,
+              "explicitKnowledgeRequest": true
+            },
+            "finishReason": "COMPLETED",
+            "reasoningMode": "OFF",
+            "backendDecision": {
+              "goal": "REFERENCE_VIEW",
+              "patch": [],
+              "intent": "REFERENCE_LOOKUP",
+              "source": "INTENT",
+              "factRead": null,
+              "mutation": "NONE",
+              "relation": "CONTINUE",
+              "taskType": "GENERAL",
+              "toolRoute": [
+                "backend:reference_read"
+              ],
+              "toolUsage": {
+                "report": false,
+                "thermal": false,
+                "knowledge": false
+              },
+              "adviceMode": null,
+              "candidateIds": [],
+              "domainIntent": "REFERENCE_VIEW",
+              "parserSource": "LLM",
+              "policyReason": "READ_ONLY_SEMANTIC",
+              "queryChanged": false,
+              "reportQueued": false,
+              "effectRequest": null,
+              "sourcePageIds": [],
+              "answerContract": "REFERENCE_LOOKUP",
+              "factValidation": "VALID_FACTS",
+              "referenceScope": "LATEST_VISIBLE",
+              "candidateIdList": [],
+              "requestedEffect": "READ_ONLY",
+              "referencePageIds": [],
+              "semanticEvidence": "刚才第一个图集哪一页？",
+              "semanticReference": {
+                "items": [
+                  {
+                    "type": "POSITION",
+                    "value": 1,
+                    "evidence": "第一个"
+                  }
+                ],
+                "scope": "LAST_VISIBLE_CANDIDATES",
+                "revision": null
+              },
+              "factValidationCode": "VALID_FACTS",
+              "queryChangedFields": [],
+              "semanticConfidence": 0.9,
+              "solutionStateMutated": false,
+              "candidateSnapshotSource": []
+            }
+          },
+          "createdAt": {}
+        },
+        "tools": [],
+        "runs": [],
+        "calculations": [],
+        "task": {
+          "taskType": "GENERAL",
+          "confirmedPageLookup": {
+            "query": {
+              "intent": "REFERENCE_LOOKUP",
+              "filters": [
+                {
+                  "metric": "K",
+                  "targetValue": 0.3,
+                  "mode": "APPROX",
+                  "tolerance": 0.02,
+                  "toleranceSource": "DEFAULT",
+                  "effectiveTolerance": 0.02,
+                  "toleranceAdjusted": false
+                }
+              ],
+              "metric": "K",
+              "targetValue": 0.3,
+              "mode": "APPROX",
+              "tolerance": 0.02,
+              "effectiveTolerance": 0.02,
+              "toleranceAdjusted": false,
+              "queryMode": "NEW_QUERY",
+              "semanticConfidence": 0.9,
+              "parserSource": "LLM",
+              "documentIds": [
+                "c57f6e14-ac19-465c-81e2-d531f346dfcc"
+              ],
+              "knowledgeVersionIds": [
+                "d3bc8e66-d98c-4b82-8770-0b1816508285"
+              ],
+              "unresolved": [],
+              "conditionTrace": [
+                {
+                  "field": "K",
+                  "value": 0.3,
+                  "mode": "APPROX",
+                  "source": "USER_EXPLICIT",
+                  "classification": "HARD_CONSTRAINT"
+                }
+              ]
+            },
+            "createdAt": "2026-10-17T07:44:22.375Z",
+            "conversationId": "aaea2f4c-9361-468b-8b47-67d0d37f165e",
+            "userId": "3a3a2560-4ad2-44ed-9c6c-54d8c370807b",
+            "projectId": null,
+            "clientApp": "pc_ai"
+          },
+          "adviceBusinessContext": {
+            "conversationId": "aaea2f4c-9361-468b-8b47-67d0d37f165e",
+            "projectId": null,
+            "createdAt": "2026-10-17T07:44:28.295Z",
+            "candidateScopeActive": true,
+            "recentGoals": [
+              {
+                "intent": "REFERENCE_QUERY",
+                "userGoal": "我说的是传热系数K，改查0.3左右",
+                "assistantQuestion": "以下为已确认页面的只读参考，不构成正式方案候选：\n本次已确认资料匹配 2 档、2 个独立构造，当前引用 2 档。\n\n- **A1-3**：板厚 **18mm**，产品整体热阻 **2.880**，整构造传热阻（源文符号待核） **3.297**，传热系数 K **0.303**。来源：《销售与设计院UAT测试图集》，印刷页码 22。\n\n- **A1-4**：板厚 **20mm**，产品整体热阻 **3.200**，整构造传热阻（源文符号待核） **3.390**，传热系数 K **0.295**。来源：《销售与设计院UAT测试图集》，印刷页码 23。\n\n同值不代表做法相同，请结合完整表及原始构"
+              },
+              {
+                "intent": "REFERENCE_VIEW",
+                "userGoal": "刚才第一个图集哪一页？",
+                "assistantQuestion": "当前没有可定位的候选，请先查询已有档位或选择方案。"
+              }
+            ]
+          }
+        },
+        "events": [
+          {
+            "event": "message",
+            "data": {
+              "messageId": "2ffa2782-923c-48b6-aa5f-861c1bd612c3",
+              "userMessageId": "09454a00-d3eb-431f-8b26-e112e9337d53",
+              "conversationId": "aaea2f4c-9361-468b-8b47-67d0d37f165e",
+              "requestId": "req-8"
+            }
+          },
+          {
+            "event": "progress",
+            "data": {
+              "stage": "analyzing",
+              "message": "正在分析问题..."
+            }
+          },
+          {
+            "event": "progress",
+            "data": {
+              "stage": "checking",
+              "message": "正在核对检索资料和计算结果..."
+            }
+          },
+          {
+            "event": "progress",
+            "data": {
+              "stage": "composing",
+              "message": "正在整理回答..."
+            }
+          },
+          {
+            "event": "delta",
+            "data": {
+              "text": "当前没有可定位的候选，请先查询已有档位或选择方案。"
+            }
+          },
+          {
+            "event": "progress",
+            "data": {
+              "stage": "completed",
+              "message": "回答整理完成"
+            }
+          },
+          {
+            "event": "done",
+            "data": {
+              "messageId": "2ffa2782-923c-48b6-aa5f-861c1bd612c3",
+              "conversationId": "aaea2f4c-9361-468b-8b47-67d0d37f165e",
+              "finishReason": "COMPLETED",
+              "usage": {},
+              "model": {
+                "id": "deepseek-chat"
+              },
+              "promptVersion": {
+                "id": "ae0f8064-e3d6-43c0-ab4c-174188be34e4",
+                "version": 3
+              },
+              "sources": [],
+              "latencyMs": 2960
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

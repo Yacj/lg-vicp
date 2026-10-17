@@ -9,6 +9,7 @@ import { resolveReferenceFactRead } from "./reference-fact-read.service.js";
 import { domainSemanticFixture } from "./domain-semantic.fixture.js";
 import { domainDecision } from "./ai-domain-turn-decision.js";
 import { buildKnowledgePageRenderModel } from "../../shared/knowledge-page-render.js";
+import { referenceReadFixture } from "./reference-read.fixture.js";
 
 function setup(message = "确认一下这里的R=5.369是否正确，不是确认方案。", metric = "TOTAL_R", both = false) {
   const data = JSON.parse(readFileSync(new URL("../../../tests/fixtures/complex-atlas/page-90.json", import.meta.url), "utf8")).data;
@@ -28,6 +29,18 @@ function setup(message = "确认一下这里的R=5.369是否正确，不是确�
   return { ctx, history, data, row, matches };
 }
 beforeEach(() => { vi.resetAllMocks(); mocks.access.mockResolvedValue({ projectId: null }); });
+it("旧确认页只有事实引用时，也核对实际显示档位而不是按K反选构造", async () => {
+  const { ctx } = setup("确认K=0.303是否正确", "K"), fixture = referenceReadFixture(), construction = fixture.model.constructions[0]!;
+  ctx.taskState.confirmedPageLookup.query = { documentIds: ["doc"], knowledgeVersionIds: ["version"], schemeCode: "A1-1", thicknessMm: 18 };
+  mocks.read.mockResolvedValue([fixture.row]);
+  mocks.history.mockResolvedValue([{ content: "A1-1 18mm K=.303", createdAt: new Date(), metadata: { referencePages: [{ documentId: "doc", pageId: "page", versionId: "version", matches: [{
+    pageId: "page", constructionId: construction.constructionId, optionId: construction.options[0]!.optionId,
+    confirmedRevision: fixture.model.confirmedRevision, fieldKeys: ["thicknessMm", "kValue"] }] }] } }]);
+  const result = await resolveReferenceFactRead(ctx, []);
+  expect(result?.needsClarification).toBe(false); expect(result?.validationCode).toBe("CONFIRMED_PAGE_FACT_VERIFY");
+  expect(result?.facts.canonicalAnswers[0]).toContain("一致"); expect(result?.referencePages[0]?.matches).toHaveLength(1);
+  expect(mocks.query).not.toHaveBeenCalled(); expect(result?.candidates).toEqual([]);
+});
 
 it.each(["TOTAL_R", "PRODUCT_R"])("T11裸R按确认来源列核验，兼容模型旧默认%s，不造编号/产品R", async metric => {
   const { ctx } = setup(undefined, metric), before = structuredClone(ctx.taskState);

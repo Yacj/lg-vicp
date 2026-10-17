@@ -380,7 +380,9 @@ describe("Test 7：systemHint 无匹配时禁止静默回退伪装成命中", ()
     const restored = parseConversationTaskState(JSON.parse(JSON.stringify({ taskType: "GENERAL", lastReferenceLookup: lookup })));
     expect(restored.lastReferenceLookup).toEqual(JSON.parse(JSON.stringify(lookup)));
     const context = formatConversationTaskContext(restored);
-    expect(context).toContain("外墙主断面总热阻 R₀ 3.297");
+    // 总热阻标签不得硬编码「外墙主断面」：构造身份由候选自身决定。
+    expect(context).toContain("总热阻 R₀ 3.297");
+    expect(context).not.toContain("外墙主断面总热阻");
     expect(context).toContain("产品层热阻 2.88");
     expect(context).toContain("page-22");
     expect(context).toContain("方案 A1-1");

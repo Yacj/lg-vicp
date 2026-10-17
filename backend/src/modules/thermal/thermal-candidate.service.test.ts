@@ -358,3 +358,53 @@ describe("统一服务偏好与 AI 普通查表标准边界", () => {
     expect(result.candidates.every(candidate => candidate.compliant === null)).toBe(true);
   });
 });
+
+/**
+ * 阶段2 B2：零命中时把「没有档位」换成「档位有哪些」。
+ * metricScope 是只读事实：只统计当前身份范围内已发布行的真实取值，
+ * 不参与匹配、不产生候选、不据此推断用户想问哪个指标。
+ */
+describe("零命中的指标取值概览 metricScope", () => {
+  const rows = [
+    { ...row25, rowId: "r-a", productThermalResistance: 4, totalThermalResistance: 4.307, kValue: 0.232 },
+    { ...row25, rowId: "r-b", thicknessMm: 30, productThermalResistance: 5, totalThermalResistance: 5.307, kValue: 0.188 },
+    // 重复取值只出现一次（去重后才是「有哪些档位」）
+    { ...row25, rowId: "r-c", thicknessMm: 35, productThermalResistance: 5, totalThermalResistance: 5.5, kValue: 0.18 }
+  ];
+
+  it("单指标零命中 → 返回该指标的真实取值（去重升序）", async () => {
+    const { db } = makeDb([[setRow], rows]);
+    const result = await queryThermalCandidates(app(db), request, actor, {
+      metric: "PRODUCT_R", targetValue: 0.3, mode: "APPROX", neighborTolerance: 0
+    });
+    expect(result.candidates).toEqual([]);
+    expect(result.metricScope).toEqual({ metric: "PRODUCT_R", values: [4, 5], count: 2 });
+  });
+
+  it("有命中时不产生取值概览（避免噪声）", async () => {
+    const { db } = makeDb([[setRow], rows]);
+    const result = await queryThermalCandidates(app(db), request, actor, {
+      metric: "PRODUCT_R", targetValue: 4, mode: "APPROX", neighborTolerance: 0
+    });
+    expect(result.candidates).toHaveLength(1);
+    expect(result.metricScope).toBeUndefined();
+  });
+
+  it("多指标条件（AND）零命中不产生取值概览：无法归因到单一指标", async () => {
+    const { db } = makeDb([[setRow], rows]);
+    const result = await queryThermalCandidates(app(db), request, actor, {
+      filters: [{ metric: "PRODUCT_R", targetValue: 0.3, mode: "APPROX" }, { metric: "K", targetValue: 0.1, mode: "APPROX" }],
+      neighborTolerance: 0
+    });
+    expect(result.candidates).toEqual([]);
+    expect(result.metricScope).toBeUndefined();
+  });
+
+  it("取值概览只统计身份范围内的行（指定 schemeId 时不混入其他方案）", async () => {
+    const { db } = makeDb([[setRow], [...rows, { ...row25, rowId: "r-other", schemeId: "sch-2", productThermalResistance: 9 }]]);
+    const result = await queryThermalCandidates(app(db), request, actor, {
+      schemeId: "sch-1", metric: "PRODUCT_R", targetValue: 0.3, mode: "APPROX", neighborTolerance: 0
+    });
+    expect(result.metricScope?.values).toEqual([4, 5]);
+  });
+});

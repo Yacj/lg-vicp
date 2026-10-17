@@ -4,6 +4,7 @@ const mocks = vi.hoisted(()=>({generate:vi.fn(),runtime:vi.fn()}));
 vi.mock('ai',()=>({generateObject:mocks.generate}));
 vi.mock('./ai-runtime.service.js',()=>({resolveSceneRuntime:mocks.runtime}));
 vi.mock('./reference-fact-history.js',()=>({readReferenceFactHistory:vi.fn(async()=>[])}));
+vi.mock('./query-clarification-context.js',()=>({readQueryClarification:async()=>null}));
 vi.mock('../thermal/thermal-query-dictionary.service.js',()=>({loadThermalQueryDictionary:vi.fn(async()=>({entities:[],aliases:[]}))}));
 import { repairDomainSemanticText } from './domain-semantic-output.js';
 import { domainSemanticFixture } from './domain-semantic.fixture.js';

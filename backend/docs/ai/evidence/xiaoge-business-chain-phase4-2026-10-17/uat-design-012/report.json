@@ -1,0 +1,2141 @@
+{
+  "run": {
+    "startedAt": "2026-10-17T07:46:50.383Z",
+    "fixtureVersion": "vicp-business-uat-1",
+    "reasoning": "OFF",
+    "styleJudge": "DETERMINISTIC_STYLE",
+    "gitRevision": "f747eace4353711c27431757111db73b2f9988b6",
+    "runtimePolicy": {
+      "chat": {
+        "taskType": "CHAT",
+        "maxOutputTokens": 4096,
+        "timeoutMs": 60000,
+        "tools": false,
+        "maxSteps": 1,
+        "structuredOutput": false
+      },
+      "agent": {
+        "taskType": "PROJECT_AGENT",
+        "maxOutputTokens": 4096,
+        "timeoutMs": 120000,
+        "tools": true,
+        "maxSteps": 8,
+        "structuredOutput": false
+      }
+    },
+    "database": "vicp_ai_uat_efdbe5ad0b724bcb83b8bbc1bf236543",
+    "runtimeConfig": {
+      "models": [
+        {
+          "id": "6963f25b-73fd-4612-8a77-d3c58e323dbe",
+          "model": "deepseek-chat",
+          "reasoningLevel": "MAX"
+        }
+      ],
+      "defaultModelId": "6963f25b-73fd-4612-8a77-d3c58e323dbe",
+      "reasoningModelId": "6963f25b-73fd-4612-8a77-d3c58e323dbe"
+    },
+    "cleanup": "COMPLETED",
+    "finishedAt": "2026-10-17T07:47:49.125Z"
+  },
+  "summary": {
+    "plannedCases": 1,
+    "plannedTurns": 3,
+    "executedTurns": 3,
+    "pass": 0,
+    "warning": 0,
+    "fail": 3,
+    "blocked": 0,
+    "hardFails": 2,
+    "intent": {
+      "checked": 3,
+      "passed": 0,
+      "rate": 0
+    },
+    "parameters": {
+      "checked": 3,
+      "passed": 3,
+      "rate": 1
+    },
+    "facts": {
+      "checked": 3,
+      "passed": 0,
+      "rate": 0
+    },
+    "state": {
+      "checked": 3,
+      "passed": 3,
+      "rate": 1
+    },
+    "source": {
+      "checked": 3,
+      "passed": 3,
+      "rate": 1
+    },
+    "referencePage": {
+      "required": 0,
+      "passed": 0
+    }
+  },
+  "results": [
+    {
+      "caseId": "DESIGN-012",
+      "persona": "DESIGN_INSTITUTE",
+      "scenario": "正式计算与冻结快照",
+      "turn": 1,
+      "user": "A1-3 I型18mm图集参数",
+      "expected": {
+        "intent": "REFERENCE_LOOKUP",
+        "toolsAny": [
+          "thermal"
+        ],
+        "operation": "LOOKUP_CANDIDATES",
+        "hardFailRules": [
+          "HARD_CONDITION",
+          "METRIC_CONFUSION",
+          "FABRICATED_PAGE",
+          "RESULT_TYPE",
+          "UNSUPPORTED_COMPLIANCE",
+          "STALE_CONDITIONS",
+          "THICKNESS_VIOLATION"
+        ],
+        "expectedCandidate": {
+          "schemeCode": "A1-3",
+          "specClass": "I",
+          "thicknessMm": 18,
+          "productThermalResistance": 2.88,
+          "totalThermalResistance": 3.297,
+          "kValue": 0.303,
+          "sourcePageLabel": "22"
+        }
+      },
+      "checks": [
+        {
+          "group": "intent",
+          "passed": false,
+          "type": "ROUTING",
+          "detail": "预期intent=REFERENCE_LOOKUP，实际=GENERAL",
+          "hard": false
+        },
+        {
+          "group": "intent",
+          "passed": true,
+          "type": "RETRIEVAL",
+          "detail": "本轮工具调用均成功，不能将业务失败当作可用结果",
+          "hard": false
+        },
+        {
+          "group": "intent",
+          "passed": false,
+          "type": "ROUTING",
+          "detail": "本轮实际工具须包含 thermal",
+          "hard": false
+        },
+        {
+          "group": "intent",
+          "passed": false,
+          "type": "ROUTING",
+          "detail": "热工操作=LOOKUP_CANDIDATES",
+          "hard": false
+        },
+        {
+          "group": "facts",
+          "passed": false,
+          "type": "RETRIEVAL",
+          "detail": "预期正式行存在且数值/规格/来源一致",
+          "hard": false
+        },
+        {
+          "group": "quality",
+          "passed": true,
+          "type": "ANSWER_CONTRACT",
+          "detail": "最终消息已完成且有用户可见回答",
+          "hard": false
+        },
+        {
+          "group": "quality",
+          "passed": true,
+          "type": "UX_COPY",
+          "detail": "不暴露内部开发术语",
+          "hard": false
+        },
+        {
+          "group": "facts",
+          "passed": true,
+          "type": "HALLUCINATION",
+          "detail": "合规肯定结论必须有正式地区标准快照",
+          "hard": true
+        },
+        {
+          "group": "facts",
+          "passed": true,
+          "type": "HALLUCINATION",
+          "detail": "最终文字不混淆产品R/总R/K",
+          "hard": true
+        },
+        {
+          "group": "facts",
+          "passed": true,
+          "type": "HALLUCINATION",
+          "detail": "最终文字不混淆产品R/总R/K",
+          "hard": true
+        },
+        {
+          "group": "facts",
+          "passed": true,
+          "type": "HALLUCINATION",
+          "detail": "最终文字不混淆产品R/总R/K",
+          "hard": true
+        },
+        {
+          "group": "parameters",
+          "passed": true,
+          "type": "PARSER",
+          "detail": "工具参数属于本轮真实消息",
+          "hard": false
+        },
+        {
+          "group": "state",
+          "passed": true,
+          "type": "STATE",
+          "detail": "工具状态属于独立当前会话",
+          "hard": false
+        },
+        {
+          "group": "source",
+          "passed": true,
+          "type": "SOURCE",
+          "detail": "来源性宣称须有本轮可追溯证据",
+          "hard": false
+        },
+        {
+          "group": "state",
+          "passed": true,
+          "type": "STATE",
+          "detail": "SSE完成后客户端详情返回同一最终消息"
+        }
+      ],
+      "quality": {
+        "score": 10,
+        "method": "DETERMINISTIC_STYLE",
+        "reasons": []
+      },
+      "score": 55,
+      "status": "FAIL",
+      "actual": {
+        "message": {
+          "id": "fab411c6-0346-4f18-8751-785f63e2037e",
+          "conversationId": "bda8dc95-ec8d-4b15-ae60-5f466775fca3",
+          "userId": null,
+          "role": "ASSISTANT",
+          "status": "COMPLETED",
+          "content": "想确认一下：明确指定的对象未被完整保留，请确认。",
+          "reasoningMode": "OFF",
+          "provider": "DeepSeek",
+          "model": "deepseek-chat",
+          "providerId": "c9f8f4c4-f149-4e33-9f29-5efe3f9c51c4",
+          "modelId": "6963f25b-73fd-4612-8a77-d3c58e323dbe",
+          "promptTemplateVersion": 3,
+          "promptVersionId": "ae0f8064-e3d6-43c0-ab4c-174188be34e4",
+          "tokenInput": null,
+          "tokenOutput": null,
+          "reasoningTokens": null,
+          "durationMs": 4310,
+          "startedAt": {},
+          "finishedAt": {},
+          "errorMessage": null,
+          "errorCode": null,
+          "requestId": "req-2",
+          "stopReason": null,
+          "metadata": {
+            "reasoning": {
+              "mode": "OFF",
+              "downgradeNote": null,
+              "reasoningModelUsed": false
+            },
+            "queryScope": {
+              "id": "bda8dc95-ec8d-4b15-ae60-5f466775fca3",
+              "userId": "fd29cc32-1df7-4473-ba0e-c8b44b9216bb",
+              "clientApp": "pc_ai",
+              "projectId": null
+            },
+            "agentEnabled": false,
+            "allowedTools": [
+              "search_knowledge",
+              "get_product_data",
+              "thermal",
+              "compare_products",
+              "compare_solutions",
+              "generate_report"
+            ],
+            "capabilities": {
+              "idle": false,
+              "needProductData": false,
+              "needThermalTool": false,
+              "needReportContext": false,
+              "needComparisonTool": false,
+              "needProjectContext": false,
+              "needKnowledgeSearch": false,
+              "needReferenceLookup": false,
+              "explicitKnowledgeRequest": false
+            },
+            "finishReason": "COMPLETED",
+            "reasoningMode": "OFF",
+            "backendDecision": {
+              "goal": "CLARIFY",
+              "patch": [],
+              "intent": "GENERAL",
+              "source": "INTENT",
+              "factRead": null,
+              "mutation": "NONE",
+              "relation": "NEW",
+              "taskType": "GENERAL",
+              "pageQuery": {
+                "intent": "REFERENCE_LOOKUP",
+                "queryMode": "NEW_QUERY",
+                "confidence": 0.95,
+                "unresolved": [],
+                "constraints": [
+                  {
+                    "hard": true,
+                    "type": "ENTITY",
+                    "field": "schemeCode",
+                    "value": null,
+                    "metric": null,
+                    "evidence": "A1-3",
+                    "operator": null,
+                    "operation": "SET",
+                    "confidence": 0.95,
+                    "entityText": "A1-3",
+                    "resolvedText": null
+                  },
+                  {
+                    "hard": true,
+                    "type": "ENTITY",
+                    "field": "specClass",
+                    "value": null,
+                    "metric": null,
+                    "evidence": "I型",
+                    "operator": null,
+                    "operation": "SET",
+                    "confidence": 0.95,
+                    "entityText": "I型",
+                    "resolvedText": "I"
+                  },
+                  {
+                    "hard": true,
+                    "type": "THICKNESS",
+                    "field": null,
+                    "value": 18,
+                    "metric": null,
+                    "evidence": "18mm",
+                    "operator": "EXACT",
+                    "operation": "SET",
+                    "confidence": 0.95,
+                    "entityText": "18mm",
+                    "resolvedText": null
+                  }
+                ],
+                "preferences": []
+              },
+              "toolRoute": [
+                "backend:clarify"
+              ],
+              "toolUsage": {
+                "report": false,
+                "thermal": false,
+                "knowledge": false
+              },
+              "adviceMode": null,
+              "candidateIds": [],
+              "domainIntent": "CLARIFY",
+              "parserSource": "LLM",
+              "policyReason": "PAGE_QUERY_CONSTRAINTS_INVALID",
+              "queryChanged": false,
+              "reportQueued": false,
+              "effectRequest": null,
+              "sourcePageIds": [],
+              "answerContract": "CLARIFY",
+              "candidateIdList": [],
+              "requestedEffect": "QUERY",
+              "referencePageIds": [],
+              "semanticEvidence": "A1-3 I型18mm图集参数",
+              "semanticReference": {
+                "items": [],
+                "scope": "NONE",
+                "revision": null
+              },
+              "factValidationCode": "NOT_EVALUATED_CLARIFICATION",
+              "queryChangedFields": [],
+              "semanticConfidence": 0.95,
+              "solutionStateMutated": false,
+              "candidateSnapshotSource": []
+            }
+          },
+          "createdAt": {}
+        },
+        "tools": [],
+        "runs": [],
+        "calculations": [],
+        "task": {
+          "taskType": "GENERAL",
+          "adviceBusinessContext": {
+            "conversationId": "bda8dc95-ec8d-4b15-ae60-5f466775fca3",
+            "projectId": null,
+            "createdAt": "2026-10-17T07:47:28.194Z",
+            "candidateScopeActive": false,
+            "recentGoals": [
+              {
+                "intent": "CLARIFY",
+                "userGoal": "A1-3 I型18mm图集参数",
+                "assistantQuestion": "想确认一下：明确指定的对象未被完整保留，请确认。"
+              }
+            ]
+          }
+        },
+        "events": [
+          {
+            "event": "message",
+            "data": {
+              "messageId": "fab411c6-0346-4f18-8751-785f63e2037e",
+              "userMessageId": "b61daae1-ffb3-45a3-8c18-b52d86b058a0",
+              "conversationId": "bda8dc95-ec8d-4b15-ae60-5f466775fca3",
+              "requestId": "req-2"
+            }
+          },
+          {
+            "event": "progress",
+            "data": {
+              "stage": "analyzing",
+              "message": "正在分析问题..."
+            }
+          },
+          {
+            "event": "progress",
+            "data": {
+              "stage": "composing",
+              "message": "正在整理回答..."
+            }
+          },
+          {
+            "event": "delta",
+            "data": {
+              "text": "想确认一下：明确指定的对象未被完整保留，请确认。"
+            }
+          },
+          {
+            "event": "progress",
+            "data": {
+              "stage": "completed",
+              "message": "回答整理完成"
+            }
+          },
+          {
+            "event": "done",
+            "data": {
+              "messageId": "fab411c6-0346-4f18-8751-785f63e2037e",
+              "conversationId": "bda8dc95-ec8d-4b15-ae60-5f466775fca3",
+              "finishReason": "COMPLETED",
+              "usage": {},
+              "model": {
+                "id": "deepseek-chat"
+              },
+              "promptVersion": {
+                "id": "ae0f8064-e3d6-43c0-ab4c-174188be34e4",
+                "version": 3
+              },
+              "sources": [],
+              "latencyMs": 4590
+            }
+          }
+        ]
+      }
+    },
+    {
+      "caseId": "DESIGN-012",
+      "persona": "DESIGN_INSTITUTE",
+      "scenario": "正式计算与冻结快照",
+      "turn": 2,
+      "user": "请按当量法正式计算A1-3 I型18mm的K",
+      "expected": {
+        "intent": "THERMAL",
+        "toolsAny": [
+          "thermal"
+        ],
+        "operation": "CALCULATE",
+        "hardFailRules": [
+          "HARD_CONDITION",
+          "METRIC_CONFUSION",
+          "FABRICATED_PAGE",
+          "RESULT_TYPE",
+          "UNSUPPORTED_COMPLIANCE",
+          "STALE_CONDITIONS",
+          "THICKNESS_VIOLATION"
+        ],
+        "resultType": "CALCULATED",
+        "answerFacts": [
+          {
+            "pattern": "(?:K|传热系数)[^\\d]{0,20}",
+            "value": 0.303,
+            "tolerance": 0.0005
+          }
+        ]
+      },
+      "checks": [
+        {
+          "group": "intent",
+          "passed": true,
+          "type": "ROUTING",
+          "detail": "预期intent=THERMAL，实际=THERMAL",
+          "hard": false
+        },
+        {
+          "group": "intent",
+          "passed": false,
+          "type": "RETRIEVAL",
+          "detail": "本轮工具调用均成功，不能将业务失败当作可用结果",
+          "hard": false
+        },
+        {
+          "group": "intent",
+          "passed": true,
+          "type": "ROUTING",
+          "detail": "本轮实际工具须包含 thermal",
+          "hard": false
+        },
+        {
+          "group": "intent",
+          "passed": false,
+          "type": "ROUTING",
+          "detail": "热工操作=CALCULATE",
+          "hard": false
+        },
+        {
+          "group": "facts",
+          "passed": false,
+          "type": "THERMAL",
+          "detail": "本轮改变厚度的真实计算必须有计算模式冻结记录",
+          "hard": true
+        },
+        {
+          "group": "quality",
+          "passed": true,
+          "type": "ANSWER_CONTRACT",
+          "detail": "最终消息已完成且有用户可见回答",
+          "hard": false
+        },
+        {
+          "group": "quality",
+          "passed": true,
+          "type": "UX_COPY",
+          "detail": "不暴露内部开发术语",
+          "hard": false
+        },
+        {
+          "group": "facts",
+          "passed": true,
+          "type": "ANSWER_CONTRACT",
+          "detail": "最终文字正确表达预期数值 0.303",
+          "hard": false
+        },
+        {
+          "group": "facts",
+          "passed": true,
+          "type": "HALLUCINATION",
+          "detail": "合规肯定结论必须有正式地区标准快照",
+          "hard": true
+        },
+        {
+          "group": "facts",
+          "passed": true,
+          "type": "ANSWER_CONTRACT",
+          "detail": "22mm计算结果不能冒充图集原始行",
+          "hard": true
+        },
+        {
+          "group": "facts",
+          "passed": true,
+          "type": "HALLUCINATION",
+          "detail": "最终文字不混淆产品R/总R/K",
+          "hard": true
+        },
+        {
+          "group": "facts",
+          "passed": true,
+          "type": "HALLUCINATION",
+          "detail": "最终文字不混淆产品R/总R/K",
+          "hard": true
+        },
+        {
+          "group": "facts",
+          "passed": true,
+          "type": "HALLUCINATION",
+          "detail": "最终文字不混淆产品R/总R/K",
+          "hard": true
+        },
+        {
+          "group": "parameters",
+          "passed": true,
+          "type": "PARSER",
+          "detail": "工具参数属于本轮真实消息",
+          "hard": false
+        },
+        {
+          "group": "state",
+          "passed": true,
+          "type": "STATE",
+          "detail": "工具状态属于独立当前会话",
+          "hard": false
+        },
+        {
+          "group": "source",
+          "passed": true,
+          "type": "SOURCE",
+          "detail": "来源性宣称须有本轮可追溯证据",
+          "hard": false
+        },
+        {
+          "group": "state",
+          "passed": true,
+          "type": "STATE",
+          "detail": "SSE完成后客户端详情返回同一最终消息"
+        }
+      ],
+      "quality": {
+        "score": 10,
+        "method": "DETERMINISTIC_STYLE",
+        "reasons": []
+      },
+      "score": 55,
+      "status": "FAIL",
+      "actual": {
+        "message": {
+          "id": "1cc5d4a6-f9d4-474d-aa63-688dba709f73",
+          "conversationId": "bda8dc95-ec8d-4b15-ae60-5f466775fca3",
+          "userId": null,
+          "role": "ASSISTANT",
+          "status": "COMPLETED",
+          "content": "现在还不能按当量法正式计算：A1-3、I型、18mm 这组构造与规格没有匹配到可用的已发布构造方案和产品规格，缺少正式计算所需的方案标识和规格标识，所以尚未生成 K 值。这部分也暂不参与比较。\n\n已发布图集资料中可查到一组 A1-3、I型、18mm 的参考值：产品层热阻 2.880 m²·K/W，总热阻 3.297 m²·K/W，传热系数 K=0.303 W/(m²·K)；该构造基层为 240mm 灰砂砖（λ=0.9），当量导热系数 λ=0.005 W/(m·K)、修正系数 α=1.25，见印刷页 22。这组数值属于图集参考值，并不等同于按当量法重新计算的结果。\n\n可以确认一下：你手上这个 A1-3 是图集里的参考做法，还是已在你项目里选定的构造方案？如果已选定，请告诉我确认的构造方案名称或编号，我再做正式计算。",
+          "reasoningMode": "OFF",
+          "provider": "DeepSeek",
+          "model": "deepseek-chat",
+          "providerId": "c9f8f4c4-f149-4e33-9f29-5efe3f9c51c4",
+          "modelId": "6963f25b-73fd-4612-8a77-d3c58e323dbe",
+          "promptTemplateVersion": 3,
+          "promptVersionId": "ae0f8064-e3d6-43c0-ab4c-174188be34e4",
+          "tokenInput": 35114,
+          "tokenOutput": 583,
+          "reasoningTokens": 0,
+          "durationMs": 10516,
+          "startedAt": {},
+          "finishedAt": {},
+          "errorMessage": null,
+          "errorCode": null,
+          "requestId": "req-4",
+          "stopReason": null,
+          "metadata": {
+            "reasoning": {
+              "mode": "OFF",
+              "downgradeNote": null,
+              "reasoningModelUsed": false
+            },
+            "queryScope": {
+              "id": "bda8dc95-ec8d-4b15-ae60-5f466775fca3",
+              "userId": "fd29cc32-1df7-4473-ba0e-c8b44b9216bb",
+              "clientApp": "pc_ai",
+              "projectId": null
+            },
+            "agentEnabled": true,
+            "allowedTools": [
+              "search_knowledge",
+              "get_product_data",
+              "thermal",
+              "compare_products",
+              "compare_solutions",
+              "generate_report"
+            ],
+            "capabilities": {
+              "idle": false,
+              "needProductData": false,
+              "needThermalTool": true,
+              "needReportContext": false,
+              "needComparisonTool": false,
+              "needProjectContext": false,
+              "needKnowledgeSearch": true,
+              "needReferenceLookup": false,
+              "explicitKnowledgeRequest": false
+            },
+            "finishReason": "COMPLETED",
+            "reasoningMode": "OFF",
+            "backendDecision": {
+              "goal": "THERMAL_CALCULATE",
+              "patch": [],
+              "intent": "THERMAL",
+              "source": "INTENT",
+              "factRead": null,
+              "mutation": "CALCULATE",
+              "relation": "NEW",
+              "taskType": "GENERAL",
+              "toolRoute": [
+                "thermal",
+                "search_knowledge",
+                "get_product_data"
+              ],
+              "toolUsage": {
+                "report": false,
+                "thermal": true,
+                "knowledge": true
+              },
+              "adviceMode": null,
+              "domainIntent": "THERMAL_CALCULATE",
+              "parserSource": "LLM",
+              "policyReason": "EXPLICIT_EFFECT_PROPOSAL",
+              "queryChanged": false,
+              "reportQueued": false,
+              "effectRequest": {
+                "direct": true,
+                "evidence": "请按当量法正式计算A1-3 I型18mm的K",
+                "polarity": "AFFIRMATIVE",
+                "speechAct": "REQUEST"
+              },
+              "sourcePageIds": [],
+              "answerContract": "THERMAL",
+              "referenceScope": "LATEST_VISIBLE",
+              "candidateIdList": [],
+              "requestedEffect": "CALCULATE",
+              "referencePageIds": [],
+              "semanticEvidence": "请按当量法正式计算A1-3 I型18mm的K",
+              "semanticReference": {
+                "items": [],
+                "scope": "NONE",
+                "revision": null
+              },
+              "factValidationCode": "NOT_EVALUATED",
+              "queryChangedFields": [],
+              "semanticConfidence": 0.9,
+              "solutionStateMutated": false,
+              "candidateSnapshotSource": []
+            }
+          },
+          "createdAt": {}
+        },
+        "tools": [
+          {
+            "id": "37733d61-6e8b-4449-9fe5-be8b55086fe0",
+            "conversationId": "bda8dc95-ec8d-4b15-ae60-5f466775fca3",
+            "messageId": "1cc5d4a6-f9d4-474d-aa63-688dba709f73",
+            "agentRunId": "5b841e3b-01c9-4a00-806b-4b4eed4c7872",
+            "toolName": "thermal",
+            "inputJson": {
+              "operation": "LOOKUP_CANDIDATES",
+              "specClass": "I",
+              "schemeCode": "A1-3",
+              "thicknessMm": 18
+            },
+            "outputJson": {
+              "ok": false,
+              "code": "REFERENCE_QUERY_AUTHORIZATION_REQUIRED",
+              "message": "本轮没有查表或修改筛选条件的要求。",
+              "recoverable": true
+            },
+            "inputHash": "6110c21ec1631a2a954256ec982aa5f29835ea8027127c819b0e50ed0797da4d",
+            "success": true,
+            "errorMessage": null,
+            "durationMs": 1,
+            "createdAt": {}
+          },
+          {
+            "id": "ae1ae30b-ea6b-4c8e-aa18-b48ce0ffed03",
+            "conversationId": "bda8dc95-ec8d-4b15-ae60-5f466775fca3",
+            "messageId": "1cc5d4a6-f9d4-474d-aa63-688dba709f73",
+            "agentRunId": "5b841e3b-01c9-4a00-806b-4b4eed4c7872",
+            "toolName": "search_knowledge",
+            "inputJson": {
+              "query": "A1-3 保温装饰板 I型 18mm 构造做法 传热系数",
+              "scope": "ATLAS"
+            },
+            "outputJson": {
+              "ok": true,
+              "data": {
+                "hits": [
+                  {
+                    "title": "销售与设计院UAT测试图集",
+                    "content": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。\nI型 VICP薄抹灰外保温系统：A1-3，18mm，产品层热阻2.880 m²·K/W，总热阻3.297 m²·K/W，传热系数K=0.303 W/(m²·K)，印刷页22。\nA1-3，25mm，产品层热阻4.000，总热阻4.417，K=0.226，印刷页22。\nI型产品当量导热系数λ=0.005 W/(m·K)，修正系数α=1.25。产品层R=δ/(λ×α)。A1-3基层为240mm灰砂砖，λ=0.9。Ri=0.11、Re=0.04 m²·K/W。\n图集参考值与按厚度重新计算的系统计算值分别标注。该测试资料没有任何地区法规合规依据；上海或其他地区项目需要真实发布标准与适用条件，不能宣称达标。\nVICP的低导热系数有助于减少达到同一热阻所需的厚度，不能据此推断全部构造的防火等级或成本。\n岩棉测试产品λ=0.040 W/(m·K)、α=1.0，厚度50mm；仅支持同热工条件比较，未提供防火/造价证据。",
+                    "section": "测试图集第22页",
+                    "pageLabel": "22"
+                  },
+                  {
+                    "title": "销售与设计院UAT测试图集",
+                    "content": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。\nII型 VICP薄抹灰外保温系统：B1-1，18mm，产品层热阻2.500，总热阻2.917，K=0.343，印刷页24。\nI型产品当量导热系数λ=0.005 W/(m·K)，修正系数α=1.25。产品层R=δ/(λ×α)。A1-3基层为240mm灰砂砖，λ=0.9。Ri=0.11、Re=0.04 m²·K/W。\n图集参考值与按厚度重新计算的系统计算值分别标注。该测试资料没有任何地区法规合规依据；上海或其他地区项目需要真实发布标准与适用条件，不能宣称达标。\nVICP的低导热系数有助于减少达到同一热阻所需的厚度，不能据此推断全部构造的防火等级或成本。\n岩棉测试产品λ=0.040 W/(m·K)、α=1.0，厚度50mm；仅支持同热工条件比较，未提供防火/造价证据。",
+                    "section": "测试图集第24页",
+                    "pageLabel": "24"
+                  },
+                  {
+                    "title": "销售与设计院UAT测试图集",
+                    "content": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。\nA1-4，20mm，产品层热阻3.200，总热阻3.390，K=0.295，印刷页23。\nI型产品当量导热系数λ=0.005 W/(m·K)，修正系数α=1.25。产品层R=δ/(λ×α)。A1-3基层为240mm灰砂砖，λ=0.9。Ri=0.11、Re=0.04 m²·K/W。\n图集参考值与按厚度重新计算的系统计算值分别标注。该测试资料没有任何地区法规合规依据；上海或其他地区项目需要真实发布标准与适用条件，不能宣称达标。\nVICP的低导热系数有助于减少达到同一热阻所需的厚度，不能据此推断全部构造的防火等级或成本。\n岩棉测试产品λ=0.040 W/(m·K)、α=1.0，厚度50mm；仅支持同热工条件比较，未提供防火/造价证据。",
+                    "section": "测试图集第23页",
+                    "pageLabel": "23"
+                  }
+                ],
+                "available": true,
+                "sourceKind": "atlas",
+                "instruction": "来源仅使用印刷页码标签，缺失时提示查看原始页面。热工数值关系以同一条已确认结构化候选为准；文字只补充说明，禁止跨构造拼参数或根据几个命中宣称最高、唯一。",
+                "selectedSourceIds": [
+                  "db8e35a4-aeb3-45cb-9a3f-7871865a2231"
+                ]
+              },
+              "summary": "命中 3 条资料"
+            },
+            "inputHash": "869747fedd1665788049be7a4beef20a97bd39c2552513036c0931d62eef80f6",
+            "success": true,
+            "errorMessage": null,
+            "durationMs": 550,
+            "createdAt": {}
+          },
+          {
+            "id": "67813129-29bc-4967-8359-9b8806c9338b",
+            "conversationId": "bda8dc95-ec8d-4b15-ae60-5f466775fca3",
+            "messageId": "1cc5d4a6-f9d4-474d-aa63-688dba709f73",
+            "agentRunId": "5b841e3b-01c9-4a00-806b-4b4eed4c7872",
+            "toolName": "thermal",
+            "inputJson": {
+              "operation": "LOOKUP_CANDIDATES",
+              "specClass": "I",
+              "lookupMode": "EXACT",
+              "schemeCode": "A1-3",
+              "thicknessMm": 18
+            },
+            "outputJson": {
+              "ok": false,
+              "code": "REFERENCE_QUERY_AUTHORIZATION_REQUIRED",
+              "message": "本轮没有查表或修改筛选条件的要求。",
+              "recoverable": true
+            },
+            "inputHash": "0f3bb469f0f05516c6d46d531fc073901cbcb185e1cac1eda26a75e025a37f94",
+            "success": true,
+            "errorMessage": null,
+            "durationMs": 1,
+            "createdAt": {}
+          },
+          {
+            "id": "7ace7097-b25c-4b0d-a6fe-6f4b9e0c1f71",
+            "conversationId": "bda8dc95-ec8d-4b15-ae60-5f466775fca3",
+            "messageId": "1cc5d4a6-f9d4-474d-aa63-688dba709f73",
+            "agentRunId": "5b841e3b-01c9-4a00-806b-4b4eed4c7872",
+            "toolName": "get_product_data",
+            "inputJson": {
+              "keyword": "A1-3",
+              "operation": "SEARCH"
+            },
+            "outputJson": {
+              "ok": true,
+              "data": {
+                "hasMore": false,
+                "products": [],
+                "instruction": "用户问「有什么产品」「主要做什么」「我不是工程师」这类介绍性问题时，用业务语言说清这是什么产品、解决什么问题、适合什么场景，不要一上来罗列导热系数、修正系数、板厚和型号分类。\n用户明确问技术参数、型号或厚度时再展开对应字段，同一批事实可以有两种说法，但数值和名称必须与上面完全一致。\n这些产品当前没有已审核的介绍文案，只能说明名称和已有技术字段，并告知可查看原始资料。\n不要补充未审核的宣传结论（例如行业领先、节能百分之多少、寿命多少年、获奖或认证），也不要拿技术字段当卖点复述。",
+                "missingNotes": []
+              },
+              "sources": [],
+              "summary": "已读取 0 个正式产品"
+            },
+            "inputHash": "de6c6e766021b3233b64f931085b1c81fc66f1e143e512f76ffab46d11fb5a9a",
+            "success": true,
+            "errorMessage": null,
+            "durationMs": 68,
+            "createdAt": {}
+          }
+        ],
+        "runs": [
+          {
+            "id": "5b841e3b-01c9-4a00-806b-4b4eed4c7872",
+            "conversationId": "bda8dc95-ec8d-4b15-ae60-5f466775fca3",
+            "triggerMessageId": "603b1a53-1a39-4a9d-aedc-181522702abd",
+            "assistantMessageId": "1cc5d4a6-f9d4-474d-aa63-688dba709f73",
+            "userId": "fd29cc32-1df7-4473-ba0e-c8b44b9216bb",
+            "projectId": null,
+            "runType": "CHAT",
+            "status": "COMPLETED",
+            "currentStep": 5,
+            "allowedToolsJson": [
+              "search_knowledge",
+              "get_product_data",
+              "thermal",
+              "compare_products",
+              "compare_solutions",
+              "generate_report"
+            ],
+            "model": "deepseek-chat",
+            "toolCallCount": 4,
+            "tokenUsageJson": {
+              "inputTokens": 35114,
+              "outputTokens": 583
+            },
+            "errorMessage": null,
+            "errorCode": null,
+            "startedAt": {},
+            "finishedAt": {}
+          }
+        ],
+        "calculations": [],
+        "task": {
+          "taskType": "GENERAL",
+          "confirmedKnowledgeSourceIds": [
+            "db8e35a4-aeb3-45cb-9a3f-7871865a2231"
+          ],
+          "confirmedKnowledgeSourceKind": "atlas",
+          "knowledgeSourceCandidateIds": [
+            "db8e35a4-aeb3-45cb-9a3f-7871865a2231"
+          ],
+          "adviceBusinessContext": {
+            "conversationId": "bda8dc95-ec8d-4b15-ae60-5f466775fca3",
+            "projectId": null,
+            "createdAt": "2026-10-17T07:47:39.808Z",
+            "candidateScopeActive": true,
+            "recentGoals": [
+              {
+                "intent": "CLARIFY",
+                "userGoal": "A1-3 I型18mm图集参数",
+                "assistantQuestion": "想确认一下：明确指定的对象未被完整保留，请确认。"
+              },
+              {
+                "intent": "THERMAL_CALCULATE",
+                "userGoal": "请按当量法正式计算A1-3 I型18mm的K",
+                "assistantQuestion": "现在还不能按当量法正式计算：A1-3、I型、18mm 这组构造与规格没有匹配到可用的已发布构造方案和产品规格，缺少正式计算所需的方案标识和规格标识，所以尚未生成 K 值。这部分也暂不参与比较。\n\n已发布图集资料中可查到一组 A1-3、I型、18mm 的参考值：产品层热阻 2.880 m²·K/W，总热阻 3.297 m²·K/W，传热系数 K=0.303 W/(m²·K)；该构造基层为 240mm 灰砂砖（λ=0.9），当量导热系数 λ=0.005 W/(m·K)、修正系数 α=1.25，见印刷页 22。这组数值属于图集参考值，并不等同于按当量法重新计算的结果。\n\n可以确认一下：你手上这个 A"
+              }
+            ]
+          }
+        },
+        "events": [
+          {
+            "event": "message",
+            "data": {
+              "messageId": "1cc5d4a6-f9d4-474d-aa63-688dba709f73",
+              "userMessageId": "603b1a53-1a39-4a9d-aedc-181522702abd",
+              "conversationId": "bda8dc95-ec8d-4b15-ae60-5f466775fca3",
+              "requestId": "req-4"
+            }
+          },
+          {
+            "event": "progress",
+            "data": {
+              "stage": "analyzing",
+              "message": "正在分析问题..."
+            }
+          },
+          {
+            "event": "progress",
+            "data": {
+              "stage": "composing",
+              "message": "正在整理回答..."
+            }
+          },
+          {
+            "event": "agent_status",
+            "data": {
+              "message": "正在调用专业工具…",
+              "runId": "5b841e3b-01c9-4a00-806b-4b4eed4c7872"
+            }
+          },
+          {
+            "event": "tool_start",
+            "data": {
+              "toolName": "thermal",
+              "message": "正在查询已发布参考方案…"
+            }
+          },
+          {
+            "event": "agent_status",
+            "data": {
+              "toolName": "thermal",
+              "message": "正在查询已发布参考方案…"
+            }
+          },
+          {
+            "event": "tool_result",
+            "data": {
+              "toolName": "thermal",
+              "success": true
+            }
+          },
+          {
+            "event": "tool_start",
+            "data": {
+              "toolName": "search_knowledge",
+              "message": "正在查询知识库…"
+            }
+          },
+          {
+            "event": "agent_status",
+            "data": {
+              "toolName": "search_knowledge",
+              "message": "正在查询知识库…"
+            }
+          },
+          {
+            "event": "sources",
+            "data": {
+              "sources": [
+                {
+                  "sourceType": "KNOWLEDGE",
+                  "retrievalUnit": "SECTION",
+                  "documentId": "db8e35a4-aeb3-45cb-9a3f-7871865a2231",
+                  "versionId": "2c0b3f10-d376-4c89-8a7c-953732c39190",
+                  "sectionId": "d67c4719-52fe-4481-9bda-dfc5500aead4",
+                  "pageId": "0ce9b337-f391-4122-b1ae-dfe0612965c3",
+                  "title": "销售与设计院UAT测试图集",
+                  "tocPath": [
+                    "销售与设计院UAT测试图集",
+                    "第22页"
+                  ],
+                  "sectionTitle": "测试图集第22页",
+                  "chapter": "销售与设计院UAT测试图集",
+                  "section": "测试图集第22页",
+                  "sectionPath": [
+                    "销售与设计院UAT测试图集",
+                    "第22页"
+                  ],
+                  "citationAnchor": null,
+                  "pageNumber": 22,
+                  "physicalPageNumber": 22,
+                  "pageLabel": "22",
+                  "pageTitle": null,
+                  "originalFileId": null,
+                  "pageStart": 22,
+                  "pageEnd": 22,
+                  "page": 22,
+                  "matchedText": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。\nI型 VICP薄抹灰外保温系统：A1-3，18mm，产品层热阻2.880 m²·K/W，总热阻3.297 m²·K/W，传热系数K=0.303 W/(m²·K)，印刷页22。\nA1-3，25mm，产品层热阻4.000，总热阻4.417，K=0.226，印刷页22。\nI型产品当量导热系数λ=0.005 W/(m·K)，修正系数α=1.25。产品层R=δ/(λ×α)。A1-3基层为240mm灰砂砖，λ=0.9。Ri=0.11、Re=0.04 m²·K/W。\n图集参考值与按厚度重新计算的系统计算值分别标注。该测试资料没有任何地区法规合规依据；上海或其他地区项目需要真实发布标准与适用条件，不能宣称达标。\nVICP的低导热系数有助于减少达到同一热阻所需的厚度，不能据此推断全部构造的防火等级或成本。\n岩棉测试产品λ=0.040 W/(m·K)、α=1.0，厚度50mm；仅支持同热工条件比较，未提供防火/造价证据。",
+                  "quote": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。\nI型 VICP薄抹灰外保温系统：A1-3，18mm，产品层热阻2.880 m²·K/W，总热阻3.297 m²·K/W，传热系数K=0.303 W/(m²·K)，印刷页22。\nA1-3，25mm，产品层热阻4.000，总热阻4.417，K=0.226，印刷页22。\nI型产品当量导热系数λ=0.005 W/(m·K)，修正系数α=1.25。产品层R=δ/(λ×α)。A1-3基层为240mm灰砂砖，λ=0.9。Ri=0.11、Re=0.04 m²·K/W。\n图集参考值与按厚度重新计算的系统计算值分别标注。该测试资料没有任何地区法规合规依据；上海或其他地区项目需要真实发布标准与适用条件，不能宣称达标。\nVICP的低导热系数有助于减少达到同一热阻所需的厚度，不能据此推断全部构造的防火等级或成本。\n岩棉测试产品λ=0.040 W/(m·K)、α=1.0，厚度50mm；仅支持同热工条件比较，未提供防火/造价证据。",
+                  "snippet": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。 I型 VICP薄抹灰外保温系统：A1-3，18mm，产品层热阻2.880 m²·K/W，总热阻3.297 m²·K/W，传热系数K=0.303 W/(m²·K)，印刷页22",
+                  "highlightRanges": [
+                    {
+                      "pageId": "0ce9b337-f391-4122-b1ae-dfe0612965c3",
+                      "pageNumber": 22,
+                      "pageLabel": "22",
+                      "text": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。\nI型 VICP薄抹灰外保温系统：A1-3，18mm，产品层热阻2.880 m²·K/W，总热阻3.297 m²·K/W，传热系数K=0.303 W/(m²·K)，印刷页22。\nA1-3，25mm，产品层热阻4.000，总热阻4.417，K=0.226，印刷页22。\nI型产品当量导热系数λ=0.005 W/(m·K)，修正系数α=1.25。产品层R=δ/(λ×α)。A1-3基层为240mm灰砂砖，λ=0.9。Ri=0.11、Re=0.04 m²·K/W。\n图集参考值与按厚度重新计算的系统计算值分别标注。该测试资料没有任何地区法规合规依据；上海或其他地区项目需要真实发布标准与适用条件，不能宣称达标。\nVICP的低导热系数有助于减少达到同一热阻所需的厚度，不能据此推断全部构造的防火等级或成本。\n岩棉测试产品λ=0.040 W/(m·K)、α=1.0，厚度50mm；仅支持同热工条件比较，未提供防火/造价证据。"
+                    }
+                  ],
+                  "evidenceLevel": null,
+                  "score": 27.68729
+                },
+                {
+                  "sourceType": "KNOWLEDGE",
+                  "retrievalUnit": "SECTION",
+                  "documentId": "db8e35a4-aeb3-45cb-9a3f-7871865a2231",
+                  "versionId": "2c0b3f10-d376-4c89-8a7c-953732c39190",
+                  "sectionId": "44a23d3d-8ef5-48c6-b816-32bc6870c8aa",
+                  "pageId": "cb8b7243-d727-450f-8e19-be3263726641",
+                  "title": "销售与设计院UAT测试图集",
+                  "tocPath": [
+                    "销售与设计院UAT测试图集",
+                    "第24页"
+                  ],
+                  "sectionTitle": "测试图集第24页",
+                  "chapter": "销售与设计院UAT测试图集",
+                  "section": "测试图集第24页",
+                  "sectionPath": [
+                    "销售与设计院UAT测试图集",
+                    "第24页"
+                  ],
+                  "citationAnchor": null,
+                  "pageNumber": 24,
+                  "physicalPageNumber": 24,
+                  "pageLabel": "24",
+                  "pageTitle": null,
+                  "originalFileId": null,
+                  "pageStart": 24,
+                  "pageEnd": 24,
+                  "page": 24,
+                  "matchedText": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。\nII型 VICP薄抹灰外保温系统：B1-1，18mm，产品层热阻2.500，总热阻2.917，K=0.343，印刷页24。\nI型产品当量导热系数λ=0.005 W/(m·K)，修正系数α=1.25。产品层R=δ/(λ×α)。A1-3基层为240mm灰砂砖，λ=0.9。Ri=0.11、Re=0.04 m²·K/W。\n图集参考值与按厚度重新计算的系统计算值分别标注。该测试资料没有任何地区法规合规依据；上海或其他地区项目需要真实发布标准与适用条件，不能宣称达标。\nVICP的低导热系数有助于减少达到同一热阻所需的厚度，不能据此推断全部构造的防火等级或成本。\n岩棉测试产品λ=0.040 W/(m·K)、α=1.0，厚度50mm；仅支持同热工条件比较，未提供防火/造价证据。",
+                  "quote": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。\nII型 VICP薄抹灰外保温系统：B1-1，18mm，产品层热阻2.500，总热阻2.917，K=0.343，印刷页24。\nI型产品当量导热系数λ=0.005 W/(m·K)，修正系数α=1.25。产品层R=δ/(λ×α)。A1-3基层为240mm灰砂砖，λ=0.9。Ri=0.11、Re=0.04 m²·K/W。\n图集参考值与按厚度重新计算的系统计算值分别标注。该测试资料没有任何地区法规合规依据；上海或其他地区项目需要真实发布标准与适用条件，不能宣称达标。\nVICP的低导热系数有助于减少达到同一热阻所需的厚度，不能据此推断全部构造的防火等级或成本。\n岩棉测试产品λ=0.040 W/(m·K)、α=1.0，厚度50mm；仅支持同热工条件比较，未提供防火/造价证据。",
+                  "snippet": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。 II型 VICP薄抹灰外保温系统：B1-1，18mm，产品层热阻2.500，总热阻2.917，K=0.343，印刷页24。 I型产品当量导热系数λ=0.005 W/(m·K",
+                  "highlightRanges": [
+                    {
+                      "pageId": "cb8b7243-d727-450f-8e19-be3263726641",
+                      "pageNumber": 24,
+                      "pageLabel": "24",
+                      "text": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。\nII型 VICP薄抹灰外保温系统：B1-1，18mm，产品层热阻2.500，总热阻2.917，K=0.343，印刷页24。\nI型产品当量导热系数λ=0.005 W/(m·K)，修正系数α=1.25。产品层R=δ/(λ×α)。A1-3基层为240mm灰砂砖，λ=0.9。Ri=0.11、Re=0.04 m²·K/W。\n图集参考值与按厚度重新计算的系统计算值分别标注。该测试资料没有任何地区法规合规依据；上海或其他地区项目需要真实发布标准与适用条件，不能宣称达标。\nVICP的低导热系数有助于减少达到同一热阻所需的厚度，不能据此推断全部构造的防火等级或成本。\n岩棉测试产品λ=0.040 W/(m·K)、α=1.0，厚度50mm；仅支持同热工条件比较，未提供防火/造价证据。"
+                    }
+                  ],
+                  "evidenceLevel": null,
+                  "score": 27.076542
+                },
+                {
+                  "sourceType": "KNOWLEDGE",
+                  "retrievalUnit": "SECTION",
+                  "documentId": "db8e35a4-aeb3-45cb-9a3f-7871865a2231",
+                  "versionId": "2c0b3f10-d376-4c89-8a7c-953732c39190",
+                  "sectionId": "7e0fd632-7cf0-4d4e-835b-c39e7921825c",
+                  "pageId": "5eaa788b-437a-4deb-9160-f0f0de4c6db0",
+                  "title": "销售与设计院UAT测试图集",
+                  "tocPath": [
+                    "销售与设计院UAT测试图集",
+                    "第23页"
+                  ],
+                  "sectionTitle": "测试图集第23页",
+                  "chapter": "销售与设计院UAT测试图集",
+                  "section": "测试图集第23页",
+                  "sectionPath": [
+                    "销售与设计院UAT测试图集",
+                    "第23页"
+                  ],
+                  "citationAnchor": null,
+                  "pageNumber": 23,
+                  "physicalPageNumber": 23,
+                  "pageLabel": "23",
+                  "pageTitle": null,
+                  "originalFileId": null,
+                  "pageStart": 23,
+                  "pageEnd": 23,
+                  "page": 23,
+                  "matchedText": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。\nA1-4，20mm，产品层热阻3.200，总热阻3.390，K=0.295，印刷页23。\nI型产品当量导热系数λ=0.005 W/(m·K)，修正系数α=1.25。产品层R=δ/(λ×α)。A1-3基层为240mm灰砂砖，λ=0.9。Ri=0.11、Re=0.04 m²·K/W。\n图集参考值与按厚度重新计算的系统计算值分别标注。该测试资料没有任何地区法规合规依据；上海或其他地区项目需要真实发布标准与适用条件，不能宣称达标。\nVICP的低导热系数有助于减少达到同一热阻所需的厚度，不能据此推断全部构造的防火等级或成本。\n岩棉测试产品λ=0.040 W/(m·K)、α=1.0，厚度50mm；仅支持同热工条件比较，未提供防火/造价证据。",
+                  "quote": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。\nA1-4，20mm，产品层热阻3.200，总热阻3.390，K=0.295，印刷页23。\nI型产品当量导热系数λ=0.005 W/(m·K)，修正系数α=1.25。产品层R=δ/(λ×α)。A1-3基层为240mm灰砂砖，λ=0.9。Ri=0.11、Re=0.04 m²·K/W。\n图集参考值与按厚度重新计算的系统计算值分别标注。该测试资料没有任何地区法规合规依据；上海或其他地区项目需要真实发布标准与适用条件，不能宣称达标。\nVICP的低导热系数有助于减少达到同一热阻所需的厚度，不能据此推断全部构造的防火等级或成本。\n岩棉测试产品λ=0.040 W/(m·K)、α=1.0，厚度50mm；仅支持同热工条件比较，未提供防火/造价证据。",
+                  "snippet": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。 A1-4，20mm，产品层热阻3.200，总热阻3.390，K=0.295，印刷页23。 I型产品当量导热系数λ=0.005 W/(m·K)，修正系数α=1.25。产品层R",
+                  "highlightRanges": [
+                    {
+                      "pageId": "5eaa788b-437a-4deb-9160-f0f0de4c6db0",
+                      "pageNumber": 23,
+                      "pageLabel": "23",
+                      "text": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。\nA1-4，20mm，产品层热阻3.200，总热阻3.390，K=0.295，印刷页23。\nI型产品当量导热系数λ=0.005 W/(m·K)，修正系数α=1.25。产品层R=δ/(λ×α)。A1-3基层为240mm灰砂砖，λ=0.9。Ri=0.11、Re=0.04 m²·K/W。\n图集参考值与按厚度重新计算的系统计算值分别标注。该测试资料没有任何地区法规合规依据；上海或其他地区项目需要真实发布标准与适用条件，不能宣称达标。\nVICP的低导热系数有助于减少达到同一热阻所需的厚度，不能据此推断全部构造的防火等级或成本。\n岩棉测试产品λ=0.040 W/(m·K)、α=1.0，厚度50mm；仅支持同热工条件比较，未提供防火/造价证据。"
+                    }
+                  ],
+                  "evidenceLevel": null,
+                  "score": 27.058823
+                }
+              ]
+            }
+          },
+          {
+            "event": "tool_result",
+            "data": {
+              "toolName": "search_knowledge",
+              "success": true
+            }
+          },
+          {
+            "event": "tool_start",
+            "data": {
+              "toolName": "thermal",
+              "message": "正在查询已发布参考方案…"
+            }
+          },
+          {
+            "event": "agent_status",
+            "data": {
+              "toolName": "thermal",
+              "message": "正在查询已发布参考方案…"
+            }
+          },
+          {
+            "event": "tool_result",
+            "data": {
+              "toolName": "thermal",
+              "success": true
+            }
+          },
+          {
+            "event": "tool_start",
+            "data": {
+              "toolName": "get_product_data",
+              "message": "正在读取产品资料…"
+            }
+          },
+          {
+            "event": "agent_status",
+            "data": {
+              "toolName": "get_product_data",
+              "message": "正在读取产品资料…"
+            }
+          },
+          {
+            "event": "product_cards",
+            "data": {
+              "products": []
+            }
+          },
+          {
+            "event": "tool_result",
+            "data": {
+              "toolName": "get_product_data",
+              "success": true
+            }
+          },
+          {
+            "event": "delta",
+            "data": {
+              "text": "现在还不能按当量法正式计算：A1-3、I型、18mm 这组构造与规格没有匹配到可用的已发布构造方案和产品规格，缺少正式计算所需的方案标识和规格标识，所以尚未生成 K 值。这部分也暂不参与比较。\n\n"
+            }
+          },
+          {
+            "event": "delta",
+            "data": {
+              "text": "已发布图集资料中可查到一组 A1-3、I型、18mm 的参考值：产品层热阻 2.880 m²·K/W，总热阻 3.297 m²·K/W，传热系数 K=0.303 W/(m²·K)；"
+            }
+          },
+          {
+            "event": "delta",
+            "data": {
+              "text": "该构造基层为 240mm 灰砂砖（λ=0.9），当量导热系数 λ=0.005 W/(m·K)、修正系数 α=1.25，见印刷页 22。这组数值属于图集参考值，并不等同于按当量法重新计算的结果。\n\n"
+            }
+          },
+          {
+            "event": "delta",
+            "data": {
+              "text": "可以确认一下：你手上这个 A1-3 是图集里的参考做法，还是已在你项目里选定的构造方案？如果已选定，请告诉我确认的构造方案名称或编号，我再做正式计算。"
+            }
+          },
+          {
+            "event": "progress",
+            "data": {
+              "stage": "completed",
+              "message": "回答整理完成"
+            }
+          },
+          {
+            "event": "done",
+            "data": {
+              "messageId": "1cc5d4a6-f9d4-474d-aa63-688dba709f73",
+              "conversationId": "bda8dc95-ec8d-4b15-ae60-5f466775fca3",
+              "finishReason": "COMPLETED",
+              "usage": {
+                "inputTokens": 35114,
+                "outputTokens": 583,
+                "reasoningTokens": 0
+              },
+              "model": {
+                "id": "deepseek-chat"
+              },
+              "promptVersion": {
+                "id": "ae0f8064-e3d6-43c0-ab4c-174188be34e4",
+                "version": 3
+              },
+              "sources": [
+                {
+                  "sourceType": "KNOWLEDGE",
+                  "retrievalUnit": "SECTION",
+                  "documentId": "db8e35a4-aeb3-45cb-9a3f-7871865a2231",
+                  "versionId": "2c0b3f10-d376-4c89-8a7c-953732c39190",
+                  "sectionId": "d67c4719-52fe-4481-9bda-dfc5500aead4",
+                  "pageId": "0ce9b337-f391-4122-b1ae-dfe0612965c3",
+                  "title": "销售与设计院UAT测试图集",
+                  "tocPath": [
+                    "销售与设计院UAT测试图集",
+                    "第22页"
+                  ],
+                  "sectionTitle": "测试图集第22页",
+                  "chapter": "销售与设计院UAT测试图集",
+                  "section": "测试图集第22页",
+                  "sectionPath": [
+                    "销售与设计院UAT测试图集",
+                    "第22页"
+                  ],
+                  "citationAnchor": null,
+                  "pageNumber": 22,
+                  "physicalPageNumber": 22,
+                  "pageLabel": "22",
+                  "pageTitle": null,
+                  "originalFileId": null,
+                  "pageStart": 22,
+                  "pageEnd": 22,
+                  "page": 22,
+                  "matchedText": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。\nI型 VICP薄抹灰外保温系统：A1-3，18mm，产品层热阻2.880 m²·K/W，总热阻3.297 m²·K/W，传热系数K=0.303 W/(m²·K)，印刷页22。\nA1-3，25mm，产品层热阻4.000，总热阻4.417，K=0.226，印刷页22。\nI型产品当量导热系数λ=0.005 W/(m·K)，修正系数α=1.25。产品层R=δ/(λ×α)。A1-3基层为240mm灰砂砖，λ=0.9。Ri=0.11、Re=0.04 m²·K/W。\n图集参考值与按厚度重新计算的系统计算值分别标注。该测试资料没有任何地区法规合规依据；上海或其他地区项目需要真实发布标准与适用条件，不能宣称达标。\nVICP的低导热系数有助于减少达到同一热阻所需的厚度，不能据此推断全部构造的防火等级或成本。\n岩棉测试产品λ=0.040 W/(m·K)、α=1.0，厚度50mm；仅支持同热工条件比较，未提供防火/造价证据。",
+                  "quote": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。\nI型 VICP薄抹灰外保温系统：A1-3，18mm，产品层热阻2.880 m²·K/W，总热阻3.297 m²·K/W，传热系数K=0.303 W/(m²·K)，印刷页22。\nA1-3，25mm，产品层热阻4.000，总热阻4.417，K=0.226，印刷页22。\nI型产品当量导热系数λ=0.005 W/(m·K)，修正系数α=1.25。产品层R=δ/(λ×α)。A1-3基层为240mm灰砂砖，λ=0.9。Ri=0.11、Re=0.04 m²·K/W。\n图集参考值与按厚度重新计算的系统计算值分别标注。该测试资料没有任何地区法规合规依据；上海或其他地区项目需要真实发布标准与适用条件，不能宣称达标。\nVICP的低导热系数有助于减少达到同一热阻所需的厚度，不能据此推断全部构造的防火等级或成本。\n岩棉测试产品λ=0.040 W/(m·K)、α=1.0，厚度50mm；仅支持同热工条件比较，未提供防火/造价证据。",
+                  "snippet": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。 I型 VICP薄抹灰外保温系统：A1-3，18mm，产品层热阻2.880 m²·K/W，总热阻3.297 m²·K/W，传热系数K=0.303 W/(m²·K)，印刷页22",
+                  "highlightRanges": [
+                    {
+                      "pageId": "0ce9b337-f391-4122-b1ae-dfe0612965c3",
+                      "pageNumber": 22,
+                      "pageLabel": "22",
+                      "text": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。\nI型 VICP薄抹灰外保温系统：A1-3，18mm，产品层热阻2.880 m²·K/W，总热阻3.297 m²·K/W，传热系数K=0.303 W/(m²·K)，印刷页22。\nA1-3，25mm，产品层热阻4.000，总热阻4.417，K=0.226，印刷页22。\nI型产品当量导热系数λ=0.005 W/(m·K)，修正系数α=1.25。产品层R=δ/(λ×α)。A1-3基层为240mm灰砂砖，λ=0.9。Ri=0.11、Re=0.04 m²·K/W。\n图集参考值与按厚度重新计算的系统计算值分别标注。该测试资料没有任何地区法规合规依据；上海或其他地区项目需要真实发布标准与适用条件，不能宣称达标。\nVICP的低导热系数有助于减少达到同一热阻所需的厚度，不能据此推断全部构造的防火等级或成本。\n岩棉测试产品λ=0.040 W/(m·K)、α=1.0，厚度50mm；仅支持同热工条件比较，未提供防火/造价证据。"
+                    }
+                  ],
+                  "evidenceLevel": null,
+                  "score": 27.68729
+                },
+                {
+                  "sourceType": "KNOWLEDGE",
+                  "retrievalUnit": "SECTION",
+                  "documentId": "db8e35a4-aeb3-45cb-9a3f-7871865a2231",
+                  "versionId": "2c0b3f10-d376-4c89-8a7c-953732c39190",
+                  "sectionId": "44a23d3d-8ef5-48c6-b816-32bc6870c8aa",
+                  "pageId": "cb8b7243-d727-450f-8e19-be3263726641",
+                  "title": "销售与设计院UAT测试图集",
+                  "tocPath": [
+                    "销售与设计院UAT测试图集",
+                    "第24页"
+                  ],
+                  "sectionTitle": "测试图集第24页",
+                  "chapter": "销售与设计院UAT测试图集",
+                  "section": "测试图集第24页",
+                  "sectionPath": [
+                    "销售与设计院UAT测试图集",
+                    "第24页"
+                  ],
+                  "citationAnchor": null,
+                  "pageNumber": 24,
+                  "physicalPageNumber": 24,
+                  "pageLabel": "24",
+                  "pageTitle": null,
+                  "originalFileId": null,
+                  "pageStart": 24,
+                  "pageEnd": 24,
+                  "page": 24,
+                  "matchedText": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。\nII型 VICP薄抹灰外保温系统：B1-1，18mm，产品层热阻2.500，总热阻2.917，K=0.343，印刷页24。\nI型产品当量导热系数λ=0.005 W/(m·K)，修正系数α=1.25。产品层R=δ/(λ×α)。A1-3基层为240mm灰砂砖，λ=0.9。Ri=0.11、Re=0.04 m²·K/W。\n图集参考值与按厚度重新计算的系统计算值分别标注。该测试资料没有任何地区法规合规依据；上海或其他地区项目需要真实发布标准与适用条件，不能宣称达标。\nVICP的低导热系数有助于减少达到同一热阻所需的厚度，不能据此推断全部构造的防火等级或成本。\n岩棉测试产品λ=0.040 W/(m·K)、α=1.0，厚度50mm；仅支持同热工条件比较，未提供防火/造价证据。",
+                  "quote": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。\nII型 VICP薄抹灰外保温系统：B1-1，18mm，产品层热阻2.500，总热阻2.917，K=0.343，印刷页24。\nI型产品当量导热系数λ=0.005 W/(m·K)，修正系数α=1.25。产品层R=δ/(λ×α)。A1-3基层为240mm灰砂砖，λ=0.9。Ri=0.11、Re=0.04 m²·K/W。\n图集参考值与按厚度重新计算的系统计算值分别标注。该测试资料没有任何地区法规合规依据；上海或其他地区项目需要真实发布标准与适用条件，不能宣称达标。\nVICP的低导热系数有助于减少达到同一热阻所需的厚度，不能据此推断全部构造的防火等级或成本。\n岩棉测试产品λ=0.040 W/(m·K)、α=1.0，厚度50mm；仅支持同热工条件比较，未提供防火/造价证据。",
+                  "snippet": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。 II型 VICP薄抹灰外保温系统：B1-1，18mm，产品层热阻2.500，总热阻2.917，K=0.343，印刷页24。 I型产品当量导热系数λ=0.005 W/(m·K",
+                  "highlightRanges": [
+                    {
+                      "pageId": "cb8b7243-d727-450f-8e19-be3263726641",
+                      "pageNumber": 24,
+                      "pageLabel": "24",
+                      "text": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。\nII型 VICP薄抹灰外保温系统：B1-1，18mm，产品层热阻2.500，总热阻2.917，K=0.343，印刷页24。\nI型产品当量导热系数λ=0.005 W/(m·K)，修正系数α=1.25。产品层R=δ/(λ×α)。A1-3基层为240mm灰砂砖，λ=0.9。Ri=0.11、Re=0.04 m²·K/W。\n图集参考值与按厚度重新计算的系统计算值分别标注。该测试资料没有任何地区法规合规依据；上海或其他地区项目需要真实发布标准与适用条件，不能宣称达标。\nVICP的低导热系数有助于减少达到同一热阻所需的厚度，不能据此推断全部构造的防火等级或成本。\n岩棉测试产品λ=0.040 W/(m·K)、α=1.0，厚度50mm；仅支持同热工条件比较，未提供防火/造价证据。"
+                    }
+                  ],
+                  "evidenceLevel": null,
+                  "score": 27.076542
+                },
+                {
+                  "sourceType": "KNOWLEDGE",
+                  "retrievalUnit": "SECTION",
+                  "documentId": "db8e35a4-aeb3-45cb-9a3f-7871865a2231",
+                  "versionId": "2c0b3f10-d376-4c89-8a7c-953732c39190",
+                  "sectionId": "7e0fd632-7cf0-4d4e-835b-c39e7921825c",
+                  "pageId": "5eaa788b-437a-4deb-9160-f0f0de4c6db0",
+                  "title": "销售与设计院UAT测试图集",
+                  "tocPath": [
+                    "销售与设计院UAT测试图集",
+                    "第23页"
+                  ],
+                  "sectionTitle": "测试图集第23页",
+                  "chapter": "销售与设计院UAT测试图集",
+                  "section": "测试图集第23页",
+                  "sectionPath": [
+                    "销售与设计院UAT测试图集",
+                    "第23页"
+                  ],
+                  "citationAnchor": null,
+                  "pageNumber": 23,
+                  "physicalPageNumber": 23,
+                  "pageLabel": "23",
+                  "pageTitle": null,
+                  "originalFileId": null,
+                  "pageStart": 23,
+                  "pageEnd": 23,
+                  "page": 23,
+                  "matchedText": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。\nA1-4，20mm，产品层热阻3.200，总热阻3.390，K=0.295，印刷页23。\nI型产品当量导热系数λ=0.005 W/(m·K)，修正系数α=1.25。产品层R=δ/(λ×α)。A1-3基层为240mm灰砂砖，λ=0.9。Ri=0.11、Re=0.04 m²·K/W。\n图集参考值与按厚度重新计算的系统计算值分别标注。该测试资料没有任何地区法规合规依据；上海或其他地区项目需要真实发布标准与适用条件，不能宣称达标。\nVICP的低导热系数有助于减少达到同一热阻所需的厚度，不能据此推断全部构造的防火等级或成本。\n岩棉测试产品λ=0.040 W/(m·K)、α=1.0，厚度50mm；仅支持同热工条件比较，未提供防火/造价证据。",
+                  "quote": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。\nA1-4，20mm，产品层热阻3.200，总热阻3.390，K=0.295，印刷页23。\nI型产品当量导热系数λ=0.005 W/(m·K)，修正系数α=1.25。产品层R=δ/(λ×α)。A1-3基层为240mm灰砂砖，λ=0.9。Ri=0.11、Re=0.04 m²·K/W。\n图集参考值与按厚度重新计算的系统计算值分别标注。该测试资料没有任何地区法规合规依据；上海或其他地区项目需要真实发布标准与适用条件，不能宣称达标。\nVICP的低导热系数有助于减少达到同一热阻所需的厚度，不能据此推断全部构造的防火等级或成本。\n岩棉测试产品λ=0.040 W/(m·K)、α=1.0，厚度50mm；仅支持同热工条件比较，未提供防火/造价证据。",
+                  "snippet": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。 A1-4，20mm，产品层热阻3.200，总热阻3.390，K=0.295，印刷页23。 I型产品当量导热系数λ=0.005 W/(m·K)，修正系数α=1.25。产品层R",
+                  "highlightRanges": [
+                    {
+                      "pageId": "5eaa788b-437a-4deb-9160-f0f0de4c6db0",
+                      "pageNumber": 23,
+                      "pageLabel": "23",
+                      "text": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。\nA1-4，20mm，产品层热阻3.200，总热阻3.390，K=0.295，印刷页23。\nI型产品当量导热系数λ=0.005 W/(m·K)，修正系数α=1.25。产品层R=δ/(λ×α)。A1-3基层为240mm灰砂砖，λ=0.9。Ri=0.11、Re=0.04 m²·K/W。\n图集参考值与按厚度重新计算的系统计算值分别标注。该测试资料没有任何地区法规合规依据；上海或其他地区项目需要真实发布标准与适用条件，不能宣称达标。\nVICP的低导热系数有助于减少达到同一热阻所需的厚度，不能据此推断全部构造的防火等级或成本。\n岩棉测试产品λ=0.040 W/(m·K)、α=1.0，厚度50mm；仅支持同热工条件比较，未提供防火/造价证据。"
+                    }
+                  ],
+                  "evidenceLevel": null,
+                  "score": 27.058823
+                }
+              ],
+              "latencyMs": 10777
+            }
+          }
+        ]
+      }
+    },
+    {
+      "caseId": "DESIGN-012",
+      "persona": "DESIGN_INSTITUTE",
+      "scenario": "正式计算与冻结快照",
+      "turn": 3,
+      "user": "重新计算A1-3 I型22mm，给出计算值",
+      "expected": {
+        "intent": "THERMAL",
+        "toolsAny": [
+          "thermal"
+        ],
+        "operation": "CALCULATE",
+        "hardFailRules": [
+          "HARD_CONDITION",
+          "METRIC_CONFUSION",
+          "FABRICATED_PAGE",
+          "RESULT_TYPE",
+          "UNSUPPORTED_COMPLIANCE",
+          "STALE_CONDITIONS",
+          "THICKNESS_VIOLATION"
+        ],
+        "resultType": "CALCULATED",
+        "answerFacts": [
+          {
+            "pattern": "(?:K|传热系数)[^\\d]{0,20}",
+            "value": 0.254,
+            "tolerance": 0.0005
+          }
+        ]
+      },
+      "checks": [
+        {
+          "group": "intent",
+          "passed": true,
+          "type": "ROUTING",
+          "detail": "预期intent=THERMAL，实际=THERMAL",
+          "hard": false
+        },
+        {
+          "group": "intent",
+          "passed": false,
+          "type": "RETRIEVAL",
+          "detail": "本轮工具调用均成功，不能将业务失败当作可用结果",
+          "hard": false
+        },
+        {
+          "group": "intent",
+          "passed": true,
+          "type": "ROUTING",
+          "detail": "本轮实际工具须包含 thermal",
+          "hard": false
+        },
+        {
+          "group": "intent",
+          "passed": false,
+          "type": "ROUTING",
+          "detail": "热工操作=CALCULATE",
+          "hard": false
+        },
+        {
+          "group": "facts",
+          "passed": false,
+          "type": "THERMAL",
+          "detail": "本轮改变厚度的真实计算必须有计算模式冻结记录",
+          "hard": true
+        },
+        {
+          "group": "quality",
+          "passed": true,
+          "type": "ANSWER_CONTRACT",
+          "detail": "最终消息已完成且有用户可见回答",
+          "hard": false
+        },
+        {
+          "group": "quality",
+          "passed": true,
+          "type": "UX_COPY",
+          "detail": "不暴露内部开发术语",
+          "hard": false
+        },
+        {
+          "group": "facts",
+          "passed": false,
+          "type": "ANSWER_CONTRACT",
+          "detail": "最终文字正确表达预期数值 0.254",
+          "hard": false
+        },
+        {
+          "group": "facts",
+          "passed": true,
+          "type": "HALLUCINATION",
+          "detail": "合规肯定结论必须有正式地区标准快照",
+          "hard": true
+        },
+        {
+          "group": "facts",
+          "passed": true,
+          "type": "ANSWER_CONTRACT",
+          "detail": "22mm计算结果不能冒充图集原始行",
+          "hard": true
+        },
+        {
+          "group": "facts",
+          "passed": true,
+          "type": "HALLUCINATION",
+          "detail": "最终文字不混淆产品R/总R/K",
+          "hard": true
+        },
+        {
+          "group": "facts",
+          "passed": true,
+          "type": "HALLUCINATION",
+          "detail": "最终文字不混淆产品R/总R/K",
+          "hard": true
+        },
+        {
+          "group": "facts",
+          "passed": true,
+          "type": "HALLUCINATION",
+          "detail": "最终文字不混淆产品R/总R/K",
+          "hard": true
+        },
+        {
+          "group": "parameters",
+          "passed": true,
+          "type": "PARSER",
+          "detail": "工具参数属于本轮真实消息",
+          "hard": false
+        },
+        {
+          "group": "state",
+          "passed": true,
+          "type": "STATE",
+          "detail": "工具状态属于独立当前会话",
+          "hard": false
+        },
+        {
+          "group": "source",
+          "passed": true,
+          "type": "SOURCE",
+          "detail": "来源性宣称须有本轮可追溯证据",
+          "hard": false
+        },
+        {
+          "group": "state",
+          "passed": true,
+          "type": "STATE",
+          "detail": "SSE完成后客户端详情返回同一最终消息"
+        }
+      ],
+      "quality": {
+        "score": 10,
+        "method": "DETERMINISTIC_STYLE",
+        "reasons": []
+      },
+      "score": 55,
+      "status": "FAIL",
+      "actual": {
+        "message": {
+          "id": "b2a2df2b-10d1-44f1-988f-33676f44791d",
+          "conversationId": "bda8dc95-ec8d-4b15-ae60-5f466775fca3",
+          "userId": null,
+          "role": "ASSISTANT",
+          "status": "COMPLETED",
+          "content": "A1-3、I型、22mm 目前没有图集参考档位，也没有可用的正式计算方案记录，因此无法给出系统计算值。\n\n已发布的 A1-3 参考档位只有 18mm 和 25mm 两档：18mm 的 K=0.303、25mm 的 K=0.226 W/(m²·K)，见印刷页 22。22mm 处于这两档之间，但图集未给出该厚度的参考值，我不会按这两档推算。\n\n如果你需要，我可以按图集给出的当量参数建立该构造的正式计算，不过那需要你确认可用的构造方案（含 22mm 规格）；目前还没有这样的已发布方案可供计算。",
+          "reasoningMode": "OFF",
+          "provider": "DeepSeek",
+          "model": "deepseek-chat",
+          "providerId": "c9f8f4c4-f149-4e33-9f29-5efe3f9c51c4",
+          "modelId": "6963f25b-73fd-4612-8a77-d3c58e323dbe",
+          "promptTemplateVersion": 3,
+          "promptVersionId": "ae0f8064-e3d6-43c0-ab4c-174188be34e4",
+          "tokenInput": 20553,
+          "tokenOutput": 327,
+          "reasoningTokens": 0,
+          "durationMs": 6827,
+          "startedAt": {},
+          "finishedAt": {},
+          "errorMessage": null,
+          "errorCode": null,
+          "requestId": "req-6",
+          "stopReason": null,
+          "metadata": {
+            "reasoning": {
+              "mode": "OFF",
+              "downgradeNote": null,
+              "reasoningModelUsed": false
+            },
+            "queryScope": {
+              "id": "bda8dc95-ec8d-4b15-ae60-5f466775fca3",
+              "userId": "fd29cc32-1df7-4473-ba0e-c8b44b9216bb",
+              "clientApp": "pc_ai",
+              "projectId": null
+            },
+            "agentEnabled": true,
+            "allowedTools": [
+              "search_knowledge",
+              "get_product_data",
+              "thermal",
+              "compare_products",
+              "compare_solutions",
+              "generate_report"
+            ],
+            "capabilities": {
+              "idle": false,
+              "needProductData": false,
+              "needThermalTool": true,
+              "needReportContext": false,
+              "needComparisonTool": false,
+              "needProjectContext": false,
+              "needKnowledgeSearch": true,
+              "needReferenceLookup": false,
+              "explicitKnowledgeRequest": false
+            },
+            "finishReason": "COMPLETED",
+            "reasoningMode": "OFF",
+            "backendDecision": {
+              "goal": "THERMAL_CALCULATE",
+              "patch": [
+                {
+                  "op": "SET",
+                  "field": "thicknessMm"
+                }
+              ],
+              "intent": "THERMAL",
+              "source": "INTENT",
+              "factRead": null,
+              "mutation": "CALCULATE",
+              "relation": "REFINE",
+              "taskType": "GENERAL",
+              "toolRoute": [
+                "thermal",
+                "search_knowledge"
+              ],
+              "toolUsage": {
+                "report": false,
+                "thermal": true,
+                "knowledge": true
+              },
+              "adviceMode": null,
+              "domainIntent": "THERMAL_CALCULATE",
+              "parserSource": "LLM",
+              "policyReason": "EXPLICIT_EFFECT_PROPOSAL",
+              "queryChanged": false,
+              "reportQueued": false,
+              "effectRequest": {
+                "direct": true,
+                "evidence": "重新计算A1-3 I型22mm，给出计算值",
+                "polarity": "AFFIRMATIVE",
+                "speechAct": "REQUEST"
+              },
+              "sourcePageIds": [],
+              "answerContract": "THERMAL",
+              "referenceScope": "LATEST_VISIBLE",
+              "candidateIdList": [],
+              "requestedEffect": "CALCULATE",
+              "referencePageIds": [],
+              "semanticEvidence": "重新计算A1-3 I型22mm，给出计算值",
+              "semanticReference": {
+                "items": [
+                  {
+                    "type": "CONSTRUCTION_CODE",
+                    "value": "A1-3",
+                    "evidence": "A1-3"
+                  }
+                ],
+                "scope": "NONE",
+                "revision": null
+              },
+              "factValidationCode": "NOT_EVALUATED",
+              "queryChangedFields": [],
+              "semanticConfidence": 0.9,
+              "solutionStateMutated": false,
+              "candidateSnapshotSource": []
+            }
+          },
+          "createdAt": {}
+        },
+        "tools": [
+          {
+            "id": "67e699ca-bc53-4566-8601-6199bad73679",
+            "conversationId": "bda8dc95-ec8d-4b15-ae60-5f466775fca3",
+            "messageId": "b2a2df2b-10d1-44f1-988f-33676f44791d",
+            "agentRunId": "e41312c5-f250-470e-9063-b7c3634fc36d",
+            "toolName": "thermal",
+            "inputJson": {
+              "operation": "LOOKUP_CANDIDATES",
+              "specClass": "I",
+              "schemeCode": "A1-3",
+              "thicknessMm": 22
+            },
+            "outputJson": {
+              "ok": false,
+              "code": "REFERENCE_QUERY_AUTHORIZATION_REQUIRED",
+              "message": "本轮没有查表或修改筛选条件的要求。",
+              "recoverable": true
+            },
+            "inputHash": "61554ff2a3e603d466a0bd04cd1a3fc16b84d92ffd4343597a137b4b8e406bb1",
+            "success": true,
+            "errorMessage": null,
+            "durationMs": 0,
+            "createdAt": {}
+          },
+          {
+            "id": "76ef028e-1839-466e-9074-289c091c5cb7",
+            "conversationId": "bda8dc95-ec8d-4b15-ae60-5f466775fca3",
+            "messageId": "b2a2df2b-10d1-44f1-988f-33676f44791d",
+            "agentRunId": "e41312c5-f250-470e-9063-b7c3634fc36d",
+            "toolName": "search_knowledge",
+            "inputJson": {
+              "query": "A1-3 I型 22mm 保温 当量导热系数 修正系数 构造做法",
+              "scope": "ATLAS"
+            },
+            "outputJson": {
+              "ok": true,
+              "data": {
+                "hits": [
+                  {
+                    "title": "销售与设计院UAT测试图集",
+                    "content": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。\nI型 VICP薄抹灰外保温系统：A1-3，18mm，产品层热阻2.880 m²·K/W，总热阻3.297 m²·K/W，传热系数K=0.303 W/(m²·K)，印刷页22。\nA1-3，25mm，产品层热阻4.000，总热阻4.417，K=0.226，印刷页22。\nI型产品当量导热系数λ=0.005 W/(m·K)，修正系数α=1.25。产品层R=δ/(λ×α)。A1-3基层为240mm灰砂砖，λ=0.9。Ri=0.11、Re=0.04 m²·K/W。\n图集参考值与按厚度重新计算的系统计算值分别标注。该测试资料没有任何地区法规合规依据；上海或其他地区项目需要真实发布标准与适用条件，不能宣称达标。\nVICP的低导热系数有助于减少达到同一热阻所需的厚度，不能据此推断全部构造的防火等级或成本。\n岩棉测试产品λ=0.040 W/(m·K)、α=1.0，厚度50mm；仅支持同热工条件比较，未提供防火/造价证据。",
+                    "section": "测试图集第22页",
+                    "pageLabel": "22"
+                  },
+                  {
+                    "title": "销售与设计院UAT测试图集",
+                    "content": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。\nA1-4，20mm，产品层热阻3.200，总热阻3.390，K=0.295，印刷页23。\nI型产品当量导热系数λ=0.005 W/(m·K)，修正系数α=1.25。产品层R=δ/(λ×α)。A1-3基层为240mm灰砂砖，λ=0.9。Ri=0.11、Re=0.04 m²·K/W。\n图集参考值与按厚度重新计算的系统计算值分别标注。该测试资料没有任何地区法规合规依据；上海或其他地区项目需要真实发布标准与适用条件，不能宣称达标。\nVICP的低导热系数有助于减少达到同一热阻所需的厚度，不能据此推断全部构造的防火等级或成本。\n岩棉测试产品λ=0.040 W/(m·K)、α=1.0，厚度50mm；仅支持同热工条件比较，未提供防火/造价证据。",
+                    "section": "测试图集第23页",
+                    "pageLabel": "23"
+                  },
+                  {
+                    "title": "销售与设计院UAT测试图集",
+                    "content": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。\nII型 VICP薄抹灰外保温系统：B1-1，18mm，产品层热阻2.500，总热阻2.917，K=0.343，印刷页24。\nI型产品当量导热系数λ=0.005 W/(m·K)，修正系数α=1.25。产品层R=δ/(λ×α)。A1-3基层为240mm灰砂砖，λ=0.9。Ri=0.11、Re=0.04 m²·K/W。\n图集参考值与按厚度重新计算的系统计算值分别标注。该测试资料没有任何地区法规合规依据；上海或其他地区项目需要真实发布标准与适用条件，不能宣称达标。\nVICP的低导热系数有助于减少达到同一热阻所需的厚度，不能据此推断全部构造的防火等级或成本。\n岩棉测试产品λ=0.040 W/(m·K)、α=1.0，厚度50mm；仅支持同热工条件比较，未提供防火/造价证据。",
+                    "section": "测试图集第24页",
+                    "pageLabel": "24"
+                  }
+                ],
+                "available": true,
+                "sourceKind": "atlas",
+                "instruction": "来源仅使用印刷页码标签，缺失时提示查看原始页面。热工数值关系以同一条已确认结构化候选为准；文字只补充说明，禁止跨构造拼参数或根据几个命中宣称最高、唯一。",
+                "selectedSourceIds": [
+                  "db8e35a4-aeb3-45cb-9a3f-7871865a2231"
+                ]
+              },
+              "summary": "命中 3 条资料"
+            },
+            "inputHash": "f05277a96c70f792ddcf62b3718562c0c06c906310d8aba400a7f2faba1045ba",
+            "success": true,
+            "errorMessage": null,
+            "durationMs": 524,
+            "createdAt": {}
+          }
+        ],
+        "runs": [
+          {
+            "id": "e41312c5-f250-470e-9063-b7c3634fc36d",
+            "conversationId": "bda8dc95-ec8d-4b15-ae60-5f466775fca3",
+            "triggerMessageId": "f7aaea45-860e-4380-85ee-e64d36626915",
+            "assistantMessageId": "b2a2df2b-10d1-44f1-988f-33676f44791d",
+            "userId": "fd29cc32-1df7-4473-ba0e-c8b44b9216bb",
+            "projectId": null,
+            "runType": "CHAT",
+            "status": "COMPLETED",
+            "currentStep": 3,
+            "allowedToolsJson": [
+              "search_knowledge",
+              "get_product_data",
+              "thermal",
+              "compare_products",
+              "compare_solutions",
+              "generate_report"
+            ],
+            "model": "deepseek-chat",
+            "toolCallCount": 2,
+            "tokenUsageJson": {
+              "inputTokens": 20553,
+              "outputTokens": 327
+            },
+            "errorMessage": null,
+            "errorCode": null,
+            "startedAt": {},
+            "finishedAt": {}
+          }
+        ],
+        "calculations": [],
+        "task": {
+          "taskType": "GENERAL",
+          "confirmedKnowledgeSourceIds": [
+            "db8e35a4-aeb3-45cb-9a3f-7871865a2231"
+          ],
+          "confirmedKnowledgeSourceKind": "atlas",
+          "knowledgeSourceCandidateIds": [
+            "db8e35a4-aeb3-45cb-9a3f-7871865a2231"
+          ],
+          "adviceBusinessContext": {
+            "conversationId": "bda8dc95-ec8d-4b15-ae60-5f466775fca3",
+            "projectId": null,
+            "createdAt": "2026-10-17T07:47:47.705Z",
+            "candidateScopeActive": true,
+            "recentGoals": [
+              {
+                "intent": "THERMAL_CALCULATE",
+                "userGoal": "请按当量法正式计算A1-3 I型18mm的K",
+                "assistantQuestion": "现在还不能按当量法正式计算：A1-3、I型、18mm 这组构造与规格没有匹配到可用的已发布构造方案和产品规格，缺少正式计算所需的方案标识和规格标识，所以尚未生成 K 值。这部分也暂不参与比较。\n\n已发布图集资料中可查到一组 A1-3、I型、18mm 的参考值：产品层热阻 2.880 m²·K/W，总热阻 3.297 m²·K/W，传热系数 K=0.303 W/(m²·K)；该构造基层为 240mm 灰砂砖（λ=0.9），当量导热系数 λ=0.005 W/(m·K)、修正系数 α=1.25，见印刷页 22。这组数值属于图集参考值，并不等同于按当量法重新计算的结果。\n\n可以确认一下：你手上这个 A"
+              },
+              {
+                "intent": "THERMAL_CALCULATE",
+                "userGoal": "重新计算A1-3 I型22mm，给出计算值",
+                "assistantQuestion": "A1-3、I型、22mm 目前没有图集参考档位，也没有可用的正式计算方案记录，因此无法给出系统计算值。\n\n已发布的 A1-3 参考档位只有 18mm 和 25mm 两档：18mm 的 K=0.303、25mm 的 K=0.226 W/(m²·K)，见印刷页 22。22mm 处于这两档之间，但图集未给出该厚度的参考值，我不会按这两档推算。\n\n如果你需要，我可以按图集给出的当量参数建立该构造的正式计算，不过那需要你确认可用的构造方案（含 22mm 规格）；目前还没有这样的已发布方案可供计算。"
+              }
+            ]
+          }
+        },
+        "events": [
+          {
+            "event": "message",
+            "data": {
+              "messageId": "b2a2df2b-10d1-44f1-988f-33676f44791d",
+              "userMessageId": "f7aaea45-860e-4380-85ee-e64d36626915",
+              "conversationId": "bda8dc95-ec8d-4b15-ae60-5f466775fca3",
+              "requestId": "req-6"
+            }
+          },
+          {
+            "event": "progress",
+            "data": {
+              "stage": "analyzing",
+              "message": "正在分析问题..."
+            }
+          },
+          {
+            "event": "progress",
+            "data": {
+              "stage": "composing",
+              "message": "正在整理回答..."
+            }
+          },
+          {
+            "event": "agent_status",
+            "data": {
+              "message": "正在调用专业工具…",
+              "runId": "e41312c5-f250-470e-9063-b7c3634fc36d"
+            }
+          },
+          {
+            "event": "tool_start",
+            "data": {
+              "toolName": "thermal",
+              "message": "正在查询已发布参考方案…"
+            }
+          },
+          {
+            "event": "agent_status",
+            "data": {
+              "toolName": "thermal",
+              "message": "正在查询已发布参考方案…"
+            }
+          },
+          {
+            "event": "tool_result",
+            "data": {
+              "toolName": "thermal",
+              "success": true
+            }
+          },
+          {
+            "event": "tool_start",
+            "data": {
+              "toolName": "search_knowledge",
+              "message": "正在查询知识库…"
+            }
+          },
+          {
+            "event": "agent_status",
+            "data": {
+              "toolName": "search_knowledge",
+              "message": "正在查询知识库…"
+            }
+          },
+          {
+            "event": "sources",
+            "data": {
+              "sources": [
+                {
+                  "sourceType": "KNOWLEDGE",
+                  "retrievalUnit": "SECTION",
+                  "documentId": "db8e35a4-aeb3-45cb-9a3f-7871865a2231",
+                  "versionId": "2c0b3f10-d376-4c89-8a7c-953732c39190",
+                  "sectionId": "d67c4719-52fe-4481-9bda-dfc5500aead4",
+                  "pageId": "0ce9b337-f391-4122-b1ae-dfe0612965c3",
+                  "title": "销售与设计院UAT测试图集",
+                  "tocPath": [
+                    "销售与设计院UAT测试图集",
+                    "第22页"
+                  ],
+                  "sectionTitle": "测试图集第22页",
+                  "chapter": "销售与设计院UAT测试图集",
+                  "section": "测试图集第22页",
+                  "sectionPath": [
+                    "销售与设计院UAT测试图集",
+                    "第22页"
+                  ],
+                  "citationAnchor": null,
+                  "pageNumber": 22,
+                  "physicalPageNumber": 22,
+                  "pageLabel": "22",
+                  "pageTitle": null,
+                  "originalFileId": null,
+                  "pageStart": 22,
+                  "pageEnd": 22,
+                  "page": 22,
+                  "matchedText": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。\nI型 VICP薄抹灰外保温系统：A1-3，18mm，产品层热阻2.880 m²·K/W，总热阻3.297 m²·K/W，传热系数K=0.303 W/(m²·K)，印刷页22。\nA1-3，25mm，产品层热阻4.000，总热阻4.417，K=0.226，印刷页22。\nI型产品当量导热系数λ=0.005 W/(m·K)，修正系数α=1.25。产品层R=δ/(λ×α)。A1-3基层为240mm灰砂砖，λ=0.9。Ri=0.11、Re=0.04 m²·K/W。\n图集参考值与按厚度重新计算的系统计算值分别标注。该测试资料没有任何地区法规合规依据；上海或其他地区项目需要真实发布标准与适用条件，不能宣称达标。\nVICP的低导热系数有助于减少达到同一热阻所需的厚度，不能据此推断全部构造的防火等级或成本。\n岩棉测试产品λ=0.040 W/(m·K)、α=1.0，厚度50mm；仅支持同热工条件比较，未提供防火/造价证据。",
+                  "quote": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。\nI型 VICP薄抹灰外保温系统：A1-3，18mm，产品层热阻2.880 m²·K/W，总热阻3.297 m²·K/W，传热系数K=0.303 W/(m²·K)，印刷页22。\nA1-3，25mm，产品层热阻4.000，总热阻4.417，K=0.226，印刷页22。\nI型产品当量导热系数λ=0.005 W/(m·K)，修正系数α=1.25。产品层R=δ/(λ×α)。A1-3基层为240mm灰砂砖，λ=0.9。Ri=0.11、Re=0.04 m²·K/W。\n图集参考值与按厚度重新计算的系统计算值分别标注。该测试资料没有任何地区法规合规依据；上海或其他地区项目需要真实发布标准与适用条件，不能宣称达标。\nVICP的低导热系数有助于减少达到同一热阻所需的厚度，不能据此推断全部构造的防火等级或成本。\n岩棉测试产品λ=0.040 W/(m·K)、α=1.0，厚度50mm；仅支持同热工条件比较，未提供防火/造价证据。",
+                  "snippet": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。 I型 VICP薄抹灰外保温系统：A1-3，18mm，产品层热阻2.880 m²·K/W，总热阻3.297 m²·K/W，传热系数K=0.303 W/(m²·K)，印刷页22",
+                  "highlightRanges": [
+                    {
+                      "pageId": "0ce9b337-f391-4122-b1ae-dfe0612965c3",
+                      "pageNumber": 22,
+                      "pageLabel": "22",
+                      "text": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。\nI型 VICP薄抹灰外保温系统：A1-3，18mm，产品层热阻2.880 m²·K/W，总热阻3.297 m²·K/W，传热系数K=0.303 W/(m²·K)，印刷页22。\nA1-3，25mm，产品层热阻4.000，总热阻4.417，K=0.226，印刷页22。\nI型产品当量导热系数λ=0.005 W/(m·K)，修正系数α=1.25。产品层R=δ/(λ×α)。A1-3基层为240mm灰砂砖，λ=0.9。Ri=0.11、Re=0.04 m²·K/W。\n图集参考值与按厚度重新计算的系统计算值分别标注。该测试资料没有任何地区法规合规依据；上海或其他地区项目需要真实发布标准与适用条件，不能宣称达标。\nVICP的低导热系数有助于减少达到同一热阻所需的厚度，不能据此推断全部构造的防火等级或成本。\n岩棉测试产品λ=0.040 W/(m·K)、α=1.0，厚度50mm；仅支持同热工条件比较，未提供防火/造价证据。"
+                    }
+                  ],
+                  "evidenceLevel": null,
+                  "score": 27.468079
+                },
+                {
+                  "sourceType": "KNOWLEDGE",
+                  "retrievalUnit": "SECTION",
+                  "documentId": "db8e35a4-aeb3-45cb-9a3f-7871865a2231",
+                  "versionId": "2c0b3f10-d376-4c89-8a7c-953732c39190",
+                  "sectionId": "7e0fd632-7cf0-4d4e-835b-c39e7921825c",
+                  "pageId": "5eaa788b-437a-4deb-9160-f0f0de4c6db0",
+                  "title": "销售与设计院UAT测试图集",
+                  "tocPath": [
+                    "销售与设计院UAT测试图集",
+                    "第23页"
+                  ],
+                  "sectionTitle": "测试图集第23页",
+                  "chapter": "销售与设计院UAT测试图集",
+                  "section": "测试图集第23页",
+                  "sectionPath": [
+                    "销售与设计院UAT测试图集",
+                    "第23页"
+                  ],
+                  "citationAnchor": null,
+                  "pageNumber": 23,
+                  "physicalPageNumber": 23,
+                  "pageLabel": "23",
+                  "pageTitle": null,
+                  "originalFileId": null,
+                  "pageStart": 23,
+                  "pageEnd": 23,
+                  "page": 23,
+                  "matchedText": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。\nA1-4，20mm，产品层热阻3.200，总热阻3.390，K=0.295，印刷页23。\nI型产品当量导热系数λ=0.005 W/(m·K)，修正系数α=1.25。产品层R=δ/(λ×α)。A1-3基层为240mm灰砂砖，λ=0.9。Ri=0.11、Re=0.04 m²·K/W。\n图集参考值与按厚度重新计算的系统计算值分别标注。该测试资料没有任何地区法规合规依据；上海或其他地区项目需要真实发布标准与适用条件，不能宣称达标。\nVICP的低导热系数有助于减少达到同一热阻所需的厚度，不能据此推断全部构造的防火等级或成本。\n岩棉测试产品λ=0.040 W/(m·K)、α=1.0，厚度50mm；仅支持同热工条件比较，未提供防火/造价证据。",
+                  "quote": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。\nA1-4，20mm，产品层热阻3.200，总热阻3.390，K=0.295，印刷页23。\nI型产品当量导热系数λ=0.005 W/(m·K)，修正系数α=1.25。产品层R=δ/(λ×α)。A1-3基层为240mm灰砂砖，λ=0.9。Ri=0.11、Re=0.04 m²·K/W。\n图集参考值与按厚度重新计算的系统计算值分别标注。该测试资料没有任何地区法规合规依据；上海或其他地区项目需要真实发布标准与适用条件，不能宣称达标。\nVICP的低导热系数有助于减少达到同一热阻所需的厚度，不能据此推断全部构造的防火等级或成本。\n岩棉测试产品λ=0.040 W/(m·K)、α=1.0，厚度50mm；仅支持同热工条件比较，未提供防火/造价证据。",
+                  "snippet": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。 A1-4，20mm，产品层热阻3.200，总热阻3.390，K=0.295，印刷页23。 I型产品当量导热系数λ=0.005 W/(m·K)，修正系数α=1.25。产品层R",
+                  "highlightRanges": [
+                    {
+                      "pageId": "5eaa788b-437a-4deb-9160-f0f0de4c6db0",
+                      "pageNumber": 23,
+                      "pageLabel": "23",
+                      "text": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。\nA1-4，20mm，产品层热阻3.200，总热阻3.390，K=0.295，印刷页23。\nI型产品当量导热系数λ=0.005 W/(m·K)，修正系数α=1.25。产品层R=δ/(λ×α)。A1-3基层为240mm灰砂砖，λ=0.9。Ri=0.11、Re=0.04 m²·K/W。\n图集参考值与按厚度重新计算的系统计算值分别标注。该测试资料没有任何地区法规合规依据；上海或其他地区项目需要真实发布标准与适用条件，不能宣称达标。\nVICP的低导热系数有助于减少达到同一热阻所需的厚度，不能据此推断全部构造的防火等级或成本。\n岩棉测试产品λ=0.040 W/(m·K)、α=1.0，厚度50mm；仅支持同热工条件比较，未提供防火/造价证据。"
+                    }
+                  ],
+                  "evidenceLevel": null,
+                  "score": 27.105635
+                },
+                {
+                  "sourceType": "KNOWLEDGE",
+                  "retrievalUnit": "SECTION",
+                  "documentId": "db8e35a4-aeb3-45cb-9a3f-7871865a2231",
+                  "versionId": "2c0b3f10-d376-4c89-8a7c-953732c39190",
+                  "sectionId": "44a23d3d-8ef5-48c6-b816-32bc6870c8aa",
+                  "pageId": "cb8b7243-d727-450f-8e19-be3263726641",
+                  "title": "销售与设计院UAT测试图集",
+                  "tocPath": [
+                    "销售与设计院UAT测试图集",
+                    "第24页"
+                  ],
+                  "sectionTitle": "测试图集第24页",
+                  "chapter": "销售与设计院UAT测试图集",
+                  "section": "测试图集第24页",
+                  "sectionPath": [
+                    "销售与设计院UAT测试图集",
+                    "第24页"
+                  ],
+                  "citationAnchor": null,
+                  "pageNumber": 24,
+                  "physicalPageNumber": 24,
+                  "pageLabel": "24",
+                  "pageTitle": null,
+                  "originalFileId": null,
+                  "pageStart": 24,
+                  "pageEnd": 24,
+                  "page": 24,
+                  "matchedText": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。\nII型 VICP薄抹灰外保温系统：B1-1，18mm，产品层热阻2.500，总热阻2.917，K=0.343，印刷页24。\nI型产品当量导热系数λ=0.005 W/(m·K)，修正系数α=1.25。产品层R=δ/(λ×α)。A1-3基层为240mm灰砂砖，λ=0.9。Ri=0.11、Re=0.04 m²·K/W。\n图集参考值与按厚度重新计算的系统计算值分别标注。该测试资料没有任何地区法规合规依据；上海或其他地区项目需要真实发布标准与适用条件，不能宣称达标。\nVICP的低导热系数有助于减少达到同一热阻所需的厚度，不能据此推断全部构造的防火等级或成本。\n岩棉测试产品λ=0.040 W/(m·K)、α=1.0，厚度50mm；仅支持同热工条件比较，未提供防火/造价证据。",
+                  "quote": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。\nII型 VICP薄抹灰外保温系统：B1-1，18mm，产品层热阻2.500，总热阻2.917，K=0.343，印刷页24。\nI型产品当量导热系数λ=0.005 W/(m·K)，修正系数α=1.25。产品层R=δ/(λ×α)。A1-3基层为240mm灰砂砖，λ=0.9。Ri=0.11、Re=0.04 m²·K/W。\n图集参考值与按厚度重新计算的系统计算值分别标注。该测试资料没有任何地区法规合规依据；上海或其他地区项目需要真实发布标准与适用条件，不能宣称达标。\nVICP的低导热系数有助于减少达到同一热阻所需的厚度，不能据此推断全部构造的防火等级或成本。\n岩棉测试产品λ=0.040 W/(m·K)、α=1.0，厚度50mm；仅支持同热工条件比较，未提供防火/造价证据。",
+                  "snippet": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。 II型 VICP薄抹灰外保温系统：B1-1，18mm，产品层热阻2.500，总热阻2.917，K=0.343，印刷页24。 I型产品当量导热系数λ=0.005 W/(m·K",
+                  "highlightRanges": [
+                    {
+                      "pageId": "cb8b7243-d727-450f-8e19-be3263726641",
+                      "pageNumber": 24,
+                      "pageLabel": "24",
+                      "text": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。\nII型 VICP薄抹灰外保温系统：B1-1，18mm，产品层热阻2.500，总热阻2.917，K=0.343，印刷页24。\nI型产品当量导热系数λ=0.005 W/(m·K)，修正系数α=1.25。产品层R=δ/(λ×α)。A1-3基层为240mm灰砂砖，λ=0.9。Ri=0.11、Re=0.04 m²·K/W。\n图集参考值与按厚度重新计算的系统计算值分别标注。该测试资料没有任何地区法规合规依据；上海或其他地区项目需要真实发布标准与适用条件，不能宣称达标。\nVICP的低导热系数有助于减少达到同一热阻所需的厚度，不能据此推断全部构造的防火等级或成本。\n岩棉测试产品λ=0.040 W/(m·K)、α=1.0，厚度50mm；仅支持同热工条件比较，未提供防火/造价证据。"
+                    }
+                  ],
+                  "evidenceLevel": null,
+                  "score": 27.105635
+                }
+              ]
+            }
+          },
+          {
+            "event": "tool_result",
+            "data": {
+              "toolName": "search_knowledge",
+              "success": true
+            }
+          },
+          {
+            "event": "delta",
+            "data": {
+              "text": "A1-3、I型、22mm 目前没有图集参考档位，也没有可用的正式计算方案记录，因此无法给出系统计算值。\n\n"
+            }
+          },
+          {
+            "event": "delta",
+            "data": {
+              "text": "已发布的 A1-3 参考档位只有 18mm 和 25mm 两档：18mm 的 K=0.303、25mm 的 K=0.226 W/(m²·K)，见印刷页 22。22mm 处于这两档之间，但图集未给出该厚度的参考值，我不会按这两档推算。\n\n"
+            }
+          },
+          {
+            "event": "delta",
+            "data": {
+              "text": "如果你需要，我可以按图集给出的当量参数建立该构造的正式计算，不过那需要你确认可用的构造方案（含 22mm 规格）；目前还没有这样的已发布方案可供计算。"
+            }
+          },
+          {
+            "event": "progress",
+            "data": {
+              "stage": "completed",
+              "message": "回答整理完成"
+            }
+          },
+          {
+            "event": "done",
+            "data": {
+              "messageId": "b2a2df2b-10d1-44f1-988f-33676f44791d",
+              "conversationId": "bda8dc95-ec8d-4b15-ae60-5f466775fca3",
+              "finishReason": "COMPLETED",
+              "usage": {
+                "inputTokens": 20553,
+                "outputTokens": 327,
+                "reasoningTokens": 0
+              },
+              "model": {
+                "id": "deepseek-chat"
+              },
+              "promptVersion": {
+                "id": "ae0f8064-e3d6-43c0-ab4c-174188be34e4",
+                "version": 3
+              },
+              "sources": [
+                {
+                  "sourceType": "KNOWLEDGE",
+                  "retrievalUnit": "SECTION",
+                  "documentId": "db8e35a4-aeb3-45cb-9a3f-7871865a2231",
+                  "versionId": "2c0b3f10-d376-4c89-8a7c-953732c39190",
+                  "sectionId": "d67c4719-52fe-4481-9bda-dfc5500aead4",
+                  "pageId": "0ce9b337-f391-4122-b1ae-dfe0612965c3",
+                  "title": "销售与设计院UAT测试图集",
+                  "tocPath": [
+                    "销售与设计院UAT测试图集",
+                    "第22页"
+                  ],
+                  "sectionTitle": "测试图集第22页",
+                  "chapter": "销售与设计院UAT测试图集",
+                  "section": "测试图集第22页",
+                  "sectionPath": [
+                    "销售与设计院UAT测试图集",
+                    "第22页"
+                  ],
+                  "citationAnchor": null,
+                  "pageNumber": 22,
+                  "physicalPageNumber": 22,
+                  "pageLabel": "22",
+                  "pageTitle": null,
+                  "originalFileId": null,
+                  "pageStart": 22,
+                  "pageEnd": 22,
+                  "page": 22,
+                  "matchedText": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。\nI型 VICP薄抹灰外保温系统：A1-3，18mm，产品层热阻2.880 m²·K/W，总热阻3.297 m²·K/W，传热系数K=0.303 W/(m²·K)，印刷页22。\nA1-3，25mm，产品层热阻4.000，总热阻4.417，K=0.226，印刷页22。\nI型产品当量导热系数λ=0.005 W/(m·K)，修正系数α=1.25。产品层R=δ/(λ×α)。A1-3基层为240mm灰砂砖，λ=0.9。Ri=0.11、Re=0.04 m²·K/W。\n图集参考值与按厚度重新计算的系统计算值分别标注。该测试资料没有任何地区法规合规依据；上海或其他地区项目需要真实发布标准与适用条件，不能宣称达标。\nVICP的低导热系数有助于减少达到同一热阻所需的厚度，不能据此推断全部构造的防火等级或成本。\n岩棉测试产品λ=0.040 W/(m·K)、α=1.0，厚度50mm；仅支持同热工条件比较，未提供防火/造价证据。",
+                  "quote": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。\nI型 VICP薄抹灰外保温系统：A1-3，18mm，产品层热阻2.880 m²·K/W，总热阻3.297 m²·K/W，传热系数K=0.303 W/(m²·K)，印刷页22。\nA1-3，25mm，产品层热阻4.000，总热阻4.417，K=0.226，印刷页22。\nI型产品当量导热系数λ=0.005 W/(m·K)，修正系数α=1.25。产品层R=δ/(λ×α)。A1-3基层为240mm灰砂砖，λ=0.9。Ri=0.11、Re=0.04 m²·K/W。\n图集参考值与按厚度重新计算的系统计算值分别标注。该测试资料没有任何地区法规合规依据；上海或其他地区项目需要真实发布标准与适用条件，不能宣称达标。\nVICP的低导热系数有助于减少达到同一热阻所需的厚度，不能据此推断全部构造的防火等级或成本。\n岩棉测试产品λ=0.040 W/(m·K)、α=1.0，厚度50mm；仅支持同热工条件比较，未提供防火/造价证据。",
+                  "snippet": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。 I型 VICP薄抹灰外保温系统：A1-3，18mm，产品层热阻2.880 m²·K/W，总热阻3.297 m²·K/W，传热系数K=0.303 W/(m²·K)，印刷页22",
+                  "highlightRanges": [
+                    {
+                      "pageId": "0ce9b337-f391-4122-b1ae-dfe0612965c3",
+                      "pageNumber": 22,
+                      "pageLabel": "22",
+                      "text": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。\nI型 VICP薄抹灰外保温系统：A1-3，18mm，产品层热阻2.880 m²·K/W，总热阻3.297 m²·K/W，传热系数K=0.303 W/(m²·K)，印刷页22。\nA1-3，25mm，产品层热阻4.000，总热阻4.417，K=0.226，印刷页22。\nI型产品当量导热系数λ=0.005 W/(m·K)，修正系数α=1.25。产品层R=δ/(λ×α)。A1-3基层为240mm灰砂砖，λ=0.9。Ri=0.11、Re=0.04 m²·K/W。\n图集参考值与按厚度重新计算的系统计算值分别标注。该测试资料没有任何地区法规合规依据；上海或其他地区项目需要真实发布标准与适用条件，不能宣称达标。\nVICP的低导热系数有助于减少达到同一热阻所需的厚度，不能据此推断全部构造的防火等级或成本。\n岩棉测试产品λ=0.040 W/(m·K)、α=1.0，厚度50mm；仅支持同热工条件比较，未提供防火/造价证据。"
+                    }
+                  ],
+                  "evidenceLevel": null,
+                  "score": 27.468079
+                },
+                {
+                  "sourceType": "KNOWLEDGE",
+                  "retrievalUnit": "SECTION",
+                  "documentId": "db8e35a4-aeb3-45cb-9a3f-7871865a2231",
+                  "versionId": "2c0b3f10-d376-4c89-8a7c-953732c39190",
+                  "sectionId": "7e0fd632-7cf0-4d4e-835b-c39e7921825c",
+                  "pageId": "5eaa788b-437a-4deb-9160-f0f0de4c6db0",
+                  "title": "销售与设计院UAT测试图集",
+                  "tocPath": [
+                    "销售与设计院UAT测试图集",
+                    "第23页"
+                  ],
+                  "sectionTitle": "测试图集第23页",
+                  "chapter": "销售与设计院UAT测试图集",
+                  "section": "测试图集第23页",
+                  "sectionPath": [
+                    "销售与设计院UAT测试图集",
+                    "第23页"
+                  ],
+                  "citationAnchor": null,
+                  "pageNumber": 23,
+                  "physicalPageNumber": 23,
+                  "pageLabel": "23",
+                  "pageTitle": null,
+                  "originalFileId": null,
+                  "pageStart": 23,
+                  "pageEnd": 23,
+                  "page": 23,
+                  "matchedText": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。\nA1-4，20mm，产品层热阻3.200，总热阻3.390，K=0.295，印刷页23。\nI型产品当量导热系数λ=0.005 W/(m·K)，修正系数α=1.25。产品层R=δ/(λ×α)。A1-3基层为240mm灰砂砖，λ=0.9。Ri=0.11、Re=0.04 m²·K/W。\n图集参考值与按厚度重新计算的系统计算值分别标注。该测试资料没有任何地区法规合规依据；上海或其他地区项目需要真实发布标准与适用条件，不能宣称达标。\nVICP的低导热系数有助于减少达到同一热阻所需的厚度，不能据此推断全部构造的防火等级或成本。\n岩棉测试产品λ=0.040 W/(m·K)、α=1.0，厚度50mm；仅支持同热工条件比较，未提供防火/造价证据。",
+                  "quote": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。\nA1-4，20mm，产品层热阻3.200，总热阻3.390，K=0.295，印刷页23。\nI型产品当量导热系数λ=0.005 W/(m·K)，修正系数α=1.25。产品层R=δ/(λ×α)。A1-3基层为240mm灰砂砖，λ=0.9。Ri=0.11、Re=0.04 m²·K/W。\n图集参考值与按厚度重新计算的系统计算值分别标注。该测试资料没有任何地区法规合规依据；上海或其他地区项目需要真实发布标准与适用条件，不能宣称达标。\nVICP的低导热系数有助于减少达到同一热阻所需的厚度，不能据此推断全部构造的防火等级或成本。\n岩棉测试产品λ=0.040 W/(m·K)、α=1.0，厚度50mm；仅支持同热工条件比较，未提供防火/造价证据。",
+                  "snippet": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。 A1-4，20mm，产品层热阻3.200，总热阻3.390，K=0.295，印刷页23。 I型产品当量导热系数λ=0.005 W/(m·K)，修正系数α=1.25。产品层R",
+                  "highlightRanges": [
+                    {
+                      "pageId": "5eaa788b-437a-4deb-9160-f0f0de4c6db0",
+                      "pageNumber": 23,
+                      "pageLabel": "23",
+                      "text": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。\nA1-4，20mm，产品层热阻3.200，总热阻3.390，K=0.295，印刷页23。\nI型产品当量导热系数λ=0.005 W/(m·K)，修正系数α=1.25。产品层R=δ/(λ×α)。A1-3基层为240mm灰砂砖，λ=0.9。Ri=0.11、Re=0.04 m²·K/W。\n图集参考值与按厚度重新计算的系统计算值分别标注。该测试资料没有任何地区法规合规依据；上海或其他地区项目需要真实发布标准与适用条件，不能宣称达标。\nVICP的低导热系数有助于减少达到同一热阻所需的厚度，不能据此推断全部构造的防火等级或成本。\n岩棉测试产品λ=0.040 W/(m·K)、α=1.0，厚度50mm；仅支持同热工条件比较，未提供防火/造价证据。"
+                    }
+                  ],
+                  "evidenceLevel": null,
+                  "score": 27.105635
+                },
+                {
+                  "sourceType": "KNOWLEDGE",
+                  "retrievalUnit": "SECTION",
+                  "documentId": "db8e35a4-aeb3-45cb-9a3f-7871865a2231",
+                  "versionId": "2c0b3f10-d376-4c89-8a7c-953732c39190",
+                  "sectionId": "44a23d3d-8ef5-48c6-b816-32bc6870c8aa",
+                  "pageId": "cb8b7243-d727-450f-8e19-be3263726641",
+                  "title": "销售与设计院UAT测试图集",
+                  "tocPath": [
+                    "销售与设计院UAT测试图集",
+                    "第24页"
+                  ],
+                  "sectionTitle": "测试图集第24页",
+                  "chapter": "销售与设计院UAT测试图集",
+                  "section": "测试图集第24页",
+                  "sectionPath": [
+                    "销售与设计院UAT测试图集",
+                    "第24页"
+                  ],
+                  "citationAnchor": null,
+                  "pageNumber": 24,
+                  "physicalPageNumber": 24,
+                  "pageLabel": "24",
+                  "pageTitle": null,
+                  "originalFileId": null,
+                  "pageStart": 24,
+                  "pageEnd": 24,
+                  "page": 24,
+                  "matchedText": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。\nII型 VICP薄抹灰外保温系统：B1-1，18mm，产品层热阻2.500，总热阻2.917，K=0.343，印刷页24。\nI型产品当量导热系数λ=0.005 W/(m·K)，修正系数α=1.25。产品层R=δ/(λ×α)。A1-3基层为240mm灰砂砖，λ=0.9。Ri=0.11、Re=0.04 m²·K/W。\n图集参考值与按厚度重新计算的系统计算值分别标注。该测试资料没有任何地区法规合规依据；上海或其他地区项目需要真实发布标准与适用条件，不能宣称达标。\nVICP的低导热系数有助于减少达到同一热阻所需的厚度，不能据此推断全部构造的防火等级或成本。\n岩棉测试产品λ=0.040 W/(m·K)、α=1.0，厚度50mm；仅支持同热工条件比较，未提供防火/造价证据。",
+                  "quote": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。\nII型 VICP薄抹灰外保温系统：B1-1，18mm，产品层热阻2.500，总热阻2.917，K=0.343，印刷页24。\nI型产品当量导热系数λ=0.005 W/(m·K)，修正系数α=1.25。产品层R=δ/(λ×α)。A1-3基层为240mm灰砂砖，λ=0.9。Ri=0.11、Re=0.04 m²·K/W。\n图集参考值与按厚度重新计算的系统计算值分别标注。该测试资料没有任何地区法规合规依据；上海或其他地区项目需要真实发布标准与适用条件，不能宣称达标。\nVICP的低导热系数有助于减少达到同一热阻所需的厚度，不能据此推断全部构造的防火等级或成本。\n岩棉测试产品λ=0.040 W/(m·K)、α=1.0，厚度50mm；仅支持同热工条件比较，未提供防火/造价证据。",
+                  "snippet": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。 II型 VICP薄抹灰外保温系统：B1-1，18mm，产品层热阻2.500，总热阻2.917，K=0.343，印刷页24。 I型产品当量导热系数λ=0.005 W/(m·K",
+                  "highlightRanges": [
+                    {
+                      "pageId": "cb8b7243-d727-450f-8e19-be3263726641",
+                      "pageNumber": 24,
+                      "pageLabel": "24",
+                      "text": "销售与设计院 UAT 测试图集（合成验收资料，禁止用于实际工程）。\nII型 VICP薄抹灰外保温系统：B1-1，18mm，产品层热阻2.500，总热阻2.917，K=0.343，印刷页24。\nI型产品当量导热系数λ=0.005 W/(m·K)，修正系数α=1.25。产品层R=δ/(λ×α)。A1-3基层为240mm灰砂砖，λ=0.9。Ri=0.11、Re=0.04 m²·K/W。\n图集参考值与按厚度重新计算的系统计算值分别标注。该测试资料没有任何地区法规合规依据；上海或其他地区项目需要真实发布标准与适用条件，不能宣称达标。\nVICP的低导热系数有助于减少达到同一热阻所需的厚度，不能据此推断全部构造的防火等级或成本。\n岩棉测试产品λ=0.040 W/(m·K)、α=1.0，厚度50mm；仅支持同热工条件比较，未提供防火/造价证据。"
+                    }
+                  ],
+                  "evidenceLevel": null,
+                  "score": 27.105635
+                }
+              ],
+              "latencyMs": 7114
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

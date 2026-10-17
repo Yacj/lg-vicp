@@ -25,7 +25,7 @@ const details = ref<Record<string, boolean>>({})
       <view class="solution__parameters">
         <view>
           <view class="app-muted text-2.5">
-            保温层厚度
+            产品厚度
           </view>
           <view class="solution__value">
             {{ formatReferenceNumber(solution.option.thicknessMm) }}<text class="solution__unit">

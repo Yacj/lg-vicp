@@ -74,6 +74,25 @@ describe("Tool Result Normalizer", () => {
     expect(JSON.stringify(data)).not.toContain("禁止编造");
   });
 
+  it("产品介绍与技术查询共用同一批事实，但指引要求按用户目标选择表达", () => {
+    const data = normalizeProductDataForModel({
+      products: [{ id: "p1", name: "VICP", summary: "薄抹灰外墙保温系统", productType: "保温板",
+        thermalConductivity: 0.008, correctionFactor: 1.25, thicknessOptionsMm: [20, 25, 30] }]
+    });
+    // 事实不因「介绍性问题」而被删减：技术字段仍然保留，供用户追问时使用。
+    expect(data.products[0]).toMatchObject({ thermalConductivity: 0.008, thicknessOptionsMm: [20, 25, 30] });
+    expect(data.instruction).toContain("介绍性问题");
+    expect(data.instruction).toContain("不要一上来罗列");
+    expect(data.instruction).toContain("未审核的宣传结论");
+    // 指引只约束表达，不得夹带新数值或新结论。
+    expect(data.instruction).not.toMatch(/\d+(?:\.\d+)?\s*(?:%|年|W\/)/);
+  });
+
+  it("产品没有已审核介绍文案时，明确只能说明名称与已有字段", () => {
+    const data = normalizeProductDataForModel({ products: [{ id: "p1", name: "VICP", summary: null }] });
+    expect(data.instruction).toContain("没有已审核的介绍文案");
+  });
+
   it("thermal 不把公式和过程细节交给模型", async () => {
     const { normalizeThermalForModel } = await import("./tool-result-normalizer.js");
     const data = normalizeThermalForModel({

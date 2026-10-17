@@ -30,7 +30,9 @@ export async function verifyVisibleConfirmedPageFact(ctx: ReferenceReadContext, 
     const row = rows.find(item => item.page.id === locator.pageId && item.document.id === locator.documentId && scope.knowledgeVersionIds!.includes(item.page.versionId));
     if (!row) return reject("来源已撤回、换版或无权访问，请重新查询后核对。");
     const data = readPageRecognitionMeta(row.page.metadata).confirmedStructuredData;
-    if (data?.schemaVersion !== 2) return undefined; // 旧数据继续走原有核验路径。
+    if (!data) return reject("来源已缺少确认数据，请重新打开原页核对。");
+    // 有正式Candidate的旧页保持原路径；只有确认页引用时也须按实际显示档位核对，不能按待核值反选。
+    if (data?.schemaVersion !== 2 && ctx.taskState?.lastReferenceLookup?.candidates.length) return undefined;
     const block = await toReferencePageBlock(ctx.app, row);
     const restored = restoreReferencePageMatches(block, locator.item);
     if (!restored?.matches.length || !block.renderModel || !Array.isArray(locator.item.matches)

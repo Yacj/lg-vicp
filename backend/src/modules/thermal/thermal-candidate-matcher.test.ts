@@ -2,6 +2,7 @@
 import {
   type CandidateRow,
   evaluateConditions,
+  isMetricCondition,
   matchThermalCandidates
 } from "./thermal-candidate-matcher.js";
 
@@ -256,5 +257,74 @@ describe("目标 K 值最接近优先排序（甲方规则：K≤目标且最接
     const outcome = matchThermalCandidates(gapRows, { specClass: "I" });
     expect(outcome.candidates.map((c) => c.result.thicknessMm)).toEqual([20, 30, 40, 50]);
     expect(outcome.candidates.every((c) => c.ranking === undefined)).toBe(true);
+  });
+});
+
+/**
+ * 阶段2 B1：「数据缺列」与「有值但不达标」是两种不同故障。
+ * 把缺列说成「没有满足条件的方案」会让用户以为资料里存在别的方案，
+ * 因此三态里 missing 必须与 unmatched 分开，且缺指标的行不得进入候选。
+ */
+describe("指标列缺失 vs 指标不满足（诊断必须分开）", () => {
+  const rowsWithProductR = [
+    makeRow({ rowId: "row-pr-1", thicknessMm: 20, productThermalResistance: 4.0, totalThermalResistance: 4.3 }),
+    makeRow({ rowId: "row-pr-2", thicknessMm: 25, productThermalResistance: 5.0, totalThermalResistance: 5.3 })
+  ];
+
+  it("行缺该指标值 → 归入 missing，不得归入 unmatched", () => {
+    const rowWithoutProductR = { ...rowsWithProductR[0]!, productThermalResistance: undefined } as unknown as CandidateRow;
+    const state = evaluateConditions(rowWithoutProductR, { metric: "PRODUCT_R", targetValue: 4, filters: [{ metric: "PRODUCT_R", targetValue: 4, mode: "APPROX" }] });
+    expect(state.missing).toContain("PRODUCT_R");
+    expect(state.unmatched).not.toContain("PRODUCT_R");
+  });
+
+  it("行有该指标但不达标 → 归入 unmatched，不得归入 missing", () => {
+    const state = evaluateConditions(rowsWithProductR[0]!, { metric: "PRODUCT_R", targetValue: 5, filters: [{ metric: "PRODUCT_R", targetValue: 5, mode: "APPROX" }] });
+    expect(state.unmatched).toContain("PRODUCT_R");
+    expect(state.missing).not.toContain("PRODUCT_R");
+  });
+
+  it("缺指标的行不进入候选（不得返回一条没有该指标的记录）", () => {
+    const rows = [
+      { ...rowsWithProductR[0]!, productThermalResistance: undefined } as unknown as CandidateRow,
+      rowsWithProductR[1]!
+    ];
+    const outcome = matchThermalCandidates(rows, { metric: "PRODUCT_R", targetValue: 5, filters: [{ metric: "PRODUCT_R", targetValue: 5, mode: "APPROX" }] });
+    expect(outcome.candidates.map((c) => c.candidateId)).toEqual(["row-pr-2"]);
+  });
+
+  it("整表都缺该指标 → globalMissingConditions 记录该指标（无字段）", () => {
+    const rows = rowsWithProductR.map((row) => ({ ...row, productThermalResistance: undefined } as unknown as CandidateRow));
+    const outcome = matchThermalCandidates(rows, { metric: "PRODUCT_R", targetValue: 5, filters: [{ metric: "PRODUCT_R", targetValue: 5, mode: "APPROX" }] });
+    expect(outcome.candidates).toHaveLength(0);
+    expect(outcome.globalMissingConditions).toContain("PRODUCT_R");
+  });
+
+  it("只有部分行缺该指标 → 不报「无字段」，仍按有值的行正常匹配", () => {
+    const rows = [
+      { ...rowsWithProductR[0]!, productThermalResistance: undefined } as unknown as CandidateRow,
+      rowsWithProductR[1]!
+    ];
+    const outcome = matchThermalCandidates(rows, { metric: "PRODUCT_R", targetValue: 5, filters: [{ metric: "PRODUCT_R", targetValue: 5, mode: "APPROX" }] });
+    expect(outcome.globalMissingConditions).not.toContain("PRODUCT_R");
+    expect(outcome.candidates).toHaveLength(1);
+  });
+
+  it("PRODUCT_R 只读产品层热阻字段，不拿总热阻顶上（4.0 vs R₀=4.3 不得互认）", () => {
+    // 查询产品层 R≈4.3：该行产品层 R 是 4.0、总热阻才是 4.3，不得命中。
+    const outcome = matchThermalCandidates(rowsWithProductR, { metric: "PRODUCT_R", targetValue: 4.3, filters: [{ metric: "PRODUCT_R", targetValue: 4.3, mode: "APPROX" }] });
+    expect(outcome.candidates).toHaveLength(0);
+    // 反向：查询总热阻 R₀≈4.0 时也不得命中该行（产品层 R=4.0 不能冒充总热阻）。
+    const totalOutcome = matchThermalCandidates(rowsWithProductR, { metric: "TOTAL_R", targetValue: 4.0, filters: [{ metric: "TOTAL_R", targetValue: 4.0, mode: "APPROX" }] });
+    expect(totalOutcome.candidates).toHaveLength(0);
+  });
+
+  it("isMetricCondition 只把热工指标类条件算作指标（体系/型号/厚度不算）", () => {
+    expect(isMetricCondition("PRODUCT_R")).toBe(true);
+    expect(isMetricCondition("TOTAL_R")).toBe(true);
+    expect(isMetricCondition("K")).toBe(true);
+    expect(isMetricCondition("thickness")).toBe(false);
+    expect(isMetricCondition("specClass")).toBe(false);
+    expect(isMetricCondition("substrateThickness")).toBe(false);
   });
 });

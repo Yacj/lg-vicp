@@ -26,10 +26,14 @@ import {
   type CandidateQueryConditions,
   type CandidateResult,
   type CandidateRow,
+  isMetricCondition,
   matchThermalCandidates
 } from "./thermal-candidate-matcher.js";
 import {
+  getCandidateMetricValue,
   normalizeThermalLookupQuery,
+  THERMAL_LOOKUP_METRICS,
+  THERMAL_METRIC_LABELS,
   TOLERANCE_ADJUSTED_NOTE,
   type ThermalLookupFilter,
   type ThermalLookupQuery,
@@ -38,6 +42,7 @@ import {
 } from "./thermal-lookup-mode.js";
 import type { AuthUser } from "../../shared/auth-user.js";
 import { identityMetricFailures } from "./thermal-candidate-identity.js";
+import { diagnoseReferenceQuery, type ReferenceQueryDiagnostics } from "./reference-query-diagnostics.js";
 
 /**
  * 候选方案查询与条件匹配服务。
@@ -128,12 +133,20 @@ interface CandidateQueryInput extends ThermalLookupQuery, Omit<ThermalQueryState
 }
 
 export interface CandidateQueryOutcome {
+  queryDiagnostics?: ReferenceQueryDiagnostics;
+  sourceRows?: Array<ConstraintCandidate & { id: string; sourcePageId?: string | null }>;
   identityMatchedButMetricFailed?: Array<CandidateResult & { compliant: boolean | null; failedConstraints: ThermalLookupFilter[] }>;
   queryState?: ThermalQueryState;
   matchedCandidates?: Array<CandidateResult & { compliant: boolean | null }>;
   nearbyCandidates?: Array<CandidateResult & { compliant: boolean | null; status?: "NOT_FULLY_MATCHED" }>;
   /** 分阶段过滤计数：全量 → 体系 → 指标 → 厚度 → 全部硬条件；用于定位 False Negative。 */
   stageCounts?: { beforeAll: number; afterFamily: number; afterMetric: number; afterThickness: number; afterAllHard: number };
+  /**
+   * 零命中时的指标取值概览（只读事实，用于解释「有哪些档位」）：
+   * 按当前身份条件（忽略指标筛选）统计该指标在已发布行中的真实取值。
+   * 仅用于回答「该指标在本资料里有哪些取值」，不得当作命中，也不得据此猜用户想问哪个指标。
+   */
+  metricScope?: { metric: ThermalLookupMetric; values: number[]; count: number };
   filters: ThermalLookupFilter[];
   requestedTolerance?: number;
   effectiveTolerance?: number;
@@ -264,6 +277,7 @@ export async function queryThermalCandidates(
       lookupMode,
       kTolerance,
       candidates: [],
+      queryDiagnostics: diagnoseReferenceQuery(input, [], "THERMAL_ROW"), sourceRows: [],
       missingConditions: [],
       notes: [...notes, "没有已发布且生效中的图集参考集，无法查表（请先在后台导入并审核发布）"],
       limit: toLimitSnapshot(limit),
@@ -416,10 +430,23 @@ export async function queryThermalCandidates(
     notes.push("包含相邻已发布规格（matchType=NEIGHBOR），请确认厚度档后自行选择");
   }
 
+  // 零命中时统计该指标在身份范围内的真实取值：用于把「无档位」变成「有哪些档位」，
+  // 只读事实，不参与匹配、不改变候选，也不据此推断用户想问哪个指标。
+  const sourceRows = allRows.map(row => ({ ...asConstraint(row), id: row.rowId, sourcePageId: row.sourcePageId }));
+  const queryDiagnostics = diagnoseReferenceQuery(queryState, sourceRows, "THERMAL_ROW");
+  const scopedMetric = candidates.length === 0 && lookup.filters.length === 1 ? queryDiagnostics.metricScopes[0] : undefined;
+  const metricScope = scopedMetric ? { metric: scopedMetric.metric, values: scopedMetric.values, count: scopedMetric.count } : undefined;
+
   // 7) 已有正式热工条件（包括双 R）无需再补 K；未提供条件仍兼容旧标准选择流程。
-  const missingConditions = [...outcome.globalMissingConditions];
+  const missingConditions = [...outcome.globalMissingConditions.filter(name => !(THERMAL_LOOKUP_METRICS as readonly string[]).includes(name)), ...queryDiagnostics.missingMetrics];
   if (limitCandidates && lookup.filters.length === 0 && !missingConditions.includes("targetK")) {
     missingConditions.push("targetK");
+  }
+  // 「无字段」与「有字段但无匹配」是两种不同故障，提示必须分开，否则会被误读成资料里没有方案。
+  const absentMetrics = [...new Set(missingConditions.filter((name): name is ThermalLookupMetric =>
+    (THERMAL_LOOKUP_METRICS as readonly string[]).includes(name)))];
+  if (absentMetrics.length) {
+    notes.push(`当前已发布参考表没有记录${absentMetrics.map((metric) => THERMAL_METRIC_LABELS[metric]).join("、")} 字段，无法按该指标筛选；这属于数据缺列，不是「有该字段但没有满足条件的档位」。`);
   }
 
   // 8) 结构化查询日志：只记录确定性统计与语义，不记录 prompt / 签名地址 / 敏感数据。
@@ -444,6 +471,8 @@ export async function queryThermalCandidates(
     lookupMode,
     kTolerance,
     queryState,
+    queryDiagnostics, sourceRows,
+    metricScope,
     identityMatchedButMetricFailed,
     stageCounts,
     matchedCandidates: orderedCandidates.filter(candidate => candidate.constraintMatch.passed),

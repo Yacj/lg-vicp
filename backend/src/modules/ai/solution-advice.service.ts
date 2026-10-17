@@ -5,6 +5,7 @@ import type { ReferencePageBlock } from "./reference-page.js";
 import type { ReferenceLookupCandidate } from "./conversation-task.js";
 import type { FastifyReply } from "fastify";
 import { writeSse } from "./ai-sse.js";
+import { confirmedPageProsCons } from "./confirmed-page-advice.js";
 
 export function emitSolutionAdvice(reply: FastifyReply, result: Awaited<ReturnType<typeof resolveSolutionAdvice>>) {
   if (result.referencePages.length) writeSse(reply, "reference_pages", { referencePages: result.referencePages });
@@ -13,6 +14,8 @@ export function emitSolutionAdvice(reply: FastifyReply, result: Awaited<ReturnTy
 }
 
 export async function resolveSolutionAdvice(ctx: ReferenceReadContext) {
+  const pageAdvice = await confirmedPageProsCons(ctx);
+  if (pageAdvice) return pageAdvice;
   const empty = (answer: string) => ({ answer, candidates: [] as ReferenceLookupCandidate[], referencePages: [] as ReferencePageBlock[],
     sources: [] as unknown[], verified: false, needsClarification: true });
   if (ctx.domainDecision?.semantic?.adviceMode === "OUTLINE") return { ...empty("参考方案提纲：1. 需求与实际基层；2. 已确认构造及来源；3. 保温层与施工节点比选；4. 防火和固定要求核对；5. 待核实条件与适用边界。未核验候选时不填工程数值，不生成正式报告或合规证明。"), needsClarification: false };
@@ -36,6 +39,16 @@ export async function resolveSolutionAdvice(ctx: ReferenceReadContext) {
   const candidates = resolved.candidates;
   const thicknesses = [...new Set(candidates.map(candidate => candidate.thicknessMm))];
   const sameSystem = candidates[0]?.systemName && candidates.every(candidate => candidate.systemName === candidates[0]!.systemName) ? candidates[0]!.systemName : undefined;
+  if (ctx.domainDecision?.semantic?.adviceFocus === "PROS_CONS") {
+    const lowestK = sameSystem && thicknesses.length === 1 ? Math.min(...candidates.map(candidate => candidate.kValue!)) : undefined;
+    const answer = ["按已确认图集构造列出可核验的优点与局限：", ...candidates.map(candidate => {
+      const page = resolved.pages.find(page => page.page.pageId === candidate.sourcePageId)!;
+      return `- **${candidate.schemeCode ?? candidate.constructionCode}**：${candidate.substrateMaterial} ${candidate.substrateThickness}mm基层，保温板 ${candidate.thicknessMm}mm，K=${candidate.kValue}。`
+        + `优点：已有该基层与厚度的确认档位及原页，可直接对照既有墙体${candidate.kValue === lowestK ? "；在本次同体系同板厚的图集条目中K最低" : ""}。`
+        + `局限：只适用于此处列明的完整构造；现场基层或厚度不同须重新核对。来源：《${page.page.documentTitle}》${page.page.pageLabel ? `第${page.page.pageLabel}页` : "确认原页"}。`;
+    }), "这是图集构造比较，不能为了较小K值替换实际墙体基层。当前来源未给出可核验的价格、寿命、防火及施工难度对照，不据此作这些优劣判断，也未确认方案或生成报告。"].join("\n\n");
+    return { answer, candidates, referencePages: resolved.pages, sources: resolved.sources, verified: true, needsClarification: false };
+  }
   const texts = [`先给你一版参考选型建议：${sameSystem ? `针对 ${sameSystem}，` : ""}以最近实际展示并已核验来源的 ${candidates.length} 个构造为范围${thicknesses.length === 1 ? `，保温板厚度为 ${thicknesses[0]}mm` : ""}，按现场已有基层匹配，不另设地区或建筑类型条件。`,
     "先核对实际基层材料和厚度，再择一采用对应构造："];
   const offsets = new Map<string, number>();

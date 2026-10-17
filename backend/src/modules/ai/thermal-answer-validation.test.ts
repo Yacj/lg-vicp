@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { buildAllowedAnswerFacts, buildCalculationAnswer, validateAnswerFacts, validateOrRepairThermalAnswer } from "./thermal-answer-validation.js";
+import { buildAllowedAnswerFacts, buildCalculationAnswer, detectReferenceSourceConflicts, renderAllowedFactsForModel, validateAnswerFacts, validateOrRepairThermalAnswer } from "./thermal-answer-validation.js";
 import { normalizeConversationLookupQuery } from "./tools/thermal-lookup.js";
 import type { ReferenceLookupCandidate } from "./conversation-task.js";
 
@@ -67,5 +67,108 @@ describe("发送前原子事实门禁", () => {
   it("正式计算来自冻结展示数据，未授权适用范围不能直接宣称达标", () => {
     const answer = buildCalculationAnswer({ mode: "LAYERED", resultK: 0.12, totalResistance: 8.313, compliant: true, limitKValue: 0.3, steps: [], layers: [] });
     expect(answer).toContain("K=0.12"); expect(answer).toContain("R₀=8.313"); expect(answer).not.toContain("已达标"); expect(answer).toContain("适用范围");
+  });
+});
+
+/**
+ * 阶段2 B2：零命中的三种情况必须说三种话。
+ * 真实失败是「保温0.3的材料有么」→「产品热阻」之后回答「没有档位」，
+ * 让用户以为资料里没有材料，而实际是「该指标下的已发布档位是这些值」。
+ */
+describe("零命中话术：缺列 / 有档位但不等 / 真无方案，三者不得混说", () => {
+  const query = { filters: [{ metric: "PRODUCT_R" as const, mode: "APPROX" as const, targetValue: 0.3 }] };
+
+  it("整表缺该指标字段 → 明确说「没有记录该字段」，不得说「没有满足条件的方案」", () => {
+    const facts = buildAllowedAnswerFacts(query, [], "产品热阻", 0, { missingMetricFields: ["PRODUCT_R"] });
+    expect(facts.missingMetricFields).toEqual(["PRODUCT_R"]);
+    const answer = facts.canonicalAnswers[0]!;
+    expect(answer).toContain("没有记录产品层热阻 R 字段");
+    expect(answer).not.toContain("没有找到同时满足");
+    expect(validateAnswerFacts(answer, facts).passed).toBe(true);
+  });
+
+  it("只有指标条件、零命中 → 列出已发布真实取值，不得只说「没有档位」", () => {
+    const facts = buildAllowedAnswerFacts(query, [], "产品热阻", 0, { metricScope: { metric: "PRODUCT_R", values: [4, 5, 6], count: 3 } });
+    const answer = facts.canonicalAnswers[0]!;
+    expect(answer).toContain("4、5、6");
+    expect(answer).toContain("产品层热阻 R");
+    expect(answer).not.toContain("没有找到同时满足");
+    expect(validateAnswerFacts(answer, facts).passed).toBe(true);
+  });
+
+  it("零命中时允许复述范围内的真实取值，但不允许复述范围外的数值", () => {
+    const facts = buildAllowedAnswerFacts(query, [], "产品热阻", 0, { metricScope: { metric: "PRODUCT_R", values: [4, 5], count: 2 } });
+    expect(validateAnswerFacts("已发布档位里产品层热阻 R=4，产品层热阻 R=5。", facts).passed).toBe(true);
+    // 7 不在已发布取值里：零命中场景下也不允许凭空多报一个档位。
+    expect(validateAnswerFacts("已发布档位里产品层热阻 R=7。", facts).passed).toBe(false);
+  });
+
+  it("身份命中但指标不满足时优先解释实际值，不被指标取值概览覆盖", () => {
+    const identity = { id: "row-x", schemeCode: "A1-3", thicknessMm: 25, productThermalResistance: 4, totalThermalResistance: 4.307, kValue: 0.232 };
+    const facts = buildAllowedAnswerFacts(query, [], "产品热阻", 0, {
+      identityMatchedButMetricFailed: [identity],
+      metricScope: { metric: "PRODUCT_R", values: [4, 5], count: 2 }
+    });
+    expect(facts.canonicalAnswers[0]).toContain("实际正式值");
+    expect(facts.canonicalAnswers[0]).toContain("A1-3");
+  });
+
+  it("既无缺列也无取值概览 → 才使用通用「没有同时满足条件」表述", () => {
+    const facts = buildAllowedAnswerFacts({ thicknessMm: 18, specClass: "III" }, [], "", 0);
+    expect(facts.canonicalAnswers[0]).toContain("没有找到同时满足");
+  });
+});
+
+/**
+ * 阶段2 来源契约：正式热工参考集（thermal_reference_rows）与已确认图集页
+ * （页面识别确认的 confirmedStructuredData）是两条不同审核链路。
+ * 同一构造同一厚度上数值不一致时，不得静默择一，也不得把页面确认值说成正式集值。
+ */
+describe("跨来源契约：来源类型必须可区分，数值冲突不得静默择一", () => {
+  const source = { sourceDocumentId: "doc", sourceVersionId: "v", sourcePageId: "page-22", systemId: "sys", schemeId: "scheme", productSpecId: "spec" };
+  const thermalRow = { ...source, id: "row-35", referenceKind: "THERMAL_ROW" as const, schemeCode: "A1-3", thicknessMm: 35,
+    productThermalResistance: 5, totalThermalResistance: 5.3068, kValue: 0.1884, sourcePageLabel: "22", evidenceSource: "正式热工集" };
+  const knowledgePage = { ...source, id: "page-22-opt-1", referenceKind: "KNOWLEDGE_PAGE" as const, constructionCode: "A1-3", thicknessMm: 35,
+    productThermalResistance: 4.8, totalThermalResistance: 5.1068, kValue: 0.1958, sourcePageLabel: "22", evidenceSource: "图集页 P22" };
+
+  it("同构造同厚度但产品层 R 不同 → 报冲突，两个来源的值都保留", () => {
+    const conflicts = detectReferenceSourceConflicts([thermalRow, knowledgePage]);
+    expect(conflicts).toEqual(expect.arrayContaining([
+      expect.objectContaining({ identity: "A1-3", thicknessMm: 35, metric: "PRODUCT_R", thermalRow: 5, knowledgePage: 4.8 })
+    ]));
+    expect(conflicts.find((item) => item.metric === "PRODUCT_R")).toBeDefined();
+  });
+
+  it("数值一致的同一档位不报冲突", () => {
+    expect(detectReferenceSourceConflicts([thermalRow, { ...knowledgePage, productThermalResistance: 5,
+      totalThermalResistance: 5.3068, kValue: 0.1884 }])).toEqual([]);
+  });
+
+  it("不同厚度不比较（甲方 Excel 的整体 25mm 与分层 35mm 不是冲突）", () => {
+    const overall25 = { ...thermalRow, thicknessMm: 25, productThermalResistance: 4 };
+    expect(detectReferenceSourceConflicts([overall25, knowledgePage])).toEqual([]);
+  });
+
+  it("冲突说明写明两个来源，并提示核对原页", () => {
+    const facts = buildAllowedAnswerFacts({}, [thermalRow, knowledgePage], "详细参数");
+    expect(facts.sourceConflicts?.length).toBeGreaterThan(0);
+    const answer = facts.canonicalAnswers[0]!;
+    expect(answer).toContain("正式热工参考集（已审核发布）为 5");
+    expect(answer).toContain("已确认图集页（页面识别确认）为 4.8");
+    expect(answer).toContain("请以原始图集页核对");
+    expect(validateAnswerFacts(answer, facts).passed).toBe(true);
+  });
+
+  it("渲染给模型的事实时标注来源类型，并单列冲突段", () => {
+    const facts = buildAllowedAnswerFacts({}, [thermalRow], "详细参数");
+    expect(renderAllowedFactsForModel(facts)).toContain("来源类型 正式热工参考集（已审核发布）");
+    const withConflict = buildAllowedAnswerFacts({}, [thermalRow, knowledgePage], "详细参数");
+    expect(renderAllowedFactsForModel(withConflict)).toContain("跨来源数值不一致");
+  });
+
+  it("默认（未标 referenceKind）按正式热工参考集处理，不误标成图集页", () => {
+    const facts = buildAllowedAnswerFacts({}, [{ ...thermalRow, referenceKind: undefined }], "详细参数");
+    expect(facts.canonicalAnswers[0]).toContain("正式热工参考集（已审核发布）");
+    expect(facts.canonicalAnswers[0]).not.toContain("已确认图集页");
   });
 });

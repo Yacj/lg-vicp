@@ -72,8 +72,29 @@ export interface CalcStep {
 export interface CalcOutcome {
   valid: boolean;
   errors: FieldError[];
+  /**
+   * 产品热阻。
+   * - EQUIVALENT：产品层按当量参数计算的热阻（多个产品层按厚度累加）；
+   * - LAYERED：**仅** `PRODUCT_LAYER` 行的热阻之和。
+   *
+   * 已知口径差异（P0-A1，待甲方确认 + 公式版本治理）：当产品由多个子层组成
+   * （如包覆浆料 + 真空绝热板 + 包覆浆料）时，甲方 Excel 的「产品整体 R」包含
+   * 包覆子层（分层例 5.0 = 0.1 + 4.8 + 0.1），而当前实现只累加 PRODUCT_LAYER，
+   * 得到的是芯材热阻 4.8。本字段在修正前**不等于**产品整体热阻，
+   * 对外展示不得把它标成「产品整体 R」。修正需派生新 formulaVersion。
+   */
   productResistance: number | null;
   productResistanceRounded: number | null;
+  /**
+   * `productResistance` 的口径范围（纯元数据，不参与任何计算，也不改历史数值）：
+   * - `PRODUCT_EQUIVALENT_TOTAL`：EQUIVALENT 模式按产品当量参数累加全部产品层，代表产品整体；
+   * - `PRODUCT_LAYER_ROWS_ONLY`：LAYERED 模式只累加 `PRODUCT_LAYER` 行，可能不含包覆等子层；
+   * - `null`：计算无效。
+   *
+   * 说明与请求方「产品整体 R」不一致时，必须先经新的 formulaVersion 变更，
+   * 不得用改名、补算或前端展示把该值直接当作产品整体热阻。
+   */
+  productResistanceScope: "PRODUCT_EQUIVALENT_TOTAL" | "PRODUCT_LAYER_ROWS_ONLY" | null;
   totalResistance: number | null;
   totalResistanceRounded: number | null;
   kValue: number | null;
@@ -231,6 +252,7 @@ export function calculateThermal(input: {
       errors,
       productResistance: null,
       productResistanceRounded: null,
+      productResistanceScope: null,
       totalResistance: null,
       totalResistanceRounded: null,
       kValue: null,
@@ -253,7 +275,11 @@ export function calculateThermal(input: {
       if (mode === "EQUIVALENT") {
         const eq = input.equivalentParams!;
         const r = layer.thicknessM / (eq.conductivity * eq.correctionFactor);
-        productResistance = r;
+        // 当量导热系数属于整个产品规格，不区分产品内部子层：
+        // 多个 PRODUCT_LAYER 行时按厚度累加（等价于「产品总厚 / (λ_eq × a_eq)」），
+        // 不得用赋值覆写前一层，否则只保留最后一层的热阻。
+        // 单产品层时 += 与 = 结果完全相同，因此不改变任何已发布单层规则的历史结果。
+        productResistance += r;
         productResistanceFormula = FORMULAS.equivalentProductResistance;
         productLambdaLabel = `（当量导热系数 ${eq.conductivity} × 修正系数 ${eq.correctionFactor}）`;
         steps.push({
@@ -330,6 +356,7 @@ export function calculateThermal(input: {
     errors: [],
     productResistance,
     productResistanceRounded: roundBy(productResistance, rules.precision, rules.roundingMode),
+    productResistanceScope: mode === "EQUIVALENT" ? "PRODUCT_EQUIVALENT_TOTAL" as const : "PRODUCT_LAYER_ROWS_ONLY" as const,
     totalResistance,
     totalResistanceRounded: totalRounded,
     kValue,

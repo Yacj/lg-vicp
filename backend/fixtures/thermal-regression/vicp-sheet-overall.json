@@ -1,0 +1,37 @@
+{
+  "name": "甲方 VICP 热工计算表格公式 · 整体计算（Excel 左例）",
+  "description": "产品层 25mm 单层板，当量 λ=0.005、α=1.25；墙体各层之和 ΣR=4.1568220978，R₀=4.3068220978，K=0.2321897625，产品整体 R=4.0。原值见附件 Sheet1 B–G 列。",
+  "mode": "EQUIVALENT",
+  "rules": {
+    "ruleId": "vicp-sheet-rule",
+    "ruleVersion": 1,
+    "ruleCode": "VICP-CALC-1",
+    "formulaVersion": "VICP-CALC-1",
+    "interiorSurfaceResistance": 0.11,
+    "exteriorSurfaceResistance": 0.04,
+    "precision": 8,
+    "roundingMode": "NONE",
+    "compareField": "K_VALUE",
+    "compareOperator": "LTE",
+    "includeNonProductLayers": true,
+    "includeSurfaceResistances": true
+  },
+  "layers": [
+    { "layerOrder": 1, "layerType": "FIXING_LAYER", "layerName": "混合砂浆", "materialId": "VICP-MORTAR", "thicknessM": 0.02, "lambda": 0.87, "correctionFactor": 1 },
+    { "layerOrder": 2, "layerType": "BASE_LAYER", "layerName": "钢筋混凝土", "materialId": "VICP-CONCRETE", "thicknessM": 0.2, "lambda": 1.87, "correctionFactor": 1 },
+    { "layerOrder": 3, "layerType": "FIXING_LAYER", "layerName": "找平层", "materialId": "VICP-LEVELING", "thicknessM": 0.015, "lambda": 0.93, "correctionFactor": 1 },
+    { "layerOrder": 4, "layerType": "FIXING_LAYER", "layerName": "粘结砂浆", "materialId": "VICP-BOND", "thicknessM": 0.005, "lambda": 0.93, "correctionFactor": 1 },
+    { "layerOrder": 5, "layerType": "PRODUCT_LAYER", "layerName": "VICP复合保温板", "materialId": null, "thicknessM": 0.025, "lambda": null, "correctionFactor": null },
+    { "layerOrder": 6, "layerType": "FIXING_LAYER", "layerName": "抹面胶浆", "materialId": "VICP-PLASTER", "thicknessM": 0.005, "lambda": 0.93, "correctionFactor": 1 }
+  ],
+  "equivalentParams": { "conductivity": 0.005, "correctionFactor": 1.25 },
+  "standardLimit": null,
+  "expected": {
+    "valid": true,
+    "sumResistance": 4.156822097834988,
+    "productResistanceRounded": 4,
+    "totalResistanceRounded": 4.3068220978349885,
+    "kValueRounded": 0.23218976249394965,
+    "compliant": null
+  }
+}

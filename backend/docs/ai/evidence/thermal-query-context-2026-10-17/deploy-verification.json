@@ -1,0 +1,46 @@
+{
+  "checkedAt": "2026-10-17T02:35:13.139Z",
+  "command": "pnpm run deploy --skip-db",
+  "databaseStepsSkipped": true,
+  "processes": [
+    {
+      "name": "lg-vicp-worker",
+      "pid": 886009,
+      "status": "online",
+      "cwd": "/www/wwwroot/lgapi.zblack.cn",
+      "script": "/www/wwwroot/lgapi.zblack.cn/dist/worker.js",
+      "uptime": 1792204436992,
+      "restarts": 60
+    },
+    {
+      "name": "lg-vicp-api",
+      "pid": 886008,
+      "status": "online",
+      "cwd": "/www/wwwroot/lgapi.zblack.cn",
+      "script": "/www/wwwroot/lgapi.zblack.cn/dist/server.js",
+      "uptime": 1792204436896,
+      "restarts": 47
+    }
+  ],
+  "hashes": {
+    "dist/modules/ai/ai-domain-policy.js": "ada7a7364e6fcb92cfc815e18ca52520d8d5b61847d4f80b77856757ed297696",
+    "dist/modules/ai/query-clarification-context.js": "1cff904fd02aeef12472fae87de5e9aac411f20e8962c60ae951778a7598f703",
+    "dist/modules/ai/confirmed-page-reference-read.js": "0049c8eece31cb7edc95d1ba1a1d051800697197986db577fb95a4361ec512fe",
+    "dist/modules/thermal/semantic-query.js": "84a4012c294b1be9da9682dafda4e7e6eeaa8d74c8eca04ec91a143f85bc5d95",
+    "dist/modules/knowledge/confirmed-page-facts.js": "5386321f7826f143db413d26e75704eb8075d91c3505b925ace3120a0c0c36e3"
+  },
+  "health": [
+    {
+      "route": "live",
+      "status": 200,
+      "ok": true
+    },
+    {
+      "route": "ready",
+      "status": 200,
+      "ok": true
+    }
+  ],
+  "hashesMatch": true,
+  "passed": true
+}

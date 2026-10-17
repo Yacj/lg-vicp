@@ -17,10 +17,11 @@ import { confirmedReferenceQuery, type resolveStructuredReferenceQuery } from ".
 import { parseSpecClassHint } from "../ai/tools/thermal-lookup.js";
 import { validateCandidateAgainstQueryState } from "../thermal/thermal-query-state.js";
 import type { ThermalQueryState } from "../thermal/thermal-query-state.js";
-import { queryConfirmedPageFacts, confirmedFactExtremum } from "./confirmed-page-facts.js";
+import { queryConfirmedPageFacts, confirmedFactExtremum, inspectConfirmedPageFacts } from "./confirmed-page-facts.js";
+import { renderReferenceQueryDiagnostics, type ReferenceQueryDiagnostics } from "../thermal/reference-query-diagnostics.js";
 
 export interface ConfirmedMatchDiagnostics { excludedMissingCoreFields: number; excludedMissingBaseMaterial: number }
-export interface KnowledgeTestReferenceContext { context: string; pages: ReferencePageBlock[]; citationOptionIds?: string[]; authoritative?: boolean; readOnlyPageFacts?: boolean; answer?: string; totalMatched?: number; totalGroups?: number; matchingDiagnostics?: ConfirmedMatchDiagnostics; query?: ReturnType<typeof normalizeConversationLookupQuery>["query"] }
+export interface KnowledgeTestReferenceContext { context: string; pages: ReferencePageBlock[]; citationOptionIds?: string[]; authoritative?: boolean; readOnlyPageFacts?: boolean; answer?: string; totalMatched?: number; totalGroups?: number; matchingDiagnostics?: ConfirmedMatchDiagnostics; queryDiagnostics?: ReferenceQueryDiagnostics; query?: ReturnType<typeof normalizeConversationLookupQuery>["query"] }
 
 const canonicalConstructionCode = (value: string | null | undefined) => value?.normalize("NFKC").replace(/\s/g, "").replace(/^外墙/, "").toUpperCase();
 /** 老确认数据的systemName可能仅为构造编号；只有完整编号等价时才读取同页确认标题作为体系证据。 */
@@ -62,6 +63,8 @@ export async function loadKnowledgeTestReferences(app: FastifyInstance, versionI
   let selectedIds: string[] | undefined;
   let matched: ReturnType<typeof matchConfirmedPageOptions> | undefined;
   const matchingDiagnostics: ConfirmedMatchDiagnostics = { excludedMissingCoreFields: 0, excludedMissingBaseMaterial: 0 };
+  const inspection = numericLookup ? inspectConfirmedPageFacts(snapshots, normalized.query) : undefined;
+  if (inspection) inspection.diagnostics.coverage = "AUTHORIZED_VERSION_ONLY";
   const pageFacts = numericLookup && snapshots.some(snapshot => snapshot.data.schemaVersion === 2)
     ? queryConfirmedPageFacts(snapshots, normalized.query) : undefined;
   if (pageFacts) {
@@ -96,9 +99,9 @@ export async function loadKnowledgeTestReferences(app: FastifyInstance, versionI
   const totalMatched = matched?.length ?? 0;
   const totalGroups = new Set(matched?.map(item => item.scheme.substrateMaterial)).size;
   const counts = pageFacts ? { totalMatched: pageFacts.length, totalGroups: new Set(pageFacts.map(fact => fact.construction.constructionId)).size } : { totalMatched, totalGroups };
-  return { pages, ...budgeted, authoritative, ...counts, ...(pageFacts ? { readOnlyPageFacts: true } : {}), matchingDiagnostics, query: normalized.query,
+  return { pages, ...budgeted, authoritative, ...counts, ...(pageFacts ? { readOnlyPageFacts: true } : {}), matchingDiagnostics, query: normalized.query, queryDiagnostics: inspection?.diagnostics,
     ...(authoritative ? { answer: formatConfirmedLookupAnswer(pages, budgeted.citationOptionIds, normalized.query.filters,
-      { ...counts, readFields: normalized.query.readFields, structured: normalized.structured, readOnlyPageFacts: Boolean(pageFacts), extremum: pageFacts ? confirmedFactExtremum(pageFacts, normalized.query) : undefined }) } : {}) };
+      { ...counts, readFields: normalized.query.readFields, structured: normalized.structured, readOnlyPageFacts: Boolean(pageFacts), diagnostics: inspection?.diagnostics, extremum: pageFacts ? confirmedFactExtremum(pageFacts, normalized.query) : undefined }) } : {}) };
 }
 
 /** 数值查表由后端逐条抄录匹配记录，避免模型改厚度、串构造或漏引用标记。 */
@@ -107,10 +110,11 @@ export function thermalLookupPrimaryFields(filters: ReturnType<typeof normalizeC
   return [...new Set<ThermalPageField>(["thicknessMm", ...metrics.map(metric => metric === "TOTAL_R" ? "totalThermalResistance" as const : metric === "PRODUCT_R" ? "productThermalResistance" as const : "kValue" as const)])];
 }
 
-export function formatConfirmedLookupAnswer(pages: readonly ReferencePageBlock[], optionIds: readonly string[], filters: ReturnType<typeof normalizeConversationLookupQuery>["query"]["filters"], copy?: { scopeLabel?: string; emptyHint?: string; compact?: boolean; totalMatched?: number; totalGroups?: number; readOnlyPageFacts?: boolean; readFields?: ThermalQueryState["readFields"]; extremum?: ReturnType<typeof confirmedFactExtremum>; structured?: ReturnType<typeof resolveStructuredReferenceQuery> }): string {
+export function formatConfirmedLookupAnswer(pages: readonly ReferencePageBlock[], optionIds: readonly string[], filters: ReturnType<typeof normalizeConversationLookupQuery>["query"]["filters"], copy?: { scopeLabel?: string; emptyHint?: string; compact?: boolean; totalMatched?: number; totalGroups?: number; readOnlyPageFacts?: boolean; readFields?: ThermalQueryState["readFields"]; diagnostics?: ReferenceQueryDiagnostics; extremum?: ReturnType<typeof confirmedFactExtremum>; structured?: ReturnType<typeof resolveStructuredReferenceQuery> }): string {
   filters ??= [];
   const target = filters.map(filter => `${filter.metric === "K" ? "传热系数 K" : filter.metric === "TOTAL_R" ? "整构造传热阻" : "产品层热阻 R"}${filter.mode === "EXACT" ? "等于" : filter.mode === "MAX_LIMIT" ? "不超过" : filter.mode === "MIN_LIMIT" ? "不低于" : "接近"} ${filter.targetValue}`).join("、");
   const records = optionIds.flatMap(id => pages.flatMap(page => page.renderModel?.constructions.flatMap(construction => construction.options.filter(option => option.optionId === id).map(option => ({ page, construction, option }))) ?? [])).slice(0, copy?.structured || copy?.totalMatched != null ? 12 : 3);
+  if (!records.length && copy?.diagnostics && !copy.totalMatched) return renderReferenceQueryDiagnostics(copy.diagnostics);
   if (copy?.readOnlyPageFacts) {
     const total = copy.totalMatched ?? records.length;
     if (!records.length) return total ? `已匹配 ${total} 档，但本轮预算未能包含可引用行，请缩小资料范围。`
@@ -213,7 +217,12 @@ export function matchConfirmedPageOptions(snapshots: readonly { page: { id: stri
     - (pageEvidence.get(b.sourcePageId!)?.page.physicalPageNumber ?? Number.MAX_SAFE_INTEGER)
     || (a.sourcePageId ?? "").localeCompare(b.sourcePageId ?? "") || a.rowId.localeCompare(b.rowId))) {
     const mappedSystemId = pageEvidence.get(row.sourcePageId!)?.systemId ?? null;
-    const key = JSON.stringify([row.setId, mappedSystemId, row.systemName, row.schemeCode.normalize("NFKC").replace(/^外墙/, "").replace(/\s/g, "").toUpperCase(),
+    const snapshot = pageEvidence.get(row.sourcePageId!)!;
+    const constructionIndex = snapshot.model.constructions.findIndex(item => item.options.some(option => option.optionId === row.rowId));
+    const original = snapshot.data.systems[constructionIndex];
+    // 完整确认构造证据相同才折叠展示；正倒置、分组、层构造和正式映射不同均保留独立身份。
+    const key = JSON.stringify([row.setId, snapshot.page.documentId, mappedSystemId, snapshot.data.pageTitle,
+      original ? { ...original, options: undefined } : row.rowId, row.systemName, row.schemeCode.normalize("NFKC").replace(/^外墙/, "").replace(/\s/g, "").toUpperCase(),
       row.substrateMaterial, row.substrateThickness, row.specClass, row.productSpecId === row.schemeId ? null : row.productSpecId,
       row.catalogProductId, row.thicknessMm, row.productThermalResistance, row.totalThermalResistance, row.kValue]);
     if (!unique.has(key)) unique.set(key, row);

@@ -29,6 +29,7 @@ beforeEach(() => {
   vi.resetAllMocks(); mocks.read.mockResolvedValue([referenceReadFixture().row]); mocks.runtime.mockRejectedValue(new Error("受控模拟：语义模型不可用"));
   mocks.query.mockImplementation(async (_ctx, query) => ({ queryState: query, outcome: { matchedCandidates: [], lookupMode: "APPROX", tolerance: .02 },
     candidates: [], matchedCandidates: [], nearbyRaw: [], nearbyCandidates: [], identityMatchedButMetricFailed: [], matchedCount: 0, notes: [],
+    readOnlyReferences: { answer: "当前授权范围没有匹配记录。", pages: [] }, readOnlyFacts: [],
     pages: { candidates: [], sources: [], blocks: [], warnings: [] }, nearbyPages: { candidates: [], sources: [], blocks: [], warnings: [] }, identityPages: { candidates: [], sources: [], blocks: [], warnings: [] } }));
   // 仅隔离DB事务：模拟已有Candidate Result契约，不冒充真实SolutionState事务验证。
   mocks.record.mockImplementation(async (ctx, snapshot) => ({ lookup: { ...snapshot, projectId: null,

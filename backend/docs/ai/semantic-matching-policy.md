@@ -36,11 +36,13 @@
 5. 与Domain/Thermal/Solution Parser无冲突的证据。
 6. Code Review中明确模块owner批准，CI回归通过。不得将代理自行补manifest视为owner批准。
 
+SM-PAGE-SCOPE-COVERAGE-01仅在Domain已决定QUERY后的字段验证中，检查封闭部位枚举是否丢失；它只拒绝不完整提案，不新增意图路由或补入条件。显式REMOVE不恢复，否定/引用无法一致核验则澄清；5正5反及取消/否定/引用回归见thermal-query-context-regression.test.ts。其职责属于正式字段/原话证据校验，不是开放语义快路径。
+
 本次没有新增灰区自然语言规则。已有完整命令集合保持原样，Domain开放正则和三个建议帮助函数已移除。
 
 ## 一次语义决策与后端门禁
 
-`ai-domain-semantic.ts` 解析 intent、relation、adviceMode、constraintPatch、reference和requestedEffect；保留完整原话。`ai-domain-policy.ts` 核验schema、连续证据、revision、肯定直接请求及确定性参数。Action/Report/Calculate/Query需明确effect且置信度≥0.9；只读建议在无歧义、有原话和有效来源时可安全降级。新建议条件置信度≥0.8才查表，实际参数仍由原解析器获取。
+`ai-domain-semantic.ts` 解析 intent、relation、adviceMode、constraintPatch、reference和requestedEffect；保留完整原话。`ai-domain-policy.ts` 核验schema、连续证据、revision、肯定直接请求及确定性参数。Action/Report/Calculate及发布候选的Query需明确effect且置信度≥0.9；0.8至0.9的Query仅在完整pageQuery经后端逐字段核验后FACTS_ONLY展示，不改写Candidate或执行副作用；更低置信与超时保持拒绝。factRead≥0.8仅进入受控只读事实服务，不能发布Candidate或执行副作用；返回已核验记录或缺身份澄清。未形成Candidate的原页回溯只消费绑定本人同端同项目的24h内实际引用，重验版本/revision/optionId，不接受旧序号。只读建议在无歧义、有原话和有效来源时可安全降级。新建议条件置信度≥0.8才查表，实际参数仍由原解析器获取。
 
 `EXCLUDE_FROM_THIS_ADVICE`仅允许地区/建筑类型，不能清除项目事实；建议SET/CLEAR这些字段被拒绝。普通建议只消费最近可见候选，新增条件调用既有查表，不执行Thermal Engine。建议查询只更新会话Candidate Result，不能刷新已选或正式SolutionState。
 

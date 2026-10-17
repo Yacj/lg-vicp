@@ -9,6 +9,7 @@ import {
   thermalCalcEvidenceLabel,
   thermalCalcModeLabel,
   thermalCalcSourceLabel,
+  thermalCalcThicknessLabel,
 } from '@/utils/thermal-calc'
 
 /**
@@ -72,7 +73,7 @@ const versionText = computed(() => {
     </header>
 
     <div class="thermal-result__grid">
-      <AppMetricCard label="保温层厚度" :secondary-text="summary.thicknessMm == null ? '' : 'mm'" :value="formatNumber(summary.thicknessMm)" />
+      <AppMetricCard :label="thermalCalcThicknessLabel(summary)" :secondary-text="summary.thicknessMm == null ? '' : 'mm'" :value="formatNumber(summary.thicknessMm)" />
       <AppMetricCard label="产品层热阻 R" :secondary-text="summary.productResistance == null ? '' : 'm²·K/W'" :value="formatNumber(summary.productResistance)" />
       <AppMetricCard label="总热阻 R₀" :secondary-text="summary.totalResistance == null ? '' : 'm²·K/W'" :value="formatNumber(summary.totalResistance)" />
       <AppMetricCard label="传热系数 K" :secondary-text="summary.kValue == null ? '' : 'W/(m²·K)'" :status="kStatus" :value="formatNumber(summary.kValue)" />

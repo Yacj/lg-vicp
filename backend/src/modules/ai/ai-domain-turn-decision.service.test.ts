@@ -3,6 +3,7 @@ import "dotenv/config";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ runtime: vi.fn(), generate: vi.fn(), history: vi.fn() }));
 vi.mock("./reference-fact-history.js", () => ({ readReferenceFactHistory: mocks.history }));
+vi.mock("./query-clarification-context.js", () => ({ readQueryClarification: async () => null }));
 vi.mock("ai", () => ({ generateObject: mocks.generate }));
 vi.mock("./ai-runtime.service.js", () => ({ resolveSceneRuntime: mocks.runtime }));
 import { resolveDomainTurn, DOMAIN_SEMANTIC_PROMPT } from "./ai-domain-turn-decision.service.js";

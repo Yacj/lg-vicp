@@ -15,6 +15,11 @@ export interface DomainTurnDecision {
   requiresCandidateQuery?: boolean;
   restoreAdviceGoal?: boolean;
   policyReason?: string;
+  /** 仅服务器绑定的只读查询证据，原用户消息及副作用授权仍独立。 */
+  queryEvidenceText?: string;
+  queryContextMessageId?: string;
+  /** 中等置信的查询提案经完整条件校验后仅展示事实，不发布/覆盖Candidate。 */
+  queryResultMode?: "FACTS_ONLY";
 }
 /** 内部合同构造器不等于授权；模型输出只能经applyDomainPolicy进入执行路径。 */
 export function domainDecision(intent: DomainIntent, evidence: string): DomainTurnDecision {

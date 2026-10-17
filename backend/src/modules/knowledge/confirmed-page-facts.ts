@@ -4,7 +4,9 @@ import { validatePageRecognitionEvidence } from "../../shared/page-recognition-e
 import { visiblePageLabel } from "../../shared/page-label.js";
 import { groundedPageAttribute } from "../../shared/confirmed-page-query.js";
 import { normalizeThermalLookupQuery, getCandidateMetricValue, metricRankingGap } from "../thermal/thermal-lookup-mode.js";
-import { validateCandidateAgainstQueryState, type ThermalQueryState } from "../thermal/thermal-query-state.js";
+import { validateCandidateAgainstQueryState, type ConstraintCandidate, type ThermalQueryState } from "../thermal/thermal-query-state.js";
+import { diagnoseReferenceQuery, withoutReferenceMetrics, type ReferenceQueryDiagnostics } from "../thermal/reference-query-diagnostics.js";
+import { legacyConfirmedPagePart } from "../../shared/legacy-confirmed-page-scope.js";
 
 export interface ConfirmedPageSnapshot {
   page: { id: string; versionId: string; documentId?: string; pageLabel?: string | null; pageLabelSource?: string; pageLabelVerified?: boolean };
@@ -18,6 +20,8 @@ export interface ConfirmedPageFact {
   documentId?: string;
   construction: KnowledgePageRenderModel["constructions"][number];
   option: KnowledgePageRenderModel["constructions"][number]["options"][number];
+  /** 只供本轮结构化验证/诊断，不构造正式Candidate或补ID。 */
+  queryFacts?: ConstraintCandidate;
 }
 const metricValue = (option: ConfirmedPageFact["option"], metric: "K" | "TOTAL_R" | "PRODUCT_R") => getCandidateMetricValue({
   kValue: option.kValue ?? undefined, totalThermalResistance: option.totalThermalResistance ?? undefined,
@@ -43,14 +47,16 @@ export function queryConfirmedPageFacts(snapshots: readonly ConfirmedPageSnapsho
     for (const [index, construction] of model.constructions.entries()) {
       const system = data.systems[index];
       if (!system) continue;
-      if ((["applicationPart", "roofForm", "placement"] as const).some(field => query[field] != null && query[field] !== construction[field])) continue;
+      const applicationPart = construction.applicationPart ?? (data.schemaVersion !== 2 ? legacyConfirmedPagePart(data.pageTitle) : undefined);
+      if (query.applicationPart != null && query.applicationPart !== applicationPart) continue;
+      if ((["roofForm", "placement"] as const).some(field => query[field] != null && query[field] !== construction[field])) continue;
       if (query.waterproofGrade && groundedPageAttribute("waterproofGrade", query.waterproofGrade) !== groundedPageAttribute("waterproofGrade", construction.waterproofGrade ?? "")) continue;
       if (query.constructionCodes?.length && !query.constructionCodes.some(value => code(value) === code(construction.constructionCode ?? ""))) continue;
       for (const [optionIndex, option] of construction.options.entries()) {
         if (option.thicknessMm == null || option.thicknessMm <= 0) continue;
         const sourceOption = system.options?.[optionIndex];
         const candidate = { systemId: systemId ?? undefined, systemName: [data.pageTitle, construction.systemName].filter(Boolean).join(" / ") || undefined,
-          applicationPart: construction.applicationPart ?? undefined, roofForm: construction.roofForm ?? undefined,
+          applicationPart, roofForm: construction.roofForm ?? undefined,
           placement: construction.placement ?? undefined, waterproofGrade: construction.waterproofGrade ? groundedPageAttribute("waterproofGrade", construction.waterproofGrade) : undefined, pageLabel: visiblePageLabel(page) ?? undefined,
           schemeId: system.schemeId ?? undefined, schemeCode: code(construction.constructionCode ?? ""),
           productSpecId: sourceOption?.productSpecId ?? undefined, catalogProductId: sourceOption?.catalogProductId,
@@ -62,7 +68,7 @@ export function queryConfirmedPageFacts(snapshots: readonly ConfirmedPageSnapsho
         if (!validateCandidateAgainstQueryState(candidate, { ...query, schemeCode: query.schemeCode ? code(query.schemeCode) : undefined,
           constructionCodes: query.constructionCodes?.map(code), waterproofGrade: query.waterproofGrade ? groundedPageAttribute("waterproofGrade", query.waterproofGrade) ?? query.waterproofGrade : undefined }).passed) continue;
         if (normalizeThermalLookupQuery(query).filters.some(filter => getCandidateMetricValue(candidate, filter.metric) == null)) continue;
-        result.push({ pageId: page.id, versionId: page.versionId, documentId: page.documentId, construction, option });
+        result.push({ pageId: page.id, versionId: page.versionId, documentId: page.documentId, construction, option, queryFacts: candidate });
       }
     }
   }
@@ -79,4 +85,16 @@ export function queryConfirmedPageFacts(snapshots: readonly ConfirmedPageSnapsho
       || a.pageId.localeCompare(b.pageId) || a.construction.constructionId.localeCompare(b.construction.constructionId)
       || a.option.thicknessMm! - b.option.thicknessMm! || a.option.optionId.localeCompare(b.option.optionId);
   });
+}
+
+export function inspectConfirmedPageFacts(snapshots: readonly ConfirmedPageSnapshot[], query: ThermalQueryState) {
+  const all = queryConfirmedPageFacts(snapshots, {});
+  const rows = all.map(fact => fact.queryFacts!);
+  const diagnostics = diagnoseReferenceQuery(query, rows, "KNOWLEDGE_PAGE");
+  const available = all.filter(fact => validateCandidateAgainstQueryState(fact.queryFacts!, withoutReferenceMetrics(query)).passed);
+  if (diagnostics.missingMetrics.includes("PRODUCT_R") && available.some(fact => fact.construction.layers.some(layer => layer.rValue != null)
+    || fact.option.layerValues?.some(layer => layer.rValue != null))) diagnostics.issues.push("METRIC_SCOPE_DIFFERENT");
+  const rejected = snapshots.filter(snapshot => snapshot.data.schemaVersion === 2 && validatePageRecognitionEvidence(snapshot.data).issues.length).length;
+  if (rejected) { diagnostics.rejectedSourceCount = rejected; diagnostics.issues.push("SOURCE_NOT_VERIFIABLE"); }
+  return { facts: queryConfirmedPageFacts(snapshots, query), rows, all, diagnostics: diagnostics as ReferenceQueryDiagnostics };
 }

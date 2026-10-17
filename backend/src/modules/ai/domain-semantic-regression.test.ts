@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({ model: vi.fn(), runtime: vi.fn() }));
 vi.mock("ai", () => ({ generateObject: mocks.model }));
 vi.mock("./ai-runtime.service.js", () => ({ resolveSceneRuntime: mocks.runtime }));
 vi.mock("./reference-fact-history.js", () => ({ readReferenceFactHistory: async () => [] }));
+vi.mock("./query-clarification-context.js", () => ({ readQueryClarification: async () => null }));
 beforeEach(() => { vi.clearAllMocks(); mocks.runtime.mockResolvedValue({ primary: { languageModel: {} } }); });
 const cases = [
   ["能不能出个方案", "SOLUTION_ADVICE", "READ_ONLY"],

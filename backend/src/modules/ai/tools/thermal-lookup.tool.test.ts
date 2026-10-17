@@ -7,6 +7,7 @@ import { matchThermalCandidates, type CandidateRow } from "../../thermal/thermal
 import { normalizeThermalLookupQuery } from "../../thermal/thermal-lookup-mode.js";
 import { parseConversationTaskState, type LastReferenceLookup } from "../conversation-task.js";
 import type { ToolRuntimeContext } from "./tool-runtime.js";
+import { resolveConfirmedReferenceAnswer } from "../ai-reference-pages.service.js";
 
 const mocks = vi.hoisted(() => ({ query: vi.fn(), save: vi.fn() }));
 vi.mock("../solution-state.service.js", async original => ({ ...await original<typeof import("../solution-state.service.js")>(), assertSolutionAccess: async () => ({ projectId: null }) }));
@@ -17,6 +18,9 @@ vi.mock("../../thermal/thermal-query-dictionary.service.js", () => ({ loadTherma
 ], aliases: [] }) }));
 vi.mock("../../thermal/thermal-candidate.service.js", () => ({ queryThermalCandidates: mocks.query }));
 vi.mock("../ai-conversation-state.service.js", () => ({ saveConversationTaskState: mocks.save }));
+// 本文件验证Tool条件/候选生命周期；联合来源的真实读取由独立Service回归覆盖。
+vi.mock("../ai-reference-pages.service.js", async original => ({ ...await original<typeof import("../ai-reference-pages.service.js")>(),
+  loadPublishedKnowledgeReferences: async () => ({ pages: [], context: "", confirmedFacts: [], allConfirmedFacts: [], diagnosticRows: [] }) }));
 vi.mock("./tool-runtime.js", () => ({ runRegisteredTool: async (_ctx: unknown, _name: unknown, _args: unknown, _options: unknown, run: () => unknown) => run() }));
 
 const real: CandidateRow = {
@@ -58,11 +62,27 @@ beforeEach(() => {
     return { calculationSource: "REFERENCE_TABLE", ...lookup, lookupMode: lookup.mode,
       kTolerance: lookup.metric === "K" ? lookup.tolerance : null,
       candidates: matchThermalCandidates(publishedRows, input, { neighborTolerance: input.neighborTolerance }).candidates,
+      sourceRows: publishedRows.map(row => ({ ...row, id: row.rowId })),
       notes: [], missingConditions: [], limit: null, limitCandidates: null };
   });
 });
 
 describe("thermal Tool 最终收口回归", () => {
+  it("联合查询的引用标记只由Agent回调解析一次，原页optionId不丢失", async () => {
+    const ctx = context("K0.303的薄抹灰方案");
+    const data = { fullText: "", systems: [{ constructionCode: "A1-3", systemName: real.systemName, specClass: "I", baseMaterial: real.substrateMaterial,
+      baseThicknessMm: real.substrateThickness, options: [{ thicknessMm: 18, productThermalResistance: 2.88, totalThermalResistance: 3.297, kValue: .303 }] }] };
+    const rows = [{ pageId: "page-22", documentId: "doc", documentTitle: "确认图集", versionId: "v1", currentVersionId: "v1", versionStatus: "PUBLISHED",
+      documentStatus: "ACTIVE", documentDeletedAt: null, effectiveDate: null, expiryDate: null, metadata: { confirmedStructuredData: data }, pageLabel: "22", physicalPageNumber: 22, pageNumber: 22 }];
+    const chain: any = { from: () => chain, innerJoin: () => chain, where: async () => rows };
+    ctx.app.db = { select: () => chain } as any;
+    let bound: ReturnType<typeof resolveConfirmedReferenceAnswer> | undefined;
+    const callback = vi.fn((answer: string, pages: any) => { bound = resolveConfirmedReferenceAnswer(answer, pages); });
+    ctx.onReferenceAnswer = callback;
+    await execute(ctx, { metric: "K", targetValue: .303 });
+    expect(callback).toHaveBeenCalledOnce(); expect(callback.mock.calls[0]![0]).toContain("[[KP:");
+    expect(bound?.text).not.toContain("[[KP:"); expect(bound?.pages).toHaveLength(1); expect(bound?.pages[0]!.matches[0]!.optionId).toBeTruthy();
+  });
   it("真实失败问句传热8.3先澄清，模型猜PRODUCT_R或TOTAL_R也不执行查询", async () => {
     for (const metric of ["PRODUCT_R", "TOTAL_R", "K"]) {
       const result = await execute(context("有传热8.3的保温板么"), { metric, targetValue: 8.3 });
@@ -225,7 +245,8 @@ describe("thermal Tool 最终收口回归", () => {
       expect(ctx.onEvent).toHaveBeenCalledWith("reference_pages", expect.objectContaining({ referencePages: expect.any(Array) }));
     } else {
       expect(ctx.taskState?.lastReferenceLookup?.candidates).toEqual([]);
-      expect(result.data.instruction).toContain("继续查图集原文");
+      expect(result.data.allowedFacts.queryDiagnostics.issues).toContain("NO_MATCHING_VALUE");
+      expect(result.data.instruction).toContain("已完成正式参考集与确认页读取");
     }
   });
 
@@ -263,7 +284,8 @@ describe("thermal Tool 最终收口回归", () => {
     const ctx = context("薄抹灰 K0.3左右");
     const result = await execute(ctx);
     expect(result.data).toMatchObject({ found: false, isFallback: false, candidates: [] });
-    expect(ctx.thermalCanonicalAnswers?.[0]).toContain("没有找到同时满足");
+    expect(result.data.allowedFacts.queryDiagnostics.issues).toContain("IDENTITY_NOT_FOUND");
+    expect(ctx.thermalCanonicalAnswers?.[0]).toContain("当前体系、型号、基层、厚度及来源限制");
     const restored = parseConversationTaskState(JSON.parse(JSON.stringify(ctx.taskState)));
     expect(restored.lastReferenceLookup).toMatchObject({ isFallback: false, query: { systemId: "system-i" }, candidates: [] });
   });

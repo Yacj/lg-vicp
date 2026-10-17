@@ -1,0 +1,134 @@
+{
+  "kind": "curated_audit_summary",
+  "date": "2026-10-17",
+  "timezone": "Asia/Hong_Kong",
+  "stage": 0,
+  "head": "f747eace4353711c27431757111db73b2f9988b6",
+  "baseline": "current_dirty_workspace_not_deployment",
+  "provenance": "本轮工具输出人工整理摘要，不是原始HTTP/SSE记录或原始模型输出。原消息backendDecision和任务状态来自本轮只读数据库读取。",
+  "databaseProbe": {
+    "startedAtUtc": "2026-10-17T06:22:09.305Z",
+    "maxConnections": 1,
+    "connectionDefaultTransactionReadOnly": "on",
+    "showTransactionReadOnlyBefore": "on",
+    "showTransactionReadOnlyAfter": "on",
+    "storageSigning": "empty_url_stub_no_oss_call",
+    "scope": "public_current_published_readable_no_project",
+    "initialAttempt": "dotenv未加载，在环境校验时退出，未连接数据库；显式加载dotenv后完成读取"
+  },
+  "storedCases": [
+    {
+      "case": 1,
+      "conversationId": "95726326-8491-4cc3-8b93-2e9690cc4007",
+      "clientApp": "c_app",
+      "first": { "intent": "CLARIFY", "confidence": 0.62, "route": ["backend:clarify"] },
+      "second": {
+        "intent": "REFERENCE_QUERY",
+        "domainConfidence": 0.9,
+        "pageQueryConfidence": 0.9,
+        "relation": "CONTINUE",
+        "queryMode": "NEW_QUERY",
+        "filters": [{ "metric": "PRODUCT_R", "targetValue": 0.3, "mode": "APPROX", "effectiveTolerance": 0.05 }],
+        "route": ["backend:knowledge", "backend:reference_query"],
+        "savedContext": "confirmedPageLookup",
+        "queryChanged": false,
+        "factValidationCode": "NOT_EVALUATED",
+        "candidateIds": [],
+        "referencePageIds": [],
+        "reportQueued": false,
+        "solutionStateMutated": false
+      }
+    },
+    {
+      "case": 2,
+      "conversationId": "26e31d13-3bfe-4259-8d63-038b7b6e32bc",
+      "clientApp": "c_app",
+      "first": { "intent": "CLARIFY", "confidence": 0.55, "route": ["backend:clarify"] },
+      "second": {
+        "intent": "REFERENCE_QUERY",
+        "domainConfidence": 0.9,
+        "pageQueryConfidence": 0.85,
+        "queryResultMode": "FACTS_ONLY",
+        "policyReason": "VERIFY_QUERY_FACTS_ONLY",
+        "relation": "CONTINUE",
+        "queryMode": "NEW_QUERY",
+        "filters": [{ "metric": "PRODUCT_R", "targetValue": 0.3, "mode": "APPROX", "effectiveTolerance": 0.05 }],
+        "systemConstraintPresent": false,
+        "route": ["backend:knowledge", "backend:reference_query"],
+        "savedContext": "confirmedPageLookup",
+        "queryChanged": false,
+        "factValidationCode": "NOT_EVALUATED",
+        "candidateIds": [],
+        "referencePageIds": [],
+        "reportQueued": false,
+        "solutionStateMutated": false
+      }
+    },
+    {
+      "case": 3,
+      "conversationId": "a62d8723-d531-4725-bbd2-dda53695a6af",
+      "intent": "PRODUCT_DISCOVERY",
+      "confidence": 0.9,
+      "route": ["backend:product_search"],
+      "answerSource": "resolveProductConsultation.answer_direct_assignment",
+      "factValidationCode": "CATALOG_VERIFIED",
+      "knowledgeLookup": false,
+      "thermalTool": false,
+      "reportQueued": false,
+      "solutionStateMutated": false
+    }
+  ],
+  "sourceProbes": [
+    {
+      "query": { "filters": [{ "metric": "K", "targetValue": 0.2, "mode": "APPROX" }] },
+      "thermalCounts": { "beforeAll": 2, "afterFamily": 2, "afterMetric": 1, "afterThickness": 1, "afterAllHard": 1 },
+      "knowledgeReadOnly": { "matchedOptions": 119, "groups": 88, "returnedPages": 3, "citedOptions": 9 },
+      "sharedCandidateCount": 1,
+      "limitation": "两类结果资格不同，未经身份关联不可相加或计算118个正式方案遗漏"
+    },
+    {
+      "query": { "filters": [{ "metric": "PRODUCT_R", "targetValue": 0.3, "mode": "APPROX" }] },
+      "thermalCounts": { "beforeAll": 2, "afterFamily": 2, "afterMetric": 0, "afterThickness": 0, "afterAllHard": 0 },
+      "knowledgeMatchedOptions": 0,
+      "sharedCandidateCount": 0,
+      "formalMetricScope": { "values": [4, 5], "count": 2 },
+      "limitation": "4/5仅为正式表取值，非知识库完整取值"
+    },
+    {
+      "query": { "filters": [{ "metric": "PRODUCT_R", "targetValue": 0.3, "mode": "APPROX" }], "specClass": "III", "thicknessMm": 35 },
+      "thermalCounts": { "beforeAll": 2, "afterFamily": 0, "afterMetric": 0, "afterThickness": 0, "afterAllHard": 0 },
+      "knowledgeMatchedOptions": 0,
+      "sharedCandidateCount": 0,
+      "incorrectlyScopedFormalMetricScope": { "values": [4, 5], "count": 2 }
+    }
+  ],
+  "pureProbes": {
+    "differentIdentitySameCodeAndThickness": {
+      "code": "A1-1", "thicknessMm": 35,
+      "differentFields": ["systemId", "schemeId", "specClass", "sourceVersionId", "substrateMaterial", "placement"],
+      "actualFalseConflict": { "metric": "K", "thermalRow": 0.1884, "knowledgePage": 0.25 }
+    },
+    "layeredFixture": {
+      "formulaVersion": "VICP-CALC-1",
+      "actualProductResistance": 4.8,
+      "expectedWholeProductResistance": 5,
+      "coreResistance": 4.8,
+      "totalResistance": 5.3068220978349885,
+      "kValue": 0.18843669178357564,
+      "persistedCalculation": false
+    }
+  },
+  "existingTestRun": {
+    "runner": "pnpm exec vitest run",
+    "testFiles": 13,
+    "passed": 264,
+    "expectedFail": 1,
+    "total": 265,
+    "durationSeconds": 15.15,
+    "interpretation": "expected fail为既知产品整体/芯材热阻口径，不能标记已修复；Mock/纯函数测试不能替代真实模型HTTP/SSE"
+  },
+  "notExecuted": ["real_model", "http_sse_replay", "full_continuous_dialogue", "isolated_uat", "formal_calculation_persistence", "solution_actions", "confirm_snapshot", "pdf_generation", "frontend_browser", "oss_signing", "full_test_suite", "lint", "build", "db_check", "deployment"],
+  "sourceChanges": false,
+  "newRulesOrRegex": false,
+  "stoppedAtStage": 0
+}

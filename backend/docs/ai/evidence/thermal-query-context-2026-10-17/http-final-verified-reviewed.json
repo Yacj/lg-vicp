@@ -1,0 +1,323 @@
+{
+  "scope": "真实隔离HTTP/SSE逐轮工程条件、引用、Policy和零正式写入断言；非浏览器验收",
+  "counts": {
+    "PASS": 28,
+    "FAIL": 2
+  },
+  "rows": [
+    {
+      "round": 1,
+      "caseId": "clarification",
+      "user": "保温0.3的材料有么",
+      "intent": "CLARIFY",
+      "policyReason": "SEMANTIC_AMBIGUOUS",
+      "factCount": 0,
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "round": 1,
+      "caseId": "clarification",
+      "user": "我指的是传热系数K。",
+      "intent": "REFERENCE_QUERY",
+      "policyReason": "VERIFY_QUERY_FACTS_ONLY",
+      "queryResultMode": "FACTS_ONLY",
+      "factCount": 5,
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "round": 1,
+      "caseId": "clarification",
+      "user": "那改成不超过0.2呢？",
+      "intent": "REFERENCE_REFINE",
+      "policyReason": "READ_ONLY_QUERY",
+      "factCount": 12,
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "round": 1,
+      "caseId": "upper",
+      "user": "外墙传热系数不超过0.3的方案有吗？",
+      "intent": "REFERENCE_QUERY",
+      "policyReason": "READ_ONLY_QUERY",
+      "factCount": 12,
+      "status": "FAIL",
+      "failures": [
+        "外墙约束未保留"
+      ]
+    },
+    {
+      "round": 1,
+      "caseId": "oral",
+      "user": "45厚的3型那种外墙，不同砖墙K差多少？",
+      "intent": "REFERENCE_QUERY",
+      "policyReason": "VERIFY_QUERY_FACTS_ONLY",
+      "queryResultMode": "FACTS_ONLY",
+      "factCount": 6,
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "round": 1,
+      "caseId": "oral",
+      "user": "哦不是，厚度我说错了，改成35。",
+      "intent": "REFERENCE_REFINE",
+      "policyReason": "READ_ONLY_QUERY",
+      "factCount": 6,
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "round": 1,
+      "caseId": "oral",
+      "user": "继续刚才35mm对比。",
+      "intent": "REFERENCE_REFINE",
+      "policyReason": "READ_ONLY_QUERY",
+      "factCount": 6,
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "round": 1,
+      "caseId": "oral",
+      "user": "先不要确认，也不要生成报告，列一下优缺点。",
+      "intent": "SOLUTION_ADVICE",
+      "policyReason": "READ_ONLY_SEMANTIC",
+      "factCount": 6,
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "round": 1,
+      "caseId": "oral",
+      "user": "这些外墙在某省2025年能达标吗？生成正式报告。",
+      "intent": "CLARIFY",
+      "policyReason": "EFFECT_NOT_AUTHORIZED",
+      "factCount": 0,
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "round": 1,
+      "caseId": "control",
+      "user": "传热系数K在0.3左右的外墙方案有吗？",
+      "intent": "REFERENCE_QUERY",
+      "policyReason": "READ_ONLY_QUERY",
+      "factCount": 5,
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "round": 1,
+      "caseId": "control",
+      "user": "帮我确认一下K=0.294这个数字对不对。",
+      "intent": "KNOWLEDGE_EXPLAIN",
+      "policyReason": "READ_ONLY_SEMANTIC",
+      "factCount": 5,
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "round": 1,
+      "caseId": "negative",
+      "user": "把第一个加入方案",
+      "intent": "CLARIFY",
+      "policyReason": "SEMANTIC_AMBIGUOUS",
+      "factCount": 0,
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "round": 1,
+      "caseId": "negative",
+      "user": "把第一个设为最终方案",
+      "intent": "CLARIFY",
+      "policyReason": "SEMANTIC_AMBIGUOUS",
+      "factCount": 0,
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "round": 1,
+      "caseId": "negative",
+      "user": "确认最终方案",
+      "intent": "SOLUTION_ACTION",
+      "policyReason": "CLOSED_COMMAND",
+      "factCount": 0,
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "round": 1,
+      "caseId": "negative",
+      "user": "确认最终方案并生成正式PDF",
+      "intent": "REPORT_REQUEST",
+      "policyReason": "EXPLICIT_EFFECT_PROPOSAL",
+      "factCount": 0,
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "round": 2,
+      "caseId": "clarification",
+      "user": "保温0.3的材料有么",
+      "intent": "CLARIFY",
+      "policyReason": "SEMANTIC_AMBIGUOUS",
+      "factCount": 0,
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "round": 2,
+      "caseId": "clarification",
+      "user": "我指的是传热系数K。",
+      "intent": "REFERENCE_QUERY",
+      "policyReason": "VERIFY_QUERY_FACTS_ONLY",
+      "queryResultMode": "FACTS_ONLY",
+      "factCount": 5,
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "round": 2,
+      "caseId": "clarification",
+      "user": "那改成不超过0.2呢？",
+      "intent": "REFERENCE_REFINE",
+      "policyReason": "READ_ONLY_QUERY",
+      "factCount": 12,
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "round": 2,
+      "caseId": "upper",
+      "user": "外墙传热系数不超过0.3的方案有吗？",
+      "intent": "REFERENCE_QUERY",
+      "policyReason": "READ_ONLY_QUERY",
+      "factCount": 12,
+      "status": "FAIL",
+      "failures": [
+        "外墙约束未保留"
+      ]
+    },
+    {
+      "round": 2,
+      "caseId": "oral",
+      "user": "45厚的3型那种外墙，不同砖墙K差多少？",
+      "intent": "REFERENCE_QUERY",
+      "policyReason": "READ_ONLY_QUERY",
+      "factCount": 6,
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "round": 2,
+      "caseId": "oral",
+      "user": "哦不是，厚度我说错了，改成35。",
+      "intent": "REFERENCE_REFINE",
+      "policyReason": "READ_ONLY_QUERY",
+      "factCount": 6,
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "round": 2,
+      "caseId": "oral",
+      "user": "继续刚才35mm对比。",
+      "intent": "REFERENCE_REFINE",
+      "policyReason": "READ_ONLY_QUERY",
+      "factCount": 6,
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "round": 2,
+      "caseId": "oral",
+      "user": "先不要确认，也不要生成报告，列一下优缺点。",
+      "intent": "SOLUTION_ADVICE",
+      "policyReason": "READ_ONLY_SEMANTIC",
+      "factCount": 6,
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "round": 2,
+      "caseId": "oral",
+      "user": "这些外墙在某省2025年能达标吗？生成正式报告。",
+      "intent": "CLARIFY",
+      "policyReason": "EFFECT_NOT_AUTHORIZED",
+      "factCount": 0,
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "round": 2,
+      "caseId": "control",
+      "user": "传热系数K在0.3左右的外墙方案有吗？",
+      "intent": "REFERENCE_QUERY",
+      "policyReason": "READ_ONLY_QUERY",
+      "factCount": 5,
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "round": 2,
+      "caseId": "control",
+      "user": "帮我确认一下K=0.294这个数字对不对。",
+      "intent": "KNOWLEDGE_EXPLAIN",
+      "policyReason": "READ_ONLY_SEMANTIC",
+      "factCount": 5,
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "round": 2,
+      "caseId": "negative",
+      "user": "把第一个加入方案",
+      "intent": "CLARIFY",
+      "policyReason": "SEMANTIC_AMBIGUOUS",
+      "factCount": 0,
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "round": 2,
+      "caseId": "negative",
+      "user": "把第一个设为最终方案",
+      "intent": "CLARIFY",
+      "policyReason": "SEMANTIC_AMBIGUOUS",
+      "factCount": 0,
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "round": 2,
+      "caseId": "negative",
+      "user": "确认最终方案",
+      "intent": "SOLUTION_ACTION",
+      "policyReason": "CLOSED_COMMAND",
+      "factCount": 0,
+      "status": "PASS",
+      "failures": []
+    },
+    {
+      "round": 2,
+      "caseId": "negative",
+      "user": "确认最终方案并生成正式PDF",
+      "intent": "CLARIFY",
+      "policyReason": "SEMANTIC_AMBIGUOUS",
+      "factCount": 0,
+      "status": "PASS",
+      "failures": []
+    }
+  ],
+  "cleanup": {
+    "redisKeysRemaining": 0,
+    "databaseAbsent": true,
+    "errors": [],
+    "objectsWritten": 0
+  },
+  "sourcePagesUnchanged": true
+}

@@ -130,11 +130,16 @@ export const solutionErrorMessages: Record<string, string> = {
   SOLUTION_SOURCE_CHANGED: '部分来源数据已更新，请重新查询后确认方案',
 }
 
+/**
+ * 方案指标卡：标签必须与后端语义一一对应。
+ * - 厚度是「产品层总厚度」（产品由多个子层组成时是各子层之和），不是单层板厚，也不是基层厚度；
+ * - 产品层热阻 R 与总热阻 R₀ 是两个指标，不能互相顶替。
+ */
 export function solutionMetrics(candidate: SolutionCandidate) {
   return [
-    { label: '保温层厚度', value: candidate.thicknessMm, digits: 0, unit: 'mm' },
+    { label: '产品厚度', value: candidate.thicknessMm, digits: 0, unit: 'mm' },
     { label: '传热系数 K', value: candidate.kValue, digits: 3, unit: 'W/(m²·K)' },
-    { label: '产品热阻 R', value: candidate.productThermalResistance, digits: 3, unit: '(m²·K)/W' },
+    { label: '产品层热阻 R', value: candidate.productThermalResistance, digits: 3, unit: '(m²·K)/W' },
     { label: '总热阻 R₀', value: candidate.totalThermalResistance, digits: 3, unit: '(m²·K)/W' },
   ].filter((metric): metric is typeof metric & { value: number } => typeof metric.value === 'number' && Number.isFinite(metric.value))
 }

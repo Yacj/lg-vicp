@@ -1,0 +1,543 @@
+{
+  "scope": "原UAT-07/08/11/12/15连续对话；12主动断网轮未运行；额外算术/事实核对对照",
+  "counts": {
+    "FAIL": 3,
+    "PARTIAL": 17,
+    "PASS": 24
+  },
+  "rows": [
+    {
+      "round": 1,
+      "caseId": "UAT-07",
+      "user": "你们 VICP 产品主要有什么？我不是工程师，简单介绍。",
+      "intent": "KNOWLEDGE_EXPLAIN",
+      "policyReason": "READ_ONLY_SEMANTIC",
+      "factCount": 0,
+      "status": "FAIL",
+      "failures": [
+        "产品目录介绍误入自由解释，包含未受目录约束的产品/芯材表述"
+      ],
+      "notes": []
+    },
+    {
+      "round": 1,
+      "caseId": "UAT-07",
+      "user": "I型和II型的区别是什么？",
+      "intent": "KNOWLEDGE_EXPLAIN",
+      "policyReason": "READ_ONLY_SEMANTIC",
+      "factCount": 0,
+      "status": "PARTIAL",
+      "failures": [],
+      "notes": [
+        "不同体系/构造无法唯一比较，已要求构造/厚度；未输出参数差异"
+      ]
+    },
+    {
+      "round": 1,
+      "caseId": "UAT-07",
+      "user": "VICP 跟岩棉比有什么优缺点？",
+      "intent": "MATERIAL_COMPARE",
+      "policyReason": "READ_ONLY_SEMANTIC",
+      "factCount": 0,
+      "status": "PARTIAL",
+      "failures": [],
+      "notes": [
+        "材料比较自然语言的所有属性未逐项来源审核"
+      ]
+    },
+    {
+      "round": 1,
+      "caseId": "UAT-07",
+      "user": "这种比较能用来向客户直接承诺达标吗？",
+      "intent": "COMPLIANCE_CHECK",
+      "policyReason": "READ_ONLY_SEMANTIC",
+      "factCount": 0,
+      "status": "PASS",
+      "failures": [],
+      "notes": []
+    },
+    {
+      "round": 1,
+      "caseId": "UAT-08",
+      "user": "A3-2 45mm 的 K 是多少？",
+      "intent": "REFERENCE_QUERY",
+      "policyReason": "READ_ONLY_QUERY",
+      "factCount": 1,
+      "status": "PASS",
+      "failures": [],
+      "notes": []
+    },
+    {
+      "round": 1,
+      "caseId": "UAT-08",
+      "user": "我想改成资料里没有的 55mm，帮我重新计算 K。",
+      "intent": "CLARIFY",
+      "policyReason": "EFFECT_NOT_AUTHORIZED",
+      "factCount": 0,
+      "status": "PARTIAL",
+      "failures": [],
+      "notes": [
+        "55mm正式计算未完成，保留授权/模型门禁"
+      ]
+    },
+    {
+      "round": 1,
+      "caseId": "UAT-08",
+      "user": "你怎么算出来的？",
+      "intent": "KNOWLEDGE_EXPLAIN",
+      "policyReason": "READ_ONLY_SEMANTIC",
+      "factCount": 0,
+      "status": "PARTIAL",
+      "failures": [],
+      "notes": [
+        "计算过程追问文案仍需核验；本轮没有执行55mm计算"
+      ]
+    },
+    {
+      "round": 1,
+      "caseId": "UAT-08",
+      "user": "那还是给我原来 45mm 的原页。",
+      "intent": "REFERENCE_VIEW",
+      "policyReason": "READ_ONLY_SEMANTIC",
+      "factCount": 1,
+      "status": "PASS",
+      "failures": [],
+      "notes": []
+    },
+    {
+      "round": 1,
+      "caseId": "UAT-11",
+      "user": "先不要出正式方案，我只想了解 A3-2。",
+      "intent": "KNOWLEDGE_EXPLAIN",
+      "policyReason": "READ_ONLY_SEMANTIC",
+      "factCount": 0,
+      "status": "PARTIAL",
+      "failures": [],
+      "notes": [
+        "A3-2多构造来源，需补体系/来源页"
+      ]
+    },
+    {
+      "round": 1,
+      "caseId": "UAT-11",
+      "user": "不要确认，先保留刚才的查询条件。",
+      "intent": "KNOWLEDGE_EXPLAIN",
+      "policyReason": "READ_ONLY_SEMANTIC",
+      "factCount": 0,
+      "status": "PARTIAL",
+      "failures": [],
+      "notes": [
+        "前轮未形成查询，无有效条件可保留；未伪造状态"
+      ]
+    },
+    {
+      "round": 1,
+      "caseId": "UAT-11",
+      "user": "帮我确认一下 K=0.294 这个数字对不对。",
+      "intent": "CLARIFY",
+      "policyReason": "FACT_READ_INVALID",
+      "factCount": 0,
+      "status": "PASS",
+      "failures": [],
+      "notes": []
+    },
+    {
+      "round": 1,
+      "caseId": "UAT-11",
+      "user": "方案报告一般有哪些章节？",
+      "intent": "KNOWLEDGE_EXPLAIN",
+      "policyReason": "READ_ONLY_SEMANTIC",
+      "factCount": 0,
+      "status": "PARTIAL",
+      "failures": [],
+      "notes": [
+        "章节说明未按全部正式模板逐项验收"
+      ]
+    },
+    {
+      "round": 1,
+      "caseId": "UAT-11",
+      "user": "你现在直接帮我生成正式报告，哪怕我没确认方案。",
+      "intent": "REPORT_REQUEST",
+      "policyReason": "EXPLICIT_EFFECT_PROPOSAL",
+      "factCount": 0,
+      "status": "PASS",
+      "failures": [],
+      "notes": []
+    },
+    {
+      "round": 1,
+      "caseId": "UAT-12",
+      "user": "45厚的3型那种外墙，不同砖墙K差多少？",
+      "intent": "REFERENCE_QUERY",
+      "policyReason": "VERIFY_QUERY_FACTS_ONLY",
+      "factCount": 6,
+      "status": "PASS",
+      "failures": [],
+      "notes": []
+    },
+    {
+      "round": 1,
+      "caseId": "UAT-12",
+      "user": "我就要最薄的那个，哪个合适？",
+      "intent": "REFERENCE_REFINE",
+      "policyReason": "VERIFY_QUERY_FACTS_ONLY",
+      "factCount": 6,
+      "status": "PARTIAL",
+      "failures": [],
+      "notes": [
+        "原45mm条件下仅重列档位，未直接解释最薄并列和实际基层约束"
+      ]
+    },
+    {
+      "round": 1,
+      "caseId": "UAT-12",
+      "user": "哦不是，厚度我说错了，改成35。",
+      "intent": "REFERENCE_REFINE",
+      "policyReason": "READ_ONLY_QUERY",
+      "factCount": 6,
+      "status": "PASS",
+      "failures": [],
+      "notes": []
+    },
+    {
+      "round": 1,
+      "caseId": "UAT-12",
+      "user": "继续刚才的 35mm 对比。",
+      "intent": "REFERENCE_REFINE",
+      "policyReason": "READ_ONLY_QUERY",
+      "factCount": 6,
+      "status": "PASS",
+      "failures": [],
+      "notes": []
+    },
+    {
+      "round": 1,
+      "caseId": "UAT-15",
+      "user": "你好，小格，你能做什么？",
+      "intent": "GENERAL",
+      "policyReason": "READ_ONLY_SEMANTIC",
+      "factCount": 0,
+      "status": "PASS",
+      "failures": [],
+      "notes": []
+    },
+    {
+      "round": 1,
+      "caseId": "UAT-15",
+      "user": "K 和热阻之间是什么关系？",
+      "intent": "KNOWLEDGE_EXPLAIN",
+      "policyReason": "READ_ONLY_SEMANTIC",
+      "factCount": 0,
+      "status": "PASS",
+      "failures": [],
+      "notes": []
+    },
+    {
+      "round": 1,
+      "caseId": "UAT-15",
+      "user": "我今天不想做项目，先聊聊你如何查图集。",
+      "intent": "KNOWLEDGE_EXPLAIN",
+      "policyReason": "READ_ONLY_SEMANTIC",
+      "factCount": 0,
+      "status": "PARTIAL",
+      "failures": [],
+      "notes": [
+        "切换话题后回答仍带旧概念内容"
+      ]
+    },
+    {
+      "round": 1,
+      "caseId": "UAT-15",
+      "user": "那你前面说的 A3-2 是什么？",
+      "intent": "KNOWLEDGE_EXPLAIN",
+      "policyReason": "READ_ONLY_SEMANTIC",
+      "factCount": 0,
+      "status": "PASS",
+      "failures": [],
+      "notes": []
+    },
+    {
+      "round": 1,
+      "caseId": "arithmetic",
+      "user": "I型15mm R=4.8与II型50mm R=5.0谁大？",
+      "intent": "CLARIFY",
+      "policyReason": "PAGE_QUERY_CONSTRAINTS_INVALID",
+      "factCount": 0,
+      "status": "FAIL",
+      "failures": [
+        "没有给出正确算术关系",
+        "未区分数值关系和来源核验"
+      ],
+      "notes": []
+    },
+    {
+      "round": 2,
+      "caseId": "UAT-07",
+      "user": "你们 VICP 产品主要有什么？我不是工程师，简单介绍。",
+      "intent": "PRODUCT_DISCOVERY",
+      "policyReason": "READ_ONLY_SEMANTIC",
+      "factCount": 0,
+      "status": "PASS",
+      "failures": [],
+      "notes": []
+    },
+    {
+      "round": 2,
+      "caseId": "UAT-07",
+      "user": "I型和II型的区别是什么？",
+      "intent": "KNOWLEDGE_EXPLAIN",
+      "policyReason": "READ_ONLY_SEMANTIC",
+      "factCount": 0,
+      "status": "PARTIAL",
+      "failures": [],
+      "notes": [
+        "不同体系/构造无法唯一比较，已要求构造/厚度；未输出参数差异"
+      ]
+    },
+    {
+      "round": 2,
+      "caseId": "UAT-07",
+      "user": "VICP 跟岩棉比有什么优缺点？",
+      "intent": "MATERIAL_COMPARE",
+      "policyReason": "READ_ONLY_SEMANTIC",
+      "factCount": 0,
+      "status": "PARTIAL",
+      "failures": [],
+      "notes": [
+        "材料比较自然语言的所有属性未逐项来源审核"
+      ]
+    },
+    {
+      "round": 2,
+      "caseId": "UAT-07",
+      "user": "这种比较能用来向客户直接承诺达标吗？",
+      "intent": "COMPLIANCE_CHECK",
+      "policyReason": "READ_ONLY_SEMANTIC",
+      "factCount": 0,
+      "status": "PASS",
+      "failures": [],
+      "notes": []
+    },
+    {
+      "round": 2,
+      "caseId": "UAT-08",
+      "user": "A3-2 45mm 的 K 是多少？",
+      "intent": "REFERENCE_QUERY",
+      "policyReason": "READ_ONLY_QUERY",
+      "factCount": 1,
+      "status": "PASS",
+      "failures": [],
+      "notes": []
+    },
+    {
+      "round": 2,
+      "caseId": "UAT-08",
+      "user": "我想改成资料里没有的 55mm，帮我重新计算 K。",
+      "intent": "CLARIFY",
+      "policyReason": "EFFECT_NOT_AUTHORIZED",
+      "factCount": 0,
+      "status": "PARTIAL",
+      "failures": [],
+      "notes": [
+        "55mm正式计算未完成，保留授权/模型门禁"
+      ]
+    },
+    {
+      "round": 2,
+      "caseId": "UAT-08",
+      "user": "你怎么算出来的？",
+      "intent": "KNOWLEDGE_EXPLAIN",
+      "policyReason": "READ_ONLY_SEMANTIC",
+      "factCount": 0,
+      "status": "PARTIAL",
+      "failures": [],
+      "notes": [
+        "计算过程追问文案仍需核验；本轮没有执行55mm计算"
+      ]
+    },
+    {
+      "round": 2,
+      "caseId": "UAT-08",
+      "user": "那还是给我原来 45mm 的原页。",
+      "intent": "REFERENCE_VIEW",
+      "policyReason": "READ_ONLY_SEMANTIC",
+      "factCount": 1,
+      "status": "PASS",
+      "failures": [],
+      "notes": []
+    },
+    {
+      "round": 2,
+      "caseId": "UAT-11",
+      "user": "先不要出正式方案，我只想了解 A3-2。",
+      "intent": "KNOWLEDGE_EXPLAIN",
+      "policyReason": "READ_ONLY_SEMANTIC",
+      "factCount": 0,
+      "status": "PARTIAL",
+      "failures": [],
+      "notes": [
+        "A3-2多构造来源，需补体系/来源页"
+      ]
+    },
+    {
+      "round": 2,
+      "caseId": "UAT-11",
+      "user": "不要确认，先保留刚才的查询条件。",
+      "intent": "KNOWLEDGE_EXPLAIN",
+      "policyReason": "READ_ONLY_SEMANTIC",
+      "factCount": 0,
+      "status": "PARTIAL",
+      "failures": [],
+      "notes": [
+        "前轮未形成查询，无有效条件可保留；未伪造状态"
+      ]
+    },
+    {
+      "round": 2,
+      "caseId": "UAT-11",
+      "user": "帮我确认一下 K=0.294 这个数字对不对。",
+      "intent": "KNOWLEDGE_EXPLAIN",
+      "policyReason": "READ_ONLY_SEMANTIC",
+      "factCount": 0,
+      "status": "PASS",
+      "failures": [],
+      "notes": []
+    },
+    {
+      "round": 2,
+      "caseId": "UAT-11",
+      "user": "方案报告一般有哪些章节？",
+      "intent": "SOLUTION_ADVICE",
+      "policyReason": "READ_ONLY_SEMANTIC",
+      "factCount": 0,
+      "status": "PARTIAL",
+      "failures": [],
+      "notes": [
+        "章节说明未按全部正式模板逐项验收"
+      ]
+    },
+    {
+      "round": 2,
+      "caseId": "UAT-11",
+      "user": "你现在直接帮我生成正式报告，哪怕我没确认方案。",
+      "intent": "REPORT_REQUEST",
+      "policyReason": "EXPLICIT_EFFECT_PROPOSAL",
+      "factCount": 0,
+      "status": "PASS",
+      "failures": [],
+      "notes": []
+    },
+    {
+      "round": 2,
+      "caseId": "UAT-12",
+      "user": "45厚的3型那种外墙，不同砖墙K差多少？",
+      "intent": "REFERENCE_QUERY",
+      "policyReason": "READ_ONLY_QUERY",
+      "factCount": 6,
+      "status": "PASS",
+      "failures": [],
+      "notes": []
+    },
+    {
+      "round": 2,
+      "caseId": "UAT-12",
+      "user": "我就要最薄的那个，哪个合适？",
+      "intent": "COMPARE_CANDIDATES",
+      "policyReason": "READ_ONLY_SEMANTIC",
+      "factCount": 0,
+      "status": "PARTIAL",
+      "failures": [],
+      "notes": [
+        "只有确认页上下文时最薄读取仍未形成来源闭环"
+      ]
+    },
+    {
+      "round": 2,
+      "caseId": "UAT-12",
+      "user": "哦不是，厚度我说错了，改成35。",
+      "intent": "REFERENCE_REFINE",
+      "policyReason": "READ_ONLY_QUERY",
+      "factCount": 6,
+      "status": "PASS",
+      "failures": [],
+      "notes": []
+    },
+    {
+      "round": 2,
+      "caseId": "UAT-12",
+      "user": "继续刚才的 35mm 对比。",
+      "intent": "REFERENCE_REFINE",
+      "policyReason": "READ_ONLY_QUERY",
+      "factCount": 6,
+      "status": "PASS",
+      "failures": [],
+      "notes": []
+    },
+    {
+      "round": 2,
+      "caseId": "UAT-15",
+      "user": "你好，小格，你能做什么？",
+      "intent": "GENERAL",
+      "policyReason": "READ_ONLY_SEMANTIC",
+      "factCount": 0,
+      "status": "PASS",
+      "failures": [],
+      "notes": []
+    },
+    {
+      "round": 2,
+      "caseId": "UAT-15",
+      "user": "K 和热阻之间是什么关系？",
+      "intent": "KNOWLEDGE_EXPLAIN",
+      "policyReason": "READ_ONLY_SEMANTIC",
+      "factCount": 0,
+      "status": "PASS",
+      "failures": [],
+      "notes": []
+    },
+    {
+      "round": 2,
+      "caseId": "UAT-15",
+      "user": "我今天不想做项目，先聊聊你如何查图集。",
+      "intent": "KNOWLEDGE_EXPLAIN",
+      "policyReason": "READ_ONLY_SEMANTIC",
+      "factCount": 0,
+      "status": "PASS",
+      "failures": [],
+      "notes": []
+    },
+    {
+      "round": 2,
+      "caseId": "UAT-15",
+      "user": "那你前面说的 A3-2 是什么？",
+      "intent": "KNOWLEDGE_EXPLAIN",
+      "policyReason": "READ_ONLY_SEMANTIC",
+      "factCount": 0,
+      "status": "PASS",
+      "failures": [],
+      "notes": []
+    },
+    {
+      "round": 2,
+      "caseId": "arithmetic",
+      "user": "I型15mm R=4.8与II型50mm R=5.0谁大？",
+      "intent": "CLARIFY",
+      "policyReason": "PAGE_QUERY_CONSTRAINTS_INVALID",
+      "factCount": 0,
+      "status": "FAIL",
+      "failures": [
+        "没有给出正确算术关系",
+        "未区分数值关系和来源核验"
+      ],
+      "notes": []
+    }
+  ],
+  "cleanup": {
+    "redisKeysRemaining": 0,
+    "databaseAbsent": true,
+    "errors": [],
+    "objectsWritten": 0
+  },
+  "sourcePagesUnchanged": true
+}

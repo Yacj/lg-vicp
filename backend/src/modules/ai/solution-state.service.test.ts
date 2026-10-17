@@ -30,7 +30,8 @@ vi.mock("./ai-conversation-state.service.js", () => ({ saveConversationTaskState
 } }));
 vi.mock("./tools/tool-runtime.js", async importOriginal => ({ ...await importOriginal<typeof import("./tools/tool-runtime.js")>(),
   runRegisteredTool: async (_ctx: unknown, _name: unknown, _args: unknown, _options: unknown, run: () => unknown) => run() }));
-vi.mock("./ai-reference-pages.service.js", async original => ({ ...await original<typeof import("./ai-reference-pages.service.js")>(), readConsumableReferencePages: mocks.readable }));
+vi.mock("./ai-reference-pages.service.js", async original => ({ ...await original<typeof import("./ai-reference-pages.service.js")>(), readConsumableReferencePages: mocks.readable,
+  loadPublishedKnowledgeReferences: async () => ({ pages: [], context: "", confirmedFacts: [], allConfirmedFacts: [], diagnosticRows: [] }) }));
 // 发布行查询在该事务测试中隔离；独立source测试执行真实参数化读取合同。
 vi.mock("./reference-candidate-source.service.js", () => ({ referenceRowsStillCurrent: async () => true }));
 vi.mock("../audit-logs/audit-log.service.js", () => ({ writeAuditLog: mocks.audit }));

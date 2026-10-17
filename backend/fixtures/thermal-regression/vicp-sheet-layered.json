@@ -1,0 +1,40 @@
+{
+  "name": "甲方 VICP 热工计算表格公式 · 分层计算（Excel 右例）",
+  "description": "产品由「包覆浆料 10mm + 真空绝热板 15mm + 包覆浆料 10mm」组成，产品组总厚 35mm；墙体各层之和 ΣR=5.1568220978，R₀=5.3068220978，K=0.1884366918。产品整体 R=5.0（=0.1+4.8+0.1），真空芯材自身 R=4.8。注意本例总厚 280mm，与左例 270mm 不同，不是同厚度同条件对比。",
+  "mode": "LAYERED",
+  "rules": {
+    "ruleId": "vicp-sheet-rule",
+    "ruleVersion": 1,
+    "ruleCode": "VICP-CALC-1",
+    "formulaVersion": "VICP-CALC-1",
+    "interiorSurfaceResistance": 0.11,
+    "exteriorSurfaceResistance": 0.04,
+    "precision": 8,
+    "roundingMode": "NONE",
+    "compareField": "K_VALUE",
+    "compareOperator": "LTE",
+    "includeNonProductLayers": true,
+    "includeSurfaceResistances": true
+  },
+  "layers": [
+    { "layerOrder": 1, "layerType": "FIXING_LAYER", "layerName": "混合砂浆", "materialId": "VICP-MORTAR", "thicknessM": 0.02, "lambda": 0.87, "correctionFactor": 1 },
+    { "layerOrder": 2, "layerType": "BASE_LAYER", "layerName": "钢筋混凝土", "materialId": "VICP-CONCRETE", "thicknessM": 0.2, "lambda": 1.87, "correctionFactor": 1 },
+    { "layerOrder": 3, "layerType": "FIXING_LAYER", "layerName": "找平层", "materialId": "VICP-LEVELING", "thicknessM": 0.015, "lambda": 0.93, "correctionFactor": 1 },
+    { "layerOrder": 4, "layerType": "FIXING_LAYER", "layerName": "粘结砂浆", "materialId": "VICP-BOND", "thicknessM": 0.005, "lambda": 0.93, "correctionFactor": 1 },
+    { "layerOrder": 5, "layerType": "FIXING_LAYER", "layerName": "包覆浆料（产品子层）", "materialId": "VICP-COATING", "thicknessM": 0.01, "lambda": 0.08, "correctionFactor": 1.25 },
+    { "layerOrder": 6, "layerType": "PRODUCT_LAYER", "layerName": "真空绝热板（芯材）", "materialId": "VICP-VACUUM", "thicknessM": 0.015, "lambda": 0.0025, "correctionFactor": 1.25 },
+    { "layerOrder": 7, "layerType": "FIXING_LAYER", "layerName": "包覆浆料（产品子层）", "materialId": "VICP-COATING", "thicknessM": 0.01, "lambda": 0.08, "correctionFactor": 1.25 },
+    { "layerOrder": 8, "layerType": "FIXING_LAYER", "layerName": "抹面胶浆", "materialId": "VICP-PLASTER", "thicknessM": 0.005, "lambda": 0.93, "correctionFactor": 1 }
+  ],
+  "standardLimit": null,
+  "knownGap": "P0-A1：当前 productResistance 只累加 PRODUCT_LAYER（芯材 4.8），未包含两层包覆浆料，与甲方 Excel 的产品整体 R=5.0 不一致。修正需先确认产品组/子层口径并派生新公式版本（VICP-CALC-2），本阶段不改事实语义，因此该断言标记为 expected-to-fail。",
+  "expected": {
+    "valid": true,
+    "sumResistance": 5.156822097834988,
+    "productResistanceRounded": 5,
+    "coreResistance": 4.8,
+    "totalResistanceRounded": 5.3068220978349885,
+    "kValueRounded": 0.18843669178357564,
+    "compliant": null
+  }
+}

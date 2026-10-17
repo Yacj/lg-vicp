@@ -24,7 +24,8 @@ if (process.argv.includes("--check")) {
       const value = await response.json() as { success: boolean; data: any; error?: unknown };
       assert(value.success, `真实API失败：${route}`); return value.data;
     };
-    const created = await api("/conversations", { clientApp: "PC_AI", scene: "general_chat" });
+    // 会话存储的 clientApp 是小写枚举（pc_ai），与 JWT 的 clientType（PC_AI）不同；传大写会被入参校验拒绝。
+    const created = await api("/conversations", { clientApp: "pc_ai", scene: "general_chat" });
     const conversationId = created.conversation.id;
     type State = SolutionPayload & { id: string; stage: string; version: number; confirmedSnapshotId: string | null };
     const turn = async (text: string): Promise<State> => {

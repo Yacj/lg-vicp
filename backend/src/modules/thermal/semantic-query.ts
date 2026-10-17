@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { QUERY_LIFECYCLE_MODES } from "./thermal-query-lifecycle.js";
-import { normalizeThermalLookupQuery, parseThermalLookupMessage } from "./thermal-lookup-mode.js";
+import { normalizeThermalLookupQuery, parseThermalLookupMessage, inferThermalLookupMode } from "./thermal-lookup-mode.js";
 import { entityFields, traceQueryState, type ThermalQueryState } from "./thermal-query-state.js";
 import { resolveQueryEntities, type QueryAlias, type QueryEntity } from "./thermal-entity-resolver.js";
 import { parseThermalThicknessMessage } from "./thermal-lookup-thickness.js";
@@ -46,6 +46,7 @@ export function describeNumberRoles(message: string) {
 function semanticNumberRole(text: string, raw: string, index: number): string {
   const before = text.slice(0, index), after = text.slice(index + raw.length);
   if (/^\s*(?:mm|cm|毫米|厘米|公分)\b/i.test(after) || /^\s*(?:毫米|厘米|公分|厚)/.test(after)) return "THICKNESS";
+  if (/^\s*型/.test(after)) return "SCHEME_CODE_PART";
   if (/(?:第|page|p\.)\s*$/i.test(before)) return "PAGE_NUMBER";
   if (/(?:\bK|PRODUCT_R|TOTAL_R|R0)\s*$/i.test(before)) return "THERMAL_TARGET";
   if (/(?:[a-z][a-z0-9_-]*|[-_/])$/i.test(before)) return "SCHEME_CODE_PART";
@@ -80,9 +81,13 @@ function groundedValue(constraint: SemanticQuery["constraints"][number]): boolea
 }
 
 /** 语义只改变查询条件，实体必须再次验证目录；模型不输出正式 ID 或业务数值。 */
-export function applySemanticQuery(message: string, semanticInput: unknown, dictionary: SemanticDictionary, previous?: ThermalQueryState): ThermalQueryState {
+export function applySemanticQuery(message: string, semanticInput: unknown, dictionary: SemanticDictionary, previous?: ThermalQueryState,
+  options?: { currentMessage?: string }): ThermalQueryState {
   const semantic = semanticQuerySchema.parse(semanticInput);
   const text = normalizeSemanticText(message);
+  // 覆盖校验只看本轮原话：拼接进来的历史原问只用于证据核验，不能当成本轮必须保留的条件
+  // （澄清纠正指标时，上一轮的 K/体系会被误判为「模型漏掉」）。
+  const scopeText = normalizeSemanticText(options?.currentMessage ?? message);
   let query: ThermalQueryState = semantic.queryMode === "NEW_QUERY" ? {} : { ...previous };
   query = { ...query, intent: semantic.intent, unresolved: [...semantic.unresolved],
     readFields: semantic.readFields?.length ? semantic.readFields : semantic.queryMode === "NEW_QUERY" ? undefined : previous?.readFields };
@@ -201,7 +206,9 @@ export function applySemanticQuery(message: string, semanticInput: unknown, dict
         // 明确符号比较优先于模型分类；容差仍只从原话规则提取。
         const symbolic = [...evidence.matchAll(/(K|TOTAL_R|PRODUCT_R|R0)\s*(<=|>=|<|>|=|≈|≤|≥)\s*(\d+(?:\.\d+)?)/gi)]
           .flatMap(match => parseSemanticFastPath(match[0])?.constraints ?? []).find(item => item.metric === constraint.metric && item.value === constraint.value);
-        const mode = symbolic?.operator ?? constraint.operator;
+        const parsedMode = parseThermalLookupMessage(message).filters.find(item => item.metric === constraint.metric && item.targetValue === constraint.value)?.mode;
+        const inheritedMode = semantic.queryMode !== "NEW_QUERY" ? normalizeThermalLookupQuery(previous ?? {}).filters.find(item => item.metric === constraint.metric)?.mode : undefined;
+        const mode = symbolic?.operator ?? parsedMode ?? inferThermalLookupMode(constraint.evidence) ?? inheritedMode ?? "APPROX";
         const previousTolerance = filters.find(item => item.metric === constraint.metric && item.mode === mode && item.toleranceSource === "USER");
         const tolerance = parseThermalLookupMessage(evidence).filters.find(item => item.metric === constraint.metric)?.tolerance ?? previousTolerance?.tolerance;
         query.filters.push({ metric: constraint.metric, targetValue: constraint.value, mode, tolerance,
@@ -247,11 +254,30 @@ export function applySemanticQuery(message: string, semanticInput: unknown, dict
   // 目录中明确命中的硬实体不能被模型省略或收窄为任意一条记录。
   // 已由原话连续证据核验的体系文本是只读硬筛选条件；目录没有该体系不等于不能查确认页。
   // 不让旧的局部族名建议再把完整systemHint改为“未映射”，也不据此签发目录ID。
-  const explicitEntities = resolveQueryEntities(text, query.systemHint ? { systemHint: query.systemHint } : {}, dictionary.entities, dictionary.aliases);
+  const explicitEntities = resolveQueryEntities(scopeText, query.systemHint ? { systemHint: query.systemHint } : {}, dictionary.entities, dictionary.aliases);
   for (const unresolved of explicitEntities.unresolved ?? []) reject(unresolved.field, unresolved.reason);
+  /**
+   * 构造编号与构造ID是同一条身份的两个表示：字典可把「A1-3」解析成 schemeId，
+   * 模型按合同输出的是 schemeCode 文本。只要其中一种已被保留，就不能判成「未完整保留」，
+   * 否则任何 A1-3 类查表都会被无条件拒绝（真实 UAT DESIGN-012 Turn 1 即此原因）。
+   */
+  const sameSchemeIdentity = (schemeId: string) => {
+    if (!query.schemeCode) return false;
+    const code = normalizeSemanticText(String(query.schemeCode));
+    return dictionary.entities.some(entity => entity.field === "schemeId" && entity.value === schemeId
+      && (entity.names ?? []).some(name => normalizeSemanticText(name) === code));
+  };
+  const schemeCodeIsResolved = (schemeCode: string) => {
+    if (!query.schemeId) return false;
+    const code = normalizeSemanticText(String(schemeCode));
+    return dictionary.entities.some(entity => entity.field === "schemeId" && entity.value === query.schemeId
+      && (entity.names ?? []).some(name => normalizeSemanticText(name) === code));
+  };
   for (const field of entityFields) {
     const expected = explicitEntities[field];
     if (field === "specClass" && expected && query.specClasses?.some(value => value === expected)) continue;
+    if (field === "schemeId" && expected !== undefined && query.schemeId !== expected && sameSchemeIdentity(String(expected))) continue;
+    if (field === "schemeCode" && expected !== undefined && query.schemeCode !== expected && schemeCodeIsResolved(String(expected))) continue;
     if (expected !== undefined && query[field] !== expected) reject(field, "明确指定的对象未被完整保留，请确认。");
   }
   if (explicitEntities.systemIds?.length) {
@@ -272,7 +298,14 @@ export function applySemanticQuery(message: string, semanticInput: unknown, dict
     }
   }
   // 可确定绑定的原话条件不能被分类模型漏掉。
-  for (const filter of parseThermalLookupMessage(text).filters) {
+  // SM-PAGE-SCOPE-COVERAGE-01：封闭部位枚举的遗漏校验；只拒绝，不据词选择意图或补筛选条件。
+  // 同时出现两种部位交语义合同处理；显式REMOVE由原逐字段证据核验，不重建已取消条件。
+  const mentionedParts = [...new Set(scopeText.match(/外墙|屋面/g) ?? [])];
+  const expectedPart = mentionedParts.length === 1 ? groundedPageAttribute("applicationPart", mentionedParts[0]!) : undefined;
+  const removedPart = semantic.constraints.some(item => item.type === "ENTITY" && item.field === "applicationPart" && item.operation === "REMOVE");
+  if (expectedPart && query.applicationPart !== expectedPart && !removedPart)
+    reject("applicationPart", "本轮明确的建筑部位未被完整保留，请确认。");
+  for (const filter of parseThermalLookupMessage(scopeText).filters) {
     if (!semantic.constraints.some(item => item.type === "METRIC" && item.metric === filter.metric && item.value === filter.targetValue))
       reject("metric", "部分明确指标条件未被完整解析，请确认。");
   }

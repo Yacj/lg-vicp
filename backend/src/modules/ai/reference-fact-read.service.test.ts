@@ -4,7 +4,7 @@ const mocks = vi.hoisted(() => ({ access: vi.fn(), history: vi.fn(), query: vi.f
 vi.mock("./solution-state.service.js", () => ({ assertSolutionAccess: mocks.access }));
 vi.mock("./reference-fact-history.js", async original => ({ ...await original<typeof import("./reference-fact-history.js")>(), readReferenceFactHistory: mocks.history }));
 vi.mock("./ai-reference-pages.service.js", async original => ({ ...await original<typeof import("./ai-reference-pages.service.js")>(), querySelectedKnowledgeCandidates: mocks.query, readConsumableReferencePages: mocks.read }));
-import { resolveReferenceFactRead, compareReferenceNumbers } from "./reference-fact-read.service.js";
+import { resolveReferenceFactRead, compareReferenceNumbers, compareClaimedMetricNumbers } from "./reference-fact-read.service.js";
 import { domainSemanticFixture } from "./domain-semantic.fixture.js";
 import { domainDecision } from "./ai-domain-turn-decision.js";
 import { referenceReadFixture } from "./reference-read.fixture.js";
@@ -36,6 +36,12 @@ it("型号热阻关系由代码计算，4.800小于5.000；不同指标不能混
   expect(compareReferenceNumbers(b, a, "PRODUCT_R")).toContain("5.000 > 4.800");
   expect(compareReferenceNumbers(a, b, "TOTAL_R")).toContain("缺失");
 });
+it("用户给定大小关系可以直接确定，但不能当作正式来源已核验", () => {
+  expect(compareClaimedMetricNumbers("I型15mm R=4.8与II型50mm R=5.0谁大？")).toContain("4.800 < 5.000");
+  expect(compareClaimedMetricNumbers("R=4.8与K=5.0")).toBe("");
+  expect(compareClaimedMetricNumbers("R=4.8与R=5.0与R=6.0")).toBe("");
+  expect(compareClaimedMetricNumbers("R=-4.8与R=5.0")).toBe("");
+});
 it("历史前提只由真实助手消息编码核验，独立知识命中不是历史", async () => {
   const ctx = context("你前面说的A1-1是什么？"), before = structuredClone(ctx.taskState);
   let result = await resolveReferenceFactRead(ctx, hits);
@@ -57,6 +63,11 @@ it("缺构造身份只澄清缺失项，不伪称旧序号或创建候选", asyn
   const result = await resolveReferenceFactRead(context("帮我确认K=0.294对不对", "VERIFY"), []);
   expect(result?.facts.canonicalAnswers[0]).toContain("构造编号");
   expect(mocks.query).not.toHaveBeenCalled();
+});
+it("Policy已拒绝的factRead提案不能借CLARIFY继续读取来源", async () => {
+  const ctx = context("确认K=0.294", "VERIFY"); ctx.domainDecision.intent = "CLARIFY";
+  expect(await resolveReferenceFactRead(ctx, hits)).toBeUndefined();
+  expect(mocks.access).not.toHaveBeenCalled(); expect(mocks.history).not.toHaveBeenCalled(); expect(mocks.query).not.toHaveBeenCalled();
 });
 it.each(["project", "revision", "otherUser", "withdrawn", "oldOption"])("事实读取%s失效仍拒绝", async failure => {
   const ctx = context("A1-1是什么");

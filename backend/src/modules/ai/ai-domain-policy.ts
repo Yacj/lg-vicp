@@ -23,13 +23,19 @@ export function applyDomainPolicy(message: string, semantic: DomainTurnSemantic,
       result.unresolved = [`本轮${operation}尚未可靠确认，请明确要执行的一项操作；也可以通过对应按钮继续。`];
     }
     if (reason === "REFERENCE_EVIDENCE_INVALID") result.unresolved = ["候选引用未能对应当前序号、构造编号或厚度，请明确当前候选后重试。"];
+    if (reason === "FACT_READ_INVALID") result.unresolved = ["尚未可靠定位要核对的构造、厚度或指标，请指定对应原页；核对数字不会确认正式方案。"];
     return { ...result, semantic };
   };
   if (semantic.pageQuery && semantic.intent !== "REFERENCE_QUERY" && semantic.intent !== "REFERENCE_REFINE") return reject("PAGE_QUERY_SCOPE_INVALID");
+  if (semantic.pageQuery && semantic.pageQuery.intent !== "REFERENCE_LOOKUP") return reject("PAGE_QUERY_INTENT_MISMATCH");
+  if (semantic.queryContext === "CLARIFICATION_REPLY" && (semantic.requestedEffect !== "QUERY"
+    || semantic.intent !== "REFERENCE_QUERY" && semantic.intent !== "REFERENCE_REFINE"
+    || semantic.relation !== "CONTINUE" && semantic.relation !== "REFINE" || !semantic.pageQuery)) return reject("QUERY_CONTEXT_INVALID");
   if (!hasVerbatimEvidence(message, semantic.evidence) || semantic.constraintPatch.some(patch => !hasVerbatimEvidence(message, patch.evidence))) return reject("EVIDENCE_INVALID");
   if (semantic.factRead && (!hasVerbatimEvidence(message, semantic.factRead.evidence) || semantic.requestedEffect !== "READ_ONLY"
-    || semantic.intent !== "KNOWLEDGE_EXPLAIN" && semantic.intent !== "REFERENCE_DETAIL" || semantic.confidence < .9)) return reject("FACT_READ_INVALID");
+    || semantic.intent !== "KNOWLEDGE_EXPLAIN" && semantic.intent !== "REFERENCE_DETAIL" || semantic.confidence < .8)) return reject("FACT_READ_INVALID");
   if (semantic.comparison && (semantic.intent !== "COMPARE_CANDIDATES" || !hasVerbatimEvidence(message, semantic.comparison.evidence))) return reject("EVIDENCE_INVALID");
+  if (semantic.complianceCheck && !hasVerbatimEvidence(message, semantic.complianceCheck.evidence)) return reject("EVIDENCE_INVALID");
   if (semantic.reference.revision != null && semantic.reference.revision !== state?.lastReferenceLookup?.candidateQueryRevision) return reject("REVISION_CHANGED");
   const positionalReference = !semantic.factRead && !semantic.reference.items.length || semantic.reference.items.some(item => item.type === "POSITION");
   if (semantic.requestedEffect !== "QUERY" && (semantic.referenceTime === "EARLIER" || semantic.referenceTime === "UNCERTAIN")
@@ -42,11 +48,12 @@ export function applyDomainPolicy(message: string, semantic: DomainTurnSemantic,
   if (semantic.unresolved || semantic.ambiguity.length) return { ...reject("SEMANTIC_AMBIGUOUS"), unresolved: [semantic.unresolved ?? semantic.ambiguity[0]!] };
   if (semantic.relation === "CANCEL") return { ...domainDecision("GENERAL", semantic.evidence), semantic, parserSource: "LLM", policyReason: "CANCEL_READ_ONLY" };
   const requiredEffect = effectForIntent[semantic.intent] ?? "READ_ONLY";
+  const queryConfidence = Math.min(semantic.confidence, semantic.pageQuery?.confidence ?? semantic.confidence);
   if (semantic.requestedEffect !== requiredEffect) return reject("EFFECT_INTENT_MISMATCH");
   if (requiredEffect === "QUERY") {
     // QUERY仅允许更新会话查询结果；不构成正式方案、计算或报告授权。
     const request = semantic.effectRequest;
-    if (semantic.confidence < .9 || request && (!request.direct || request.polarity !== "AFFIRMATIVE"
+    if (queryConfidence < .8 || queryConfidence < .9 && !semantic.pageQuery || request && (!request.direct || request.polarity !== "AFFIRMATIVE"
       || request.speechAct !== "REQUEST" || !hasVerbatimEvidence(message, request.evidence))) return reject("QUERY_NOT_UNDERSTOOD");
   } else if (requiredEffect !== "READ_ONLY") {
     const request = semantic.effectRequest;
@@ -57,6 +64,8 @@ export function applyDomainPolicy(message: string, semantic: DomainTurnSemantic,
   const thickness = parseThermalThicknessMessage(message, previous);
   const metrics = parseThermalLookupMessage(message);
   const queryPatches = semantic.constraintPatch.filter(patch => patch.op === "SET" || patch.op === "CLEAR");
+  if (semantic.intent === "SOLUTION_ADVICE" && metrics.filters.length && !queryPatches.some(patch => patch.field === "metric"))
+    return reject("QUERY_CONDITIONS_DROPPED");
   if (semantic.intent === "SOLUTION_ADVICE" && queryPatches.some(patch => patch.field === "region" || patch.field === "buildingType")) return reject("ADVICE_SCOPE_REQUIRES_EXCLUDE");
   for (const patch of queryPatches) {
     if ((patch.field === "thicknessMm" || patch.field === "thicknessMin" || patch.field === "thicknessMax")
@@ -79,6 +88,7 @@ export function applyDomainPolicy(message: string, semantic: DomainTurnSemantic,
     && recentGoals?.[0]?.intent === "REFERENCE_QUERY");
   if (continued && !restoreAdviceGoal) return reject("CONTINUED_GOAL_INVALID");
   return { ...domainDecision(semantic.intent, semantic.evidence), semantic, parserSource: "LLM", requiresCandidateQuery, restoreAdviceGoal,
+    ...(requiredEffect === "QUERY" && queryConfidence < .9 ? { queryResultMode: "FACTS_ONLY" as const } : {}),
     referenceScope: semantic.reference.scope === "CURRENT_SELECTED" || semantic.reference.scope === "CURRENT_CONFIRMED" ? semantic.reference.scope : "LATEST_VISIBLE",
-    policyReason: requiredEffect === "QUERY" ? "READ_ONLY_QUERY" : requiredEffect === "READ_ONLY" ? "READ_ONLY_SEMANTIC" : "EXPLICIT_EFFECT_PROPOSAL" };
+    policyReason: requiredEffect === "QUERY" ? queryConfidence < .9 ? "VERIFY_QUERY_FACTS_ONLY" : "READ_ONLY_QUERY" : requiredEffect === "READ_ONLY" ? "READ_ONLY_SEMANTIC" : "EXPLICIT_EFFECT_PROPOSAL" };
 }

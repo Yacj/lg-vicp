@@ -1,0 +1,81 @@
+{
+  "scope": "原UAT-07/08/11/12/15连续对话；12主动断网轮未运行；额外算术/事实核对对照",
+  "counts": {
+    "PASS": 6
+  },
+  "rows": [
+    {
+      "round": 1,
+      "caseId": "arithmetic",
+      "user": "I型15mm R=4.8与II型50mm R=5.0谁大？",
+      "intent": "KNOWLEDGE_EXPLAIN",
+      "policyReason": "READ_ONLY_SEMANTIC",
+      "factCount": 0,
+      "status": "PASS",
+      "failures": [],
+      "notes": []
+    },
+    {
+      "round": 1,
+      "caseId": "factVerify",
+      "user": "A3-2 45mm 的 K 是多少？",
+      "intent": "REFERENCE_QUERY",
+      "policyReason": "READ_ONLY_QUERY",
+      "factCount": 1,
+      "status": "PASS",
+      "failures": [],
+      "notes": []
+    },
+    {
+      "round": 1,
+      "caseId": "factVerify",
+      "user": "帮我确认一下K=0.294这个数字对不对。",
+      "intent": "KNOWLEDGE_EXPLAIN",
+      "policyReason": "READ_ONLY_SEMANTIC",
+      "factCount": 1,
+      "status": "PASS",
+      "failures": [],
+      "notes": []
+    },
+    {
+      "round": 2,
+      "caseId": "arithmetic",
+      "user": "I型15mm R=4.8与II型50mm R=5.0谁大？",
+      "intent": "KNOWLEDGE_EXPLAIN",
+      "policyReason": "READ_ONLY_SEMANTIC",
+      "factCount": 0,
+      "status": "PASS",
+      "failures": [],
+      "notes": []
+    },
+    {
+      "round": 2,
+      "caseId": "factVerify",
+      "user": "A3-2 45mm 的 K 是多少？",
+      "intent": "REFERENCE_QUERY",
+      "policyReason": "READ_ONLY_QUERY",
+      "factCount": 1,
+      "status": "PASS",
+      "failures": [],
+      "notes": []
+    },
+    {
+      "round": 2,
+      "caseId": "factVerify",
+      "user": "帮我确认一下K=0.294这个数字对不对。",
+      "intent": "KNOWLEDGE_EXPLAIN",
+      "policyReason": "READ_ONLY_SEMANTIC",
+      "factCount": 1,
+      "status": "PASS",
+      "failures": [],
+      "notes": []
+    }
+  ],
+  "cleanup": {
+    "redisKeysRemaining": 0,
+    "databaseAbsent": true,
+    "errors": [],
+    "objectsWritten": 0
+  },
+  "sourcePagesUnchanged": true
+}

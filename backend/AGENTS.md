@@ -1,5 +1,19 @@
 # 蓝格 VICP 后端 AI 开发规则
 
+2026-10-17 发布：按用户明确授权执行 pnpm run deploy --skip-db --skip-build（本地已 tsc 构建；沙箱批量删除限制导致内建 clean 失败，故给 deploy.local.mjs 增加可选 --skip-build，默认仍构建）。发布到 8.153.150.87:/www/wwwroot/lgapi.zblack.cn，跳过备份/迁移/seed，.env 未改写（mtime 仍为 2026-10-13）。PM2 lg-vicp-api/lg-vicp-worker 重载 online；内外网 /health/live 与 /health/ready 均 200；6 个关键文件（server.js、worker.js、reference-query.service.js、semantic-query.js、product-answer.js、ai-generation.service.js）与本地 dist 哈希逐一一致。上线范围＝阶段2~修复轮；已知未修：序号追问、方案选择/Confirm/报告（来源绑定阻断）、λ 字段投影。
+
+2026-10-17 小格修复轮：隔离库实测定位F2根因——字典把「A1-3」解析成schemeId，模型按合同输出schemeCode，逐字段复核把同身份另一种表示判成「未完整保留」，导致任何按编号查表被拒；修为仅对该字段互认（经字典names校验，缺任何表示仍拒绝），DESIGN-012 T1已能正确返回18mm/2.880/3.297/0.303/页22。F1-B部分修：省略身份继承从VERIFY扩到EXPLAIN且仅取最近一次助手回答唯一编号，历史范围须有原页定位，SALES-014 T2已能定位A1-3并给来源页（仍缺λ字段投影）。F1-A序号回溯实现因与既有安全边界用例「position不能借原页回溯绕过边界」冲突而整体回退，未改该测试；正解是只读结果「可引用不可确认」的revision绑定上下文，待下轮。全量2652 passed/1 failed(report-runtime环境项)/1 expected fail。见 docs/ai/xiaoge-business-chain-phase5-fixes-2026-10-17.md。
+
+2026-10-17 小格专项阶段4：新增跨阶段矩阵用例（产品介绍/查表诊断/多轮/计算授权/方案门禁共16例，未改产品代码）。隔离环境真实SSE复跑SALES-017、SALES-014、DESIGN-012与方案UAT：确认两项P0——①只读确认页/知识事实「不可确认」被误当「不可引用」，导致「刚才第一个哪一页」「导热系数λ是多少」断链（基线ReferencePage由1/1退化为0/1）；②「A1-3 I型18mm图集参数」被逐字段复核拒绝（PAGE_QUERY_CONSTRAINTS_INVALID），被拒字段未定位，未凭猜测放宽。UAT检查器intent读taskType、合规词误判否定句属断言层噪声。失败记录全部保留，report-runtime环境项连续三阶段复现未改。清理遗留临时库1个。PDF/Confirm真实闭环与权限负向未执行。见 docs/ai/xiaoge-business-chain-phase4-2026-10-17.md。
+
+2026-10-17 小格专项阶段3：计算结果的productResistance按Calculator口径标记PRODUCT_EQUIVALENT_TOTAL/PRODUCT_LAYER_ROWS_ONLY（新增纯元数据，公式/系数/取整/判定/VICP-CALC-1与历史记录均不变，旧记录缺字段按缺失处理），口径随resultJson冻结并贯通Tool facts、模型事实清单与回答约束，LAYERED不得表述为产品整体热阻；事实标签「整墙总热阻」改「整构造总热阻」，屋面/装饰板不再误称整墙，Clarify俗称文案暂不改。Thermal Tool的referenceScope与达标核验改为消费Semantic结构化决策（新增complianceCheck{required,evidence}并校验原话证据），仅在无Semantic时保留原封闭词表兜底，禁止下游关键词覆盖已验证决策。未改前端DTO与页面；芯材4.8/产品整体5.0差异仍为known gap，升级须新formulaVersion并双版本只读重放后由甲方确认。未迁移、未部署、未生成Snapshot/PDF。见 docs/ai/xiaoge-business-chain-phase3-2026-10-17.md。
+
+2026-10-17 小格专项阶段2：产品咨询事实与解释分离，正式目录/已发布规格/有权资料的facts由Service产出，模型只按Semantic的intent与audience（GENERAL/SALES/ENGINEER/UNSPECIFIED，仅表达不授权）组织表达，回答中板厚/λ/α须出自已核验事实或用户原话，越界回落确定性仅事实回答；澄清、无结果、模型不可用一律不走自由生成；不得补写资料未支持的用途/优势/认证/竞品。无法映射的体系/型号/构造名称必须逐字保留为entityText/systemHint并靠正式目录与knowledgeAliases归一，不得静默丢弃后放宽查询；归一不到由诊断说明身份不匹配。澄清轮不改候选、不产生副作用授权，正式方案/Confirm/报告仍需显式授权。新增数值校验正则仅作用于已生成回答，不参与意图或路由；未迁移、未部署、未改Formula/Snapshot/报告。见 docs/ai/xiaoge-business-chain-phase2-2026-10-17.md。
+
+2026-10-17 小格专项阶段1：结构化查表统一读取授权已发布正式参考行和确认页事实，正式命中不短路知识来源；确认页不伪造方案/规格ID、不升级为正式候选。来源关联必须同文档/版本/页及可验证档位或明确正式映射，编号/数值不作身份证据；来源核验先于展示截断。查询诊断逐项保留型号/基层/厚度/其他指标，缺列、无值、范围不足及来源失效分别说明，空候选仍传递诊断；不猜测不可见资料。无新增自然语言匹配、迁移、业务数据回填或部署，阶段1结束停止。见 docs/ai/xiaoge-business-chain-phase1-2026-10-17.md。
+
+2026-10-17 查询上下文修复：缺指标只澄清指标；澄清回复仅绑定紧邻、24h内、本人同端同项目原话，不生成候选或授权正式操作。查表数值条件不能丢入通用建议；数字+型不作K/R目标。QUERY已明确部位若漏字段则拒绝宽查并有限复核，仅校验正式枚举、不据词路由或补条件。0.8至0.9查询必须有完整pageQuery并经逐字段校验，仅FACTS_ONLY展示与成功只读查询上下文，禁止覆盖Candidate；低于0.8、结构歧义及副作用仍拒绝，正式动作/计算/报告保持0.9与原完整授权。近似/上限/精确由原话及有效历史核验；旧确认表仅按封闭正式表名只读兼容部位，不回填源JSON。factRead≥0.8仅进受控只读事实服务、不发布Candidate；型号比较大小由代码确定。无Candidate原页回溯仅消费本人同端同项目24h内实际引用，重验版本/revision/optionId，不接受旧序号。优缺点只读确认构造；澄清诊断不标工程事实错误。修复验收后按用户追加授权执行pnpm run deploy --skip-db发布后端；API/Worker在线、live/ready均200、5个关键文件哈希一致，跳过迁移/seed并保留.env。见docs/ai/thermal-query-context-fix-2026-10-17.md。
+
 复杂图集表格与A3查询修复（2026-10-17）：热工表行使用可选sourceRegion，简图文字独立diagramNotes，原非数值列头由sourceTableHeaders透传；编号格不混入型号/基层，B/App保留原层号和分组。读取问句不以“是/为”推成实体赋值，I/II正式名称不能截获III后缀；完整体系名与只读追问走Domain→语义约束，不增加样本关键词路由。旧确认JSON/引用/快照/PDF不回填，无业务迁移。验收后按用户追加指令运行pnpm run deploy --skip-db发布后端，API/Worker及健康检查通过，此次未重跑测试；B/App仅提交代码。证据见docs/ai/atlas-source-layout-and-a3-2026-10-17.md。
 
 2026-10-16 审计后修复：无编号v2确认页的VERIFY只读绑定最近实际引用及本人同端24h状态，重验版本/revision/权限，不按数值反选或创建Candidate；裸R仅由确认来源列解释，明确产品R不改义。B端签名失败保留确认表格。真实OSS/模型/SSE复测12行通过，后端2377测试通过1跳过；阶段5仍PARTIAL（Vision细节审核、T10报告前置解释、精确屏宽/原生端/签名过期/A3有效发布查询未全验）。仅随机测试库初始化与清理，无业务库迁移/回填/部署，见docs/ai/complex-atlas-repair-2026-10-16.md。

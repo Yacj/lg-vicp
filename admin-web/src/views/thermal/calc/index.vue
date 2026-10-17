@@ -113,6 +113,7 @@ const MODE_HINTS: Record<ThermalCalcMode, string> = {
 const modeHint = computed(() => MODE_HINTS[form.mode])
 
 const layerColumns: PrimaryTableCol<TableRowData>[] = [
+  { colKey: 'layerTypeLabel', title: '层类型' },
   { colKey: 'name', title: '材料' },
   { colKey: 'thicknessMm', title: '厚度 (mm)' },
   { colKey: 'lambda', title: '导热系数 λ' },
@@ -309,7 +310,7 @@ onMounted(() => {
           <t-select v-model="form.productSpecId" filterable :disabled="!schemeDetail || schemeLoading" :loading="schemeLoading" :options="specOptions" placeholder="先选构造，再选兼容规格" />
         </t-form-item>
         <t-alert v-if="schemeDetail && !schemeDetail.productOptions.length" theme="warning" message="该构造暂无可用于计算的产品规格，请选择其他构造。" />
-        <t-form-item label="保温层厚度 (mm)">
+        <t-form-item label="产品厚度 (mm)">
           <t-input-number v-model="form.thicknessMm" :min="0" :step="0.1" theme="column" />
           <span v-if="selectedOption" class="calc-hint">当前规格允许 {{ selectedOption.minThickness }}–{{ selectedOption.maxThickness }} mm</span>
         </t-form-item>

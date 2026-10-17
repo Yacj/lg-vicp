@@ -24,6 +24,8 @@ const ENV_PATH = path.join(BACKEND_ROOT, ".env");
 const isWin = process.platform === "win32";
 // 纯代码修复发布：显式跳过数据库备份、迁移与seed，默认部署行为不变。
 const skipDatabase = process.argv.includes("--skip-db");
+// 本地已构建且 clean 受沙箱批量删除限制时，可显式跳过本地构建；默认仍构建。
+const skipBuild = process.argv.includes("--skip-build");
 const installReportRuntime = process.argv.includes("--install-report-runtime");
 
 const fail = (msg) => {
@@ -108,8 +110,11 @@ const runLocal = (command, args, useShell = isWin) => {
   if (result.status !== 0) fail(`${command} ${args.join(" ")} 失败`);
 };
 
-info("本地构建 dist（服务器不再执行 tsc）...");
-runLocal("pnpm", ["build"]);
+if (skipBuild) info("跳过本地构建（--skip-build，使用当前 dist）...");
+else {
+  info("本地构建 dist（服务器不再执行 tsc）...");
+  runLocal("pnpm", ["build"]);
+}
 for (const entry of PACK_ENTRIES) {
   if (!existsSync(path.join(BACKEND_ROOT, entry))) fail(`打包缺少 ${entry}，请确认构建成功`);
 }

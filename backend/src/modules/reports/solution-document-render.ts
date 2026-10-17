@@ -35,7 +35,7 @@ export function assertSolutionDocument(model: SolutionDocumentModel) {
 
 function solutionTable(model: SolutionDocumentModel, alternatives = false) {
   const candidates = alternatives ? model.alternatives : model.solutions;
-  return table(["体系 / 构造", "基层 / 基层厚度 mm", "产品 / 板厚 mm", "产品 R\n(m²·K)/W", "总 R₀\n(m²·K)/W", "K\nW/(m²·K)"], candidates.map(c => [
+  return table(["体系 / 构造", "基层 / 基层厚度 mm", "产品 / 产品厚度 mm", "产品层热阻 R\n(m²·K)/W", "总热阻 R₀\n(m²·K)/W", "K\nW/(m²·K)"], candidates.map(c => [
     `${text(c.systemName)}<br><strong>${text(c.constructionCode)}</strong>`, `${text(c.substrateMaterial)}<br>${number(c.substrateThickness)}`,
     `${text(c.productName ?? c.specCode ?? c.specClass)}<br>${number(c.thicknessMm)}`, number(c.productThermalResistance), number(c.totalThermalResistance), number(c.kValue)
   ]));
@@ -76,7 +76,7 @@ export function renderFrozenReferenceTables(pages: unknown, model?: SolutionDocu
         return `<tr${final ? ' class="final-option"' : ""}><td>${text(construction.constructionCode)}</td><td>${number(option.thicknessMm)}</td><td>${number(option.productThermalResistance)}</td><td>${number(option.totalThermalResistance)}</td><td>${number(option.kValue)}</td><td>${final ? "最终采用" : alternative ? "备选" : "原页其他档位"}</td></tr>`;
       }).join("");
       const layers = construction.layers?.length ? table(["构造层", "厚度 mm", "λ W/(m·K)", "修正系数 α", "层热阻 (m²·K)/W"], construction.layers.map(layer => [text(layer.name), number(layer.thicknessMm), number(layer.lambda), number(layer.alpha), number(layer.rValue)])) : "";
-      return `<div class="construction"><h3>${text(construction.constructionCode)} · ${text(construction.systemName)}</h3><p>基层：${text(construction.baseMaterial)}；基层厚度：${number(construction.baseThicknessMm)} mm</p>${layers}<table><thead><tr><th>构造</th><th>板厚 mm</th><th>产品 R (m²·K)/W</th><th>总 R₀ (m²·K)/W</th><th>K W/(m²·K)</th><th>引用身份</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+      return `<div class="construction"><h3>${text(construction.constructionCode)} · ${text(construction.systemName)}</h3><p>基层：${text(construction.baseMaterial)}；基层厚度：${number(construction.baseThicknessMm)} mm</p>${layers}<table><thead><tr><th>构造</th><th>产品厚度 mm</th><th>产品层热阻 R (m²·K)/W</th><th>总热阻 R₀ (m²·K)/W</th><th>K W/(m²·K)</th><th>引用身份</th></tr></thead><tbody>${rows}</tbody></table></div>`;
     }).join("") + (render.notes?.length ? `<h3>原页备注</h3>${list(render.notes)}` : "")
       + (render.warnings?.length ? `<div class="warning"><h3>原页警告</h3>${list(render.warnings)}</div>` : "");
   }).join("");
@@ -131,7 +131,7 @@ export function renderSolutionDocumentHtml(payload: ReportSnapshotPayload, model
   const final = section(`${titleFor("construction", "构造方案")}（最终采用）`, solutionTable(model) + model.solutions.map(c => `<p>${text(c.constructionCode)}：产品标识 ${text(c.productId ?? c.catalogProductId)}；规格标识 ${text(c.productSpecId)}；方案标识 ${text(c.schemeId)}。</p>`).join(""));
   const showProcess = payload.settings?.showCalculationProcess !== false && payload.reportType !== "project_brief"
     && !sections.some(s => s.key === "thermal" && !s.enabled);
-  const basis = section("热工参数与依据", model.solutions.map(c => `<p><strong>${text(c.constructionCode)}</strong>：${c.sourceType === "CALCULATED" ? "确定性引擎计算值" : "图集查表值"}；产品 R=${number(c.productThermalResistance)} (m²·K)/W；总 R₀=${number(c.totalThermalResistance)} (m²·K)/W；K=${number(c.kValue)} W/(m²·K)。${c.calculationId ? `计算记录 ${text(c.calculationId)}；计算模式 ${text(c.calcMode)}。` : ""}</p>`).join("") + (showProcess ? calculationDetails(model) : ""));
+  const basis = section("热工参数与依据", model.solutions.map(c => `<p><strong>${text(c.constructionCode)}</strong>：${c.sourceType === "CALCULATED" ? "确定性引擎计算值" : "图集查表值"}；产品层热阻 R=${number(c.productThermalResistance)} (m²·K)/W；总热阻 R₀=${number(c.totalThermalResistance)} (m²·K)/W；K=${number(c.kValue)} W/(m²·K)。${c.calculationId ? `计算记录 ${text(c.calculationId)}；计算模式 ${text(c.calcMode)}。` : ""}</p>`).join("") + (showProcess ? calculationDetails(model) : ""));
   const alternatives = model.alternatives.length ? section("备选方案对比（未作为最终采用方案）", solutionTable(model, true)) : "";
   const sources = section(titleFor("sources", "知识来源与冻结原表"), sourceSections(model,
     payload.settings?.showSourceReferences === false || sections.some(s => s.key === "sources" && !s.enabled)

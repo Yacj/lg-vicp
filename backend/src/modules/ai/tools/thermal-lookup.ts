@@ -250,7 +250,11 @@ export function normalizeConversationLookupQuery(input: LookupQueryShape, messag
   }
   // 活跃厚度的省略追问只更新厚度，不能被裸数字的指标继承误解析。
   const parsed = parseThermalLookupMessage(thickness.changed && !/传热|热阻|总\s*R|产品\s*R|TOTAL_R|PRODUCT_R|\bK\b|K\s*[=≈<>≤≥\d]/i.test(message) ? "" : metricMessage, previousMetric);
-  if (last && !parsed.filters.length && !parsed.removedMetrics.length) input = { ...input,
+  // 本轮调用方已给出完整指标条件时（典型：「不，我指K」由语义层从上下文补出 K 0.3），
+  // 它就是本轮权威条件：不得被上一轮的旧指标覆盖，否则「纠正指标」会被静默改回旧指标，
+  // 后续「不超过0.3」也会跟着落到错误指标上。
+  const suppliedFilters = input.filters?.length ? input.filters : undefined;
+  if (last && !parsed.filters.length && !parsed.removedMetrics.length && !suppliedFilters) input = { ...input,
     filters: previousLookup.filters, metric: previousLookup.metric, targetValue: previousLookup.targetValue,
     targetK: last.query.targetK, targetR: last.query.targetR };
   const removedMetrics = [...new Set([...(last?.query.removedMetrics ?? []), ...parsed.removedMetrics])].filter(metric => !parsed.filters.some(filter => filter.metric === metric));
@@ -364,13 +368,18 @@ export function normalizeConversationLookupQuery(input: LookupQueryShape, messag
   if (parsed.tolerance === undefined && last?.query.toleranceSource !== "USER") inherited.tolerance = undefined;
   const lookup = normalizeThermalLookupQuery(inherited);
   const invalidTarget = lookup.filters.some((filter) => !Number.isFinite(filter.targetValue) || filter.targetValue <= 0 || filter.targetValue > (filter.metric === "K" ? 10 : 100));
+  // 语义层已补齐完整指标条件时，解析器「只给指标词没给数字」不再构成歧义——
+  // 条件已完整，再追问同一个指标只会把用户刚纠正的指标丢掉。
+  // 「A 或者 B」的关系歧义仍需用户选择，不在抑制范围内。
+  const suppliedComplete = Boolean(suppliedFilters?.every((filter) => Number.isFinite(filter.targetValue) && filter.targetValue > 0));
+  const parserClarification = parsed.needsClarification && !(suppliedComplete && !/或者|或|\bor\b/i.test(message));
   return {
     query: traceQueryState({ ...inherited, ...lookup, toleranceSource: lookup.filters[0]?.toleranceSource
       ?? (parsed.tolerance !== undefined && parsed.tolerance > 0 || inherited.tolerance !== undefined ? "USER" as const : "DEFAULT" as const) }, last?.query),
     conflict: resolution.conflict,
     attributeQuestion,
     lifecycle,
-    needsClarification: interpretation.needsClarification || parsed.needsClarification || thickness.needsClarification || invalidTarget
+    needsClarification: interpretation.needsClarification || parserClarification || thickness.needsClarification || invalidTarget
       || !parsed.filters.length && new Set(previousFilters.map((filter) => filter.metric)).size > 1
         && (parsed.tolerance !== undefined || inferThermalLookupMode(parsed.modeMessage) !== null && inferThermalLookupMode(parsed.modeMessage) !== "EXACT")
   };
