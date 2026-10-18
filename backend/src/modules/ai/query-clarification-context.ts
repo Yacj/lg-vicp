@@ -23,9 +23,14 @@ export function groundClarificationMetricEvidence(message: string, original: str
 /** 待澄清原话不是有效查询/候选。仅最近已完成的问答对、本人同端同项目、24h内可用。 */
 export function recentQueryClarification(rows: readonly Turn[], conversation: Conversation, now = Date.now()) {
   const [answer, question] = rows;
-  const metadata = answer?.metadata as { queryScope?: Conversation; backendDecision?: { domainIntent?: string; requestedEffect?: string; relation?: string } } | null;
+  const metadata = answer?.metadata as { queryScope?: Conversation; backendDecision?: { domainIntent?: string; requestedEffect?: string; relation?: string;
+    parameterQueryDiagnostics?: { missingTolerance?: boolean; issues?: string[] } } } | null;
+  // 参数Service的缺容差/名称未解析也是只读待澄清结果，不把成功参数读取或零命中当pending。
+  const parameterClarification = metadata?.backendDecision?.domainIntent === "PRODUCT_PARAMETER_QUERY"
+    && (metadata.backendDecision.parameterQueryDiagnostics?.missingTolerance === true
+      || metadata.backendDecision.parameterQueryDiagnostics?.issues?.includes("NAME_UNRESOLVED"));
   if (!answer || !question || answer.role !== "ASSISTANT" || question.role !== "USER"
-    || metadata?.backendDecision?.domainIntent !== "CLARIFY" || metadata.backendDecision.requestedEffect !== "READ_ONLY"
+    || metadata?.backendDecision?.domainIntent !== "CLARIFY" && !parameterClarification || metadata?.backendDecision?.requestedEffect !== "READ_ONLY"
     || metadata.queryScope?.id !== conversation.id || metadata.queryScope.userId !== conversation.userId
     || metadata.queryScope.clientApp !== conversation.clientApp || metadata.queryScope.projectId !== conversation.projectId
     || answer.projectId !== conversation.projectId || question.projectId !== conversation.projectId

@@ -23,6 +23,22 @@ function setup() {
   return { ctx, history, stored, fixture };
 }
 beforeEach(() => { vi.resetAllMocks(); mocks.access.mockResolvedValue({ projectId: null }); });
+it("当前查询后省略原表读取仅消费紧邻实际引用，不需要Candidate或序号",async()=>{
+  const {ctx}=setup();ctx.domainDecision.semantic.reference.items=[];ctx.domainDecision.semantic.referenceTime="CURRENT";
+  ctx.taskState.confirmedPageLookup={conversationId:"c",userId:"u",clientApp:"c_app",projectId:null,createdAt:new Date().toISOString(),query:{documentIds:["doc"],knowledgeVersionIds:["version"]}};
+  const before=structuredClone(ctx.taskState),result=await readHistoricalConfirmedPage(ctx);
+  expect(result?.referencePages).toHaveLength(1);expect(result?.candidates).toEqual([]);expect(ctx.taskState).toEqual(before);
+});
+it.each(["missing","expired","differentVersion","topic","latestUnrelated"])("省略原页%s不回溯旧来源",async failure=>{
+  const {ctx,history}=setup();ctx.domainDecision.semantic.reference.items=[];ctx.domainDecision.semantic.referenceTime="CURRENT";
+  ctx.taskState.confirmedPageLookup={conversationId:"c",userId:"u",clientApp:"c_app",projectId:null,createdAt:new Date().toISOString(),query:{documentIds:["doc"],knowledgeVersionIds:["version"]}};
+  if(failure==="missing")delete ctx.taskState.confirmedPageLookup;
+  if(failure==="expired")ctx.taskState.confirmedPageLookup.createdAt=new Date(0).toISOString();
+  if(failure==="differentVersion")ctx.taskState.confirmedPageLookup.query.knowledgeVersionIds=["other"];
+  if(failure==="topic")ctx.domainDecision.semantic.relation="SWITCH_TOPIC";
+  if(failure==="latestUnrelated")mocks.history.mockResolvedValue([{createdAt:new Date(),metadata:{}},...history]);
+  expect(await readHistoricalConfirmedPage(ctx)).toBeUndefined();
+});
 it("无Candidate且已切出查询时仍可按实际历史引用返回原页，状态与候选不变", async () => {
   const { ctx } = setup(), before = structuredClone(ctx.taskState), result = await readHistoricalConfirmedPage(ctx);
   expect(result?.needsClarification).toBe(false); expect(result?.referencePages[0]?.matches).toHaveLength(1);

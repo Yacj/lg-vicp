@@ -9,7 +9,10 @@
       "category": "FORMAT",
       "reason": "仅归一当前候选构造编码的外墙展示前缀，与确认页Matcher口径一致；不判定动作、不构造ID，同编号多档仍拒绝歧义。",
       "code": "code.slice(0, 2) === \"外墙\"",
-      "tests": ["src/modules/ai/solution-action-semantic.test.ts", "scripts/check-semantic-matching.test.ts"]
+      "tests": [
+        "src/modules/ai/solution-action-semantic.test.ts",
+        "scripts/check-semantic-matching.test.ts"
+      ]
     },
     {
       "file": "src/modules/ai/ai-capability-router.ts",
@@ -357,6 +360,210 @@
       "tests": [
         "src/modules/ai/domain-semantic-regression.test.ts",
         "scripts/check-semantic-matching.test.ts"
+      ]
+    },
+    {
+      "file": "src/shared/lambda-field.ts",
+      "fingerprint": "f781817434f5f653d18f6f227b550c9c584d98834e039eb5070a616d6ee78525",
+      "ruleId": "SM-PARAMETER-FIELD-01",
+      "category": "ENGINEERING_EXTRACTION",
+      "reason": "已选择独立LAMBDA参数后的封闭字段、比较符及±数值验证；仅拒绝不一致提案，不据词选择领域或授予副作用。",
+      "code": "/导热系数|λ|\\blambda\\b/i.test(text)",
+      "tests": [
+        "src/modules/ai/product-parameter-query.test.ts",
+        "src/modules/ai/product-parameter-continuity.test.ts"
+      ]
+    },
+    {
+      "file": "src/shared/lambda-field.ts",
+      "fingerprint": "bd0c0cad6b9bf34d05a601da3c224986ee3996171525f16ecb35a61a238e6c7e",
+      "ruleId": "SM-PARAMETER-FIELD-01",
+      "category": "ENGINEERING_EXTRACTION",
+      "reason": "已选择独立LAMBDA参数后的封闭字段、比较符及±数值验证；仅拒绝不一致提案，不据词选择领域或授予副作用。",
+      "code": "/导热系数|λ|\\blambda\\b/i",
+      "tests": [
+        "src/modules/ai/product-parameter-query.test.ts",
+        "src/modules/ai/product-parameter-continuity.test.ts"
+      ]
+    },
+    {
+      "file": "src/shared/lambda-field.ts",
+      "fingerprint": "69ed9c47b703bbf27c77265c6d3eacc21b5bdbc1ce039cfa3ef612606fce4ca7",
+      "ruleId": "SM-PARAMETER-UNIT-01",
+      "category": "FORMAT",
+      "reason": "封闭W/(m·K)等单位格式验证；单位中的K不是指标，不做数值换算或意图路由。",
+      "code": "text.normalize(\"NFKC\").replace(/\\s|[⋅·.()]/g, \"\")",
+      "tests": [
+        "src/modules/ai/product-parameter-query.test.ts",
+        "src/modules/ai/product-parameter-continuity.test.ts"
+      ]
+    },
+    {
+      "file": "src/shared/lambda-field.ts",
+      "fingerprint": "2325a692ad1d6092060b9a785aad5b9941ad90b32a1e16e7969158d7efc7869c",
+      "ruleId": "SM-PARAMETER-UNIT-01",
+      "category": "ENGINEERING_EXTRACTION",
+      "reason": "封闭W/(m·K)等单位格式验证；单位中的K不是指标，不做数值换算或意图路由。",
+      "code": "/\\s|[⋅·.()]/g",
+      "tests": [
+        "src/modules/ai/product-parameter-query.test.ts",
+        "src/modules/ai/product-parameter-continuity.test.ts"
+      ]
+    },
+    {
+      "file": "src/shared/lambda-field.ts",
+      "fingerprint": "7315905ae031431d16b7122746d105519a0ae47b1c1a3976c81f7019e31c06a1",
+      "ruleId": "SM-PARAMETER-UNIT-01",
+      "category": "ENGINEERING_EXTRACTION",
+      "reason": "封闭W/(m·K)等单位格式验证；单位中的K不是指标，不做数值换算或意图路由。",
+      "code": "/W\\s*\\/\\s*(?:\\([^)]*\\)|m[²2]?[⋅·.]?K)/gi",
+      "tests": [
+        "src/modules/ai/product-parameter-query.test.ts",
+        "src/modules/ai/product-parameter-continuity.test.ts"
+      ]
+    },
+    {
+      "file": "src/shared/lambda-field.ts",
+      "fingerprint": "61c3280eee576d203e43a34aa5f413b6f2436b8439e689c0a982467f08315d8b",
+      "ruleId": "SM-PARAMETER-UNIT-01",
+      "category": "ENGINEERING_EXTRACTION",
+      "reason": "封闭W/(m·K)等单位格式验证；单位中的K不是指标，不做数值换算或意图路由。",
+      "code": "text.match(thermalUnit())",
+      "tests": [
+        "src/modules/ai/product-parameter-query.test.ts",
+        "src/modules/ai/product-parameter-continuity.test.ts"
+      ]
+    },
+    {
+      "file": "src/shared/lambda-field.ts",
+      "fingerprint": "bdf023665b66cef95a3a9085a1698893e64fd5c8b22c0315a676fae72e9317ae",
+      "ruleId": "SM-PARAMETER-UNIT-01",
+      "category": "ENGINEERING_EXTRACTION",
+      "reason": "封闭W/(m·K)等单位格式验证；单位中的K不是指标，不做数值换算或意图路由。",
+      "code": "text.matchAll(thermalUnit())",
+      "tests": [
+        "src/modules/ai/product-parameter-query.test.ts",
+        "src/modules/ai/product-parameter-continuity.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/product-parameter-query.ts",
+      "fingerprint": "8f4db997add1e256d160292bb47a057a4859f4ff464c5c567963a5e31fe01cfa",
+      "ruleId": "SM-PARAMETER-EVIDENCE-01",
+      "category": "EVIDENCE",
+      "reason": "仅校验服务器核验的本轮/待澄清原话中的连续证据与原名称，不选择意图或补条件。",
+      "code": "scope.includes(query.evidence)",
+      "tests": [
+        "src/modules/ai/product-parameter-query.test.ts",
+        "src/modules/ai/product-parameter-continuity.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/product-parameter-query.ts",
+      "fingerprint": "5d77489c7db65d872ab450938b2068709d051c66b14c690920ca07f9c3515042",
+      "ruleId": "SM-PARAMETER-EVIDENCE-01",
+      "category": "EVIDENCE",
+      "reason": "仅校验服务器核验的本轮/待澄清原话中的连续证据与原名称，不选择意图或补条件。",
+      "code": "scope.includes(name)",
+      "tests": [
+        "src/modules/ai/product-parameter-query.test.ts",
+        "src/modules/ai/product-parameter-continuity.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/product-parameter-query.ts",
+      "fingerprint": "84834d8f91ae46ac19232336ca92177ce37facf1cd767c62d79af712a502faf6",
+      "ruleId": "SM-PARAMETER-COMPARISON-01",
+      "category": "ENGINEERING_EXTRACTION",
+      "reason": "已选择独立LAMBDA参数后的封闭字段、比较符及±数值验证；仅拒绝不一致提案，不据词选择领域或授予副作用。",
+      "code": "/±\\s*$/.test(normalized.slice(0, n.index))",
+      "tests": [
+        "src/modules/ai/product-parameter-query.test.ts",
+        "src/modules/ai/product-parameter-continuity.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/product-parameter-query.ts",
+      "fingerprint": "57ff8fbe979a27149c5615fd9f1c75fc3af0a41bfe75f4ea7694417afa0667d7",
+      "ruleId": "SM-PARAMETER-COMPARISON-01",
+      "category": "ENGINEERING_EXTRACTION",
+      "reason": "已选择独立LAMBDA参数后的封闭字段、比较符及±数值验证；仅拒绝不一致提案，不据词选择领域或授予副作用。",
+      "code": "/±\\s*$/",
+      "tests": [
+        "src/modules/ai/product-parameter-query.test.ts",
+        "src/modules/ai/product-parameter-continuity.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/product-parameter-query.ts",
+      "fingerprint": "a8d1adfb63100990f83e3d102868165198915a56da3031bfd5f6ca3fcd8f840e",
+      "ruleId": "SM-PARAMETER-COMPARISON-01",
+      "category": "ENGINEERING_EXTRACTION",
+      "reason": "已选择独立LAMBDA参数后的封闭字段、比较符及±数值验证；仅拒绝不一致提案，不据词选择领域或授予副作用。",
+      "code": "(current.length ? message : scope).match(/不超过|不大于|不高于|不低于|不小于|小于|低于|大于|高于|左右|附近|接近|<=|>=|≤|≥|<|>|≈|±/g)",
+      "tests": [
+        "src/modules/ai/product-parameter-query.test.ts",
+        "src/modules/ai/product-parameter-continuity.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/product-parameter-query.ts",
+      "fingerprint": "294e269be80c5b1048231df381e160625142cf98581a74f436f947deecd15467",
+      "ruleId": "SM-PARAMETER-COMPARISON-01",
+      "category": "ENGINEERING_EXTRACTION",
+      "reason": "已选择独立LAMBDA参数后的封闭字段、比较符及±数值验证；仅拒绝不一致提案，不据词选择领域或授予副作用。",
+      "code": "/不超过|不大于|不高于|不低于|不小于|小于|低于|大于|高于|左右|附近|接近|<=|>=|≤|≥|<|>|≈|±/g",
+      "tests": [
+        "src/modules/ai/product-parameter-query.test.ts",
+        "src/modules/ai/product-parameter-continuity.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/product-parameter-query.ts",
+      "fingerprint": "f97fbd07e83d7c35d8fdaa042531ed4dd3976682e1581ff94385f17bee628b3f",
+      "ruleId": "SM-PARAMETER-COMPARISON-01",
+      "category": "ENGINEERING_EXTRACTION",
+      "reason": "已选择独立LAMBDA参数后的封闭字段、比较符及±数值验证；仅拒绝不一致提案，不据词选择领域或授予副作用。",
+      "code": "/±\\s*(\\d+(?:\\.\\d+)?)/.exec(scope)",
+      "tests": [
+        "src/modules/ai/product-parameter-query.test.ts",
+        "src/modules/ai/product-parameter-continuity.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/product-parameter-query.ts",
+      "fingerprint": "695da68f135143aceb4f23a1d3ce18b7951565994d8fecc925a8bf759e94084a",
+      "ruleId": "SM-PARAMETER-COMPARISON-01",
+      "category": "ENGINEERING_EXTRACTION",
+      "reason": "已选择独立LAMBDA参数后的封闭字段、比较符及±数值验证；仅拒绝不一致提案，不据词选择领域或授予副作用。",
+      "code": "/±\\s*(\\d+(?:\\.\\d+)?)/",
+      "tests": [
+        "src/modules/ai/product-parameter-query.test.ts",
+        "src/modules/ai/product-parameter-continuity.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/product-parameter-query.ts",
+      "fingerprint": "521c57657a32c03da09884652e7c29288370af7004e85c636354491a12ae02f8",
+      "ruleId": "SM-PARAMETER-COMPARISON-01",
+      "category": "ENGINEERING_EXTRACTION",
+      "reason": "仅拒绝遗漏原话明确±容差的参数提案，不路由意图、不放大窗口、不授予副作用。",
+      "code": "/±\\s*\\d/.test(scope)",
+      "tests": [
+        "src/modules/ai/product-parameter-query.test.ts",
+        "src/modules/ai/product-parameter-continuity.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/product-parameter-query.ts",
+      "fingerprint": "17b108c8ce45777eb13de65f817a97c57b84df479baf68740dec02a351a5b5cf",
+      "ruleId": "SM-PARAMETER-COMPARISON-01",
+      "category": "ENGINEERING_EXTRACTION",
+      "reason": "仅拒绝遗漏原话明确±容差的参数提案，不路由意图、不放大窗口、不授予副作用。",
+      "code": "/±\\s*\\d/",
+      "tests": [
+        "src/modules/ai/product-parameter-query.test.ts",
+        "src/modules/ai/product-parameter-continuity.test.ts"
       ]
     }
   ]

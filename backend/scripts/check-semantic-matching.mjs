@@ -38,7 +38,7 @@ export function checkMatching(nodes, exemptions) {
 export function matchingFiles(root = process.cwd()) {
   return readdirSync(resolve(root, "src/modules/ai")).filter(file => file.endsWith(".ts") && !file.endsWith(".test.ts") && !file.endsWith(".fixture.ts")
     && (file.startsWith("ai-domain-") || file.startsWith("solution-advice") || file.startsWith("solution-action-semantic") || file === "ai-capability-router.ts"))
-    .map(file => `src/modules/ai/${file}`);
+    .map(file => `src/modules/ai/${file}`).concat(["src/shared/lambda-field.ts", "src/modules/ai/product-parameter-query.ts"]);
 }
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const manifest = JSON.parse(readFileSync("scripts/semantic-matching-exemptions.json", "utf8"));

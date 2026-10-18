@@ -1,0 +1,364 @@
+{
+  "startedAt": "2026-10-18T11:39:59.765Z",
+  "mode": "REAL_HTTP_SSE",
+  "repeatsQ01Q07": 3,
+  "cases": [
+    {
+      "group": "SOURCE-SCOPE",
+      "repetition": 1,
+      "turn": 1,
+      "userMessage": "构造材料层的λ=0.3记录有吗",
+      "label": "REPRODUCED_TEST",
+      "status": "FAIL",
+      "checks": [
+        {
+          "name": "不自动生成快照/报告/计算",
+          "passed": true
+        },
+        {
+          "name": "非正式方案写入",
+          "passed": true
+        },
+        {
+          "name": "六种不可读λ哨兵全部排除",
+          "passed": false
+        }
+      ],
+      "priorQuery": {
+        "taskType": "GENERAL"
+      },
+      "semanticAttempts": [
+        {
+          "message": "构造材料层的λ=0.3记录有吗",
+          "pendingClarification": null,
+          "previousQuery": null,
+          "proposal": {
+            "pageQuery": null,
+            "parameterQuery": {
+              "parameter": "LAMBDA",
+              "subjectType": "MATERIAL_LAYER",
+              "subjectText": "构造材料层",
+              "systemText": null,
+              "operator": "EXACT",
+              "targetValue": 0.3,
+              "tolerance": null,
+              "unit": "W/(m·K)",
+              "evidence": "构造材料层的λ=0.3记录有吗"
+            },
+            "productQuery": null,
+            "queryContext": "CURRENT_TURN",
+            "adviceFocus": "SELECTION",
+            "audience": "UNSPECIFIED",
+            "intent": "PRODUCT_PARAMETER_QUERY",
+            "confidence": 0.9,
+            "evidence": "构造材料层的λ=0.3记录有吗",
+            "unresolved": null,
+            "complianceCheck": null,
+            "reportType": null,
+            "factRead": null,
+            "relation": "NEW",
+            "continuedGoal": null,
+            "comparison": null,
+            "referenceTime": null,
+            "adviceMode": null,
+            "constraintPatch": [],
+            "reference": {
+              "scope": "NONE",
+              "revision": null,
+              "items": []
+            },
+            "requestedEffect": "READ_ONLY",
+            "effectRequest": null,
+            "ambiguity": []
+          },
+          "decision": {
+            "intent": "PRODUCT_PARAMETER_QUERY",
+            "mutation": "NONE",
+            "evidenceSpans": [
+              "构造材料层的λ=0.3记录有吗"
+            ],
+            "parserSource": "LLM",
+            "semantic": {
+              "pageQuery": null,
+              "parameterQuery": {
+                "parameter": "LAMBDA",
+                "subjectType": "MATERIAL_LAYER",
+                "subjectText": "构造材料层",
+                "systemText": null,
+                "operator": "EXACT",
+                "targetValue": 0.3,
+                "tolerance": null,
+                "unit": "W/(m·K)",
+                "evidence": "构造材料层的λ=0.3记录有吗"
+              },
+              "productQuery": null,
+              "queryContext": "CURRENT_TURN",
+              "adviceFocus": "SELECTION",
+              "audience": "UNSPECIFIED",
+              "intent": "PRODUCT_PARAMETER_QUERY",
+              "confidence": 0.9,
+              "evidence": "构造材料层的λ=0.3记录有吗",
+              "unresolved": null,
+              "complianceCheck": null,
+              "reportType": null,
+              "factRead": null,
+              "relation": "NEW",
+              "continuedGoal": null,
+              "comparison": null,
+              "referenceTime": null,
+              "adviceMode": null,
+              "constraintPatch": [],
+              "reference": {
+                "scope": "NONE",
+                "revision": null,
+                "items": []
+              },
+              "requestedEffect": "READ_ONLY",
+              "effectRequest": null,
+              "ambiguity": []
+            },
+            "requiresCandidateQuery": false,
+            "restoreAdviceGoal": false,
+            "referenceScope": "LATEST_VISIBLE",
+            "policyReason": "READ_ONLY_SEMANTIC",
+            "queryCurrentMessageId": "ID_7"
+          },
+          "attempt": 1
+        }
+      ],
+      "backendDecision": {
+        "goal": "PRODUCT_PARAMETER_QUERY",
+        "patch": [],
+        "intent": "GENERAL",
+        "source": "INTENT",
+        "factRead": null,
+        "mutation": "NONE",
+        "relation": "NEW",
+        "taskType": "GENERAL",
+        "pageQuery": null,
+        "toolRoute": [
+          "backend:product_parameter_query"
+        ],
+        "toolUsage": {
+          "report": false,
+          "thermal": false,
+          "knowledge": false
+        },
+        "adviceMode": null,
+        "domainIntent": "PRODUCT_PARAMETER_QUERY",
+        "parserSource": "LLM",
+        "policyReason": "READ_ONLY_SEMANTIC",
+        "queryChanged": false,
+        "reportQueued": false,
+        "effectRequest": null,
+        "sourcePageIds": [],
+        "answerContract": "PRODUCT",
+        "parameterQuery": {
+          "unit": "W/(m·K)",
+          "evidence": "构造材料层的λ=0.3记录有吗",
+          "operator": "EXACT",
+          "parameter": "LAMBDA",
+          "tolerance": null,
+          "systemText": null,
+          "subjectText": "构造材料层",
+          "subjectType": "MATERIAL_LAYER",
+          "targetValue": 0.3
+        },
+        "referenceScope": "LATEST_VISIBLE",
+        "candidateIdList": [],
+        "requestedEffect": "READ_ONLY",
+        "referencePageIds": [],
+        "semanticEvidence": "构造材料层的λ=0.3记录有吗",
+        "semanticReference": {
+          "items": [],
+          "scope": "NONE",
+          "revision": null
+        },
+        "factValidationCode": "PARAMETER_SERVICE_FACTS_ONLY",
+        "queryChangedFields": [],
+        "semanticConfidence": 0.9,
+        "solutionStateMutated": false,
+        "candidateSnapshotSource": [],
+        "parameterQueryDiagnostics": {
+          "issues": [
+            "NAME_UNRESOLVED",
+            "SOURCE_SCOPE_LIMITED"
+          ],
+          "coverage": "AUTHORIZED_PUBLISHED_ONLY",
+          "matchedCount": 0,
+          "scannedCount": 18,
+          "conflictCount": 0,
+          "identityCount": 0,
+          "missingTolerance": false,
+          "excludedValueCount": 0,
+          "matchedSourceCount": 0
+        }
+      },
+      "answer": "本次查询导热系数 λ，目标 0.3 W/(m·K)。\n本次有权读取的参数来源未能证明所述名称或体系归属；请确认原名称或提供正式资料，不会自动更正名称或关联产品。\n部分来源的参数归属或证据不足，未参与匹配；结果仅覆盖本次可核验范围。\n产品当量、规格当量与材料层参数分别标明归属，不作跨归属等同、插值、热工计算或合规判断。",
+      "events": [
+        {
+          "event": "message",
+          "data": {
+            "messageId": "ID_8",
+            "userMessageId": "ID_7",
+            "conversationId": "ID_9",
+            "requestId": "req-2"
+          }
+        },
+        {
+          "event": "progress",
+          "data": {
+            "stage": "analyzing",
+            "message": "正在分析问题..."
+          }
+        },
+        {
+          "event": "progress",
+          "data": {
+            "stage": "checking",
+            "message": "正在核对检索资料和计算结果..."
+          }
+        },
+        {
+          "event": "progress",
+          "data": {
+            "stage": "composing",
+            "message": "正在整理回答..."
+          }
+        },
+        {
+          "event": "delta",
+          "data": {
+            "text": "本次查询导热系数 λ，目标 0.3 W/(m·K)。\n本次有权读取的参数来源未能证明所述名称或体系归属；请确认原名称或提供正式资料，不会自动更正名称或关联产品。\n部分来源的参数归属或证据不足，未参与匹配；结果仅覆盖本次可核验范围。\n产品当量、规格当量与材料层参数分别标明归属，不作跨归属等同、插值、热工计算或合规判断。"
+          }
+        },
+        {
+          "event": "progress",
+          "data": {
+            "stage": "completed",
+            "message": "回答整理完成"
+          }
+        },
+        {
+          "event": "done",
+          "data": {
+            "messageId": "ID_8",
+            "conversationId": "ID_9",
+            "finishReason": "COMPLETED",
+            "usage": {},
+            "model": {
+              "id": "deepseek-chat"
+            },
+            "promptVersion": {
+              "id": "ID_10",
+              "version": 3
+            },
+            "sources": [],
+            "latencyMs": 2277
+          }
+        }
+      ],
+      "task": {
+        "taskType": "GENERAL",
+        "adviceBusinessContext": {
+          "conversationId": "ID_9",
+          "projectId": null,
+          "createdAt": "2026-10-18T11:40:28.170Z",
+          "candidateScopeActive": false,
+          "recentGoals": [
+            {
+              "intent": "PRODUCT_PARAMETER_QUERY",
+              "userGoal": "构造材料层的λ=0.3记录有吗",
+              "assistantQuestion": "本次查询导热系数 λ，目标 0.3 W/(m·K)。\n本次有权读取的参数来源未能证明所述名称或体系归属；请确认原名称或提供正式资料，不会自动更正名称或关联产品。\n部分来源的参数归属或证据不足，未参与匹配；结果仅覆盖本次可核验范围。\n产品当量、规格当量与材料层参数分别标明归属，不作跨归属等同、插值、热工计算或合规判断。"
+            }
+          ]
+        }
+      },
+      "tools": [],
+      "sourceScope": {
+        "catalog": "ACTIVE",
+        "specification": "PUBLISHED/EFFECTIVE",
+        "knowledge": "CURRENT/PUBLISHED/AI_ENABLED/PLATFORM",
+        "fixture": "客户知识库首表18档+第33表平屋面12档与Excel参数；非全图集"
+      }
+    }
+  ],
+  "permissions": [
+    {
+      "group": "SOURCE-SCOPE",
+      "repetition": 1,
+      "foreignConversationDenied": true
+    },
+    {
+      "group": "SOURCE-SCOPE",
+      "crossClientDenied": true
+    }
+  ],
+  "limits": [
+    "客户知识库仅第一表18档；屋面覆盖未验",
+    "Confirm/Snapshot/PDF正向闭环须单列验收",
+    "不裁定Excel芯材R4.8/产品R5.0语义"
+  ],
+  "fixture": {
+    "scope": "客户知识库首表18档+第33表平屋面12档与Excel参数；非全图集",
+    "source": {
+      "file": "知识库.docx",
+      "sha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "table": 1,
+      "pageLabel": "21",
+      "scope": "仅第一张表；不代表整份知识库覆盖",
+      "product": "I型VICP复合保温板",
+      "totalRHeader": "传热阻R [(m² ·K)/W]"
+    },
+    "roof": {
+      "file": "知识库.docx",
+      "sha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "table": 33,
+      "pageLabel": "53",
+      "title": "建筑屋面热工计算参考选用表（I型VICP屋面保温系统）",
+      "totalRHeader": "传热阻R [(m² ·K)/W]",
+      "note": "仅摘录可核验平屋面正置/倒置；级防水前的字形在XML不可读，保持未知，不猜I/II；不代表整份图集。"
+    },
+    "excel": {
+      "workbook": "VICP热工计算表格公式(1)(3).xls",
+      "sha256": "6d55edd9d179beff4c5c770e90b839435821d028722107b7879169392ee8f2a4",
+      "note": "Sheet1只读提取的原值和公式缓存值，不重新计算，不裁定4.8/5.0口径，不写业务数据。",
+      "productLambdaCell": "D7",
+      "coreLambdaCell": "M8",
+      "coreResistanceCell": "O8"
+    },
+    "productIds": [
+      "ID_1",
+      "ID_2"
+    ],
+    "documentId": "ID_3",
+    "pageId": "ID_4",
+    "roofPageId": "ID_5",
+    "expectedRows": 18,
+    "roofReadOnlyRows": 12,
+    "coreRNotImported": 4.8
+  },
+  "runtime": {
+    "models": [
+      {
+        "id": "ID_6",
+        "model": "deepseek-chat",
+        "reasoningLevel": "MAX"
+      }
+    ],
+    "defaultModelId": "ID_6",
+    "reasoningModelId": "ID_6"
+  },
+  "permissionSentinels": {
+    "syntheticNegativeOnly": true,
+    "count": 6,
+    "expectedLambdaMatches": 0
+  },
+  "cleanup": "COMPLETED",
+  "finishedAt": "2026-10-18T11:40:29.350Z",
+  "summary": {
+    "executed": 1,
+    "passed": 0,
+    "failed": 1
+  }
+}

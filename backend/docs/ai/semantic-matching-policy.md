@@ -1,5 +1,16 @@
 # AI语义匹配强制规范
 
+2026-10-18 λ参数规则登记：以下仅在结构化参数提案验证中提取/核验封闭工程字段，不按原句路由意图。开放语义仍由resolveDomainTurn提出PRODUCT_PARAMETER_QUERY，副作用为READ_ONLY。新增两个字段文件纳入AST精确指纹检查，未扩大成全项目正则禁令。
+
+| Rule ID | 封闭边界 | 正反例与多轮证据 |
+| --- | --- | --- |
+| SM-PARAMETER-FIELD-01 | 仅导热系数、λ、完整lambda字段名；模糊系数、K/R、厚度不是λ | product-parameter-query.test.ts 5个字段正例/5个相似反例；语义否定/引用/假设只读拒绝各1例 |
+| SM-PARAMETER-UNIT-01 | W/(m·K)、W/(m.K)、W/mK及字形归一；面积单位拒绝；单位内部K不作为指标 | 标准单位与面积单位反例、双指标/单位K例；不换算、不选择领域 |
+| SM-PARAMETER-COMPARISON-01 | 标量LT/LTE/GT/GTE/EXACT/APPROX的封闭符号与同义运算词；±数字仅核验容差，未明确近似窗口不补值 | 比较运算正反例、裸值/近似/遗漏容差例；继承、修正、切话题在product-parameter-continuity.test.ts |
+| SM-PARAMETER-EVIDENCE-01 | 已核验本轮或紧邻待澄清原问的连续证据和原名称，不删否定、不纠错、不从目录造数 | 多数字/厚度/未知别名/伪造目标/失效pending反例；Service执行时再次核验 |
+
+实现位于src/shared/lambda-field.ts与src/modules/ai/product-parameter-query.ts；精确AST节点登记于scripts/semantic-matching-exemptions.json。上述规则没有开放语义快路径或正式动作授权职责。
+
 适用于 Domain、Advice、Action 路由及其调用入口。开放自然语言由现有 `resolveDomainTurn` 理解；模型仅给提案。正式ID、参数事实、权限、状态机和副作用均由后端校验。不得新增竞争的 Advice Router。
 
 ## 允许的有限用途

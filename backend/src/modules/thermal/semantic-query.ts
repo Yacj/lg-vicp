@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { hasLambdaField } from "../../shared/lambda-field.js";
 import { QUERY_LIFECYCLE_MODES } from "./thermal-query-lifecycle.js";
 import { normalizeThermalLookupQuery, parseThermalLookupMessage, inferThermalLookupMode } from "./thermal-lookup-mode.js";
 import { entityFields, traceQueryState, type ThermalQueryState } from "./thermal-query-state.js";
@@ -192,6 +193,12 @@ export function applySemanticQuery(message: string, semanticInput: unknown, dict
       continue;
     }
     if (constraint.type === "METRIC" && constraint.metric) {
+      if (constraint.metric === "K" && (hasLambdaField(scopeText)
+        && !parseThermalLookupMessage(scopeText).filters.some(filter => filter.metric === "K" && filter.targetValue === constraint.value)
+        || hasLambdaField(evidence) && parseThermalLookupMessage(scopeText).metric !== "K" && parseThermalLookupMessage(evidence).metric !== "K")) {
+        reject("metric", "导热系数 λ 不能作为传热系数 K 的查询条件。");
+        continue;
+      }
       if (constraint.operation === "REMOVE") {
         query.filters = normalizeThermalLookupQuery(query).filters.filter(filter => filter.metric !== constraint.metric);
         query.removedMetrics = [...new Set([...(query.removedMetrics ?? []), constraint.metric])];

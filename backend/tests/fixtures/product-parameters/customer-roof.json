@@ -1,0 +1,6 @@
+{
+  "source":{"file":"知识库.docx","sha256":"c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919","table":33,"pageLabel":"53","title":"建筑屋面热工计算参考选用表（I型VICP屋面保温系统）","system":"I型VICP屋面保温系统","totalRHeader":"传热阻R [(m² ·K)/W]","note":"仅摘录可核验平屋面正置/倒置；级防水前的字形在XML不可读，保持未知，不猜I/II；不代表整份图集。"},
+  "thicknesses":[15,20,25,30,35,40],"productR":[2.4,3.2,4,4.8,5.6,6.4],
+  "totalR":[2.769,3.569,4.369,5.169,5.969,6.769],"k":[0.361,0.280,0.229,0.193,0.168,0.148],
+  "constructions":[{"rawLabel":"平屋面（正置，级防水）","placement":"UPRIGHT","layerOrder":4},{"rawLabel":"平屋面（倒置，级防水）","placement":"INVERTED","layerOrder":9}]
+}

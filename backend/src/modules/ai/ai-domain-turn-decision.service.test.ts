@@ -6,11 +6,32 @@ vi.mock("./reference-fact-history.js", () => ({ readReferenceFactHistory: mocks.
 vi.mock("./query-clarification-context.js", () => ({ readQueryClarification: async () => null }));
 vi.mock("ai", () => ({ generateObject: mocks.generate }));
 vi.mock("./ai-runtime.service.js", () => ({ resolveSceneRuntime: mocks.runtime }));
-import { resolveDomainTurn, DOMAIN_SEMANTIC_PROMPT } from "./ai-domain-turn-decision.service.js";
+import { resolveDomainTurn, DOMAIN_SEMANTIC_PROMPT, observeDomainSemantic } from "./ai-domain-turn-decision.service.js";
 function ctx(message: string) { return { app: { db: {}, log: { warn: vi.fn() } }, conversation: { scene: "general_chat" },
   userMessage: message, taskState: { taskType: "GENERAL", lastReferenceLookup: { query: {}, candidates: [{ id: "one" }] } } } as any; }
 beforeEach(() => { vi.resetAllMocks(); mocks.runtime.mockResolvedValue({ primary: { languageModel: {} } }); mocks.history.mockResolvedValue([]); });
 describe("开放目标受控分类与故障隔离", () => {
+  it("只读进程观察器跨Fastify封装取结构化提案，解除后不再记录", async () => {
+    const server={},root={server},context=ctx("查看原页");context.app.server=server;
+    const observer=vi.fn(),stop=observeDomainSemantic(root,observer);
+    mocks.generate.mockResolvedValue({object:domainSemanticFixture("查看原页","REFERENCE_VIEW")});
+    await resolveDomainTurn(context);expect(observer).toHaveBeenCalledWith(expect.objectContaining({attempt:1,proposal:expect.objectContaining({intent:"REFERENCE_VIEW"})}));
+    stop();await resolveDomainTurn(context);expect(observer).toHaveBeenCalledTimes(1);
+  });
+  it("明确工程字段遇模型只读歧义，仅复核一次，不绕过Policy或提高置信度", async () => {
+    const message = "保温薄抹灰0.3传热系数方案";
+    const proposal = domainSemanticFixture(message, "CLARIFY", { unresolved: "指标不明确", relation: "NEW", reference: { scope: "NONE", revision: null, items: [] } });
+    mocks.generate.mockResolvedValue({ object: proposal });
+    expect(await resolveDomainTurn(ctx(message))).toMatchObject({ intent: "CLARIFY", policyReason: "SEMANTIC_AMBIGUOUS" });
+    expect(mocks.generate).toHaveBeenCalledTimes(2);
+    expect(mocks.generate.mock.calls[0]![0].abortSignal).toBe(mocks.generate.mock.calls[1]![0].abortSignal);
+  });
+  it("副作用歧义不因出现K字段获得复核或授权", async () => {
+    const message = "确认K0.3方案";
+    mocks.generate.mockResolvedValue({ object: domainSemanticFixture(message, "SOLUTION_ACTION", { unresolved: "身份不明" }) });
+    expect((await resolveDomainTurn(ctx(message))).mutation).toBe("NONE");
+    expect(mocks.generate).toHaveBeenCalledTimes(1);
+  });
   it("仅结构验证失败在同一预算内重提案；仍经Policy，不提升权限", async () => {
     const message = "查看这个原页";
     const valid = domainSemanticFixture(message, "REFERENCE_VIEW");

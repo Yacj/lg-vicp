@@ -1,7 +1,7 @@
 import { parseSolutionActionFastPath, normalizeSolutionActionText } from "./solution-action-semantic.js";
 import type { LastReferenceLookup } from "./conversation-task.js";
 import type { DomainTurnSemantic } from "./ai-domain-semantic.js";
-export const DOMAIN_INTENTS = ["GENERAL", "KNOWLEDGE_EXPLAIN", "PRODUCT_DISCOVERY", "PRODUCT_DETAIL", "REFERENCE_QUERY", "REFERENCE_REFINE", "REFERENCE_VIEW", "REFERENCE_DETAIL", "THERMAL_CALCULATE", "COMPLIANCE_CHECK", "MATERIAL_COMPARE", "COMPARE_CANDIDATES", "SOLUTION_ADVICE", "SOLUTION_ACTION", "REPORT_REQUEST", "CLARIFY"] as const;
+export const DOMAIN_INTENTS = ["GENERAL", "KNOWLEDGE_EXPLAIN", "PRODUCT_DISCOVERY", "PRODUCT_DETAIL", "PRODUCT_PARAMETER_QUERY", "REFERENCE_QUERY", "REFERENCE_REFINE", "REFERENCE_VIEW", "REFERENCE_DETAIL", "THERMAL_CALCULATE", "COMPLIANCE_CHECK", "MATERIAL_COMPARE", "COMPARE_CANDIDATES", "SOLUTION_ADVICE", "SOLUTION_ACTION", "REPORT_REQUEST", "CLARIFY"] as const;
 export type DomainIntent = typeof DOMAIN_INTENTS[number];
 export interface DomainTurnDecision {
   intent: DomainIntent;
@@ -18,6 +18,8 @@ export interface DomainTurnDecision {
   /** 仅服务器绑定的只读查询证据，原用户消息及副作用授权仍独立。 */
   queryEvidenceText?: string;
   queryContextMessageId?: string;
+  /** 属性读取重验待澄清上下文时排除本轮USER消息，仅由服务器填充。 */
+  queryCurrentMessageId?: string;
   /** 中等置信的查询提案经完整条件校验后仅展示事实，不发布/覆盖Candidate。 */
   queryResultMode?: "FACTS_ONLY";
 }

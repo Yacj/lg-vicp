@@ -2,9 +2,13 @@ import { z } from "zod";
 import { DOMAIN_INTENTS } from "./ai-domain-turn-decision.js";
 import { candidateReferenceSchema } from "./solution-action-semantic.js";
 import { semanticQuerySchema } from "../thermal/semantic-query.js";
+import { productParameterQuerySchema } from "./product-parameter-query.js";
 export const domainTurnSemanticSchema = z.object({
   /** 复用现有语义条件合同，只读图集参数查询；不产生方案/计算/报告授权。 */
   pageQuery: semanticQuerySchema.nullable().optional(),
+  parameterQuery: productParameterQuerySchema.nullable().optional(),
+  productQuery: z.object({ scope: z.enum(["CATALOG", "IDENTITY", "CATEGORY"]), entityText: z.string().min(1).max(200).nullable(),
+    granularity: z.enum(["CATALOG", "SERIES", "PRODUCT"]), evidence: z.string().min(1).max(2000) }).strict().nullable().optional(),
   /** 澄清回复只允许复用服务器核验的紧邻查询原话，不能授权副作用。 */
   queryContext: z.enum(["CURRENT_TURN", "CLARIFICATION_REPLY"]).default("CURRENT_TURN"),
   adviceFocus: z.enum(["SELECTION", "PROS_CONS"]).default("SELECTION"),

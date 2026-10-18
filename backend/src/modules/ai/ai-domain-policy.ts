@@ -8,10 +8,10 @@ import { candidateReferenceSchema, referenceEvidenceMatches } from "./solution-a
 export const hasVerbatimEvidence = (message: string, evidence: string) => evidence.trim().length > 0 && message.includes(evidence);
 export function targetedDomainFallback(state?: ConversationTaskState | null, source: "LLM" | "UNAVAILABLE" = "LLM", reason = "SEMANTIC_UNRESOLVED"): DomainTurnDecision {
   return { ...domainDecision("CLARIFY", ""), parserSource: source, policyReason: reason, unresolved: [state?.pendingAdviceGoal
-    ? "当前参考选型可以按实际基层匹配已有构造，暂不包含地区合规结论。请明确继续该参考建议，或指定要查看的候选参数。"
+    ? "请明确继续当前参考建议，或指定要查看的候选参数。"
     : state?.lastReferenceLookup?.candidates.length && state.adviceBusinessContext?.candidateScopeActive !== false
-      ? "你希望按现有候选分别给出参考选型，还是已确定某一种实际基层？"
-      : "请指定这轮要讨论的保温体系或实际基层；可以先整理参考选型框架。"] };
+      ? "请明确要查看当前候选的哪些参数，或说明新的查询目标。"
+      : "这轮请求暂未能可靠理解，请补充要查询的产品、参数或参考构造；已明确的指标无需重复说明。"] };
 }
 const effectForIntent: Partial<Record<DomainTurnSemantic["intent"], DomainTurnSemantic["requestedEffect"]>> = { SOLUTION_ACTION: "STATE_MUTATION", REPORT_REQUEST: "REPORT_GENERATION", THERMAL_CALCULATE: "CALCULATE", REFERENCE_QUERY: "QUERY", REFERENCE_REFINE: "QUERY" };
 /** 模型仅提案；正式写入仍经原状态机。 */
@@ -24,13 +24,24 @@ export function applyDomainPolicy(message: string, semantic: DomainTurnSemantic,
     }
     if (reason === "REFERENCE_EVIDENCE_INVALID") result.unresolved = ["候选引用未能对应当前序号、构造编号或厚度，请明确当前候选后重试。"];
     if (reason === "FACT_READ_INVALID") result.unresolved = ["尚未可靠定位要核对的构造、厚度或指标，请指定对应原页；核对数字不会确认正式方案。"];
+    if (reason === "PARAMETER_QUERY_INVALID") result.unresolved = ["产品或材料参数的读取目标尚未可靠确认，请核对参数名称、数值或单位。"];
     return { ...result, semantic };
   };
   if (semantic.pageQuery && semantic.intent !== "REFERENCE_QUERY" && semantic.intent !== "REFERENCE_REFINE") return reject("PAGE_QUERY_SCOPE_INVALID");
+  if (semantic.productQuery && (semantic.intent !== "PRODUCT_DISCOVERY" && semantic.intent !== "PRODUCT_DETAIL" && semantic.intent !== "MATERIAL_COMPARE" && semantic.intent !== "CLARIFY"
+    || !hasVerbatimEvidence(message, semantic.productQuery.evidence)
+    || semantic.productQuery.scope !== "CATALOG" && (!semantic.productQuery.entityText || !hasVerbatimEvidence(message, semantic.productQuery.entityText))
+    || semantic.productQuery.scope === "CATALOG" && semantic.productQuery.entityText != null)) return reject("PRODUCT_SCOPE_INVALID");
   if (semantic.pageQuery && semantic.pageQuery.intent !== "REFERENCE_LOOKUP") return reject("PAGE_QUERY_INTENT_MISMATCH");
-  if (semantic.queryContext === "CLARIFICATION_REPLY" && (semantic.requestedEffect !== "QUERY"
+  const parameterRead = semantic.intent === "PRODUCT_PARAMETER_QUERY" && semantic.requestedEffect === "READ_ONLY" && !!semantic.parameterQuery;
+  if (semantic.parameterQuery && !parameterRead || semantic.intent === "PRODUCT_PARAMETER_QUERY" && (!parameterRead || semantic.confidence < .8
+    || semantic.pageQuery || semantic.factRead || semantic.constraintPatch.length || semantic.reference.items.length
+    || semantic.reference.scope !== "NONE" || semantic.reference.revision != null || semantic.complianceCheck?.required
+    || semantic.effectRequest && (!semantic.effectRequest.direct || semantic.effectRequest.polarity !== "AFFIRMATIVE" || semantic.effectRequest.speechAct !== "REQUEST" || !hasVerbatimEvidence(message, semantic.effectRequest.evidence))))
+    return reject("PARAMETER_QUERY_INVALID");
+  if (semantic.queryContext === "CLARIFICATION_REPLY" && (!parameterRead && (semantic.requestedEffect !== "QUERY"
     || semantic.intent !== "REFERENCE_QUERY" && semantic.intent !== "REFERENCE_REFINE"
-    || semantic.relation !== "CONTINUE" && semantic.relation !== "REFINE" || !semantic.pageQuery)) return reject("QUERY_CONTEXT_INVALID");
+    || !semantic.pageQuery) || semantic.relation !== "CONTINUE" && semantic.relation !== "REFINE")) return reject("QUERY_CONTEXT_INVALID");
   if (!hasVerbatimEvidence(message, semantic.evidence) || semantic.constraintPatch.some(patch => !hasVerbatimEvidence(message, patch.evidence))) return reject("EVIDENCE_INVALID");
   if (semantic.factRead && (!hasVerbatimEvidence(message, semantic.factRead.evidence) || semantic.requestedEffect !== "READ_ONLY"
     || semantic.intent !== "KNOWLEDGE_EXPLAIN" && semantic.intent !== "REFERENCE_DETAIL" || semantic.confidence < .8)) return reject("FACT_READ_INVALID");

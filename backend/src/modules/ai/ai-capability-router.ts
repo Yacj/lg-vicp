@@ -95,7 +95,7 @@ export function resolveAiCapabilities(input: ResolveAiCapabilitiesInput): AiCapa
   if (!input.message.trim() || isClosedGreeting(input.message)) return { ...EMPTY_CAPABILITIES };
   const intent = input.domainDecision?.intent ?? "GENERAL";
   const references = new Set(["REFERENCE_QUERY", "REFERENCE_REFINE", "REFERENCE_VIEW", "REFERENCE_DETAIL", "COMPARE_CANDIDATES"]);
-  const products = new Set(["PRODUCT_DISCOVERY", "PRODUCT_DETAIL", "MATERIAL_COMPARE"]);
+  const products = new Set(["PRODUCT_DISCOVERY", "PRODUCT_DETAIL", "PRODUCT_PARAMETER_QUERY", "MATERIAL_COMPARE"]);
   return { idle: false, needKnowledgeSearch: intent !== "SOLUTION_ADVICE" && intent !== "CLARIFY",
     explicitKnowledgeRequest: references.has(intent) || intent === "KNOWLEDGE_EXPLAIN" || intent === "COMPLIANCE_CHECK",
     needProjectContext: Boolean(input.projectId), needReferenceLookup: references.has(intent),

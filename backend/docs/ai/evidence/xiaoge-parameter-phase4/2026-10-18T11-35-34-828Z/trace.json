@@ -1,0 +1,1580 @@
+{
+  "startedAt": "2026-10-18T11:35:34.829Z",
+  "mode": "REAL_HTTP_SSE",
+  "repeatsQ01Q07": 3,
+  "cases": [
+    {
+      "group": "SOURCE-RAW",
+      "repetition": 1,
+      "turn": 1,
+      "userMessage": "薄抹灰 K0.3 有哪些构造",
+      "label": "REPRODUCED_TEST",
+      "status": "PASS",
+      "checks": [
+        {
+          "name": "不自动生成快照/报告/计算",
+          "passed": true
+        },
+        {
+          "name": "非正式方案写入",
+          "passed": true
+        }
+      ],
+      "priorQuery": {
+        "taskType": "GENERAL"
+      },
+      "semanticAttempts": [
+        {
+          "message": "薄抹灰 K0.3 有哪些构造",
+          "pendingClarification": null,
+          "previousQuery": null,
+          "proposal": {
+            "pageQuery": {
+              "queryMode": "NEW_QUERY",
+              "intent": "REFERENCE_LOOKUP",
+              "constraints": [
+                {
+                  "type": "ENTITY",
+                  "operation": "SET",
+                  "field": "systemHint",
+                  "entityText": "薄抹灰",
+                  "resolvedText": null,
+                  "metric": null,
+                  "operator": null,
+                  "value": null,
+                  "evidence": "薄抹灰",
+                  "hard": true,
+                  "confidence": 0.9
+                },
+                {
+                  "type": "METRIC",
+                  "operation": "SET",
+                  "field": null,
+                  "entityText": null,
+                  "resolvedText": null,
+                  "metric": "K",
+                  "operator": "APPROX",
+                  "value": 0.3,
+                  "evidence": "K0.3",
+                  "hard": true,
+                  "confidence": 0.9
+                }
+              ],
+              "preferences": [],
+              "unresolved": [],
+              "confidence": 0.9
+            },
+            "parameterQuery": null,
+            "productQuery": null,
+            "queryContext": "CURRENT_TURN",
+            "adviceFocus": "SELECTION",
+            "audience": "UNSPECIFIED",
+            "intent": "REFERENCE_QUERY",
+            "confidence": 0.9,
+            "evidence": "薄抹灰 K0.3 有哪些构造",
+            "unresolved": null,
+            "complianceCheck": null,
+            "reportType": null,
+            "factRead": null,
+            "relation": "NEW",
+            "continuedGoal": null,
+            "comparison": null,
+            "referenceTime": null,
+            "adviceMode": null,
+            "constraintPatch": [],
+            "reference": {
+              "scope": "NONE",
+              "revision": null,
+              "items": []
+            },
+            "requestedEffect": "QUERY",
+            "effectRequest": null,
+            "ambiguity": []
+          },
+          "decision": {
+            "intent": "REFERENCE_QUERY",
+            "mutation": "QUERY",
+            "evidenceSpans": [
+              "薄抹灰 K0.3 有哪些构造"
+            ],
+            "parserSource": "LLM",
+            "semantic": {
+              "pageQuery": {
+                "queryMode": "NEW_QUERY",
+                "intent": "REFERENCE_LOOKUP",
+                "constraints": [
+                  {
+                    "type": "ENTITY",
+                    "operation": "SET",
+                    "field": "systemHint",
+                    "entityText": "薄抹灰",
+                    "resolvedText": null,
+                    "metric": null,
+                    "operator": null,
+                    "value": null,
+                    "evidence": "薄抹灰",
+                    "hard": true,
+                    "confidence": 0.9
+                  },
+                  {
+                    "type": "METRIC",
+                    "operation": "SET",
+                    "field": null,
+                    "entityText": null,
+                    "resolvedText": null,
+                    "metric": "K",
+                    "operator": "APPROX",
+                    "value": 0.3,
+                    "evidence": "K0.3",
+                    "hard": true,
+                    "confidence": 0.9
+                  }
+                ],
+                "preferences": [],
+                "unresolved": [],
+                "confidence": 0.9
+              },
+              "parameterQuery": null,
+              "productQuery": null,
+              "queryContext": "CURRENT_TURN",
+              "adviceFocus": "SELECTION",
+              "audience": "UNSPECIFIED",
+              "intent": "REFERENCE_QUERY",
+              "confidence": 0.9,
+              "evidence": "薄抹灰 K0.3 有哪些构造",
+              "unresolved": null,
+              "complianceCheck": null,
+              "reportType": null,
+              "factRead": null,
+              "relation": "NEW",
+              "continuedGoal": null,
+              "comparison": null,
+              "referenceTime": null,
+              "adviceMode": null,
+              "constraintPatch": [],
+              "reference": {
+                "scope": "NONE",
+                "revision": null,
+                "items": []
+              },
+              "requestedEffect": "QUERY",
+              "effectRequest": null,
+              "ambiguity": []
+            },
+            "requiresCandidateQuery": false,
+            "restoreAdviceGoal": false,
+            "referenceScope": "LATEST_VISIBLE",
+            "policyReason": "READ_ONLY_QUERY"
+          },
+          "attempt": 1
+        }
+      ],
+      "backendDecision": {
+        "goal": "REFERENCE_QUERY",
+        "patch": [],
+        "intent": "REFERENCE_LOOKUP",
+        "source": "INTENT",
+        "factRead": null,
+        "mutation": "QUERY",
+        "relation": "NEW",
+        "taskType": "GENERAL",
+        "pageQuery": {
+          "intent": "REFERENCE_LOOKUP",
+          "queryMode": "NEW_QUERY",
+          "confidence": 0.9,
+          "unresolved": [],
+          "constraints": [
+            {
+              "hard": true,
+              "type": "ENTITY",
+              "field": "systemHint",
+              "value": null,
+              "metric": null,
+              "evidence": "薄抹灰",
+              "operator": null,
+              "operation": "SET",
+              "confidence": 0.9,
+              "entityText": "薄抹灰",
+              "resolvedText": null
+            },
+            {
+              "hard": true,
+              "type": "METRIC",
+              "field": null,
+              "value": 0.3,
+              "metric": "K",
+              "evidence": "K0.3",
+              "operator": "APPROX",
+              "operation": "SET",
+              "confidence": 0.9,
+              "entityText": null,
+              "resolvedText": null
+            }
+          ],
+          "preferences": []
+        },
+        "toolRoute": [
+          "backend:knowledge",
+          "backend:reference_query"
+        ],
+        "toolUsage": {
+          "report": false,
+          "thermal": false,
+          "knowledge": true
+        },
+        "adviceMode": null,
+        "candidateIds": [],
+        "domainIntent": "REFERENCE_QUERY",
+        "parserSource": "LLM",
+        "policyReason": "READ_ONLY_QUERY",
+        "queryChanged": true,
+        "reportQueued": false,
+        "effectRequest": null,
+        "sourcePageIds": [],
+        "answerContract": "REFERENCE_LOOKUP",
+        "factValidation": "REFERENCE_QUERY_VERIFIED",
+        "queryLifecycle": "NEW_QUERY",
+        "referenceScope": "LATEST_VISIBLE",
+        "candidateIdList": [],
+        "requestedEffect": "QUERY",
+        "referencePageIds": [
+          "ID_4"
+        ],
+        "semanticEvidence": "薄抹灰 K0.3 有哪些构造",
+        "semanticReference": {
+          "items": [],
+          "scope": "NONE",
+          "revision": null
+        },
+        "factValidationCode": "REFERENCE_QUERY_VERIFIED",
+        "queryChangedFields": [
+          "intent",
+          "filters",
+          "metric",
+          "targetValue",
+          "mode",
+          "tolerance",
+          "effectiveTolerance",
+          "toleranceAdjusted",
+          "systemHint",
+          "queryMode",
+          "semanticConfidence",
+          "parserSource",
+          "unresolved",
+          "conditionTrace",
+          "documentIds",
+          "knowledgeVersionIds"
+        ],
+        "semanticConfidence": 0.9,
+        "solutionStateMutated": false,
+        "candidateSnapshotSource": [],
+        "referenceQueryDiagnostics": {
+          "scope": "JOINT",
+          "issues": [],
+          "coverage": "AUTHORIZED_PUBLISHED_ONLY",
+          "matchedCount": 3,
+          "metricScopes": [
+            {
+              "count": 18,
+              "metric": "K",
+              "values": [
+                0.119,
+                0.12,
+                0.132,
+                0.133,
+                0.147,
+                0.149,
+                0.167,
+                0.169
+              ],
+              "rowCount": 36,
+              "truncated": true
+            }
+          ],
+          "scannedCount": 48,
+          "identityCount": 36,
+          "missingMetrics": [],
+          "partialMissingMetrics": []
+        }
+      },
+      "query": {
+        "intent": "REFERENCE_LOOKUP",
+        "filters": [
+          {
+            "metric": "K",
+            "targetValue": 0.3,
+            "mode": "APPROX",
+            "tolerance": 0.02,
+            "toleranceSource": "DEFAULT",
+            "effectiveTolerance": 0.02,
+            "toleranceAdjusted": false
+          }
+        ],
+        "metric": "K",
+        "targetValue": 0.3,
+        "mode": "APPROX",
+        "tolerance": 0.02,
+        "effectiveTolerance": 0.02,
+        "toleranceAdjusted": false,
+        "systemHint": "薄抹灰",
+        "queryMode": "NEW_QUERY",
+        "semanticConfidence": 0.9,
+        "parserSource": "LLM",
+        "documentIds": [
+          "ID_3"
+        ],
+        "knowledgeVersionIds": [
+          "ID_7"
+        ],
+        "unresolved": [],
+        "conditionTrace": [
+          {
+            "field": "systemHint",
+            "value": "薄抹灰",
+            "source": "USER_EXPLICIT",
+            "classification": "HARD_CONSTRAINT"
+          },
+          {
+            "field": "K",
+            "value": 0.3,
+            "mode": "APPROX",
+            "source": "USER_EXPLICIT",
+            "classification": "HARD_CONSTRAINT"
+          }
+        ]
+      },
+      "answer": "以下为满足当前筛选条件、已绑定确认原页的正式参考候选（尚未确认方案）：\nI型VICP薄抹灰外保温系统；基层 混凝土空心砌块 190 mm；方案 A1-2；规格 CUSTOMER-I-18；厚度 18 mm；产品层热阻 R=2.88 m²·K/W；总热阻 R₀=3.279 m²·K/W；K=0.305 W/(m²·K)。\n来源：客户知识库第一表（隔离验收）（正式热工参考集（已审核发布）），印刷页码 21。\n\n仅覆盖当前有权访问、已发布生效的确认范围；参考值不构成计算或合规结论。",
+      "events": [
+        {
+          "event": "message",
+          "data": {
+            "messageId": "ID_8",
+            "userMessageId": "ID_9",
+            "conversationId": "ID_10",
+            "requestId": "req-2"
+          }
+        },
+        {
+          "event": "progress",
+          "data": {
+            "stage": "analyzing",
+            "message": "正在分析问题..."
+          }
+        },
+        {
+          "event": "progress",
+          "data": {
+            "stage": "checking",
+            "message": "正在核对检索资料和计算结果..."
+          }
+        },
+        {
+          "event": "progress",
+          "data": {
+            "stage": "composing",
+            "message": "正在整理回答..."
+          }
+        },
+        {
+          "event": "delta",
+          "data": {
+            "text": "以下为满足当前筛选条件、已绑定确认原页的正式参考候选（尚未确认方案）：\nI型VICP薄抹灰外保温系统；基层 混凝土空心砌块 190 mm；方案 A1-2；规格 CUSTOMER-I-18；厚度 18 mm；产品层热阻 R=2.88 m²·K/W；总热阻 R₀=3.279 m²·K/W；K=0.305 W/(m²·K)。\n来源：客户知识库第一表（隔离验收）（正式热工参考集（已审核发布）），印刷页码 21。\n\n仅覆盖当前有权访问、已发布生效的确认范围；参考值不构成计算或合规结论。"
+          }
+        },
+        {
+          "event": "reference_pages",
+          "data": {
+            "referencePages": [
+              {
+                "type": "REFERENCE_PAGE",
+                "renderModel": {
+                  "pageTitle": "I型VICP薄抹灰外保温系统",
+                  "pageLabel": "21",
+                  "constructions": [
+                    {
+                      "constructionId": "kp-0b690d4b9e1626fd4b5eecc5-0",
+                      "constructionCode": "A1-1",
+                      "systemName": "I型VICP薄抹灰外保温系统",
+                      "specClass": "I",
+                      "baseMaterial": "钢筋混凝土",
+                      "baseThicknessMm": 200,
+                      "layers": [
+                        {
+                          "name": "钢筋混凝土",
+                          "order": 1,
+                          "thicknessMm": 200,
+                          "layerId": "kp-0b690d4b9e1626fd4b5eecc5-0-l0"
+                        },
+                        {
+                          "name": "I型VICP复合保温板",
+                          "alpha": 1.25,
+                          "order": 2,
+                          "lambda": 0.005,
+                          "layerId": "kp-0b690d4b9e1626fd4b5eecc5-0-l1",
+                          "variable": true
+                        }
+                      ],
+                      "material": {
+                        "name": "I型VICP复合保温板",
+                        "lambda": 0.005,
+                        "alpha": 1.25
+                      },
+                      "options": [
+                        {
+                          "optionId": "kp-0b690d4b9e1626fd4b5eecc5-0-o0",
+                          "thicknessMm": 15,
+                          "productThermalResistance": 2.4,
+                          "totalThermalResistance": 2.713,
+                          "kValue": 0.369
+                        },
+                        {
+                          "optionId": "kp-0b690d4b9e1626fd4b5eecc5-0-o1",
+                          "thicknessMm": 18,
+                          "productThermalResistance": 2.88,
+                          "totalThermalResistance": 3.193,
+                          "kValue": 0.313
+                        },
+                        {
+                          "optionId": "kp-0b690d4b9e1626fd4b5eecc5-0-o2",
+                          "thicknessMm": 20,
+                          "productThermalResistance": 3.2,
+                          "totalThermalResistance": 3.513,
+                          "kValue": 0.285
+                        },
+                        {
+                          "optionId": "kp-0b690d4b9e1626fd4b5eecc5-0-o3",
+                          "thicknessMm": 25,
+                          "productThermalResistance": 4,
+                          "totalThermalResistance": 4.313,
+                          "kValue": 0.232
+                        },
+                        {
+                          "optionId": "kp-0b690d4b9e1626fd4b5eecc5-0-o4",
+                          "thicknessMm": 30,
+                          "productThermalResistance": 4.8,
+                          "totalThermalResistance": 5.113,
+                          "kValue": 0.196
+                        },
+                        {
+                          "optionId": "kp-0b690d4b9e1626fd4b5eecc5-0-o5",
+                          "thicknessMm": 35,
+                          "productThermalResistance": 5.6,
+                          "totalThermalResistance": 5.913,
+                          "kValue": 0.169
+                        },
+                        {
+                          "optionId": "kp-0b690d4b9e1626fd4b5eecc5-0-o6",
+                          "thicknessMm": 40,
+                          "productThermalResistance": 6.4,
+                          "totalThermalResistance": 6.713,
+                          "kValue": 0.149
+                        },
+                        {
+                          "optionId": "kp-0b690d4b9e1626fd4b5eecc5-0-o7",
+                          "thicknessMm": 45,
+                          "productThermalResistance": 7.2,
+                          "totalThermalResistance": 7.513,
+                          "kValue": 0.133
+                        },
+                        {
+                          "optionId": "kp-0b690d4b9e1626fd4b5eecc5-0-o8",
+                          "thicknessMm": 50,
+                          "productThermalResistance": 8,
+                          "totalThermalResistance": 8.313,
+                          "kValue": 0.12
+                        }
+                      ]
+                    },
+                    {
+                      "constructionId": "kp-0b690d4b9e1626fd4b5eecc5-1",
+                      "constructionCode": "A1-2",
+                      "systemName": "I型VICP薄抹灰外保温系统",
+                      "specClass": "I",
+                      "baseMaterial": "混凝土空心砌块",
+                      "baseThicknessMm": 190,
+                      "layers": [
+                        {
+                          "name": "混凝土空心砌块",
+                          "order": 1,
+                          "thicknessMm": 190,
+                          "layerId": "kp-0b690d4b9e1626fd4b5eecc5-1-l0"
+                        },
+                        {
+                          "name": "I型VICP复合保温板",
+                          "alpha": 1.25,
+                          "order": 2,
+                          "lambda": 0.005,
+                          "layerId": "kp-0b690d4b9e1626fd4b5eecc5-1-l1",
+                          "variable": true
+                        }
+                      ],
+                      "material": {
+                        "name": "I型VICP复合保温板",
+                        "lambda": 0.005,
+                        "alpha": 1.25
+                      },
+                      "options": [
+                        {
+                          "optionId": "kp-0b690d4b9e1626fd4b5eecc5-1-o0",
+                          "thicknessMm": 15,
+                          "productThermalResistance": 2.4,
+                          "totalThermalResistance": 2.798,
+                          "kValue": 0.357
+                        },
+                        {
+                          "optionId": "kp-0b690d4b9e1626fd4b5eecc5-1-o1",
+                          "thicknessMm": 18,
+                          "productThermalResistance": 2.88,
+                          "totalThermalResistance": 3.279,
+                          "kValue": 0.305
+                        },
+                        {
+                          "optionId": "kp-0b690d4b9e1626fd4b5eecc5-1-o2",
+                          "thicknessMm": 20,
+                          "productThermalResistance": 3.2,
+                          "totalThermalResistance": 3.598,
+                          "kValue": 0.278
+                        },
+                        {
+                          "optionId": "kp-0b690d4b9e1626fd4b5eecc5-1-o3",
+                          "thicknessMm": 25,
+                          "productThermalResistance": 4,
+                          "totalThermalResistance": 4.398,
+                          "kValue": 0.227
+                        },
+                        {
+                          "optionId": "kp-0b690d4b9e1626fd4b5eecc5-1-o4",
+                          "thicknessMm": 30,
+                          "productThermalResistance": 4.8,
+                          "totalThermalResistance": 5.198,
+                          "kValue": 0.192
+                        },
+                        {
+                          "optionId": "kp-0b690d4b9e1626fd4b5eecc5-1-o5",
+                          "thicknessMm": 35,
+                          "productThermalResistance": 5.6,
+                          "totalThermalResistance": 5.998,
+                          "kValue": 0.167
+                        },
+                        {
+                          "optionId": "kp-0b690d4b9e1626fd4b5eecc5-1-o6",
+                          "thicknessMm": 40,
+                          "productThermalResistance": 6.4,
+                          "totalThermalResistance": 6.798,
+                          "kValue": 0.147
+                        },
+                        {
+                          "optionId": "kp-0b690d4b9e1626fd4b5eecc5-1-o7",
+                          "thicknessMm": 45,
+                          "productThermalResistance": 7.2,
+                          "totalThermalResistance": 7.598,
+                          "kValue": 0.132
+                        },
+                        {
+                          "optionId": "kp-0b690d4b9e1626fd4b5eecc5-1-o8",
+                          "thicknessMm": 50,
+                          "productThermalResistance": 8,
+                          "totalThermalResistance": 8.398,
+                          "kValue": 0.119
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "summary": {
+                  "systemType": "I型VICP薄抹灰外保温系统",
+                  "constructionCode": "A1-2",
+                  "thicknessMm": 18,
+                  "productThermalResistance": 2.88,
+                  "totalThermalResistance": 3.279,
+                  "kValue": 0.305
+                },
+                "page": {
+                  "documentId": "ID_3",
+                  "pageId": "ID_4",
+                  "documentTitle": "客户知识库第一表（隔离验收）",
+                  "docNumber": null,
+                  "pageNumber": 21,
+                  "physicalPageNumber": 21,
+                  "pageLabel": "21",
+                  "imageUrl": ""
+                },
+                "matches": [
+                  {
+                    "optionId": "kp-0b690d4b9e1626fd4b5eecc5-1-o1",
+                    "fieldKeys": [
+                      "thicknessMm",
+                      "productThermalResistance",
+                      "totalThermalResistance",
+                      "kValue"
+                    ],
+                    "answerOffset": 203,
+                    "pageId": "ID_4",
+                    "constructionId": "kp-0b690d4b9e1626fd4b5eecc5-1",
+                    "candidateId": "kp-0b690d4b9e1626fd4b5eecc5-1-o1",
+                    "summary": {
+                      "systemType": "I型VICP薄抹灰外保温系统",
+                      "constructionCode": "A1-2",
+                      "thicknessMm": 18,
+                      "productThermalResistance": 2.88,
+                      "totalThermalResistance": 3.279,
+                      "kValue": 0.305
+                    },
+                    "highlights": [
+                      {
+                        "field": "thicknessMm",
+                        "label": "厚度",
+                        "value": "18 mm"
+                      },
+                      {
+                        "field": "productR",
+                        "label": "产品整体热阻（源文待核）",
+                        "value": "2.88"
+                      },
+                      {
+                        "field": "rValue",
+                        "label": "整构造传热阻（源文符号待核）",
+                        "value": "3.279"
+                      },
+                      {
+                        "field": "kValue",
+                        "label": "传热系数 K",
+                        "value": "0.305"
+                      }
+                    ]
+                  }
+                ],
+                "highlights": [
+                  {
+                    "field": "thicknessMm",
+                    "label": "厚度",
+                    "value": "18 mm"
+                  },
+                  {
+                    "field": "productR",
+                    "label": "产品整体热阻（源文待核）",
+                    "value": "2.88"
+                  },
+                  {
+                    "field": "rValue",
+                    "label": "整构造传热阻（源文符号待核）",
+                    "value": "3.279"
+                  },
+                  {
+                    "field": "kValue",
+                    "label": "传热系数 K",
+                    "value": "0.305"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "event": "progress",
+          "data": {
+            "stage": "completed",
+            "message": "回答整理完成"
+          }
+        },
+        {
+          "event": "done",
+          "data": {
+            "messageId": "ID_8",
+            "conversationId": "ID_10",
+            "finishReason": "COMPLETED",
+            "usage": {},
+            "model": {
+              "id": "deepseek-chat"
+            },
+            "promptVersion": {
+              "id": "ID_11",
+              "version": 3
+            },
+            "sources": [],
+            "referencePages": [
+              {
+                "type": "REFERENCE_PAGE",
+                "renderModel": {
+                  "pageTitle": "I型VICP薄抹灰外保温系统",
+                  "pageLabel": "21",
+                  "constructions": [
+                    {
+                      "constructionId": "kp-0b690d4b9e1626fd4b5eecc5-0",
+                      "constructionCode": "A1-1",
+                      "systemName": "I型VICP薄抹灰外保温系统",
+                      "specClass": "I",
+                      "baseMaterial": "钢筋混凝土",
+                      "baseThicknessMm": 200,
+                      "layers": [
+                        {
+                          "name": "钢筋混凝土",
+                          "order": 1,
+                          "thicknessMm": 200,
+                          "layerId": "kp-0b690d4b9e1626fd4b5eecc5-0-l0"
+                        },
+                        {
+                          "name": "I型VICP复合保温板",
+                          "alpha": 1.25,
+                          "order": 2,
+                          "lambda": 0.005,
+                          "layerId": "kp-0b690d4b9e1626fd4b5eecc5-0-l1",
+                          "variable": true
+                        }
+                      ],
+                      "material": {
+                        "name": "I型VICP复合保温板",
+                        "lambda": 0.005,
+                        "alpha": 1.25
+                      },
+                      "options": [
+                        {
+                          "optionId": "kp-0b690d4b9e1626fd4b5eecc5-0-o0",
+                          "thicknessMm": 15,
+                          "productThermalResistance": 2.4,
+                          "totalThermalResistance": 2.713,
+                          "kValue": 0.369
+                        },
+                        {
+                          "optionId": "kp-0b690d4b9e1626fd4b5eecc5-0-o1",
+                          "thicknessMm": 18,
+                          "productThermalResistance": 2.88,
+                          "totalThermalResistance": 3.193,
+                          "kValue": 0.313
+                        },
+                        {
+                          "optionId": "kp-0b690d4b9e1626fd4b5eecc5-0-o2",
+                          "thicknessMm": 20,
+                          "productThermalResistance": 3.2,
+                          "totalThermalResistance": 3.513,
+                          "kValue": 0.285
+                        },
+                        {
+                          "optionId": "kp-0b690d4b9e1626fd4b5eecc5-0-o3",
+                          "thicknessMm": 25,
+                          "productThermalResistance": 4,
+                          "totalThermalResistance": 4.313,
+                          "kValue": 0.232
+                        },
+                        {
+                          "optionId": "kp-0b690d4b9e1626fd4b5eecc5-0-o4",
+                          "thicknessMm": 30,
+                          "productThermalResistance": 4.8,
+                          "totalThermalResistance": 5.113,
+                          "kValue": 0.196
+                        },
+                        {
+                          "optionId": "kp-0b690d4b9e1626fd4b5eecc5-0-o5",
+                          "thicknessMm": 35,
+                          "productThermalResistance": 5.6,
+                          "totalThermalResistance": 5.913,
+                          "kValue": 0.169
+                        },
+                        {
+                          "optionId": "kp-0b690d4b9e1626fd4b5eecc5-0-o6",
+                          "thicknessMm": 40,
+                          "productThermalResistance": 6.4,
+                          "totalThermalResistance": 6.713,
+                          "kValue": 0.149
+                        },
+                        {
+                          "optionId": "kp-0b690d4b9e1626fd4b5eecc5-0-o7",
+                          "thicknessMm": 45,
+                          "productThermalResistance": 7.2,
+                          "totalThermalResistance": 7.513,
+                          "kValue": 0.133
+                        },
+                        {
+                          "optionId": "kp-0b690d4b9e1626fd4b5eecc5-0-o8",
+                          "thicknessMm": 50,
+                          "productThermalResistance": 8,
+                          "totalThermalResistance": 8.313,
+                          "kValue": 0.12
+                        }
+                      ]
+                    },
+                    {
+                      "constructionId": "kp-0b690d4b9e1626fd4b5eecc5-1",
+                      "constructionCode": "A1-2",
+                      "systemName": "I型VICP薄抹灰外保温系统",
+                      "specClass": "I",
+                      "baseMaterial": "混凝土空心砌块",
+                      "baseThicknessMm": 190,
+                      "layers": [
+                        {
+                          "name": "混凝土空心砌块",
+                          "order": 1,
+                          "thicknessMm": 190,
+                          "layerId": "kp-0b690d4b9e1626fd4b5eecc5-1-l0"
+                        },
+                        {
+                          "name": "I型VICP复合保温板",
+                          "alpha": 1.25,
+                          "order": 2,
+                          "lambda": 0.005,
+                          "layerId": "kp-0b690d4b9e1626fd4b5eecc5-1-l1",
+                          "variable": true
+                        }
+                      ],
+                      "material": {
+                        "name": "I型VICP复合保温板",
+                        "lambda": 0.005,
+                        "alpha": 1.25
+                      },
+                      "options": [
+                        {
+                          "optionId": "kp-0b690d4b9e1626fd4b5eecc5-1-o0",
+                          "thicknessMm": 15,
+                          "productThermalResistance": 2.4,
+                          "totalThermalResistance": 2.798,
+                          "kValue": 0.357
+                        },
+                        {
+                          "optionId": "kp-0b690d4b9e1626fd4b5eecc5-1-o1",
+                          "thicknessMm": 18,
+                          "productThermalResistance": 2.88,
+                          "totalThermalResistance": 3.279,
+                          "kValue": 0.305
+                        },
+                        {
+                          "optionId": "kp-0b690d4b9e1626fd4b5eecc5-1-o2",
+                          "thicknessMm": 20,
+                          "productThermalResistance": 3.2,
+                          "totalThermalResistance": 3.598,
+                          "kValue": 0.278
+                        },
+                        {
+                          "optionId": "kp-0b690d4b9e1626fd4b5eecc5-1-o3",
+                          "thicknessMm": 25,
+                          "productThermalResistance": 4,
+                          "totalThermalResistance": 4.398,
+                          "kValue": 0.227
+                        },
+                        {
+                          "optionId": "kp-0b690d4b9e1626fd4b5eecc5-1-o4",
+                          "thicknessMm": 30,
+                          "productThermalResistance": 4.8,
+                          "totalThermalResistance": 5.198,
+                          "kValue": 0.192
+                        },
+                        {
+                          "optionId": "kp-0b690d4b9e1626fd4b5eecc5-1-o5",
+                          "thicknessMm": 35,
+                          "productThermalResistance": 5.6,
+                          "totalThermalResistance": 5.998,
+                          "kValue": 0.167
+                        },
+                        {
+                          "optionId": "kp-0b690d4b9e1626fd4b5eecc5-1-o6",
+                          "thicknessMm": 40,
+                          "productThermalResistance": 6.4,
+                          "totalThermalResistance": 6.798,
+                          "kValue": 0.147
+                        },
+                        {
+                          "optionId": "kp-0b690d4b9e1626fd4b5eecc5-1-o7",
+                          "thicknessMm": 45,
+                          "productThermalResistance": 7.2,
+                          "totalThermalResistance": 7.598,
+                          "kValue": 0.132
+                        },
+                        {
+                          "optionId": "kp-0b690d4b9e1626fd4b5eecc5-1-o8",
+                          "thicknessMm": 50,
+                          "productThermalResistance": 8,
+                          "totalThermalResistance": 8.398,
+                          "kValue": 0.119
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "summary": {
+                  "systemType": "I型VICP薄抹灰外保温系统",
+                  "constructionCode": "A1-2",
+                  "thicknessMm": 18,
+                  "productThermalResistance": 2.88,
+                  "totalThermalResistance": 3.279,
+                  "kValue": 0.305
+                },
+                "page": {
+                  "documentId": "ID_3",
+                  "pageId": "ID_4",
+                  "documentTitle": "客户知识库第一表（隔离验收）",
+                  "docNumber": null,
+                  "pageNumber": 21,
+                  "physicalPageNumber": 21,
+                  "pageLabel": "21",
+                  "imageUrl": ""
+                },
+                "matches": [
+                  {
+                    "optionId": "kp-0b690d4b9e1626fd4b5eecc5-1-o1",
+                    "fieldKeys": [
+                      "thicknessMm",
+                      "productThermalResistance",
+                      "totalThermalResistance",
+                      "kValue"
+                    ],
+                    "answerOffset": 203,
+                    "pageId": "ID_4",
+                    "constructionId": "kp-0b690d4b9e1626fd4b5eecc5-1",
+                    "candidateId": "kp-0b690d4b9e1626fd4b5eecc5-1-o1",
+                    "summary": {
+                      "systemType": "I型VICP薄抹灰外保温系统",
+                      "constructionCode": "A1-2",
+                      "thicknessMm": 18,
+                      "productThermalResistance": 2.88,
+                      "totalThermalResistance": 3.279,
+                      "kValue": 0.305
+                    },
+                    "highlights": [
+                      {
+                        "field": "thicknessMm",
+                        "label": "厚度",
+                        "value": "18 mm"
+                      },
+                      {
+                        "field": "productR",
+                        "label": "产品整体热阻（源文待核）",
+                        "value": "2.88"
+                      },
+                      {
+                        "field": "rValue",
+                        "label": "整构造传热阻（源文符号待核）",
+                        "value": "3.279"
+                      },
+                      {
+                        "field": "kValue",
+                        "label": "传热系数 K",
+                        "value": "0.305"
+                      }
+                    ]
+                  }
+                ],
+                "highlights": [
+                  {
+                    "field": "thicknessMm",
+                    "label": "厚度",
+                    "value": "18 mm"
+                  },
+                  {
+                    "field": "productR",
+                    "label": "产品整体热阻（源文待核）",
+                    "value": "2.88"
+                  },
+                  {
+                    "field": "rValue",
+                    "label": "整构造传热阻（源文符号待核）",
+                    "value": "3.279"
+                  },
+                  {
+                    "field": "kValue",
+                    "label": "传热系数 K",
+                    "value": "0.305"
+                  }
+                ]
+              }
+            ],
+            "latencyMs": 3077
+          }
+        }
+      ],
+      "task": {
+        "taskType": "GENERAL",
+        "confirmedPageLookup": {
+          "query": {
+            "intent": "REFERENCE_LOOKUP",
+            "filters": [
+              {
+                "metric": "K",
+                "targetValue": 0.3,
+                "mode": "APPROX",
+                "tolerance": 0.02,
+                "toleranceSource": "DEFAULT",
+                "effectiveTolerance": 0.02,
+                "toleranceAdjusted": false
+              }
+            ],
+            "metric": "K",
+            "targetValue": 0.3,
+            "mode": "APPROX",
+            "tolerance": 0.02,
+            "effectiveTolerance": 0.02,
+            "toleranceAdjusted": false,
+            "systemHint": "薄抹灰",
+            "queryMode": "NEW_QUERY",
+            "semanticConfidence": 0.9,
+            "parserSource": "LLM",
+            "documentIds": [
+              "ID_3"
+            ],
+            "knowledgeVersionIds": [
+              "ID_7"
+            ],
+            "unresolved": [],
+            "conditionTrace": [
+              {
+                "field": "systemHint",
+                "value": "薄抹灰",
+                "source": "USER_EXPLICIT",
+                "classification": "HARD_CONSTRAINT"
+              },
+              {
+                "field": "K",
+                "value": 0.3,
+                "mode": "APPROX",
+                "source": "USER_EXPLICIT",
+                "classification": "HARD_CONSTRAINT"
+              }
+            ]
+          },
+          "createdAt": "2026-10-18T11:35:59.720Z",
+          "conversationId": "ID_10",
+          "userId": "ID_12",
+          "projectId": null,
+          "clientApp": "pc_ai"
+        },
+        "adviceBusinessContext": {
+          "conversationId": "ID_10",
+          "projectId": null,
+          "createdAt": "2026-10-18T11:36:00.027Z",
+          "candidateScopeActive": true,
+          "recentGoals": [
+            {
+              "intent": "REFERENCE_QUERY",
+              "userGoal": "薄抹灰 K0.3 有哪些构造",
+              "assistantQuestion": "以下为满足当前筛选条件、已绑定确认原页的正式参考候选（尚未确认方案）：\nI型VICP薄抹灰外保温系统；基层 混凝土空心砌块 190 mm；方案 A1-2；规格 CUSTOMER-I-18；厚度 18 mm；产品层热阻 R=2.88 m²·K/W；总热阻 R₀=3.279 m²·K/W；K=0.305 W/(m²·K)。\n来源：客户知识库第一表（隔离验收）（正式热工参考集（已审核发布）），印刷页码 21。\n\n仅覆盖当前有权访问、已发布生效的确认范围；参考值不构成计算或合规结论。"
+            }
+          ]
+        }
+      },
+      "tools": [],
+      "sourceScope": {
+        "catalog": "ACTIVE",
+        "specification": "PUBLISHED/EFFECTIVE",
+        "knowledge": "CURRENT/PUBLISHED/AI_ENABLED/PLATFORM",
+        "fixture": "客户知识库首表18档+第33表平屋面12档与Excel参数；非全图集"
+      }
+    },
+    {
+      "group": "SOURCE-RAW",
+      "repetition": 1,
+      "turn": 2,
+      "userMessage": "不要算，只给原表",
+      "label": "REPRODUCED_TEST",
+      "status": "FAIL",
+      "checks": [
+        {
+          "name": "不自动生成快照/报告/计算",
+          "passed": true
+        },
+        {
+          "name": "非正式方案写入",
+          "passed": true
+        },
+        {
+          "name": "有效历史只读原表不计算",
+          "passed": false
+        }
+      ],
+      "priorQuery": {
+        "taskType": "GENERAL",
+        "confirmedPageLookup": {
+          "query": {
+            "intent": "REFERENCE_LOOKUP",
+            "filters": [
+              {
+                "metric": "K",
+                "targetValue": 0.3,
+                "mode": "APPROX",
+                "tolerance": 0.02,
+                "toleranceSource": "DEFAULT",
+                "effectiveTolerance": 0.02,
+                "toleranceAdjusted": false
+              }
+            ],
+            "metric": "K",
+            "targetValue": 0.3,
+            "mode": "APPROX",
+            "tolerance": 0.02,
+            "effectiveTolerance": 0.02,
+            "toleranceAdjusted": false,
+            "systemHint": "薄抹灰",
+            "queryMode": "NEW_QUERY",
+            "semanticConfidence": 0.9,
+            "parserSource": "LLM",
+            "documentIds": [
+              "ID_3"
+            ],
+            "knowledgeVersionIds": [
+              "ID_7"
+            ],
+            "unresolved": [],
+            "conditionTrace": [
+              {
+                "field": "systemHint",
+                "value": "薄抹灰",
+                "source": "USER_EXPLICIT",
+                "classification": "HARD_CONSTRAINT"
+              },
+              {
+                "field": "K",
+                "value": 0.3,
+                "mode": "APPROX",
+                "source": "USER_EXPLICIT",
+                "classification": "HARD_CONSTRAINT"
+              }
+            ]
+          },
+          "createdAt": "2026-10-18T11:35:59.720Z",
+          "conversationId": "ID_10",
+          "userId": "ID_12",
+          "projectId": null,
+          "clientApp": "pc_ai"
+        },
+        "adviceBusinessContext": {
+          "conversationId": "ID_10",
+          "projectId": null,
+          "createdAt": "2026-10-18T11:36:00.027Z",
+          "candidateScopeActive": true,
+          "recentGoals": [
+            {
+              "intent": "REFERENCE_QUERY",
+              "userGoal": "薄抹灰 K0.3 有哪些构造",
+              "assistantQuestion": "以下为满足当前筛选条件、已绑定确认原页的正式参考候选（尚未确认方案）：\nI型VICP薄抹灰外保温系统；基层 混凝土空心砌块 190 mm；方案 A1-2；规格 CUSTOMER-I-18；厚度 18 mm；产品层热阻 R=2.88 m²·K/W；总热阻 R₀=3.279 m²·K/W；K=0.305 W/(m²·K)。\n来源：客户知识库第一表（隔离验收）（正式热工参考集（已审核发布）），印刷页码 21。\n\n仅覆盖当前有权访问、已发布生效的确认范围；参考值不构成计算或合规结论。"
+            }
+          ]
+        }
+      },
+      "semanticAttempts": [
+        {
+          "message": "不要算，只给原表",
+          "pendingClarification": null,
+          "previousQuery": {
+            "intent": "REFERENCE_LOOKUP",
+            "filters": [
+              {
+                "metric": "K",
+                "targetValue": 0.3,
+                "mode": "APPROX",
+                "tolerance": 0.02,
+                "toleranceSource": "DEFAULT",
+                "effectiveTolerance": 0.02,
+                "toleranceAdjusted": false
+              }
+            ],
+            "metric": "K",
+            "targetValue": 0.3,
+            "mode": "APPROX",
+            "tolerance": 0.02,
+            "effectiveTolerance": 0.02,
+            "toleranceAdjusted": false,
+            "systemHint": "薄抹灰",
+            "queryMode": "NEW_QUERY",
+            "semanticConfidence": 0.9,
+            "parserSource": "LLM",
+            "documentIds": [
+              "ID_3"
+            ],
+            "knowledgeVersionIds": [
+              "ID_7"
+            ],
+            "unresolved": [],
+            "conditionTrace": [
+              {
+                "field": "systemHint",
+                "value": "薄抹灰",
+                "source": "USER_EXPLICIT",
+                "classification": "HARD_CONSTRAINT"
+              },
+              {
+                "field": "K",
+                "value": 0.3,
+                "mode": "APPROX",
+                "source": "USER_EXPLICIT",
+                "classification": "HARD_CONSTRAINT"
+              }
+            ]
+          },
+          "proposal": {
+            "pageQuery": null,
+            "parameterQuery": null,
+            "productQuery": null,
+            "queryContext": "CURRENT_TURN",
+            "adviceFocus": "SELECTION",
+            "audience": "UNSPECIFIED",
+            "intent": "REFERENCE_VIEW",
+            "confidence": 0.95,
+            "evidence": "不要算，只给原表",
+            "unresolved": null,
+            "complianceCheck": null,
+            "reportType": null,
+            "factRead": null,
+            "relation": "CONTINUE",
+            "continuedGoal": null,
+            "comparison": null,
+            "referenceTime": "CURRENT",
+            "adviceMode": null,
+            "constraintPatch": [],
+            "reference": {
+              "scope": "LAST_VISIBLE_CANDIDATES",
+              "revision": null,
+              "items": []
+            },
+            "requestedEffect": "READ_ONLY",
+            "effectRequest": null,
+            "ambiguity": []
+          },
+          "decision": {
+            "intent": "REFERENCE_VIEW",
+            "mutation": "NONE",
+            "evidenceSpans": [
+              "不要算，只给原表"
+            ],
+            "parserSource": "LLM",
+            "semantic": {
+              "pageQuery": null,
+              "parameterQuery": null,
+              "productQuery": null,
+              "queryContext": "CURRENT_TURN",
+              "adviceFocus": "SELECTION",
+              "audience": "UNSPECIFIED",
+              "intent": "REFERENCE_VIEW",
+              "confidence": 0.95,
+              "evidence": "不要算，只给原表",
+              "unresolved": null,
+              "complianceCheck": null,
+              "reportType": null,
+              "factRead": null,
+              "relation": "CONTINUE",
+              "continuedGoal": null,
+              "comparison": null,
+              "referenceTime": "CURRENT",
+              "adviceMode": null,
+              "constraintPatch": [],
+              "reference": {
+                "scope": "LAST_VISIBLE_CANDIDATES",
+                "revision": null,
+                "items": []
+              },
+              "requestedEffect": "READ_ONLY",
+              "effectRequest": null,
+              "ambiguity": []
+            },
+            "requiresCandidateQuery": false,
+            "restoreAdviceGoal": false,
+            "referenceScope": "LATEST_VISIBLE",
+            "policyReason": "READ_ONLY_SEMANTIC"
+          },
+          "attempt": 1
+        }
+      ],
+      "backendDecision": {
+        "goal": "REFERENCE_VIEW",
+        "patch": [],
+        "intent": "REFERENCE_LOOKUP",
+        "source": "INTENT",
+        "factRead": null,
+        "mutation": "NONE",
+        "relation": "CONTINUE",
+        "taskType": "GENERAL",
+        "pageQuery": null,
+        "toolRoute": [
+          "backend:reference_read"
+        ],
+        "toolUsage": {
+          "report": false,
+          "thermal": false,
+          "knowledge": false
+        },
+        "adviceMode": null,
+        "candidateIds": [],
+        "domainIntent": "REFERENCE_VIEW",
+        "parserSource": "LLM",
+        "policyReason": "READ_ONLY_SEMANTIC",
+        "queryChanged": false,
+        "reportQueued": false,
+        "effectRequest": null,
+        "sourcePageIds": [],
+        "answerContract": "REFERENCE_LOOKUP",
+        "factValidation": "VALID_FACTS",
+        "referenceScope": "LATEST_VISIBLE",
+        "candidateIdList": [],
+        "requestedEffect": "READ_ONLY",
+        "referencePageIds": [],
+        "semanticEvidence": "不要算，只给原表",
+        "semanticReference": {
+          "items": [],
+          "scope": "LAST_VISIBLE_CANDIDATES",
+          "revision": null
+        },
+        "factValidationCode": "VALID_FACTS",
+        "queryChangedFields": [],
+        "semanticConfidence": 0.95,
+        "solutionStateMutated": false,
+        "candidateSnapshotSource": []
+      },
+      "query": {
+        "intent": "REFERENCE_LOOKUP",
+        "filters": [
+          {
+            "metric": "K",
+            "targetValue": 0.3,
+            "mode": "APPROX",
+            "tolerance": 0.02,
+            "toleranceSource": "DEFAULT",
+            "effectiveTolerance": 0.02,
+            "toleranceAdjusted": false
+          }
+        ],
+        "metric": "K",
+        "targetValue": 0.3,
+        "mode": "APPROX",
+        "tolerance": 0.02,
+        "effectiveTolerance": 0.02,
+        "toleranceAdjusted": false,
+        "systemHint": "薄抹灰",
+        "queryMode": "NEW_QUERY",
+        "semanticConfidence": 0.9,
+        "parserSource": "LLM",
+        "documentIds": [
+          "ID_3"
+        ],
+        "knowledgeVersionIds": [
+          "ID_7"
+        ],
+        "unresolved": [],
+        "conditionTrace": [
+          {
+            "field": "systemHint",
+            "value": "薄抹灰",
+            "source": "USER_EXPLICIT",
+            "classification": "HARD_CONSTRAINT"
+          },
+          {
+            "field": "K",
+            "value": 0.3,
+            "mode": "APPROX",
+            "source": "USER_EXPLICIT",
+            "classification": "HARD_CONSTRAINT"
+          }
+        ]
+      },
+      "answer": "当前没有可定位的候选，请先查询已有档位或选择方案。",
+      "events": [
+        {
+          "event": "message",
+          "data": {
+            "messageId": "ID_13",
+            "userMessageId": "ID_14",
+            "conversationId": "ID_10",
+            "requestId": "req-3"
+          }
+        },
+        {
+          "event": "progress",
+          "data": {
+            "stage": "analyzing",
+            "message": "正在分析问题..."
+          }
+        },
+        {
+          "event": "progress",
+          "data": {
+            "stage": "checking",
+            "message": "正在核对检索资料和计算结果..."
+          }
+        },
+        {
+          "event": "progress",
+          "data": {
+            "stage": "composing",
+            "message": "正在整理回答..."
+          }
+        },
+        {
+          "event": "delta",
+          "data": {
+            "text": "当前没有可定位的候选，请先查询已有档位或选择方案。"
+          }
+        },
+        {
+          "event": "progress",
+          "data": {
+            "stage": "completed",
+            "message": "回答整理完成"
+          }
+        },
+        {
+          "event": "done",
+          "data": {
+            "messageId": "ID_13",
+            "conversationId": "ID_10",
+            "finishReason": "COMPLETED",
+            "usage": {},
+            "model": {
+              "id": "deepseek-chat"
+            },
+            "promptVersion": {
+              "id": "ID_11",
+              "version": 3
+            },
+            "sources": [],
+            "latencyMs": 2064
+          }
+        }
+      ],
+      "task": {
+        "taskType": "GENERAL",
+        "confirmedPageLookup": {
+          "query": {
+            "intent": "REFERENCE_LOOKUP",
+            "filters": [
+              {
+                "metric": "K",
+                "targetValue": 0.3,
+                "mode": "APPROX",
+                "tolerance": 0.02,
+                "toleranceSource": "DEFAULT",
+                "effectiveTolerance": 0.02,
+                "toleranceAdjusted": false
+              }
+            ],
+            "metric": "K",
+            "targetValue": 0.3,
+            "mode": "APPROX",
+            "tolerance": 0.02,
+            "effectiveTolerance": 0.02,
+            "toleranceAdjusted": false,
+            "systemHint": "薄抹灰",
+            "queryMode": "NEW_QUERY",
+            "semanticConfidence": 0.9,
+            "parserSource": "LLM",
+            "documentIds": [
+              "ID_3"
+            ],
+            "knowledgeVersionIds": [
+              "ID_7"
+            ],
+            "unresolved": [],
+            "conditionTrace": [
+              {
+                "field": "systemHint",
+                "value": "薄抹灰",
+                "source": "USER_EXPLICIT",
+                "classification": "HARD_CONSTRAINT"
+              },
+              {
+                "field": "K",
+                "value": 0.3,
+                "mode": "APPROX",
+                "source": "USER_EXPLICIT",
+                "classification": "HARD_CONSTRAINT"
+              }
+            ]
+          },
+          "createdAt": "2026-10-18T11:35:59.720Z",
+          "conversationId": "ID_10",
+          "userId": "ID_12",
+          "projectId": null,
+          "clientApp": "pc_ai"
+        },
+        "adviceBusinessContext": {
+          "conversationId": "ID_10",
+          "projectId": null,
+          "createdAt": "2026-10-18T11:36:02.448Z",
+          "candidateScopeActive": true,
+          "recentGoals": [
+            {
+              "intent": "REFERENCE_QUERY",
+              "userGoal": "薄抹灰 K0.3 有哪些构造",
+              "assistantQuestion": "以下为满足当前筛选条件、已绑定确认原页的正式参考候选（尚未确认方案）：\nI型VICP薄抹灰外保温系统；基层 混凝土空心砌块 190 mm；方案 A1-2；规格 CUSTOMER-I-18；厚度 18 mm；产品层热阻 R=2.88 m²·K/W；总热阻 R₀=3.279 m²·K/W；K=0.305 W/(m²·K)。\n来源：客户知识库第一表（隔离验收）（正式热工参考集（已审核发布）），印刷页码 21。\n\n仅覆盖当前有权访问、已发布生效的确认范围；参考值不构成计算或合规结论。"
+            },
+            {
+              "intent": "REFERENCE_VIEW",
+              "userGoal": "不要算，只给原表",
+              "assistantQuestion": "当前没有可定位的候选，请先查询已有档位或选择方案。"
+            }
+          ]
+        }
+      },
+      "tools": [],
+      "sourceScope": {
+        "catalog": "ACTIVE",
+        "specification": "PUBLISHED/EFFECTIVE",
+        "knowledge": "CURRENT/PUBLISHED/AI_ENABLED/PLATFORM",
+        "fixture": "客户知识库首表18档+第33表平屋面12档与Excel参数；非全图集"
+      }
+    }
+  ],
+  "permissions": [
+    {
+      "group": "SOURCE-RAW",
+      "repetition": 1,
+      "foreignConversationDenied": true
+    }
+  ],
+  "limits": [
+    "客户知识库仅第一表18档；屋面覆盖未验",
+    "Confirm/Snapshot/PDF正向闭环须单列验收",
+    "不裁定Excel芯材R4.8/产品R5.0语义"
+  ],
+  "fixture": {
+    "scope": "客户知识库首表18档+第33表平屋面12档与Excel参数；非全图集",
+    "source": {
+      "file": "知识库.docx",
+      "sha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "table": 1,
+      "pageLabel": "21",
+      "scope": "仅第一张表；不代表整份知识库覆盖",
+      "product": "I型VICP复合保温板",
+      "totalRHeader": "传热阻R [(m² ·K)/W]"
+    },
+    "roof": {
+      "file": "知识库.docx",
+      "sha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "table": 33,
+      "pageLabel": "53",
+      "title": "建筑屋面热工计算参考选用表（I型VICP屋面保温系统）",
+      "totalRHeader": "传热阻R [(m² ·K)/W]",
+      "note": "仅摘录可核验平屋面正置/倒置；级防水前的字形在XML不可读，保持未知，不猜I/II；不代表整份图集。"
+    },
+    "excel": {
+      "workbook": "VICP热工计算表格公式(1)(3).xls",
+      "sha256": "6d55edd9d179beff4c5c770e90b839435821d028722107b7879169392ee8f2a4",
+      "note": "Sheet1只读提取的原值和公式缓存值，不重新计算，不裁定4.8/5.0口径，不写业务数据。",
+      "productLambdaCell": "D7",
+      "coreLambdaCell": "M8",
+      "coreResistanceCell": "O8"
+    },
+    "productIds": [
+      "ID_1",
+      "ID_2"
+    ],
+    "documentId": "ID_3",
+    "pageId": "ID_4",
+    "roofPageId": "ID_5",
+    "expectedRows": 18,
+    "roofReadOnlyRows": 12,
+    "coreRNotImported": 4.8
+  },
+  "runtime": {
+    "models": [
+      {
+        "id": "ID_6",
+        "model": "deepseek-chat",
+        "reasoningLevel": "MAX"
+      }
+    ],
+    "defaultModelId": "ID_6",
+    "reasoningModelId": "ID_6"
+  },
+  "cleanup": "COMPLETED",
+  "finishedAt": "2026-10-18T11:36:03.373Z",
+  "summary": {
+    "executed": 2,
+    "passed": 1,
+    "failed": 1
+  }
+}

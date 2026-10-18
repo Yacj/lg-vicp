@@ -11,6 +11,8 @@
  * 本文件不包含任何产品参数 / 图集 K 值 / 标准限值默认值。
  */
 
+import { hasLambdaField, insideThermalUnit } from "../../shared/lambda-field.js";
+
 export const THERMAL_LOOKUP_MODES = ["APPROX", "MAX_LIMIT", "MIN_LIMIT", "EXACT"] as const;
 
 export type ThermalLookupMode = (typeof THERMAL_LOOKUP_MODES)[number];
@@ -294,9 +296,10 @@ export function isMetricBridge(bridge: string, metricWord: string): boolean {
 /** 模糊术语只在已有明确指标上下文时解析，禁止根据数值大小猜工程指标。 */
 export function parseThermalLookupMessage(message: string, previousMetric?: ThermalLookupMetric) {
   const text = message.normalize("NFKC").replace(/(?<=\d)\s+(?=\d)/g, ",").replace(/\s+/g, "");
-  const mentions = [...text.matchAll(THERMAL_LOOKUP_METRIC_PATTERN)].map((match) => ({ word: match[0], index: match.index, metric: metricFromWord(match[0]) }));
+  const mentions = [...text.matchAll(THERMAL_LOOKUP_METRIC_PATTERN)].filter(match => !insideThermalUnit(text, match.index))
+    .map((match) => ({ word: match[0], index: match.index, metric: metricFromWord(match[0]) }));
   // 模糊「系数」兜底：无其他明确指标、且不是「传热阻系数/保温系数」这类歧义词时才按 K 解析。
-  if (!mentions.length && !/传热阻系数|保温系数/.test(text)) {
+  if (!mentions.length && !hasLambdaField(text) && !/传热阻系数|保温系数/.test(text)) {
     const fallback = [...text.matchAll(THERMAL_LOOKUP_FALLBACK_METRIC_PATTERN)];
     if (fallback.length) mentions.push({ word: fallback[0]![0], index: fallback[0]!.index!, metric: "K" });
   }

@@ -48,21 +48,27 @@ export async function resolveProductConsultation(ctx: ReferenceReadContext) {
   const index=await ctx.app.db.select().from(catalogProducts).where(eq(catalogProducts.status,"ACTIVE")).orderBy(asc(catalogProducts.sortOrder),asc(catalogProducts.id)).limit(501);
   const aliases=await ctx.app.db.select({term:knowledgeAliases.term,alias:knowledgeAliases.alias}).from(knowledgeAliases).where(and(eq(knowledgeAliases.enabled,true),eq(knowledgeAliases.scope,"GLOBAL")));
   const text=normalizeEntityText(ctx.userMessage??"");
+  const productQuery=ctx.domainDecision?.semantic?.productQuery;
   const named=index.filter(item=>[item.name,...aliases.filter(alias=>normalizeEntityText(alias.term)===normalizeEntityText(item.name)).map(alias=>alias.alias)]
-    .some(name=>normalizeEntityText(name).length>=2&&text.includes(normalizeEntityText(name))));
+    .some(name=>productQuery?.scope === "IDENTITY" ? normalizeEntityText(name)===normalizeEntityText(productQuery.entityText??"")
+      : normalizeEntityText(name).length>=2&&text.includes(normalizeEntityText(name))));
   const types=[...new Set(index.flatMap(item=>item.productType&&text.includes(normalizeEntityText(item.productType))?[item.productType]:[]))];
   const entities:QueryEntity[]=["I","II","III"].map(value=>({field:"specClass",value,names:[`${value}型`,`${{I:"Ⅰ",II:"Ⅱ",III:"Ⅲ"}[value as "I"|"II"|"III"]}型`]}));
   const specClass=resolveQueryEntities(ctx.userMessage??"",{},entities).specClass;
-  const needIdentity=ctx.domainDecision?.intent==="PRODUCT_DETAIL";
+  const needIdentity=ctx.domainDecision?.intent==="PRODUCT_DETAIL" || productQuery?.scope === "IDENTITY"
+    || !!ctx.domainDecision?.semantic && !productQuery;
+  const unknownIdentity=needIdentity&&!named.length && (productQuery?.scope === "IDENTITY" || !types.length&&!specClass);
+  const unknownCategory=productQuery?.scope === "CATEGORY" && !types.some(type=>normalizeEntityText(type)===normalizeEntityText(productQuery.entityText??""));
   const ambiguous=types.length>1||index.length>500;
-  const data=ambiguous||needIdentity&&!named.length&&!types.length&&!specClass ? {products:[],sources:[],hasMore:false} : await searchProductCatalog(ctx,{productIds:named.length?named.map(item=>item.id):undefined,
+  const data=ambiguous||unknownIdentity||unknownCategory ? {products:[],sources:[],hasMore:false} : await searchProductCatalog(ctx,{productIds:named.length?named.map(item=>item.id):undefined,
     productType:types[0],specClass,limit:12});
-  const needsClarification=ambiguous||needIdentity&&!named.length&&!types.length&&!specClass;
+  const needsClarification=ambiguous||unknownIdentity||unknownCategory;
   // 事实取得到此结束：下面只产出「事实合同 + 仅事实回答」，
   // 解释组织交给回答层（模型），并按已核验事实校验数值，不再用固定参数清单直出。
   const facts=buildProductAnswerFacts({products:data.products,sources:data.sources,hasMore:data.hasMore,decision:ctx.domainDecision});
-  const answer=needsClarification ? "请指定要查看的产品名称、目录简称或型号。" : formatProductFactsAnswer(facts);
+  const answer=needsClarification ? `${productQuery?.entityText ? `本次正式目录与已启用全局别名未能核验“${productQuery.entityText}”。` : ""}请确认产品正式名称或目录别名；目前不能据此推定完整系列。` : formatProductFactsAnswer(facts);
   ctx.onEvent?.("product_cards",{products:data.products});
   if(data.sources.length)ctx.onEvent?.("sources",{sources:data.sources});
-  return {...data,needsClarification,facts,answer};
+  return {...data,needsClarification,facts,answer,diagnostics:{scope:productQuery??null,indexCount:index.length,matchedIdentityCount:named.length,
+    returnedCount:data.products.length,hasMore:data.hasMore,reason:needsClarification?"NAME_UNRESOLVED":"CATALOG_MATCH",seriesCoverageVerified:false}};
 }

@@ -35,3 +35,14 @@ it("本轮K不带数字时，仅绑定原问唯一指标数值；不清除否定
   expect(groundClarificationMetricEvidence("我指K0.2", original, semantic)).toBe(semantic);
   expect(groundClarificationMetricEvidence(message, original, { ...semantic, requestedEffect: "STATE_MUTATION" }).requestedEffect).toBe("STATE_MUTATION");
 });
+it("参数Service缺容差/未知名称可继续澄清；成功读取和零命中不恢复成pending", () => {
+  const rows: any = turns(); rows[1].content = "λ0.3左右";
+  rows[0].metadata.backendDecision = { domainIntent: "PRODUCT_PARAMETER_QUERY", requestedEffect: "READ_ONLY", relation: "NEW", parameterQueryDiagnostics: { missingTolerance: true, issues: ["FILTER_CONFLICT"] } };
+  expect(recentQueryClarification(rows, conversation, now)?.message).toBe("λ0.3左右");
+  rows[0].metadata.backendDecision.parameterQueryDiagnostics = { issues: ["NAME_UNRESOLVED"] };
+  expect(recentQueryClarification(rows, conversation, now)).not.toBeNull();
+  rows[0].metadata.backendDecision.parameterQueryDiagnostics = { issues: ["VALUE_NO_MATCH"] };
+  expect(recentQueryClarification(rows, conversation, now)).toBeNull();
+  rows[0].metadata.backendDecision.parameterQueryDiagnostics = { issues: [] };
+  expect(recentQueryClarification(rows, conversation, now)).toBeNull();
+});

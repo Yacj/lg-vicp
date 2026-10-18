@@ -1,0 +1,2927 @@
+{
+  "startedAt": "2026-10-18T11:28:59.872Z",
+  "scope": "仅随机隔离库、独立队列和OSS前缀；客户首表参考值",
+  "checks": [
+    {
+      "name": "真实客户表来源绑定后3个正式候选",
+      "passed": true
+    },
+    {
+      "name": "无Final不能Confirm",
+      "passed": true
+    },
+    {
+      "name": "显式Confirm后冻结Snapshot",
+      "passed": true
+    },
+    {
+      "name": "其他用户不能读快照",
+      "passed": true
+    },
+    {
+      "name": "本轮SSE明确授权后排队",
+      "passed": true
+    },
+    {
+      "name": "生产Processor完成真实PDF",
+      "passed": true
+    },
+    {
+      "name": "OSS真实PDF文件头",
+      "passed": true
+    },
+    {
+      "name": "报告过程不改冻结快照",
+      "passed": true
+    }
+  ],
+  "status": "PASS",
+  "fixture": {
+    "scope": "客户知识库首表18档+第33表平屋面12档与Excel参数；非全图集",
+    "source": {
+      "file": "知识库.docx",
+      "sha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "table": 1,
+      "pageLabel": "21",
+      "scope": "仅第一张表；不代表整份知识库覆盖",
+      "product": "I型VICP复合保温板",
+      "totalRHeader": "传热阻R [(m² ·K)/W]"
+    },
+    "roof": {
+      "file": "知识库.docx",
+      "sha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "table": 33,
+      "pageLabel": "53",
+      "title": "建筑屋面热工计算参考选用表（I型VICP屋面保温系统）",
+      "totalRHeader": "传热阻R [(m² ·K)/W]",
+      "note": "仅摘录可核验平屋面正置/倒置；级防水前的字形在XML不可读，保持未知，不猜I/II；不代表整份图集。"
+    },
+    "excel": {
+      "workbook": "VICP热工计算表格公式(1)(3).xls",
+      "sha256": "6d55edd9d179beff4c5c770e90b839435821d028722107b7879169392ee8f2a4",
+      "note": "Sheet1只读提取的原值和公式缓存值，不重新计算，不裁定4.8/5.0口径，不写业务数据。",
+      "productLambdaCell": "D7",
+      "coreLambdaCell": "M8",
+      "coreResistanceCell": "O8"
+    },
+    "productIds": [
+      "ID_1",
+      "ID_2"
+    ],
+    "documentId": "ID_3",
+    "pageId": "ID_4",
+    "roofPageId": "ID_5",
+    "expectedRows": 18,
+    "roofReadOnlyRows": 12,
+    "coreRNotImported": 4.8
+  },
+  "queried": {
+    "id": "ID_6",
+    "conversationId": "ID_7",
+    "userId": "ID_8",
+    "projectId": null,
+    "active": true,
+    "stage": "CANDIDATE_SELECTION",
+    "version": 2,
+    "candidateSetRevision": 1,
+    "confirmedSnapshotId": null,
+    "createdAt": "2026-10-18T11:29:20.059Z",
+    "updatedAt": "2026-10-18T11:29:20.384Z",
+    "conflicts": [],
+    "candidates": [
+      {
+        "status": "AVAILABLE",
+        "candidate": {
+          "id": "ID_9",
+          "alpha": 1.25,
+          "setId": "ID_10",
+          "kValue": 0.305,
+          "lambda": 0.005,
+          "layers": [
+            {
+              "name": "混凝土空心砌块",
+              "order": 1,
+              "thicknessMm": 190
+            },
+            {
+              "name": "I型VICP复合保温板",
+              "alpha": 1.25,
+              "order": 2,
+              "lambda": 0.005
+            }
+          ],
+          "ranking": {
+            "kGap": 0.005,
+            "isClosestToTarget": true
+          },
+          "setCode": "CUSTOMER-FIRST-TABLE",
+          "optionId": "kp-5ea426c4f1368685f5f11790-1-o1",
+          "schemeId": "ID_11",
+          "specCode": "CUSTOMER-I-18",
+          "systemId": "ID_12",
+          "atlasPage": null,
+          "compliant": null,
+          "matchType": "EXACT",
+          "productId": "ID_2",
+          "specClass": "I",
+          "schemeCode": "A1-2",
+          "setVersion": 1,
+          "sourceType": "REFERENCE",
+          "systemCode": "CUSTOMER-I",
+          "systemName": "I型VICP薄抹灰外保温系统",
+          "candidateId": "ID_9",
+          "evidenceRef": "21页 A1-2",
+          "neighborGap": null,
+          "setPriority": 0,
+          "specVersion": 1,
+          "thicknessMm": 18,
+          "sourcePageId": "ID_4",
+          "productSpecId": "ID_13",
+          "referenceKind": "THERMAL_ROW",
+          "schemeVersion": 1,
+          "evidenceSource": "客户知识库第一表（隔离验收）",
+          "constraintMatch": {
+            "failed": [],
+            "passed": true,
+            "matched": [
+              "systemHint",
+              "K:0"
+            ]
+          },
+          "sourcePageLabel": "21",
+          "sourceVersionId": "ID_14",
+          "catalogProductId": "ID_2",
+          "constructionCode": "A1-2",
+          "setBuildingTypes": [],
+          "sourceDocumentId": "ID_3",
+          "matchedConditions": [
+            "K"
+          ],
+          "missingConditions": [],
+          "substrateMaterial": "混凝土空心砌块",
+          "substrateThickness": 190,
+          "unmatchedConditions": [],
+          "thermalReferenceRowId": "ID_9",
+          "totalThermalResistance": 3.279,
+          "productThermalResistance": 2.88
+        },
+        "sourceRevision": 1
+      },
+      {
+        "status": "AVAILABLE",
+        "candidate": {
+          "id": "ID_15",
+          "alpha": 1.25,
+          "setId": "ID_10",
+          "kValue": 0.313,
+          "lambda": 0.005,
+          "layers": [
+            {
+              "name": "钢筋混凝土",
+              "order": 1,
+              "thicknessMm": 200
+            },
+            {
+              "name": "I型VICP复合保温板",
+              "alpha": 1.25,
+              "order": 2,
+              "lambda": 0.005
+            }
+          ],
+          "ranking": {
+            "kGap": 0.013,
+            "isClosestToTarget": false
+          },
+          "setCode": "CUSTOMER-FIRST-TABLE",
+          "optionId": "kp-5ea426c4f1368685f5f11790-0-o1",
+          "schemeId": "ID_16",
+          "specCode": "CUSTOMER-I-18",
+          "systemId": "ID_12",
+          "atlasPage": null,
+          "compliant": null,
+          "matchType": "EXACT",
+          "productId": "ID_2",
+          "specClass": "I",
+          "schemeCode": "A1-1",
+          "setVersion": 1,
+          "sourceType": "REFERENCE",
+          "systemCode": "CUSTOMER-I",
+          "systemName": "I型VICP薄抹灰外保温系统",
+          "candidateId": "ID_15",
+          "evidenceRef": "21页 A1-1",
+          "neighborGap": null,
+          "setPriority": 0,
+          "specVersion": 1,
+          "thicknessMm": 18,
+          "sourcePageId": "ID_4",
+          "productSpecId": "ID_13",
+          "referenceKind": "THERMAL_ROW",
+          "schemeVersion": 1,
+          "evidenceSource": "客户知识库第一表（隔离验收）",
+          "constraintMatch": {
+            "failed": [],
+            "passed": true,
+            "matched": [
+              "systemHint",
+              "K:0"
+            ]
+          },
+          "sourcePageLabel": "21",
+          "sourceVersionId": "ID_14",
+          "catalogProductId": "ID_2",
+          "constructionCode": "A1-1",
+          "setBuildingTypes": [],
+          "sourceDocumentId": "ID_3",
+          "matchedConditions": [
+            "K"
+          ],
+          "missingConditions": [],
+          "substrateMaterial": "钢筋混凝土",
+          "substrateThickness": 200,
+          "unmatchedConditions": [],
+          "thermalReferenceRowId": "ID_15",
+          "totalThermalResistance": 3.193,
+          "productThermalResistance": 2.88
+        },
+        "sourceRevision": 1
+      },
+      {
+        "status": "AVAILABLE",
+        "candidate": {
+          "id": "ID_17",
+          "alpha": 1.25,
+          "setId": "ID_10",
+          "kValue": 0.285,
+          "lambda": 0.005,
+          "layers": [
+            {
+              "name": "钢筋混凝土",
+              "order": 1,
+              "thicknessMm": 200
+            },
+            {
+              "name": "I型VICP复合保温板",
+              "alpha": 1.25,
+              "order": 2,
+              "lambda": 0.005
+            }
+          ],
+          "ranking": {
+            "kGap": 0.015,
+            "isClosestToTarget": false
+          },
+          "setCode": "CUSTOMER-FIRST-TABLE",
+          "optionId": "kp-5ea426c4f1368685f5f11790-0-o2",
+          "schemeId": "ID_16",
+          "specCode": "CUSTOMER-I-20",
+          "systemId": "ID_12",
+          "atlasPage": null,
+          "compliant": null,
+          "matchType": "EXACT",
+          "productId": "ID_2",
+          "specClass": "I",
+          "schemeCode": "A1-1",
+          "setVersion": 1,
+          "sourceType": "REFERENCE",
+          "systemCode": "CUSTOMER-I",
+          "systemName": "I型VICP薄抹灰外保温系统",
+          "candidateId": "ID_17",
+          "evidenceRef": "21页 A1-1",
+          "neighborGap": null,
+          "setPriority": 0,
+          "specVersion": 1,
+          "thicknessMm": 20,
+          "sourcePageId": "ID_4",
+          "productSpecId": "ID_18",
+          "referenceKind": "THERMAL_ROW",
+          "schemeVersion": 1,
+          "evidenceSource": "客户知识库第一表（隔离验收）",
+          "constraintMatch": {
+            "failed": [],
+            "passed": true,
+            "matched": [
+              "systemHint",
+              "K:0"
+            ]
+          },
+          "sourcePageLabel": "21",
+          "sourceVersionId": "ID_14",
+          "catalogProductId": "ID_2",
+          "constructionCode": "A1-1",
+          "setBuildingTypes": [],
+          "sourceDocumentId": "ID_3",
+          "matchedConditions": [
+            "K"
+          ],
+          "missingConditions": [],
+          "substrateMaterial": "钢筋混凝土",
+          "substrateThickness": 200,
+          "unmatchedConditions": [],
+          "thermalReferenceRowId": "ID_17",
+          "totalThermalResistance": 3.513,
+          "productThermalResistance": 3.2
+        },
+        "sourceRevision": 1
+      }
+    ],
+    "conditions": {
+      "mode": "APPROX",
+      "intent": "REFERENCE_LOOKUP",
+      "metric": "K",
+      "filters": [
+        {
+          "mode": "APPROX",
+          "metric": "K",
+          "tolerance": 0.02,
+          "targetValue": 0.3,
+          "toleranceAdjusted": false,
+          "effectiveTolerance": 0.02
+        }
+      ],
+      "tolerance": 0.02,
+      "systemHint": "薄抹灰",
+      "unresolved": [],
+      "targetValue": 0.3,
+      "conditionTrace": [
+        {
+          "field": "systemHint",
+          "value": "薄抹灰",
+          "source": "USER_EXPLICIT",
+          "classification": "HARD_CONSTRAINT"
+        },
+        {
+          "mode": "APPROX",
+          "field": "K",
+          "value": 0.3,
+          "source": "USER_EXPLICIT",
+          "classification": "HARD_CONSTRAINT"
+        }
+      ],
+      "toleranceAdjusted": false,
+      "effectiveTolerance": 0.02
+    },
+    "preferences": {},
+    "poolCandidateIds": [
+      "ID_9",
+      "ID_15",
+      "ID_17"
+    ],
+    "finalCandidateIds": [],
+    "queryStateSnapshot": {
+      "mode": "APPROX",
+      "intent": "REFERENCE_LOOKUP",
+      "metric": "K",
+      "filters": [
+        {
+          "mode": "APPROX",
+          "metric": "K",
+          "tolerance": 0.02,
+          "targetValue": 0.3,
+          "toleranceAdjusted": false,
+          "effectiveTolerance": 0.02
+        }
+      ],
+      "tolerance": 0.02,
+      "systemHint": "薄抹灰",
+      "unresolved": [],
+      "targetValue": 0.3,
+      "conditionTrace": [
+        {
+          "field": "systemHint",
+          "value": "薄抹灰",
+          "source": "USER_EXPLICIT",
+          "classification": "HARD_CONSTRAINT"
+        },
+        {
+          "mode": "APPROX",
+          "field": "K",
+          "value": 0.3,
+          "source": "USER_EXPLICIT",
+          "classification": "HARD_CONSTRAINT"
+        }
+      ],
+      "toleranceAdjusted": false,
+      "effectiveTolerance": 0.02
+    },
+    "keptForComparisonIds": [],
+    "rejectedCandidateIds": [],
+    "selectedCandidateIds": [],
+    "recommendedCandidateIds": [],
+    "candidateCards": [
+      {
+        "id": "ID_9",
+        "alpha": 1.25,
+        "setId": "ID_10",
+        "kValue": 0.305,
+        "lambda": 0.005,
+        "layers": [
+          {
+            "name": "混凝土空心砌块",
+            "order": 1,
+            "thicknessMm": 190
+          },
+          {
+            "name": "I型VICP复合保温板",
+            "alpha": 1.25,
+            "order": 2,
+            "lambda": 0.005
+          }
+        ],
+        "ranking": {
+          "kGap": 0.005,
+          "isClosestToTarget": true
+        },
+        "setCode": "CUSTOMER-FIRST-TABLE",
+        "optionId": "kp-5ea426c4f1368685f5f11790-1-o1",
+        "schemeId": "ID_11",
+        "specCode": "CUSTOMER-I-18",
+        "systemId": "ID_12",
+        "atlasPage": null,
+        "compliant": null,
+        "matchType": "EXACT",
+        "productId": "ID_2",
+        "specClass": "I",
+        "schemeCode": "A1-2",
+        "setVersion": 1,
+        "sourceType": "REFERENCE",
+        "systemCode": "CUSTOMER-I",
+        "systemName": "I型VICP薄抹灰外保温系统",
+        "candidateId": "ID_9",
+        "evidenceRef": "21页 A1-2",
+        "neighborGap": null,
+        "setPriority": 0,
+        "specVersion": 1,
+        "thicknessMm": 18,
+        "sourcePageId": "ID_4",
+        "productSpecId": "ID_13",
+        "referenceKind": "THERMAL_ROW",
+        "schemeVersion": 1,
+        "evidenceSource": "客户知识库第一表（隔离验收）",
+        "constraintMatch": {
+          "failed": [],
+          "passed": true,
+          "matched": [
+            "systemHint",
+            "K:0"
+          ]
+        },
+        "sourcePageLabel": "21",
+        "sourceVersionId": "ID_14",
+        "catalogProductId": "ID_2",
+        "constructionCode": "A1-2",
+        "setBuildingTypes": [],
+        "sourceDocumentId": "ID_3",
+        "matchedConditions": [
+          "K"
+        ],
+        "missingConditions": [],
+        "substrateMaterial": "混凝土空心砌块",
+        "substrateThickness": 190,
+        "unmatchedConditions": [],
+        "thermalReferenceRowId": "ID_9",
+        "totalThermalResistance": 3.279,
+        "productThermalResistance": 2.88,
+        "title": "A1-2",
+        "position": 1,
+        "sourceRevision": 1,
+        "status": "AVAILABLE",
+        "selected": false,
+        "final": false,
+        "conflict": false
+      },
+      {
+        "id": "ID_15",
+        "alpha": 1.25,
+        "setId": "ID_10",
+        "kValue": 0.313,
+        "lambda": 0.005,
+        "layers": [
+          {
+            "name": "钢筋混凝土",
+            "order": 1,
+            "thicknessMm": 200
+          },
+          {
+            "name": "I型VICP复合保温板",
+            "alpha": 1.25,
+            "order": 2,
+            "lambda": 0.005
+          }
+        ],
+        "ranking": {
+          "kGap": 0.013,
+          "isClosestToTarget": false
+        },
+        "setCode": "CUSTOMER-FIRST-TABLE",
+        "optionId": "kp-5ea426c4f1368685f5f11790-0-o1",
+        "schemeId": "ID_16",
+        "specCode": "CUSTOMER-I-18",
+        "systemId": "ID_12",
+        "atlasPage": null,
+        "compliant": null,
+        "matchType": "EXACT",
+        "productId": "ID_2",
+        "specClass": "I",
+        "schemeCode": "A1-1",
+        "setVersion": 1,
+        "sourceType": "REFERENCE",
+        "systemCode": "CUSTOMER-I",
+        "systemName": "I型VICP薄抹灰外保温系统",
+        "candidateId": "ID_15",
+        "evidenceRef": "21页 A1-1",
+        "neighborGap": null,
+        "setPriority": 0,
+        "specVersion": 1,
+        "thicknessMm": 18,
+        "sourcePageId": "ID_4",
+        "productSpecId": "ID_13",
+        "referenceKind": "THERMAL_ROW",
+        "schemeVersion": 1,
+        "evidenceSource": "客户知识库第一表（隔离验收）",
+        "constraintMatch": {
+          "failed": [],
+          "passed": true,
+          "matched": [
+            "systemHint",
+            "K:0"
+          ]
+        },
+        "sourcePageLabel": "21",
+        "sourceVersionId": "ID_14",
+        "catalogProductId": "ID_2",
+        "constructionCode": "A1-1",
+        "setBuildingTypes": [],
+        "sourceDocumentId": "ID_3",
+        "matchedConditions": [
+          "K"
+        ],
+        "missingConditions": [],
+        "substrateMaterial": "钢筋混凝土",
+        "substrateThickness": 200,
+        "unmatchedConditions": [],
+        "thermalReferenceRowId": "ID_15",
+        "totalThermalResistance": 3.193,
+        "productThermalResistance": 2.88,
+        "title": "A1-1",
+        "position": 2,
+        "sourceRevision": 1,
+        "status": "AVAILABLE",
+        "selected": false,
+        "final": false,
+        "conflict": false
+      },
+      {
+        "id": "ID_17",
+        "alpha": 1.25,
+        "setId": "ID_10",
+        "kValue": 0.285,
+        "lambda": 0.005,
+        "layers": [
+          {
+            "name": "钢筋混凝土",
+            "order": 1,
+            "thicknessMm": 200
+          },
+          {
+            "name": "I型VICP复合保温板",
+            "alpha": 1.25,
+            "order": 2,
+            "lambda": 0.005
+          }
+        ],
+        "ranking": {
+          "kGap": 0.015,
+          "isClosestToTarget": false
+        },
+        "setCode": "CUSTOMER-FIRST-TABLE",
+        "optionId": "kp-5ea426c4f1368685f5f11790-0-o2",
+        "schemeId": "ID_16",
+        "specCode": "CUSTOMER-I-20",
+        "systemId": "ID_12",
+        "atlasPage": null,
+        "compliant": null,
+        "matchType": "EXACT",
+        "productId": "ID_2",
+        "specClass": "I",
+        "schemeCode": "A1-1",
+        "setVersion": 1,
+        "sourceType": "REFERENCE",
+        "systemCode": "CUSTOMER-I",
+        "systemName": "I型VICP薄抹灰外保温系统",
+        "candidateId": "ID_17",
+        "evidenceRef": "21页 A1-1",
+        "neighborGap": null,
+        "setPriority": 0,
+        "specVersion": 1,
+        "thicknessMm": 20,
+        "sourcePageId": "ID_4",
+        "productSpecId": "ID_18",
+        "referenceKind": "THERMAL_ROW",
+        "schemeVersion": 1,
+        "evidenceSource": "客户知识库第一表（隔离验收）",
+        "constraintMatch": {
+          "failed": [],
+          "passed": true,
+          "matched": [
+            "systemHint",
+            "K:0"
+          ]
+        },
+        "sourcePageLabel": "21",
+        "sourceVersionId": "ID_14",
+        "catalogProductId": "ID_2",
+        "constructionCode": "A1-1",
+        "setBuildingTypes": [],
+        "sourceDocumentId": "ID_3",
+        "matchedConditions": [
+          "K"
+        ],
+        "missingConditions": [],
+        "substrateMaterial": "钢筋混凝土",
+        "substrateThickness": 200,
+        "unmatchedConditions": [],
+        "thermalReferenceRowId": "ID_17",
+        "totalThermalResistance": 3.513,
+        "productThermalResistance": 3.2,
+        "title": "A1-1",
+        "position": 3,
+        "sourceRevision": 1,
+        "status": "AVAILABLE",
+        "selected": false,
+        "final": false,
+        "conflict": false
+      }
+    ],
+    "debug": {
+      "solutionStateId": "ID_6",
+      "stage": "CANDIDATE_SELECTION",
+      "candidateSetRevision": 1,
+      "candidateCount": 3,
+      "selectedIds": [],
+      "rejectedIds": [],
+      "finalIds": [],
+      "conflicts": [],
+      "confirmedSnapshotId": null
+    }
+  },
+  "SELECT": {
+    "solutionState": {
+      "id": "ID_6",
+      "conversationId": "ID_7",
+      "userId": "ID_8",
+      "projectId": null,
+      "active": true,
+      "stage": "REFINING",
+      "version": 3,
+      "candidateSetRevision": 1,
+      "confirmedSnapshotId": null,
+      "createdAt": "2026-10-18T11:29:20.059Z",
+      "updatedAt": "2026-10-18T11:29:20.947Z",
+      "conflicts": [],
+      "candidates": [
+        {
+          "status": "SELECTED",
+          "candidate": {
+            "id": "ID_9",
+            "alpha": 1.25,
+            "setId": "ID_10",
+            "kValue": 0.305,
+            "lambda": 0.005,
+            "layers": [
+              {
+                "name": "混凝土空心砌块",
+                "order": 1,
+                "thicknessMm": 190
+              },
+              {
+                "name": "I型VICP复合保温板",
+                "alpha": 1.25,
+                "order": 2,
+                "lambda": 0.005
+              }
+            ],
+            "ranking": {
+              "kGap": 0.005,
+              "isClosestToTarget": true
+            },
+            "setCode": "CUSTOMER-FIRST-TABLE",
+            "optionId": "kp-5ea426c4f1368685f5f11790-1-o1",
+            "schemeId": "ID_11",
+            "specCode": "CUSTOMER-I-18",
+            "systemId": "ID_12",
+            "atlasPage": null,
+            "compliant": null,
+            "matchType": "EXACT",
+            "productId": "ID_2",
+            "specClass": "I",
+            "schemeCode": "A1-2",
+            "setVersion": 1,
+            "sourceType": "REFERENCE",
+            "systemCode": "CUSTOMER-I",
+            "systemName": "I型VICP薄抹灰外保温系统",
+            "candidateId": "ID_9",
+            "evidenceRef": "21页 A1-2",
+            "neighborGap": null,
+            "setPriority": 0,
+            "specVersion": 1,
+            "thicknessMm": 18,
+            "sourcePageId": "ID_4",
+            "productSpecId": "ID_13",
+            "referenceKind": "THERMAL_ROW",
+            "schemeVersion": 1,
+            "evidenceSource": "客户知识库第一表（隔离验收）",
+            "constraintMatch": {
+              "failed": [],
+              "passed": true,
+              "matched": [
+                "systemHint",
+                "K:0"
+              ]
+            },
+            "sourcePageLabel": "21",
+            "sourceVersionId": "ID_14",
+            "catalogProductId": "ID_2",
+            "constructionCode": "A1-2",
+            "setBuildingTypes": [],
+            "sourceDocumentId": "ID_3",
+            "matchedConditions": [
+              "K"
+            ],
+            "missingConditions": [],
+            "substrateMaterial": "混凝土空心砌块",
+            "substrateThickness": 190,
+            "unmatchedConditions": [],
+            "thermalReferenceRowId": "ID_9",
+            "totalThermalResistance": 3.279,
+            "productThermalResistance": 2.88
+          },
+          "sourceRevision": 1
+        },
+        {
+          "status": "AVAILABLE",
+          "candidate": {
+            "id": "ID_15",
+            "alpha": 1.25,
+            "setId": "ID_10",
+            "kValue": 0.313,
+            "lambda": 0.005,
+            "layers": [
+              {
+                "name": "钢筋混凝土",
+                "order": 1,
+                "thicknessMm": 200
+              },
+              {
+                "name": "I型VICP复合保温板",
+                "alpha": 1.25,
+                "order": 2,
+                "lambda": 0.005
+              }
+            ],
+            "ranking": {
+              "kGap": 0.013,
+              "isClosestToTarget": false
+            },
+            "setCode": "CUSTOMER-FIRST-TABLE",
+            "optionId": "kp-5ea426c4f1368685f5f11790-0-o1",
+            "schemeId": "ID_16",
+            "specCode": "CUSTOMER-I-18",
+            "systemId": "ID_12",
+            "atlasPage": null,
+            "compliant": null,
+            "matchType": "EXACT",
+            "productId": "ID_2",
+            "specClass": "I",
+            "schemeCode": "A1-1",
+            "setVersion": 1,
+            "sourceType": "REFERENCE",
+            "systemCode": "CUSTOMER-I",
+            "systemName": "I型VICP薄抹灰外保温系统",
+            "candidateId": "ID_15",
+            "evidenceRef": "21页 A1-1",
+            "neighborGap": null,
+            "setPriority": 0,
+            "specVersion": 1,
+            "thicknessMm": 18,
+            "sourcePageId": "ID_4",
+            "productSpecId": "ID_13",
+            "referenceKind": "THERMAL_ROW",
+            "schemeVersion": 1,
+            "evidenceSource": "客户知识库第一表（隔离验收）",
+            "constraintMatch": {
+              "failed": [],
+              "passed": true,
+              "matched": [
+                "systemHint",
+                "K:0"
+              ]
+            },
+            "sourcePageLabel": "21",
+            "sourceVersionId": "ID_14",
+            "catalogProductId": "ID_2",
+            "constructionCode": "A1-1",
+            "setBuildingTypes": [],
+            "sourceDocumentId": "ID_3",
+            "matchedConditions": [
+              "K"
+            ],
+            "missingConditions": [],
+            "substrateMaterial": "钢筋混凝土",
+            "substrateThickness": 200,
+            "unmatchedConditions": [],
+            "thermalReferenceRowId": "ID_15",
+            "totalThermalResistance": 3.193,
+            "productThermalResistance": 2.88
+          },
+          "sourceRevision": 1
+        },
+        {
+          "status": "AVAILABLE",
+          "candidate": {
+            "id": "ID_17",
+            "alpha": 1.25,
+            "setId": "ID_10",
+            "kValue": 0.285,
+            "lambda": 0.005,
+            "layers": [
+              {
+                "name": "钢筋混凝土",
+                "order": 1,
+                "thicknessMm": 200
+              },
+              {
+                "name": "I型VICP复合保温板",
+                "alpha": 1.25,
+                "order": 2,
+                "lambda": 0.005
+              }
+            ],
+            "ranking": {
+              "kGap": 0.015,
+              "isClosestToTarget": false
+            },
+            "setCode": "CUSTOMER-FIRST-TABLE",
+            "optionId": "kp-5ea426c4f1368685f5f11790-0-o2",
+            "schemeId": "ID_16",
+            "specCode": "CUSTOMER-I-20",
+            "systemId": "ID_12",
+            "atlasPage": null,
+            "compliant": null,
+            "matchType": "EXACT",
+            "productId": "ID_2",
+            "specClass": "I",
+            "schemeCode": "A1-1",
+            "setVersion": 1,
+            "sourceType": "REFERENCE",
+            "systemCode": "CUSTOMER-I",
+            "systemName": "I型VICP薄抹灰外保温系统",
+            "candidateId": "ID_17",
+            "evidenceRef": "21页 A1-1",
+            "neighborGap": null,
+            "setPriority": 0,
+            "specVersion": 1,
+            "thicknessMm": 20,
+            "sourcePageId": "ID_4",
+            "productSpecId": "ID_18",
+            "referenceKind": "THERMAL_ROW",
+            "schemeVersion": 1,
+            "evidenceSource": "客户知识库第一表（隔离验收）",
+            "constraintMatch": {
+              "failed": [],
+              "passed": true,
+              "matched": [
+                "systemHint",
+                "K:0"
+              ]
+            },
+            "sourcePageLabel": "21",
+            "sourceVersionId": "ID_14",
+            "catalogProductId": "ID_2",
+            "constructionCode": "A1-1",
+            "setBuildingTypes": [],
+            "sourceDocumentId": "ID_3",
+            "matchedConditions": [
+              "K"
+            ],
+            "missingConditions": [],
+            "substrateMaterial": "钢筋混凝土",
+            "substrateThickness": 200,
+            "unmatchedConditions": [],
+            "thermalReferenceRowId": "ID_17",
+            "totalThermalResistance": 3.513,
+            "productThermalResistance": 3.2
+          },
+          "sourceRevision": 1
+        }
+      ],
+      "conditions": {
+        "mode": "APPROX",
+        "intent": "REFERENCE_LOOKUP",
+        "metric": "K",
+        "filters": [
+          {
+            "mode": "APPROX",
+            "metric": "K",
+            "tolerance": 0.02,
+            "targetValue": 0.3,
+            "toleranceAdjusted": false,
+            "effectiveTolerance": 0.02
+          }
+        ],
+        "tolerance": 0.02,
+        "systemHint": "薄抹灰",
+        "unresolved": [],
+        "targetValue": 0.3,
+        "conditionTrace": [
+          {
+            "field": "systemHint",
+            "value": "薄抹灰",
+            "source": "USER_EXPLICIT",
+            "classification": "HARD_CONSTRAINT"
+          },
+          {
+            "mode": "APPROX",
+            "field": "K",
+            "value": 0.3,
+            "source": "USER_EXPLICIT",
+            "classification": "HARD_CONSTRAINT"
+          }
+        ],
+        "toleranceAdjusted": false,
+        "effectiveTolerance": 0.02
+      },
+      "preferences": {},
+      "poolCandidateIds": [
+        "ID_9",
+        "ID_15",
+        "ID_17"
+      ],
+      "finalCandidateIds": [],
+      "queryStateSnapshot": {
+        "mode": "APPROX",
+        "intent": "REFERENCE_LOOKUP",
+        "metric": "K",
+        "filters": [
+          {
+            "mode": "APPROX",
+            "metric": "K",
+            "tolerance": 0.02,
+            "targetValue": 0.3,
+            "toleranceAdjusted": false,
+            "effectiveTolerance": 0.02
+          }
+        ],
+        "tolerance": 0.02,
+        "systemHint": "薄抹灰",
+        "unresolved": [],
+        "targetValue": 0.3,
+        "conditionTrace": [
+          {
+            "field": "systemHint",
+            "value": "薄抹灰",
+            "source": "USER_EXPLICIT",
+            "classification": "HARD_CONSTRAINT"
+          },
+          {
+            "mode": "APPROX",
+            "field": "K",
+            "value": 0.3,
+            "source": "USER_EXPLICIT",
+            "classification": "HARD_CONSTRAINT"
+          }
+        ],
+        "toleranceAdjusted": false,
+        "effectiveTolerance": 0.02
+      },
+      "keptForComparisonIds": [],
+      "rejectedCandidateIds": [],
+      "selectedCandidateIds": [
+        "ID_9"
+      ],
+      "recommendedCandidateIds": [
+        "ID_9"
+      ],
+      "candidateCards": [
+        {
+          "id": "ID_9",
+          "alpha": 1.25,
+          "setId": "ID_10",
+          "kValue": 0.305,
+          "lambda": 0.005,
+          "layers": [
+            {
+              "name": "混凝土空心砌块",
+              "order": 1,
+              "thicknessMm": 190
+            },
+            {
+              "name": "I型VICP复合保温板",
+              "alpha": 1.25,
+              "order": 2,
+              "lambda": 0.005
+            }
+          ],
+          "ranking": {
+            "kGap": 0.005,
+            "isClosestToTarget": true
+          },
+          "setCode": "CUSTOMER-FIRST-TABLE",
+          "optionId": "kp-5ea426c4f1368685f5f11790-1-o1",
+          "schemeId": "ID_11",
+          "specCode": "CUSTOMER-I-18",
+          "systemId": "ID_12",
+          "atlasPage": null,
+          "compliant": null,
+          "matchType": "EXACT",
+          "productId": "ID_2",
+          "specClass": "I",
+          "schemeCode": "A1-2",
+          "setVersion": 1,
+          "sourceType": "REFERENCE",
+          "systemCode": "CUSTOMER-I",
+          "systemName": "I型VICP薄抹灰外保温系统",
+          "candidateId": "ID_9",
+          "evidenceRef": "21页 A1-2",
+          "neighborGap": null,
+          "setPriority": 0,
+          "specVersion": 1,
+          "thicknessMm": 18,
+          "sourcePageId": "ID_4",
+          "productSpecId": "ID_13",
+          "referenceKind": "THERMAL_ROW",
+          "schemeVersion": 1,
+          "evidenceSource": "客户知识库第一表（隔离验收）",
+          "constraintMatch": {
+            "failed": [],
+            "passed": true,
+            "matched": [
+              "systemHint",
+              "K:0"
+            ]
+          },
+          "sourcePageLabel": "21",
+          "sourceVersionId": "ID_14",
+          "catalogProductId": "ID_2",
+          "constructionCode": "A1-2",
+          "setBuildingTypes": [],
+          "sourceDocumentId": "ID_3",
+          "matchedConditions": [
+            "K"
+          ],
+          "missingConditions": [],
+          "substrateMaterial": "混凝土空心砌块",
+          "substrateThickness": 190,
+          "unmatchedConditions": [],
+          "thermalReferenceRowId": "ID_9",
+          "totalThermalResistance": 3.279,
+          "productThermalResistance": 2.88,
+          "title": "A1-2",
+          "position": 1,
+          "sourceRevision": 1,
+          "status": "SELECTED",
+          "selected": true,
+          "final": false,
+          "conflict": false
+        },
+        {
+          "id": "ID_15",
+          "alpha": 1.25,
+          "setId": "ID_10",
+          "kValue": 0.313,
+          "lambda": 0.005,
+          "layers": [
+            {
+              "name": "钢筋混凝土",
+              "order": 1,
+              "thicknessMm": 200
+            },
+            {
+              "name": "I型VICP复合保温板",
+              "alpha": 1.25,
+              "order": 2,
+              "lambda": 0.005
+            }
+          ],
+          "ranking": {
+            "kGap": 0.013,
+            "isClosestToTarget": false
+          },
+          "setCode": "CUSTOMER-FIRST-TABLE",
+          "optionId": "kp-5ea426c4f1368685f5f11790-0-o1",
+          "schemeId": "ID_16",
+          "specCode": "CUSTOMER-I-18",
+          "systemId": "ID_12",
+          "atlasPage": null,
+          "compliant": null,
+          "matchType": "EXACT",
+          "productId": "ID_2",
+          "specClass": "I",
+          "schemeCode": "A1-1",
+          "setVersion": 1,
+          "sourceType": "REFERENCE",
+          "systemCode": "CUSTOMER-I",
+          "systemName": "I型VICP薄抹灰外保温系统",
+          "candidateId": "ID_15",
+          "evidenceRef": "21页 A1-1",
+          "neighborGap": null,
+          "setPriority": 0,
+          "specVersion": 1,
+          "thicknessMm": 18,
+          "sourcePageId": "ID_4",
+          "productSpecId": "ID_13",
+          "referenceKind": "THERMAL_ROW",
+          "schemeVersion": 1,
+          "evidenceSource": "客户知识库第一表（隔离验收）",
+          "constraintMatch": {
+            "failed": [],
+            "passed": true,
+            "matched": [
+              "systemHint",
+              "K:0"
+            ]
+          },
+          "sourcePageLabel": "21",
+          "sourceVersionId": "ID_14",
+          "catalogProductId": "ID_2",
+          "constructionCode": "A1-1",
+          "setBuildingTypes": [],
+          "sourceDocumentId": "ID_3",
+          "matchedConditions": [
+            "K"
+          ],
+          "missingConditions": [],
+          "substrateMaterial": "钢筋混凝土",
+          "substrateThickness": 200,
+          "unmatchedConditions": [],
+          "thermalReferenceRowId": "ID_15",
+          "totalThermalResistance": 3.193,
+          "productThermalResistance": 2.88,
+          "title": "A1-1",
+          "position": 2,
+          "sourceRevision": 1,
+          "status": "AVAILABLE",
+          "selected": false,
+          "final": false,
+          "conflict": false
+        },
+        {
+          "id": "ID_17",
+          "alpha": 1.25,
+          "setId": "ID_10",
+          "kValue": 0.285,
+          "lambda": 0.005,
+          "layers": [
+            {
+              "name": "钢筋混凝土",
+              "order": 1,
+              "thicknessMm": 200
+            },
+            {
+              "name": "I型VICP复合保温板",
+              "alpha": 1.25,
+              "order": 2,
+              "lambda": 0.005
+            }
+          ],
+          "ranking": {
+            "kGap": 0.015,
+            "isClosestToTarget": false
+          },
+          "setCode": "CUSTOMER-FIRST-TABLE",
+          "optionId": "kp-5ea426c4f1368685f5f11790-0-o2",
+          "schemeId": "ID_16",
+          "specCode": "CUSTOMER-I-20",
+          "systemId": "ID_12",
+          "atlasPage": null,
+          "compliant": null,
+          "matchType": "EXACT",
+          "productId": "ID_2",
+          "specClass": "I",
+          "schemeCode": "A1-1",
+          "setVersion": 1,
+          "sourceType": "REFERENCE",
+          "systemCode": "CUSTOMER-I",
+          "systemName": "I型VICP薄抹灰外保温系统",
+          "candidateId": "ID_17",
+          "evidenceRef": "21页 A1-1",
+          "neighborGap": null,
+          "setPriority": 0,
+          "specVersion": 1,
+          "thicknessMm": 20,
+          "sourcePageId": "ID_4",
+          "productSpecId": "ID_18",
+          "referenceKind": "THERMAL_ROW",
+          "schemeVersion": 1,
+          "evidenceSource": "客户知识库第一表（隔离验收）",
+          "constraintMatch": {
+            "failed": [],
+            "passed": true,
+            "matched": [
+              "systemHint",
+              "K:0"
+            ]
+          },
+          "sourcePageLabel": "21",
+          "sourceVersionId": "ID_14",
+          "catalogProductId": "ID_2",
+          "constructionCode": "A1-1",
+          "setBuildingTypes": [],
+          "sourceDocumentId": "ID_3",
+          "matchedConditions": [
+            "K"
+          ],
+          "missingConditions": [],
+          "substrateMaterial": "钢筋混凝土",
+          "substrateThickness": 200,
+          "unmatchedConditions": [],
+          "thermalReferenceRowId": "ID_17",
+          "totalThermalResistance": 3.513,
+          "productThermalResistance": 3.2,
+          "title": "A1-1",
+          "position": 3,
+          "sourceRevision": 1,
+          "status": "AVAILABLE",
+          "selected": false,
+          "final": false,
+          "conflict": false
+        }
+      ],
+      "debug": {
+        "solutionStateId": "ID_6",
+        "stage": "REFINING",
+        "candidateSetRevision": 1,
+        "candidateCount": 3,
+        "selectedIds": [
+          "ID_9"
+        ],
+        "rejectedIds": [],
+        "finalIds": [],
+        "conflicts": [],
+        "confirmedSnapshotId": null
+      }
+    }
+  },
+  "SET_FINAL": {
+    "solutionState": {
+      "id": "ID_6",
+      "conversationId": "ID_7",
+      "userId": "ID_8",
+      "projectId": null,
+      "active": true,
+      "stage": "READY_TO_CONFIRM",
+      "version": 4,
+      "candidateSetRevision": 1,
+      "confirmedSnapshotId": null,
+      "createdAt": "2026-10-18T11:29:20.059Z",
+      "updatedAt": "2026-10-18T11:29:21.290Z",
+      "conflicts": [],
+      "candidates": [
+        {
+          "status": "FINAL",
+          "candidate": {
+            "id": "ID_9",
+            "alpha": 1.25,
+            "setId": "ID_10",
+            "kValue": 0.305,
+            "lambda": 0.005,
+            "layers": [
+              {
+                "name": "混凝土空心砌块",
+                "order": 1,
+                "thicknessMm": 190
+              },
+              {
+                "name": "I型VICP复合保温板",
+                "alpha": 1.25,
+                "order": 2,
+                "lambda": 0.005
+              }
+            ],
+            "ranking": {
+              "kGap": 0.005,
+              "isClosestToTarget": true
+            },
+            "setCode": "CUSTOMER-FIRST-TABLE",
+            "optionId": "kp-5ea426c4f1368685f5f11790-1-o1",
+            "schemeId": "ID_11",
+            "specCode": "CUSTOMER-I-18",
+            "systemId": "ID_12",
+            "atlasPage": null,
+            "compliant": null,
+            "matchType": "EXACT",
+            "productId": "ID_2",
+            "specClass": "I",
+            "schemeCode": "A1-2",
+            "setVersion": 1,
+            "sourceType": "REFERENCE",
+            "systemCode": "CUSTOMER-I",
+            "systemName": "I型VICP薄抹灰外保温系统",
+            "candidateId": "ID_9",
+            "evidenceRef": "21页 A1-2",
+            "neighborGap": null,
+            "setPriority": 0,
+            "specVersion": 1,
+            "thicknessMm": 18,
+            "sourcePageId": "ID_4",
+            "productSpecId": "ID_13",
+            "referenceKind": "THERMAL_ROW",
+            "schemeVersion": 1,
+            "evidenceSource": "客户知识库第一表（隔离验收）",
+            "constraintMatch": {
+              "failed": [],
+              "passed": true,
+              "matched": [
+                "systemHint",
+                "K:0"
+              ]
+            },
+            "sourcePageLabel": "21",
+            "sourceVersionId": "ID_14",
+            "catalogProductId": "ID_2",
+            "constructionCode": "A1-2",
+            "setBuildingTypes": [],
+            "sourceDocumentId": "ID_3",
+            "matchedConditions": [
+              "K"
+            ],
+            "missingConditions": [],
+            "substrateMaterial": "混凝土空心砌块",
+            "substrateThickness": 190,
+            "unmatchedConditions": [],
+            "thermalReferenceRowId": "ID_9",
+            "totalThermalResistance": 3.279,
+            "productThermalResistance": 2.88
+          },
+          "sourceRevision": 1
+        },
+        {
+          "status": "AVAILABLE",
+          "candidate": {
+            "id": "ID_15",
+            "alpha": 1.25,
+            "setId": "ID_10",
+            "kValue": 0.313,
+            "lambda": 0.005,
+            "layers": [
+              {
+                "name": "钢筋混凝土",
+                "order": 1,
+                "thicknessMm": 200
+              },
+              {
+                "name": "I型VICP复合保温板",
+                "alpha": 1.25,
+                "order": 2,
+                "lambda": 0.005
+              }
+            ],
+            "ranking": {
+              "kGap": 0.013,
+              "isClosestToTarget": false
+            },
+            "setCode": "CUSTOMER-FIRST-TABLE",
+            "optionId": "kp-5ea426c4f1368685f5f11790-0-o1",
+            "schemeId": "ID_16",
+            "specCode": "CUSTOMER-I-18",
+            "systemId": "ID_12",
+            "atlasPage": null,
+            "compliant": null,
+            "matchType": "EXACT",
+            "productId": "ID_2",
+            "specClass": "I",
+            "schemeCode": "A1-1",
+            "setVersion": 1,
+            "sourceType": "REFERENCE",
+            "systemCode": "CUSTOMER-I",
+            "systemName": "I型VICP薄抹灰外保温系统",
+            "candidateId": "ID_15",
+            "evidenceRef": "21页 A1-1",
+            "neighborGap": null,
+            "setPriority": 0,
+            "specVersion": 1,
+            "thicknessMm": 18,
+            "sourcePageId": "ID_4",
+            "productSpecId": "ID_13",
+            "referenceKind": "THERMAL_ROW",
+            "schemeVersion": 1,
+            "evidenceSource": "客户知识库第一表（隔离验收）",
+            "constraintMatch": {
+              "failed": [],
+              "passed": true,
+              "matched": [
+                "systemHint",
+                "K:0"
+              ]
+            },
+            "sourcePageLabel": "21",
+            "sourceVersionId": "ID_14",
+            "catalogProductId": "ID_2",
+            "constructionCode": "A1-1",
+            "setBuildingTypes": [],
+            "sourceDocumentId": "ID_3",
+            "matchedConditions": [
+              "K"
+            ],
+            "missingConditions": [],
+            "substrateMaterial": "钢筋混凝土",
+            "substrateThickness": 200,
+            "unmatchedConditions": [],
+            "thermalReferenceRowId": "ID_15",
+            "totalThermalResistance": 3.193,
+            "productThermalResistance": 2.88
+          },
+          "sourceRevision": 1
+        },
+        {
+          "status": "AVAILABLE",
+          "candidate": {
+            "id": "ID_17",
+            "alpha": 1.25,
+            "setId": "ID_10",
+            "kValue": 0.285,
+            "lambda": 0.005,
+            "layers": [
+              {
+                "name": "钢筋混凝土",
+                "order": 1,
+                "thicknessMm": 200
+              },
+              {
+                "name": "I型VICP复合保温板",
+                "alpha": 1.25,
+                "order": 2,
+                "lambda": 0.005
+              }
+            ],
+            "ranking": {
+              "kGap": 0.015,
+              "isClosestToTarget": false
+            },
+            "setCode": "CUSTOMER-FIRST-TABLE",
+            "optionId": "kp-5ea426c4f1368685f5f11790-0-o2",
+            "schemeId": "ID_16",
+            "specCode": "CUSTOMER-I-20",
+            "systemId": "ID_12",
+            "atlasPage": null,
+            "compliant": null,
+            "matchType": "EXACT",
+            "productId": "ID_2",
+            "specClass": "I",
+            "schemeCode": "A1-1",
+            "setVersion": 1,
+            "sourceType": "REFERENCE",
+            "systemCode": "CUSTOMER-I",
+            "systemName": "I型VICP薄抹灰外保温系统",
+            "candidateId": "ID_17",
+            "evidenceRef": "21页 A1-1",
+            "neighborGap": null,
+            "setPriority": 0,
+            "specVersion": 1,
+            "thicknessMm": 20,
+            "sourcePageId": "ID_4",
+            "productSpecId": "ID_18",
+            "referenceKind": "THERMAL_ROW",
+            "schemeVersion": 1,
+            "evidenceSource": "客户知识库第一表（隔离验收）",
+            "constraintMatch": {
+              "failed": [],
+              "passed": true,
+              "matched": [
+                "systemHint",
+                "K:0"
+              ]
+            },
+            "sourcePageLabel": "21",
+            "sourceVersionId": "ID_14",
+            "catalogProductId": "ID_2",
+            "constructionCode": "A1-1",
+            "setBuildingTypes": [],
+            "sourceDocumentId": "ID_3",
+            "matchedConditions": [
+              "K"
+            ],
+            "missingConditions": [],
+            "substrateMaterial": "钢筋混凝土",
+            "substrateThickness": 200,
+            "unmatchedConditions": [],
+            "thermalReferenceRowId": "ID_17",
+            "totalThermalResistance": 3.513,
+            "productThermalResistance": 3.2
+          },
+          "sourceRevision": 1
+        }
+      ],
+      "conditions": {
+        "mode": "APPROX",
+        "intent": "REFERENCE_LOOKUP",
+        "metric": "K",
+        "filters": [
+          {
+            "mode": "APPROX",
+            "metric": "K",
+            "tolerance": 0.02,
+            "targetValue": 0.3,
+            "toleranceAdjusted": false,
+            "effectiveTolerance": 0.02
+          }
+        ],
+        "tolerance": 0.02,
+        "systemHint": "薄抹灰",
+        "unresolved": [],
+        "targetValue": 0.3,
+        "conditionTrace": [
+          {
+            "field": "systemHint",
+            "value": "薄抹灰",
+            "source": "USER_EXPLICIT",
+            "classification": "HARD_CONSTRAINT"
+          },
+          {
+            "mode": "APPROX",
+            "field": "K",
+            "value": 0.3,
+            "source": "USER_EXPLICIT",
+            "classification": "HARD_CONSTRAINT"
+          }
+        ],
+        "toleranceAdjusted": false,
+        "effectiveTolerance": 0.02
+      },
+      "preferences": {},
+      "poolCandidateIds": [
+        "ID_9",
+        "ID_15",
+        "ID_17"
+      ],
+      "finalCandidateIds": [
+        "ID_9"
+      ],
+      "queryStateSnapshot": {
+        "mode": "APPROX",
+        "intent": "REFERENCE_LOOKUP",
+        "metric": "K",
+        "filters": [
+          {
+            "mode": "APPROX",
+            "metric": "K",
+            "tolerance": 0.02,
+            "targetValue": 0.3,
+            "toleranceAdjusted": false,
+            "effectiveTolerance": 0.02
+          }
+        ],
+        "tolerance": 0.02,
+        "systemHint": "薄抹灰",
+        "unresolved": [],
+        "targetValue": 0.3,
+        "conditionTrace": [
+          {
+            "field": "systemHint",
+            "value": "薄抹灰",
+            "source": "USER_EXPLICIT",
+            "classification": "HARD_CONSTRAINT"
+          },
+          {
+            "mode": "APPROX",
+            "field": "K",
+            "value": 0.3,
+            "source": "USER_EXPLICIT",
+            "classification": "HARD_CONSTRAINT"
+          }
+        ],
+        "toleranceAdjusted": false,
+        "effectiveTolerance": 0.02
+      },
+      "keptForComparisonIds": [],
+      "rejectedCandidateIds": [],
+      "selectedCandidateIds": [
+        "ID_9"
+      ],
+      "recommendedCandidateIds": [
+        "ID_9"
+      ],
+      "candidateCards": [
+        {
+          "id": "ID_9",
+          "alpha": 1.25,
+          "setId": "ID_10",
+          "kValue": 0.305,
+          "lambda": 0.005,
+          "layers": [
+            {
+              "name": "混凝土空心砌块",
+              "order": 1,
+              "thicknessMm": 190
+            },
+            {
+              "name": "I型VICP复合保温板",
+              "alpha": 1.25,
+              "order": 2,
+              "lambda": 0.005
+            }
+          ],
+          "ranking": {
+            "kGap": 0.005,
+            "isClosestToTarget": true
+          },
+          "setCode": "CUSTOMER-FIRST-TABLE",
+          "optionId": "kp-5ea426c4f1368685f5f11790-1-o1",
+          "schemeId": "ID_11",
+          "specCode": "CUSTOMER-I-18",
+          "systemId": "ID_12",
+          "atlasPage": null,
+          "compliant": null,
+          "matchType": "EXACT",
+          "productId": "ID_2",
+          "specClass": "I",
+          "schemeCode": "A1-2",
+          "setVersion": 1,
+          "sourceType": "REFERENCE",
+          "systemCode": "CUSTOMER-I",
+          "systemName": "I型VICP薄抹灰外保温系统",
+          "candidateId": "ID_9",
+          "evidenceRef": "21页 A1-2",
+          "neighborGap": null,
+          "setPriority": 0,
+          "specVersion": 1,
+          "thicknessMm": 18,
+          "sourcePageId": "ID_4",
+          "productSpecId": "ID_13",
+          "referenceKind": "THERMAL_ROW",
+          "schemeVersion": 1,
+          "evidenceSource": "客户知识库第一表（隔离验收）",
+          "constraintMatch": {
+            "failed": [],
+            "passed": true,
+            "matched": [
+              "systemHint",
+              "K:0"
+            ]
+          },
+          "sourcePageLabel": "21",
+          "sourceVersionId": "ID_14",
+          "catalogProductId": "ID_2",
+          "constructionCode": "A1-2",
+          "setBuildingTypes": [],
+          "sourceDocumentId": "ID_3",
+          "matchedConditions": [
+            "K"
+          ],
+          "missingConditions": [],
+          "substrateMaterial": "混凝土空心砌块",
+          "substrateThickness": 190,
+          "unmatchedConditions": [],
+          "thermalReferenceRowId": "ID_9",
+          "totalThermalResistance": 3.279,
+          "productThermalResistance": 2.88,
+          "title": "A1-2",
+          "position": 1,
+          "sourceRevision": 1,
+          "status": "FINAL",
+          "selected": true,
+          "final": true,
+          "conflict": false
+        },
+        {
+          "id": "ID_15",
+          "alpha": 1.25,
+          "setId": "ID_10",
+          "kValue": 0.313,
+          "lambda": 0.005,
+          "layers": [
+            {
+              "name": "钢筋混凝土",
+              "order": 1,
+              "thicknessMm": 200
+            },
+            {
+              "name": "I型VICP复合保温板",
+              "alpha": 1.25,
+              "order": 2,
+              "lambda": 0.005
+            }
+          ],
+          "ranking": {
+            "kGap": 0.013,
+            "isClosestToTarget": false
+          },
+          "setCode": "CUSTOMER-FIRST-TABLE",
+          "optionId": "kp-5ea426c4f1368685f5f11790-0-o1",
+          "schemeId": "ID_16",
+          "specCode": "CUSTOMER-I-18",
+          "systemId": "ID_12",
+          "atlasPage": null,
+          "compliant": null,
+          "matchType": "EXACT",
+          "productId": "ID_2",
+          "specClass": "I",
+          "schemeCode": "A1-1",
+          "setVersion": 1,
+          "sourceType": "REFERENCE",
+          "systemCode": "CUSTOMER-I",
+          "systemName": "I型VICP薄抹灰外保温系统",
+          "candidateId": "ID_15",
+          "evidenceRef": "21页 A1-1",
+          "neighborGap": null,
+          "setPriority": 0,
+          "specVersion": 1,
+          "thicknessMm": 18,
+          "sourcePageId": "ID_4",
+          "productSpecId": "ID_13",
+          "referenceKind": "THERMAL_ROW",
+          "schemeVersion": 1,
+          "evidenceSource": "客户知识库第一表（隔离验收）",
+          "constraintMatch": {
+            "failed": [],
+            "passed": true,
+            "matched": [
+              "systemHint",
+              "K:0"
+            ]
+          },
+          "sourcePageLabel": "21",
+          "sourceVersionId": "ID_14",
+          "catalogProductId": "ID_2",
+          "constructionCode": "A1-1",
+          "setBuildingTypes": [],
+          "sourceDocumentId": "ID_3",
+          "matchedConditions": [
+            "K"
+          ],
+          "missingConditions": [],
+          "substrateMaterial": "钢筋混凝土",
+          "substrateThickness": 200,
+          "unmatchedConditions": [],
+          "thermalReferenceRowId": "ID_15",
+          "totalThermalResistance": 3.193,
+          "productThermalResistance": 2.88,
+          "title": "A1-1",
+          "position": 2,
+          "sourceRevision": 1,
+          "status": "AVAILABLE",
+          "selected": false,
+          "final": false,
+          "conflict": false
+        },
+        {
+          "id": "ID_17",
+          "alpha": 1.25,
+          "setId": "ID_10",
+          "kValue": 0.285,
+          "lambda": 0.005,
+          "layers": [
+            {
+              "name": "钢筋混凝土",
+              "order": 1,
+              "thicknessMm": 200
+            },
+            {
+              "name": "I型VICP复合保温板",
+              "alpha": 1.25,
+              "order": 2,
+              "lambda": 0.005
+            }
+          ],
+          "ranking": {
+            "kGap": 0.015,
+            "isClosestToTarget": false
+          },
+          "setCode": "CUSTOMER-FIRST-TABLE",
+          "optionId": "kp-5ea426c4f1368685f5f11790-0-o2",
+          "schemeId": "ID_16",
+          "specCode": "CUSTOMER-I-20",
+          "systemId": "ID_12",
+          "atlasPage": null,
+          "compliant": null,
+          "matchType": "EXACT",
+          "productId": "ID_2",
+          "specClass": "I",
+          "schemeCode": "A1-1",
+          "setVersion": 1,
+          "sourceType": "REFERENCE",
+          "systemCode": "CUSTOMER-I",
+          "systemName": "I型VICP薄抹灰外保温系统",
+          "candidateId": "ID_17",
+          "evidenceRef": "21页 A1-1",
+          "neighborGap": null,
+          "setPriority": 0,
+          "specVersion": 1,
+          "thicknessMm": 20,
+          "sourcePageId": "ID_4",
+          "productSpecId": "ID_18",
+          "referenceKind": "THERMAL_ROW",
+          "schemeVersion": 1,
+          "evidenceSource": "客户知识库第一表（隔离验收）",
+          "constraintMatch": {
+            "failed": [],
+            "passed": true,
+            "matched": [
+              "systemHint",
+              "K:0"
+            ]
+          },
+          "sourcePageLabel": "21",
+          "sourceVersionId": "ID_14",
+          "catalogProductId": "ID_2",
+          "constructionCode": "A1-1",
+          "setBuildingTypes": [],
+          "sourceDocumentId": "ID_3",
+          "matchedConditions": [
+            "K"
+          ],
+          "missingConditions": [],
+          "substrateMaterial": "钢筋混凝土",
+          "substrateThickness": 200,
+          "unmatchedConditions": [],
+          "thermalReferenceRowId": "ID_17",
+          "totalThermalResistance": 3.513,
+          "productThermalResistance": 3.2,
+          "title": "A1-1",
+          "position": 3,
+          "sourceRevision": 1,
+          "status": "AVAILABLE",
+          "selected": false,
+          "final": false,
+          "conflict": false
+        }
+      ],
+      "debug": {
+        "solutionStateId": "ID_6",
+        "stage": "READY_TO_CONFIRM",
+        "candidateSetRevision": 1,
+        "candidateCount": 3,
+        "selectedIds": [
+          "ID_9"
+        ],
+        "rejectedIds": [],
+        "finalIds": [
+          "ID_9"
+        ],
+        "conflicts": [],
+        "confirmedSnapshotId": null
+      }
+    }
+  },
+  "CONFIRM": {
+    "solutionState": {
+      "id": "ID_6",
+      "conversationId": "ID_7",
+      "userId": "ID_8",
+      "projectId": null,
+      "active": true,
+      "stage": "CONFIRMED",
+      "version": 5,
+      "candidateSetRevision": 1,
+      "confirmedSnapshotId": "ID_19",
+      "createdAt": "2026-10-18T11:29:20.059Z",
+      "updatedAt": "2026-10-18T11:29:21.797Z",
+      "conflicts": [],
+      "candidates": [
+        {
+          "status": "FINAL",
+          "candidate": {
+            "id": "ID_9",
+            "alpha": 1.25,
+            "setId": "ID_10",
+            "kValue": 0.305,
+            "lambda": 0.005,
+            "layers": [
+              {
+                "name": "混凝土空心砌块",
+                "order": 1,
+                "thicknessMm": 190
+              },
+              {
+                "name": "I型VICP复合保温板",
+                "alpha": 1.25,
+                "order": 2,
+                "lambda": 0.005
+              }
+            ],
+            "ranking": {
+              "kGap": 0.005,
+              "isClosestToTarget": true
+            },
+            "setCode": "CUSTOMER-FIRST-TABLE",
+            "optionId": "kp-5ea426c4f1368685f5f11790-1-o1",
+            "schemeId": "ID_11",
+            "specCode": "CUSTOMER-I-18",
+            "systemId": "ID_12",
+            "atlasPage": null,
+            "compliant": null,
+            "matchType": "EXACT",
+            "productId": "ID_2",
+            "specClass": "I",
+            "schemeCode": "A1-2",
+            "setVersion": 1,
+            "sourceType": "REFERENCE",
+            "systemCode": "CUSTOMER-I",
+            "systemName": "I型VICP薄抹灰外保温系统",
+            "candidateId": "ID_9",
+            "evidenceRef": "21页 A1-2",
+            "neighborGap": null,
+            "setPriority": 0,
+            "specVersion": 1,
+            "thicknessMm": 18,
+            "sourcePageId": "ID_4",
+            "productSpecId": "ID_13",
+            "referenceKind": "THERMAL_ROW",
+            "schemeVersion": 1,
+            "evidenceSource": "客户知识库第一表（隔离验收）",
+            "constraintMatch": {
+              "failed": [],
+              "passed": true,
+              "matched": [
+                "systemHint",
+                "K:0"
+              ]
+            },
+            "sourcePageLabel": "21",
+            "sourceVersionId": "ID_14",
+            "catalogProductId": "ID_2",
+            "constructionCode": "A1-2",
+            "setBuildingTypes": [],
+            "sourceDocumentId": "ID_3",
+            "matchedConditions": [
+              "K"
+            ],
+            "missingConditions": [],
+            "substrateMaterial": "混凝土空心砌块",
+            "substrateThickness": 190,
+            "unmatchedConditions": [],
+            "thermalReferenceRowId": "ID_9",
+            "totalThermalResistance": 3.279,
+            "productThermalResistance": 2.88
+          },
+          "sourceRevision": 1
+        },
+        {
+          "status": "AVAILABLE",
+          "candidate": {
+            "id": "ID_15",
+            "alpha": 1.25,
+            "setId": "ID_10",
+            "kValue": 0.313,
+            "lambda": 0.005,
+            "layers": [
+              {
+                "name": "钢筋混凝土",
+                "order": 1,
+                "thicknessMm": 200
+              },
+              {
+                "name": "I型VICP复合保温板",
+                "alpha": 1.25,
+                "order": 2,
+                "lambda": 0.005
+              }
+            ],
+            "ranking": {
+              "kGap": 0.013,
+              "isClosestToTarget": false
+            },
+            "setCode": "CUSTOMER-FIRST-TABLE",
+            "optionId": "kp-5ea426c4f1368685f5f11790-0-o1",
+            "schemeId": "ID_16",
+            "specCode": "CUSTOMER-I-18",
+            "systemId": "ID_12",
+            "atlasPage": null,
+            "compliant": null,
+            "matchType": "EXACT",
+            "productId": "ID_2",
+            "specClass": "I",
+            "schemeCode": "A1-1",
+            "setVersion": 1,
+            "sourceType": "REFERENCE",
+            "systemCode": "CUSTOMER-I",
+            "systemName": "I型VICP薄抹灰外保温系统",
+            "candidateId": "ID_15",
+            "evidenceRef": "21页 A1-1",
+            "neighborGap": null,
+            "setPriority": 0,
+            "specVersion": 1,
+            "thicknessMm": 18,
+            "sourcePageId": "ID_4",
+            "productSpecId": "ID_13",
+            "referenceKind": "THERMAL_ROW",
+            "schemeVersion": 1,
+            "evidenceSource": "客户知识库第一表（隔离验收）",
+            "constraintMatch": {
+              "failed": [],
+              "passed": true,
+              "matched": [
+                "systemHint",
+                "K:0"
+              ]
+            },
+            "sourcePageLabel": "21",
+            "sourceVersionId": "ID_14",
+            "catalogProductId": "ID_2",
+            "constructionCode": "A1-1",
+            "setBuildingTypes": [],
+            "sourceDocumentId": "ID_3",
+            "matchedConditions": [
+              "K"
+            ],
+            "missingConditions": [],
+            "substrateMaterial": "钢筋混凝土",
+            "substrateThickness": 200,
+            "unmatchedConditions": [],
+            "thermalReferenceRowId": "ID_15",
+            "totalThermalResistance": 3.193,
+            "productThermalResistance": 2.88
+          },
+          "sourceRevision": 1
+        },
+        {
+          "status": "AVAILABLE",
+          "candidate": {
+            "id": "ID_17",
+            "alpha": 1.25,
+            "setId": "ID_10",
+            "kValue": 0.285,
+            "lambda": 0.005,
+            "layers": [
+              {
+                "name": "钢筋混凝土",
+                "order": 1,
+                "thicknessMm": 200
+              },
+              {
+                "name": "I型VICP复合保温板",
+                "alpha": 1.25,
+                "order": 2,
+                "lambda": 0.005
+              }
+            ],
+            "ranking": {
+              "kGap": 0.015,
+              "isClosestToTarget": false
+            },
+            "setCode": "CUSTOMER-FIRST-TABLE",
+            "optionId": "kp-5ea426c4f1368685f5f11790-0-o2",
+            "schemeId": "ID_16",
+            "specCode": "CUSTOMER-I-20",
+            "systemId": "ID_12",
+            "atlasPage": null,
+            "compliant": null,
+            "matchType": "EXACT",
+            "productId": "ID_2",
+            "specClass": "I",
+            "schemeCode": "A1-1",
+            "setVersion": 1,
+            "sourceType": "REFERENCE",
+            "systemCode": "CUSTOMER-I",
+            "systemName": "I型VICP薄抹灰外保温系统",
+            "candidateId": "ID_17",
+            "evidenceRef": "21页 A1-1",
+            "neighborGap": null,
+            "setPriority": 0,
+            "specVersion": 1,
+            "thicknessMm": 20,
+            "sourcePageId": "ID_4",
+            "productSpecId": "ID_18",
+            "referenceKind": "THERMAL_ROW",
+            "schemeVersion": 1,
+            "evidenceSource": "客户知识库第一表（隔离验收）",
+            "constraintMatch": {
+              "failed": [],
+              "passed": true,
+              "matched": [
+                "systemHint",
+                "K:0"
+              ]
+            },
+            "sourcePageLabel": "21",
+            "sourceVersionId": "ID_14",
+            "catalogProductId": "ID_2",
+            "constructionCode": "A1-1",
+            "setBuildingTypes": [],
+            "sourceDocumentId": "ID_3",
+            "matchedConditions": [
+              "K"
+            ],
+            "missingConditions": [],
+            "substrateMaterial": "钢筋混凝土",
+            "substrateThickness": 200,
+            "unmatchedConditions": [],
+            "thermalReferenceRowId": "ID_17",
+            "totalThermalResistance": 3.513,
+            "productThermalResistance": 3.2
+          },
+          "sourceRevision": 1
+        }
+      ],
+      "conditions": {
+        "mode": "APPROX",
+        "intent": "REFERENCE_LOOKUP",
+        "metric": "K",
+        "filters": [
+          {
+            "mode": "APPROX",
+            "metric": "K",
+            "tolerance": 0.02,
+            "targetValue": 0.3,
+            "toleranceAdjusted": false,
+            "effectiveTolerance": 0.02
+          }
+        ],
+        "tolerance": 0.02,
+        "systemHint": "薄抹灰",
+        "unresolved": [],
+        "targetValue": 0.3,
+        "conditionTrace": [
+          {
+            "field": "systemHint",
+            "value": "薄抹灰",
+            "source": "USER_EXPLICIT",
+            "classification": "HARD_CONSTRAINT"
+          },
+          {
+            "mode": "APPROX",
+            "field": "K",
+            "value": 0.3,
+            "source": "USER_EXPLICIT",
+            "classification": "HARD_CONSTRAINT"
+          }
+        ],
+        "toleranceAdjusted": false,
+        "effectiveTolerance": 0.02
+      },
+      "preferences": {},
+      "poolCandidateIds": [
+        "ID_9",
+        "ID_15",
+        "ID_17"
+      ],
+      "finalCandidateIds": [
+        "ID_9"
+      ],
+      "queryStateSnapshot": {
+        "mode": "APPROX",
+        "intent": "REFERENCE_LOOKUP",
+        "metric": "K",
+        "filters": [
+          {
+            "mode": "APPROX",
+            "metric": "K",
+            "tolerance": 0.02,
+            "targetValue": 0.3,
+            "toleranceAdjusted": false,
+            "effectiveTolerance": 0.02
+          }
+        ],
+        "tolerance": 0.02,
+        "systemHint": "薄抹灰",
+        "unresolved": [],
+        "targetValue": 0.3,
+        "conditionTrace": [
+          {
+            "field": "systemHint",
+            "value": "薄抹灰",
+            "source": "USER_EXPLICIT",
+            "classification": "HARD_CONSTRAINT"
+          },
+          {
+            "mode": "APPROX",
+            "field": "K",
+            "value": 0.3,
+            "source": "USER_EXPLICIT",
+            "classification": "HARD_CONSTRAINT"
+          }
+        ],
+        "toleranceAdjusted": false,
+        "effectiveTolerance": 0.02
+      },
+      "keptForComparisonIds": [],
+      "rejectedCandidateIds": [],
+      "selectedCandidateIds": [
+        "ID_9"
+      ],
+      "recommendedCandidateIds": [
+        "ID_9"
+      ],
+      "candidateCards": [
+        {
+          "id": "ID_9",
+          "alpha": 1.25,
+          "setId": "ID_10",
+          "kValue": 0.305,
+          "lambda": 0.005,
+          "layers": [
+            {
+              "name": "混凝土空心砌块",
+              "order": 1,
+              "thicknessMm": 190
+            },
+            {
+              "name": "I型VICP复合保温板",
+              "alpha": 1.25,
+              "order": 2,
+              "lambda": 0.005
+            }
+          ],
+          "ranking": {
+            "kGap": 0.005,
+            "isClosestToTarget": true
+          },
+          "setCode": "CUSTOMER-FIRST-TABLE",
+          "optionId": "kp-5ea426c4f1368685f5f11790-1-o1",
+          "schemeId": "ID_11",
+          "specCode": "CUSTOMER-I-18",
+          "systemId": "ID_12",
+          "atlasPage": null,
+          "compliant": null,
+          "matchType": "EXACT",
+          "productId": "ID_2",
+          "specClass": "I",
+          "schemeCode": "A1-2",
+          "setVersion": 1,
+          "sourceType": "REFERENCE",
+          "systemCode": "CUSTOMER-I",
+          "systemName": "I型VICP薄抹灰外保温系统",
+          "candidateId": "ID_9",
+          "evidenceRef": "21页 A1-2",
+          "neighborGap": null,
+          "setPriority": 0,
+          "specVersion": 1,
+          "thicknessMm": 18,
+          "sourcePageId": "ID_4",
+          "productSpecId": "ID_13",
+          "referenceKind": "THERMAL_ROW",
+          "schemeVersion": 1,
+          "evidenceSource": "客户知识库第一表（隔离验收）",
+          "constraintMatch": {
+            "failed": [],
+            "passed": true,
+            "matched": [
+              "systemHint",
+              "K:0"
+            ]
+          },
+          "sourcePageLabel": "21",
+          "sourceVersionId": "ID_14",
+          "catalogProductId": "ID_2",
+          "constructionCode": "A1-2",
+          "setBuildingTypes": [],
+          "sourceDocumentId": "ID_3",
+          "matchedConditions": [
+            "K"
+          ],
+          "missingConditions": [],
+          "substrateMaterial": "混凝土空心砌块",
+          "substrateThickness": 190,
+          "unmatchedConditions": [],
+          "thermalReferenceRowId": "ID_9",
+          "totalThermalResistance": 3.279,
+          "productThermalResistance": 2.88,
+          "title": "A1-2",
+          "position": 1,
+          "sourceRevision": 1,
+          "status": "FINAL",
+          "selected": true,
+          "final": true,
+          "conflict": false
+        },
+        {
+          "id": "ID_15",
+          "alpha": 1.25,
+          "setId": "ID_10",
+          "kValue": 0.313,
+          "lambda": 0.005,
+          "layers": [
+            {
+              "name": "钢筋混凝土",
+              "order": 1,
+              "thicknessMm": 200
+            },
+            {
+              "name": "I型VICP复合保温板",
+              "alpha": 1.25,
+              "order": 2,
+              "lambda": 0.005
+            }
+          ],
+          "ranking": {
+            "kGap": 0.013,
+            "isClosestToTarget": false
+          },
+          "setCode": "CUSTOMER-FIRST-TABLE",
+          "optionId": "kp-5ea426c4f1368685f5f11790-0-o1",
+          "schemeId": "ID_16",
+          "specCode": "CUSTOMER-I-18",
+          "systemId": "ID_12",
+          "atlasPage": null,
+          "compliant": null,
+          "matchType": "EXACT",
+          "productId": "ID_2",
+          "specClass": "I",
+          "schemeCode": "A1-1",
+          "setVersion": 1,
+          "sourceType": "REFERENCE",
+          "systemCode": "CUSTOMER-I",
+          "systemName": "I型VICP薄抹灰外保温系统",
+          "candidateId": "ID_15",
+          "evidenceRef": "21页 A1-1",
+          "neighborGap": null,
+          "setPriority": 0,
+          "specVersion": 1,
+          "thicknessMm": 18,
+          "sourcePageId": "ID_4",
+          "productSpecId": "ID_13",
+          "referenceKind": "THERMAL_ROW",
+          "schemeVersion": 1,
+          "evidenceSource": "客户知识库第一表（隔离验收）",
+          "constraintMatch": {
+            "failed": [],
+            "passed": true,
+            "matched": [
+              "systemHint",
+              "K:0"
+            ]
+          },
+          "sourcePageLabel": "21",
+          "sourceVersionId": "ID_14",
+          "catalogProductId": "ID_2",
+          "constructionCode": "A1-1",
+          "setBuildingTypes": [],
+          "sourceDocumentId": "ID_3",
+          "matchedConditions": [
+            "K"
+          ],
+          "missingConditions": [],
+          "substrateMaterial": "钢筋混凝土",
+          "substrateThickness": 200,
+          "unmatchedConditions": [],
+          "thermalReferenceRowId": "ID_15",
+          "totalThermalResistance": 3.193,
+          "productThermalResistance": 2.88,
+          "title": "A1-1",
+          "position": 2,
+          "sourceRevision": 1,
+          "status": "AVAILABLE",
+          "selected": false,
+          "final": false,
+          "conflict": false
+        },
+        {
+          "id": "ID_17",
+          "alpha": 1.25,
+          "setId": "ID_10",
+          "kValue": 0.285,
+          "lambda": 0.005,
+          "layers": [
+            {
+              "name": "钢筋混凝土",
+              "order": 1,
+              "thicknessMm": 200
+            },
+            {
+              "name": "I型VICP复合保温板",
+              "alpha": 1.25,
+              "order": 2,
+              "lambda": 0.005
+            }
+          ],
+          "ranking": {
+            "kGap": 0.015,
+            "isClosestToTarget": false
+          },
+          "setCode": "CUSTOMER-FIRST-TABLE",
+          "optionId": "kp-5ea426c4f1368685f5f11790-0-o2",
+          "schemeId": "ID_16",
+          "specCode": "CUSTOMER-I-20",
+          "systemId": "ID_12",
+          "atlasPage": null,
+          "compliant": null,
+          "matchType": "EXACT",
+          "productId": "ID_2",
+          "specClass": "I",
+          "schemeCode": "A1-1",
+          "setVersion": 1,
+          "sourceType": "REFERENCE",
+          "systemCode": "CUSTOMER-I",
+          "systemName": "I型VICP薄抹灰外保温系统",
+          "candidateId": "ID_17",
+          "evidenceRef": "21页 A1-1",
+          "neighborGap": null,
+          "setPriority": 0,
+          "specVersion": 1,
+          "thicknessMm": 20,
+          "sourcePageId": "ID_4",
+          "productSpecId": "ID_18",
+          "referenceKind": "THERMAL_ROW",
+          "schemeVersion": 1,
+          "evidenceSource": "客户知识库第一表（隔离验收）",
+          "constraintMatch": {
+            "failed": [],
+            "passed": true,
+            "matched": [
+              "systemHint",
+              "K:0"
+            ]
+          },
+          "sourcePageLabel": "21",
+          "sourceVersionId": "ID_14",
+          "catalogProductId": "ID_2",
+          "constructionCode": "A1-1",
+          "setBuildingTypes": [],
+          "sourceDocumentId": "ID_3",
+          "matchedConditions": [
+            "K"
+          ],
+          "missingConditions": [],
+          "substrateMaterial": "钢筋混凝土",
+          "substrateThickness": 200,
+          "unmatchedConditions": [],
+          "thermalReferenceRowId": "ID_17",
+          "totalThermalResistance": 3.513,
+          "productThermalResistance": 3.2,
+          "title": "A1-1",
+          "position": 3,
+          "sourceRevision": 1,
+          "status": "AVAILABLE",
+          "selected": false,
+          "final": false,
+          "conflict": false
+        }
+      ],
+      "debug": {
+        "solutionStateId": "ID_6",
+        "stage": "CONFIRMED",
+        "candidateSetRevision": 1,
+        "candidateCount": 3,
+        "selectedIds": [
+          "ID_9"
+        ],
+        "rejectedIds": [],
+        "finalIds": [
+          "ID_9"
+        ],
+        "conflicts": [],
+        "confirmedSnapshotId": "ID_19"
+      }
+    },
+    "snapshot": {
+      "id": "ID_19",
+      "solutionStateId": "ID_6",
+      "conversationId": "ID_7",
+      "userId": "ID_8",
+      "projectId": null,
+      "version": 1,
+      "payload": {
+        "warnings": [],
+        "candidates": [
+          {
+            "id": "ID_9",
+            "alpha": 1.25,
+            "setId": "ID_10",
+            "kValue": 0.305,
+            "lambda": 0.005,
+            "layers": [
+              {
+                "name": "混凝土空心砌块",
+                "order": 1,
+                "thicknessMm": 190
+              },
+              {
+                "name": "I型VICP复合保温板",
+                "alpha": 1.25,
+                "order": 2,
+                "lambda": 0.005
+              }
+            ],
+            "ranking": {
+              "kGap": 0.005,
+              "isClosestToTarget": true
+            },
+            "setCode": "CUSTOMER-FIRST-TABLE",
+            "optionId": "kp-5ea426c4f1368685f5f11790-1-o1",
+            "schemeId": "ID_11",
+            "specCode": "CUSTOMER-I-18",
+            "systemId": "ID_12",
+            "atlasPage": null,
+            "compliant": null,
+            "matchType": "EXACT",
+            "productId": "ID_2",
+            "specClass": "I",
+            "schemeCode": "A1-2",
+            "setVersion": 1,
+            "sourceType": "REFERENCE",
+            "systemCode": "CUSTOMER-I",
+            "systemName": "I型VICP薄抹灰外保温系统",
+            "candidateId": "ID_9",
+            "evidenceRef": "21页 A1-2",
+            "neighborGap": null,
+            "setPriority": 0,
+            "specVersion": 1,
+            "thicknessMm": 18,
+            "sourcePageId": "ID_4",
+            "productSpecId": "ID_13",
+            "referenceKind": "THERMAL_ROW",
+            "schemeVersion": 1,
+            "evidenceSource": "客户知识库第一表（隔离验收）",
+            "constraintMatch": {
+              "failed": [],
+              "passed": true,
+              "matched": [
+                "systemHint",
+                "K:0"
+              ]
+            },
+            "sourcePageLabel": "21",
+            "sourceVersionId": "ID_14",
+            "catalogProductId": "ID_2",
+            "constructionCode": "A1-2",
+            "setBuildingTypes": [],
+            "sourceDocumentId": "ID_3",
+            "matchedConditions": [
+              "K"
+            ],
+            "missingConditions": [],
+            "substrateMaterial": "混凝土空心砌块",
+            "substrateThickness": 190,
+            "unmatchedConditions": [],
+            "thermalReferenceRowId": "ID_9",
+            "totalThermalResistance": 3.279,
+            "productThermalResistance": 2.88
+          }
+        ],
+        "alternatives": [],
+        "schemaVersion": 1,
+        "referencePages": [
+          {
+            "docNumber": null,
+            "objectKey": null,
+            "pageLabel": "21",
+            "versionId": "ID_14",
+            "documentId": "ID_3",
+            "renderModel": {
+              "pageLabel": "21",
+              "pageTitle": "I型VICP薄抹灰外保温系统",
+              "constructions": [
+                {
+                  "layers": [
+                    {
+                      "name": "钢筋混凝土",
+                      "order": 1,
+                      "layerId": "kp-5ea426c4f1368685f5f11790-0-l0",
+                      "thicknessMm": 200
+                    },
+                    {
+                      "name": "I型VICP复合保温板",
+                      "alpha": 1.25,
+                      "order": 2,
+                      "lambda": 0.005,
+                      "layerId": "kp-5ea426c4f1368685f5f11790-0-l1",
+                      "variable": true
+                    }
+                  ],
+                  "options": [
+                    {
+                      "kValue": 0.369,
+                      "optionId": "kp-5ea426c4f1368685f5f11790-0-o0",
+                      "thicknessMm": 15,
+                      "totalThermalResistance": 2.713,
+                      "productThermalResistance": 2.4
+                    },
+                    {
+                      "kValue": 0.313,
+                      "optionId": "kp-5ea426c4f1368685f5f11790-0-o1",
+                      "thicknessMm": 18,
+                      "totalThermalResistance": 3.193,
+                      "productThermalResistance": 2.88
+                    },
+                    {
+                      "kValue": 0.285,
+                      "optionId": "kp-5ea426c4f1368685f5f11790-0-o2",
+                      "thicknessMm": 20,
+                      "totalThermalResistance": 3.513,
+                      "productThermalResistance": 3.2
+                    },
+                    {
+                      "kValue": 0.232,
+                      "optionId": "kp-5ea426c4f1368685f5f11790-0-o3",
+                      "thicknessMm": 25,
+                      "totalThermalResistance": 4.313,
+                      "productThermalResistance": 4
+                    },
+                    {
+                      "kValue": 0.196,
+                      "optionId": "kp-5ea426c4f1368685f5f11790-0-o4",
+                      "thicknessMm": 30,
+                      "totalThermalResistance": 5.113,
+                      "productThermalResistance": 4.8
+                    },
+                    {
+                      "kValue": 0.169,
+                      "optionId": "kp-5ea426c4f1368685f5f11790-0-o5",
+                      "thicknessMm": 35,
+                      "totalThermalResistance": 5.913,
+                      "productThermalResistance": 5.6
+                    },
+                    {
+                      "kValue": 0.149,
+                      "optionId": "kp-5ea426c4f1368685f5f11790-0-o6",
+                      "thicknessMm": 40,
+                      "totalThermalResistance": 6.713,
+                      "productThermalResistance": 6.4
+                    },
+                    {
+                      "kValue": 0.133,
+                      "optionId": "kp-5ea426c4f1368685f5f11790-0-o7",
+                      "thicknessMm": 45,
+                      "totalThermalResistance": 7.513,
+                      "productThermalResistance": 7.2
+                    },
+                    {
+                      "kValue": 0.12,
+                      "optionId": "kp-5ea426c4f1368685f5f11790-0-o8",
+                      "thicknessMm": 50,
+                      "totalThermalResistance": 8.313,
+                      "productThermalResistance": 8
+                    }
+                  ],
+                  "material": {
+                    "name": "I型VICP复合保温板",
+                    "alpha": 1.25,
+                    "lambda": 0.005
+                  },
+                  "specClass": "I",
+                  "systemName": "I型VICP薄抹灰外保温系统",
+                  "baseMaterial": "钢筋混凝土",
+                  "constructionId": "kp-5ea426c4f1368685f5f11790-0",
+                  "baseThicknessMm": 200,
+                  "constructionCode": "A1-1"
+                },
+                {
+                  "layers": [
+                    {
+                      "name": "混凝土空心砌块",
+                      "order": 1,
+                      "layerId": "kp-5ea426c4f1368685f5f11790-1-l0",
+                      "thicknessMm": 190
+                    },
+                    {
+                      "name": "I型VICP复合保温板",
+                      "alpha": 1.25,
+                      "order": 2,
+                      "lambda": 0.005,
+                      "layerId": "kp-5ea426c4f1368685f5f11790-1-l1",
+                      "variable": true
+                    }
+                  ],
+                  "options": [
+                    {
+                      "kValue": 0.357,
+                      "optionId": "kp-5ea426c4f1368685f5f11790-1-o0",
+                      "thicknessMm": 15,
+                      "totalThermalResistance": 2.798,
+                      "productThermalResistance": 2.4
+                    },
+                    {
+                      "kValue": 0.305,
+                      "optionId": "kp-5ea426c4f1368685f5f11790-1-o1",
+                      "thicknessMm": 18,
+                      "totalThermalResistance": 3.279,
+                      "productThermalResistance": 2.88
+                    },
+                    {
+                      "kValue": 0.278,
+                      "optionId": "kp-5ea426c4f1368685f5f11790-1-o2",
+                      "thicknessMm": 20,
+                      "totalThermalResistance": 3.598,
+                      "productThermalResistance": 3.2
+                    },
+                    {
+                      "kValue": 0.227,
+                      "optionId": "kp-5ea426c4f1368685f5f11790-1-o3",
+                      "thicknessMm": 25,
+                      "totalThermalResistance": 4.398,
+                      "productThermalResistance": 4
+                    },
+                    {
+                      "kValue": 0.192,
+                      "optionId": "kp-5ea426c4f1368685f5f11790-1-o4",
+                      "thicknessMm": 30,
+                      "totalThermalResistance": 5.198,
+                      "productThermalResistance": 4.8
+                    },
+                    {
+                      "kValue": 0.167,
+                      "optionId": "kp-5ea426c4f1368685f5f11790-1-o5",
+                      "thicknessMm": 35,
+                      "totalThermalResistance": 5.998,
+                      "productThermalResistance": 5.6
+                    },
+                    {
+                      "kValue": 0.147,
+                      "optionId": "kp-5ea426c4f1368685f5f11790-1-o6",
+                      "thicknessMm": 40,
+                      "totalThermalResistance": 6.798,
+                      "productThermalResistance": 6.4
+                    },
+                    {
+                      "kValue": 0.132,
+                      "optionId": "kp-5ea426c4f1368685f5f11790-1-o7",
+                      "thicknessMm": 45,
+                      "totalThermalResistance": 7.598,
+                      "productThermalResistance": 7.2
+                    },
+                    {
+                      "kValue": 0.119,
+                      "optionId": "kp-5ea426c4f1368685f5f11790-1-o8",
+                      "thicknessMm": 50,
+                      "totalThermalResistance": 8.398,
+                      "productThermalResistance": 8
+                    }
+                  ],
+                  "material": {
+                    "name": "I型VICP复合保温板",
+                    "alpha": 1.25,
+                    "lambda": 0.005
+                  },
+                  "specClass": "I",
+                  "systemName": "I型VICP薄抹灰外保温系统",
+                  "baseMaterial": "混凝土空心砌块",
+                  "constructionId": "kp-5ea426c4f1368685f5f11790-1",
+                  "baseThicknessMm": 190,
+                  "constructionCode": "A1-2"
+                }
+              ]
+            },
+            "sourcePageId": "ID_4",
+            "documentTitle": "客户知识库第一表（隔离验收）",
+            "physicalPageNumber": 21
+          }
+        ],
+        "projectSnapshot": null,
+        "finalCandidateIds": [
+          "ID_9"
+        ],
+        "conditionsSnapshot": {
+          "mode": "APPROX",
+          "intent": "REFERENCE_LOOKUP",
+          "metric": "K",
+          "filters": [
+            {
+              "mode": "APPROX",
+              "metric": "K",
+              "tolerance": 0.02,
+              "targetValue": 0.3,
+              "toleranceAdjusted": false,
+              "effectiveTolerance": 0.02
+            }
+          ],
+          "tolerance": 0.02,
+          "systemHint": "薄抹灰",
+          "unresolved": [],
+          "targetValue": 0.3,
+          "conditionTrace": [
+            {
+              "field": "systemHint",
+              "value": "薄抹灰",
+              "source": "USER_EXPLICIT",
+              "classification": "HARD_CONSTRAINT"
+            },
+            {
+              "mode": "APPROX",
+              "field": "K",
+              "value": 0.3,
+              "source": "USER_EXPLICIT",
+              "classification": "HARD_CONSTRAINT"
+            }
+          ],
+          "toleranceAdjusted": false,
+          "effectiveTolerance": 0.02
+        },
+        "queryStateSnapshot": {
+          "mode": "APPROX",
+          "intent": "REFERENCE_LOOKUP",
+          "metric": "K",
+          "filters": [
+            {
+              "mode": "APPROX",
+              "metric": "K",
+              "tolerance": 0.02,
+              "targetValue": 0.3,
+              "toleranceAdjusted": false,
+              "effectiveTolerance": 0.02
+            }
+          ],
+          "tolerance": 0.02,
+          "systemHint": "薄抹灰",
+          "unresolved": [],
+          "targetValue": 0.3,
+          "conditionTrace": [
+            {
+              "field": "systemHint",
+              "value": "薄抹灰",
+              "source": "USER_EXPLICIT",
+              "classification": "HARD_CONSTRAINT"
+            },
+            {
+              "mode": "APPROX",
+              "field": "K",
+              "value": 0.3,
+              "source": "USER_EXPLICIT",
+              "classification": "HARD_CONSTRAINT"
+            }
+          ],
+          "toleranceAdjusted": false,
+          "effectiveTolerance": 0.02
+        },
+        "preferencesSnapshot": {},
+        "selectedCandidateIds": [
+          "ID_9"
+        ],
+        "recommendedCandidateIds": [
+          "ID_9"
+        ]
+      },
+      "confirmedBy": "ID_8",
+      "confirmedAt": "2026-10-18T11:29:21.942Z"
+    }
+  },
+  "reportEvents": [
+    {
+      "event": "message",
+      "data": {
+        "messageId": "ID_20",
+        "userMessageId": "ID_21",
+        "conversationId": "ID_7",
+        "requestId": "req-9"
+      }
+    },
+    {
+      "event": "progress",
+      "data": {
+        "stage": "analyzing",
+        "message": "正在分析问题..."
+      }
+    },
+    {
+      "event": "progress",
+      "data": {
+        "stage": "checking",
+        "message": "正在核对检索资料和计算结果..."
+      }
+    },
+    {
+      "event": "progress",
+      "data": {
+        "stage": "composing",
+        "message": "正在整理回答..."
+      }
+    },
+    {
+      "event": "report_queued",
+      "data": {
+        "queued": true,
+        "reportId": "ID_22",
+        "taskId": "ID_23",
+        "solutionSnapshotId": "ID_19",
+        "status": "QUEUED",
+        "reused": false
+      }
+    },
+    {
+      "event": "delta",
+      "data": {
+        "text": "已按确认的方案快照排队生成报告。"
+      }
+    },
+    {
+      "event": "progress",
+      "data": {
+        "stage": "completed",
+        "message": "回答整理完成"
+      }
+    },
+    {
+      "event": "done",
+      "data": {
+        "messageId": "ID_20",
+        "conversationId": "ID_7",
+        "finishReason": "COMPLETED",
+        "usage": {},
+        "model": {
+          "id": "deepseek-chat"
+        },
+        "promptVersion": {
+          "id": "ID_24",
+          "version": 3
+        },
+        "sources": [],
+        "latencyMs": 3449
+      }
+    }
+  ],
+  "processor": {
+    "reportId": "ID_22",
+    "status": "READY"
+  },
+  "pdfBytes": 181803,
+  "cleanup": "COMPLETED",
+  "finishedAt": "2026-10-18T11:29:30.835Z"
+}

@@ -5,6 +5,10 @@ globs: src/modules/ai*/**/*.ts,src/modules/knowledge/**/*.ts,src/modules/reports
 alwaysApply: false
 ---
 
+2026-10-18 阶段2–4：Domain与下游Query校验使用同一currentMessage。只读工程字段矛盾和无效pending作用域最多一次同预算复核，不据词路由或补参数；正式操作门禁不变。productQuery保留原名与系列/单品范围，无正式名称/别名证据不宽查；产品回答模型只选择事实引用，后端按产品/字段渲染。无Candidate的省略原表读取仅限有效查询及紧邻实际引用，重验权限/版本/revision/optionId，不能重建序号或Candidate。真实隔离验收范围见docs/ai/xiaoge-parameter-phase4-2026-10-18.md；生产与全图集未验不得宣称全通过。
+
+2026-10-18 λ参数：独立PRODUCT_PARAMETER_QUERY/READ_ONLY，parameterQuery不进图集K/R。紧邻本人同端同项目24h原问仅用于参数证据，执行时重验并排除当前USER；目录/发布规格lambda_eq/材料/当前发布有权Fact与确认层联合读，保留参数归属和源页层身份，不从体系推产品。裸值精确，近似须明确±容差；未知名、缺字段、零命中、部分来源与冲突分别诊断。确定性回答不发布候选，不改Formula/Snapshot/PDF；阶段1完成停止，见docs/ai/xiaoge-lambda-parameter-phase1-2026-10-18.md。
+
 2026-10-17 小格阶段1：QUERY读取正式参考行与确认页只读事实，正式命中不短路知识来源。不得拼接知识事实成可确认Candidate；来源关联需同文档/版本/页和可验证档位或明确正式映射，不按编号/数值合并。先核验来源再截断；诊断按全部当前身份/厚度/其他指标统计，缺列、无值、部分覆盖与来源失效明确区分并贯通空结果。无新增自然语言路由、计算口径变更或部署；见docs/ai/xiaoge-business-chain-phase1-2026-10-17.md。
 
 2026-10-17 查询上下文修复：缺指标只澄清指标；澄清回复仅绑定紧邻、24h内、本人同端同项目原话，不生成候选或授权正式操作。查表数值条件不能丢入通用建议；数字+型不作K/R目标。QUERY已明确部位若漏字段则拒绝宽查并有限复核，仅校验正式枚举、不据词路由或补条件。0.8至0.9查询必须有完整pageQuery并经逐字段校验，仅FACTS_ONLY展示与成功只读查询上下文，禁止覆盖Candidate；低于0.8、结构歧义及副作用仍拒绝，正式动作/计算/报告保持0.9与原完整授权。近似/上限/精确由原话及有效历史核验；旧确认表仅按封闭正式表名只读兼容部位，不回填源JSON。factRead≥0.8仅进受控只读事实服务、不发布Candidate；型号比较大小由代码确定。无Candidate原页回溯仅消费本人同端同项目24h内实际引用，重验版本/revision/optionId，不接受旧序号。优缺点只读确认构造；澄清诊断不标工程事实错误。修复验收后按用户追加授权执行pnpm run deploy --skip-db发布后端；API/Worker在线、live/ready均200、5个关键文件哈希一致，跳过迁移/seed并保留.env。见docs/ai/thermal-query-context-fix-2026-10-17.md。

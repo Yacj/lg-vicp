@@ -18,6 +18,16 @@ const result = (evidence: string, operator: "APPROX" | "EXACT" = "APPROX"): Sema
 });
 beforeEach(() => { vi.clearAllMocks(); mocks.runtime.mockResolvedValue({ primary: { languageModel: {}, modelId: "configured-model" } }); });
 describe("Semantic Parser正式接线", () => {
+  it("澄清轮纠正为产品R时，下游只核验本轮指标，不复活原问K", async () => {
+    const c = ctx("产品热阻");
+    const pageQuery = result("K0.3");
+    pageQuery.constraints[0] = { ...pageQuery.constraints[0]!, metric: "PRODUCT_R", operation: "REPLACE", evidence: "K0.3" };
+    c.domainDecision = { mutation: "QUERY", queryContextMessageId: "q", queryEvidenceText: "K0.3\n产品热阻", semantic: { relation: "CONTINUE", pageQuery } };
+    const parsed = await parseSemanticQuery(c, {}, dictionary);
+    expect(parsed.needsClarification).toBe(false);
+    expect(parsed.query.filters).toEqual([expect.objectContaining({ metric: "PRODUCT_R", targetValue: .3 })]);
+    expect(mocks.generate).not.toHaveBeenCalled();
+  });
   it("真实UAT省略最低K追问通过模型合同及偏好排序，不新增目标值或改变资料范围", async () => {
     const previous = { specClass: "III", thicknessMm: 45, documentIds: ["doc"], knowledgeVersionIds: ["version"] };
     mocks.generate.mockResolvedValue({ object: { queryMode: "CONTINUE_QUERY", intent: "REFERENCE_LOOKUP", confidence: .95,

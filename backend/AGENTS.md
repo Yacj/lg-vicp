@@ -1,5 +1,9 @@
 # 蓝格 VICP 后端 AI 开发规则
 
+2026-10-18 小格参数阶段2–4（用户授权自动续阶段）：重复Query校验共用currentMessage；显式工程字段/有效pending只触发一次同预算语义复核，不补字段或降阈值。产品介绍productQuery逐字保留身份/系列目标，正式名称与启用别名未匹配不退回全目录；模型只组织产品事实引用计划，后端绑定同产品字段输出。当前原表省略追问只读紧邻实际引用，须有效同会话同端同项目24h上下文及版本/revision/optionId，序号仍拒绝。真实隔离HTTP/SSE的Q01–Q18与重复会话、显式Confirm→Snapshot→真实PDF/OSS均有脱敏证据；有限Fixture覆盖不代表全图集/生产资料已修复。无业务库迁移、发布Prompt/公式/历史快照修改或部署，见docs/ai/xiaoge-parameter-phase2-3-2026-10-18.md与docs/ai/xiaoge-parameter-phase4-2026-10-18.md。
+
+2026-10-18 小格参数阶段1：独立 PRODUCT_PARAMETER_QUERY/READ_ONLY + parameterQuery 读取λ，不并入图集K/R。紧邻本人同端同项目24h待澄清原问可绑定唯一数值，Service排除当前USER并再次重验。目录/发布规格lambda_eq/材料参数/当前发布有权Fact与确认材料层联合读取，区分产品当量/规格当量/材料层；缺正式规格标称映射报未索引。裸目标EXACT，近似须用户明确±容差；未知名称不自动纠错或关联产品。确定性事实回答，不生成候选或正式方案；无迁移、生产数据/旧页/Formula/Snapshot/PDF改写或部署，完成阶段1停止。见docs/ai/xiaoge-lambda-parameter-phase1-2026-10-18.md。
+
 2026-10-17 发布：按用户明确授权执行 pnpm run deploy --skip-db --skip-build（本地已 tsc 构建；沙箱批量删除限制导致内建 clean 失败，故给 deploy.local.mjs 增加可选 --skip-build，默认仍构建）。发布到 8.153.150.87:/www/wwwroot/lgapi.zblack.cn，跳过备份/迁移/seed，.env 未改写（mtime 仍为 2026-10-13）。PM2 lg-vicp-api/lg-vicp-worker 重载 online；内外网 /health/live 与 /health/ready 均 200；6 个关键文件（server.js、worker.js、reference-query.service.js、semantic-query.js、product-answer.js、ai-generation.service.js）与本地 dist 哈希逐一一致。上线范围＝阶段2~修复轮；已知未修：序号追问、方案选择/Confirm/报告（来源绑定阻断）、λ 字段投影。
 
 2026-10-17 小格修复轮：隔离库实测定位F2根因——字典把「A1-3」解析成schemeId，模型按合同输出schemeCode，逐字段复核把同身份另一种表示判成「未完整保留」，导致任何按编号查表被拒；修为仅对该字段互认（经字典names校验，缺任何表示仍拒绝），DESIGN-012 T1已能正确返回18mm/2.880/3.297/0.303/页22。F1-B部分修：省略身份继承从VERIFY扩到EXPLAIN且仅取最近一次助手回答唯一编号，历史范围须有原页定位，SALES-014 T2已能定位A1-3并给来源页（仍缺λ字段投影）。F1-A序号回溯实现因与既有安全边界用例「position不能借原页回溯绕过边界」冲突而整体回退，未改该测试；正解是只读结果「可引用不可确认」的revision绑定上下文，待下轮。全量2652 passed/1 failed(report-runtime环境项)/1 expected fail。见 docs/ai/xiaoge-business-chain-phase5-fixes-2026-10-17.md。

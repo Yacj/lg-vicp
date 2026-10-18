@@ -64,7 +64,7 @@ export async function parseSemanticQuery(ctx: Context, input: ThermalQueryState 
     const relation = ctx.domainDecision?.semantic?.relation;
     const queryMode = ctx.domainDecision?.queryContextMessageId ? proposed.queryMode
       : relation === "REFINE" || relation === "CONTINUE" ? "REFINE_QUERY" : relation === "NEW" || relation === "SWITCH_TOPIC" ? "NEW_QUERY" : proposed.queryMode;
-    const query = proposed.intent === "REFERENCE_LOOKUP" ? applySemanticQuery(message, { ...proposed, queryMode }, dictionary, last?.query)
+    const query = proposed.intent === "REFERENCE_LOOKUP" ? applySemanticQuery(message, { ...proposed, queryMode }, dictionary, last?.query, { currentMessage: ctx.userMessage ?? "" })
       : { unresolved: [{ field: "intent", reason: "资料查询提案的读取目标不一致，请明确要查询的参数。" }] };
     return { query: { ...query, intent: "REFERENCE_LOOKUP", parserSource: "LLM" }, lifecycle: queryMode,
       confidence: proposed.confidence, normalizedText: message, numberRoles: describeNumberRoles(message),

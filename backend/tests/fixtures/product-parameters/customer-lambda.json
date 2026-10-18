@@ -1,0 +1,12 @@
+{
+  "provenance": {
+    "workbook": "VICP热工计算表格公式(1)(3).xls",
+    "sha256": "6d55edd9d179beff4c5c770e90b839435821d028722107b7879169392ee8f2a4",
+    "note": "Sheet1只读提取的原值和公式缓存值，不重新计算，不裁定4.8/5.0口径，不写业务数据。",
+    "productLambdaCell": "D7",
+    "coreLambdaCell": "M8",
+    "coreResistanceCell": "O8"
+  },
+  "product": { "name": "VICP复合保温板", "thicknessMm": 25, "lambda": 0.005, "alpha": 1.25 },
+  "core": { "name": "真空绝热板", "thicknessMm": 15, "lambda": 0.0025, "alpha": 1.25, "cachedResistance": 4.8 }
+}

@@ -75,8 +75,10 @@ describe("回答事实校验：工程数值必须出自已核验事实", () => {
   it("编造的板厚被拒绝", () => {
     expect(validateProductAnswer("可选板厚 40mm。", base).code).toBe("UNSUPPORTED_NUMBER");
   });
-  it("用户本轮自己写的数值不算编造", () => {
-    expect(validateProductAnswer("你问的 35mm 不在已发布规格内，现有为 25mm 与 30mm。", base, "35mm 的有没有").passed).toBe(true);
+  it("用户查询值不是已核验事实，兼容校验也不能放行", () => {
+    expect(validateProductAnswer("λ=0.3", base, "λ0.3有没有").passed).toBe(false);
+    expect(validateProductAnswer("λ=25", base).passed).toBe(false);
+    expect(validateProductAnswer("导热系数为0.3 W/(m·K)", base).passed).toBe(false);
   });
   it("空回答不通过，避免用空串冒充通过", () => {
     expect(validateProductAnswer("   ", base)).toMatchObject({ passed: false, code: "EMPTY" });

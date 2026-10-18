@@ -80,32 +80,23 @@ export function buildProductAnswerFacts(input: {
   };
 }
 
-/** 产品事实的数字白名单：只允许目录/规格里已发布的数值，以及用户本轮自己写的数值。 */
-function allowedProductNumbers(facts: ProductAnswerFacts, question: string) {
-  const allowed = new Set<string>();
-  const push = (value: number | null | undefined) => { if (value != null && Number.isFinite(value)) allowed.add(String(Number(value))); };
-  for (const product of facts.products) {
-    product.thicknessOptionsMm.forEach(push);
-    push(product.thermalConductivity); push(product.correctionFactor);
-    product.specifications.forEach(spec => push(spec.thicknessMm));
-  }
-  for (const token of question.match(/\d+(?:\.\d+)?/g) ?? []) push(Number(token));
-  return allowed;
-}
-
 export interface ProductAnswerVerdict { passed: boolean; code: "VERIFIED" | "UNSUPPORTED_NUMBER" | "EMPTY"; unsupported: string[] }
 
 /**
- * 事实校验：回答里出现的板厚/λ/α 等工程数值必须是已核验事实或用户原话里的数字。
- * 只校验工程数值，不评价措辞；宁可用确定性事实回答，也不让模型编出没有出处的参数。
+ * 兼容旧调用的工程字段校验，不证明自由文本全部真实；正式产品回答使用product-answer-plan绑定事实引用。
+ * 用户查询目标不是产品事实。多个产品的属性不得通过数字集合互相借用。
  */
-export function validateProductAnswer(text: string, facts: ProductAnswerFacts, question = ""): ProductAnswerVerdict {
+export function validateProductAnswer(text: string, facts: ProductAnswerFacts, _question = ""): ProductAnswerVerdict {
   if (!text.trim()) return { passed: false, code: "EMPTY", unsupported: [] };
-  const allowed = allowedProductNumbers(facts, question);
-  const found: string[] = [];
-  for (const match of text.matchAll(/(\d+(?:\.\d+)?)\s*(?:mm|毫米|㎜)/gi)) found.push(match[1]!);
-  for (const match of text.matchAll(/(?:λ|α|K值|R0|R₀|\bK\b|\bR\b)\s*(?:值)?\s*(?:=|≈|:|：|为|是)?\s*(\d+(?:\.\d+)?)/g)) found.push(match[1]!);
-  const unsupported = [...new Set(found.filter(token => !allowed.has(String(Number(token)))))];
+  const unsupported: string[] = [];
+  const product = facts.products.length === 1 ? facts.products[0] : undefined;
+  const check = (token: string, values: Array<number | null | undefined>) => { if (!values.some(value => value === Number(token))) unsupported.push(token); };
+  for (const match of text.matchAll(/(\d+(?:\.\d+)?)\s*(?:mm|毫米|㎜)/gi)) check(match[1]!, product ? [...product.thicknessOptionsMm, ...product.specifications.map(spec=>spec.thicknessMm)] : []);
+  for (const match of text.matchAll(/(?:λ|导热系数|α|修正系数|K值|R0|R₀|\bK\b|\bR\b)\s*(?:值)?\s*(?:=|≈|:|：|为|是)?\s*(\d+(?:\.\d+)?)/g)) {
+    const lambda = /λ|导热系数/.test(match[0]);
+    const alpha = /α|修正系数/.test(match[0]);
+    check(match[1]!, product && (lambda || alpha) ? [lambda ? product.thermalConductivity : product.correctionFactor] : []);
+  }
   return unsupported.length ? { passed: false, code: "UNSUPPORTED_NUMBER", unsupported } : { passed: true, code: "VERIFIED", unsupported: [] };
 }
 

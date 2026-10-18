@@ -18,15 +18,29 @@ import { loadThermalQueryDictionary } from "../thermal/thermal-query-dictionary.
 import { readQueryClarification, groundClarificationMetricEvidence } from "./query-clarification-context.js";
 import { requestedSpecClasses } from "./ai-knowledge-load.js";
 import { parseThermalThicknessMessage } from "../thermal/thermal-lookup-thickness.js";
+import { validateProductParameterEvidence } from "./product-parameter-query.js";
+import { parseThermalLookupMessage } from "../thermal/thermal-lookup-mode.js";
+import { hasLambdaField } from "../../shared/lambda-field.js";
+type SemanticTrace = { message: string; pendingClarification: unknown; previousQuery: unknown; proposal: unknown; decision: unknown; attempt: number };
+const semanticObservers = new WeakMap<object, (trace: SemanticTrace) => void>();
+const observerKey = (app: object) => (app as { server?: object }).server ?? app;
+/** 仅进程内测试观察器；不由请求/环境变量开启，不持久化原始模型输出。 */
+export function observeDomainSemantic(app: object, observer: (trace: SemanticTrace) => void) {
+  semanticObservers.set(observerKey(app), observer);
+  return () => semanticObservers.delete(observerKey(app));
+}
 export const DOMAIN_SEMANTIC_PROMPT = [
+  "参数归属类别由subjectType表达；subjectText仅填写用户给出的具体产品、材料或规格名称，未给具体名称必须null。产品、材料、构造材料层这些类别本身不能重复作为subjectText身份条件。systemText同样仅保留具体体系名称。",
+  "产品介绍PRODUCT_DISCOVERY/PRODUCT_DETAIL必须给productQuery：未指定身份的全目录scope=CATALOG/entityText=null；提到品牌/名称/系列用IDENTITY，类别用CATEGORY，entityText逐字取原话，granularity区分SERIES/PRODUCT/CATALOG。VLCP与VICP没有自动等价规则，薄膜灰与薄抹灰也不能纠字；未知名称仍保留原字，不因只有一个目录产品而改为全目录。后端核对正式名称和启用别名，无法证明时说明范围/澄清名称。",
   "查询的confidence表示是否理解用户语言；不因尚未查库、不知是否命中、未限制具体体系或基层而降成低置信。已有engineerHints的型号/厚度字形可核验就按其含义查询，未限定的体系或基层保持开放，不要求补全身份。pageQuery.intent必须固定REFERENCE_LOOKUP，不能填THERMAL、COMPARISON或外层Domain intent。",
   "先判断用户的输出目标：问是否有满足已给热工指标的材料/方案，是查已有记录REFERENCE_QUERY/QUERY，不是SOLUTION_ADVICE；方案一词不表示要通用建议。查K范围不需要先给板厚、唯一基层、地区或具体构造，未给条件表示不限制该字段。只有要求对某确定构造重新计算才需要完整计算身份。",
   "上限、精确和近似是不同查询：不超过→MAX_LIMIT，正好等于→EXACT，左右→APPROX。已明确指标和数值但未说比较方式时，后端产品规则默认APPROX；这是已确定的查询默认值，不能自行改成MAX_LIMIT，不能因此降低confidence、填写metricOperator unresolved或再次澄清。只读查询结果会说明容差，后续用户可改为上限/精确。查表不是合规判断，不要求正式标准。pageQuery必须保留所有明确指标条件；一般建议也不能吞掉用户的数值约束。",
   "engineeringHints仅给工程格式提示：数字+型是型号，45厚是45mm厚度，不能拿型号数字作K目标。3型等工程字形可由后端映射III，不需要用户改写罗马数字。比较不同基层/不同砖墙是在查询多基层集合；未指明具体材料时不添加泛称砖墙的substrateMaterial硬条件。只读比较时K没有目标数字，应只填readFields=[kValue]。",
-  "pendingClarification若非空，是紧邻上一轮尚未解决的用户查询及助手问题，不是成功QueryState。用户本轮补充缺失指标、范围或说明后，要完成原来的查找目标，queryContext=CLARIFICATION_REPLY，relation=CONTINUE，REFERENCE_QUERY/QUERY及pageQuery；不要把回答缺失项当新概念解释。pageQuery.evidence可分别取pendingClarification.message或本轮原话的连续片段；其他顶层evidence仍只能本轮原话。数值以本轮明确纠正为准。切换话题、否定原查询、正式操作一律CURRENT_TURN，不继承待澄清目标。",
-  "缺指标的口语保温查询只澄清指标含义，用一个简短问题区分整墙传热系数K、整构造热阻R与产品热阻；未出现厚度或长度单位时不要凭空追问0.3mm厚度，也不要先索要所有工程条件。没有可靠上下文时不能仅根据数字大小猜K。",
+  "pendingClarification若非空，是紧邻上一轮尚未解决的用户查询及助手问题，不是成功QueryState。用户本轮补充缺失指标、范围或说明后，要完成原来的查找目标，queryContext=CLARIFICATION_REPLY，relation=CONTINUE；K/R使用REFERENCE_QUERY/QUERY和pageQuery，λ使用PRODUCT_PARAMETER_QUERY/READ_ONLY和parameterQuery，不把补充指标当新概念解释。查询条件evidence可分别取pendingClarification.message或本轮原话的连续片段，顶层evidence仍只能本轮原话。数值以本轮明确纠正为准。切换话题、否定原查询、正式操作一律CURRENT_TURN，不继承待澄清目标。",
+  "缺指标的口语保温查询只澄清指标或单位，用一个简短问题区分导热系数λ、传热系数K、产品热阻及整构造热阻；未出现厚度或长度单位时不要凭空追问0.3mm厚度，也不要先索要基层或所有工程条件。没有可靠上下文时不能仅根据数字大小猜K。",
   "原话已经写明传热系数或K值时就是K，写明产品热阻或板自身热阻时是PRODUCT_R，写明总热阻或传热阻时是TOTAL_R；这些都已确定，不得再追问是K、整构造R还是产品R。",
-  "只给导热系数λ作为目标时不要生成METRIC约束：图集查表按K、整构造R、产品层R读取，导热系数属于产品参数；unresolved必须写清这一点并请用户确认要查哪一项，不能只回请指定体系或基层。",
+  "导热系数λ的数值检索或参数读取使用PRODUCT_PARAMETER_QUERY/READ_ONLY、parameterQuery，pageQuery和factRead均null，reference=NONE、constraintPatch=[]。λ不能转成K，不生成图集METRIC，不要求基层。parameter=LAMBDA、unit=W/(m·K)。subjectType区分PRODUCT_EQUIVALENT产品当量、SPEC_EQUIVALENT规格当量、SPEC_NOMINAL规格标称、MATERIAL材料、MATERIAL_LAYER构造材料层；泛称材料且未限定归属用ANY，结果由后端分别标明归属，不宣称它们等价。subjectText/systemText必须逐字保留具体名称或体系线索，不能把薄膜灰更正为薄抹灰或从体系推出产品。只问参数值operator=READ、targetValue=null；给目标数字但未说比较方式operator=EXACT，小于LT、不超过LTE、大于GT、不低于GTE，附近/左右APPROX；tolerance只取原话±数值，未给为null，后端解释需要明确容差，不能自行给默认窗口。所有不适用字段null，evidence为连续原话。",
+  "pendingClarification原问只有0.3而本轮补充导热系数时，PRODUCT_PARAMETER_QUERY、READ_ONLY、queryContext=CLARIFICATION_REPLY、relation=CONTINUE，parameterQuery保留原问0.3和范围，不能当新概念定义；未写单位时使用λ标准单位。只有用户明确改值才替换旧数值。新话题、取消或否定原任务仍CURRENT_TURN，不继承。纯解释λ概念且不承接待澄清查询时才KNOWLEDGE_EXPLAIN。",
   "请求列当前构造优缺点时SOLUTION_ADVICE、adviceFocus=PROS_CONS；普通选型adviceFocus=SELECTION。明确要求正式报告又问是否达标，优先REPORT_REQUEST并按本轮证据申请REPORT_GENERATION；前置不足由后端解释标准核验和已确认快照要求，不能偷偷补确认或改为仅合规查询。",
   "原话明确给出完整体系名称时，pageQuery必须用ENTITY field=systemHint逐字保留体系名称，并另列specClass；不能只留下型号/构造编号而漏掉薄抹灰、复合板等体系区别。体系在正式目录未登记也可以作为确认页的文本硬条件，不需要用户改名称或配置目录别名。例如‘Ⅲ型VICP薄抹灰外保温系统’须保留该原文systemHint及Ⅲ型specClass，不映射成I/II型目录ID。",
   "原话里指向体系、型号或构造的名称即使不完整、口语、是简称或疑似错别字，也必须逐字保留为对应ENTITY的entityText（体系用systemHint），由后端用正式名称与已配置别名归一；归一不到就是该轮的身份硬条件，由诊断说明没有符合该身份的记录。不得因为名称不规范就删掉它、把查询放宽成全部体系；只有在完全判断不出该词指向哪个对象时，才把它写进ambiguity并请求确认。",
@@ -85,6 +99,7 @@ function retryableSemanticValidation(reason?: string) {
     case "EVIDENCE_INVALID": case "REFERENCE_EVIDENCE_INVALID": case "CONTINUED_GOAL_INVALID":
     case "EFFECT_INTENT_MISMATCH": case "THICKNESS_EVIDENCE_INVALID": case "METRIC_EVIDENCE_INVALID":
     case "PAGE_QUERY_SCOPE_INVALID": case "PAGE_QUERY_INTENT_MISMATCH": case "PAGE_QUERY_CONSTRAINTS_INVALID": case "QUERY_CONDITIONS_DROPPED": return true;
+    case "PARAMETER_EVIDENCE_INVALID": case "PRODUCT_SCOPE_INVALID": case "QUERY_CONTEXT_EXPIRED": return true;
     default: return false;
   }
 }
@@ -105,7 +120,12 @@ export async function resolveDomainTurn(ctx: Pick<ToolRuntimeContext, "app" | "c
     const history = await readReferenceFactHistory(ctx.app, ctx.conversation.id);
     const pendingClarification = await readQueryClarification(ctx.app, ctx.conversation, ctx.currentUserMessageId);
     const input = { message, numberRoles: describeNumberRoles(message), previousQuery: currentConfirmedPageLookup(ctx.taskState?.confirmedPageLookup, ctx.conversation)?.query ?? ctx.taskState?.lastReferenceLookup?.query ?? null,
-      pendingClarification, engineeringHints: { specClasses: requestedSpecClasses(message), thickness: parseThermalThicknessMessage(message).query },
+      pendingClarification, engineeringHints: { specClasses: requestedSpecClasses(message), thickness: parseThermalThicknessMessage(message).query,
+        metricFields: parseThermalLookupMessage(message).filters, metricFieldsNeedClarification: parseThermalLookupMessage(message).needsClarification,
+        lambdaFieldPresent: hasLambdaField(message), clarificationBinding: pendingClarification ? {
+          currentMetric: parseThermalLookupMessage(message).metric,
+          originalNumbers: describeNumberRoles(pendingClarification.message).filter(number=>number.role === "UNKNOWN" || number.role === "THERMAL_TARGET")
+        } : null },
       recentAssistantMessages: history.slice(0, 8).map(row => ({ content: row.content.slice(0, 1600) })),
       referenceSourceScope: sourceQuery?.documentIds?.length ? { constructionCodes: sourceCodes.slice(0, 128), complete: sourceCodes.length <= 128 } : null,
         recentBusinessGoals: business?.recentGoals ?? [], pendingAdviceGoal: goal ?? null, candidateScopeActive: business?.candidateScopeActive ?? false,
@@ -119,6 +139,13 @@ export async function resolveDomainTurn(ctx: Pick<ToolRuntimeContext, "app" | "c
       const parsed = groundReadReferenceFormats(message, domainTurnSemanticSchema.parse(proposal));
       const semantic = pendingClarification ? groundClarificationMetricEvidence(message, pendingClarification.message, parsed) : parsed;
       const decision = applyDomainPolicy(message, semantic, ctx.taskState);
+      if (decision.intent === "PRODUCT_PARAMETER_QUERY" && semantic.parameterQuery) {
+        const replying = semantic.queryContext === "CLARIFICATION_REPLY";
+        if (replying && !pendingClarification) return { ...targetedDomainFallback(ctx.taskState, "LLM", "QUERY_CONTEXT_EXPIRED"), unresolved: ["待澄清的参数问题已失效，请重新说明参数和目标值。"] };
+        const error = validateProductParameterEvidence(message, semantic.parameterQuery, replying ? pendingClarification!.message : undefined);
+        if (error) return { ...targetedDomainFallback(ctx.taskState, "LLM", "PARAMETER_EVIDENCE_INVALID"), semantic, unresolved: [error] };
+        return { ...decision, queryCurrentMessageId: ctx.currentUserMessageId, ...(replying ? { queryContextMessageId: pendingClarification!.messageId } : {}) };
+      }
       if (decision.mutation !== "QUERY" || !semantic.pageQuery) return decision;
       if (semantic.queryContext === "CLARIFICATION_REPLY" && !pendingClarification)
         return targetedDomainFallback(ctx.taskState, "LLM", "QUERY_CONTEXT_EXPIRED");
@@ -136,14 +163,26 @@ export async function resolveDomainTurn(ctx: Pick<ToolRuntimeContext, "app" | "c
     };
     const propose = (feedback?: { policyReason?: string; unresolved?: string[] }) => generateObject({ model: runtime.primary.languageModel, schema: domainTurnSemanticSchema, system: DOMAIN_SEMANTIC_PROMPT,
       prompt: JSON.stringify({ ...input, ...(feedback ? { validationFeedback: feedback,
-        instruction: "上一次结构化提案未通过后端验证。重新理解相同原话，修正字段类型、原话连续证据和作用域。pageQuery.constraints只输出本轮明确新增/修改/删除的字段；REFINE/CONTINUE未更改的历史条件由后端继承，不能把历史原文复制成SET依据。不得增加用户授权或提高不确定请求的置信度。" } : {}) }),
+        instruction: "上一次结构化提案未通过后端验证。重新理解相同原话，修正字段类型、原话连续证据和作用域。engineeringHints.metricFields是已有封闭工程字段解析的校核数据，不是工程事实或操作授权；请逐项对照原话，数值在指标前或后均可，指标已确定但未写单位时用该指标标准单位，不可再称缺指标。若原提案误读，可据同一原话证据重新评估confidence；不能无证据提高置信度或增加授权。pendingClarification=null时不得CLARIFICATION_REPLY；previousQuery是成功查询，只能CURRENT_TURN及CONTINUE/REFINE。pageQuery.constraints只输出本轮明确新增/修改/删除的字段；未更改历史条件由后端继承，不能复制历史原文为SET依据。" } : {}) }),
       ...languageModelSamplingOptions("SEMANTIC_QUERY"), maxRetries: 0, experimental_repairText: async ({ text }) => repairDomainSemanticText(text),
       abortSignal });
     const result = await propose();
     const decision = await validate(result.object);
-    if (!retryableSemanticValidation(decision.policyReason)) return decision;
+    semanticObservers.get(observerKey(ctx.app))?.({ message, pendingClarification, previousQuery: input.previousQuery, proposal: result.object, decision, attempt: 1 });
+    // 仅复核模型声称的只读歧义；已有封闭工程字段是复核证据，不据词路由/补值/提高置信度。
+    const explicitMetric = parseThermalLookupMessage(message);
+    const reviewAmbiguity = decision.policyReason === "SEMANTIC_AMBIGUOUS"
+      && (result.object.requestedEffect === "READ_ONLY" || result.object.requestedEffect === "QUERY")
+      && !result.object.complianceCheck?.required && !result.object.factRead
+      && (explicitMetric.metric != null && explicitMetric.targetValue != null
+        || explicitMetric.metric != null && pendingClarification != null
+          && describeNumberRoles(pendingClarification.message).filter(number=>number.role === "UNKNOWN" || number.role === "THERMAL_TARGET").length === 1
+        || hasLambdaField(message) && describeNumberRoles(message).some(number => number.role === "UNKNOWN" || number.role === "THERMAL_TARGET"));
+    if (!retryableSemanticValidation(decision.policyReason) && !reviewAmbiguity) return decision;
     const corrected = await propose({ policyReason: decision.policyReason, unresolved: decision.unresolved });
-    return await validate(corrected.object);
+    const verified = await validate(corrected.object);
+    semanticObservers.get(observerKey(ctx.app))?.({ message, pendingClarification, previousQuery: input.previousQuery, proposal: corrected.object, decision: verified, attempt: 2 });
+    return verified;
   } catch (error) {
     const statusCode = error && typeof error === "object" && "statusCode" in error && typeof error.statusCode === "number" ? error.statusCode : undefined;
     ctx.app.log?.warn?.({ errorType: error instanceof Error ? error.name : "UNKNOWN", statusCode, errorCode: error instanceof AiError ? error.code : undefined }, "本轮语义暂不可用，保持只读并澄清必要范围");

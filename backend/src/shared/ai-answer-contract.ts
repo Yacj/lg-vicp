@@ -88,7 +88,7 @@ export function resolveAnswerContract(input: {
       case "THERMAL_CALCULATE": return "THERMAL";
       case "COMPLIANCE_CHECK": case "KNOWLEDGE_EXPLAIN": return "KNOWLEDGE";
       case "COMPARE_CANDIDATES": case "MATERIAL_COMPARE": return "COMPARISON";
-      case "PRODUCT_DISCOVERY": case "PRODUCT_DETAIL": return "PRODUCT";
+      case "PRODUCT_DISCOVERY": case "PRODUCT_DETAIL": case "PRODUCT_PARAMETER_QUERY": return "PRODUCT";
       case "GENERAL": return "DIRECT";
     }
   }

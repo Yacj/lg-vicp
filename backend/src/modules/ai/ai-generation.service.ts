@@ -1,4 +1,5 @@
 import { resolveDomainTurn } from "./ai-domain-turn-decision.service.js";
+import { readProductParameters } from "./product-parameter-read.service.js";
 import { isReferenceRead } from "./ai-domain-turn-decision.js";
 import { targetedDomainFallback } from "./ai-domain-policy.js";
 import { resolveStructuredReferenceQuery } from "./structured-reference-query.js";
@@ -22,7 +23,7 @@ import { loadPublishedKnowledgeReferences, persistMessageReferencePages } from "
 import { loadUnifiedReferencePages } from "./unified-reference-query.service.js";
 import { currentConfirmedPageLookup } from "./confirmed-page-lookup-state.js";
 import { storeReferencePageBlocks, type ReferencePageBlock } from "./reference-page.js";
-import { streamText, type LanguageModelUsage, type ModelMessage } from "ai";
+import { generateObject, streamText, type LanguageModelUsage, type ModelMessage } from "ai";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { and, count, eq, inArray, isNull } from "drizzle-orm";
 import { env } from "../../config/env.js";
@@ -73,7 +74,8 @@ import { createReport } from "../reports/report-generation.service.js";
 import { hasReportAuthorization, isSolutionReportRequest, isCurrentReportUiAction } from "./report-authorization.js";
 import { generateConfirmedSolutionReport } from "./solution-report.service.js";
 import { resolveProductConsultation } from "./product-read.service.js";
-import { formatProductAnswerInstructions, planProductAnswer, validateProductAnswer } from "./product-answer.js";
+import { formatProductAnswerInstructions, planProductAnswer } from "./product-answer.js";
+import { productAnswerPlanSchema, productAnswerPlanPrompt, renderProductAnswerPlan } from "./product-answer-plan.js";
 import { isComparisonSelectionWait } from "./agent-choice.js";
 import type { ComparisonContext, ProductComparisonResult } from "./compare-product.js";
 import {
@@ -424,6 +426,9 @@ export async function streamConversationReply(options: {
     ? await resolveProductConsultation({app,request,user,conversation,domainDecision,userMessage:content,taskState:currentTaskState,
       onEvent:(event,data)=>productEvents.push({event,data})}) : undefined;
   const productReadIds = productRead?.products.map(item=>item.id);
+  const parameterRead = providedChunks === undefined && domainDecision?.intent === "PRODUCT_PARAMETER_QUERY"
+    ? await readProductParameters({ app, request, user, conversation, domainDecision, userMessage: content, taskState: currentTaskState }) : undefined;
+  if (parameterRead) onToolRoute("backend:product_parameter_query");
   if(productRead) onToolRoute("backend:product_search");
   const directProductRead = Boolean(productRead && domainDecision?.intent !== "MATERIAL_COMPARE");
 
@@ -467,10 +472,10 @@ export async function streamConversationReply(options: {
   }).filter(name => !directAdvice && (!structuredReference || name === "search_knowledge"));
   const agentModel = providedChunks !== undefined ? null : await resolveAgentModel(runtime, app.db);
   // 查表由共享查询服务执行一次，不能由Tool Loop决定是否补查已发布图集或重复刷新候选。
-  const agentEnabled = Boolean(agentModel && allowedTools.length > 0 && !domainDecision?.semantic?.factRead && domainDecision?.mutation !== "QUERY" && !directDomainRead && !directSolutionReport && !directProductRead && !pureExplanation);
+  const agentEnabled = Boolean(agentModel && allowedTools.length > 0 && !parameterRead && !domainDecision?.semantic?.factRead && domainDecision?.mutation !== "QUERY" && !directDomainRead && !directSolutionReport && !directProductRead && !pureExplanation);
 
   // Agent 路径由工具按需检索；无工具模型或知识问答注入仍走预检索，避免假装已有 Agent 能力。
-  const needKnowledgeLookup = adviceQuery || !agentEnabled && !directDomainRead && !directProductRead && capabilities.needKnowledgeSearch;
+  const needKnowledgeLookup = adviceQuery || !parameterRead && !agentEnabled && !directDomainRead && !directProductRead && capabilities.needKnowledgeSearch;
   const { chunks, retrievalFailed } = await loadKnowledgeForGeneration({
     app,
     log: request.log,
@@ -726,6 +731,11 @@ export async function streamConversationReply(options: {
       } }, taskDecision.state.selectedReportType);
       fullText = generated.ok ? generated.summary! : generated.message;
       writeSse(reply, "delta", { text: fullText });
+    } else if (parameterRead) {
+      fullText = parameterRead.answer;
+      agentSources = parameterRead.sources;
+      if (parameterRead.sources.length) writeSse(reply, "sources", { sources: parameterRead.sources });
+      writeSse(reply, "delta", { text: fullText });
     } else if (directProductRead && productRead) {
       for(const item of productEvents) writeSse(reply,item.event,item.data);
       agentSources=productRead.sources;
@@ -733,22 +743,20 @@ export async function streamConversationReply(options: {
       if(planProductAnswer({ needsClarification: productRead.needsClarification, facts: productRead.facts,
         modelAvailable: Boolean(runtime.primary?.languageModel) }) === "FACTS_ONLY"){
         fullText=productRead.answer;
+        productFactCode=productRead.needsClarification?"CATALOG_SCOPE_UNRESOLVED":productRead.products.length?"CATALOG_FACTS_ONLY":"CATALOG_NO_MATCH";
       } else {
         try {
-          const result = streamText({ model: runtime.primary.languageModel, system, messages, ...languageModelCallOptions("CHAT"),
-            abortSignal: generation.controller.signal, providerOptions: runtime.providerOptions });
-          let text = "";
-          for await (const delta of result.textStream) {
-            if (await app.redis.exists(stopKey) === 1) {
-              generation.stopRequested = true; generation.stopReason = "USER"; generation.controller.abort();
-              const stopError = new Error("AI 回答已请求停止"); stopError.name = "AbortError"; throw stopError;
-            }
-            text += delta;
+          const result = await generateObject({ model: runtime.primary.languageModel, schema: productAnswerPlanSchema,
+            system: productAnswerPlanPrompt(productRead.facts), prompt: content, ...languageModelCallOptions("CHAT"),
+            maxRetries: 0, abortSignal: generation.controller.signal, providerOptions: runtime.providerOptions });
+          if (await app.redis.exists(stopKey) === 1) {
+            generation.stopRequested = true; generation.stopReason = "USER"; generation.controller.abort();
+            const stopError = new Error("AI 回答已请求停止"); stopError.name = "AbortError"; throw stopError;
           }
           streamUsage = await result.usage;
-          const verdict = validateProductAnswer(text, productRead.facts, content);
-          fullText = verdict.passed ? text : productRead.answer;
-          productFactCode = verdict.passed ? "CATALOG_VERIFIED" : "CATALOG_FACT_FALLBACK";
+          const text = renderProductAnswerPlan(result.object, productRead.facts);
+          fullText = text ?? productRead.answer;
+          productFactCode = text ? "CATALOG_VERIFIED" : "CATALOG_FACT_FALLBACK";
         } catch (error) {
           if(error instanceof Error && error.name === "AbortError") throw error;
           request.log?.warn?.({ errorType: error instanceof Error ? error.name : "UNKNOWN" }, "产品介绍回答模型不可用，回落仅事实回答");
@@ -1128,6 +1136,10 @@ export async function streamConversationReply(options: {
         queryContextMessageId: domainDecision?.queryContextMessageId,
         factRead: domainDecision?.semantic?.factRead,
         pageQuery: domainDecision?.semantic?.pageQuery,
+        parameterQuery: parameterRead?.query,
+        parameterQueryDiagnostics: parameterRead?.diagnostics,
+        productQueryDiagnostics: productRead?.diagnostics,
+        productAnswerFacts: productRead?.facts,
         queryResultMode: domainDecision?.queryResultMode,
         referenceRevision: lookupRevision,
         queryChanged: Boolean(referenceCandidates) || domainDecision?.mutation === "QUERY" && queryChangedFields.length > 0,
@@ -1153,7 +1165,7 @@ export async function streamConversationReply(options: {
         solutionStateMutated: Boolean(domainDecision && domainDecision.mutation !== "NONE" && (activeSolution?.id !== currentSolution?.id || activeSolution?.version !== currentSolution?.version)),
         parserSource: domainDecision?.parserSource,
         queryParserSource: lookupResult?.query.parserSource,
-        factValidationCode: domainDecision?.intent === "CLARIFY" ? "NOT_EVALUATED_CLARIFICATION" : factReadResult ? factReadResult.validationCode : complianceResult ? complianceResult.status === "CHECKED" ? "COMPLIANCE_VERIFIED" : "COMPLIANCE_NOT_DETERMINED"
+        factValidationCode: parameterRead ? "PARAMETER_SERVICE_FACTS_ONLY" : domainDecision?.intent === "CLARIFY" ? "NOT_EVALUATED_CLARIFICATION" : factReadResult ? factReadResult.validationCode : complianceResult ? complianceResult.status === "CHECKED" ? "COMPLIANCE_VERIFIED" : "COMPLIANCE_NOT_DETERMINED"
           : adviceResult ? adviceResult.verified ? "ADVICE_REFERENCE_VERIFIED" : "ADVICE_REFERENCE_UNAVAILABLE"
           : productRead && directProductRead ? productFactCode ?? "CATALOG_VERIFIED" : pageReferences?.queryDiagnostics || referenceFacts?.queryDiagnostics ? "REFERENCE_QUERY_VERIFIED" : referenceFacts ? validateAnswerFacts(fullText, referenceFacts).code : agentFactValidationCode ?? "NOT_EVALUATED",
         referenceQueryDiagnostics: pageReferences?.queryDiagnostics ?? referenceFacts?.queryDiagnostics,
