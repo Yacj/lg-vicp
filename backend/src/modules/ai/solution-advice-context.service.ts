@@ -1,3 +1,4 @@
+import { messageChronology } from "./message-chronology.js";
 import { and, asc, desc, eq, ne } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { aiMessages } from "../../db/schema.js";
@@ -10,7 +11,7 @@ export async function loadAdviceBusinessContext(app: FastifyInstance, conversati
   if (adviceContextIsCurrent(state.adviceBusinessContext, conversation, state)) return state.adviceBusinessContext;
   const rows = await app.db.select({ role: aiMessages.role, content: aiMessages.content, metadata: aiMessages.metadata, createdAt: aiMessages.createdAt })
     .from(aiMessages).where(and(eq(aiMessages.conversationId, conversation.id), eq(aiMessages.status, "COMPLETED"), ne(aiMessages.id, currentUserMessageId)))
-    .orderBy(desc(aiMessages.createdAt), asc(aiMessages.role)).limit(4);
+    .orderBy(...messageChronology("DESC")).limit(4);
   const recentGoals: AdviceBusinessContext["recentGoals"] = [];
   let assistant: typeof rows[number] | undefined;
   for (const row of rows) {

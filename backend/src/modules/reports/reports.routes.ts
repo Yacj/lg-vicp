@@ -22,6 +22,7 @@ import {
 } from "./report-access.js";
 import { generateTemplateReport } from "./report-snapshot.service.js";
 import { retryReport } from "./report-generation.service.js";
+import { renderReportPdfPreview } from "./report-pdf-preview.js";
 import {
   generatableReportTypeSchema,
   isTemplateBackedReportType,
@@ -375,16 +376,20 @@ export async function reportRoutes(app: FastifyInstance) {
     return ok(request, { message: "报告发布成功", report });
   });
 
-  const artifactUrl = async (request: import("fastify").FastifyRequest<{ Params: z.infer<typeof artifactParamsSchema> }>, preview = false) => {
+  const readableArtifact = async (request: import("fastify").FastifyRequest, id: string, type: z.infer<typeof artifactParamsSchema>["type"]) => {
     const user = getCurrentUser(request);
-    const row = await getReportWithProject(app, request.params.id);
+    const row = await getReportWithProject(app, id);
     if (!row || !canViewReport(user, row.report, row.project)) throw new NotFoundError("报告不存在或无权下载");
     if (!canManageReport(user, row.report, row.project) && !row.report.publishedAt) throw new NotFoundError("报告尚未发布");
     const [artifact] = await app.db.select({ file: files }).from(reportArtifacts)
       .innerJoin(files, eq(files.id, reportArtifacts.fileId))
-      .where(and(eq(reportArtifacts.reportId, row.report.id), eq(reportArtifacts.type, request.params.type),
+      .where(and(eq(reportArtifacts.reportId, row.report.id), eq(reportArtifacts.type, type),
         eq(files.status, "READY"), isNull(files.deletedAt))).limit(1);
     if (!artifact) throw new NotFoundError("请求的报告格式尚未生成或已失效");
+    return { user, row, artifact };
+  };
+  const artifactUrl = async (request: import("fastify").FastifyRequest<{ Params: z.infer<typeof artifactParamsSchema> }>, preview = false) => {
+    const { user, row, artifact } = await readableArtifact(request, request.params.id, request.params.type);
     const url = preview ? await app.storage.createPreviewUrl(artifact.file.objectKey, env.STORAGE_PRESIGN_EXPIRES_SECONDS)
       : await app.storage.createDownloadUrl(artifact.file.objectKey, artifact.file.originalName, env.STORAGE_PRESIGN_EXPIRES_SECONDS);
     await writeAuditLog({ db: app.db, request, actor: user, projectId: row.report.projectId ?? undefined,
@@ -401,6 +406,20 @@ export async function reportRoutes(app: FastifyInstance) {
     schema: { tags: ["共用 / 报告"], summary: "获取受控报告预览地址（PDF/图片）",
       params: artifactParamsSchema.extend({ type: z.enum(["PDF", "IMAGE"]) }) }
   }, request => artifactUrl(request, true));
+
+  route.get("/reports/:id/artifacts/:type/pages/:page", {
+    preHandler: [app.authenticate],
+    schema: { tags: ["共用 / 报告"], summary: "读取已生成PDF的受控页面预览",
+      params: artifactParamsSchema.extend({ type: z.literal("PDF"), page: z.coerce.number().int().min(1).max(500) }) }
+  }, async (request, reply) => {
+    const { user, row, artifact } = await readableArtifact(request, request.params.id, "PDF");
+    const page = await renderReportPdfPreview(() => app.storage.getObject(artifact.file.objectKey), request.params.page);
+    reply.header("Cache-Control", "private, no-store");
+    await writeAuditLog({ db: app.db, request, actor: user, projectId: row.report.projectId ?? undefined,
+      action: AUDIT_ACTIONS.REPORT_DOWNLOADED, targetType: "report", targetId: row.report.id,
+      afterJson: { type: "PDF", mode: "PAGE_PREVIEW", pageNumber: page.pageNumber, pdfSha256: page.pdfSha256 } });
+    return ok(request, page);
+  });
 
   route.delete("/reports/:id", {
     preHandler: [app.authenticate],

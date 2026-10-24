@@ -1,5 +1,6 @@
 import type { AiReferencePage } from '@/api/reference-page'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
 import { createSSRApp, h } from 'vue'
 import { renderToString } from 'vue/server-renderer'
@@ -10,12 +11,21 @@ import AiReferenceAnswer from './AiReferenceAnswer.vue'
 import AiThermalSolutionCard from './AiThermalSolutionCard.vue'
 import ReferencePageViewer from './ReferencePageViewer.vue'
 import StructuredThermalSection from './StructuredThermalSection.vue'
+import ThermalPageTable from './ThermalPageTable.vue'
+
+const sourceTableFixtures = JSON.parse(readFileSync(new URL('../../test/fixtures/sourceTableHeaders.json', import.meta.url), 'utf8')) as { physicalPageNumber: number, renderModel: NonNullable<AiReferencePage['renderModel']> }[]
 
 async function render(component: unknown, props: Record<string, unknown>) {
   const app = createSSRApp({ render: () => h(component as never, props) })
-  app.component('wd-button', { render() { return h('button', this.$slots.default?.()) } })
-  app.component('wd-segmented', { render() { return h('div') } })
-  app.component('mp-html', { props: ['content'], render() { return h('section', { innerHTML: this.$props.content }) } })
+  app.component('wd-button', { render() {
+    return h('button', this.$slots.default?.())
+  } })
+  app.component('wd-segmented', { render() {
+    return h('div')
+  } })
+  app.component('mp-html', { props: ['content'], render() {
+    return h('section', { innerHTML: this.$props.content })
+  } })
   return renderToString(app)
 }
 test('复杂图集三页按来源列头显示 6 个独立构造、全部档位和原备注，命中对比含 R/K', async () => {
@@ -45,7 +55,8 @@ test('方案卡默认只强调厚度和 K，来源是引用区域，双 R 可展
   page.matches.push({ constructionId: 'A1-4', optionId: 'A1-4-18', fieldKeys: ['kValue'] })
   const html = await render(AiThermalSolutionCard, { page })
   for (const text of ['A1-3', 'A1-4', '18', '0.303', '参考图集 · 第22页', '查看热阻参数']) assert.ok(html.includes(text))
-  assert.ok(!html.includes('2.880')); assert.ok(!html.includes('3.297'))
+  assert.ok(!html.includes('2.880'))
+  assert.ok(!html.includes('3.297'))
   assert.equal((html.match(/查看参考页/g) || []).length, 2)
   assert.equal((html.match(/class="solution__parameters"/g) || []).length, 2)
   assert.equal((html.match(/class="solution__citation"/g) || []).length, 2)
@@ -54,13 +65,51 @@ test('方案卡默认只强调厚度和 K，来源是引用区域，双 R 可展
 test('默认同页一张完整表格，公共层和所有厚度保留，命中四字段突出且原图互斥', async () => {
   const page = referenceFixture()
   const html = await render(ReferencePageViewer, { page })
-  for (const text of ['A1-3', 'A1-4', '保温板', '0.005', '1.25', '2.880', '3.297', '0.303', '砂浆', '>15<', '>20<', '>25<', '原页备注', '查看原始页面', '全屏看表格', '整构造参数（源文组名待核）']) assert.ok(html.includes(text), text)
+  for (const text of ['A1-3', 'A1-4', '保温板', '0.005', '1.25', '2.880', '3.297', '0.303', '砂浆', '>15<', '>20<', '>25<', '原页备注', '查看原始页面', '全屏看表格', '部分表头尚未与原页核对']) assert.ok(html.includes(text), text)
   assert.ok(!html.includes('R₀'))
   assert.ok(html.includes('reference-construction-0-option-1'))
   assert.equal((html.match(/class="thermal-table__header"/g) || []).length, 1)
   assert.equal((html.match(/class="[^"]*thermal-table__row--hit/g) || []).length, 1)
   assert.equal((html.match(/class="[^"]*thermal-table__field--hit/g) || []).length, 4)
   assert.ok(!html.includes('<image'))
+})
+
+test('客户原表单列热阻、外墙/屋面/板材组名和全部档位在卡片与全屏保持一致', async () => {
+  for (const fixture of sourceTableFixtures) {
+    const model = fixture.renderModel!
+    const before = JSON.stringify(model)
+    const construction = model.constructions[0]!
+    const option = construction.options.find(item => item.productThermalResistance != null) || construction.options[0]!
+    const active = { constructionId: construction.constructionId, optionId: option.optionId, fieldKeys: ['productThermalResistance', 'thicknessMm', 'totalThermalResistance', 'kValue'] }
+    for (const viewportHeight of [undefined, 520]) {
+      const html = await render(ThermalPageTable, { constructions: model.constructions, matches: [active], active, viewportHeight, anchorPrefix: 'source' })
+      for (const label of ['分层厚度', '导热系数', '修正系数 α', '热阻', '传热阻R', '传热系数K', fixture.physicalPageNumber === 77 ? '板材主断面' : '外墙主断面']) assert.ok(html.includes(label), label)
+      for (const removed of ['产品整体热阻', '整构造参数', '源文待核', '语义待核', '材料层热阻', '导热系数 λ', '部分表头尚未']) assert.ok(!html.includes(removed), removed)
+      assert.equal((html.match(/class="thermal-table__cell thermal-table__heading(?: thermal-table__code-heading)?"/g) || []).length, 9)
+      assert.equal((html.match(/id="source-construction-\d+-option-\d+"/g) || []).length, model.constructions.reduce((sum, item) => sum + item.options.length, 0))
+      for (const item of model.constructions.flatMap(item => item.options)) {
+        for (const value of [item.totalThermalResistance, item.kValue]) {
+          if (value != null)
+            assert.ok(html.includes(Number(value).toFixed(3)))
+        }
+      }
+      assert.equal((html.match(/class="thermal-table__field--hit"/g) || []).length, 4)
+    }
+    assert.equal(JSON.stringify(model), before)
+  }
+})
+
+test('单列原表热阻为主锚点时仍定位并高亮该格；其他资料保留独立档位列', async () => {
+  const model = sourceTableFixtures[0]!.renderModel!
+  const construction = model.constructions[0]!
+  const option = construction.options[1]!
+  const active = { constructionId: construction.constructionId, optionId: option.optionId, fieldKeys: ['productThermalResistance'] }
+  const html = await render(ThermalPageTable, { constructions: model.constructions, matches: [active], active, anchorPrefix: 'source-r' })
+  assert.ok(html.includes('id="source-r-construction-0-option-1"'))
+  assert.equal((html.match(/class="thermal-table__field--hit"/g) || []).length, 1)
+  const other = await render(ThermalPageTable, { constructions: referenceFixture().renderModel!.constructions, matches: [] })
+  assert.ok(other.includes('档位热阻'))
+  assert.ok(other.includes('部分表头尚未与原页核对'))
 })
 
 test('历史表格的识别字段说明不出现在对话或参考页，也不触发虚假告警', async () => {
@@ -111,7 +160,8 @@ test('无 renderModel 老消息默认完整 contain 原图及全屏入口，图�
   assert.ok(html.includes('全屏查看'))
   assert.ok(!html.includes('thermal-section'))
   const failed = await render(ReferencePageViewer, { page, imageFailed: true })
-  assert.ok(failed.includes('重新加载图片')); assert.ok(!failed.includes('<image'))
+  assert.ok(failed.includes('重新加载图片'))
+  assert.ok(!failed.includes('<image'))
 })
 test('取消高亮不移除命中规格；同值的另一个构造不会突出', async () => {
   const page = referenceFixture()
@@ -160,15 +210,18 @@ test('回答同页两段两命中共用完整表格，不重复原图或缩减�
   assert.equal((html.match(/class="[^"]*thermal-table__field--hit/g) || []).length, 5)
   for (const text of ['匹配 2 处', '当前引用', '上一处', '下一处', '取消高亮', '重新显示']) assert.ok(!html.includes(text), text)
   assert.equal((html.match(/<button/g) || []).length, 2)
-  assert.ok(html.includes('保温厚度')); assert.ok(html.includes('传热系数'))
+  assert.ok(html.includes('保温厚度'))
+  assert.ok(html.includes('传热系数'))
   assert.ok(!html.includes('<image'))
-  assert.ok(html.includes('第一构造。')); assert.ok(html.includes('第二构造。'))
+  assert.ok(html.includes('第一构造。'))
+  assert.ok(html.includes('第二构造。'))
 })
 
 test('老消息无模型内嵌完整原页，缺失图片提供参考页入口，不伪造高亮', async () => {
   const page = { ...referenceFixture(), renderModel: null }
   const html = await render(AiAnswerReferencePage, { page, anchorPrefix: 'old' })
-  assert.ok(html.includes('mode="aspectFit"')); assert.ok(html.includes('查看参考页'))
+  assert.ok(html.includes('mode="aspectFit"'))
+  assert.ok(html.includes('查看参考页'))
   assert.ok(!html.includes('thermal-table__row--hit'))
   const historical = await render(AiAnswerReferencePage, { page: { ...page, page: { ...page.page, imageUrl: '' } }, anchorPrefix: 'history' })
   assert.ok(historical.includes('打开参考页查看完整原文。'))

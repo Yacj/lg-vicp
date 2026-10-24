@@ -388,6 +388,15 @@ describe("SolutionState 服务事务/权限/并发", () => {
     await expect(actOnSolution(ctx, state.id, { action: "CONFIRM", expectedVersion: state.version })).rejects.toThrow("已变化");
     expect(db.rows(solutionSnapshots)).toHaveLength(0);
   });
+  it("自然名称绑定后发布名称发生变化，确认仍拒绝且不创建快照", async () => {
+    const state = await final();
+    const stored = db.rows(solutionStates).find((row: any) => row.id === state.id);
+    stored.payload.candidates[0].candidate.schemeName = "原发布名称";
+    mocks.pages.mockResolvedValue({ candidates: [{ ...a, schemeName: "变更后的名称" }] });
+    await expect(actOnSolution(ctx, state.id, { action: "CONFIRM", expectedVersion: state.version })).rejects.toThrow("候选名称与当前发布构造不一致");
+    expect(db.rows(solutionSnapshots)).toHaveLength(0);
+    expect((await loadActiveSolution(ctx))?.stage).toBe("READY_TO_CONFIRM");
+  });
   it("Snapshot 不存签名 URL；撤回来源后仍保留冻结表格，图片不签名", async () => {
     const state = await final(); const result = await actOnSolution(ctx, state.id, { action: "CONFIRM", expectedVersion: state.version });
     expect(JSON.stringify(result.snapshot)).not.toContain("imageUrl");

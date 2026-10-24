@@ -18,6 +18,34 @@ const result = (evidence: string, operator: "APPROX" | "EXACT" = "APPROX"): Sema
 });
 beforeEach(() => { vi.clearAllMocks(); mocks.runtime.mockResolvedValue({ primary: { languageModel: {}, modelId: "configured-model" } }); });
 describe("Semantic Parser正式接线", () => {
+  it.each(["legacy-parser", "domain-proposal"])("%s进入执行前共用厚度角色校核，基层标量不能作为板厚筛选", async route => {
+    const message = "先查已发布的180mm钢筋混凝土基层示例", c = ctx(message);
+    const proposal: SemanticQuery = { intent: "REFERENCE_LOOKUP", queryMode: "NEW_QUERY", confidence: .95, preferences: [], unresolved: [], constraints: [
+      { type: "ENTITY", operation: "SET", field: "substrateMaterial", entityText: "钢筋混凝土", resolvedText: null, metric: null, operator: null, value: null,
+        evidence: "钢筋混凝土", hard: true, confidence: .95 },
+      { type: "THICKNESS", operation: "SET", field: null, entityText: null, resolvedText: null, metric: null, operator: "EXACT", value: 180, evidence: "180mm", hard: true, confidence: .95 }
+    ] };
+    mocks.generate.mockReset();
+    if (route === "domain-proposal") c.domainDecision = { intent: "REFERENCE_QUERY", mutation: "QUERY", semantic: { relation: "NEW", pageQuery: proposal } };
+    else mocks.generate.mockResolvedValueOnce({ object: proposal, usage: {} });
+    mocks.generate.mockResolvedValueOnce({ object: { items: [{ constraintIndex: 1, role: "SUBSTRATE", confidence: .95, evidence: "180mm钢筋混凝土基层" }] } });
+    const actual = await parseSemanticQuery(c, {}, { entities: [{ field: "substrateMaterial", value: "钢筋混凝土", names: ["钢筋混凝土"] }], aliases: [] }, true);
+    expect(actual.needsClarification).toBe(false); expect(actual.query.substrateThickness).toBe(180); expect(actual.query.thicknessMm).toBeUndefined();
+    expect(actual.semanticParserResult?.constraints[1]?.field).toBe("substrateThickness"); expect(actual.confidence).toBe(.95);
+    expect(mocks.generate).toHaveBeenCalledTimes(route === "domain-proposal" ? 1 : 2);
+  });
+  it("执行入口归属复核失败时保留未决条件，不采用错误板厚检索", async () => {
+    const message = "钢筋混凝土厚度180mm", c = ctx(message);
+    const proposal: SemanticQuery = { intent: "REFERENCE_LOOKUP", queryMode: "NEW_QUERY", confidence: .95, preferences: [], unresolved: [], constraints: [
+      { type: "ENTITY", operation: "SET", field: "substrateMaterial", entityText: "钢筋混凝土", resolvedText: null, metric: null, operator: null, value: null,
+        evidence: "钢筋混凝土", hard: true, confidence: .95 },
+      { type: "THICKNESS", operation: "SET", field: null, entityText: null, resolvedText: null, metric: null, operator: "EXACT", value: 180, evidence: "180mm", hard: true, confidence: .95 }
+    ] };
+    c.domainDecision = { mutation: "QUERY", semantic: { relation: "NEW", pageQuery: proposal } };
+    mocks.generate.mockReset().mockResolvedValue({ object: { items: [{ constraintIndex: 1, role: "UNRESOLVED", confidence: .7, evidence: "180mm" }] } });
+    const actual = await parseSemanticQuery(c, {}, { entities: [{ field: "substrateMaterial", value: "钢筋混凝土", names: ["钢筋混凝土"] }], aliases: [] }, true);
+    expect(actual.needsClarification).toBe(true); expect(actual.query.unresolved?.some(item => item.field === "thicknessRole")).toBe(true);
+  });
   it("澄清轮纠正为产品R时，下游只核验本轮指标，不复活原问K", async () => {
     const c = ctx("产品热阻");
     const pageQuery = result("K0.3");

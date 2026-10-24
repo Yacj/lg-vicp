@@ -16,6 +16,8 @@ import { thermalLookupFilterSchema, normalizedThermalLookupFilterSchema } from "
 
 /** 候选查询字段（单一事实源）：AI 端组合必填 projectId 时复用，避免对带 refine 的 schema 再 extend */
 export const thermalCandidateQueryFields = {
+  queryContractVersion: queryStateExtraFields.queryContractVersion,
+  thicknessMinExclusive: queryStateExtraFields.thicknessMinExclusive, thicknessMaxExclusive: queryStateExtraFields.thicknessMaxExclusive,
   documentIds: z.array(z.uuid()).optional(), knowledgeVersionIds: z.array(z.uuid()).optional(),
   structureType: z.string().optional(),
   exclusions: z.array(queryExclusionSchema).optional(), preferences: queryStateExtraFields.preferences,
@@ -57,7 +59,7 @@ export const thermalCandidateQueryFields = {
    * - MIN_LIMIT：「K≥0.3 / 不低于 0.3」→ 只保留 kValue >= targetK；
    * - EXACT：「K=0.303」→ 按数值精度近似相等。
    */
-  kMode: z.enum(["APPROX", "MAX_LIMIT", "MIN_LIMIT", "EXACT"]).optional()
+  kMode: z.enum(["APPROX", "MAX_LIMIT", "MIN_LIMIT", "EXACT", "LT", "GT"]).optional()
     .describe("APPROX 按 abs(K-target) 容差匹配；MAX_LIMIT 要求 K≤目标；MIN_LIMIT 要求 K≥目标；EXACT 按精度相等。默认 MAX_LIMIT"),
   /** K 容差（APPROX/EXACT 有效）；缺省使用后台集中配置的固定业务默认值，不由调用方随意放大 */
   kTolerance: z.coerce.number().positive().max(5).optional(),
@@ -157,7 +159,7 @@ export const thermalCandidateQueryResponseSchema = z.object({
   /** 计算来源：第一版仅图集查表（REFERENCE_TABLE），无结果不自动批量计算 */
   calculationSource: z.literal("REFERENCE_TABLE"),
   /** 实际生效的 K 查询语义（缺省 MAX_LIMIT）；用于前端/日志确认「近似」与「上限」未被混淆 */
-  lookupMode: z.enum(["APPROX", "MAX_LIMIT", "MIN_LIMIT", "EXACT"]).optional(),
+  lookupMode: z.enum(["APPROX", "MAX_LIMIT", "MIN_LIMIT", "EXACT", "LT", "GT"]).optional(),
   /** 实际生效的 K 容差（APPROX/EXACT）；其余模式为 null */
   kTolerance: z.number().nullable().optional(),
   candidates: z.array(thermalCandidateDto),

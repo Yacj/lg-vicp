@@ -25,7 +25,8 @@ const props = withDefaults(defineProps<KnowledgePagePresentation & {
   textHighlights?: Array<Pick<HighlightRangeInput, 'charStart' | 'charEnd'>>
 }>(), { initialTab: 'structured', highlights: () => [], warnings: () => [] })
 const emit = defineEmits<{ review: [] }>()
-const tab = useKnowledgePageTab(() => ({ pageId: props.pageId, initialTab: props.initialTab }))
+// const tab = useKnowledgePageTab(() => ({ pageId: props.pageId, initialTab: props.initialTab }))
+const tab = ref('image')
 const root = ref<HTMLElement | null>(null)
 const { canAccess } = usePermissionAccess()
 const canInspect = computed(() => canAccess({ permissions: ['system:knowledge:debug', 'system:knowledge:page:review', 'system:knowledge:page:confirm'] }))
@@ -48,23 +49,7 @@ const debugData = computed(() => JSON.stringify(props.confirmedStructuredData ??
       <t-tab-panel value="image" label="页面原图" :destroy-on-hide="false">
         <KnowledgePageImage :image-url="pageImageUrl" :page-id="pageId" :title="displayTitle" />
       </t-tab-panel>
-      <t-tab-panel value="structured" label="页面内容" :destroy-on-hide="false">
-        <ReferenceHighlightBar v-if="incomingMatches.length" :count="highlight.matches.value.length" :index="highlight.index.value" :enabled="highlight.enabled.value" :unresolved="highlight.matches.value.length < incomingMatches.length" @navigate="highlight.navigate" @toggle="highlight.toggle" />
-        <div v-if="hasAnomaly" class="knowledge-page-viewer__warning" role="status">
-          <span>识别数据可能存在异常</span>
-          <t-button v-if="reviewAllowed" size="small" variant="text" @click="emit('review')">进入识别校验</t-button>
-          <span v-else>请联系有识别校验权限的管理员核对。</span>
-        </div>
-        <KnowledgeStructuredContent v-if="model" :model="model" :matches="highlight.enabled.value ? highlight.matches.value : []" :active="highlight.active.value" :has-original-image="!!pageImageUrl" @view-original="tab = 'image'" />
-        <template v-else-if="confirmedStructuredData?.systems.length">
-          <KnowledgeRecognizedContent :systems="confirmedStructuredData.systems" :notes="confirmedStructuredData.notes" />
-          <details v-if="parsedText || confirmedStructuredData.fullText" class="knowledge-page-viewer__original"><summary>查看页面原文</summary><KnowledgeDocumentContent :content="parsedText || confirmedStructuredData.fullText" /></details>
-        </template>
-        <template v-else>
-          <p class="knowledge-page-viewer__unavailable">当前按原文排版展示</p>
-          <KnowledgeDocumentContent :content="parsedText || confirmedStructuredData?.fullText" :ranges="textHighlights" />
-        </template>
-      </t-tab-panel>
+
       <t-tab-panel v-if="canInspect" value="recognition" label="识别结果">
         <p class="knowledge-page-viewer__hint">{{ confirmedStructuredData ? '以下为已确认的识别结果，可与页面原图核对。' : '尚未确认识别结果。' }}</p>
         <KnowledgeRecognizedContent v-if="confirmedStructuredData" :systems="confirmedStructuredData.systems" :notes="confirmedStructuredData.notes" />

@@ -37,5 +37,6 @@ const display = computed(() => {
     <wd-button v-if="pageCount > 2" size="small" variant="text" @click="expanded = !expanded">
       {{ expanded ? '收起其他参考表格' : `查看其他参考表格（${pageCount - 2} 页）` }}
     </wd-button>
+
   </view>
 </template>

@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { referenceFixture } from '../test/fixtures/referencePage'
-import { thermalConstructionRows } from './thermalPageTable'
-import { constructionDiagramNotes, sourceTableHeader } from './thermalSourceLabels'
+import { thermalConstructionRows, thermalLayerValue, thermalSourceResistance } from './thermalPageTable'
+import { constructionDiagramNotes, hasSharedSourceResistance, sourceHeaderNotice, sourceTableHeader, thermalColumnHeader, thermalGroupHeader } from './thermalSourceLabels'
 
 test('简图文字不混入热工行，保留跳号及原始layerIndex；不从空值或名称猜来源', () => {
   const group = referenceFixture().renderModel!.constructions[0]!
@@ -41,4 +41,36 @@ test('单厚度、无选项、空构造、多个可变层都不猜关联或补�
   assert.deepEqual(thermalConstructionRows({ ...construction, layers: [], options: [] }), [])
   const rows = thermalConstructionRows({ ...construction, layers: construction.layers.map(layer => ({ ...layer, variable: true })) })
   assert.ok(rows.filter(row => row.option).every(row => row.layer === null))
+})
+
+test('单列热阻只是显示放置，层值优先且不向产品字段补数', () => {
+  const group = referenceFixture().renderModel!.constructions[0]!
+  const row = thermalConstructionRows(group).find(row => row.option)!
+  const before = JSON.stringify(group)
+  assert.equal(thermalLayerValue(row, 'rValue'), null)
+  assert.equal(thermalSourceResistance(row, false), null)
+  assert.equal(thermalSourceResistance(row, true), row.option!.productThermalResistance)
+  assert.equal(JSON.stringify(group), before)
+  row.option!.layerValues = [{ layerIndex: row.layerIndex!, rValue: 3.2 }]
+  assert.equal(thermalSourceResistance(row, true), 3.2)
+  assert.notEqual(row.option!.productThermalResistance, 3.2)
+})
+
+test('无来源、重复列、分组冲突或不同布局不套用原表头、不自动合列', () => {
+  const group = referenceFixture().renderModel!.constructions[0]!
+  assert.equal(hasSharedSourceResistance([group]), false)
+  assert.equal(thermalGroupHeader([group]), '')
+  assert.ok(sourceHeaderNotice([group]))
+  group.sourceColumns = [
+    { fieldKey: 'rValue', label: '原列热阻', scope: 'LAYER' },
+    { fieldKey: 'totalThermalResistance', label: '传热阻R', groupLabel: '外墙主断面', scope: 'CONSTRUCTION' },
+    { fieldKey: 'kValue', label: '传热系数K', groupLabel: '板材主断面', scope: 'CONSTRUCTION' },
+  ]
+  group.sourceTableLayout = { resistance: 'SHARED_LAYER_OPTION' }
+  assert.equal(thermalGroupHeader([group]), '')
+  assert.equal(hasSharedSourceResistance([group, { ...group, sourceTableLayout: undefined }]), false)
+  group.sourceColumns.push({ fieldKey: 'rValue', label: '另一个热阻', scope: 'UNKNOWN' })
+  assert.equal(hasSharedSourceResistance([group]), false)
+  assert.equal(thermalColumnHeader([group], 'rValue').label, '热阻')
+  assert.ok(sourceHeaderNotice([group]))
 })

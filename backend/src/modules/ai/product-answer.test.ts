@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { buildProductAnswerFacts, formatProductAnswerInstructions, formatProductFactsAnswer, planProductAnswer, resolveProductAnswerMode, validateProductAnswer } from "./product-answer.js";
 
+it("通俗表达不删除用户所要的参数；参数续问仍使用事实读取，改写才回到概览", () => {
+  const decision = { intent: "PRODUCT_DETAIL", semantic: { audience: "GENERAL", productContinuation: { action: "PARAMETERS", field: null } } } as any;
+  expect(resolveProductAnswerMode(decision)).toEqual({ mode: "TECHNICAL", audience: "GENERAL" });
+  decision.semantic.productContinuation.action = "REPHRASE";
+  expect(resolveProductAnswerMode(decision)).toEqual({ mode: "INTRODUCTION", audience: "GENERAL" });
+});
+
 /**
  * 真实失败：`你们 VICP 产品主要有什么？我不是工程师，简单介绍`
  * 只返回 VICP 复合保温板、25mm、λ、α 的技术参数清单。
@@ -21,6 +28,17 @@ const catalog = (overrides: Partial<Parameters<typeof buildProductAnswerFacts>[0
 const facts = (decision?: Parameters<typeof buildProductAnswerFacts>[0]["decision"], overrides: Parameters<typeof catalog>[0] = {}) => buildProductAnswerFacts({
   products: [catalog(overrides)], sources: [{ documentId: "d1", versionId: "v1", title: "VICP 产品技术资料" }], hasMore: false, decision });
 
+it("单一目录简称不能遮掉知识库中的产品名称，系列概览和简短改写分别保留事实", () => {
+  const f=facts({intent:"PRODUCT_DISCOVERY"} as never,{name:"VICP复合保温板",summary:null});
+  f.seriesRequested=true;
+  f.knowledgeItems=["甲型板材","乙型板材","丙型外模板"].map((name,i)=>({id:`k-${i}`,name,kind:"KNOWLEDGE_LAYER",attributes:[],sources:[],warnings:[]}));
+  const overview=formatProductFactsAnswer(f);
+  expect(overview).toContain("VICP是");
+  for(const item of f.knowledgeItems)expect(overview).toContain(item.name);
+  expect(overview).toContain("原表记录");expect(overview).not.toContain("供货范围");
+  const brief=formatProductFactsAnswer({...f,brief:true});
+  expect(brief).toContain("甲型板材");expect(brief).not.toContain("乙型板材");expect(brief.length).toBeLessThan(overview.length);
+});
 describe("产品表达形态只由 Semantic 决策决定", () => {
   it("只有事实可用且不需要澄清时才交给模型组织表达", () => {
     const withFacts = facts({ intent: "PRODUCT_DISCOVERY" } as never);
@@ -58,6 +76,27 @@ describe("确定性仅事实回答", () => {
     const text = formatProductFactsAnswer(facts({ intent: "PRODUCT_DISCOVERY" } as never, { summary: null }));
     expect(text).toContain("VICP 复合保温板");
     expect(text).not.toMatch(/行业领先|节能\s*\d+%|寿命|获奖|认证/);
+  });
+});
+
+describe("知识库产品族只作范围说明", () => {
+  it("补充构造系统并明确不等于可销售型号，不被模型改写", () => {
+    const withFamilies = buildProductAnswerFacts({ products: [catalog()], sources: [], hasMore: false,
+      knowledgeFamilies: [{ name: "I型VICP薄抹灰外保温系统", pageCount: 2, layerNames: ["I型VICP复合保温板"] }],
+      decision: { intent: "PRODUCT_DISCOVERY" } as never });
+    const text = formatProductFactsAnswer(withFamilies);
+    expect(text).toContain("已发布知识库中可核对");
+    expect(text).toContain("I型VICP薄抹灰外保温系统");
+    expect(text).toContain("不等于已确认的可销售型号");
+    expect(planProductAnswer({ needsClarification: false, facts: withFamilies, modelAvailable: true })).toBe("FACTS_ONLY");
+  });
+  it("系列问题先给知识库范围，不先下资料不完整结论", () => {
+    const series = buildProductAnswerFacts({ products: [catalog()], sources: [], hasMore: false,
+      knowledgeFamilies: [{ name: "I型VICP薄抹灰外保温系统", pageCount: 2, layerNames: [] }],
+      decision: { intent: "PRODUCT_DISCOVERY", semantic: { productQuery: { granularity: "SERIES" } } } as never });
+    const text = formatProductFactsAnswer(series);
+    expect(text.startsWith("正式产品目录当前登记")).toBe(true);
+    expect(text).not.toContain("资料还不完整");
   });
 });
 

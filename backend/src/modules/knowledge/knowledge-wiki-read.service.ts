@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gte, ilike, isNull, lte, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { env } from "../../config/env.js";
 import type { FastifyInstance } from "fastify";
 import {
@@ -21,6 +21,7 @@ import { getPageImageDownloadName } from "./knowledge-page-image.js";
 import { readPageRecognitionMeta } from "../../shared/page-recognition.js";
 import type { KnowledgePageRenderModel } from "../../shared/knowledge-page-render.js";
 import { visiblePageLabel } from "../../shared/page-label.js";
+import { auditedPrintedPageIds } from "../../shared/confirmed-page-source-audit.js";
 import { readableRenderModel } from "../../shared/readable-page-render.js";
 import { isReferencePageConsumable } from "../ai/reference-page-access.js";
 
@@ -290,7 +291,7 @@ async function toPageDto(app: FastifyInstance, page: typeof knowledgePages.$infe
     pageLabelVerified: page.pageLabelVerified,
     pageTitle: page.pageTitle,
     fullText: text,
-    renderModel: readableRenderModel(page.id, page.metadata, visiblePageLabel(page)),
+    renderModel: readableRenderModel(page.id, page.metadata, visiblePageLabel(page), page.versionId),
     extractedText: text,
     blocks,
     pageImageUrl
@@ -466,7 +467,7 @@ export async function resolveSourceDetail(
     citationAnchor: citationAnchor ?? section?.sourceAnchor ?? null,
     pageNumber: page?.pageNumber ?? (hasUnmappedSearchPage ? null : section?.startPage ?? null),
     physicalPageNumber: page?.physicalPageNumber ?? null,
-    pageLabel: page?.pageLabel ?? null,
+    pageLabel: page ? visiblePageLabel(page) : null,
     pageTitle: page?.pageTitle ?? null
   };
 
@@ -815,11 +816,14 @@ export async function getPublicDocumentPageByLabel(
 ): Promise<WikiPageDto> {
   const context = await resolveReadableVersion(app, documentId);
   assertPublicDocument(context.document);
-  const [page] = await app.db.select().from(knowledgePages)
-    .where(and(eq(knowledgePages.versionId, context.version.id), eq(knowledgePages.pageLabel, pageLabel)))
-    .orderBy(asc(knowledgePages.physicalPageNumber))
-    .limit(1);
-  if (!page) throw new NotFoundError("页面不存在");
+  const auditedIds = auditedPrintedPageIds(context.version.id, pageLabel);
+  const rows = await app.db.select().from(knowledgePages)
+    .where(and(eq(knowledgePages.versionId, context.version.id), auditedIds.length
+      ? or(eq(knowledgePages.pageLabel, pageLabel), inArray(knowledgePages.id, auditedIds)) : eq(knowledgePages.pageLabel, pageLabel)))
+    .orderBy(asc(knowledgePages.physicalPageNumber));
+  const matches = rows.filter(page => visiblePageLabel(page) === pageLabel);
+  if (matches.length !== 1) throw new NotFoundError(matches.length ? "该印刷页码对应多个页面，请使用物理页定位。" : "页面不存在");
+  const page = matches[0]!;
   return toPageDto(app, page, await getBlocksOfPage(app, page.id));
 }
 

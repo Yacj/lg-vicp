@@ -1,5 +1,6 @@
 import { getCandidateMetricValue, normalizeThermalLookupQuery, THERMAL_METRIC_LABELS, type ThermalLookupMetric } from "./thermal-lookup-mode.js";
 import { validateCandidateAgainstQueryState, type ConstraintCandidate, type ThermalQueryState } from "./thermal-query-state.js";
+import type { ReferenceDataConflict } from "../../shared/reference-data-conflict.js";
 
 export type ReferenceQueryIssue = "QUERY_UNRESOLVED" | "CONDITIONS_CONFLICT" | "NO_READABLE_PUBLISHED_DATA"
   | "IDENTITY_NOT_FOUND" | "METRIC_NOT_PROVIDED" | "METRIC_SCOPE_DIFFERENT" | "NO_MATCHING_VALUE" | "SOURCE_NOT_VERIFIABLE";
@@ -15,6 +16,16 @@ export interface ReferenceQueryDiagnostics {
   /** 这里只描述实际读取的已授权范围，不探测或披露不可见资料。 */
   coverage: "AUTHORIZED_PUBLISHED_ONLY" | "AUTHORIZED_VERSION_ONLY";
   rejectedSourceCount?: number;
+  /** 已关联确认原页但缺档位身份的正式行数量；仅用于解释，不改变准入。 */
+  bindingGapCount?: number;
+  /** 缺口涉及的字段名（内部诊断用，不直接展示给客户）。 */
+  bindingGapFields?: string[];
+  /** 来源页当前不可读（未发布/失效/无权限）的行数。 */
+  unreadableSourceCount?: number;
+  specThicknessMismatches?: Array<{ rowThicknessMm: number; specCode: string | null; specThicknessMm: number }>;
+  /** 当前已授权读取中核验的差异原值及各自来源；只读展示，不能作为候选或计算输入。 */
+  dataConflicts?: ReferenceDataConflict[];
+  requestedIdentity?: Array<{ label: string; value: string }>;
 }
 export function withoutReferenceMetrics(query: ThermalQueryState): ThermalQueryState {
   return { ...query, filters: [], metric: undefined, targetValue: undefined, targetK: undefined, targetR: undefined };
@@ -41,11 +52,21 @@ export function diagnoseReferenceQuery(query: ThermalQueryState, rows: readonly 
     return values.length ? [{ metric, values: values.slice(0, 8), count: values.length,
       rowCount: selected.filter(row => getCandidateMetricValue(row, metric) != null).length, truncated: values.length > 8 }] : [];
   });
+  // V2范围厚度未命中不等于名称不存在；只检查本次已读取的同一身份，不把放宽后的行作为结果。
+  const namedIdentity = query.queryContractVersion === 2 && (query.thicknessMin != null || query.thicknessMax != null) && !identity.length
+    && rows.some(row => validateCandidateAgainstQueryState(row, { ...withoutReferenceMetrics(query), thicknessMin: undefined, thicknessMax: undefined,
+      thicknessMinExclusive: undefined, thicknessMaxExclusive: undefined }).passed);
   const issues: ReferenceQueryIssue[] = query.unresolved?.length
     ? [query.unresolved.some(item => item.field.startsWith("conflict:")) ? "CONDITIONS_CONFLICT" : "QUERY_UNRESOLVED"]
-    : !rows.length ? ["NO_READABLE_PUBLISHED_DATA"] : !identity.length ? ["IDENTITY_NOT_FOUND"]
+    : !rows.length ? ["NO_READABLE_PUBLISHED_DATA"] : !identity.length ? [namedIdentity ? "NO_MATCHING_VALUE" : "IDENTITY_NOT_FOUND"]
     : missingMetrics.length ? ["METRIC_NOT_PROVIDED"] : !matchedCount ? ["NO_MATCHING_VALUE"] : [];
-  return { scope, issues, scannedCount: rows.length, identityCount: identity.length, matchedCount, missingMetrics, metricScopes, partialMissingMetrics, coverage };
+  const requestedIdentity = [
+    ["体系名称", query.systemHint], ["型号", query.specClass], ["构造编号", query.schemeCode],
+    ["基层材料", query.substrateMaterial], ["基层厚度", query.substrateThickness == null ? undefined : `${query.substrateThickness}mm`],
+    ["档位厚度", query.thicknessMm == null ? undefined : `${query.thicknessMm}mm`]
+  ].flatMap(([label, value]) => value == null ? [] : [{ label: label!, value }]);
+  return { scope, issues, scannedCount: rows.length, identityCount: identity.length, matchedCount, missingMetrics, metricScopes, partialMissingMetrics, coverage,
+    ...(issues.includes("IDENTITY_NOT_FOUND") ? { requestedIdentity } : {}) };
 }
 /** 失败原因只由Service诊断生成；不能从无命中推断未发布或无权资料是否存在。 */
 export function renderReferenceQueryDiagnostics(d: ReferenceQueryDiagnostics): string {
@@ -55,7 +76,9 @@ export function renderReferenceQueryDiagnostics(d: ReferenceQueryDiagnostics): s
     if (issue === "QUERY_UNRESOLVED") lines.push("体系、指标或查询条件尚未得到可靠确认，请先补充不明确的条件。");
     if (issue === "CONDITIONS_CONFLICT") lines.push("多个筛选条件的边界互相冲突，请确认要保留或替换的条件。");
     if (issue === "NO_READABLE_PUBLISHED_DATA") lines.push(`${label}在本次可读范围内未找到可核验数据，不能据此断言其他资料也没有。`);
-    if (issue === "IDENTITY_NOT_FOUND") lines.push(`${label}中没有同时符合当前体系、型号、基层、厚度及来源限制的记录，尚不能按该身份判断目标值。`);
+    if (issue === "IDENTITY_NOT_FOUND") lines.push(d.requestedIdentity?.length
+      ? `${d.requestedIdentity.map(item => `${item.label}“${item.value}”`).join("、")}还没能对应到${label}中的记录。请核对这个名称或条件；已给的指标范围会保留，暂不能据此判断有没有符合数值的方案。`
+      : `${label}中尚未对应到所指定的对象或来源范围，请核对对应名称；这不代表没有满足指标的方案。`);
     if (issue === "METRIC_NOT_PROVIDED") lines.push(`${label}在当前身份和厚度范围内未单独提供${d.missingMetrics.map(metric => THERMAL_METRIC_LABELS[metric]).join("、")}，无法按该指标筛选；这不等于有该指标但没有满足条件的档位。`);
     if (issue === "METRIC_SCOPE_DIFFERENT") lines.push("来源中的材料层或芯材热阻与完整产品热阻是不同指标，不能相互替代或补算。");
     if (issue === "NO_MATCHING_VALUE") lines.push(`${label}中有当前身份的数据，但未找到同时满足所述目标值及其他筛选条件的档位。`);

@@ -5,10 +5,33 @@ import { toSolutionDocumentModel } from "../ai/solution-document-model.js";
 import { confirmedSolutionFixture } from "../ai/solution-report.fixture.js";
 import { solutionAdviceFixture } from "../ai/solution-advice.fixture.js";
 import { DEFAULT_REPORT_SECTIONS } from "./report-template.service.js";
+import { publishedReferenceSource } from "../ai/published-reference-source.js";
 const payload = (): ReportSnapshotPayload => {
   const model = toSolutionDocumentModel(confirmedSolutionFixture());
   return { title: "正式方案Fixture", reportType: "technical_scheme", generatedAt: "2026-10-14T00:00:00Z", template: { sections: DEFAULT_REPORT_SECTIONS }, documentModel: model, referencePages: model.referencePages };
 };
+it("计算输入作用于芯材层时项目条件与方案表均保留厚度作用范围", () => {
+  const p = payload(); const model = p.documentModel as ReturnType<typeof toSolutionDocumentModel>;
+  model.solutions[0]!.inputThicknessLayerName = "真空绝热板";
+  model.requirements.thicknessMm = 20;
+  const html = renderTemplateHtml(p);
+  expect(html).toContain("输入厚度（作用层见各方案） mm：20");
+  expect(html).toContain("计算输入层：真空绝热板");
+  expect(html).not.toContain("板厚 mm：20");
+  expect(model.requirements.thicknessMm).toBe(20);
+});
+it("没有图页的发布参考行保留真实Sheet及版本，不标成图集查表值", () => {
+  const snapshot = confirmedSolutionFixture(); const candidate = snapshot.payload.candidates[0]!;
+  Object.assign(candidate, { sourcePageId: undefined, sourceDocumentId: undefined, sourceVersionId: undefined, optionId: undefined,
+    setId: "published-set", setVersion: 1, schemeVersion: 1, specVersion: 1, evidenceSource: "客户公式表", evidenceRef: "Sheet1" });
+  candidate.publishedReferenceSource = publishedReferenceSource(candidate);
+  expect(candidate.publishedReferenceSource).toBeDefined();
+  snapshot.payload.referencePages = [];
+  const model = toSolutionDocumentModel(snapshot);
+  const html = renderTemplateHtml({ ...payload(), documentModel: model, referencePages: [] });
+  expect(html).toContain("已发布热工参考行值"); expect(html).toContain("Sheet1"); expect(html).toContain("构造版本 1");
+  expect(html).not.toContain("图集查表值");
+});
 it("中文工程章节、单位、独立项目、缺标准未核验；不打印原始对象合同", () => {
   const html = renderTemplateHtml(payload());
   for (const value of ["最终", "产品层热阻 R", "总热阻 R₀", "W/(m²·K)", "(m²·K)/W", "产品厚度 mm", "混凝土", "0.1245", "7.5", "8.03", "未进行地区/项目合规性核验", "独立已确认方案"])
@@ -70,7 +93,7 @@ it("计算样例清楚标注引擎来源及缺少客户图集，禁止冒称正�
   Object.assign(c, { sourceType: "CALCULATED", constructionCode: "VICP-SHEET-1", sourcePageId: undefined, calculationId: "calculation", calcMode: "LAYERED" });
   snapshot.payload.referencePages = [];
   const model = toSolutionDocumentModel(snapshot); const html = renderTemplateHtml({ ...payload(), documentModel: model, referencePages: [] });
-  expect(html).toContain("确定性引擎计算值"); expect(html).toContain("VICP-SHEET-1 为测试计算样例"); expect(html).toContain("缺少可追溯客户图集原页");
+  expect(html).toContain("确定性引擎计算值"); expect(html).toContain("VICP-SHEET-1 为测试计算样例"); expect(html).toContain("未关联图集原页，不能作为图集查表证明");
 });
 it("报告追溯标识与DocumentModel必须一致", () => {
   expect(() => renderTemplateHtml({ ...payload(), solutionSnapshotId: "other-confirmation" })).toThrow("确认标识不一致");

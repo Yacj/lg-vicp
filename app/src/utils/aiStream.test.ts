@@ -104,6 +104,12 @@ const completedReference = parseStreamEvent('done', { messageId: 'message', conv
 assert(completedReference?.event === 'done' && completedReference.data.referencePages?.[0]?.renderModel?.constructions.length === 2, 'done 保留完整模型及全部构造')
 assert(parseStreamEvent('message_done', { referencePages: [referenceFixture()] }) === null, 'done 别名不重复处理引用')
 
+const candidates = { queryRevision: 3, candidates: [{ candidateId: 'current-row', position: 1, sourceType: 'REFERENCE', confirmationEligible: true, thicknessMm: 32, kValue: 0.21 }] }
+const candidateEvent = parseStreamEvent('reference_candidates', candidates)
+assert(candidateEvent?.event === 'reference_candidates' && candidateEvent.data.queryRevision === 3, '真实候选SSE保留当前revision及身份')
+assert(parseStreamEvent('reference_candidates', { ...candidates, queryRevision: 0 }) === null, '无有效revision拒绝候选事件')
+assert(parseStreamEvent('reference_candidates', { ...candidates, candidates: [{ ...candidates.candidates[0], confirmationEligible: 'yes' }] }) === null, '候选资格字段严格校验，不转换真值')
+
 console.log(`\n${passed} passed, ${failed} failed`)
 if (failed) {
   throw new Error(`aiStream tests failed: ${failed}`)

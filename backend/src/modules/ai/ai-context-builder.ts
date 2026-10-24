@@ -1,3 +1,4 @@
+import { messageChronology } from "./message-chronology.js";
 /**
  * 统一 AI 上下文组装：所有正式生成入口共用。
  * 组装顺序：平台硬规则 → 执行规范 → 全局回答规则 → Answer Contract → 业务 Prompt → 权限范围 →
@@ -207,7 +208,7 @@ export async function buildAiContext(input: BuildAiContextInput): Promise<BuiltA
     eq(aiMessages.conversationId, input.conversation.id),
     inArray(aiMessages.status, ["COMPLETED", "STOPPED"]),
     excludeIds.length > 0 ? notInArray(aiMessages.id, excludeIds) : undefined
-  )).orderBy(desc(aiMessages.createdAt)).limit(200);
+  )).orderBy(...messageChronology("DESC")).limit(200);
 
   const historyMessages: ContextMessage[] = historyRows.reverse()
     .filter((message) => message.role === "USER" || message.role === "ASSISTANT")

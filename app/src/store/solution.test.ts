@@ -1,4 +1,4 @@
-import type { SolutionActionBody, SolutionStateDto, SolutionUpdate } from '@/api/solution-types'
+import type { ReferenceCandidateResult, SolutionActionBody, SolutionStateDto, SolutionUpdate } from '@/api/solution-types'
 import assert from 'node:assert/strict'
 import { test as nodeTest } from 'node:test'
 import { createPinia, defineStore } from 'pinia'
@@ -193,4 +193,34 @@ nodeTest('REVISE/START_NEW 切换后，旧 GET 和旧 SSE 不能恢复已退休�
     assert.equal(store.applySolutionState({ solutionState: solutionFixture({ version: 100 }) }), false)
     assert.equal(store.solutionState?.id, 'state-2')
   }
+})
+
+nodeTest('查询候选只用当前revision及服务端身份激活；无资格、重复点击和跨会话迟到响应被拒绝', async () => {
+  let finish: (value: unknown) => void = () => {}
+  const bodies: unknown[] = []
+  const result: ReferenceCandidateResult = { queryRevision: 8, candidates: [{ candidateId: 'A', sourceType: 'REFERENCE', position: 1, confirmationEligible: true }, { candidateId: 'raw-page', sourceType: 'REFERENCE', position: 2, confirmationEligible: false }] }
+  const useStore = defineStore('query-candidates-test', {
+    state: () => ({ ...solutionInitialState(), conversation: { id: 'conversation-1' } as { id: string } | null, loadRevision: 0 }),
+    actions: createSolutionActions({
+      getSolution: () => ({ send: async () => ({ data: null }) }),
+      getSolutionCandidates: () => ({ send: async () => ({ data: result }) }),
+      getSolutionSnapshot: () => ({ send: async () => ({ data: null }) }),
+      solutionAction: () => ({ send: async () => ({ data: null }) }),
+      activateSolution: (_id, body) => ({ send: () => { bodies.push(body); return new Promise(resolve => { finish = resolve }) } }),
+    }),
+  })
+  const store = useStore(createPinia())
+  await store.refreshReferenceCandidates()
+  assert.deepEqual(store.referenceCandidates, result)
+  assert.equal(await store.activateReferenceCandidate('raw-page'), false)
+  assert.equal(await store.activateReferenceCandidate('invented'), false)
+  const pending = store.activateReferenceCandidate('A')
+  assert.equal(await store.activateReferenceCandidate('A'), false)
+  assert.deepEqual(bodies, [{ candidateQueryRevision: 8, action: 'ADD', candidateIds: ['A'] }])
+  store.clearSolution()
+  store.conversation = { id: 'conversation-2' }
+  finish({ data: { solutionState: solutionFixture() } })
+  assert.equal(await pending, false)
+  assert.equal(store.solutionState, null)
+  assert.equal(store.referenceCandidates, null)
 })

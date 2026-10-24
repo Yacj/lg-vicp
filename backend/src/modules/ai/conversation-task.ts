@@ -11,6 +11,7 @@ import { formatLookupThickness } from "../thermal/thermal-lookup-thickness.js";
 import { THERMAL_LOOKUP_METRICS, type ThermalLookupMode } from "../thermal/thermal-lookup-mode.js";
 import { adviceBusinessContextSchema, pendingAdviceGoalSchema, type AdviceBusinessContext, type PendingAdviceGoal } from "./solution-advice-context.js";
 import { confirmedPageLookupSchema, type ConfirmedPageLookup } from "./confirmed-page-lookup-state.js";
+import { publishedReferenceSourceSchema } from "./published-reference-source.js";
 export const CONVERSATION_TASK_TYPES = [
   "GENERAL",
   "PRODUCT_CONSULTATION",
@@ -38,6 +39,7 @@ export type ReferenceLookupMode = ThermalLookupMode;
 
 /** 候选类型与状态解析共用 schema；新增正式字段只在此登记。 */
 export const referenceLookupCandidateSchema = z.object({
+  publishedReferenceSource: publishedReferenceSourceSchema.optional(),
   id: z.string().trim().min(1),
   sourceType: z.enum(["REFERENCE", "CALCULATED", "PRODUCT"]).optional(),
   referenceKind: z.enum(["THERMAL_ROW", "KNOWLEDGE_PAGE"]).optional(),
@@ -50,6 +52,8 @@ export const referenceLookupCandidateSchema = z.object({
   sourceVersionId: z.string().nullable().optional(),
   specClass: z.enum(["I", "II", "III"]).optional(),
   thicknessMm: z.number().finite().optional(),
+  inputThicknessLayerName: z.string().optional(),
+  productThermalResistanceScope: z.enum(["PRODUCT_LAYER_ROWS_ONLY", "PRODUCT_EQUIVALENT_TOTAL"]).optional(),
   kValue: z.number().finite().optional(),
   lambda: z.number().finite().optional(),
   alpha: z.number().finite().optional(),
@@ -57,9 +61,11 @@ export const referenceLookupCandidateSchema = z.object({
   systemId: z.string().optional(),
   systemCode: z.string().nullable().optional(),
   systemName: z.string().optional(),
+  applicationPart: z.string().optional(), systemType: z.string().optional(), systemVersion: z.number().optional(),
   atlasPage: z.string().nullable().optional(),
   schemeId: z.string().optional(),
   schemeCode: z.string().optional(),
+  schemeName: z.string().optional(),
   schemeVersion: z.number().optional(),
   substrateMaterial: z.string().optional(),
   substrateThickness: z.number().nullable().optional(),
@@ -289,7 +295,7 @@ export function mergeConversationTaskState(
 function formatLastReferenceLookupContext(lookup: LastReferenceLookup): string {
   const modeLabel = lookup.query.mode === "APPROX"
     ? "近似（左右/接近，未要求上限）"
-    : lookup.query.mode === "MAX_LIMIT"
+    : lookup.query.mode === "LT" ? "严格上界（不含等值）" : lookup.query.mode === "GT" ? "严格下界（不含等值）" : lookup.query.mode === "MAX_LIMIT"
       ? "上限（不超过）"
       : lookup.query.mode === "MIN_LIMIT"
         ? "下限（不低于）"
@@ -297,7 +303,7 @@ function formatLastReferenceLookupContext(lookup: LastReferenceLookup): string {
   const queryBits = [
     lookup.query.filters?.length ? `全部条件同时满足：${lookup.query.filters.map((filter) => {
       const label = filter.metric === "K" ? "传热系数 K" : filter.metric === "TOTAL_R" ? "总热阻" : "产品层热阻";
-      const symbol = filter.mode === "MAX_LIMIT" ? "≤" : filter.mode === "MIN_LIMIT" ? "≥" : filter.mode === "EXACT" ? "=" : "≈";
+      const symbol = filter.mode === "LT" ? "<" : filter.mode === "GT" ? ">" : filter.mode === "MAX_LIMIT" ? "≤" : filter.mode === "MIN_LIMIT" ? "≥" : filter.mode === "EXACT" ? "=" : "≈";
       return `${label}${symbol}${filter.targetValue}${filter.tolerance !== undefined ? `，实际范围±${filter.tolerance}` : ""}`;
     }).join(" 且 ")}` : null,
     lookup.query.targetValue !== undefined ? `目标${lookup.query.metric === "TOTAL_R" ? "总热阻" : lookup.query.metric === "PRODUCT_R" ? "产品层热阻" : "传热系数"} ${lookup.query.targetValue}` : null,

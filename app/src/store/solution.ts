@@ -1,11 +1,12 @@
-import type { SolutionAction, SolutionActionBody, SolutionComparisonResult, SolutionSnapshotDto, SolutionStateDto, SolutionUpdate } from '@/api/solution-types'
+import type { ReferenceCandidateResult, SolutionAction, SolutionActionBody, SolutionComparisonResult, SolutionSnapshotDto, SolutionStateDto, SolutionUpdate } from '@/api/solution-types'
 import type { ApiEnvelope, CreateReportBody, CreateReportResult } from '@/api/types'
 import type { SessionReport } from '@/utils/aiAgentUi'
 import { confirmedReportBody, createdReportTask, reportErrorMessage, shouldPollReportStatus } from '@/utils/aiReportTask'
-import { solutionActionBody, solutionClientState, solutionErrorCode, solutionErrorMessages } from '@/utils/aiSolution'
+import { parseReferenceCandidates, solutionActionBody, solutionClientState, solutionErrorCode, solutionErrorMessages } from '@/utils/aiSolution'
 
 export function solutionInitialState() {
   return {
+    referenceCandidates: null as ReferenceCandidateResult | null,
     solutionState: null as SolutionStateDto | null,
     solutionComparison: null as SolutionComparisonResult | null,
     solutionSnapshot: null as SolutionSnapshotDto | null,
@@ -29,6 +30,7 @@ interface SolutionContext extends ReturnType<typeof solutionInitialState> {
   applySolutionState: (update: SolutionUpdate) => boolean
   restoreSolutionState: (state: SolutionStateDto | null) => void
   refreshSolutionState: () => Promise<void>
+  refreshReferenceCandidates: () => Promise<void>
   invalidateSolutionReportRequest: () => void
   applyReportTask?: (report: SessionReport) => void
   startReportPolling?: (id: string) => void
@@ -36,6 +38,8 @@ interface SolutionContext extends ReturnType<typeof solutionInitialState> {
 }
 
 interface SolutionApi {
+  getSolutionCandidates?: (id: string) => { send: () => PromiseLike<unknown> }
+  activateSolution?: (id: string, body: { candidateQueryRevision: number, action: 'ADD', candidateIds: string[] }) => { send: () => PromiseLike<unknown> }
   getSolution: (id: string) => { send: () => PromiseLike<unknown> }
   solutionAction: (id: string, body: SolutionActionBody) => { send: () => PromiseLike<unknown> }
   getSolutionSnapshot: (id: string, snapshotId: string) => { send: () => PromiseLike<unknown> }
@@ -50,6 +54,50 @@ interface SolutionReportDependencies {
 /** 与 assistant 同属一个 Pinia store；拆出动作以便独立验证会话隔离和并发。 */
 export function createSolutionActions(api: SolutionApi, reports?: SolutionReportDependencies) {
   return {
+    async refreshReferenceCandidates(this: SolutionContext) {
+      const id = this.conversation?.id
+      if (!id || !api.getSolutionCandidates)
+        return
+      const revision = this.solutionRequestRevision
+      const loadRevision = this.loadRevision
+      const response = await api.getSolutionCandidates(id).send() as ApiEnvelope<ReferenceCandidateResult | null>
+      if (this.conversation?.id === id && revision === this.solutionRequestRevision && loadRevision === this.loadRevision) {
+        const result = parseReferenceCandidates(response.data)
+        if (!result || !this.referenceCandidates || result.queryRevision >= this.referenceCandidates.queryRevision)
+          this.referenceCandidates = result
+      }
+    },
+
+    async activateReferenceCandidate(this: SolutionContext, candidateId: string) {
+      const id = this.conversation?.id
+      const result = this.referenceCandidates
+      if (!id || !result || !api.activateSolution || this.solutionActionLoading
+        || !result.candidates.some(candidate => candidate.candidateId === candidateId && candidate.confirmationEligible))
+        return false
+      const revision = this.solutionRequestRevision
+      const loadRevision = this.loadRevision
+      const isCurrent = () => this.conversation?.id === id && revision === this.solutionRequestRevision && loadRevision === this.loadRevision
+      this.solutionActionLoading = true
+      this.solutionNotice = ''
+      try {
+        const response = await api.activateSolution(id, { candidateQueryRevision: result.queryRevision, action: 'ADD', candidateIds: [candidateId] }).send() as ApiEnvelope<SolutionUpdate>
+        if (!isCurrent())
+          return false
+        return this.applySolutionState(response.data)
+      }
+      catch (error) {
+        if (isCurrent()) {
+          this.solutionNotice = error instanceof Error ? error.message : '候选已变化，请重新查询后选择'
+          await this.refreshReferenceCandidates().catch(() => undefined)
+        }
+        return false
+      }
+      finally {
+        if (isCurrent())
+          this.solutionActionLoading = false
+      }
+    },
+
     clearSolution(this: SolutionContext) {
       const revision = this.solutionRequestRevision + 1
       const reportRevision = this.solutionReportRequestRevision + 1
@@ -110,8 +158,9 @@ export function createSolutionActions(api: SolutionApi, reports?: SolutionReport
         return
       if (response.data)
         this.applySolutionState({ solutionState: response.data })
-      else
+      else if (this.solutionState)
         this.restoreSolutionState(null)
+      await this.refreshReferenceCandidates()
     },
 
     async performSolutionAction(this: SolutionContext, action: SolutionAction, candidateIds: string[] = []) {

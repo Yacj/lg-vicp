@@ -10,6 +10,10 @@ import type { ReferenceReadContext } from "./reference-candidate-resolver.servic
 import type { WikiHit } from "../knowledge/knowledge.service.js";
 import type { ReferenceLookupCandidate } from "./conversation-task.js";
 import { verifyVisibleConfirmedPageFact } from "./confirmed-page-fact-verify.js";
+import { explainThermalMetric } from "./thermal-metric-explanation.js";
+import { resolveCandidateReference } from "./reference-candidate-resolver.service.js";
+import { hasPublishedReferenceSource } from "./published-reference-source.js";
+import { explainCandidateAvailability } from "./candidate-availability.service.js";
 
 const metricKey = { K: "kValue", TOTAL_R: "totalThermalResistance", PRODUCT_R: "productThermalResistance" } as const;
 const metricLabel = { K: "K", TOTAL_R: "总热阻 R₀", PRODUCT_R: "产品层热阻 R" };
@@ -40,9 +44,31 @@ export async function resolveReferenceFactRead(ctx: ReferenceReadContext, hits: 
     return { facts, candidates, sources, referencePages: pages, readOnly: true as const, needsClarification: !candidates.length, validationCode: code };
   };
   if (session.projectId !== ctx.conversation.projectId) return respond("会话所属项目已变化，请重新查询。");
+  // 概念插话与来源解释继续绑定已实际展示的唯一记录；数字不能用来反选另一条身份。
+  // 复用完整来源/Revision/归属/有效期重验，不创建候选或修改方案。
+  const continuing = ctx.domainDecision.semantic?.relation === "CONTINUE";
+  const scopedDefinition = request.mode === "DEFINE" && request.explanationAspect === "SCOPE";
+  if (continuing && ctx.taskState?.lastReferenceLookup?.candidates.length && !constructionCodes(ctx.userMessage ?? "").length
+    && (request.mode === "EXPLAIN" || request.mode === "VERIFY" || scopedDefinition)) {
+    const resolved = await resolveCandidateReference(ctx);
+    if (resolved.reason) {
+      const unavailable = request.mode === "EXPLAIN" ? await explainCandidateAvailability(ctx, "READ") : undefined;
+      return respond(unavailable?.answer ?? resolved.reason, [], [], unavailable?.validationCode);
+    }
+    if (resolved.candidates.length !== 1) return respond("前面有几种做法，你想核对哪一套？可以说板厚或选择对应卡片。");
+    const candidate = resolved.candidates[0]!;
+    const source = hasPublishedReferenceSource(candidate) ? candidate.publishedReferenceSource : undefined;
+    const origin = source ? `来源是《${source.source}》${source.reference}，参考集版本${source.setVersion}。`
+      : candidate.sourceType === "CALCULATED" ? "这项数值来自该方案保存的正式计算记录。"
+        : `来源是已确认原表${candidate.sourcePageLabel ? `第${candidate.sourcePageLabel}页` : ""}。`;
+    const value = request.metric ? candidate[metricKey[request.metric]] : undefined;
+    const answer = scopedDefinition
+      ? `${candidate.productThermalResistance != null ? `刚才的产品层热阻 R=${candidate.productThermalResistance} m²·K/W，指保温产品这一层；` : ""}${candidate.totalThermalResistance != null ? `总热阻 R₀=${candidate.totalThermalResistance} m²·K/W，指整套构造。` : ""}${explainThermalMetric(request)}`
+      : `${candidate.thicknessMm != null ? `${candidate.thicknessMm}mm这套记录中，` : "这条记录中，"}${request.metric && value != null ? `${metricLabel[request.metric]}=${value}${request.metric === "K" ? " W/(m²·K)" : " m²·K/W"}。` : ""}${origin}${candidate.sourceType === "CALCULATED" ? "本轮只是读取原计算结果，没有重新计算。" : "这是资料中的参考值，本轮没有重新计算。"}${source && !candidate.sourcePageId ? "这条正式参考行尚未关联原图。" : ""}`;
+    return { ...respond(answer, resolved.candidates, resolved.pages, "CURRENT_REFERENCE_FACT_VERIFIED"), needsClarification: false };
+  }
   if (request.mode === "DEFINE") {
-    const result = respond("材料层或保温芯层的热阻只描述该层；产品整体热阻描述完整产品，必须有独立来源证据；整构造传热阻描述整套构造。它们不是同一个指标。仅有保温层厚度不能确定产品整体热阻或整构造传热阻，不能把芯层数值互填，也不能自行相加补算。原表未单独给出产品整体热阻时，应明确标注未给出；原表的 R 符号和单位按来源保留。", [], [], "THERMAL_METRIC_DEFINITION");
-    result.facts.canonicalAnswers[0] += "传热系数 K 表示构造的传热能力，与热阻是不同指标，不能互换名称和单位。这里仅说明概念，不核验某一厚度的数值。";
+    const result = respond(explainThermalMetric(request), [], [], "THERMAL_METRIC_DEFINITION");
     return { ...result, needsClarification: false };
   }
   const lookup = ctx.taskState?.lastReferenceLookup;

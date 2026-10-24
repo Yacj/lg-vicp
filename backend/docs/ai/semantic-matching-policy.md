@@ -1,5 +1,7 @@
 # AI语义匹配强制规范
 
+2026-10-19：SM-SUBSTRATE-SCALAR-01仅归一已声明substrateThickness字段的完整“数值+mm/毫米”表示，复用工程厚度解析、原话证据与置信度，不推断指标或授权；五个正例、七个冲突/范围/否定反例及多条件遗漏检查见phase03-handoff-replay.test.ts。正式编码集合按目录身份核验，未命中的其他条件仍拒绝；单一正式表标题型号只用于只读事实，见同一回放测试。产品简称来自用户明确确认的受控名称表，近似编辑距离只产出名称建议，不改变Domain或绑定产品；证据见product-identity-approvals.test.ts。续问上下文仅服务器验证紧邻读取并重验会话归属/同端/项目/24h，不构成副作用授权。无新增开放自然语言快路径或AST豁免。
+
 2026-10-18 λ参数规则登记：以下仅在结构化参数提案验证中提取/核验封闭工程字段，不按原句路由意图。开放语义仍由resolveDomainTurn提出PRODUCT_PARAMETER_QUERY，副作用为READ_ONLY。新增两个字段文件纳入AST精确指纹检查，未扩大成全项目正则禁令。
 
 | Rule ID | 封闭边界 | 正反例与多轮证据 |
@@ -74,3 +76,5 @@ CI工作流运行AST检查、Vitest、TypeScript lint/build。该检查是技术
 诊断记录 intent/source/goal/relation/patch字段及op/route/policyReason/revision/身份/验证状态；不记录凭证或完整敏感原话。真实数据库验证只能显式只读事务；HTTP/SSE验收使用隔离环境和独立测试用户，不写生产会话或已发布资料。未运行必须写未执行或BLOCKED。
 
 AST工具使用的解析器合同见 [Babel官方文档](https://babeljs.io/docs/babel-parser)。
+
+2026-10-21 SM-PARAMETER-COMPARISON-01 补充：继续使用封闭工程运算符核验，不路由意图。等于、=、==统一EXACT；不等于、!=、≠不支持单侧筛选，显式拒绝，不删除否定。提案校验和上下文合并共用同一提取器。证据：product-filter-continuation.test.ts覆盖比较符替换、只改数值继承上限、三种不等于及换话题/越权/身份/多数字反例；product-parameter-query.test.ts与parameter-continuation.test.ts关联回归保持。AST只更新本次三条已审阅精确表达式，检查器及允许类别不变。

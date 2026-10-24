@@ -1,3 +1,4 @@
+import { messageChronology } from "./message-chronology.js";
 import type { FastifyInstance } from "fastify";
 import { solutionDto } from "./solution-state.service.js";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
@@ -141,7 +142,7 @@ export async function aiAdminRoutes(app: FastifyInstance) {
     if (row.project && !canViewProject(user, row.project)) throw new NotFoundError("AI 会话不存在或无权查看");
 
     const messages = await app.db.select().from(aiMessages)
-      .where(eq(aiMessages.conversationId, row.conversation.id)).orderBy(asc(aiMessages.createdAt));
+      .where(eq(aiMessages.conversationId, row.conversation.id)).orderBy(...messageChronology("ASC"));
     const messageIds = messages.map((message) => message.id);
     const reportRows = await app.db.select().from(reports)
       .where(eq(reports.conversationId, row.conversation.id)).orderBy(desc(reports.createdAt));

@@ -16,7 +16,9 @@ export async function loadConfirmedSolutionDocument(ctx: SolutionContext, expect
   const active = await loadActiveSolution(ctx);
   if (!active || active.stage !== "CONFIRMED" || !active.confirmedSnapshotId || active.projectId !== conversation.projectId
     || active.userId !== ctx.user.id || active.conversationId !== conversation.id)
-    solutionReportError("SOLUTION_SNAPSHOT_REQUIRED", "请先明确最终方案并确认，形成不可变方案快照后再生成方案报告。是否达标还需另行核验正式标准及适用条件，查到图集参数不等于已作合规确认。");
+    solutionReportError("SOLUTION_SNAPSHOT_REQUIRED", active?.stage === "READY_TO_CONFIRM"
+      ? "这套最终方案已经整理好了。请核对下方参数并点击“确认生成方案”，再点“生成技术方案 PDF”，报告就会按你确认的版本生成。规范适用性仍需另行核对。"
+      : "请先在下方选定最终方案，核对参数后点击“确认生成方案”，再生成PDF；还没确认的参考记录不能直接作为方案报告。规范适用性仍需另行核对。");
   if (expectedSnapshotId && expectedSnapshotId !== active.confirmedSnapshotId)
     solutionReportError("SOLUTION_SNAPSHOT_CHANGED", "当前确认方案已变化，请使用当前方案快照生成报告。");
   // 与报告REST一致：项目可见性不等于报告生成/管理权限；该读取只用于权限，不覆盖冻结项目事实。

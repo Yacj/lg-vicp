@@ -61,6 +61,8 @@ export interface VersionedWorkflowOptions extends WorkflowRouteContext {
   entity: MdEntityName;
   perms: Pick<WorkflowPerms, "create" | "approve" | "publish">;
   dto: z.ZodType;
+  /** 业务DTO与存储行字段不同时，复用业务层投影；不改变状态机或写入结果。 */
+  mapResponse?: (row: Record<string, unknown>) => unknown;
   /** 派生新版本时在同一事务内复制子表（如构造方案的层/产品选项/文档），历史版本快照不漂移 */
   copyChildren?: (tx: DbExecutor, oldRow: Record<string, unknown>, newRow: Record<string, unknown>) => Promise<void>;
   /** 提交审核/发布前的业务校验钩子（如构造方案结构校验），校验失败抛错终止本次操作 */
@@ -73,6 +75,7 @@ export function registerVersionedWorkflow(options: VersionedWorkflowOptions) {
   const route = app.withTypeProvider<ZodTypeProvider>();
   const response = { 200: workflowItemResponse(dto) };
   const summary = (action: string) => `${action}${label}`;
+  const item = (row: Record<string, unknown>) => options.mapResponse ? options.mapResponse(row) : row;
 
   route.post(`${base}/:id/submit`, {
     preHandler: [app.authenticate],
@@ -81,7 +84,7 @@ export function registerVersionedWorkflow(options: VersionedWorkflowOptions) {
     const actor = options.require(request, perms.create);
     const { id } = request.params as { id: string };
     if (options.validate) await options.validate(app, id);
-    return ok(request, { item: await submitForReview(app, request, actor, entity, id) });
+    return ok(request, { item: item(await submitForReview(app, request, actor, entity, id)) });
   });
 
   route.post(`${base}/:id/approve`, {
@@ -94,7 +97,7 @@ export function registerVersionedWorkflow(options: VersionedWorkflowOptions) {
     const actor = options.require(request, perms.approve);
     const { id } = request.params as { id: string };
     const body = request.body as { approvalNote?: string };
-    return ok(request, { item: await approveEntity(app, request, actor, entity, id, body.approvalNote) });
+    return ok(request, { item: item(await approveEntity(app, request, actor, entity, id, body.approvalNote)) });
   });
 
   route.post(`${base}/:id/reject`, {
@@ -107,7 +110,7 @@ export function registerVersionedWorkflow(options: VersionedWorkflowOptions) {
     const actor = options.require(request, perms.approve);
     const { id } = request.params as { id: string };
     const body = request.body as { rejectReason: string };
-    return ok(request, { item: await rejectEntity(app, request, actor, entity, id, body.rejectReason) });
+    return ok(request, { item: item(await rejectEntity(app, request, actor, entity, id, body.rejectReason)) });
   });
 
   route.post(`${base}/:id/publish`, {
@@ -117,7 +120,7 @@ export function registerVersionedWorkflow(options: VersionedWorkflowOptions) {
     const actor = options.require(request, perms.publish);
     const { id } = request.params as { id: string };
     if (options.validate) await options.validate(app, id);
-    return ok(request, { item: await publishEntity(app, request, actor, entity, id) });
+    return ok(request, { item: item(await publishEntity(app, request, actor, entity, id)) });
   });
 
   route.post(`${base}/:id/disable`, {
@@ -126,7 +129,7 @@ export function registerVersionedWorkflow(options: VersionedWorkflowOptions) {
   }, async (request) => {
     const actor = options.require(request, perms.publish);
     const { id } = request.params as { id: string };
-    return ok(request, { item: await disableEntity(app, request, actor, entity, id) });
+    return ok(request, { item: item(await disableEntity(app, request, actor, entity, id)) });
   });
 
   route.post(`${base}/:id/new-version`, {
@@ -139,7 +142,7 @@ export function registerVersionedWorkflow(options: VersionedWorkflowOptions) {
     const actor = options.require(request, perms.publish);
     const { id } = request.params as { id: string };
     const body = request.body as { changeNote?: string };
-    return ok(request, { item: await createNextVersion(app, request, actor, entity, id, body.changeNote, options.copyChildren) });
+    return ok(request, { item: item(await createNextVersion(app, request, actor, entity, id, body.changeNote, options.copyChildren)) });
   });
 }
 

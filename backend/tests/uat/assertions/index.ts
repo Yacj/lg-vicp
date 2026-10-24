@@ -1,5 +1,5 @@
 import { isDeepStrictEqual } from "node:util";
-import type { Check, Observation, UatExpect, FailureType } from "../schema.js";
+import type { Check, CheckClassification, Observation, UatExpect, FailureType } from "../schema.js";
 import type { LastReferenceLookup, ReferenceLookupCandidate } from "../../../src/modules/ai/conversation-task.js";
 import { REFERENCE_FACTS } from "../fixtures/facts.js";
 import { THERMAL_LOOKUP_RULES } from "../../../src/modules/thermal/thermal-lookup-mode.js";
@@ -34,6 +34,45 @@ export function satisfies(row: Partial<ReferenceLookupCandidate>, query: LastRef
 }
 
 /** 只比较真实持久化元数据/候选/计算快照；禁止重新跑Parser代替实际Backend决策。 */
+
+/** 后端只读/知识读取路由名：与 thermal 工具是不同实现拓扑，事实合同等价。 */
+const BACKEND_REFERENCE_ROUTES = ["knowledge", "reference_read", "reference_compare"];
+function referenceReadEvidence(actual: Observation) {
+  const decision = actual.message.metadata?.backendDecision as Record<string, unknown> | undefined;
+  const route = Array.isArray(decision?.toolRoute) ? decision.toolRoute.map(String) : [];
+  const usage = (decision?.toolUsage ?? {}) as Record<string, unknown>;
+  const routed = route.some(item => BACKEND_REFERENCE_ROUTES.some(name => item.includes(name)));
+  const used = Object.entries(usage).some(([key, value]) => value === true && BACKEND_REFERENCE_ROUTES.some(name => key.toLowerCase().includes(name)));
+  return routed || used;
+}
+/** 只有"候选缺失"类断言可以归因为资料资格不足；数值/口径/幻觉类误判一律仍算软件问题。 */
+function candidateGapEvidence(actual: Observation) {
+  const decision = actual.message.metadata?.backendDecision as Record<string, unknown> | undefined;
+  const diagnostics = (decision?.referenceQueryDiagnostics ?? {}) as Record<string, unknown>;
+  const issues = Array.isArray(diagnostics.issues) ? diagnostics.issues.map(String) : [];
+  const matched = Number(diagnostics.matchedCount ?? 0);
+  const candidates = actual.task.lastReferenceLookup?.candidates?.length ?? 0;
+  return { candidates, blocked: candidates === 0 && (issues.includes("SOURCE_NOT_VERIFIABLE") || issues.includes("NO_MATCHING_VALUE") || matched === 0) };
+}
+/**
+ * 失败归因（不改变任何断言通过与否）：
+ * - TEST_INVALID：断言测量的是实现拓扑（工具名/操作名），而事实合同已由后端只读路径完成；
+ * - DATA_BLOCKED：断言要求正式候选，但库内没有可核验候选资格，系统已正确说明限制；
+ * - 其余：SOFTWARE_FAIL。
+ */
+export function classifyFailure(check: Check, actual: Observation): CheckClassification {
+  if (check.passed) return "SOFTWARE_FAIL";
+  const decision = actual.message.metadata?.backendDecision as Record<string, unknown> | undefined;
+  const topology = check.type === "ROUTING" && (check.detail.includes("工具须包含") || check.detail.startsWith("热工操作="));
+  if (topology && referenceReadEvidence(actual) && (decision?.factValidation != null || decision?.answerContract != null)) return "TEST_INVALID";
+  const candidateAssertion = (check.type === "RETRIEVAL" && check.detail.includes("预期正式行存在"))
+    || (check.type === "SOURCE" && check.detail.includes("原页ID/印刷页码与正式行一致"))
+    || (check.type === "STATE" && check.detail.includes("重新查询完整正式数据"))
+    || (check.type === "FILTER" && check.detail.startsWith("候选数量="));
+  if (candidateAssertion && candidateGapEvidence(actual).blocked) return "DATA_BLOCKED";
+  return "SOFTWARE_FAIL";
+}
+
 export function assertObservation(expect: UatExpect, actual: Observation, previous?: Observation): Check[] {
   const checks: Check[] = [];
   const add = (group: Check["group"], passed: boolean, type: FailureType, detail: string, hard = false) => checks.push({ group, passed, type, detail, hard });
@@ -88,7 +127,7 @@ export function assertObservation(expect: UatExpect, actual: Observation, previo
   for (const page of text.matchAll(/(?:第\s*)?(\d+)\s*页/g)) add("source", new RegExp(`(?:pageLabel|sourcePageLabel)"?\\s*:\\s*"${page[1]}"`).test(evidenceText), "HALLUCINATION", `声称第${page[1]}页必须有本轮正式来源`, true);
   // 按句剥离否定/条件/用户要求，避免把「不满足」「不能说达标」误当成肯定宣称。
   // 「不是/并非/不代表/不构成…」同样是免责或否定表述，不能当作肯定结论（例如「不是在判规范限值达标」）。
-  const affirmative = text.split(/[。！？\n]/).filter(sentence => !/不满足|未满足|不能|无法|未找到|没有|不符合|不达标|不是|并非|不代表|不构成|不作为|不属于|不算|不用于|不涉及|若|如果|要求|目标|需|是否|假设|尚无|不足/.test(sentence));
+  const affirmative = text.split(/[。！？\n]/).filter(sentence => !/不满足|未满足|不能|无法|未找到|没有|不符合|不达标|不是|并非|不代表|不构成|不作为|不属于|不算|不用于|不涉及|不判断|不选择|不评价|不替代|未作|不予|仅供|仅作|若|如果|要求|目标|需|是否|假设|尚无|不足/.test(sentence));
   const statesCompliance = affirmative.some(sentence => /达标|符合规范|符合标准/.test(sentence));
   add("facts", !statesCompliance || actual.calculations.some(calc => calc.standardJson && calc.resultJson.compliant === true), "HALLUCINATION", "合规肯定结论必须有正式地区标准快照", true);
   if (expect.resultType === "REFERENCE") add("facts", !affirmative.some(sentence => /(?:0\.303|3\.297|2\.880).{0,20}(?:系统计算值|重新计算值)|(?:系统计算值|重新计算值).{0,20}(?:0\.303|3\.297|2\.880)/.test(sentence)), "ANSWER_CONTRACT", "图集原始行不能说成重新计算值", true);
@@ -130,5 +169,7 @@ export function assertObservation(expect: UatExpect, actual: Observation, previo
   if (!checks.some(check => check.group === "parameters")) add("parameters", actual.tools.every(tool => tool.messageId === actual.message.id), "PARSER", "工具参数属于本轮真实消息");
   if (!checks.some(check => check.group === "state")) add("state", actual.tools.every(tool => tool.conversationId === actual.message.conversationId), "STATE", "工具状态属于独立当前会话");
   if (!checks.some(check => check.group === "source")) add("source", !/图集|资料.{0,8}(?:显示|表明)/.test(text) || evidenceText !== "[null,[],[]]" && evidenceText !== "[[],[],[]]", "SOURCE", "来源性宣称须有本轮可追溯证据");
+  // 归因只描述失败性质，不改变通过/失败判定；历史结果与原始事实预期保持不变。
+  for (const check of checks) if (!check.passed) check.classification = classifyFailure(check, actual);
   return checks;
 }

@@ -1,0 +1,510 @@
+{
+  "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+  "profiles": [
+    {
+      "id": "eeb70f3b8d92b587",
+      "tableHeaders": {
+        "identifier": "编号",
+        "diagram": "构造简图",
+        "layers": "构造层"
+      },
+      "columns": [
+        {
+          "fieldKey": "thicknessMm",
+          "label": "分层厚度",
+          "unit": "(mm)",
+          "scope": "UNKNOWN"
+        },
+        {
+          "fieldKey": "lambda",
+          "label": "导热系数",
+          "unit": "[W/(m ·K)]",
+          "scope": "LAYER"
+        },
+        {
+          "fieldKey": "alpha",
+          "label": "修正系数 α",
+          "unit": "",
+          "scope": "LAYER"
+        },
+        {
+          "fieldKey": "rValue",
+          "label": "热阻",
+          "unit": "[(m² ·K)/W]",
+          "scope": "LAYER"
+        },
+        {
+          "fieldKey": "productThermalResistance",
+          "label": "热阻",
+          "unit": "[(m² ·K)/W]",
+          "scope": "UNKNOWN"
+        },
+        {
+          "fieldKey": "totalThermalResistance",
+          "label": "传热阻R",
+          "unit": "[(m² ·K)/W]",
+          "groupLabel": "外墙主断面",
+          "scope": "CONSTRUCTION"
+        },
+        {
+          "fieldKey": "kValue",
+          "label": "传热系数K",
+          "unit": "[W/(m² ·K)]",
+          "groupLabel": "外墙主断面",
+          "scope": "CONSTRUCTION"
+        }
+      ]
+    },
+    {
+      "id": "8fab9b8f758e7e29",
+      "tableHeaders": {
+        "identifier": "编号",
+        "diagram": "构造简图",
+        "layers": "构造层"
+      },
+      "columns": [
+        {
+          "fieldKey": "thicknessMm",
+          "label": "分层厚度",
+          "unit": "(mm)",
+          "scope": "UNKNOWN"
+        },
+        {
+          "fieldKey": "lambda",
+          "label": "导热系数",
+          "unit": "[W/(m ·K)]",
+          "scope": "LAYER"
+        },
+        {
+          "fieldKey": "alpha",
+          "label": "修正系数 α",
+          "unit": "",
+          "scope": "LAYER"
+        },
+        {
+          "fieldKey": "rValue",
+          "label": "热阻",
+          "unit": "[(m² ·K)/W]",
+          "scope": "LAYER"
+        },
+        {
+          "fieldKey": "productThermalResistance",
+          "label": "热阻",
+          "unit": "[(m² ·K)/W]",
+          "scope": "UNKNOWN"
+        },
+        {
+          "fieldKey": "totalThermalResistance",
+          "label": "传热阻R",
+          "unit": "[(m² ·K)/W]",
+          "groupLabel": "板材主断面",
+          "scope": "CONSTRUCTION"
+        },
+        {
+          "fieldKey": "kValue",
+          "label": "传热系数K",
+          "unit": "[W/(m² ·K)]",
+          "groupLabel": "板材主断面",
+          "scope": "CONSTRUCTION"
+        }
+      ]
+    }
+  ],
+  "snapshots": [
+    {
+      "fingerprint": "84aff9feb2f760531178ee1060e42bd45b943f125c2072a092c599ce919878a4",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 1
+    },
+    {
+      "fingerprint": "7515a03c5c50bbec554214cae8d7aaecf103eddcf7206adbddb2c7e854648736",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 2
+    },
+    {
+      "fingerprint": "62523980102308db2a3567ee32b143f673e749aa37b130eea514850a91916a32",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 3
+    },
+    {
+      "fingerprint": "676c595fbd8fb825a819872fa9938a4a6accbe7b963e51a06617644ae8f196ec",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 4
+    },
+    {
+      "fingerprint": "42c16e557a80fbd6d1c56373aa4d47c4129b16d80091bec7d3412c915bc3e28c",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 5
+    },
+    {
+      "fingerprint": "226c166aca921c377521b8388fae8f77689219983060942ddc6b8582a72a99ab",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 6
+    },
+    {
+      "fingerprint": "a0c14b978116dd72eacecc1390934c7c750b415d7703ff100b8ad8904d44bc5a",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 7
+    },
+    {
+      "fingerprint": "877d7b4154ca626af853b2516498093d8f7b7897eb7984ee478c3047108db1c9",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 8
+    },
+    {
+      "fingerprint": "ad69398800e92dda18c213a3974630fedb637e8bb56c2b8d3047225a1801ba98",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 9
+    },
+    {
+      "fingerprint": "a855bd723674de155258221f122f273c71d706eb0ca6b7ab67336f20cc103d46",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 10
+    },
+    {
+      "fingerprint": "4751497db8f05c4625ad9f08c5e74b562c1b1f008f2f50deb01c6b2f037e3bcc",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 11
+    },
+    {
+      "fingerprint": "a3f7eff9544c7bef6e73d439497cf5ba23fb120faf2c16bf898940593717063c",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 12
+    },
+    {
+      "fingerprint": "f3a100386dc2f5d7d003e75f02aa6bb7aa9502355ff4b385de9ce532f8780862",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 13
+    },
+    {
+      "fingerprint": "953594b9bb0e0c08a36205e2c6001775ddc17bdc171e981aa69b6a582be2e1d7",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 14
+    },
+    {
+      "fingerprint": "e3769453d3ed72b84f87c28ba50edb5cb1e82fd916c3819db4975176c588ea21",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 15
+    },
+    {
+      "fingerprint": "def1230d882724b22e4d5300941b8d927ae8afd84f689a0962e842806df6f8d7",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 16
+    },
+    {
+      "fingerprint": "a96d1984cddee06763cc7b62503a36a7fb07300697b424391b20efe4327f4a31",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 17
+    },
+    {
+      "fingerprint": "63c12611c91fb63ab61b7ddeef0816cedd7782da3008fa9610c1b62c0f0bda4b",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 18
+    },
+    {
+      "fingerprint": "7817815f9db45c9c9d102be9d149ba13402968ff572dd44cbb7c78c3b516d7c7",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 19
+    },
+    {
+      "fingerprint": "829041794ed3d79ed157b70450dbc98770483f6fa6e08a357d94f4d221c9c825",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 20
+    },
+    {
+      "fingerprint": "e03d6460a42e65d65779ec5a3d792e90c5fe39b11440aec26ac86a229e2a048b",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 21
+    },
+    {
+      "fingerprint": "13a7ea2f6e6439449765909f7889a56d3f99277d3328b5e578d5eac26deefcda",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 22
+    },
+    {
+      "fingerprint": "dad5ccdddc8857fdc301c7f171012556bcb0962cb98f1c118b4250e690b613e2",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 23
+    },
+    {
+      "fingerprint": "b09b26a7e84c8f8c2b2397bf8ea6e11414298f71a1b98e0be868e90f3983f7c6",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 24
+    },
+    {
+      "fingerprint": "401095f4cb630119317fc7cd1009686dcb482291fc70e64773989de00bbaff58",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 25
+    },
+    {
+      "fingerprint": "1edcf456e34a8d69a894f69cd88cbd780441924c5f7f060aaf415eec8edd09b0",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 26
+    },
+    {
+      "fingerprint": "59f2b0617b89096c804697741bc5ec1519a7f865dacf4c73e98ce3e4cf02fa32",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 27
+    },
+    {
+      "fingerprint": "d7f6c3b1d4c309c6e74c725fefa82be1ae6a43653af4fbf44743d5f4fab4f640",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 28
+    },
+    {
+      "fingerprint": "66fb96dda2c9b5988a931363ba68d38bc217aab07d34684c77420b157d068d37",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 29
+    },
+    {
+      "fingerprint": "8251f7d72ea1df1146e8022e5c941f4b73f4143c039e165553e8b7c5b428befd",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 30
+    },
+    {
+      "fingerprint": "18cb20f994a6a39610d83928de969e7af606d35f03f18b54e5bce69b787fc3c9",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 31
+    },
+    {
+      "fingerprint": "3b18e640563e3e81e7ffa9e98895820257b048cb5184973994dd56ebad3d22ca",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 32
+    },
+    {
+      "fingerprint": "0d5ac9eb56b2635f7ccb3a67d2a4cfbae234daed3120ba9304ee86b6c51e8abd",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 33
+    },
+    {
+      "fingerprint": "b5352a11183ec397de6af1c61cc84c4910b71e24f2dbcb8931ece778b55e25e8",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 34
+    },
+    {
+      "fingerprint": "d659860a558be21fe9b9158565b252ebe5ac2f0e6795b70bf45c51ebef6bb4b1",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 35
+    },
+    {
+      "fingerprint": "ed1caa8256bfe04daa58b6119a27df164c234b961b85c759e2f6f90d5c6bf71b",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 36
+    },
+    {
+      "fingerprint": "824e317e0672cd3a8d7569c2486b772a51072bd591c17ddb7d649800d1177891",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 37
+    },
+    {
+      "fingerprint": "e82b6e0709a37bdf253fafc06a6609a92dcfccc341b9ffb76693de9a6020e831",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 38
+    },
+    {
+      "fingerprint": "3e94f69ce18f71f72bd974d406d359ad7f1b6c51da78206c79460769c3b050b8",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 39
+    },
+    {
+      "fingerprint": "fd5232098d6ad9f3392e6ae3f871d00d27fb628437552dd2a32f2346e653be72",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 40
+    },
+    {
+      "fingerprint": "f43b13ac93aff9a2279827f3e41db1340b5d22a02fae1fb55c20efc5e3ff5f4f",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 41
+    },
+    {
+      "fingerprint": "4d4a98334a9db5c3719a1e03312acbddd5db7720fdf1fefe728a3d91eab0f733",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 42
+    },
+    {
+      "fingerprint": "8f325a1a4dea0ff9071c9d0f9bcda3ffc2056e662dad03d9acc70fd894abb801",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 43
+    },
+    {
+      "fingerprint": "e6a2f574d0e9b53001808e8a5924190776861248fea737c3bb76677cc72a1e2d",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 44
+    },
+    {
+      "fingerprint": "c3ea5676a91be1c3b856d0c421e53b42d54e9fbe7e8f194a5db0a5cc634384c9",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 45
+    },
+    {
+      "fingerprint": "919be10c7a6b314aab7fa2027920f35a2ff7bd478d4249349861e7cbac5b6e39",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 46
+    },
+    {
+      "fingerprint": "14de52c233d2d7b97c73c85b5687308c6e6f020ede346689ba85152c1ad6135c",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 47
+    },
+    {
+      "fingerprint": "27d03a5948558912eb04ad58531f4fed9d4cee29c00141e961fafba7a59a6d62",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 48
+    },
+    {
+      "fingerprint": "6cec848d736eb7fac0cb335584c830cdf9f340b52c8351e2670e54c758b76f35",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 49
+    },
+    {
+      "fingerprint": "13c0147e80c7cede5620094ff97b346401a5f6c39f5520e352543dc469402f8b",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 50
+    },
+    {
+      "fingerprint": "d38fbb42c0826e916e8000b62f8812ec4029946570a58d59d51503de2f504ca3",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 51
+    },
+    {
+      "fingerprint": "98158f8a133c9591c9ffaba9c403c82480e23feb04266547565a4dc3118e4f03",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 52
+    },
+    {
+      "fingerprint": "83cf8220b2c00ee5c49ee10279368c7fe9e27ccd1f538f0ae6b04f3d5dd14195",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 53
+    },
+    {
+      "fingerprint": "035670f7abfad75cffa8e920355a351ca02a77b1e1b5f3f288914cd30249fd43",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 54
+    },
+    {
+      "fingerprint": "876134442d10855d5e9e24bf0a704c80f73c37aa3157f65b529a89a5bd0aab1c",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 55
+    },
+    {
+      "fingerprint": "86c57ef3ad4aecac7e25f341428424a1c8d208310c700db5622d4ecbf9573f57",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 56
+    },
+    {
+      "fingerprint": "f7d25bd6848d3f004322a5d56294af08adbfeca5e558e14fbfb56d5d5120796d",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 57
+    },
+    {
+      "fingerprint": "c8e11e4b637f6642ac0c27289216f4aaae244833b9a8d74f21d6a2bc3493a3db",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 58
+    },
+    {
+      "fingerprint": "2cde640d829ab17eed68c589cefeb78347a416e885f0475b4e89c32bdd00315e",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 59
+    },
+    {
+      "fingerprint": "47526032d9c7034d502ad9215be7e3a639afc4be4eb1ba3d4c87d38f44d2e111",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 60
+    },
+    {
+      "fingerprint": "7a3642c3a3dbcf1627a5c44c027af0fb8dd9f347b92e29cee43a0f2d95b33bc0",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 61
+    },
+    {
+      "fingerprint": "96c75b95f3f8592f93f0ac44c181276aaba340066fe9c6d9c8369e33f6c8889d",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 62
+    },
+    {
+      "fingerprint": "e08914cae8a2ff6d20751b215cebd21f81de920636ba5082db250ddc6ad58513",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 63
+    },
+    {
+      "fingerprint": "300ed224695ec0910697706db6267449a53ac92441bfbbad37c4d7d1009e9b05",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 64
+    },
+    {
+      "fingerprint": "e7dbcbc1529199d01069b729d3856c3a08dca86c2ff974801d0a2ce7e93cf30d",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 65
+    },
+    {
+      "fingerprint": "453d1b7713a983027759501c55fb575ae592bd3c3a5e75a0f41dca2335b0b089",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 66
+    },
+    {
+      "fingerprint": "e0fc7c2be7a75c74e02e481f29765ceeb11b1149d2cea9a9fc94202448fe99a4",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 67
+    },
+    {
+      "fingerprint": "3f5886e84d1260cd8674782e39ba392b9bec856b0d23db2925427bfaa9ffb017",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 68
+    },
+    {
+      "fingerprint": "8a0a19d1396dbfb740d717a890015f10528f6fab586a8af5cf5410d1f6bb5aa5",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 69
+    },
+    {
+      "fingerprint": "766907bfc099c99d020257be275f55c75901b432d262fbebc582ad8245a5003d",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 70
+    },
+    {
+      "fingerprint": "47ee7d1bc79aa254d9cdf57684ecb0e627a676906d1b940306e3351ee336789a",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 71
+    },
+    {
+      "fingerprint": "5b55b19249e72ccd48bf90584e3543d1cf3005f34ad493b60e9baf79f8e617a4",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 72
+    },
+    {
+      "fingerprint": "3d10f733422b41d478cf2545d6b36f9cb39369c9e1fba71176f3704870592f65",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 73
+    },
+    {
+      "fingerprint": "b62264116358423fa263c7c88fcfd31133c87858980a14af742ae08d3ab1038e",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 74
+    },
+    {
+      "fingerprint": "ff3b72ee0a3fd3c68b64769c24b502cb59a6f1406b29ff8c7742195f8c459cff",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 75
+    },
+    {
+      "fingerprint": "3ddd06f16883832c79e9ad052edcd5cd4696f6c33349816c4e1435a8f18e501d",
+      "profileId": "eeb70f3b8d92b587",
+      "table": 76
+    },
+    {
+      "fingerprint": "46d10b0833cc7951b9f24d713b0c4afd061f4a57dddd8e63472a55aec1efa314",
+      "profileId": "8fab9b8f758e7e29",
+      "table": 77
+    },
+    {
+      "fingerprint": "a6456a441ec5f96be7c563321d01b6edb1a351bc96f4943046eff6b47355f228",
+      "profileId": "8fab9b8f758e7e29",
+      "table": 78
+    },
+    {
+      "fingerprint": "8bf7212c6c40cfb6fd127e224c09d3db86e4ecf0f60aa14ff4a4b31b7fbee696",
+      "profileId": "8fab9b8f758e7e29",
+      "table": 79
+    }
+  ]
+}

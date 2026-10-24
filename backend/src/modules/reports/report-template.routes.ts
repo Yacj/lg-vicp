@@ -15,6 +15,7 @@ import {
   getReportTemplate,
   listReportTemplates,
   updateReportTemplate,
+  toTemplateDto,
   validateReportTemplateStructure
 } from "./report-template.service.js";
 import {
@@ -145,6 +146,7 @@ export async function reportTemplateRoutes(app: FastifyInstance) {
   registerVersionedWorkflow({
     ...workflowCtx, app, base: "", label: "报告模板", entity: "reportTemplate",
     perms: TEMPLATE_PERMS, dto: reportTemplateDto,
+    mapResponse: row => toTemplateDto(row as typeof reportTemplates.$inferSelect),
     validate: validateReportTemplateStructure
   });
 }

@@ -9,6 +9,7 @@ import type {
 import type { CandidateResult } from "../../thermal/thermal-candidate-matcher.js";
 import { parseThermalThicknessMessage, type LookupThickness } from "../../thermal/thermal-lookup-thickness.js";
 import { classifyQueryLifecycle } from "../../thermal/thermal-query-lifecycle.js";
+import { publishedReferenceSource } from "../published-reference-source.js";
 import {
   normalizeThermalLookupQuery,
   getCandidateMetricValue,
@@ -138,11 +139,12 @@ export function filterCandidatesBySystemHint(
 }
 
 export function compactCandidateResult(row: CandidateResult & { compliant?: boolean | null }): ReferenceLookupCandidate {
-  return {
+  const candidate: ReferenceLookupCandidate = {
     id: row.candidateId,
     catalogProductId: row.catalogProductId ?? null,
     systemId: row.system.id,
     systemCode: row.system.code,
+    applicationPart: row.system.applicationPart, systemType: row.system.type, systemVersion: row.system.version,
     schemeVersion: row.scheme.version,
     substrateMaterial: row.scheme.substrateMaterial,
     substrateThickness: row.scheme.substrateThickness,
@@ -172,12 +174,15 @@ export function compactCandidateResult(row: CandidateResult & { compliant?: bool
     evidenceSource: row.evidence.source,
     evidenceRef: row.evidence.ref,
     schemeCode: row.scheme.code,
+    schemeName: row.scheme.name,
     productThermalResistance: row.result.productThermalResistance,
     totalThermalResistance: row.result.totalThermalResistance,
     sourceDocumentId: row.sourceDocumentId ?? null,
     sourcePageId: row.sourcePageId ?? null,
     sourcePageLabel: row.sourcePageLabel ?? null
   };
+  const source = publishedReferenceSource(candidate);
+  return source ? { ...candidate, publishedReferenceSource: source } : candidate;
 }
 
 /** 全半角、空白、品牌及通用后缀归一；保留材料和型号，避免跨材料误匹配。 */
@@ -193,7 +198,7 @@ export function lookupQuerySignature(query: LookupQueryShape): string {
     query.schemeId ?? null, query.schemeCode ?? null, query.productSpecId ?? null, query.catalogProductId ?? null,
     query.specClass ?? null, query.thicknessMm ?? null, query.thicknessMin ?? null, query.thicknessMax ?? null, query.preferThinner ?? false,
     query.substrateMaterial ?? null, query.substrateThickness ?? null, query.regionCode ?? null, query.standardLimitId ?? null, query.buildingType ?? null, query.structureType ?? null,
-    query.documentIds ?? null, query.knowledgeVersionIds ?? null, query.exclusions ?? null, query.preferences ?? null, query.unresolved ?? null, query.removedFields ?? null, query.removedMetrics ?? null,
+    query.documentIds ?? null, query.knowledgeVersionIds ?? null, query.referenceSetIds ?? null, query.exclusions ?? null, query.preferences ?? null, query.unresolved ?? null, query.removedFields ?? null, query.removedMetrics ?? null,
     lookup.filters.map((filter) => [filter.metric, filter.targetValue, filter.mode, filter.tolerance ?? null])
   ]);
 }

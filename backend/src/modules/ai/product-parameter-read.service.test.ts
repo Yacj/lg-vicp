@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const m = vi.hoisted(() => ({ access: vi.fn(), pending: vi.fn() }));
 vi.mock("./solution-state.service.js", () => ({ assertSolutionAccess: m.access }));
 vi.mock("./query-clarification-context.js", () => ({ readQueryClarification: m.pending }));
-import { readProductParameters, evaluateLambdaFacts, renderLambdaAnswer, type LambdaFact } from "./product-parameter-read.service.js";
+import { readProductParameters, evaluateLambdaFacts, renderLambdaAnswer, completeParameterSubject, type LambdaFact } from "./product-parameter-read.service.js";
 import { domainSemanticFixture } from "./domain-semantic.fixture.js";
 import type { ProductParameterQuery } from "./product-parameter-query.js";
 const customer = JSON.parse(readFileSync(new URL("../../../tests/fixtures/product-parameters/customer-lambda.json", import.meta.url), "utf8"));
@@ -65,9 +65,76 @@ describe("客户Excel独立λ事实与诊断", () => {
     // 现有lambda_eq仅为当量参数；未有正式标称字段映射时不得冒充标称λ。
     expect(evaluateLambdaFacts(query({ subjectType: "SPEC_NOMINAL", targetValue: .005 }), [productFact()]).diagnostics.issues).toContain("PARAMETER_NOT_INDEXED");
   });
+  it("只说导热系数且无对象/目标时只问一个关键点，不扫全库", async () => {
+    const c = context("导热系数", query({ operator: "READ", targetValue: null, evidence: "导热系数" }));
+    const r = await readProductParameters(c.ctx);
+    expect(r.facts).toEqual([]); expect(r.answer).toContain("哪个产品/材料"); expect(c.reads).toEqual([]);
+  });
+  it("单一材料归属直接给数值和来源，不默认展示内部统计及跨归属说明", () => {
+    const material: LambdaFact = { parameter: "LAMBDA", unit: "W/(m·K)", value: .0025, subjectType: "MATERIAL", subjectId: "m", name: "甲材料",
+      source: { kind: "MATERIAL_PARAMETER", id: "m", title: "客户参数表" } };
+    const r = evaluateLambdaFacts(query({ subjectType: "MATERIAL", operator: "LT", targetValue: .02 }), [material], [], true);
+    const before = structuredClone(r), answer = renderLambdaAnswer(r);
+    expect(answer).toContain("λ < 0.02"); expect(answer).toContain("λ=0.0025 W/(m·K)"); expect(answer).toContain("客户参数表");
+    expect(answer).toContain("部分记录的来源或参数归属尚未核实");
+    expect(answer).not.toMatch(/命中构成|跨归属|产品当量、规格当量|插值/);
+    expect(r).toEqual(before); expect(r.diagnostics.issues).toContain("SOURCE_SCOPE_LIMITED");
+  });
+  it("显示截断仍明确真实去重总量，不删原匹配事实或假称完整清单", () => {
+    const rows: LambdaFact[] = Array.from({ length: 18 }, (_, index) => ({ parameter: "LAMBDA", unit: "W/(m·K)", value: .01 + index / 1000,
+      subjectType: "MATERIAL", subjectId: `m${index}`, name: `材料${index}`, source: { kind: "MATERIAL_PARAMETER", id: `m${index}` } }));
+    const r = evaluateLambdaFacts(query({ subjectType: "MATERIAL", operator: "LT", targetValue: .1 }), rows);
+    const answer = renderLambdaAnswer(r);
+    expect(answer).toContain("共找到 18 项，先列出12项");
+    expect(answer.match(/^- /gm)).toHaveLength(12);
+    expect(r.facts).toHaveLength(18); expect(r.diagnostics.matchedCount).toBe(18);
+  });
+  it("λ<0.35 只保留满足阈值的身份，并说明构造材料层不是完整方案", () => {
+    const layer: LambdaFact = { parameter: "LAMBDA", unit: "W/(m·K)", value: .012, subjectType: "MATERIAL_LAYER", subjectId: "l", name: "III型VICP复合保温板",
+      source: { kind: "CONFIRMED_LAYER", id: "pg", pageId: "pg", constructionId: "c", layerId: "l" } };
+    const material: LambdaFact = { parameter: "LAMBDA", unit: "W/(m·K)", value: .87, subjectType: "MATERIAL", subjectId: "m", name: "混合砂浆",
+      source: { kind: "MATERIAL_PARAMETER", id: "m" } };
+    const r = evaluateLambdaFacts(query({ operator: "LT", targetValue: .35 }), [productFact(.005), material, layer]);
+    expect(r.facts.map(fact => fact.value)).toEqual([.005, .012]);
+    expect(r.facts.some(fact => fact.value === .87)).toBe(false);
+    expect(renderLambdaAnswer(r)).toContain("命中构成");
+    expect(renderLambdaAnswer(r)).toContain("不是独立产品");
+  });
+  it("名称未证明时保留名称和阈值，不删除名称转为全范围数值匹配", async () => {
+    const message = "薄膜灰 小于0.35 导热系数";
+    const c = context(message, query({ operator: "LT", targetValue: .35, subjectText: "薄膜灰", evidence: message }));
+    c.tables.knowledge_pages = [{ document: c.document, version: c.version, page: { id: "pg", versionId: "v", documentId: "d", pageLabel: "21", metadata: { confirmedStructuredData: {
+      fullText: "", systems: [{ systemName: "客户构造", layers: [{ name: customer.core.name, lambda: customer.core.lambda }], options: [] }] } } } }];
+    const r = await readProductParameters(c.ctx);
+    expect(r.facts).toEqual([]);
+    expect(r.query).toMatchObject({ subjectText: "薄膜灰", operator: "LT", targetValue: .35 });
+    expect(r.diagnostics.issues).toContain("NAME_UNRESOLVED");
+    expect(r.answer).toContain("名称");
+    expect(r.answer).toContain("请确认一下");
+  });
   it("仅启用GLOBAL正式别名可定位已有参数身份", () => {
     const result = evaluateLambdaFacts(query({ subjectText: "正式简称", targetValue: .005 }), [productFact()], [{ term: customer.product.name, alias: "正式简称" }]);
     expect(result.facts).toHaveLength(1);
+  });
+  it("同名材料层有值但产品当量缺值时区分口径，不谎称名称不存在或借用材料层值", () => {
+    const layer: LambdaFact = { ...productFact(.019), subjectType: "MATERIAL_LAYER", subjectId: "layer-a", name: "甲复合板",
+      source: { kind: "CONFIRMED_LAYER", id: "page-a", pageId: "page-a", constructionId: "construction-a", layerId: "layer-a" } };
+    const q = query({ subjectType: "PRODUCT_EQUIVALENT", subjectText: "甲复合板", operator: "READ", targetValue: null });
+    const result = evaluateLambdaFacts(q, [layer]);
+    expect(result.query).toEqual(q); expect(result.facts).toEqual([]); expect(result.diagnostics.matchedCount).toBe(0);
+    expect(result.diagnostics.issues).toContain("PARAMETER_NOT_INDEXED"); expect(result.diagnostics.issues).not.toContain("NAME_UNRESOLVED");
+    expect(renderLambdaAnswer(result)).toContain("产品当量"); expect(renderLambdaAnswer(result)).not.toContain("0.019");
+    expect(evaluateLambdaFacts({ ...q, subjectText: "乙复合板" }, [layer]).diagnostics.issues).toContain("NAME_UNRESOLVED");
+    expect(evaluateLambdaFacts({ ...q, systemText: "未授权对应的体系" }, [layer]).diagnostics.issues).toContain("NAME_UNRESOLVED");
+  });
+  it("型号片段只能补足本轮逐字写出的唯一正式名称，保留口径与全部数值筛选", () => {
+    const q=query({subjectText:"甲型",subjectType:"PRODUCT_EQUIVALENT",operator:"LT",targetValue:.017});
+    const known=[{name:"甲型复合保温板",subjectType:"MATERIAL_LAYER" as const},{name:"乙型复合保温板",subjectType:"MATERIAL_LAYER" as const}];
+    expect(completeParameterSubject(q,"甲型复合保温板的λ小于0.017",known)).toEqual({...q,subjectText:"甲型复合保温板"});
+    expect(completeParameterSubject(q,"甲型的λ",known)).toBe(q);
+    expect(completeParameterSubject(q,"甲型复合保温板的λ",[])).toBe(q);
+    expect(completeParameterSubject(q,"甲型复合保温板和甲型复合外模板的λ",[...known,{name:"甲型复合外模板",subjectType:"MATERIAL_LAYER"}])).toBe(q);
+    expect(completeParameterSubject({...q,subjectText:"未确认名称"},"甲型复合保温板的λ",known).subjectText).toBe("未确认名称");
   });
   it("已知产品缺λ是来源缺字段，不能误称名称未解析；规格仅凭正式关联归属产品", async () => {
     const message = "VICP复合保温板λ多少";
@@ -75,6 +142,29 @@ describe("客户Excel独立λ事实与诊断", () => {
     expect((await readProductParameters(c.ctx)).facts.map(row => row.subjectType)).toEqual(["PRODUCT_EQUIVALENT", "SPEC_EQUIVALENT"]);
     c.tables.catalog_products[0].thermalConductivity = null; c.tables.product_parameters = [];
     const r = await readProductParameters(c.ctx); expect(r.diagnostics.issues).toContain("PARAMETER_NOT_INDEXED"); expect(r.diagnostics.issues).not.toContain("NAME_UNRESOLVED");
+  });
+  it("完整型号与通用名称重叠时保留逐字型号，不用目录通用值代替型号值", async () => {
+    const name = `甲型${customer.product.name}`;
+    const message = `${name}的导热系数是多少`;
+    const c = context(message, query({ operator: "READ", targetValue: null, subjectType: "PRODUCT_EQUIVALENT", subjectText: customer.product.name, evidence: message }));
+    c.tables.knowledge_pages = [{ document: c.document, version: c.version, page: { id: "pg", versionId: "v", documentId: "d", pageLabel: "21", metadata: { confirmedStructuredData: {
+      fullText: "", systems: [{ systemName: "客户构造", layers: [{ name, lambda: .017 }], options: [] }] } } } }];
+    const r = await readProductParameters(c.ctx);
+    expect(r.query.subjectText).toBe(name);
+    expect(r.query.subjectType).toBe("PRODUCT_EQUIVALENT");
+    expect(r.facts).toEqual([]);
+    expect(r.diagnostics.issues).toContain("PARAMETER_NOT_INDEXED");
+    expect(r.answer).toContain(name);
+    expect(r.answer).not.toContain(`λ=${customer.product.lambda}`);
+    expect(r.answer).not.toContain("λ=0.017");
+  });
+  it("按用户完整名称收窄不扩充型号、不改变阈值或参数口径", () => {
+    const q = query({ subjectText: "复合板", subjectType: "MATERIAL_LAYER", operator: "LT", targetValue: .026 });
+    const known = [{ name: "复合板", subjectType: "PRODUCT_EQUIVALENT" as const }, { name: "乙型复合板", subjectType: "MATERIAL_LAYER" as const },
+      { name: "丙型复合板", subjectType: "MATERIAL_LAYER" as const }];
+    expect(completeParameterSubject(q, "乙型复合板的λ小于0.026", known)).toEqual({ ...q, subjectText: "乙型复合板" });
+    expect(completeParameterSubject(q, "复合板的λ小于0.026", known)).toEqual(q);
+    expect(completeParameterSubject(q, "乙型和丙型的λ小于0.026", known)).toBe(q);
   });
   it("近似无默认窗口；显式容差、严格/包含边界可测量", () => {
     const rows = [productFact(.3)];

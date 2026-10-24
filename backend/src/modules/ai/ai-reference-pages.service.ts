@@ -18,6 +18,7 @@ import { confirmedReferenceQuery } from "./structured-reference-query.js";
 import type { ThermalQueryState } from "../thermal/thermal-query-state.js";
 import { queryConfirmedPageFacts, confirmedFactExtremum, inspectConfirmedPageFacts, type ConfirmedPageFact } from "../knowledge/confirmed-page-facts.js";
 import type { ConstraintCandidate } from "../thermal/thermal-query-state.js";
+import { confirmedPageSourceAudit } from "../../shared/confirmed-page-source-audit.js";
 
 /** 只重查上次已展示/显式选择的资料范围；不把热工表未命中升级为全库宽查。 */
 export async function querySelectedKnowledgeCandidates(app: FastifyInstance, query: ThermalQueryState, projectId: string | null) {
@@ -48,7 +49,10 @@ export async function readConsumableReferencePages(app: FastifyInstance, pageIds
     versionId: version.id, versionStatus: version.status, usageMode: version.usageMode,
     documentStatus: document.status, documentDeletedAt: document.deletedAt, currentVersionId: document.currentVersionId,
     effectiveDate: version.effectiveDate, expiryDate: version.expiryDate, projectId: document.projectId
-  }, undefined, projectId));
+  }, undefined, projectId)).map(row => {
+    const audit = confirmedPageSourceAudit(row.page);
+    return audit ? { ...row, page: { ...row.page, pageLabel: audit.printedLabel, pageLabelSource: "VISUAL_MATCH", pageLabelVerified: !!audit.printedLabel } } : row;
+  });
 }
 
 type SourceRow = Awaited<ReturnType<typeof readConsumableReferencePages>>[number];
@@ -58,12 +62,13 @@ export async function toReferencePageBlock(app: FastifyInstance, { page, documen
     try { imageUrl = await app.storage.createDownloadUrl(page.pageImageObjectKey, getPageImageDownloadName(page.pageImageObjectKey, page.physicalPageNumber), 3600); }
     catch { app.log.warn({ pageId: page.id }, "来源页图片暂不可用，保留确认表格"); }
   }
+  const model = readableRenderModel(page.id, page.metadata, visiblePageLabel(page), page.versionId);
   return { type: "REFERENCE_PAGE", page: { documentId: document.id, pageId: page.id, documentTitle: document.title,
     versionId: page.versionId, pageLabelSource: page.pageLabelSource, pageLabelVerified: page.pageLabelVerified,
     docNumber: document.docNumber,
     pageNumber: page.physicalPageNumber, physicalPageNumber: page.physicalPageNumber,
     ...(visiblePageLabel(page) ? { pageLabel: visiblePageLabel(page)! } : {}), imageUrl },
-    renderModel: readableRenderModel(page.id, page.metadata, visiblePageLabel(page)),
+    renderModel: model,
     matches: [], summary: {}, highlights: [] };
 }
 
@@ -71,6 +76,7 @@ export async function toReferencePageBlock(app: FastifyInstance, { page, documen
 export async function loadPublishedKnowledgeReferences(app: FastifyInstance, hits: readonly WikiHit[], projectId: string | null, message: string, lookup?: ReturnType<typeof normalizeConversationLookupQuery>["query"], options?: { completePublishedScope: boolean }): Promise<KnowledgeTestReferenceContext & {
   solutionCandidates?: SolutionCandidateSnapshot[]; diagnosticRows?: ConstraintCandidate[]; confirmedFacts?: ConfirmedPageFact[]; allConfirmedFacts?: ConfirmedPageFact[];
 }> {
+  if (lookup?.referenceSetIds?.length) return { context: "", pages: [] };
   // 语义已grounding的独立查表不能依赖全文检索top-N；继承/显式资料范围仍严格保留。
   const freshFactScope = options?.completePublishedScope || lookup?.parserSource === "LLM" && lookup.intent === "REFERENCE_LOOKUP"
     && !lookup.documentIds && !lookup.knowledgeVersionIds
@@ -86,7 +92,8 @@ export async function loadPublishedKnowledgeReferences(app: FastifyInstance, hit
       projectId ? or(isNull(knowledgeDocuments.projectId), eq(knowledgeDocuments.projectId, projectId)) : isNull(knowledgeDocuments.projectId),
       lookup?.documentIds ? inArray(knowledgePages.documentId, lookup.documentIds) : undefined,
       lookup?.knowledgeVersionIds ? inArray(knowledgePages.versionId, lookup.knowledgeVersionIds) : undefined,
-      lookup?.pageLabel ? eq(knowledgePages.pageLabel, lookup.pageLabel) : undefined))
+      // 印刷页码在只读核验投影后筛选，数据库旧物理页签不能提前排除真实印刷页。
+      ))
     : await app.db.select({ id: knowledgePages.id }).from(knowledgePages)
       .where(and(inArray(knowledgePages.versionId, versionIds), numeric ? undefined : inArray(knowledgePages.id, sourceIds)));
   const readable = await readConsumableReferencePages(app, rows.map(row => row.id), projectId);
@@ -195,7 +202,7 @@ export async function persistMessageReferencePages(app: FastifyInstance, referen
   return locators.flatMap(locator => {
     const row = rows.find(item => item.page.id === locator.pageId && item.document.id === locator.documentId);
     if (!row) return [];
-    const renderModel = readableRenderModel(row.page.id, row.page.metadata, visiblePageLabel(row.page));
+    const renderModel = readableRenderModel(row.page.id, row.page.metadata, visiblePageLabel(row.page), row.page.versionId);
     const current: ReferencePageBlock = { type: "REFERENCE_PAGE", page: { documentId: row.document.id, pageId: row.page.id,
       documentTitle: row.document.title, versionId: row.page.versionId, pageNumber: row.page.physicalPageNumber, imageUrl: "" },
       renderModel, matches: [], summary: {}, highlights: [] };

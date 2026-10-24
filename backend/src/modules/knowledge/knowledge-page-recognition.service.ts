@@ -267,7 +267,7 @@ export async function getPageRecognition(app: FastifyInstance, pageId: string) {
     structuredData: meta.structuredData ?? null,
     draftStructuredData: meta.draftStructuredData ?? meta.structuredData ?? null,
     confirmedStructuredData: meta.confirmedStructuredData ?? null,
-    renderModel: readableRenderModel(page.id, page.metadata, visiblePageLabel(page)),
+    renderModel: readableRenderModel(page.id, page.metadata, visiblePageLabel(page), page.versionId),
     confirmedAt: meta.confirmedAt ?? null,
     confirmedById: meta.confirmedById ?? null,
     confirmedBy: meta.confirmedById ?? null,

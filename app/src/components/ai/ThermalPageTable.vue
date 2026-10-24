@@ -4,8 +4,8 @@ import type { ThermalTableRow } from '@/utils/thermalPageTable'
 import { computed, getCurrentInstance, nextTick, onMounted, ref, watch } from 'vue'
 import { readableReferenceAnnotations } from '@/utils/referenceAnnotations'
 import { formatReferenceNumber } from '@/utils/referencePage'
-import { thermalConstructionRows, thermalLayerValue } from '@/utils/thermalPageTable'
-import { constructionAttributes, constructionDiagramNotes, constructionLabel, sourceTableHeader, thermalColumnHeader, thermalGroupHeader } from '@/utils/thermalSourceLabels'
+import { thermalConstructionRows, thermalLayerValue, thermalSourceResistance } from '@/utils/thermalPageTable'
+import { constructionAttributes, constructionDiagramNotes, constructionLabel, hasSharedSourceResistance, sourceHeaderNotice, sourceTableHeader, thermalColumnHeader, thermalGroupHeader } from '@/utils/thermalSourceLabels'
 
 defineOptions({ options: { virtualHost: true } })
 const props = withDefaults(defineProps<{ constructions: KnowledgeRenderConstruction[], matches: ReferenceHighlight[], active?: ReferenceHighlight, highlightEnabled?: boolean, anchorPrefix?: string, viewportHeight?: number }>(), { highlightEnabled: true, anchorPrefix: 'reference' })
@@ -30,6 +30,8 @@ const groups = computed(() => props.constructions.map((construction, index) => {
 }))
 const column = (field: Parameters<typeof thermalColumnHeader>[1]) => thermalColumnHeader(props.constructions, field)
 const groupHeader = computed(() => thermalGroupHeader(props.constructions))
+const headerNotice = computed(() => sourceHeaderNotice(props.constructions))
+const sharedResistance = computed(() => hasSharedSourceResistance(props.constructions))
 const bodyHeight = computed(() => props.viewportHeight
   ? `${Math.max(1, props.viewportHeight - headerHeight.value)}px`
   : `min(60vh, ${Math.max(1, groups.value.reduce((count, group) => count + Math.max(1, group.rows.length), 0)) * 34 + groups.value.length}px)`)
@@ -59,7 +61,7 @@ const showAttributes = ref(false)
 const showDiagram = ref(false)
 const hasDiagramNotes = computed(() => groups.value.some(group => group.diagramNotes.length))
 const hasDiagram = computed(() => hasDiagramNotes.value && showDiagram.value)
-const hasProduct = computed(() => props.constructions.some(group => group.options.some(option => option.productThermalResistance != null)))
+const hasProduct = computed(() => !sharedResistance.value && props.constructions.some(group => group.options.some(option => option.productThermalResistance != null)))
 const fields = computed<ThermalFieldKey[]>(() => ['thicknessMm', ...(hasProduct.value ? ['productThermalResistance' as const] : []), 'totalThermalResistance', 'kValue'])
 const layout = computed(() => {
   const material = hasDiagram.value ? 3 : 2
@@ -95,6 +97,9 @@ const value = (row: ThermalTableRow, field: ThermalFieldKey) => formatReferenceN
       </view>
     </view>
     <scroll-view scroll-x :scroll-left="scrollLeft" class="thermal-table__scroll thermal-table__head-scroll" @scroll="syncScroll">
+      <view v-if="headerNotice" class="thermal-table__attributes">
+        {{ headerNotice }}
+      </view>
       <view v-if="hasDiagramNotes" class="thermal-table__attributes">
         <text class="app-primary-text" @click="showDiagram = !showDiagram">
           {{ showDiagram ? '收起构造简图说明' : '展开构造简图说明' }}
@@ -126,13 +131,13 @@ const value = (row: ThermalTableRow, field: ThermalFieldKey) => formatReferenceN
           <view v-if="hasProduct" class="thermal-table__cell thermal-table__heading" :style="headingPosition(layout.productThermalResistance)">
             {{ column('productThermalResistance').label }}<text>{{ column('productThermalResistance').unit }}</text>
           </view>
-          <view class="thermal-table__cell thermal-table__heading" :style="{ gridColumn: `${layout.totalThermalResistance} / span 2`, gridRow: '1' }">
+          <view v-if="groupHeader" class="thermal-table__cell thermal-table__heading" :style="{ gridColumn: `${layout.totalThermalResistance} / span 2`, gridRow: '1' }">
             {{ groupHeader }}
           </view>
-          <view class="thermal-table__cell thermal-table__heading" :style="{ gridColumn: String(layout.totalThermalResistance), gridRow: '2' }">
+          <view class="thermal-table__cell thermal-table__heading" :style="{ gridColumn: String(layout.totalThermalResistance), gridRow: groupHeader ? '2' : '1 / span 2' }">
             {{ column('totalThermalResistance').label }}<text>{{ column('totalThermalResistance').unit }}</text>
           </view>
-          <view class="thermal-table__cell thermal-table__heading" :style="{ gridColumn: String(layout.kValue), gridRow: '2' }">
+          <view class="thermal-table__cell thermal-table__heading" :style="{ gridColumn: String(layout.kValue), gridRow: groupHeader ? '2' : '1 / span 2' }">
             {{ column('kValue').label }}<text>{{ column('kValue').unit }}</text>
           </view>
         </view>
@@ -167,8 +172,10 @@ const value = (row: ThermalTableRow, field: ThermalFieldKey) => formatReferenceN
               {{ formatReferenceNumber(row.layer?.alpha ?? (row.option ? group.construction.material?.alpha : null), 2) }}
             </view>
           </template>
-          <view class="thermal-table__cell" :style="cellPosition(layout.rValue, rowIndex)">
-            {{ formatReferenceNumber(thermalLayerValue(row, 'rValue'), 3) }}
+          <view :id="sharedResistance && row.option && anchorField === 'productThermalResistance' ? anchor(group.index, row.optionIndex) : undefined" class="thermal-table__cell" :style="cellPosition(layout.rValue, rowIndex)">
+            <text :class="{ 'thermal-table__field--hit': sharedResistance && fieldHit(group.construction, row, 'productThermalResistance') }">
+              {{ formatReferenceNumber(thermalSourceResistance(row, sharedResistance), 3) }}
+            </text>
           </view>
           <view v-for="field in fields" :id="row.option && field === anchorField ? anchor(group.index, row.optionIndex) : undefined" :key="field" class="thermal-table__cell" :class="{ 'thermal-table__wall': field === 'totalThermalResistance' || field === 'kValue', 'thermal-table__last': rowIndex === group.rows.length - 1 }" :style="cellPosition(layout[field], rowIndex)">
             <text :class="{ 'thermal-table__field--hit': fieldHit(group.construction, row, field) }">

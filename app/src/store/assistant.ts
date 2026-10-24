@@ -19,6 +19,7 @@ import type {
 import type { AiStreamEvent } from '@/services/platform'
 import type { AgentToolStep, ParsedNeedInput, SessionReport } from '@/utils/aiAgentUi'
 import type { ProductCardItem, ProductComparisonView } from '@/utils/aiComparison'
+import type { ProcessingClock, ProcessingStep } from '@/utils/aiProcessing'
 import { defineStore } from 'pinia'
 import { getApiErrorCode } from '@/api/core/handlers'
 import { aiApi } from '@/api/modules/ai'
@@ -50,6 +51,7 @@ import {
   parseProductComparison,
   selectedProductNames,
 } from '@/utils/aiComparison'
+import { finishProcessing, finishProcessingClock, mergeProcessingSources, updateProcessingStep } from '@/utils/aiProcessing'
 import {
   isInProgressReportStatus,
   isTerminalReportStatus,
@@ -88,7 +90,8 @@ export interface AssistantNavContext {
 }
 
 /** 会话消息的本地扩展字段（来源、过程状态不落库） */
-export interface LocalMessage extends ConversationMessage {
+export interface LocalMessage extends ConversationMessage, ProcessingClock {
+  processingSteps?: ProcessingStep[]
   sources?: AiSourceRef[]
   products?: ProductCardItem[]
   comparison?: ProductComparisonView
@@ -397,7 +400,17 @@ export const useAssistantStore = defineStore('assistant', {
         }
         this.conversation = response.data.conversation
         this.restoreSolutionState(response.data.solutionState ?? null)
+        void this.refreshReferenceCandidates().catch(() => undefined)
         this.messages = attachSourcesFromRetrievals(restoreMessageReferences(response.data.messages, previousMessages), response.data.retrievals || [])
+          .map((message) => {
+            const previous = previousMessages.find(previous => previous.id === message.id)
+            const steps = previous?.processingSteps
+            if (!steps)
+              return message
+            return { ...message, processingStartedAt: previous?.processingStartedAt, processingFinishedAt: previous?.processingFinishedAt, processingSteps: message.status === 'COMPLETED'
+              ? finishProcessing(steps, 'done')
+              : message.status === 'STOPPED' ? finishProcessing(steps, 'stopped') : message.status === 'FAILED' ? finishProcessing(steps, 'error') : steps }
+          })
         this.feedbacks = indexFeedbacks(response.data.feedbacks)
         this.pendingProjectId = response.data.conversation.projectId
         this.loadState = 'ready'
@@ -682,6 +695,11 @@ export const useAssistantStore = defineStore('assistant', {
     /** 终止当前流并使迟到事件失效。notifyBackend 时同时取消 Agent Run。 */
     cancelActiveStream(notifyBackend = false) {
       const messageId = this.streamingMessageId
+      const message = this.messages.find(item => item.id === messageId)
+      if (message) {
+        finishProcessingClock(message)
+        message.processingSteps = finishProcessing(message.processingSteps || [], 'stopped')
+      }
       const abort = this.activeAbort
       this.stopReconnect()
 
@@ -1156,6 +1174,11 @@ export const useAssistantStore = defineStore('assistant', {
       }
 
       switch (payload.event) {
+        case 'reference_candidates': {
+          if (!this.referenceCandidates || payload.data.queryRevision >= this.referenceCandidates.queryRevision)
+            this.referenceCandidates = payload.data
+          break
+        }
         case 'solution_state': {
           this.applySolutionState(payload.data)
           break
@@ -1178,6 +1201,7 @@ export const useAssistantStore = defineStore('assistant', {
             }
           }
           this.streamingMessageId = messageId
+          this.recordProcessing({ key: 'preparing', message: '请求已接收', status: 'done' })
           if (this.pendingCancel) {
             this.pendingCancel = false
             void aiApi.stopMessage(messageId).send().catch(() => undefined)
@@ -1187,6 +1211,9 @@ export const useAssistantStore = defineStore('assistant', {
         case 'progress': {
           this.progressStage = payload.data.stage
           this.progressMessage = agentActiveLabel(null, payload.data.message)
+          if (payload.data.stage !== 'completed') {
+            this.recordProcessing({ key: payload.data.stepId || payload.data.stage, message: this.progressMessage, status: payload.data.status || 'active', sources: payload.data.sources })
+          }
           break
         }
         case 'agent_status': {
@@ -1200,15 +1227,21 @@ export const useAssistantStore = defineStore('assistant', {
           }
           this.progressMessage = agentActiveLabel(payload.data.toolName, payload.data.message)
           this.toolSteps = applyToolStart(this.toolSteps, payload.data.toolName, payload.data.message)
+          if (payload.data.toolName)
+            this.recordProcessing({ key: `tool:${payload.data.toolName}`, message: this.progressMessage })
           break
         }
         case 'tool_start': {
           this.progressMessage = agentActiveLabel(payload.data.toolName, payload.data.message || this.progressMessage)
           this.toolSteps = applyToolStart(this.toolSteps, payload.data.toolName, payload.data.message)
+          this.recordProcessing({ key: `tool:${payload.data.toolName || 'current'}`, message: this.progressMessage })
           break
         }
         case 'tool_result': {
           this.toolSteps = applyToolResult(this.toolSteps, payload.data.toolName, payload.data.success)
+          const step = this.toolSteps.find(item => item.key === payload.data.toolName)
+          if (step)
+            this.recordProcessing({ key: `tool:${step.key}`, message: payload.data.success ? step.label : '本步未完成', status: payload.data.success ? 'done' : 'error' })
           if (payload.data.success && isReportTool(payload.data.toolName) && !this.sessionReport?.id) {
             this.progressMessage = REPORT_STATUS_COPY
           }
@@ -1312,6 +1345,7 @@ export const useAssistantStore = defineStore('assistant', {
           const message = this.messages.find(item => item.id === this.streamingMessageId)
           if (message) {
             message.referencePages = normalizeReferencePages([...(message.referencePages || []), ...payload.data.referencePages])
+            this.recordProcessingSources(payload.data.referencePages.map(item => ({ title: item.page.documentTitle, pageLabel: item.page.pageLabel || undefined })))
           }
           break
         }
@@ -1319,6 +1353,7 @@ export const useAssistantStore = defineStore('assistant', {
           const message = this.messages.find(item => item.id === this.streamingMessageId)
           if (message) {
             message.sources = normalizeAiSources([...(message.sources || []), ...payload.data.sources])
+            this.recordProcessingSources(message.sources)
           }
           break
         }
@@ -1329,6 +1364,8 @@ export const useAssistantStore = defineStore('assistant', {
           }
           const message = this.messages.find(item => item.id === this.streamingMessageId)
           if (message) {
+            if (payload.data.text.trim())
+              finishProcessingClock(message)
             message.content = appendAssistantDelta(message.content, payload.data.text)
           }
           break
@@ -1344,9 +1381,11 @@ export const useAssistantStore = defineStore('assistant', {
             message.status = 'COMPLETED'
             message.finishedAt = new Date().toISOString()
             message.sources = normalizeAiSources([...(message.sources || []), ...payload.data.sources])
+            this.recordProcessingSources(message.sources)
             message.model = payload.data.model?.id ?? null
             if (payload.data.referencePages) {
               message.referencePages = normalizeReferencePages([...(message.referencePages || []), ...payload.data.referencePages])
+              this.recordProcessingSources(message.referencePages.map(item => ({ title: item.page.documentTitle, pageLabel: item.page.pageLabel || undefined })))
             }
           }
           if (payload.data.finishReason !== 'WAITING_USER_INPUT') {
@@ -1380,6 +1419,8 @@ export const useAssistantStore = defineStore('assistant', {
             message.finishedAt = new Date().toISOString()
           }
           this.pendingUserInput = null
+          if (message)
+            message.processingSteps = finishProcessing(message.processingSteps || [], 'stopped')
           this.finishStreaming(streamRevision)
           break
         }
@@ -1391,12 +1432,25 @@ export const useAssistantStore = defineStore('assistant', {
               ? VISION_FAILURE_MESSAGE
               : payload.data.message
             message.finishedAt = new Date().toISOString()
+            message.processingSteps = finishProcessing(message.processingSteps || [], 'error')
           }
           this.pendingUserInput = null
           this.finishStreaming(streamRevision)
           break
         }
       }
+    },
+
+    recordProcessing(step: Parameters<typeof updateProcessingStep>[1]) {
+      const message = this.messages.find(item => item.id === this.streamingMessageId)
+      if (message)
+        message.processingSteps = updateProcessingStep(message.processingSteps || [], step)
+    },
+
+    recordProcessingSources(sources: readonly Partial<AiSourceRef>[]) {
+      const visible = mergeProcessingSources([], sources)
+      if (visible.length)
+        this.recordProcessing({ key: 'sources', message: '已读取以下资料', status: 'done', sources: visible })
     },
 
     startStreaming(messageId: string) {
@@ -1409,6 +1463,12 @@ export const useAssistantStore = defineStore('assistant', {
         ? this.progressMessage
         : null
       this.toolSteps = []
+      const message = this.messages.find(item => item.id === messageId)
+      if (message) {
+        message.processingStartedAt = Date.now()
+        message.processingFinishedAt = undefined
+      }
+      this.recordProcessing({ key: 'preparing', message: '正在准备处理你的问题…' })
       this.pendingCancel = false
       if (!isInProgressReportStatus(this.sessionReport?.status)) {
         this.sessionReport = null
@@ -1419,6 +1479,11 @@ export const useAssistantStore = defineStore('assistant', {
     finishStreaming(streamRevision: number) {
       if (streamRevision !== this.streamRevision) {
         return
+      }
+      const message = this.messages.find(item => item.id === this.streamingMessageId)
+      if (message) {
+        finishProcessingClock(message)
+        message.processingSteps = finishProcessing(message.processingSteps || [], message.status === 'FAILED' ? 'error' : message.status === 'STOPPED' ? 'stopped' : 'done')
       }
       this.isStreaming = false
       this.streamMode = 'stream'

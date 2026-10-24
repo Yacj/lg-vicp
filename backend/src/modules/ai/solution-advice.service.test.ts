@@ -30,6 +30,7 @@ import { emptySolution, refreshSolution, referenceSolutionCandidate } from "./so
 import { generateConfirmedSolutionReport } from "./solution-report.service.js";
 import { resolveComplianceRead } from "./compliance-read.service.js";
 import { ForbiddenError } from "../../shared/errors.js";
+import { publishedReferenceSource } from "./published-reference-source.js";
 
 const question = "Ⅲ型VICP薄抹灰外保温系统，45mm厚度，不同基层的传热系数有什么区别？";
 const conversation = { id: "advice-conversation", projectId: null, scene: "general_chat" };
@@ -49,6 +50,19 @@ async function queriedState(app: any) {
     candidateQueryRevision: 7, projectId: null, createdAt: new Date().toISOString() } };
   return advanceAdviceBusinessContext(state, conversation, "REFERENCE_QUERY", question, result.answer!);
 }
+it("解释插话后的单条参数整理沿用实际焦点并重验来源，不执行选择或报告", async () => {
+  const app = appFixture(), state = await queriedState(app), candidate = state.lastReferenceLookup!.candidates[0]!;
+  state.lastReferenceLookup!.candidates = [candidate]; state.adviceBusinessContext!.candidateScopeActive = false;
+  const message = "按刚才的做法整理厚度和保温参数";
+  const semantic = domainSemanticFixture(message, "SOLUTION_ADVICE", { referenceReadFields: ["kValue", "layers"] });
+  const decision = { ...domainDecision("SOLUTION_ADVICE", message), semantic, referenceScope: "LATEST_VISIBLE" as const, referenceFocusIds: [candidate.id] };
+  const result = await resolveSolutionAdvice({ ...context(app, state, message), domainDecision: decision });
+  expect(result.verified).toBe(true); expect(result.answer).toContain(`K=${candidate.kValue}`);
+  expect(result.answer).toContain("加入方案"); expect(result.answer).not.toContain("这轮要讨论哪个");
+  expect(mocks.mutate).not.toHaveBeenCalled(); expect(mocks.snapshot).not.toHaveBeenCalled(); expect(mocks.report).not.toHaveBeenCalled();
+  mocks.read.mockResolvedValue([]);
+  expect((await resolveSolutionAdvice({ ...context(app, state, message), domainDecision: decision })).verified).toBe(false);
+});
 async function adviceTurn(app: any, state: ConversationTaskState, message: string) {
   const ctx = context(app, state, message);
   const decision = await resolveDomainTurn(ctx);
@@ -63,6 +77,43 @@ beforeEach(() => {
   vi.resetAllMocks(); mocks.access.mockResolvedValue({ projectId: null }); mocks.read.mockResolvedValue(solutionAdviceFixture().rows);
   mocks.current.mockResolvedValue(true); mocks.active.mockResolvedValue(null); mocks.runtime.mockResolvedValue({ primary: { languageModel: {} } }); mocks.model.mockImplementation(async options => ({ object: domainSemanticFixture(JSON.parse(options.prompt).message, "SOLUTION_ADVICE") }));
   mocks.dictionary.mockResolvedValue({ entities: [], aliases: [] });
+});
+
+it.each(["SELECTION", "PROS_CONS"] as const)("无原图的正式发布行也能给%s建议，来源不能伪造为图集页", async adviceFocus => {
+  const app = appFixture(), existing = await queriedState(app), original = existing.lastReferenceLookup!.candidates[0]!;
+  const row: any = { ...original, sourcePageId: undefined, sourceDocumentId: undefined, sourceVersionId: undefined, optionId: undefined,
+    referenceKind: "THERMAL_ROW", setId: "published-set", setVersion: 1, schemeVersion: 1, specVersion: 1,
+    schemeId: "published-scheme", productSpecId: "published-spec", systemId: "published-system",
+    evidenceSource: "已发布客户热工表", evidenceRef: "Sheet1" };
+  row.publishedReferenceSource = publishedReferenceSource(row);
+  expect(row.publishedReferenceSource).toBeTruthy();
+  const state = advanceAdviceBusinessContext({ taskType: "GENERAL", lastReferenceLookup: { query: {}, candidates: [row],
+    candidateQueryRevision: 7, projectId: null, createdAt: new Date().toISOString() } }, conversation, "REFERENCE_QUERY", "读当前发布行", "已读取");
+  mocks.read.mockResolvedValue([]);
+  const message = "基于当前参考给建议";
+  const result = await resolveSolutionAdvice({ ...context(app, state, message), domainDecision: { ...domainDecision("SOLUTION_ADVICE", message),
+    semantic: domainSemanticFixture(message, "SOLUTION_ADVICE", { adviceFocus }) } });
+  expect(result.verified).toBe(true); expect(result.answer).toContain("已发布客户热工表");
+  if (adviceFocus === "SELECTION") {
+    expect(result.answer).toContain(`K=${original.kValue}`); expect(result.answer).toContain(`R=${original.productThermalResistance}`);
+    expect(result.answer).toContain("加入方案"); expect(app.db.update).not.toHaveBeenCalled();
+  }
+  expect(result.answer).toContain("Sheet1"); expect(result.answer).toContain("未关联原图");
+  expect(result.referencePages).toEqual([]); expect(app.db.insert).not.toHaveBeenCalled();
+});
+
+describe("只读原页的方案边界", () => {
+  it("上一轮是只读原页且无正式候选时，明确不能直接生成方案/报告", async () => {
+    const app = appFixture();
+    const state = { taskType: "GENERAL" as const,
+      confirmedPageLookup: { query: {}, createdAt: new Date().toISOString(), conversationId: conversation.id, userId: "u", projectId: null, clientApp: "c_app" },
+      lastReferenceLookup: { query: {}, candidates: [], createdAt: new Date().toISOString() } } as any;
+    const ctx = context(app, state, "基于 A3-1 生成方案");
+    const result = await resolveSolutionAdvice({ ...ctx, domainDecision: { intent: "SOLUTION_ADVICE",
+      semantic: { reference: { scope: "NONE", revision: null, items: [] } } } as any });
+    expect(result.answer).toContain("只读参考");
+    expect(result.answer).toContain("不能直接");
+  });
 });
 
 describe("方案建议多轮事实门禁（模拟数据库，非线上UAT）", () => {
@@ -90,7 +141,9 @@ describe("方案建议多轮事实门禁（模拟数据库，非线上UAT）", (
       expect(currentPendingAdviceGoal(state, conversation)).toMatchObject({ candidateQueryRevision: 7 });
     }
     expect(formalTables).toEqual(counts); expect(app.db.insert).not.toHaveBeenCalled(); expect(app.db.update).not.toHaveBeenCalled();
-    for (const mock of [mocks.mutate, mocks.snapshot, mocks.report, mocks.calc, mocks.query, mocks.dictionary]) expect(mock).not.toHaveBeenCalled();
+    for (const mock of [mocks.mutate, mocks.snapshot, mocks.report, mocks.calc, mocks.query]) expect(mock).not.toHaveBeenCalled();
+    // 分类显式读取已发布身份目录；目录读取不查询候选、不改状态或授权。
+    expect(mocks.dictionary).toHaveBeenCalledTimes(2);
   });
   it.each(["帮我整理一个初步方案", "按刚才的数据给建议", "先不考虑地区，来个参考选型", "不用生成报告，只给个大致方案", "不需要合规结论，只做参考选型", "无需合规结论，给个参考选型"])("同义咨询 %s 使用有效候选", async message => {
     const app = appFixture(); const state = await queriedState(app);
@@ -188,7 +241,8 @@ describe("方案建议多轮事实门禁（模拟数据库，非线上UAT）", (
   });
   it("未传本轮已核验授权的正式报告仍拒绝；上海住宅合规仍独立且无标准不声称达标", async () => {
     const app = appFixture(); const state = await queriedState(app);
-    mocks.model.mockResolvedValue({ object: domainSemanticFixture("直接生成正式报告", "REPORT_REQUEST") });
+    mocks.model.mockResolvedValueOnce({ object: domainSemanticFixture("直接生成正式报告", "REPORT_REQUEST") })
+      .mockResolvedValueOnce({ object: { operation: "EXECUTE", confidence: .99, evidence: "直接生成正式报告" } });
     expect((await resolveDomainTurn(context(app, state, "直接生成正式报告"))).intent).toBe("REPORT_REQUEST");
     expect(await generateConfirmedSolutionReport(context(app, state, "直接生成正式报告"))).toMatchObject({ ok: false, code: "REPORT_AUTHORIZATION_REQUIRED" });
     expect(mocks.report).not.toHaveBeenCalled(); expect(mocks.snapshot).not.toHaveBeenCalled();

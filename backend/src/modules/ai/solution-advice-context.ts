@@ -16,6 +16,11 @@ export type AdviceBusinessContext = z.infer<typeof adviceBusinessContextSchema>;
 export type PendingAdviceGoal = z.infer<typeof pendingAdviceGoalSchema>;
 const TTL = 24 * 3600_000;
 const isAcknowledgement = isClosedGreeting;
+function continuesReferenceExplanation(state: ConversationTaskState, decision?: DomainTurnDecision) {
+  return decision?.intent === "KNOWLEDGE_EXPLAIN" && decision.mutation === "NONE" && decision.semantic?.relation === "CONTINUE"
+    && decision.semantic.reference.scope !== "NONE"
+    && decision.referenceFocusIds?.some(id => state.lastReferenceLookup?.candidates.some(candidate => candidate.id === id));
+}
 
 /** 新话题即刻中断建议作用域；后续回答失败也不能恢复旧候选目标。 */
 export function invalidateAdviceOnTopicChange(state: ConversationTaskState, intent: string | undefined, message: string, decision?: DomainTurnDecision): ConversationTaskState {
@@ -23,6 +28,7 @@ export function invalidateAdviceOnTopicChange(state: ConversationTaskState, inte
   if (state.adviceBusinessContext && (relation === "CANCEL" || relation === "SWITCH_TOPIC" || intent === "SOLUTION_ACTION"
     || intent === "SOLUTION_ADVICE" && decision?.semantic?.reference.scope === "NONE"))
     return { ...state, pendingAdviceGoal: undefined, adviceBusinessContext: { ...state.adviceBusinessContext, candidateScopeActive: false } };
+  if (continuesReferenceExplanation(state, decision)) return state;
   if (!state.adviceBusinessContext || isAcknowledgement(message)
     || !["GENERAL", "PRODUCT_DISCOVERY", "PRODUCT_DETAIL", "MATERIAL_COMPARE", "KNOWLEDGE_EXPLAIN", "REPORT_REQUEST", "REFERENCE_QUERY", "REFERENCE_REFINE", "THERMAL_CALCULATE"].includes(intent ?? "")) return state;
   return { ...state, pendingAdviceGoal: undefined, adviceBusinessContext: { ...state.adviceBusinessContext, candidateScopeActive: false } };
@@ -44,7 +50,8 @@ export function currentPendingAdviceGoal(state: ConversationTaskState | null | u
 export function advanceAdviceBusinessContext(state: ConversationTaskState, conversation: { id: string; projectId: string | null },
   intent: string, userGoal: string, assistantAnswer: string, now = Date.now(), verifiedAdvice = false, decision?: DomainTurnDecision): ConversationTaskState {
   const previous = adviceContextIsCurrent(state.adviceBusinessContext, conversation, state, now) ? state.adviceBusinessContext : undefined;
-  const referenceTurn = ["REFERENCE_QUERY", "REFERENCE_REFINE", "REFERENCE_VIEW", "REFERENCE_DETAIL", "COMPARE_CANDIDATES", "THERMAL_CALCULATE", "COMPLIANCE_CHECK"].includes(intent);
+  const referenceTurn = ["REFERENCE_QUERY", "REFERENCE_REFINE", "REFERENCE_VIEW", "REFERENCE_DETAIL", "COMPARE_CANDIDATES", "THERMAL_CALCULATE", "COMPLIANCE_CHECK"].includes(intent)
+    || continuesReferenceExplanation(state, decision);
   const adviceTurn = intent === "SOLUTION_ADVICE";
   const acknowledgement = isAcknowledgement(userGoal);
   const candidateScopeActive = referenceTurn || adviceTurn && verifiedAdvice || acknowledgement && Boolean(previous?.candidateScopeActive);

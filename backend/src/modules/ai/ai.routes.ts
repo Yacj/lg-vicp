@@ -1,3 +1,4 @@
+import { messageChronology } from "./message-chronology.js";
 import { randomUUID } from "node:crypto";
 import { loadActiveSolution, solutionDto } from "./solution-state.service.js";
 import { hydrateMessageReferencePages } from "./ai-reference-pages.service.js";
@@ -226,7 +227,7 @@ async function findUserQuestionForAssistant(
         eq(aiMessages.status, "COMPLETED"),
         eq(aiMessages.requestId, assistant.requestId)
       ))
-      .orderBy(desc(aiMessages.createdAt))
+      .orderBy(...messageChronology("DESC"))
       .limit(1);
     if (paired) {
       return paired;
@@ -240,7 +241,7 @@ async function findUserQuestionForAssistant(
       eq(aiMessages.status, "COMPLETED"),
       lte(aiMessages.createdAt, assistant.createdAt)
     ))
-    .orderBy(desc(aiMessages.createdAt))
+    .orderBy(...messageChronology("DESC"))
     .limit(1);
   return lastUser;
 }
@@ -370,7 +371,7 @@ export async function aiRoutes(app: FastifyInstance) {
             inArray(aiMessages.conversationId, conversationIds),
             inArray(aiMessages.role, ["USER", "ASSISTANT"])
           ))
-          .orderBy(desc(aiMessages.createdAt))
+          .orderBy(...messageChronology("DESC"))
       ]);
     const statsMap = new Map(messageStats.map((item) => [item.conversationId, item.messageCount]));
     const latestMap = new Map<string, (typeof latestMessages)[number]>();
@@ -409,7 +410,7 @@ export async function aiRoutes(app: FastifyInstance) {
     if (!conversation || conversation.deletedAt) throw new NotFoundError("AI 会话不存在");
     ensureConversationOwner(user, conversation);
     const messages = await app.db.select().from(aiMessages)
-      .where(eq(aiMessages.conversationId, conversation.id)).orderBy(aiMessages.createdAt);
+      .where(eq(aiMessages.conversationId, conversation.id)).orderBy(...messageChronology("ASC"));
     const messageIds = messages.map((message) => message.id);
     const attachmentRows = messageIds.length === 0 ? [] : await app.db.select({
       attachment: aiMessageAttachments,
@@ -1221,7 +1222,7 @@ export async function aiRoutes(app: FastifyInstance) {
         eq(aiMessages.conversationId, row.conversation.id),
         inArray(aiMessages.status, ["COMPLETED", "STOPPED"]),
         lt(aiMessages.createdAt, row.message.createdAt)
-      )).orderBy(desc(aiMessages.createdAt)).limit(200);
+      )).orderBy(...messageChronology("DESC")).limit(200);
     const historyMessages: ContextMessage[] = historyRows.reverse()
       .filter((message) => (message.role === "USER" || message.role === "ASSISTANT")
         && message.id !== row.message.id && message.id !== assistantMessage.id)
@@ -1507,7 +1508,7 @@ export async function aiRoutes(app: FastifyInstance) {
       .from(aiMessages).where(and(
         eq(aiMessages.conversationId, conversation.id),
         eq(aiMessages.status, "COMPLETED")
-      )).orderBy(desc(aiMessages.createdAt)).limit(30);
+      )).orderBy(...messageChronology("DESC")).limit(30);
     const knowledge = await searchProjectKnowledge(
       app,
       project?.id ?? null,

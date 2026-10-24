@@ -13,3 +13,8 @@ test-output.txt
 
 # AI 助手工作区数据（本地记忆、部署脚本与日志，不进版本库）
 **/.workbuddy-ai/
+
+# 本地依赖修补工作目录、助手记忆及原始 UAT/发布证据
+**/.patchwork/
+**/.workbuddy/
+/backend/docs/**/evidence/

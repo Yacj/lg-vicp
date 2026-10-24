@@ -15,9 +15,9 @@ const fallback: Record<Field, { label: string, unit: string }> = {
   lambda: { label: '导热系数', unit: 'W/(m·K)' },
   alpha: { label: '修正系数', unit: '' },
   rValue: { label: '材料层热阻', unit: '(m²·K)/W' },
-  productThermalResistance: { label: '产品整体热阻（源文待核）', unit: '(m²·K)/W' },
-  totalThermalResistance: { label: '整构造传热阻（源文符号待核）', unit: '(m²·K)/W' },
-  kValue: { label: '传热系数（源文符号待核）', unit: 'W/(m²·K)' },
+  productThermalResistance: { label: '热阻', unit: '(m²·K)/W' },
+  totalThermalResistance: { label: '传热阻R', unit: '(m²·K)/W' },
+  kValue: { label: '传热系数 K', unit: 'W/(m²·K)' },
 }
 
 /** 仅呈现后端来源字段；缺失或各组不一致则用保守工程标签，不按部位改表头。 */
@@ -36,7 +36,7 @@ export function thermalColumnHeader(constructions: KnowledgeConstructionContent[
 
 export function thermalGroupHeader(constructions: KnowledgeConstructionContent[]): string {
   const names = constructions.map(item => item.sourceColumns?.find(column => column.fieldKey === 'totalThermalResistance')?.groupLabel)
-  return names[0] && names.every(name => name === names[0]) ? names[0] : '整构造参数（源文组名待核）'
+  return names[0] && names.every(name => name === names[0]) ? names[0] : '外墙主断面'
 }
 
 export function constructionLabel(construction: KnowledgeConstructionContent): string {

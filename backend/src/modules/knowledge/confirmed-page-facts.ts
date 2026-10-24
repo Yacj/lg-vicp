@@ -6,7 +6,7 @@ import { groundedPageAttribute } from "../../shared/confirmed-page-query.js";
 import { normalizeThermalLookupQuery, getCandidateMetricValue, metricRankingGap } from "../thermal/thermal-lookup-mode.js";
 import { validateCandidateAgainstQueryState, type ConstraintCandidate, type ThermalQueryState } from "../thermal/thermal-query-state.js";
 import { diagnoseReferenceQuery, withoutReferenceMetrics, type ReferenceQueryDiagnostics } from "../thermal/reference-query-diagnostics.js";
-import { legacyConfirmedPagePart } from "../../shared/legacy-confirmed-page-scope.js";
+import { legacyConfirmedPagePart, confirmedTableTitleSpecClass } from "../../shared/legacy-confirmed-page-scope.js";
 
 export interface ConfirmedPageSnapshot {
   page: { id: string; versionId: string; documentId?: string; pageLabel?: string | null; pageLabelSource?: string; pageLabelVerified?: boolean };
@@ -44,6 +44,8 @@ export function queryConfirmedPageFacts(snapshots: readonly ConfirmedPageSnapsho
     // 未修订的证据矛盾不能参与工程数值回答；纯警告/缺值仍可读取已证实的其他列。
     if (data.schemaVersion === 2 && validatePageRecognitionEvidence(data).issues.length) continue;
     if (query.pageLabel != null && visiblePageLabel(page) !== query.pageLabel) continue;
+    const titleClass = confirmedTableTitleSpecClass(data.pageTitle);
+    const consistentTitleClass = titleClass && !data.systems.some(system => system.specClass && system.specClass !== titleClass) ? titleClass : undefined;
     for (const [index, construction] of model.constructions.entries()) {
       const system = data.systems[index];
       if (!system) continue;
@@ -60,7 +62,7 @@ export function queryConfirmedPageFacts(snapshots: readonly ConfirmedPageSnapsho
           placement: construction.placement ?? undefined, waterproofGrade: construction.waterproofGrade ? groundedPageAttribute("waterproofGrade", construction.waterproofGrade) : undefined, pageLabel: visiblePageLabel(page) ?? undefined,
           schemeId: system.schemeId ?? undefined, schemeCode: code(construction.constructionCode ?? ""),
           productSpecId: sourceOption?.productSpecId ?? undefined, catalogProductId: sourceOption?.catalogProductId,
-          specClass: construction.specClass ?? undefined, substrateMaterial: construction.baseMaterial ?? undefined,
+          specClass: construction.specClass ?? consistentTitleClass, substrateMaterial: construction.baseMaterial ?? undefined,
           substrateThickness: construction.baseThicknessMm, thicknessMm: option.thicknessMm,
           productThermalResistance: option.productThermalResistance ?? undefined,
           totalThermalResistance: option.totalThermalResistance ?? undefined, kValue: option.kValue ?? undefined,

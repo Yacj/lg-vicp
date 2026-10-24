@@ -195,9 +195,9 @@ describe('知识页结构化展示与定位', () => {
   it('原表排版合并编号、材料及公共 λ/α，主断面两列与各厚度逐行对应', async () => {
     const { element } = await mount()
     const section = element.querySelector('.thermal-option-table')!
-    const wallHeader = [...section.querySelectorAll('thead th')].find(cell => cell.textContent === '整构造参数（源文组名待核）')!
+    const wallHeader = [...section.querySelectorAll('thead th')].find(cell => cell.textContent === '外墙主断面')!
     expect(wallHeader.getAttribute('colspan')).toBe('2')
-    expect(section.querySelector('thead')?.textContent).toContain('整构造传热阻（源文符号待核）')
+    expect(section.querySelector('thead')?.textContent).toContain('传热阻R')
     expect(section.querySelector('thead')?.textContent).not.toContain('R₀')
     expect(section.querySelector('tbody tr td')?.getAttribute('rowspan')).toBe('8')
     const firstOption = section.querySelector('[data-option-id="A1-3-15"]')!

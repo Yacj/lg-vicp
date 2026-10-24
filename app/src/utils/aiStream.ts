@@ -1,7 +1,8 @@
 import type { AiStreamEventPayload } from '@/api/types'
-import { isSolutionState, parseSolutionUpdate } from './aiSolution'
+import { isSolutionState, parseReferenceCandidates, parseSolutionUpdate } from './aiSolution'
 import { normalizeAiSources } from './aiSource.ts'
 import { normalizeReferencePages } from './referencePage'
+import { mergeProcessingSources } from './aiProcessing'
 
 function asText(value: unknown) {
   return typeof value === 'string' ? value : ''
@@ -9,6 +10,10 @@ function asText(value: unknown) {
 
 export function parseStreamEvent(event: string, data: Record<string, unknown>): AiStreamEventPayload | null {
   switch (event) {
+    case 'reference_candidates': {
+      const result = parseReferenceCandidates(data)
+      return result ? { event: 'reference_candidates', data: result } : null
+    }
     case 'solution_state': {
       const update = parseSolutionUpdate(data)
       return update ? { event: 'solution_state', data: update } : null
@@ -41,7 +46,13 @@ export function parseStreamEvent(event: string, data: Record<string, unknown>): 
       const stage = data.stage === 'analyzing' || data.stage === 'checking' || data.stage === 'composing' || data.stage === 'completed'
         ? data.stage
         : 'analyzing'
-      return { event: 'progress', data: { stage, message: data.message } }
+      const status = data.status === 'active' || data.status === 'done' || data.status === 'error' || data.status === 'stopped'
+        ? data.status : undefined
+      return { event: 'progress', data: { stage, message: data.message,
+        stepId: typeof data.stepId === 'string' ? data.stepId.slice(0, 80) : undefined,
+        status,
+        sources: Array.isArray(data.sources) ? mergeProcessingSources([], data.sources.filter(item => item && typeof item === 'object')) : undefined,
+      } }
     }
     case 'agent_status': {
       // writeProgress 会顺带发一条带 stage 的 agent_status，与 progress 重复；工具级状态才处理。

@@ -33,7 +33,17 @@ export type Observation = {
   events: SseEvent[];
   calculations: (typeof thermalCalcRecords.$inferSelect)[];
 };
-export type Check = { group: "intent" | "parameters" | "facts" | "state" | "quality" | "source"; passed: boolean; type: FailureType; detail: string; hard?: boolean };
+/** 失败归因：软件缺陷 / 资料资格不足 / 断言与合同不一致；仅对未通过项赋值。 */
+export type CheckClassification = "SOFTWARE_FAIL" | "DATA_BLOCKED" | "TEST_INVALID";
+export type Check = { group: "intent" | "parameters" | "facts" | "state" | "quality" | "source"; passed: boolean; type: FailureType; detail: string; hard?: boolean; classification?: CheckClassification };
+export type RunMetadata = {
+  startedAt: string;
+  code: { gitCommit: string; dirtyFiles: number; branch?: string; backendPackageVersion: string };
+  database: { host: string; name: string; scope: "ISOLATED_TEMP" | "SHARED" };
+  knowledge: { fixtureVersion: string; publishedPages: number | null; note: string };
+  model: { provider: string; model: string; reasoning: "ON" | "OFF" };
+  criteria: { assertionSet: string; classification: string };
+};
 export type TurnResult = { caseId: string; persona: UatPersona; scenario: string; turn: number; user: string; expected: UatExpect; actual?: Observation; checks: Check[]; quality: { score: number; method: string; reasons: string[] }; score: number; status: "PASS" | "WARN" | "FAIL" | "BLOCKED" };
 
 export const HARD_FAIL_RULES = ["HARD_CONDITION", "METRIC_CONFUSION", "FABRICATED_PAGE", "RESULT_TYPE", "UNSUPPORTED_COMPLIANCE", "STALE_CONDITIONS", "THICKNESS_VIOLATION"];

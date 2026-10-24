@@ -1,3 +1,4 @@
+import { messageChronology } from "./message-chronology.js";
 /**
  * 会话滚动摘要：增量压缩历史，不复制完整聊天记录。
  * 触发：即将被 token 裁剪、消息数/token 达阈值、会话结束、同项目新建会话、Agent Run 完成。
@@ -121,7 +122,7 @@ export async function updateConversationSummary(
   }).from(aiMessages).where(and(
     eq(aiMessages.conversationId, conversationId),
     eq(aiMessages.status, "COMPLETED")
-  )).orderBy(asc(aiMessages.createdAt));
+  )).orderBy(...messageChronology("ASC"));
 
   const lastId = existing?.lastSummarizedMessageId ?? null;
   const lastIndex = lastId ? messages.findIndex((row) => row.id === lastId) : -1;

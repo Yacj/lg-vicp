@@ -46,6 +46,12 @@ export const reportApi = {
     })
   },
 
+  getPdfPage(id: string, page: number) {
+    return request('GET', '/reports/{id}/artifacts/PDF/pages/{page}', {
+      pathParams: { id, page: String(page) },
+    })
+  },
+
   remove(id: string) {
     return request('DELETE', '/reports/{id}', { pathParams: { id } })
   },

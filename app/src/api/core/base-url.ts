@@ -1,4 +1,4 @@
-const fallbackBaseURL = 'http://localhost:3000'
+const fallbackBaseURL = 'https://lgapi.zblack.cn'
 
 /** 浏览器 H5 开发走 Vite 同源代理；小程序/App 与生产仍用绝对地址。 */
 export function resolveApiBaseURL(): string {

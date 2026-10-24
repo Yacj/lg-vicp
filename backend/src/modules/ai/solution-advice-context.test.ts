@@ -12,6 +12,16 @@ vi.mock("./reference-fact-history.js", () => ({ readReferenceFactHistory: async 
 vi.mock("./query-clarification-context.js", () => ({ readQueryClarification: async () => null }));
 const conversation = { id: "context-conversation", projectId: null };
 const lookup = { query: {}, candidates: [{ id: "never-from-history" }], candidateQueryRevision: 7, projectId: null, createdAt: new Date().toISOString() };
+it("当前记录的来源解释不中断建议上下文；换题仍清除", () => {
+  const initial = advanceAdviceBusinessContext({ taskType: "GENERAL", lastReferenceLookup: lookup }, conversation, "REFERENCE_QUERY", "查参考", "已查询");
+  const semantic = domainSemanticFixture("解释刚才这套的来源", "KNOWLEDGE_EXPLAIN", { relation: "CONTINUE", reference: { scope: "LAST_VISIBLE_CANDIDATES", revision: 7, items: [] } });
+  const decision = { intent: "KNOWLEDGE_EXPLAIN", mutation: "NONE", evidenceSpans: [semantic.evidence], semantic, referenceFocusIds: ["never-from-history"] } as const;
+  const kept = invalidateAdviceOnTopicChange(initial, "KNOWLEDGE_EXPLAIN", semantic.evidence, decision as any);
+  expect(kept.adviceBusinessContext?.candidateScopeActive).toBe(true);
+  expect(advanceAdviceBusinessContext(kept, conversation, "KNOWLEDGE_EXPLAIN", semantic.evidence, "来源已核验", Date.now(), false, decision as any).adviceBusinessContext?.candidateScopeActive).toBe(true);
+  const switched = { ...decision, semantic: { ...semantic, relation: "SWITCH_TOPIC" as const } };
+  expect(invalidateAdviceOnTopicChange(initial, "KNOWLEDGE_EXPLAIN", "换题", switched as any).adviceBusinessContext?.candidateScopeActive).toBe(false);
+});
 beforeEach(() => { vi.clearAllMocks(); mocks.runtime.mockResolvedValue({ primary: { languageModel: {} } }); mocks.model.mockImplementation(async options => ({ object: domainSemanticFixture(JSON.parse(options.prompt).message, "SOLUTION_ADVICE") })); });
 describe("建议目标上下文边界与旧会话兼容", () => {
   it("JSON schema可回读目标，不混入QueryState；畸形上下文被丢弃", () => {
@@ -38,7 +48,7 @@ describe("建议目标上下文边界与旧会话兼容", () => {
     const app = { db: { select: () => ({ from: () => ({ where }) }) } } as any;
     const state = { taskType: "GENERAL" as const, lastReferenceLookup: lookup };
     const business = await loadAdviceBusinessContext(app, conversation, state, "current-user-message");
-    expect(limit).toHaveBeenCalledWith(4); expect(orderBy.mock.calls[0]).toHaveLength(2);
+    expect(limit).toHaveBeenCalledWith(4); expect(orderBy.mock.calls[0]).toHaveLength(4); // 时间、角色、完成时间及ID稳定排序。
     expect(business?.recentGoals.map(goal => goal.intent)).toEqual(["REFERENCE_QUERY", "GENERAL"]);
     expect(business?.candidateScopeActive).toBe(false); expect(state.lastReferenceLookup.candidates).toEqual([{ id: "never-from-history" }]);
     const ctx = { app: { db: {}, log: { warn: vi.fn() } }, conversation, taskState: { ...state, adviceBusinessContext: business }, userMessage: "先不判断达标" } as any;
@@ -73,8 +83,10 @@ describe("建议目标上下文边界与旧会话兼容", () => {
   });
   it("PDF请求仍能分类为报告，但建议不能代替其正式快照前提", async () => {
     const message = "帮我把方案做成PDF";
-    mocks.model.mockResolvedValue({ object: domainSemanticFixture(message, "REPORT_REQUEST") });
+    mocks.model.mockResolvedValueOnce({ object: domainSemanticFixture(message, "REPORT_REQUEST") })
+      .mockResolvedValueOnce({ object: { operation: "EXECUTE", confidence: .99, evidence: message } });
     expect(await resolveDomainTurn({ app: { db: {}, log: { warn: vi.fn() } }, conversation, taskState: { taskType: "GENERAL", lastReferenceLookup: lookup }, userMessage: message } as any))
       .toMatchObject({ intent: "REPORT_REQUEST", mutation: "REPORT" });
   });
 });
+vi.mock("../thermal/thermal-query-dictionary.service.js", () => ({ loadThermalQueryDictionary: async () => ({ entities: [], aliases: [], calculationModels: [] }) }));

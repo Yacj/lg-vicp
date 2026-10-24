@@ -5,6 +5,11 @@ import { getCurrentUser } from "../../shared/current-user.js";
 import { ok } from "../../shared/response.js";
 import { resolveSourceDetail } from "../knowledge/knowledge-wiki-read.service.js";
 import { readPageImageBytes } from "../knowledge/knowledge-page-image.js";
+import { compareKnowledgeSelections } from "./knowledge-option-compare.service.js";
+import { canViewProject } from "../../shared/permissions.js";
+import { projects } from "../../db/schema.js";
+import { eq } from "drizzle-orm";
+import { AiError } from "../../shared/ai-errors.js";
 
 /**
  * AI 来源详情（Wiki 原文阅读 + 页面高亮）：
@@ -14,6 +19,39 @@ import { readPageImageBytes } from "../knowledge/knowledge-page-image.js";
  */
 export async function aiKnowledgeRoutes(app: FastifyInstance) {
   const route = app.withTypeProvider<ZodTypeProvider>();
+
+  /**
+   * 知识库只读比较：仅读取已确认、已发布、当前有权访问的图集构造/热工档位。
+   * 不写 solution_state、不发布候选、不开 Confirm/Final/Snapshot/PDF。
+   */
+  const compareBodySchema = z.object({
+    projectId: z.uuid("项目 ID 格式不正确").optional(),
+    selections: z.array(z.object({
+      pageId: z.uuid("页面 ID 格式不正确"),
+      constructionCode: z.string().trim().max(64).optional(),
+      constructionLabel: z.string().trim().max(120).optional(),
+      thicknessMm: z.number().finite("厚度必须是数值").nullable().optional(),
+      confirmedRevision: z.string().regex(/^[a-f0-9]{24}$/).optional()
+    })).min(2, "请至少选择两个档位").max(6, "一次最多比较六个档位")
+  });
+  route.post("/options/compare", {
+    preHandler: [app.authenticate],
+    schema: { tags: ["共用 / 知识溯源"], summary: "知识库档位只读比较（不产生候选、不写方案状态）", body: compareBodySchema }
+  }, async (request) => {
+    const user = getCurrentUser(request);
+    const projectId = request.body.projectId ?? null;
+    if (projectId) {
+      const [project] = await app.db.select().from(projects).where(eq(projects.id, projectId)).limit(1);
+      if (!project || !canViewProject(user, project)) throw new AiError("AI_CONVERSATION_FORBIDDEN", "无权在该项目下比较资料");
+    }
+    const result = await compareKnowledgeSelections(app, {
+      projectId,
+      selections: request.body.selections.map(item => ({ pageId: item.pageId, constructionCode: item.constructionCode ?? null,
+        constructionLabel: item.constructionLabel ?? null, thicknessMm: item.thicknessMm ?? null,
+        confirmedRevision: item.confirmedRevision ?? null }))
+    });
+    return ok(request, result);
+  });
   route.get("/pages/:pageId/image", {
     preHandler: [app.authenticate],
     schema: { tags: ["共用 / 知识溯源"], summary: "经当前来源权限核验读取原始页图（原字节，不缓存授权）",

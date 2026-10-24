@@ -92,7 +92,8 @@ it("遗漏外墙的模型提案只复核一次，仍遗漏则拒绝宽查并保�
   const before = structuredClone(ctx.taskState), omitted = query(message), corrected = structuredClone(omitted);
   corrected.pageQuery!.constraints.push({ type: "ENTITY", field: "applicationPart", entityText: "外墙", resolvedText: null, operation: "SET", value: null,
     metric: null, operator: null, evidence: "外墙", confidence: .99, hard: true });
-  mocks.generate.mockResolvedValueOnce({ object: omitted }).mockResolvedValueOnce({ object: corrected });
+  const correctedFields = { constraints: corrected.pageQuery!.constraints, unresolved: corrected.pageQuery!.unresolved, confidence: corrected.pageQuery!.confidence };
+  mocks.generate.mockResolvedValueOnce({ object: omitted }).mockResolvedValueOnce({ object: correctedFields });
   expect(await resolveDomainTurn(ctx)).toMatchObject({ intent: "REFERENCE_QUERY", mutation: "QUERY" });
   expect(mocks.generate).toHaveBeenCalledTimes(2); expect(ctx.taskState).toEqual(before);
   mocks.generate.mockReset().mockResolvedValue({ object: omitted });

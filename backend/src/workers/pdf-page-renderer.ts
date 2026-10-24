@@ -34,6 +34,8 @@ export interface PdfRenderOptions {
   createWorker: () => PdfRenderWorker;
   dpi?: number;
   format?: "png" | "webp";
+  /** 交互式预览使用更短预算；批处理默认仍为30分钟。 */
+  timeoutMs?: number;
   /** 逐页回调（上传 OSS 由调用方完成）；返回 Promise，串行等待 */
   onPageRendered: (page: PdfPageRendered) => Promise<void>;
   /** 跳过已渲染页（幂等重跑） */
@@ -111,8 +113,8 @@ export function renderPdfPages(data: Buffer, options: PdfRenderOptions): Promise
       idleTimer.unref();
     };
     totalTimer = setTimeout(() => {
-      finish({ error: new Error("PDF 页面渲染超过 30 分钟，任务已终止") });
-    }, PDF_RENDER_TIMEOUT_MS);
+      finish({ error: new Error(options.timeoutMs ? "PDF 页面渲染超过交互预览时间预算，任务已终止" : "PDF 页面渲染超过 30 分钟，任务已终止") });
+    }, options.timeoutMs ?? PDF_RENDER_TIMEOUT_MS);
     totalTimer.unref();
 
     const pump = async () => {

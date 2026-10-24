@@ -12,13 +12,15 @@ export const conditionTraceSchema = z.object({
   classification: z.enum(["HARD_CONSTRAINT", "SOFT_PREFERENCE", "AMBIGUOUS"])
 });
 export const queryStateExtraFields = {
+  queryContractVersion: z.union([z.literal(1), z.literal(2)]).optional(),
+  thicknessMinExclusive: z.boolean().optional(), thicknessMaxExclusive: z.boolean().optional(),
   ...confirmedPageQueryFields,
   queryMode: z.enum(["NEW_QUERY", "CONTINUE_QUERY", "REFINE_QUERY", "COMPARE_SELECTED"]).optional(),
   semanticConfidence: z.number().min(0).max(1).optional(),
   parserSource: z.enum(["FAST_PATH", "LLM", "LEGACY_FALLBACK", "UNAVAILABLE"]).optional(),
   substrateMaterial: z.string().optional(), substrateThickness: z.number().positive().optional(),
   regionCode: z.string().optional(), standardLimitId: z.string().optional(), buildingType: z.string().optional(), structureType: z.string().optional(),
-  documentIds: z.array(z.string()).optional(), knowledgeVersionIds: z.array(z.string()).optional(),
+  documentIds: z.array(z.string()).optional(), knowledgeVersionIds: z.array(z.string()).optional(), referenceSetIds: z.array(z.string()).optional(),
   /** 体系族/类别命中（如「薄抹灰」）：同族多条记录时作为集合硬约束，不是唯一 systemId。 */
   systemIds: z.array(z.string()).optional(),
   exclusions: z.array(queryExclusionSchema).optional(), removedFields: z.array(z.enum(entityFields)).optional(), removedMetrics: z.array(z.enum(["K", "TOTAL_R", "PRODUCT_R"])).optional(),
@@ -35,7 +37,7 @@ export const thermalQueryStateSchema = z.object({
   filters: z.array(normalizedThermalLookupFilterSchema).optional(),
   metric: z.enum(["K", "TOTAL_R", "PRODUCT_R"]).optional(), targetValue: z.number().optional(),
   targetK: z.number().optional(), targetR: z.number().optional(),
-  mode: z.enum(["EXACT", "APPROX", "MAX_LIMIT", "MIN_LIMIT"]).optional(),
+  mode: z.enum(["EXACT", "APPROX", "MAX_LIMIT", "MIN_LIMIT", "LT", "GT"]).optional(),
   tolerance: z.number().optional(), toleranceSource: z.enum(["USER", "DEFAULT"]).optional(),
   requestedTolerance: z.number().optional(), effectiveTolerance: z.number().optional(), toleranceAdjusted: z.boolean().optional(),
   systemId: z.string().optional(), systemHint: z.string().optional(), schemeId: z.string().optional(), schemeCode: z.string().optional(),
@@ -50,7 +52,7 @@ export type ConstraintMatch = z.infer<typeof constraintMatchSchema>;
 export interface ConstraintCandidate {
   applicationPart?: string; roofForm?: string; placement?: string; waterproofGrade?: string; pageLabel?: string;
   systemId?: string; systemName?: string; schemeId?: string; schemeCode?: string; productSpecId?: string;
-  catalogProductId?: string | null; specClass?: string; substrateMaterial?: string; substrateThickness?: number | null;
+  catalogProductId?: string | null; specClass?: string; substrateMaterial?: string; substrateThickness?: number | null; setId?: string;
   structureType?: string; setBuildingTypes?: string[]; thicknessMm?: number; kValue?: number; productThermalResistance?: number; totalThermalResistance?: number;
   sourceDocumentId?: string | null; sourceVersionId?: string | null; regionCode?: string; standardLimitId?: string;
 }
@@ -88,8 +90,8 @@ export function validateCandidateAgainstQueryState(candidate: ConstraintCandidat
   }
   for (const [field, test] of [
     ["thicknessMm", (value: number) => candidate.thicknessMm === value],
-    ["thicknessMin", (value: number) => candidate.thicknessMm != null && candidate.thicknessMm >= value],
-    ["thicknessMax", (value: number) => candidate.thicknessMm != null && candidate.thicknessMm <= value],
+    ["thicknessMin", (value: number) => candidate.thicknessMm != null && (query.thicknessMinExclusive ? candidate.thicknessMm > value : candidate.thicknessMm >= value)],
+    ["thicknessMax", (value: number) => candidate.thicknessMm != null && (query.thicknessMaxExclusive ? candidate.thicknessMm < value : candidate.thicknessMm <= value)],
     ["substrateThickness", (value: number) => candidate.substrateThickness != null && Math.abs(candidate.substrateThickness - value) <= 0.5]
   ] as const) if (query[field] !== undefined) check(field, test(query[field]!));
   // 体系族/类别命中：候选必须属于该集合，仍然是硬约束，只是不唯一。
@@ -98,6 +100,7 @@ export function validateCandidateAgainstQueryState(candidate: ConstraintCandidat
     check(`${filter.metric}:${index}`, matchesMetric(getCandidateMetricValue(candidate, filter.metric), filter.targetValue, filter.mode, filter.tolerance));
   if (query.documentIds) check("documentIds", !!candidate.sourceDocumentId && query.documentIds.includes(candidate.sourceDocumentId));
   if (query.knowledgeVersionIds) check("knowledgeVersionIds", !!candidate.sourceVersionId && query.knowledgeVersionIds.includes(candidate.sourceVersionId));
+  if (query.referenceSetIds) check("referenceSetIds", !!candidate.setId && query.referenceSetIds.includes(candidate.setId));
   for (const exclusion of query.exclusions ?? []) {
     const excluded = exclusion.field === "systemHint" ? candidate.systemName : exclusion.field === "buildingType" ? candidate.setBuildingTypes?.join(" ") : candidate[exclusion.field];
     check(`exclude:${exclusion.field}`, !!excluded && !normalizeEntityText(excluded).includes(normalizeEntityText(exclusion.value)));
@@ -107,18 +110,32 @@ export function validateCandidateAgainstQueryState(candidate: ConstraintCandidat
 }
 
 export function traceQueryState(query: ThermalQueryState, previous?: ThermalQueryState): ThermalQueryState {
+  query = { ...query, thicknessMinExclusive: query.thicknessMin == null ? undefined : query.thicknessMinExclusive,
+    thicknessMaxExclusive: query.thicknessMax == null ? undefined : query.thicknessMaxExclusive };
   const unresolved = (query.unresolved ?? []).filter(item => !item.field.startsWith("conflict:"));
   const addConflict = (field: string) => unresolved.push({ field: `conflict:${field}`, reason: "同一指标或厚度的边界互相冲突，请确认要保留或替换的条件。" });
-  if (query.thicknessMin != null && query.thicknessMax != null && query.thicknessMin > query.thicknessMax
-    || query.thicknessMm != null && (query.thicknessMin != null && query.thicknessMm < query.thicknessMin || query.thicknessMax != null && query.thicknessMm > query.thicknessMax)) addConflict("thickness");
+  if (query.thicknessMin != null && query.thicknessMax != null && (query.thicknessMin > query.thicknessMax
+      || query.thicknessMin === query.thicknessMax && (query.thicknessMinExclusive || query.thicknessMaxExclusive))
+    || query.thicknessMm != null && (query.thicknessMin != null && (query.thicknessMm < query.thicknessMin || query.thicknessMinExclusive && query.thicknessMm === query.thicknessMin)
+      || query.thicknessMax != null && (query.thicknessMm > query.thicknessMax || query.thicknessMaxExclusive && query.thicknessMm === query.thicknessMax))) addConflict("thickness");
   for (const metric of ["K", "PRODUCT_R", "TOTAL_R"] as const) {
-    let lower = -Infinity, upper = Infinity;
+    let lower = -Infinity, upper = Infinity, lowerOpen = false, upperOpen = false;
     for (const filter of normalizeThermalLookupQuery(query).filters.filter(item => item.metric === metric)) {
-      if (filter.mode === "MIN_LIMIT") lower = Math.max(lower, filter.targetValue);
-      else if (filter.mode === "MAX_LIMIT") upper = Math.min(upper, filter.targetValue);
-      else { lower = Math.max(lower, filter.targetValue - (filter.tolerance ?? 0)); upper = Math.min(upper, filter.targetValue + (filter.tolerance ?? 0)); }
+      if (filter.mode === "MIN_LIMIT" || filter.mode === "GT") {
+        if (filter.targetValue > lower) { lower = filter.targetValue; lowerOpen = filter.mode === "GT"; }
+        else if (filter.targetValue === lower && filter.mode === "GT") lowerOpen = true;
+      }
+      else if (filter.mode === "MAX_LIMIT" || filter.mode === "LT") {
+        if (filter.targetValue < upper) { upper = filter.targetValue; upperOpen = filter.mode === "LT"; }
+        else if (filter.targetValue === upper && filter.mode === "LT") upperOpen = true;
+      }
+      else {
+        const nextLower = filter.targetValue - (filter.tolerance ?? 0), nextUpper = filter.targetValue + (filter.tolerance ?? 0);
+        if (nextLower > lower) { lower = nextLower; lowerOpen = false; }
+        if (nextUpper < upper) { upper = nextUpper; upperOpen = false; }
+      }
     }
-    if (lower > upper) addConflict(metric);
+    if (lower > upper || lower === upper && (lowerOpen || upperOpen)) addConflict(metric);
   }
   query = { ...query, unresolved };
   const conditionTrace: ThermalQueryState["conditionTrace"] = [];
@@ -126,13 +143,14 @@ export function traceQueryState(query: ThermalQueryState, previous?: ThermalQuer
     const old = previous?.conditionTrace?.find(item => item.field === field && item.value === value && item.mode === mode);
     conditionTrace.push({ field, value, mode, classification, source: old ? "CONTEXT_INHERITED" : "USER_EXPLICIT" });
   };
-  for (const field of [...entityFields, "applicationPart", "roofForm", "placement", "waterproofGrade", "pageLabel", "substrateThickness", "thicknessMm", "thicknessMin", "thicknessMax"] as const)
+  for (const field of [...entityFields, "applicationPart", "roofForm", "placement", "waterproofGrade", "pageLabel", "substrateThickness", "thicknessMm", "thicknessMin", "thicknessMax", "thicknessMinExclusive", "thicknessMaxExclusive"] as const)
     if (query[field] !== undefined) add(field, query[field]!, "HARD_CONSTRAINT");
   for (const id of query.systemIds ?? []) add("systemIds", id, "HARD_CONSTRAINT");
   for (const value of query.specClasses ?? []) add("specClasses", value, "HARD_CONSTRAINT");
   for (const value of query.placements ?? []) add("placements", value, "HARD_CONSTRAINT");
+  for (const value of query.constructionCodes ?? []) add("constructionCodes", value, "HARD_CONSTRAINT");
   for (const filter of query.filters ?? []) add(filter.metric, filter.targetValue, "HARD_CONSTRAINT", filter.mode);
-  for (const field of ["documentIds", "knowledgeVersionIds"] as const) for (const value of query[field] ?? []) add(field, value, "HARD_CONSTRAINT");
+  for (const field of ["documentIds", "knowledgeVersionIds", "referenceSetIds"] as const) for (const value of query[field] ?? []) add(field, value, "HARD_CONSTRAINT");
   for (const ambiguity of query.unresolved ?? []) conditionTrace.push({ field: ambiguity.field, value: ambiguity.reason, source: "USER_EXPLICIT", classification: "AMBIGUOUS" });
   if (query.preferThinner) add("preferThinner", true, "SOFT_PREFERENCE");
   for (const [field, value] of Object.entries(query.preferences ?? {})) if (typeof value === "boolean" && value) add(field, value, "SOFT_PREFERENCE");

@@ -48,3 +48,9 @@ export function thermalLayerValue(row: ThermalTableRow, field: 'thicknessMm' | '
     return evidence[0]?.[field]
   return field === 'thicknessMm' ? row.option.thicknessMm : null
 }
+
+/** 单列原表的显示取值：优先同层证据；旧档位值仅放回原物理列，不改其事实字段或用于计算。 */
+export function thermalSourceResistance(row: ThermalTableRow, shared: boolean) {
+  const layerValue = thermalLayerValue(row, 'rValue')
+  return shared && row.option && layerValue == null ? row.option.productThermalResistance : layerValue
+}

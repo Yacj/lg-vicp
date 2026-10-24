@@ -16,7 +16,50 @@ const metric = (evidence: string, operator: "EXACT" | "APPROX" | "MAX_LIMIT" | "
   ({ type: "METRIC", operation: "SET", field: null, entityText: null, resolvedText: null, metric: name, operator, value, evidence, hard: true, confidence: 0.99 });
 const parsed = (constraints: SemanticQuery["constraints"], queryMode: SemanticQuery["queryMode"] = "NEW_QUERY"): SemanticQuery => ({ queryMode, intent: "REFERENCE_LOOKUP", constraints, preferences: [], unresolved: [], confidence: 0.99 });
 
+it.each([160, 200, 240])("基层%s的字段证据适用于厚/mm/毫米，不能吞掉同句板厚或继承旧问", base => {
+  for (const unit of ["厚", "mm", "毫米"]) {
+    const evidence = `${base}${unit}的基层`;
+    const substrate = { ...metric(evidence, "EXACT", base), type: "THICKNESS" as const, field: "substrateThickness" as const, metric: null };
+    const q = applySemanticQuery(`${evidence}，板材22mm，K不超过0.28`, parsed([
+      substrate, { ...metric("板材22mm", "EXACT", 22), type: "THICKNESS", metric: null }, metric("K不超过0.28", "MAX_LIMIT", .28)
+    ]), dictionary);
+    expect(q).toMatchObject({ substrateThickness: base, thicknessMm: 22, unresolved: [] });
+    const omitted = applySemanticQuery(`${evidence}，板材22mm`, parsed([substrate]), dictionary);
+    expect(omitted.unresolved).toContainEqual(expect.objectContaining({ field: "thicknessMm" }));
+    const reply = applySemanticQuery(`${evidence}\n基层另述，板材22mm`, parsed([
+      substrate, { ...metric("板材22mm", "EXACT", 22), type: "THICKNESS", metric: null }
+    ]), dictionary, undefined, { currentMessage: "基层另述，板材22mm" });
+    expect(reply).toMatchObject({ substrateThickness: base, thicknessMm: 22, unresolved: [] });
+  }
+});
+
 describe("统一语义分类的确定性边界", () => {
+  const pageEntity = (field: "roofForm" | "applicationPart", literal: string): SemanticQuery["constraints"][number] => ({
+    type: "ENTITY", operation: "SET", field, entityText: literal, resolvedText: null, metric: null, operator: null, value: null,
+    evidence: literal, hard: true, confidence: .99
+  });
+  it.each([["平屋面", "FLAT"], ["坡屋面", "SLOPED"]])("已核验%s同时保留父级屋面范围，不要求重复字段", (literal, form) => {
+    const q = applySemanticQuery(literal, parsed([pageEntity("roofForm", literal)]), dictionary);
+    expect(q).toMatchObject({ applicationPart: "ROOF", roofForm: form, unresolved: [] });
+  });
+  it("子属性不能覆盖已经指定的冲突部位", () => {
+    const q = applySemanticQuery("外墙和平屋面", parsed([pageEntity("applicationPart", "外墙"), pageEntity("roofForm", "平屋面")]), dictionary);
+    expect(q.applicationPart).toBe("EXTERNAL_WALL");
+    expect(q.unresolved).toContainEqual(expect.objectContaining({ field: "applicationPart" }));
+  });
+  it("缺原话证据或低置信度的子属性不补父部位", () => {
+    for (const [message, confidence] of [["外墙", .99], ["平屋面", .5]] as const) {
+      const q = applySemanticQuery(message, parsed([{ ...pageEntity("roofForm", "平屋面"), confidence }]), dictionary);
+      expect(q.applicationPart).toBeUndefined();
+      expect(q.roofForm).toBeUndefined();
+      expect(q.unresolved?.length).toBeGreaterThan(0);
+    }
+  });
+  it("移除屋面子属性不因其字形重新补回父部位", () => {
+    const q = applySemanticQuery("平屋面", parsed([{ ...pageEntity("roofForm", "平屋面"), operation: "REMOVE" }]), dictionary);
+    expect(q.applicationPart).toBeUndefined();
+    expect(q.roofForm).toBeUndefined();
+  });
   it.each(["Ⅲ型VICP薄抹灰外保温系统", "III型 VICP 薄抹灰外保温系统", "iii型vicp薄抹灰外保温系统"])("未登记的%s不能被正式I/II型名称后缀截获", name => {
     const entities = [
       { field: "systemId" as const, value: "sys-I", names: ["I型VICP薄抹灰外保温系统"] },
@@ -145,6 +188,13 @@ describe("统一语义分类的确定性边界", () => {
     ]), dictionary);
     expect(query).toMatchObject({ substrateThickness: 240, thicknessMm: 18, unresolved: [] });
   });
+  it("无entityText的基层厚度提案只覆盖基层数值，不把它当板厚或掩盖另一板厚", () => {
+    const substrate = { ...metric("200mm基层", "EXACT", 200), type: "THICKNESS" as const, field: "substrateThickness" as const, entityText: null, metric: null };
+    expect(applySemanticQuery("200mm基层", parsed([substrate]), dictionary)).toMatchObject({ substrateThickness: 200, unresolved: [] });
+    const missingBoard = applySemanticQuery("200mm基层，保温32mm", parsed([substrate]), dictionary);
+    expect(missingBoard.unresolved?.length).toBeGreaterThan(0);
+    expect(missingBoard.thicknessMm).toBeUndefined();
+  });
   it("EXACT失败只保留指定身份厚度，不跳体系或厚度", () => {
     const rows = [
       { id: "r1", systemId: "sys-i", schemeId: "scheme-i", schemeCode: "A1-3", thicknessMm: 18, kValue: 0.303 },
@@ -160,5 +210,40 @@ describe("统一语义分类的确定性边界", () => {
     for (const message of ["K0.3", "第22页", "2026年", "A1-3"]) expect(applySemanticQuery(message, parsed([metric(message, "EXACT", 22)]), dictionary).unresolved?.length).toBeGreaterThan(0);
     expect(describeNumberRoles("A1-3 18mm 第22页 2026年").map(item => item.role)).toEqual(["SCHEME_CODE_PART", "SCHEME_CODE_PART", "THICKNESS", "PAGE_NUMBER", "YEAR"]);
     expect(applySemanticQuery("K0.3或者总R3.3", parsed([metric("K0.3")]), dictionary).unresolved?.some(item => item.field === "relationship")).toBe(true);
+  });
+});
+
+it("某一字段的未决原因不得污染其他已由原话唯一绑定的字段；总查询仍保留来源门禁",()=>{
+ const message="甲表的钢筋混凝土基层180mm";
+ const source={id:"00000000-0000-4000-8000-000000000001",code:"A",name:"甲资料",source:"甲表",reference:"页一"};
+ const q=applySemanticQuery(message,{...parsed([{type:"ENTITY",operation:"SET",field:"substrateMaterial",entityText:"钢筋混凝土",resolvedText:null,metric:null,operator:null,value:null,evidence:"钢筋混凝土",hard:true,confidence:.99}]),confidence:.86,sourceScope:{kind:"REFERENCE_SET",ids:[source.id],evidence:"甲表"}},
+ {entities:[{field:"substrateMaterial",value:"钢筋混凝土",names:["钢筋混凝土"]}],aliases:[],sourceSets:[source]});
+ expect(q.substrateMaterial).toBe("钢筋混凝土");expect(q.referenceSetIds).toBeUndefined();
+ expect(q.unresolved).toEqual(expect.arrayContaining([expect.objectContaining({field:"referenceSetIds"})]));
+ expect(q.unresolved?.some(item=>item.reason.includes("多个记录")||item.reason.includes("对象未被完整"))).toBe(false);
+});
+
+describe("已验证的基层厚度只占用对应毫米标量", () => {
+  const base = (value: number, evidence: string): SemanticQuery["constraints"][number] => ({ type: "THICKNESS", operation: "SET",
+    field: "substrateThickness", entityText: evidence, resolvedText: null, metric: null, operator: "EXACT", value,
+    evidence, hard: true, confidence: .99 });
+  it.each([170, 180, 240])("上下文实体文本不把%dmm基层再要求成板厚", value => {
+    const evidence = `既有基层${value}mm`;
+    const q = applySemanticQuery(evidence, parsed([base(value, evidence)]), dictionary);
+    expect(q.substrateThickness).toBe(value); expect(q.thicknessMm).toBeUndefined();
+    expect(q.unresolved).toEqual([]);
+  });
+  it("同句另一块板的厚度仍独立校验，不能因基层已绑定而漏掉", () => {
+    const evidence = "基层180mm", message = `${evidence}，保温板厚25mm`;
+    const missing = applySemanticQuery(message, parsed([base(180, evidence)]), dictionary);
+    expect(missing.unresolved?.some(item => item.field === "thicknessMm")).toBe(true);
+    const board: SemanticQuery["constraints"][number] = { ...base(25, "25mm"), field: null };
+    const q = applySemanticQuery(message, parsed([base(180, evidence), board]), dictionary);
+    expect(q).toMatchObject({ substrateThickness: 180, thicknessMm: 25, unresolved: [] });
+  });
+  it("不凭实体描述改数值，也不把基层范围伪装为确定标量", () => {
+    for (const [message, value] of [["基层180mm", 200], ["基层不低于180mm", 180]] as const) {
+      expect(applySemanticQuery(message, parsed([base(value, message)]), dictionary).unresolved?.length).toBeGreaterThan(0);
+    }
   });
 });

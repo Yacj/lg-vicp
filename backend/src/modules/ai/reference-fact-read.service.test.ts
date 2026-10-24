@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { beforeEach, expect, it, vi } from "vitest";
-const mocks = vi.hoisted(() => ({ access: vi.fn(), history: vi.fn(), query: vi.fn(), read: vi.fn() }));
+const mocks = vi.hoisted(() => ({ access: vi.fn(), history: vi.fn(), query: vi.fn(), read: vi.fn(), visible: vi.fn() }));
+vi.mock("./reference-candidate-resolver.service.js", () => ({ resolveCandidateReference: mocks.visible }));
 vi.mock("./solution-state.service.js", () => ({ assertSolutionAccess: mocks.access }));
 vi.mock("./reference-fact-history.js", async original => ({ ...await original<typeof import("./reference-fact-history.js")>(), readReferenceFactHistory: mocks.history }));
 vi.mock("./ai-reference-pages.service.js", async original => ({ ...await original<typeof import("./ai-reference-pages.service.js")>(), querySelectedKnowledgeCandidates: mocks.query, readConsumableReferencePages: mocks.read }));
@@ -10,6 +11,7 @@ import { domainDecision } from "./ai-domain-turn-decision.js";
 import { referenceReadFixture } from "./reference-read.fixture.js";
 import { historyMentionStatus } from "./reference-fact-history.js";
 import { groundReadReferenceFormats } from "./reference-read-grounding.js";
+import { publishedReferenceSource } from "./published-reference-source.js";
 
 function context(message: string, mode: "EXPLAIN" | "VERIFY" | "COMPARE" | "DEFINE" = "EXPLAIN") {
   const semantic = domainSemanticFixture(message, "KNOWLEDGE_EXPLAIN", { factRead: { mode, metric: mode === "COMPARE" ? "PRODUCT_R" : "K", historyClaim: mode === "EXPLAIN", evidence: message } });
@@ -17,6 +19,36 @@ function context(message: string, mode: "EXPLAIN" | "VERIFY" | "COMPARE" | "DEFI
     taskState: { taskType: "GENERAL" }, userMessage: message, onEvent: vi.fn(), domainDecision: { ...domainDecision("KNOWLEDGE_EXPLAIN", message), semantic } } as any;
 }
 const hits = [{ documentId: "doc", versionId: "version" }] as any;
+it("概念含义按当前语义指标读取，不访问旧查询或生成候选", async () => {
+  const ctx = context("先说传热系数的意思", "DEFINE"), before = structuredClone(ctx.taskState);
+  ctx.domainDecision.semantic.factRead.explanationAspect = "MEANING";
+  const result = await resolveReferenceFactRead(ctx, []);
+  expect(result?.facts.canonicalAnswers[0]).toMatch(/^传热系数 K/);
+  expect(result?.needsClarification).toBe(false);
+  expect(result?.candidates).toEqual([]); expect(result?.referencePages).toEqual([]);
+  expect(mocks.query).not.toHaveBeenCalled(); expect(mocks.history).not.toHaveBeenCalled();
+  expect(ctx.taskState).toEqual(before); expect(ctx.onEvent).not.toHaveBeenCalled();
+});
+it("来源续问读取同一已核验正式行，不以相近数值改绑原页或重算", async () => {
+  const ctx = context("这个K是哪里来的？"); ctx.domainDecision.semantic.relation = "CONTINUE";
+  const candidate = { id: "row", setId: "set", schemeId: "scheme", productSpecId: "spec", systemId: "system",
+    setVersion: 2, schemeVersion: 3, specVersion: 4, evidenceSource: "客户热工表", evidenceRef: "SheetA",
+    thicknessMm: 28, kValue: .2719, productThermalResistance: 3.7, totalThermalResistance: 3.927 };
+  const row = { ...candidate, publishedReferenceSource: publishedReferenceSource(candidate) };
+  ctx.taskState.lastReferenceLookup = { candidates: [row], query: {} };
+  const before = structuredClone(ctx.taskState);
+  mocks.visible.mockResolvedValue({ candidates: [row], pages: [], sources: [], reason: undefined });
+  const result = await resolveReferenceFactRead(ctx, []);
+  expect(result?.facts.canonicalAnswers[0]).toContain("K=0.2719");
+  expect(result?.facts.canonicalAnswers[0]).toContain("客户热工表》SheetA，参考集版本2");
+  expect(result?.facts.canonicalAnswers[0]).toContain("没有重新计算");
+  expect(result?.facts.canonicalAnswers[0]).toContain("尚未关联原图");
+  expect(mocks.query).not.toHaveBeenCalled(); expect(ctx.taskState).toEqual(before);
+  mocks.visible.mockResolvedValue({ candidates: [], pages: [], reason: "当前候选已过期" });
+  const expired = await resolveReferenceFactRead(ctx, []);
+  expect(expired?.facts.canonicalAnswers[0]).toBe("当前候选已过期");
+  expect(expired?.facts.canonicalAnswers[0]).not.toContain("0.2719");
+});
 it("指标定义由语义目标进入只读合同，不查数值或补算产品热阻", async () => {
   const ctx = context("20mm保温层的热阻是整体传热阻吗？", "DEFINE"), before = structuredClone(ctx.taskState);
   const result = await resolveReferenceFactRead(ctx, []);
@@ -29,6 +61,19 @@ beforeEach(() => {
   vi.resetAllMocks(); mocks.access.mockResolvedValue({ projectId: null }); mocks.history.mockResolvedValue([]);
   const fixture = referenceReadFixture();
   mocks.query.mockResolvedValue(fixture.candidates); mocks.read.mockResolvedValue([fixture.row]);
+});
+it.each(["先别计算，只解释芯材厚度怎样影响热阻。", "同一种材料变厚，R和K如何变化？"])("定性解释保留关系适用条件且不授权计算：%s", async message => {
+  const ctx = context(message, "DEFINE"), before = structuredClone(ctx.taskState);
+  const result = await resolveReferenceFactRead(ctx, []);
+  expect(result?.needsClarification).toBe(false);
+  const answer = result!.facts.canonicalAnswers[0]!;
+  expect(answer).toContain("修正系数 α 相同");
+  expect(answer).toContain("其他构造层及表面热阻不变");
+  expect(answer).toContain("芯材越厚，该芯层热阻越大");
+  expect(answer).toContain("无法确定产品整体或整构造的数值");
+  expect(result?.candidates).toEqual([]); expect(result?.referencePages).toEqual([]);
+  expect(mocks.query).not.toHaveBeenCalled(); expect(mocks.read).not.toHaveBeenCalled();
+  expect(ctx.taskState).toEqual(before); expect(ctx.onEvent).not.toHaveBeenCalled();
 });
 it("型号热阻关系由代码计算，4.800小于5.000；不同指标不能混算", () => {
   const a = { productThermalResistance: 4.8, totalThermalResistance: 99 } as any, b = { productThermalResistance: 5 } as any;

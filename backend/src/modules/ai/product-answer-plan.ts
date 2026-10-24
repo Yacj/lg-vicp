@@ -14,20 +14,20 @@ export function renderProductAnswerPlan(plan: ProductAnswerPlan, facts: ProductA
   if (ids.size !== facts.products.length || facts.products.some(product => !ids.has(product.id))) return null;
   const lines = parsed.data.products.map(row => {
     const product = facts.products.find(item => item.id === row.productId)!;
-    const fields = new Set(row.fields);
+    const fields = new Set(facts.mode === "TECHNICAL" ? row.fields : row.fields.filter(field => field === "SUMMARY" || field === "CATEGORY" || field === "DOCUMENTS"));
     // 介绍的主要资料不能被模型省略；空summary不是编造用途的许可。
-    const parts: string[] = [product.name];
+    const parts: string[] = [product.approvedAliases?.length ? `${product.approvedAliases.join("、")} 是“${product.name}”的简称` : product.name];
     if (product.summary && (facts.mode !== "TECHNICAL" || fields.has("SUMMARY"))) parts.push(product.summary);
-    else if (facts.mode !== "TECHNICAL") parts.push("当前目录未提供已审核的产品介绍");
-    if (fields.has("CATEGORY") && product.productType) parts.push(`目录类别为${product.productType}`);
+    else if (facts.mode !== "TECHNICAL") parts.push(facts.audience === "GENERAL" ? "简单说，目前能核对的是它的规格和技术参数，产品特点的正式说明还不完整" : "目前产品介绍资料还不完整，可以继续帮你查已发布规格、技术参数或参考构造");
+    if (fields.has("CATEGORY") && product.productType && !product.name.includes(product.productType)) parts.push(`它属于${product.productType}产品`);
     if (fields.has("THICKNESS") && product.thicknessOptionsMm.length) parts.push(`可选板厚为${product.thicknessOptionsMm.join("、")}mm`);
     if (fields.has("LAMBDA") && product.thermalConductivity != null) parts.push(`目录产品导热系数λ=${product.thermalConductivity} W/(m·K)`);
     if (fields.has("CORRECTION") && product.correctionFactor != null) parts.push(`修正系数α=${product.correctionFactor}`);
     if (fields.has("SPECS") && product.specifications.length) parts.push(`已发布规格：${product.specifications.map(spec=>`${spec.specCode}${spec.thicknessMm == null ? "" : `（${spec.thicknessMm}mm）`}`).join("、")}`);
-    if (fields.has("DOCUMENTS")) parts.push(product.hasTechnicalDocs ? "已关联当前可读技术资料" : "本次未读取到关联的已发布技术资料");
+    if (fields.has("DOCUMENTS") && product.hasTechnicalDocs) parts.push("有对应的技术资料可以进一步查看");
     return parts.join("。") + "。";
   });
-  return `本次正式目录${facts.hasMore ? "展示部分记录" : `检索到${facts.products.length}款产品`}，目录覆盖不代表完整系列。\n${lines.join("\n")}`;
+  return `${facts.hasMore ? "先介绍其中几款产品：" : facts.products.length === 1 ? "可以先了解这款产品：" : "目前可以介绍这些产品："}\n${lines.join("\n")}${facts.seriesRequested ? "\n目前资料可介绍这些产品，完整系列的型号清单还需要补充。" : ""}`;
 }
 
 export function productAnswerPlanPrompt(facts: ProductAnswerFacts) {

@@ -15,13 +15,28 @@ export interface DomainTurnDecision {
   requiresCandidateQuery?: boolean;
   restoreAdviceGoal?: boolean;
   policyReason?: string;
+  /** Backend字段校验失败的位置；仅用于限定只读字段复核范围，不来自模型。 */
+  queryValidationFields?: string[];
+  /** 新AI指标查询采用V2，模型与客户端不能指定旧合同以放宽边界。 */
+  queryContractVersion?: 1 | 2;
   /** 仅服务器绑定的只读查询证据，原用户消息及副作用授权仍独立。 */
   queryEvidenceText?: string;
   queryContextMessageId?: string;
   /** 属性读取重验待澄清上下文时排除本轮USER消息，仅由服务器填充。 */
   queryCurrentMessageId?: string;
+  /** 续问产品身份只绑定服务器核验的紧邻产品读取记录。 */
+  productContextMessageId?: string;
+  productReadContext?: { query: NonNullable<DomainTurnSemantic["productQuery"]>; parameterFocus?: unknown; createdAt: string };
+  parameterContextMessageId?: string;
+  parameterReadContext?: { query: import("./product-parameter-query.js").ProductParameterQuery;
+    diagnostics: import("./product-parameter-diagnostics.js").ParameterDiagnostics; createdAt: string };
+  /** 仅由服务端读取的有效澄清链，供本轮继续澄清持久化；模型不能提供。 */
+  pendingQuery?: import("./query-need.js").QueryClarification;
   /** 中等置信的查询提案经完整条件校验后仅展示事实，不发布/覆盖Candidate。 */
   queryResultMode?: "FACTS_ONLY";
+  /** Backend依据实际读取历史绑定，不来自模型；仍需当前来源/Revision校验。 */
+  referenceFocusIds?: string[];
+  queryBase?: import("../thermal/thermal-query-state.js").ThermalQueryState;
 }
 /** 内部合同构造器不等于授权；模型输出只能经applyDomainPolicy进入执行路径。 */
 export function domainDecision(intent: DomainIntent, evidence: string): DomainTurnDecision {

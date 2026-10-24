@@ -292,7 +292,7 @@ export function createTemplateNextVersion(
 }
 
 const DEFAULT_DISCLAIMER =
-  "本报告由蓝格 VICP 建筑节能 AI 智配系统生成，工程结论应由专业人员复核。（免责声明正式措辞待甲方确认）";
+  "本报告由蓝格 VICP 建筑节能 AI 智配系统生成，工程结论应由专业人员复核。";
 
 /** 默认模板章节配置（内部预置）：章节齐全、按标准工程报告顺序 */
 export const DEFAULT_REPORT_SECTIONS: ReportTemplateSection[] = [

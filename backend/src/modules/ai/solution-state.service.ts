@@ -1,7 +1,7 @@
+import { publishedConstructionLayersStillCurrent } from "./published-construction-layers.js";
 import type { FastifyInstance, FastifyRequest } from "fastify";
-import { isDeepStrictEqual } from "node:util";
 import { and, eq, isNull } from "drizzle-orm";
-import { aiConversationStates, aiConversations, projects, solutionStates, solutionSnapshots, thermalCalcRecords, constructionSchemes, insulationSystems, catalogProducts } from "../../db/schema.js";
+import { aiConversationStates, aiConversations, projects, solutionStates, solutionSnapshots, thermalCalcRecords, constructionSchemes, insulationSystems, catalogProducts, productSpecs } from "../../db/schema.js";
 import { parseConversationTaskState, type LastReferenceLookup, type ConversationTaskState } from "./conversation-task.js";
 import type { DbExecutor } from "../../db/client.js";
 import type { AuthUser } from "../../shared/auth-user.js";
@@ -15,8 +15,9 @@ import { publishedReferenceConditions } from "../construction/construction-struc
 import { compactCandidateResult } from "./tools/thermal-lookup.js";
 import { emitReferencePages } from "./tools/thermal-calculate.tool.js";
 import { readConsumableReferencePages } from "./ai-reference-pages.service.js";
-import { readableRenderModel } from "../../shared/readable-page-render.js";
+import { readableRenderModel, sameFrozenPageFacts } from "../../shared/readable-page-render.js";
 import { visiblePageLabel } from "../../shared/page-label.js";
+import { hasPublishedReferenceSource, samePublishedReferenceSource } from "./published-reference-source.js";
 import { readPageRecognitionMeta } from "../../shared/page-recognition.js";
 import { buildKnowledgePageRenderModel } from "../../shared/knowledge-page-render.js";
 import { matchConfirmedPageOptions } from "../knowledge/knowledge-test-reference.js";
@@ -170,7 +171,7 @@ export function solutionPayloadFromLookup(lookup?: LastReferenceLookup, active?:
 }
 /** 只接收用户动作与正式引用；创建、来源核验、seed、初始mutation、审计一起提交。 */
 export async function activateSolutionFromLastLookup(ctx: SolutionContext, candidateQueryRevision: number,
-  action: Pick<SolutionAction, "action" | "candidateIds" | "positions">, expectedVersion?: number, executor?: DbExecutor) {
+  action: Pick<SolutionAction, "action" | "candidateIds" | "positions" | "comparisonCandidateIds">, expectedVersion?: number, executor?: DbExecutor) {
   const activate = async (tx: DbExecutor) => {
     await lockConversation(ctx, tx);
     const conversation = await assertSolutionAccess(tx, ctx.user, ctx.conversation.id);
@@ -197,7 +198,7 @@ export async function activateSolutionFromLastLookup(ctx: SolutionContext, candi
     // Query revision已在上面核验；序号只映射此lookup，mutation继续使用既有方案revision。
     const candidateIds = resolveActionCandidateIds(solutionPayloadFromLookup(lookup), { ...action, expectedVersion: state.version,
       candidateSetRevision: lookup.candidateQueryRevision });
-    const payload = applySolutionAction(seeded, { action: action.action, candidateIds, expectedVersion: state.version });
+    const payload = applySolutionAction(seeded, { action: action.action, candidateIds, comparisonCandidateIds: action.comparisonCandidateIds, expectedVersion: state.version });
     const [updated] = await tx.update(solutionStates).set({ payload, candidateSetRevision: payload.candidateSetRevision,
       stage: payload.finalCandidateIds.length ? "READY_TO_CONFIRM" : payload.selectedCandidateIds.length ? "REFINING" : "CANDIDATE_SELECTION", version: state.version + 1, updatedAt: new Date() })
       .where(and(eq(solutionStates.id, state.id), eq(solutionStates.version, state.version))).returning();
@@ -222,6 +223,14 @@ async function validateCurrentSources(ctx: SolutionContext, db: DbExecutor, cand
       const fresh = pages.candidates.find(candidate => candidate.id === saved.candidateId);
       const keys = ["systemId", "schemeId", "productSpecId", "catalogProductId", "thicknessMm", "productThermalResistance", "totalThermalResistance", "kValue", "sourceDocumentId", "sourcePageId", "sourceVersionId", "optionId"] as const;
       if (!fresh || keys.some(key => fresh[key] !== saved[key])) solutionError("SOLUTION_SOURCE_CHANGED", "正式候选或确认来源已变化，请重新查询并确认最终方案");
+      if (saved.applicationPart != null && (fresh.applicationPart !== saved.applicationPart || fresh.systemType !== saved.systemType || fresh.systemVersion !== saved.systemVersion))
+        solutionError("SOLUTION_SOURCE_CHANGED", "这套做法的发布类别或版本已变化，请重新查询后确认");
+      if (saved.schemeName != null && saved.schemeName !== fresh.schemeName)
+        solutionError("SOLUTION_SOURCE_CHANGED", "候选名称与当前发布构造不一致，请重新查询后选择");
+      if (saved.publishedReferenceSource && (!hasPublishedReferenceSource(fresh) || !samePublishedReferenceSource(fresh.publishedReferenceSource, saved.publishedReferenceSource)))
+        solutionError("SOLUTION_SOURCE_CHANGED", "正式参考集、行或参数版本已变化，请重新查询并确认最终方案");
+      if (!await publishedConstructionLayersStillCurrent(db, saved))
+        solutionError("SOLUTION_SOURCE_CHANGED", "这套构造的分层资料已变化，请重新查询并确认最终方案");
     }
   }
   for (const candidate of candidates.filter(item => item.sourceType === "CALCULATED")) {
@@ -232,7 +241,7 @@ async function validateCurrentSources(ctx: SolutionContext, db: DbExecutor, cand
       solutionError("SOLUTION_SOURCE_CHANGED", "计算记录的冻结事实已变化，请重新选取");
   }
   const pages = await readConsumableReferencePages(txApp, candidates.flatMap(candidate => candidate.sourcePageId ? [candidate.sourcePageId] : []), projectId);
-  if (candidates.filter(candidate => candidate.sourceType === "REFERENCE").some(candidate => !pages.some(({ page }) => page.id === candidate.sourcePageId)))
+  if (candidates.filter(candidate => candidate.sourceType === "REFERENCE" && !hasPublishedReferenceSource(candidate)).some(candidate => !pages.some(({ page }) => page.id === candidate.sourcePageId)))
     solutionError("SOLUTION_SOURCE_CHANGED", "来源页已失效或无权访问");
   const snapshots = pages.flatMap(({ page, document }) => {
     const data = readPageRecognitionMeta(page.metadata).confirmedStructuredData;
@@ -245,14 +254,14 @@ async function validateCurrentSources(ctx: SolutionContext, db: DbExecutor, cand
     if (!fresh || ["thicknessMm", "productThermalResistance", "totalThermalResistance", "kValue"].some(key => fresh[key as keyof typeof fresh] !== saved[key as keyof typeof saved]))
       solutionError("SOLUTION_SOURCE_CHANGED", "原页确认档位已变化，请重新查询并选择");
   }
-  for (const candidate of candidates.filter(candidate => candidate.sourceType === "REFERENCE")) {
+  for (const candidate of candidates.filter(candidate => candidate.sourceType === "REFERENCE" && !hasPublishedReferenceSource(candidate))) {
     const page = snapshots.find(snapshot => snapshot.page.id === candidate.sourcePageId);
     if (!page || !page.model.constructions.some(construction => construction.options.some(option => option.optionId === candidate.optionId)))
       solutionError("SOLUTION_SOURCE_CHANGED", "来源确认档位已失效，请重新查询");
   }
   return pages.map(({ page, document }) => ({ sourcePageId: page.id, documentId: document.id, versionId: page.versionId,
     documentTitle: document.title, docNumber: document.docNumber, pageLabel: visiblePageLabel(page), physicalPageNumber: page.physicalPageNumber, objectKey: page.pageImageObjectKey,
-    renderModel: readableRenderModel(page.id, page.metadata, visiblePageLabel(page)) }));
+    renderModel: readableRenderModel(page.id, page.metadata, visiblePageLabel(page), page.versionId) }));
 }
 export async function actOnSolution(ctx: SolutionContext, stateId: string, action: SolutionAction) {
   return ctx.app.db.transaction(async tx => {
@@ -283,7 +292,7 @@ export async function actOnSolution(ctx: SolutionContext, stateId: string, actio
       Object.defineProperty(txApp, "db", { value: tx });
       const alternativePages = await readConsumableReferencePages(txApp, alternatives.flatMap(candidate => candidate.sourcePageId ? [candidate.sourcePageId] : []), state.projectId);
       for (const { page, document } of alternativePages) {
-        const model = readableRenderModel(page.id, page.metadata, visiblePageLabel(page));
+        const model = readableRenderModel(page.id, page.metadata, visiblePageLabel(page), page.versionId);
         if (!model || referencePages.some(saved => saved.sourcePageId === page.id)
           || !alternatives.some(candidate => candidate.sourcePageId === page.id && model.constructions.some(construction => construction.options.some(option => option.optionId === candidate.optionId)))) continue;
         referencePages.push({ sourcePageId: page.id, documentId: document.id, versionId: page.versionId, documentTitle: document.title,
@@ -295,7 +304,7 @@ export async function actOnSolution(ctx: SolutionContext, stateId: string, actio
         userId: state.userId, projectId: state.projectId, confirmedBy: ctx.user.id,
         payload: { schemaVersion: 1, queryStateSnapshot: payload.queryStateSnapshot, conditionsSnapshot: payload.conditions,
           preferencesSnapshot: payload.preferences, candidates, alternatives, referencePages,
-          warnings: [...new Set(payload.conflicts.map(conflict => `${conflict.candidateId}：${conflict.message}`)), ...candidates.filter(candidate => !candidate.sourcePageLabel).map(() => "来源未提供已核验印刷页码"),
+          warnings: [...new Set(payload.conflicts.map(conflict => `${conflict.candidateId}：${conflict.message}`)), ...candidates.filter(candidate => candidate.sourcePageId && !candidate.sourcePageLabel).map(() => "来源未提供已核验印刷页码"),
             ...alternatives.filter(candidate => candidate.sourcePageId && !referencePages.some(page => page.sourcePageId === candidate.sourcePageId)).map(candidate => `${candidate.candidateId}：备选来源已失效，保留当时值，无法冻结当前来源表格`)],
           projectSnapshot: project ? structuredClone(project) : null, selectedCandidateIds: payload.selectedCandidateIds,
           finalCandidateIds: payload.finalCandidateIds, recommendedCandidateIds: payload.recommendedCandidateIds } }).returning();
@@ -318,9 +327,9 @@ export async function getSolutionSnapshot(ctx: SolutionContext, snapshotId: stri
   const readable = await readConsumableReferencePages(ctx.app, snapshot.payload.referencePages.flatMap(page => typeof page.sourcePageId === "string" ? [page.sourcePageId] : []), snapshot.projectId);
   const referenceImages = await Promise.all(snapshot.payload.referencePages.map(async page => {
     const current = readable.find(({ page: source }) => source.id === page.sourcePageId && source.versionId === page.versionId);
-    const currentModel = current ? readableRenderModel(current.page.id, current.page.metadata, visiblePageLabel(current.page)) : null;
+    const currentModel = current ? readableRenderModel(current.page.id, current.page.metadata, visiblePageLabel(current.page), current.page.versionId) : null;
     if (!current || current.page.pageImageObjectKey !== page.objectKey || typeof page.objectKey !== "string"
-      || !isDeepStrictEqual(currentModel, page.renderModel)) return { sourcePageId: page.sourcePageId, imageUrl: null };
+      || !sameFrozenPageFacts(currentModel, page.renderModel)) return { sourcePageId: page.sourcePageId, imageUrl: null };
     try { return { sourcePageId: page.sourcePageId, imageUrl: await ctx.app.storage.createDownloadUrl(page.objectKey, "方案来源.png", 3600) }; }
     catch { return { sourcePageId: page.sourcePageId, imageUrl: null }; }
   }));
@@ -334,6 +343,7 @@ export async function loadCalculatedCandidates(ctx: SolutionContext, calculation
   const input = record.inputJson;
   const [scheme] = typeof input.schemeId === "string" ? await db.select().from(constructionSchemes).where(and(eq(constructionSchemes.id, input.schemeId), ...publishedReferenceConditions(constructionSchemes))).limit(1) : [];
   const [system] = scheme ? await db.select().from(insulationSystems).where(eq(insulationSystems.id, scheme.systemId)).limit(1) : [];
+  const [spec] = typeof input.productSpecId === "string" ? await db.select().from(productSpecs).where(and(eq(productSpecs.id, input.productSpecId), ...publishedReferenceConditions(productSpecs))).limit(1) : [];
   const results = record.mode === "REFERENCE_TABLE" && Array.isArray(record.resultJson.candidates)
     ? record.resultJson.candidates.filter((item): item is Record<string, unknown> => !!item && typeof item === "object") : [record.resultJson];
   const calculated: SolutionCandidateSnapshot[] = results.map(result => {
@@ -341,7 +351,15 @@ export async function loadCalculatedCandidates(ctx: SolutionContext, calculation
     return { id: candidateId, candidateId, sourceType: "CALCULATED", calculationId: record.id,
     calcMode: record.mode, ruleVersion: record.ruleVersion, inputSnapshot: input, resultSnapshot: record.resultJson,
     provenanceSnapshot: { parameters: record.parametersJson, layers: record.layersJson, rule: record.ruleJson, standard: record.standardJson, formula: record.formulaJson, steps: record.stepsJson },
-    systemId: system?.id, systemName: system?.name, schemeId: scheme?.id, schemeCode: scheme?.schemeCode, constructionCode: scheme?.schemeCode,
+    systemId: system?.id, systemName: system?.name, schemeId: scheme?.id, schemeCode: scheme?.schemeCode, schemeName: scheme?.name, constructionCode: scheme?.schemeCode,
+    substrateMaterial: scheme?.substrateMaterial, substrateThickness: scheme?.substrateThickness, schemeVersion: scheme?.version,
+    catalogProductId: spec?.catalogProductId, productId: spec?.catalogProductId, specCode: spec?.specCode, specVersion: spec?.version,
+    evidenceSource: scheme?.evidenceSource ?? undefined, evidenceRef: scheme?.evidenceRef ?? undefined,
+    inputThicknessLayerName: record.mode === "LAYERED" && Array.isArray(record.layersJson)
+      ? record.layersJson.flatMap(layer => layer && typeof layer === "object" && "layerType" in layer && layer.layerType === "PRODUCT_LAYER"
+        && "layerName" in layer && typeof layer.layerName === "string" ? [layer.layerName] : [])[0] : undefined,
+    ...(result.productResistanceScope === "PRODUCT_LAYER_ROWS_ONLY" || result.productResistanceScope === "PRODUCT_EQUIVALENT_TOTAL"
+      ? { productThermalResistanceScope: result.productResistanceScope } : {}),
     productSpecId: typeof input.productSpecId === "string" ? input.productSpecId : undefined,
     thicknessMm: typeof input.thicknessMm === "number" ? input.thicknessMm : undefined,
     regionCode: typeof input.regionCode === "string" ? input.regionCode : undefined,

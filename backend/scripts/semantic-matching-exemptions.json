@@ -496,30 +496,6 @@
     },
     {
       "file": "src/modules/ai/product-parameter-query.ts",
-      "fingerprint": "a8d1adfb63100990f83e3d102868165198915a56da3031bfd5f6ca3fcd8f840e",
-      "ruleId": "SM-PARAMETER-COMPARISON-01",
-      "category": "ENGINEERING_EXTRACTION",
-      "reason": "已选择独立LAMBDA参数后的封闭字段、比较符及±数值验证；仅拒绝不一致提案，不据词选择领域或授予副作用。",
-      "code": "(current.length ? message : scope).match(/不超过|不大于|不高于|不低于|不小于|小于|低于|大于|高于|左右|附近|接近|<=|>=|≤|≥|<|>|≈|±/g)",
-      "tests": [
-        "src/modules/ai/product-parameter-query.test.ts",
-        "src/modules/ai/product-parameter-continuity.test.ts"
-      ]
-    },
-    {
-      "file": "src/modules/ai/product-parameter-query.ts",
-      "fingerprint": "294e269be80c5b1048231df381e160625142cf98581a74f436f947deecd15467",
-      "ruleId": "SM-PARAMETER-COMPARISON-01",
-      "category": "ENGINEERING_EXTRACTION",
-      "reason": "已选择独立LAMBDA参数后的封闭字段、比较符及±数值验证；仅拒绝不一致提案，不据词选择领域或授予副作用。",
-      "code": "/不超过|不大于|不高于|不低于|不小于|小于|低于|大于|高于|左右|附近|接近|<=|>=|≤|≥|<|>|≈|±/g",
-      "tests": [
-        "src/modules/ai/product-parameter-query.test.ts",
-        "src/modules/ai/product-parameter-continuity.test.ts"
-      ]
-    },
-    {
-      "file": "src/modules/ai/product-parameter-query.ts",
       "fingerprint": "f97fbd07e83d7c35d8fdaa042531ed4dd3976682e1581ff94385f17bee628b3f",
       "ruleId": "SM-PARAMETER-COMPARISON-01",
       "category": "ENGINEERING_EXTRACTION",
@@ -564,6 +540,244 @@
       "tests": [
         "src/modules/ai/product-parameter-query.test.ts",
         "src/modules/ai/product-parameter-continuity.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/product-parameter-query.ts",
+      "line": 22,
+      "kind": "LEXICAL_CALL",
+      "code": "`${original}${message}`.includes(query.evidence)",
+      "fingerprint": "2c63c1b7b50c4f72de371123636da9f7fd5c0c2d3dc75f9b08280cbaf8eba912",
+      "ruleId": "SM-PARAMETER-EVIDENCE-01",
+      "category": "EVIDENCE",
+      "reason": "仅兼容已核验原问和当前消息之间的换行表示；逐字、顺序、数值、单位和身份校验仍执行，不路由或授予副作用。",
+      "tests": [
+        "src/modules/ai/product-parameter-query.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.service.ts",
+      "line": 45,
+      "kind": "LEXICAL_CALL",
+      "code": "message.includes(item.candidate.constructionCode)",
+      "fingerprint": "6bf136a540e1b1c1a250d23d1358aa3cacd442750c75e1738f0163ebc06b8fd0",
+      "ruleId": "SM-CANDIDATE-LABEL-EVIDENCE-01",
+      "category": "EVIDENCE",
+      "reason": "仅将用户本轮逐字写出的编码放入语义输入，减少身份推导；不据编码路由或授权。",
+      "tests": [
+        "src/modules/ai/solution-action-semantic.test.ts",
+        "src/modules/ai/solution-action-semantic.service.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.ts",
+      "line": 101,
+      "kind": "LEXICAL_CALL",
+      "code": "message.includes(ref.thicknessEvidence)",
+      "fingerprint": "f4ea39a8e36a7aa108bd3f87f298e25f2799e9a413adb2b90bc6a1cc4bdd22ec",
+      "ruleId": "SM-CANDIDATE-LABEL-EVIDENCE-01",
+      "category": "EVIDENCE",
+      "reason": "自然名称引用的厚度证据必须逐字来自本轮原话；只拒绝无证据提案，不解释意图或授予授权。",
+      "tests": [
+        "src/modules/ai/solution-action-semantic.test.ts",
+        "src/modules/ai/solution-action-semantic.service.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.ts",
+      "line": 129,
+      "kind": "LEXICAL_CALL",
+      "code": "ids.includes(id)",
+      "fingerprint": "143505fa6bfd907c3f046f827fa3a17661e38a0a2d40da2a5b2263ae41bf1f33",
+      "ruleId": "SM-CANDIDATE-SET-01",
+      "category": "ENUM_MEMBERSHIP",
+      "reason": "仅从已后端绑定的参考ID集合排除当前Final ID，集合运算不读取自然语言、不路由、不扩大候选池。",
+      "tests": [
+        "src/modules/ai/solution-action-semantic.test.ts",
+        "src/modules/ai/solution-workflow.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/ai-domain-turn-decision.service.ts",
+      "fingerprint": "ae79c00006688475c77a24aaa27c002c78c5c73eca80e8867c7314e9ebb04e01",
+      "ruleId": "SM-HISTORY-01",
+      "category": "FORMAT",
+      "reason": "只识别助手自身上一轮唯一产品建议的固定措辞，用于把‘是的’绑定到该建议；不读用户意图、不构造ID，产品Service仍按目录名称与24h/同会话重验，否定和换一个不绑定。",
+      "code": "row.content.includes(\"你是不是想了解\")",
+      "tests": [
+        "src/modules/ai/product-read.service.test.ts",
+        "src/modules/ai/ai-domain-turn-decision.service.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/product-parameter-query.ts",
+      "fingerprint": "90f2064d19c4966b30d2eec227d12d35faa700e93bb1a76f7975b679dc661238",
+      "ruleId": "SM-PARAM-OP-01",
+      "category": "FORMAT",
+      "reason": "只从待澄清原问提取封闭标量比较符（小于/不超过/大于等），不判定意图；数值仍须原问唯一目标，用户本轮给值时不覆盖，反例见测试。",
+      "code": "original.match(PARAMETER_OPERATOR_PATTERN)",
+      "tests": [
+        "src/modules/ai/product-parameter-query.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/product-parameter-query.ts",
+      "line": 25,
+      "kind": "REGEXP",
+      "code": "/不超过|不大于|不高于|不低于|不小于|小于|低于|大于|高于|左右|附近|接近|等于|<=|>=|==|=|≤|≥|<|>|≈|±/g",
+      "fingerprint": "77e6f17709596392f68dfead37ab8e307d0abdc958f972089289a915cf7b2dba",
+      "ruleId": "SM-PARAMETER-COMPARISON-01",
+      "category": "ENGINEERING_EXTRACTION",
+      "reason": "仅核验已选参数的封闭比较运算；等于/=保留EXACT，不等于/!=/≠显式拒绝，不作开放意图匹配或动作授权。",
+      "tests": [
+        "src/modules/ai/product-filter-continuation.test.ts",
+        "src/modules/ai/product-parameter-query.test.ts",
+        "src/modules/ai/parameter-continuation.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/product-parameter-query.ts",
+      "line": 26,
+      "kind": "LEXICAL_CALL",
+      "code": "/不等于|!=|≠/.test(message)",
+      "fingerprint": "1ee182a71c4afed39972fa713359a2da08c091cb677ea1dea0f4f9af8833d03d",
+      "ruleId": "SM-PARAMETER-COMPARISON-01",
+      "category": "ENGINEERING_EXTRACTION",
+      "reason": "仅核验已选参数的封闭比较运算；等于/=保留EXACT，不等于/!=/≠显式拒绝，不作开放意图匹配或动作授权。",
+      "tests": [
+        "src/modules/ai/product-filter-continuation.test.ts",
+        "src/modules/ai/product-parameter-query.test.ts",
+        "src/modules/ai/parameter-continuation.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/product-parameter-query.ts",
+      "line": 26,
+      "kind": "REGEXP",
+      "code": "/不等于|!=|≠/",
+      "fingerprint": "1938ae71733446942a9dae1588d160abf9964fc87c2845b247b9d55465a6a2c6",
+      "ruleId": "SM-PARAMETER-COMPARISON-01",
+      "category": "ENGINEERING_EXTRACTION",
+      "reason": "仅核验已选参数的封闭比较运算；等于/=保留EXACT，不等于/!=/≠显式拒绝，不作开放意图匹配或动作授权。",
+      "tests": [
+        "src/modules/ai/product-filter-continuation.test.ts",
+        "src/modules/ai/product-parameter-query.test.ts",
+        "src/modules/ai/parameter-continuation.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/ai-domain-turn-decision.service.ts",
+      "fingerprint": "27353140bcd809c023a5904ad9103a2ce0c89916ec0fdc99e8a5f5b0ba770b27",
+      "ruleId": "SM-CURRENT-REFERENCE-01",
+      "category": "EVIDENCE",
+      "reason": "仅比较Backend实际读取对象ID与当前授权池ID的交集，不读取用户文本、不分类意图或推导身份；唯一对象才绑定，多对象、旧Revision、空焦点均拒绝。",
+      "code": "referenceFocusIds.includes(candidate.id)",
+      "tests": [
+        "src/modules/ai/reference-focus.test.ts",
+        "src/modules/ai/solution-action-semantic.test.ts",
+        "src/modules/ai/ai-domain-turn-decision.service.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.ts",
+      "fingerprint": "652ed34e0f5f762c261584af33607a5481a071e12536161be7bd76ec125522dd",
+      "ruleId": "SM-CURRENT-REFERENCE-01",
+      "category": "EVIDENCE",
+      "reason": "仅比较Backend实际读取对象ID与当前授权池ID的交集，不读取用户文本、不分类意图或推导身份；唯一对象才绑定，多对象、旧Revision、空焦点均拒绝。",
+      "code": "currentReferenceIds.includes(item.candidate.candidateId)",
+      "tests": [
+        "src/modules/ai/reference-focus.test.ts",
+        "src/modules/ai/solution-action-semantic.test.ts",
+        "src/modules/ai/ai-domain-turn-decision.service.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/solution-action-semantic.service.ts",
+      "fingerprint": "ad6ca048a2ebcdaf7f28ef3565abc6992083f2850e480dffe78ead7dbd6312a0",
+      "ruleId": "SM-CURRENT-REFERENCE-01",
+      "category": "EVIDENCE",
+      "reason": "仅把Backend实际焦点ID投影成当前池序号，供动作目标与对象证据分离；不读取自然语言、不签发身份，仍由Backend唯一绑定及重验。",
+      "code": "ctx.domainDecision?.referenceFocusIds?.includes(id)",
+      "tests": [
+        "src/modules/ai/reference-focus.test.ts",
+        "src/modules/ai/solution-action-semantic.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/solution-advice.service.ts",
+      "fingerprint": "e664c1c4503f4e959e983e922bb5491b1d6c4bd94afb0e2fc21b101243a50937",
+      "ruleId": "SM-ENUM-READ-FIELDS-01",
+      "category": "ENUM_MEMBERSHIP",
+      "reason": "仅检查已核验读取字段枚举layers，控制真实分层参数展示；不读取自然语言、不选择候选或改变授权。",
+      "code": "ctx.domainDecision?.semantic?.referenceReadFields?.includes(\"layers\")",
+      "tests": [
+        "src/modules/ai/solution-advice.service.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/ai-domain-turn-decision.service.ts",
+      "fingerprint": "c901cea871a79f91d5c4d821dcd2d7f2ba0a35c6b813f5b9eb07a5ffdcc58fa7",
+      "ruleId": "SM-EVIDENCE-CACHE-01",
+      "category": "EVIDENCE",
+      "reason": "只复用完全相同的逐字证据范围与结构化厚度提案的校核结果；缓存键包含scope及完整pageQuery，不按自由文本词形判断意图、身份或授权；新证据或新提案必须重新复核。六项审计见docs/ai/evidence/natural-role-repair-2026-10-22/thickness-role-evidence-audit.md。",
+      "code": "thicknessReviews.has(key)",
+      "tests": [
+        "src/modules/ai/query-thickness-role.test.ts",
+        "src/modules/ai/ai-domain-turn-decision.service.test.ts",
+        "scripts/check-semantic-matching.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/ai-domain-turn-decision.service.ts",
+      "fingerprint": "223c612adb8434849c974193f68b4de4728562890f9856570cc2bf712576a4be",
+      "ruleId": "SM-QUERY-ENTITY-COVERAGE-01",
+      "category": "EVIDENCE",
+      "reason": "仅检查窄字段复核后仍覆盖原提案中全部ENTITY原话片段；删除名称则拒绝，不扫描问句判意图、不选业务路由、不生成身份或放宽授权。详见docs/ai/evidence/natural-role-repair-2026-10-22/query-entity-coverage-audit.md。",
+      "code": "remaining.replace(segment, \"\")",
+      "tests": [
+        "src/modules/ai/ai-domain-turn-decision.service.test.ts",
+        "src/modules/ai/thermal-query-context-regression.test.ts",
+        "src/modules/ai/atlas-domain-regression.test.ts",
+        "scripts/check-semantic-matching.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/ai-domain-semantic.ts",
+      "fingerprint": "9d5ab1e613ab9677721f1f36c7d0b3a41ca8816a7c1919d052a5b3951ebe3d95",
+      "ruleId": "SM-CURRENT-READ-FIELD-01",
+      "category": "ENUM_MEMBERSHIP",
+      "reason": "仅检查Zod确认的读取字段枚举originalPage，不匹配自然语言；原页身份及来源仍由Backend核验。 审计见docs/ai/evidence/natural-role-repair-2026-10-22/current-reference-projection-audit.md。",
+      "code": "fields.includes(\"originalPage\")",
+      "tests": [
+        "src/modules/ai/ai-domain-policy.test.ts",
+        "src/modules/ai/ai-domain-turn-decision.service.test.ts",
+        "scripts/check-semantic-matching.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/ai-domain-turn-decision.service.ts",
+      "fingerprint": "8a56e48777f29686d384e62afcd7ab5b63ad4e7cc26b5ec7d7d695bff9c37171",
+      "ruleId": "SM-CURRENT-READ-IDENTITY-01",
+      "category": "FACT_VALIDATION",
+      "reason": "仅检查当前授权焦点ID与已有候选ID的集合成员关系，以核对重复厚度；不接受模型身份、不读取自然语言。 审计见docs/ai/evidence/natural-role-repair-2026-10-22/current-reference-projection-audit.md。",
+      "code": "referenceFocusIds.includes(item.id)",
+      "tests": [
+        "src/modules/ai/ai-domain-policy.test.ts",
+        "src/modules/ai/ai-domain-turn-decision.service.test.ts",
+        "scripts/check-semantic-matching.test.ts"
+      ]
+    },
+    {
+      "file": "src/modules/ai/ai-domain-semantic.ts",
+      "fingerprint": "bef98c05c875e5c024e5194194b357fc3e72c405b867d4c39757fd6955b2f56d",
+      "ruleId": "SM-CURRENT-READ-THICKNESS-01",
+      "category": "FACT_VALIDATION",
+      "reason": "仅检查已核验的数值厚度集合与当前提案的数值相等；不同值仍作为新条件拒绝归一，不读取自然语言、不生成工程参数。详见current-reference-projection-audit.md。",
+      "code": "current?.thicknesses.includes(item.value)",
+      "tests": [
+        "src/modules/ai/ai-domain-policy.test.ts",
+        "src/modules/ai/ai-domain-turn-decision.service.test.ts",
+        "scripts/check-semantic-matching.test.ts"
       ]
     }
   ]

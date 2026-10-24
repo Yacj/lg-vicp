@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applySolutionAction, emptySolution, refreshSolution, referenceSolutionCandidate, compareSelectedSolution, validateFinalSolution } from "./solution-workflow.js";
+import { applySolutionAction, emptySolution, refreshSolution, referenceSolutionCandidate, compareSelectedSolution, validateFinalSolution, solutionConstraintFingerprint } from "./solution-workflow.js";
 import { parseSolutionSelection } from "./solution-selection.js";
 import { groundSolutionAction, type ParsedSolutionAction } from "./solution-action-semantic.js";
 const candidate = (id: string, thicknessMm = 18) => referenceSolutionCandidate({ id, systemId: "sys", systemName: "薄抹灰",
@@ -9,6 +9,13 @@ const initial = () => refreshSolution(emptySolution(), { metric: "K", targetValu
 const action = (state: ReturnType<typeof initial>, type: "ADD" | "REMOVE" | "SET_FINAL" | "KEEP_FOR_COMPARISON", ids: string[]) =>
   applySolutionAction(state, { action: type, expectedVersion: 1, candidateIds: ids });
 describe("Human-in-the-loop 方案完整生命周期", () => {
+  it("部位、构造类别和原表编号均是硬范围；变化后不能沿用旧冲突保留确认", () => {
+    for (const query of [{ applicationPart: "ROOF" as const }, { roofForm: "FLAT" as const }, { placements: ["UPRIGHT" as const] },
+      { specClasses: ["III" as const] }, { constructionCodes: ["SOURCE-A"] }, { pageLabel: "18" }])
+      expect(solutionConstraintFingerprint(query)).not.toBe(solutionConstraintFingerprint({}));
+    expect(solutionConstraintFingerprint({ constructionCodes: ["B", "A"], placements: ["INVERTED", "UPRIGHT"] }))
+      .toBe(solutionConstraintFingerprint({ constructionCodes: ["A", "B"], placements: ["UPRIGHT", "INVERTED"] }));
+  });
   it("多选→偏好重查→硬条件冲突→移除→比较→Final→冻结值", () => {
     let state = initial();
     state = applySolutionAction(state, { action: "SELECT", expectedVersion: 1, positions: [1, 3], candidateSetRevision: state.candidateSetRevision });

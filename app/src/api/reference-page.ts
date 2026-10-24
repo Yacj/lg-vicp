@@ -21,6 +21,9 @@ export interface ThermalRenderOption {
   warnings?: string[]
 }
 export interface KnowledgeRenderConstruction {
+  /** 经原表核对的显示布局；不改变各热阻字段的事实语义。 */
+  sourceTableLayout?: { resistance: 'SHARED_LAYER_OPTION' }
+  sourceDisplayColumns?: ThermalSourceColumn[]
   sourceTableHeaders?: { identifier?: string, diagram?: string, layers?: string }
   diagramNotes?: string[]
   rawConstructionLabel?: string | null

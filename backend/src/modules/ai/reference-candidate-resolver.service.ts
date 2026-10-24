@@ -9,6 +9,9 @@ import type { ReferenceLookupCandidate } from "./conversation-task.js";
 import { buildAllowedAnswerFacts } from "./thermal-answer-validation.js";
 import { decideDomainTurn } from "./ai-domain-turn-decision.js";
 import { readHistoricalConfirmedPage } from "./confirmed-page-reference-read.js";
+import { hasPublishedReferenceSource } from "./published-reference-source.js";
+import { explainCandidateAvailability } from "./candidate-availability.service.js";
+import { solutionSelectionSummary } from "./solution-selection-summary.js";
 
 export type ReferenceReadContext = Pick<ToolRuntimeContext, "app" | "request" | "user" | "conversation" | "userMessage" | "taskState" | "onEvent" | "domainDecision" | "candidateQueryRevision"> & { candidatePublication?: "READ_ONLY_ADVICE" };
 /** 重验会话/客户端/项目，只读取当前确认来源，不重新绑定旧optionId。 */
@@ -46,6 +49,23 @@ export async function resolveCandidateReference(ctx: ReferenceReadContext) {
     ? { ids: lookup.candidates.map(candidate => candidate.id) } : resolveVisibleCandidateIds(lookup,
       decision.semantic?.reference.items.length ? decision.semantic.reference.items.map(item => item.evidence).join("，") : ctx.userMessage ?? "");
   const items = decision.semantic?.reference.items;
+  if (items?.some(item => item.type === "CURRENT_REFERENCE")) {
+    if (items.length !== 1) return reject("请分别说明要查看的做法，当前指代不能与其他引用合并。");
+    const focused = lookup.candidates.filter(candidate => decision.referenceFocusIds?.includes(candidate.id));
+    if (focused.length !== 1) return reject("刚才有多条参考记录，请说一下要查看哪条的厚度或选择对应卡片。");
+    reference = { ids: [focused[0]!.id] };
+  }
+  if (items?.some(item => item.type === "CANDIDATE_LABEL")) {
+    if (!items.every(item => item.type === "CANDIDATE_LABEL")) return reject("请按名称及厚度明确每个要读取的候选，不能混用不一致的引用。");
+    const ids: string[] = [];
+    for (const item of items) {
+      const matches = lookup.candidates.filter(candidate => candidate.schemeName === item.value
+        && (item.thicknessMm == null || candidate.thicknessMm === item.thicknessMm));
+      if (matches.length !== 1) return reject("该名称对应的当前候选不唯一或不存在，请补充厚度或指定卡片。");
+      ids.push(matches[0]!.id);
+    }
+    reference = { ids: [...new Set(ids)] };
+  }
   const sourceCode = items?.find(item => item.type === "CONSTRUCTION_CODE");
   const sourceThickness = items?.find(item => item.type === "THICKNESS");
   if (!reference.ids && decision.intent === "REFERENCE_VIEW" && !stateScope && lookup.query.documentIds?.length && lookup.query.knowledgeVersionIds?.length
@@ -63,12 +83,15 @@ export async function resolveCandidateReference(ctx: ReferenceReadContext) {
   }
   if (!reference.ids) return reject(reference.reason!);
   const selected = reference.ids.map(id => lookup!.candidates.find(candidate => candidate.id === id)!);
-  if (decision.intent === "COMPARE_CANDIDATES" && selected.length < 2) return reject("请指定至少两个当前候选进行比较。");
-  if (selected.some(candidate => candidate.sourceType !== "CALCULATED" && (!candidate.sourcePageId || !candidate.optionId))) return reject("当前候选没有可核验的确认原页，请重新查询。");
+  if (decision.intent === "COMPARE_CANDIDATES" && selected.length < 2) return reject(selected.length === 1
+    ? "当前引用的记录只有1条，暂时无法并排比较。可以先查看这条记录，或再查询另一条后比较。"
+    : "请指定至少两个当前候选进行比较。");
+  if (selected.some(candidate => candidate.sourceType !== "CALCULATED" && !hasPublishedReferenceSource(candidate) && (!candidate.sourcePageId || !candidate.optionId))) return reject("当前候选没有可核验的确认原页或正式发布行，请重新查询。");
   if (!await referenceRowsStillCurrent(ctx.app.db, selected, { userId: ctx.user.id, projectId: conversation.projectId })) return reject("正式候选已撤回或事实变化，请重新查询。");
   const rows = await readConsumableReferencePages(ctx.app, selected.flatMap(candidate => candidate.sourcePageId ? [candidate.sourcePageId] : []), conversation.projectId);
   const pages: ReferencePageBlock[] = [];
   for (const candidate of selected) {
+    if (hasPublishedReferenceSource(candidate)) continue;
     if (candidate.sourceType === "CALCULATED" && !candidate.sourcePageId) {
       if (decision.intent === "REFERENCE_VIEW") return reject("该候选来自正式计算记录，未关联图集原页；可以查看计算参数。");
       continue;
@@ -91,11 +114,13 @@ export async function resolveReferenceRead(ctx: ReferenceReadContext) {
   const historicalPage = await readHistoricalConfirmedPage(ctx);
   if (historicalPage) return historicalPage;
   const resolved = await resolveCandidateReference(ctx);
+  const availability = resolved.reason && ctx.domainDecision?.intent === "COMPARE_CANDIDATES"
+    ? await explainCandidateAvailability(ctx, "COMPARE") : undefined;
   const query = { ...resolved.query,
     ...(resolved.reason ? { unresolved: [{ field: "reference", reason: resolved.reason }] } : {}) };
   const conflicting = resolved.candidates.filter(candidate => !validateCandidateAgainstQueryState(candidate, query).passed);
   const facts = buildAllowedAnswerFacts(query, resolved.candidates, "详细参数对比", undefined, { nearbyCandidates: conflicting });
-  const display = resolved.candidates.map(candidate => `${resolved.confirmedFinalIds ? resolved.confirmedFinalIds.includes(candidate.id) ? "已确认最终方案：\n" : "冻结备选方案：\n" : ""}${buildAllowedAnswerFacts({}, [candidate], "详细参数").canonicalAnswers[0]!.split("\n").slice(1, -1).join("\n")}`).join("\n");
+  const display = resolved.candidates.map(candidate => `${resolved.confirmedFinalIds ? resolved.confirmedFinalIds.includes(candidate.id) ? "已确认最终方案：\n" : "冻结备选方案：\n" : ""}${hasPublishedReferenceSource(candidate) ? solutionSelectionSummary([candidate], false) : buildAllowedAnswerFacts({}, [candidate], "详细参数").canonicalAnswers[0]!.split("\n").slice(1, -1).join("\n")}`).join("\n");
   const comparison = ctx.domainDecision?.semantic?.comparison;
   const key = comparison?.metric === "PRODUCT_R" ? "productThermalResistance" : comparison?.metric === "TOTAL_R" ? "totalThermalResistance" : "kValue";
   const complete = comparison && resolved.candidates.length > 0 && resolved.candidates.every(candidate => typeof candidate[key] === "number");
@@ -104,11 +129,37 @@ export async function resolveReferenceRead(ctx: ReferenceReadContext) {
   const conclusion = comparison ? complete
     ? `在本次已展示的 ${resolved.candidates.length} 条完整构造中，${winners.map(candidate => candidate.constructionCode ?? candidate.schemeCode ?? candidate.id).join("、")} 的 ${comparison.metric} ${comparison.direction === "MIN" ? "最低" : "最高"}，为 ${extreme}。此结论仅针对当前列表，不代表全库极值，也不能据此替换项目实际基层。\n`
     : "当前候选存在该指标缺失，无法判断完整列表的极值。\n" : "";
-  facts.canonicalAnswers = [resolved.reason ?? (resolved.candidates.length
+  facts.canonicalAnswers = [availability?.answer ?? resolved.reason ?? (resolved.candidates.length
     ? `${conclusion}${conflicting.length ? "部分已选候选不满足当前筛选条件，仅供参数查看与比较。\n" : ""}当前候选的已核验参数：\n${display}` : "当前没有可引用的候选。")];
+  if (!resolved.reason && ctx.domainDecision?.intent === "COMPARE_CANDIDATES" && resolved.candidates.length > 1) {
+    const cell = (value: unknown) => String(value ?? "未提供").replaceAll("|", "／").replaceAll("\n", " ");
+    facts.canonicalAnswers = [`${conclusion}${conflicting.length ? "部分已选候选不满足当前筛选条件，仅供参数查看与比较。\n" : ""}| 构造 | 基层 / 厚度 mm | 保温档厚 mm | 产品热阻 R | 总热阻 R₀ | K | 来源 |\n| --- | --- | ---: | ---: | ---: | ---: | --- |\n${resolved.candidates.map(candidate =>
+      `| ${cell(candidate.schemeName ?? candidate.constructionCode ?? candidate.schemeCode)} | ${cell(candidate.substrateMaterial)} / ${cell(candidate.substrateThickness)} | ${cell(candidate.thicknessMm)} | ${cell(candidate.productThermalResistance)} | ${cell(candidate.totalThermalResistance)} | ${cell(candidate.kValue)} | ${cell(candidate.evidenceRef ?? candidate.sourcePageLabel)} |`).join("\n")}\nR、R₀单位为 m²·K/W，K单位为 W/(m²·K)。各行保持原输入及来源口径；不同厚度不是同厚度性能对比，不能仅凭K替代实际构造条件或自动选定最终方案。`];
+  }
+  const publishedVersions = resolved.candidates.filter(candidate => hasPublishedReferenceSource(candidate)).map(candidate =>
+    `以上参数来自发布资料；本轮没有重新计算。构造版本 ${candidate.schemeVersion}，规格版本 ${candidate.specVersion}。`);
+  if (!resolved.reason && publishedVersions.length) facts.canonicalAnswers[0] += `\n${publishedVersions.join("\n")}`;
+  if (!resolved.reason && ctx.domainDecision?.semantic?.referenceReadFields?.includes("originalPage")
+    && resolved.candidates.some(candidate => hasPublishedReferenceSource(candidate) && !candidate.sourcePageId))
+    facts.canonicalAnswers[0] += "\n这条发布记录尚未关联原图，可先核对分层配置和参数。";
+  if (!resolved.reason && ctx.domainDecision?.semantic?.referenceReadFields?.includes("layers")) {
+    const layers = resolved.candidates.map(candidate => candidate.layers?.length
+      ? `${candidate.thicknessMm ?? "当前档位"}mm这套发布构造的层次为：${candidate.layers.map(layer => `${layer.name}${layer.thicknessMm != null ? ` ${layer.thicknessMm}mm` : "（厚度未记录）"}`).join(" → ")}。来源沿用该构造版本${candidate.schemeVersion ?? "未记录"}的分层配置；施工节点还需核对原图。`
+      : "这条参考记录没有可核对的分层做法，暂时不能据此补出每层材料或厚度。可以先核对它的热工参数。")
+      .join("\n");
+    facts.canonicalAnswers[0] += `\n${layers}`;
+  }
+  if (!resolved.reason && resolved.candidates.length === 1 && resolved.candidates[0]!.sourceType === "CALCULATED") {
+    const { readCalculationDetails } = await import("./conversation-calculation.service.js");
+    const detail = await readCalculationDetails(ctx, resolved.candidates[0]!);
+    if (detail) facts.canonicalAnswers = [detail];
+  }
   if (resolved.pages.length) {
     ctx.onEvent?.("reference_pages", { referencePages: resolved.pages, stored: storeReferencePageBlocks(resolved.pages) });
     ctx.onEvent?.("sources", { sources: resolved.sources });
   }
-  return { facts, candidates: resolved.candidates, sources: resolved.sources, referencePages: resolved.pages, needsClarification: Boolean(resolved.reason), readOnly: true as const };
+  const constructionLayersVerified = !resolved.reason && ctx.domainDecision?.semantic?.referenceReadFields?.includes("layers")
+    && resolved.candidates.length > 0 && resolved.candidates.every(candidate => hasPublishedReferenceSource(candidate) && candidate.layers?.length);
+  return { facts, candidates: resolved.candidates, sources: resolved.sources, referencePages: resolved.pages,
+    constructionLayersVerified: !!constructionLayersVerified, needsClarification: Boolean(resolved.reason) && !availability, readOnly: true as const, availability };
 }

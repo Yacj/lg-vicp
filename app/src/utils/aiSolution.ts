@@ -1,4 +1,4 @@
-import type { SolutionAction, SolutionActionBody, SolutionCandidate, SolutionCandidateCard, SolutionStage, SolutionStateDto, SolutionUpdate } from '@/api/solution-types'
+import type { ReferenceCandidateResult, SolutionAction, SolutionActionBody, SolutionCandidate, SolutionCandidateCard, SolutionStage, SolutionStateDto, SolutionUpdate } from '@/api/solution-types'
 
 export const solutionStageLabels: Record<SolutionStage, string> = {
   COLLECTING_REQUIREMENTS: '正在补充条件',
@@ -16,6 +16,21 @@ function record(value: unknown): Record<string, unknown> | null {
 
 function strings(value: unknown): value is string[] {
   return Array.isArray(value) && value.every(item => typeof item === 'string')
+}
+
+export function parseReferenceCandidates(value: unknown): ReferenceCandidateResult | null {
+  const data = record(value)
+  if (!data || !Number.isInteger(data.queryRevision) || Number(data.queryRevision) < 1 || !Array.isArray(data.candidates))
+    return null
+  if (!data.candidates.every((value) => {
+    const item = record(value)
+    return item && typeof item.candidateId === 'string' && item.candidateId.length > 0
+      && ['REFERENCE', 'CALCULATED', 'PRODUCT'].includes(String(item.sourceType))
+      && Number.isInteger(item.position) && Number(item.position) > 0 && typeof item.confirmationEligible === 'boolean'
+      && ['thicknessMm', 'kValue', 'productThermalResistance', 'totalThermalResistance'].every(key => item[key] == null || typeof item[key] === 'number' && Number.isFinite(item[key]))
+  }))
+    return null
+  return data as unknown as ReferenceCandidateResult
 }
 
 function pickFields<T extends object, K extends keyof T>(value: T, keys: readonly K[]): Pick<T, K> {
@@ -44,12 +59,15 @@ export function solutionClientState(state: SolutionStateDto): SolutionStateDto {
     'systemName',
     'schemeId',
     'constructionCode',
+    'schemeName',
     'productSpecId',
     'productId',
     'productName',
     'substrateMaterial',
     'substrateThickness',
     'thicknessMm',
+    'inputThicknessLayerName',
+    'productThermalResistanceScope',
     'productThermalResistance',
     'totalThermalResistance',
     'kValue',
@@ -132,14 +150,14 @@ export const solutionErrorMessages: Record<string, string> = {
 
 /**
  * 方案指标卡：标签必须与后端语义一一对应。
- * - 厚度是「产品层总厚度」（产品由多个子层组成时是各子层之和），不是单层板厚，也不是基层厚度；
+ * - 正式计算厚度作用于冻结记录的目标层；分层芯材输入不能标成复合板总厚；
  * - 产品层热阻 R 与总热阻 R₀ 是两个指标，不能互相顶替。
  */
 export function solutionMetrics(candidate: SolutionCandidate) {
   return [
-    { label: '产品厚度', value: candidate.thicknessMm, digits: 0, unit: 'mm' },
+    { label: candidate.inputThicknessLayerName ? `${candidate.inputThicknessLayerName}厚度` : '产品厚度', value: candidate.thicknessMm, digits: 0, unit: 'mm' },
     { label: '传热系数 K', value: candidate.kValue, digits: 3, unit: 'W/(m²·K)' },
-    { label: '产品层热阻 R', value: candidate.productThermalResistance, digits: 3, unit: '(m²·K)/W' },
+    { label: candidate.productThermalResistanceScope === 'PRODUCT_LAYER_ROWS_ONLY' ? '产品层行热阻 R' : '产品层热阻 R', value: candidate.productThermalResistance, digits: 3, unit: '(m²·K)/W' },
     { label: '总热阻 R₀', value: candidate.totalThermalResistance, digits: 3, unit: '(m²·K)/W' },
   ].filter((metric): metric is typeof metric & { value: number } => typeof metric.value === 'number' && Number.isFinite(metric.value))
 }

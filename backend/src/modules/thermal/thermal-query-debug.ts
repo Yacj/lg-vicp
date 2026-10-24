@@ -216,7 +216,7 @@ export function buildThermalQueryDebug(input: ThermalQueryDebugInput): ThermalQu
 
 /** 单行摘要（日志用），把最关键的信息压缩到一行。 */
 export function summarizeThermalQueryDebug(snapshot: ThermalQueryDebugSnapshot): string {
-  const modes = snapshot.queryModes.map(item => `${item.metric}${item.mode === "MAX_LIMIT" ? "<=" : item.mode === "MIN_LIMIT" ? ">=" : item.mode === "EXACT" ? "=" : "~"}${item.targetValue}`).join(",") || "-";
+  const modes = snapshot.queryModes.map(item => `${item.metric}${item.mode === "LT" ? "<" : item.mode === "GT" ? ">" : item.mode === "MAX_LIMIT" ? "<=" : item.mode === "MIN_LIMIT" ? ">=" : item.mode === "EXACT" ? "=" : "~"}${item.targetValue}`).join(",") || "-";
   const blocked = snapshot.nearestFailure.length
     ? snapshot.nearestFailure.map(item => `${item.id}:${item.failed.join("+")}`).join(" ")
     : "-";

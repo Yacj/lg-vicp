@@ -1,0 +1,2557 @@
+{
+  "provenance": {
+    "package": "小格AI阶段03修复交接包-v3",
+    "factFile": "baseline/published-engineering-facts.json",
+    "factFileSha256": "36a644cca10421638261088f20329a1ad7d1b055bde0f31776bba70ae410b49c",
+    "originalDocx": "知识库.docx T05/T06/T33",
+    "usage": "冻结证据的只读合同回放，不是真实DB/模型/H5验收"
+  },
+  "pages": [
+    {
+      "page": {
+        "id": "60a1b3a1-9887-4450-8b03-dbe6570526df",
+        "documentId": "baedb3e4-0935-4322-94e1-a02e4d4178ad",
+        "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+        "physicalPageNumber": 5,
+        "pageLabel": "5",
+        "pageLabelSource": "MANUAL",
+        "pageLabelVerified": true
+      },
+      "data": {
+        "notes": [
+          "内表面换热阻0.11 (m²·K)/W，外表面换热阻0.04 (m²·K)/W。"
+        ],
+        "systems": [
+          {
+            "layers": [
+              {
+                "name": "混合砂浆",
+                "alpha": 1,
+                "order": 1,
+                "lambda": 0.87,
+                "rValue": 0.023,
+                "thicknessMm": 20
+              },
+              {
+                "name": "钢筋混凝土",
+                "alpha": 1,
+                "order": 2,
+                "lambda": 1.74,
+                "rValue": 0.115,
+                "thicknessMm": 200
+              },
+              {
+                "name": "找平层",
+                "alpha": 1,
+                "order": 3,
+                "lambda": 0.93,
+                "rValue": 0.015,
+                "thicknessMm": 15
+              },
+              {
+                "name": "粘结砂浆",
+                "alpha": 1,
+                "order": 4,
+                "lambda": 0.93,
+                "rValue": 0.015,
+                "thicknessMm": 5
+              },
+              {
+                "name": "III型VICP复合保温板",
+                "alpha": 1.25,
+                "order": 5,
+                "lambda": 0.012,
+                "rValue": null,
+                "thicknessMm": null
+              },
+              {
+                "name": "抹面胶浆",
+                "alpha": 1,
+                "order": 6,
+                "lambda": 0.93,
+                "rValue": 0.005,
+                "thicknessMm": 5
+              }
+            ],
+            "options": [
+              {
+                "kValue": 0.762,
+                "thicknessMm": 15,
+                "totalThermalResistance": 1.313,
+                "productThermalResistance": 1
+              },
+              {
+                "kValue": 0.661,
+                "thicknessMm": 18,
+                "totalThermalResistance": 1.513,
+                "productThermalResistance": 1.2
+              },
+              {
+                "kValue": 0.606,
+                "thicknessMm": 20,
+                "totalThermalResistance": 1.649,
+                "productThermalResistance": 1.333
+              },
+              {
+                "kValue": 0.505,
+                "thicknessMm": 25,
+                "totalThermalResistance": 1.98,
+                "productThermalResistance": 1.667
+              },
+              {
+                "kValue": 0.432,
+                "thicknessMm": 30,
+                "totalThermalResistance": 2.313,
+                "productThermalResistance": 2
+              },
+              {
+                "kValue": 0.378,
+                "thicknessMm": 35,
+                "totalThermalResistance": 2.649,
+                "productThermalResistance": 2.333
+              },
+              {
+                "kValue": 0.334,
+                "thicknessMm": 40,
+                "totalThermalResistance": 2.98,
+                "productThermalResistance": 2.667
+              },
+              {
+                "kValue": 0.302,
+                "thicknessMm": 45,
+                "totalThermalResistance": 3.313,
+                "productThermalResistance": 3
+              },
+              {
+                "kValue": 0.274,
+                "thicknessMm": 50,
+                "totalThermalResistance": 3.649,
+                "productThermalResistance": 3.333
+              }
+            ],
+            "specClass": "III",
+            "systemName": "外墙A3-1",
+            "baseMaterial": "钢筋混凝土",
+            "baseThicknessMm": 200,
+            "constructionCode": "A3-1"
+          },
+          {
+            "layers": [
+              {
+                "name": "混合砂浆",
+                "alpha": 1,
+                "order": 1,
+                "lambda": 0.87,
+                "rValue": 0.023,
+                "thicknessMm": 20
+              },
+              {
+                "name": "混凝土空心砌块",
+                "alpha": 1,
+                "order": 2,
+                "lambda": 0.95,
+                "rValue": 0.2,
+                "thicknessMm": 190
+              },
+              {
+                "name": "找平层",
+                "alpha": 1,
+                "order": 3,
+                "lambda": 0.93,
+                "rValue": 0.015,
+                "thicknessMm": 15
+              },
+              {
+                "name": "粘结砂浆",
+                "alpha": 1,
+                "order": 4,
+                "lambda": 0.93,
+                "rValue": 0.005,
+                "thicknessMm": 5
+              },
+              {
+                "name": "III型VICP复合保温板",
+                "alpha": 1.25,
+                "order": 5,
+                "lambda": 0.012,
+                "rValue": null,
+                "thicknessMm": null
+              },
+              {
+                "name": "抹面胶浆",
+                "alpha": 1,
+                "order": 6,
+                "lambda": 0.93,
+                "rValue": 0.005,
+                "thicknessMm": 5
+              }
+            ],
+            "options": [
+              {
+                "kValue": 0.715,
+                "thicknessMm": 15,
+                "totalThermalResistance": 1.398,
+                "productThermalResistance": 1
+              },
+              {
+                "kValue": 0.626,
+                "thicknessMm": 18,
+                "totalThermalResistance": 1.598,
+                "productThermalResistance": 1.2
+              },
+              {
+                "kValue": 0.578,
+                "thicknessMm": 20,
+                "totalThermalResistance": 1.731,
+                "productThermalResistance": 1.333
+              },
+              {
+                "kValue": 0.484,
+                "thicknessMm": 25,
+                "totalThermalResistance": 2.065,
+                "productThermalResistance": 1.667
+              },
+              {
+                "kValue": 0.417,
+                "thicknessMm": 30,
+                "totalThermalResistance": 2.398,
+                "productThermalResistance": 2
+              },
+              {
+                "kValue": 0.365,
+                "thicknessMm": 35,
+                "totalThermalResistance": 2.739,
+                "productThermalResistance": 2.333
+              },
+              {
+                "kValue": 0.326,
+                "thicknessMm": 40,
+                "totalThermalResistance": 3.065,
+                "productThermalResistance": 2.667
+              },
+              {
+                "kValue": 0.294,
+                "thicknessMm": 45,
+                "totalThermalResistance": 3.398,
+                "productThermalResistance": 3
+              },
+              {
+                "kValue": 0.267,
+                "thicknessMm": 50,
+                "totalThermalResistance": 3.739,
+                "productThermalResistance": 3.333
+              }
+            ],
+            "specClass": "III",
+            "systemName": "外墙A3-2",
+            "baseMaterial": "混凝土空心砌块",
+            "baseThicknessMm": 190,
+            "constructionCode": "A3-2"
+          }
+        ],
+        "fullText": "建筑外墙热工计算参考选用表（III型VICP薄抹灰外保温系统）\n\n编号 构造简图 构造层 分层厚度(mm) 导热系数[W/(m·K)] 修正系数α 热阻[(m²·K)/W] 外墙主断面 传热阻R[(m²·K)/W] 传热系数K[W/(m²·K)]\n\n外墙A3-1\n1. 混合砂浆 20 0.870 1.00 0.023\n2. 钢筋混凝土 200 1.740 1.00 0.115\n3. 找平层 15 0.930 1.00 0.015\n4. 粘结砂浆 5 0.930 1.00 0.015\n5. III型VICP复合保温板\n15 0.012 1.25 1.000 1.313 0.762\n18 0.012 1.25 1.200 1.513 0.661\n20 0.012 1.25 1.333 1.649 0.606\n25 0.012 1.25 1.667 1.980 0.505\n30 0.012 1.25 2.000 2.313 0.432\n35 0.012 1.25 2.333 2.649 0.378\n40 0.012 1.25 2.667 2.980 0.334\n45 0.012 1.25 3.000 3.313 0.302\n50 0.012 1.25 3.333 3.649 0.274\n6. 抹面胶浆 5 0.930 1.00 0.005\n\n外墙A3-2\n1. 混合砂浆 20 0.870 1.00 0.023\n2. 混凝土空心砌块 190 0.950 1.00 0.200\n3. 找平层 15 0.930 1.00 0.015\n4. 粘结砂浆 5 0.930 1.00 0.005\n5. III型VICP复合保温板\n15 0.012 1.25 1.000 1.398 0.715\n18 0.012 1.25 1.200 1.598 0.626\n20 0.012 1.25 1.333 1.731 0.578\n25 0.012 1.25 1.667 2.065 0.484\n30 0.012 1.25 2.000 2.398 0.417\n35 0.012 1.25 2.333 2.739 0.365\n40 0.012 1.25 2.667 3.065 0.326\n45 0.012 1.25 3.000 3.398 0.294\n50 0.012 1.25 3.333 3.739 0.267\n6. 抹面胶浆 5 0.930 1.00 0.005\n\n注：内表面换热阻0.11 (m²·K)/W，外表面换热阻0.04 (m²·K)/W。\n图名 建筑外墙热工计算参考选用表\n图集号 J/CABEE 26J702\n页次 25",
+        "warnings": [],
+        "pageLabel": "5",
+        "pageTitle": "建筑外墙热工计算参考选用表（III型VICP薄抹灰外保温系统）"
+      }
+    },
+    {
+      "page": {
+        "id": "83ee889e-7321-4077-ae72-480bc8e93f33",
+        "documentId": "baedb3e4-0935-4322-94e1-a02e4d4178ad",
+        "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+        "physicalPageNumber": 6,
+        "pageLabel": "6",
+        "pageLabelSource": "MANUAL",
+        "pageLabelVerified": true
+      },
+      "data": {
+        "notes": [
+          "注：1. 内表面换热阻0.11（m²·K）/W，外表面换热阻0.04（m²·K）/W。",
+          "2. 加气混凝土砌块热工性能参照华北标图集13BJ2-12建筑外保温（节能75%）。"
+        ],
+        "systems": [
+          {
+            "layers": [
+              {
+                "name": "混合砂浆",
+                "alpha": 1,
+                "order": 1,
+                "lambda": 0.87,
+                "rValue": 0.023,
+                "thicknessMm": 20
+              },
+              {
+                "name": "蒸压灰砂砖",
+                "alpha": 1,
+                "order": 2,
+                "lambda": 1.1,
+                "rValue": 0.218,
+                "thicknessMm": 240
+              },
+              {
+                "name": "找平层",
+                "alpha": 1,
+                "order": 3,
+                "lambda": 0.93,
+                "rValue": 0.015,
+                "thicknessMm": 15
+              },
+              {
+                "name": "粘结砂浆",
+                "alpha": 1,
+                "order": 4,
+                "lambda": 0.93,
+                "rValue": 0.005,
+                "thicknessMm": 5
+              },
+              {
+                "name": "III型VICP复合保温板",
+                "alpha": 1.25,
+                "order": 5,
+                "lambda": 0.0012,
+                "rValue": null,
+                "thicknessMm": null
+              },
+              {
+                "name": "抹面胶浆",
+                "alpha": 1,
+                "order": 6,
+                "lambda": 0.93,
+                "rValue": 0.005,
+                "thicknessMm": 5
+              }
+            ],
+            "options": [
+              {
+                "kValue": 0.706,
+                "thicknessMm": 15,
+                "totalThermalResistance": 1.416,
+                "productThermalResistance": 1
+              },
+              {
+                "kValue": 0.619,
+                "thicknessMm": 18,
+                "totalThermalResistance": 1.616,
+                "productThermalResistance": 1.2
+              },
+              {
+                "kValue": 0.572,
+                "thicknessMm": 20,
+                "totalThermalResistance": 1.749,
+                "productThermalResistance": 1.333
+              },
+              {
+                "kValue": 0.48,
+                "thicknessMm": 25,
+                "totalThermalResistance": 2.083,
+                "productThermalResistance": 1.667
+              },
+              {
+                "kValue": 0.414,
+                "thicknessMm": 30,
+                "totalThermalResistance": 2.416,
+                "productThermalResistance": 2
+              },
+              {
+                "kValue": 0.364,
+                "thicknessMm": 35,
+                "totalThermalResistance": 2.749,
+                "productThermalResistance": 2.333
+              },
+              {
+                "kValue": 0.324,
+                "thicknessMm": 40,
+                "totalThermalResistance": 3.083,
+                "productThermalResistance": 2.667
+              },
+              {
+                "kValue": 0.293,
+                "thicknessMm": 45,
+                "totalThermalResistance": 3.416,
+                "productThermalResistance": 3
+              },
+              {
+                "kValue": 0.267,
+                "thicknessMm": 50,
+                "totalThermalResistance": 3.749,
+                "productThermalResistance": 3.333
+              }
+            ],
+            "specClass": "III",
+            "systemName": "外墙A3-3",
+            "baseMaterial": "蒸压灰砂砖",
+            "baseThicknessMm": 240,
+            "constructionCode": "外墙A3-3"
+          },
+          {
+            "layers": [
+              {
+                "name": "混合砂浆",
+                "alpha": 1,
+                "order": 1,
+                "lambda": 0.87,
+                "rValue": 0.023,
+                "thicknessMm": 20
+              },
+              {
+                "name": "加气混凝土砌块",
+                "alpha": 1.25,
+                "order": 2,
+                "lambda": 0.19,
+                "rValue": 0.842,
+                "thicknessMm": 200
+              },
+              {
+                "name": "找平层",
+                "alpha": 1,
+                "order": 3,
+                "lambda": 0.93,
+                "rValue": 0.015,
+                "thicknessMm": 15
+              },
+              {
+                "name": "粘结砂浆",
+                "alpha": 1,
+                "order": 4,
+                "lambda": 0.93,
+                "rValue": 0.005,
+                "thicknessMm": 5
+              },
+              {
+                "name": "III型VICP复合保温板",
+                "alpha": 1.25,
+                "order": 5,
+                "lambda": 0.012,
+                "rValue": null,
+                "thicknessMm": null
+              },
+              {
+                "name": "抹面胶浆",
+                "alpha": 1,
+                "order": 6,
+                "lambda": 0.93,
+                "rValue": 0.005,
+                "thicknessMm": 5
+              }
+            ],
+            "options": [
+              {
+                "kValue": 0.49,
+                "thicknessMm": 15,
+                "totalThermalResistance": 2.04,
+                "productThermalResistance": 1
+              },
+              {
+                "kValue": 0.446,
+                "thicknessMm": 18,
+                "totalThermalResistance": 2.24,
+                "productThermalResistance": 1.2
+              },
+              {
+                "kValue": 0.421,
+                "thicknessMm": 20,
+                "totalThermalResistance": 2.373,
+                "productThermalResistance": 1.333
+              },
+              {
+                "kValue": 0.369,
+                "thicknessMm": 25,
+                "totalThermalResistance": 2.707,
+                "productThermalResistance": 1.667
+              },
+              {
+                "kValue": 0.329,
+                "thicknessMm": 30,
+                "totalThermalResistance": 3.04,
+                "productThermalResistance": 2
+              },
+              {
+                "kValue": 0.296,
+                "thicknessMm": 35,
+                "totalThermalResistance": 3.373,
+                "productThermalResistance": 2.333
+              },
+              {
+                "kValue": 0.27,
+                "thicknessMm": 40,
+                "totalThermalResistance": 3.707,
+                "productThermalResistance": 2.667
+              },
+              {
+                "kValue": 0.248,
+                "thicknessMm": 45,
+                "totalThermalResistance": 4.04,
+                "productThermalResistance": 3
+              },
+              {
+                "kValue": 0.229,
+                "thicknessMm": 50,
+                "totalThermalResistance": 4.373,
+                "productThermalResistance": 3.333
+              }
+            ],
+            "specClass": "III",
+            "systemName": "外墙A3-4",
+            "baseMaterial": "加气混凝土砌块",
+            "baseThicknessMm": 200,
+            "constructionCode": "外墙A3-4"
+          }
+        ],
+        "fullText": "建筑外墙热工计算参考选用表（III型VICP薄抹灰外保温系统）\n编号：外墙A3-3\n构造层：1.混合砂浆 20mm 0.870 1.00 0.023；2.蒸压灰砂砖 240mm 1.100 1.00 0.218；3.找平层 15mm 0.930 1.00 0.015；4.粘结砂浆 5mm 0.930 1.00 0.005；5.III型VICP复合保温板 0.0012 1.25；6.抹面胶浆 5mm 0.930 1.00 0.005\n外墙主断面：传热阻R 1.416~3.749 [m²·K/W]，传热系数K 0.706~0.267 [W/(m²·K)]\n保温层厚度选项：15mm R=1.000 K=0.706；18mm R=1.200 K=0.619；20mm R=1.333 K=0.572；25mm R=1.667 K=0.480；30mm R=2.000 K=0.414；35mm R=2.333 K=0.364；40mm R=2.667 K=0.324；45mm R=3.000 K=0.293；50mm R=3.333 K=0.267\n编号：外墙A3-4\n构造层：1.混合砂浆 20mm 0.870 1.00 0.023；2.加气混凝土砌块 200mm 0.190 1.25 0.842；3.找平层 15mm 0.930 1.00 0.015；4.粘结砂浆 5mm 0.930 1.00 0.005；5.III型VICP复合保温板 0.012 1.25；6.抹面胶浆 5mm 0.930 1.00 0.005\n外墙主断面：传热阻R 2.040~4.373 [m²·K/W]，传热系数K 0.490~0.229 [W/(m²·K)]\n保温层厚度选项：15mm R=1.000 K=0.490；18mm R=1.200 K=0.446；20mm R=1.333 K=0.421；25mm R=1.667 K=0.369；30mm R=2.000 K=0.329；35mm R=2.333 K=0.296；40mm R=2.667 K=0.270；45mm R=3.000 K=0.248；50mm R=3.333 K=0.229\n注：1. 内表面换热阻0.11（m²·K）/W，外表面换热阻0.04（m²·K）/W。\n2. 加气混凝土砌块热工性能参照华北标图集13BJ2-12建筑外保温（节能75%）。\n图集号：J/CABEE 26J702 页次：26",
+        "warnings": [],
+        "pageLabel": "6",
+        "pageTitle": "建筑外墙热工计算参考选用表（III型VICP薄抹灰外保温系统）"
+      }
+    },
+    {
+      "page": {
+        "id": "e40e16fa-f5fe-40cc-8839-091c1e93a72f",
+        "documentId": "baedb3e4-0935-4322-94e1-a02e4d4178ad",
+        "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+        "physicalPageNumber": 33,
+        "pageLabel": "33",
+        "pageLabelSource": "MANUAL",
+        "pageLabelVerified": true
+      },
+      "data": {
+        "notes": [
+          "注：1.屋面采用结构找坡时，可取消找坡层。",
+          "2.当结构找坡时，取消表中的找坡层并另行计算。",
+          "3.当为倒置式屋面时，不必设置隔汽层。",
+          "4.表中数值均按现浇屋面板考虑，若为预制空心板，应同时考虑屋面板上的水泥砂浆对屋面保温隔热的影响。"
+        ],
+        "systems": [
+          {
+            "layers": [
+              {
+                "name": "混合砂浆",
+                "alpha": 1,
+                "order": 1,
+                "lambda": 0.87,
+                "rValue": 0.023,
+                "thicknessMm": 20,
+                "sourceGroupLabel": "构造层",
+                "sourceLayerLabel": "1"
+              },
+              {
+                "name": "钢筋混凝土楼板",
+                "alpha": 1,
+                "order": 2,
+                "lambda": 1.74,
+                "rValue": 0.069,
+                "thicknessMm": 120,
+                "sourceGroupLabel": "构造层",
+                "sourceLayerLabel": "2"
+              },
+              {
+                "name": "I型VICP复合保温板",
+                "alpha": 1.25,
+                "order": 3,
+                "lambda": 0.005,
+                "rValue": null,
+                "thicknessMm": null,
+                "sourceGroupLabel": "构造层",
+                "sourceLayerLabel": "4"
+              },
+              {
+                "name": "LC7.5轻集料混凝土",
+                "alpha": 1.5,
+                "order": 4,
+                "lambda": 0.16,
+                "rValue": 0.083,
+                "thicknessMm": 30,
+                "sourceGroupLabel": "构造层",
+                "sourceLayerLabel": "5"
+              },
+              {
+                "name": "M15水泥砂浆",
+                "alpha": 1,
+                "order": 5,
+                "lambda": 0.93,
+                "rValue": 0.022,
+                "thicknessMm": 20,
+                "sourceGroupLabel": "构造层",
+                "sourceLayerLabel": "6"
+              },
+              {
+                "name": "M15水泥砂浆",
+                "alpha": 1,
+                "order": 6,
+                "lambda": 0.93,
+                "rValue": 0.022,
+                "thicknessMm": 20,
+                "sourceGroupLabel": "构造层",
+                "sourceLayerLabel": "7"
+              }
+            ],
+            "options": [
+              {
+                "kValue": 0.361,
+                "layerValues": [
+                  {
+                    "rValue": 2.4,
+                    "layerIndex": 2,
+                    "rValueText": "2.400",
+                    "thicknessMm": 15,
+                    "thicknessText": "15"
+                  }
+                ],
+                "thicknessMm": 15,
+                "fieldEvidence": {
+                  "kValue": "0.361",
+                  "thicknessMm": "15",
+                  "totalThermalResistance": "2.769",
+                  "productThermalResistance": null
+                },
+                "sourceRowLabel": "15",
+                "totalThermalResistance": 2.769,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.28,
+                "layerValues": [
+                  {
+                    "rValue": 3.2,
+                    "layerIndex": 2,
+                    "rValueText": "3.200",
+                    "thicknessMm": 20,
+                    "thicknessText": "20"
+                  }
+                ],
+                "thicknessMm": 20,
+                "fieldEvidence": {
+                  "kValue": "0.280",
+                  "thicknessMm": "20",
+                  "totalThermalResistance": "3.569",
+                  "productThermalResistance": null
+                },
+                "sourceRowLabel": "20",
+                "totalThermalResistance": 3.569,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.229,
+                "layerValues": [
+                  {
+                    "rValue": 4,
+                    "layerIndex": 2,
+                    "rValueText": "4.000",
+                    "thicknessMm": 25,
+                    "thicknessText": "25"
+                  }
+                ],
+                "thicknessMm": 25,
+                "fieldEvidence": {
+                  "kValue": "0.229",
+                  "thicknessMm": "25",
+                  "totalThermalResistance": "4.369",
+                  "productThermalResistance": null
+                },
+                "sourceRowLabel": "25",
+                "totalThermalResistance": 4.369,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.193,
+                "layerValues": [
+                  {
+                    "rValue": 4.8,
+                    "layerIndex": 2,
+                    "rValueText": "4.800",
+                    "thicknessMm": 30,
+                    "thicknessText": "30"
+                  }
+                ],
+                "thicknessMm": 30,
+                "fieldEvidence": {
+                  "kValue": "0.193",
+                  "thicknessMm": "30",
+                  "totalThermalResistance": "5.169",
+                  "productThermalResistance": null
+                },
+                "sourceRowLabel": "30",
+                "totalThermalResistance": 5.169,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.168,
+                "layerValues": [
+                  {
+                    "rValue": 5.6,
+                    "layerIndex": 2,
+                    "rValueText": "5.600",
+                    "thicknessMm": 35,
+                    "thicknessText": "35"
+                  }
+                ],
+                "thicknessMm": 35,
+                "fieldEvidence": {
+                  "kValue": "0.168",
+                  "thicknessMm": "35",
+                  "totalThermalResistance": "5.969",
+                  "productThermalResistance": null
+                },
+                "sourceRowLabel": "35",
+                "totalThermalResistance": 5.969,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.148,
+                "layerValues": [
+                  {
+                    "rValue": 6.4,
+                    "layerIndex": 2,
+                    "rValueText": "6.400",
+                    "thicknessMm": 40,
+                    "thicknessText": "40"
+                  }
+                ],
+                "thicknessMm": 40,
+                "fieldEvidence": {
+                  "kValue": "0.148",
+                  "thicknessMm": "40",
+                  "totalThermalResistance": "6.769",
+                  "productThermalResistance": null
+                },
+                "sourceRowLabel": "40",
+                "totalThermalResistance": 6.769,
+                "productThermalResistance": null
+              }
+            ],
+            "roofForm": "FLAT",
+            "placement": "UPRIGHT",
+            "specClass": null,
+            "systemName": "平屋面（正置，级防水）",
+            "baseMaterial": null,
+            "sourceColumns": [
+              {
+                "unit": "mm",
+                "label": "分层厚度",
+                "scope": "LAYER",
+                "symbol": null,
+                "fieldKey": "thicknessMm",
+                "groupLabel": null
+              },
+              {
+                "unit": "W/(m·K)",
+                "label": "导热系数",
+                "scope": "LAYER",
+                "symbol": null,
+                "fieldKey": "lambda",
+                "groupLabel": null
+              },
+              {
+                "unit": null,
+                "label": "修正系数",
+                "scope": "LAYER",
+                "symbol": "α",
+                "fieldKey": "alpha",
+                "groupLabel": null
+              },
+              {
+                "unit": "(m²·K)/W",
+                "label": "热阻",
+                "scope": "LAYER",
+                "symbol": null,
+                "fieldKey": "rValue",
+                "groupLabel": null
+              },
+              {
+                "unit": "(m²·K)/W",
+                "label": "传热阻R",
+                "scope": "CONSTRUCTION",
+                "symbol": "R",
+                "fieldKey": "totalThermalResistance",
+                "groupLabel": "外墙主断面"
+              },
+              {
+                "unit": "W/(m²·K)",
+                "label": "传热系数K",
+                "scope": "CONSTRUCTION",
+                "symbol": "K",
+                "fieldKey": "kValue",
+                "groupLabel": "外墙主断面"
+              }
+            ],
+            "applicationPart": "ROOF",
+            "baseThicknessMm": null,
+            "waterproofGrade": null,
+            "constructionCode": null,
+            "rawConstructionLabel": "平屋面（正置，级防水）",
+            "constructionCodeEvidence": null
+          },
+          {
+            "layers": [
+              {
+                "name": "混合砂浆",
+                "alpha": 1,
+                "order": 1,
+                "lambda": 0.87,
+                "rValue": 0.023,
+                "thicknessMm": 20,
+                "sourceGroupLabel": "构造层",
+                "sourceLayerLabel": "1"
+              },
+              {
+                "name": "钢筋混凝土楼板",
+                "alpha": 1,
+                "order": 2,
+                "lambda": 1.74,
+                "rValue": 0.069,
+                "thicknessMm": 120,
+                "sourceGroupLabel": "构造层",
+                "sourceLayerLabel": "2"
+              },
+              {
+                "name": "轻集料混凝土找坡层",
+                "alpha": 1.5,
+                "order": 3,
+                "lambda": 0.16,
+                "rValue": 0.083,
+                "thicknessMm": 30,
+                "sourceGroupLabel": "构造层",
+                "sourceLayerLabel": "3"
+              },
+              {
+                "name": "水泥砂浆找平层",
+                "alpha": 1,
+                "order": 4,
+                "lambda": 0.93,
+                "rValue": 0.022,
+                "thicknessMm": 20,
+                "sourceGroupLabel": "构造层",
+                "sourceLayerLabel": "4"
+              },
+              {
+                "name": "水泥砂浆找平层",
+                "alpha": 1,
+                "order": 5,
+                "lambda": 0.93,
+                "rValue": 0.022,
+                "thicknessMm": 20,
+                "sourceGroupLabel": "构造层",
+                "sourceLayerLabel": "6"
+              },
+              {
+                "name": "I型VICP复合保温板",
+                "alpha": 1.25,
+                "order": 6,
+                "lambda": 0.005,
+                "rValue": null,
+                "thicknessMm": null,
+                "sourceGroupLabel": "构造层",
+                "sourceLayerLabel": "9"
+              }
+            ],
+            "options": [
+              {
+                "kValue": 0.361,
+                "layerValues": [
+                  {
+                    "rValue": 2.4,
+                    "layerIndex": 5,
+                    "rValueText": "2.400",
+                    "thicknessMm": 15,
+                    "thicknessText": "15"
+                  }
+                ],
+                "thicknessMm": 15,
+                "fieldEvidence": {
+                  "kValue": "0.361",
+                  "thicknessMm": "15",
+                  "totalThermalResistance": "2.769",
+                  "productThermalResistance": null
+                },
+                "sourceRowLabel": "15",
+                "totalThermalResistance": 2.769,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.28,
+                "layerValues": [
+                  {
+                    "rValue": 3.2,
+                    "layerIndex": 5,
+                    "rValueText": "3.200",
+                    "thicknessMm": 20,
+                    "thicknessText": "20"
+                  }
+                ],
+                "thicknessMm": 20,
+                "fieldEvidence": {
+                  "kValue": "0.280",
+                  "thicknessMm": "20",
+                  "totalThermalResistance": "3.569",
+                  "productThermalResistance": null
+                },
+                "sourceRowLabel": "20",
+                "totalThermalResistance": 3.569,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.229,
+                "layerValues": [
+                  {
+                    "rValue": 4,
+                    "layerIndex": 5,
+                    "rValueText": "4.000",
+                    "thicknessMm": 25,
+                    "thicknessText": "25"
+                  }
+                ],
+                "thicknessMm": 25,
+                "fieldEvidence": {
+                  "kValue": "0.229",
+                  "thicknessMm": "25",
+                  "totalThermalResistance": "4.369",
+                  "productThermalResistance": null
+                },
+                "sourceRowLabel": "25",
+                "totalThermalResistance": 4.369,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.193,
+                "layerValues": [
+                  {
+                    "rValue": 4.8,
+                    "layerIndex": 5,
+                    "rValueText": "4.800",
+                    "thicknessMm": 30,
+                    "thicknessText": "30"
+                  }
+                ],
+                "thicknessMm": 30,
+                "fieldEvidence": {
+                  "kValue": "0.193",
+                  "thicknessMm": "30",
+                  "totalThermalResistance": "5.169",
+                  "productThermalResistance": null
+                },
+                "sourceRowLabel": "30",
+                "totalThermalResistance": 5.169,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.168,
+                "layerValues": [
+                  {
+                    "rValue": 5.6,
+                    "layerIndex": 5,
+                    "rValueText": "5.600",
+                    "thicknessMm": 35,
+                    "thicknessText": "35"
+                  }
+                ],
+                "thicknessMm": 35,
+                "fieldEvidence": {
+                  "kValue": "0.168",
+                  "thicknessMm": "35",
+                  "totalThermalResistance": "5.969",
+                  "productThermalResistance": null
+                },
+                "sourceRowLabel": "35",
+                "totalThermalResistance": 5.969,
+                "productThermalResistance": null
+              },
+              {
+                "kValue": 0.148,
+                "layerValues": [
+                  {
+                    "rValue": 6.4,
+                    "layerIndex": 5,
+                    "rValueText": "6.400",
+                    "thicknessMm": 40,
+                    "thicknessText": "40"
+                  }
+                ],
+                "thicknessMm": 40,
+                "fieldEvidence": {
+                  "kValue": "0.148",
+                  "thicknessMm": "40",
+                  "totalThermalResistance": "6.769",
+                  "productThermalResistance": null
+                },
+                "sourceRowLabel": "40",
+                "totalThermalResistance": 6.769,
+                "productThermalResistance": null
+              }
+            ],
+            "roofForm": "FLAT",
+            "placement": "INVERTED",
+            "specClass": null,
+            "systemName": "平屋面（倒置，级防水）",
+            "baseMaterial": null,
+            "sourceColumns": [
+              {
+                "unit": "mm",
+                "label": "分层厚度",
+                "scope": "LAYER",
+                "symbol": null,
+                "fieldKey": "thicknessMm",
+                "groupLabel": null
+              },
+              {
+                "unit": "W/(m·K)",
+                "label": "导热系数",
+                "scope": "LAYER",
+                "symbol": null,
+                "fieldKey": "lambda",
+                "groupLabel": null
+              },
+              {
+                "unit": null,
+                "label": "修正系数",
+                "scope": "LAYER",
+                "symbol": "α",
+                "fieldKey": "alpha",
+                "groupLabel": null
+              },
+              {
+                "unit": "(m²·K)/W",
+                "label": "热阻",
+                "scope": "LAYER",
+                "symbol": null,
+                "fieldKey": "rValue",
+                "groupLabel": null
+              },
+              {
+                "unit": "(m²·K)/W",
+                "label": "传热阻R",
+                "scope": "CONSTRUCTION",
+                "symbol": "R",
+                "fieldKey": "totalThermalResistance",
+                "groupLabel": "外墙主断面"
+              },
+              {
+                "unit": "W/(m²·K)",
+                "label": "传热系数K",
+                "scope": "CONSTRUCTION",
+                "symbol": "K",
+                "fieldKey": "kValue",
+                "groupLabel": "外墙主断面"
+              }
+            ],
+            "applicationPart": "ROOF",
+            "baseThicknessMm": null,
+            "waterproofGrade": null,
+            "constructionCode": null,
+            "rawConstructionLabel": "平屋面（倒置，级防水）",
+            "constructionCodeEvidence": null
+          }
+        ],
+        "fullText": "编号 | 构造简图 | 构造层 | 分层厚度(mm) | 导热系数[W/(m·K)] | 修正系数α | 热阻[(m²·K)/W] | 外墙主断面传热阻R[(m²·K)/W] | 外墙主断面传热系数K[W/(m²·K)]\n平屋面（正置，级防水） | 1.抹面层：20厚混合砂浆 2.结构层：120厚钢筋混凝土楼板 3.隔汽层：按工程设计 4.保温层：I型VICP复合保温板 5.找坡层：最薄30厚LC7.5轻集料混凝土，找坡2% 6.找平层：20厚M15水泥砂浆 7.防水层1：按工程设计 8.找平层：20厚M15水泥砂浆 9.防水层2：按工程设计 10.防水层3：按工程设计 11.保护层及面层：按工程设计 | 1.混合砂浆 2.钢筋混凝土楼板 4.I型VICP复合保温板 5.LC7.5轻集料混凝土 6.M15水泥砂浆 7.M15水泥砂浆 | 20/120/15/20/25/30/35/40/30/20/20 | 0.870/1.740/0.005/0.16/0.930/0.930 | 1.00/1.00/1.25/1.50/1.00/1.00 | 0.023/0.069/2.400/3.200/4.000/4.800/5.600/6.400/0.083/0.022/0.022 | 2.769/3.569/4.369/5.169/5.969/6.769 | 0.361/0.280/0.229/0.193/0.168/0.148\n平屋面（倒置，级防水） | 1.抹面层：20厚混合砂浆 2.结构层：120厚钢筋混凝土楼板 3.找坡层：最薄30厚LC7.5轻集料混凝土，找坡2% 4.找平层：20厚M15水泥砂浆 5.防水层1：按工程设计 6.找平层：20厚M15水泥砂浆 7.防水层2：按工程设计 8.防水层3：按工程设计 9.保温层：I型VICP复合保温板 10.隔离层：按工程设计 11.保护层及面层：按工程设计 | 1.混合砂浆 2.钢筋混凝土楼板 3.轻集料混凝土找坡层 4.水泥砂浆找平层 6.水泥砂浆找平层 9.I型VICP复合保温板 | 20/120/30/20/20/15/20/25/30/35/40 | 0.870/1.740/0.160/0.930/0.930/0.005 | 1.00/1.00/1.50/1.00/1.00/1.25 | 0.023/0.069/0.083/0.022/0.022/2.400/3.200/4.000/4.800/5.600/6.400 | 2.769/3.569/4.369/5.169/5.969/6.769 | 0.361/0.280/0.229/0.193/0.168/0.148\n注：1.屋面采用结构找坡时，可取消找坡层。2.当结构找坡时，取消表中的找坡层并另行计算。3.当为倒置式屋面时，不必设置隔汽层。4.表中数值均按现浇屋面板考虑，若为预制空心板，应同时考虑屋面板上的水泥砂浆对屋面保温隔热的影响。\n图集号 J/CABEE 26J702\n图名 建筑屋面热工计算参考选用表\n页次 53\n审核 校对 设计",
+        "warnings": [
+          "构造标签中的防水等级书写不完整，缺失等级数字，waterproofGrade已填null。",
+          "表头“外墙主断面”与屋面主题不一致，已被原样保留。",
+          "I型VICP复合保温板的逐档热阻为材料层热阻，未提供完整产品热阻productThermalResistance，已填null。",
+          "第1组构造的基层材料或厚度尚未核验，请核对同组材料行",
+          "第1组构造的防水等级尚未核验，请核对原图字形",
+          "第1组构造第1档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第1组构造第2档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第1组构造第3档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第1组构造第4档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第1组构造第5档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第1组构造第6档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第2组构造的基层材料或厚度尚未核验，请核对同组材料行",
+          "第2组构造的防水等级尚未核验，请核对原图字形",
+          "第2组构造第1档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第2组构造第2档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第2组构造第3档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第2组构造第4档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第2组构造第5档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步",
+          "第2组构造第6档仅有材料层/芯层热阻，产品整体热阻未核验，不作自动热工同步"
+        ],
+        "pageLabel": "33",
+        "pageTitle": "建筑屋面热工计算参考选用表（I型VICP屋面保温系统）",
+        "schemaVersion": 2,
+        "pageLabelEvidence": "33"
+      }
+    }
+  ],
+  "turns": {
+    "S5-T2": {
+      "message": "先用已发布的200mm钢筋混凝土基层Excel示例，不判断达标。",
+      "traces": [
+        {
+          "at": "2026-10-18T15:30:10.502Z",
+          "message": "先用已发布的200mm钢筋混凝土基层Excel示例，不判断达标。",
+          "pendingClarification": null,
+          "previousQuery": null,
+          "proposal": {
+            "pageQuery": {
+              "queryMode": "NEW_QUERY",
+              "intent": "REFERENCE_LOOKUP",
+              "constraints": [
+                {
+                  "type": "ENTITY",
+                  "operation": "SET",
+                  "field": "substrateMaterial",
+                  "entityText": "200mm钢筋混凝土基层",
+                  "resolvedText": null,
+                  "metric": null,
+                  "operator": null,
+                  "value": null,
+                  "evidence": "200mm钢筋混凝土基层",
+                  "hard": true,
+                  "confidence": 0.86
+                },
+                {
+                  "type": "ENTITY",
+                  "operation": "SET",
+                  "field": "substrateThickness",
+                  "entityText": "200mm",
+                  "resolvedText": null,
+                  "metric": null,
+                  "operator": null,
+                  "value": null,
+                  "evidence": "200mm钢筋混凝土基层",
+                  "hard": true,
+                  "confidence": 0.86
+                }
+              ],
+              "preferences": [],
+              "unresolved": [],
+              "confidence": 0.86
+            },
+            "parameterQuery": null,
+            "productQuery": null,
+            "queryContext": "CURRENT_TURN",
+            "adviceFocus": "SELECTION",
+            "audience": "UNSPECIFIED",
+            "intent": "REFERENCE_QUERY",
+            "confidence": 0.86,
+            "evidence": "先用已发布的200mm钢筋混凝土基层Excel示例，不判断达标。",
+            "unresolved": null,
+            "complianceCheck": {
+              "required": false,
+              "evidence": "不判断达标"
+            },
+            "reportType": null,
+            "factRead": null,
+            "relation": "NEW",
+            "continuedGoal": null,
+            "comparison": null,
+            "referenceTime": null,
+            "adviceMode": null,
+            "constraintPatch": [],
+            "reference": {
+              "scope": "NONE",
+              "revision": null,
+              "items": []
+            },
+            "requestedEffect": "QUERY",
+            "effectRequest": null,
+            "ambiguity": []
+          },
+          "decision": {
+            "intent": "CLARIFY",
+            "mutation": "NONE",
+            "evidenceSpans": [],
+            "parserSource": "LLM",
+            "policyReason": "PAGE_QUERY_CONSTRAINTS_INVALID",
+            "unresolved": [
+              "基层厚度应作为数值条件解析。",
+              "明确的厚度条件未被完整保留，请确认。"
+            ],
+            "semantic": {
+              "pageQuery": {
+                "queryMode": "NEW_QUERY",
+                "intent": "REFERENCE_LOOKUP",
+                "constraints": [
+                  {
+                    "type": "ENTITY",
+                    "operation": "SET",
+                    "field": "substrateMaterial",
+                    "entityText": "200mm钢筋混凝土基层",
+                    "resolvedText": null,
+                    "metric": null,
+                    "operator": null,
+                    "value": null,
+                    "evidence": "200mm钢筋混凝土基层",
+                    "hard": true,
+                    "confidence": 0.86
+                  },
+                  {
+                    "type": "ENTITY",
+                    "operation": "SET",
+                    "field": "substrateThickness",
+                    "entityText": "200mm",
+                    "resolvedText": null,
+                    "metric": null,
+                    "operator": null,
+                    "value": null,
+                    "evidence": "200mm钢筋混凝土基层",
+                    "hard": true,
+                    "confidence": 0.86
+                  }
+                ],
+                "preferences": [],
+                "unresolved": [],
+                "confidence": 0.86
+              },
+              "parameterQuery": null,
+              "productQuery": null,
+              "queryContext": "CURRENT_TURN",
+              "adviceFocus": "SELECTION",
+              "audience": "UNSPECIFIED",
+              "intent": "REFERENCE_QUERY",
+              "confidence": 0.86,
+              "evidence": "先用已发布的200mm钢筋混凝土基层Excel示例，不判断达标。",
+              "unresolved": null,
+              "complianceCheck": {
+                "required": false,
+                "evidence": "不判断达标"
+              },
+              "reportType": null,
+              "factRead": null,
+              "relation": "NEW",
+              "continuedGoal": null,
+              "comparison": null,
+              "referenceTime": null,
+              "adviceMode": null,
+              "constraintPatch": [],
+              "reference": {
+                "scope": "NONE",
+                "revision": null,
+                "items": []
+              },
+              "requestedEffect": "QUERY",
+              "effectRequest": null,
+              "ambiguity": []
+            }
+          },
+          "attempt": 1
+        },
+        {
+          "at": "2026-10-18T15:30:12.198Z",
+          "message": "先用已发布的200mm钢筋混凝土基层Excel示例，不判断达标。",
+          "pendingClarification": null,
+          "previousQuery": null,
+          "proposal": {
+            "pageQuery": {
+              "queryMode": "NEW_QUERY",
+              "intent": "REFERENCE_LOOKUP",
+              "constraints": [
+                {
+                  "type": "ENTITY",
+                  "operation": "SET",
+                  "field": "substrateMaterial",
+                  "entityText": "钢筋混凝土",
+                  "resolvedText": null,
+                  "metric": null,
+                  "operator": null,
+                  "value": null,
+                  "evidence": "钢筋混凝土基层",
+                  "hard": true,
+                  "confidence": 0.9
+                },
+                {
+                  "type": "ENTITY",
+                  "operation": "SET",
+                  "field": "substrateThickness",
+                  "entityText": "200mm",
+                  "resolvedText": null,
+                  "metric": null,
+                  "operator": null,
+                  "value": 200,
+                  "evidence": "200mm钢筋混凝土基层",
+                  "hard": true,
+                  "confidence": 0.9
+                }
+              ],
+              "preferences": [],
+              "unresolved": [],
+              "confidence": 0.86
+            },
+            "parameterQuery": null,
+            "productQuery": null,
+            "queryContext": "CURRENT_TURN",
+            "adviceFocus": "SELECTION",
+            "audience": "UNSPECIFIED",
+            "intent": "REFERENCE_QUERY",
+            "confidence": 0.86,
+            "evidence": "先用已发布的200mm钢筋混凝土基层Excel示例，不判断达标。",
+            "unresolved": null,
+            "complianceCheck": {
+              "required": false,
+              "evidence": "不判断达标"
+            },
+            "reportType": null,
+            "factRead": null,
+            "relation": "NEW",
+            "continuedGoal": null,
+            "comparison": null,
+            "referenceTime": null,
+            "adviceMode": null,
+            "constraintPatch": [],
+            "reference": {
+              "scope": "NONE",
+              "revision": null,
+              "items": []
+            },
+            "requestedEffect": "QUERY",
+            "effectRequest": null,
+            "ambiguity": []
+          },
+          "decision": {
+            "intent": "CLARIFY",
+            "mutation": "NONE",
+            "evidenceSpans": [],
+            "parserSource": "LLM",
+            "policyReason": "PAGE_QUERY_CONSTRAINTS_INVALID",
+            "unresolved": [
+              "基层厚度应作为数值条件解析。",
+              "明确的厚度条件未被完整保留，请确认。"
+            ],
+            "semantic": {
+              "pageQuery": {
+                "queryMode": "NEW_QUERY",
+                "intent": "REFERENCE_LOOKUP",
+                "constraints": [
+                  {
+                    "type": "ENTITY",
+                    "operation": "SET",
+                    "field": "substrateMaterial",
+                    "entityText": "钢筋混凝土",
+                    "resolvedText": null,
+                    "metric": null,
+                    "operator": null,
+                    "value": null,
+                    "evidence": "钢筋混凝土基层",
+                    "hard": true,
+                    "confidence": 0.9
+                  },
+                  {
+                    "type": "ENTITY",
+                    "operation": "SET",
+                    "field": "substrateThickness",
+                    "entityText": "200mm",
+                    "resolvedText": null,
+                    "metric": null,
+                    "operator": null,
+                    "value": 200,
+                    "evidence": "200mm钢筋混凝土基层",
+                    "hard": true,
+                    "confidence": 0.9
+                  }
+                ],
+                "preferences": [],
+                "unresolved": [],
+                "confidence": 0.86
+              },
+              "parameterQuery": null,
+              "productQuery": null,
+              "queryContext": "CURRENT_TURN",
+              "adviceFocus": "SELECTION",
+              "audience": "UNSPECIFIED",
+              "intent": "REFERENCE_QUERY",
+              "confidence": 0.86,
+              "evidence": "先用已发布的200mm钢筋混凝土基层Excel示例，不判断达标。",
+              "unresolved": null,
+              "complianceCheck": {
+                "required": false,
+                "evidence": "不判断达标"
+              },
+              "reportType": null,
+              "factRead": null,
+              "relation": "NEW",
+              "continuedGoal": null,
+              "comparison": null,
+              "referenceTime": null,
+              "adviceMode": null,
+              "constraintPatch": [],
+              "reference": {
+                "scope": "NONE",
+                "revision": null,
+                "items": []
+              },
+              "requestedEffect": "QUERY",
+              "effectRequest": null,
+              "ambiguity": []
+            }
+          },
+          "attempt": 2
+        }
+      ]
+    },
+    "R5-T1": {
+      "message": "查询已发布的VICP-OVERALL和VICP-LAYERED参考行，分别保留输入条件及来源。",
+      "traces": [
+        {
+          "at": "2026-10-18T15:50:26.282Z",
+          "message": "查询已发布的VICP-OVERALL和VICP-LAYERED参考行，分别保留输入条件及来源。",
+          "pendingClarification": null,
+          "previousQuery": null,
+          "proposal": {
+            "pageQuery": {
+              "queryMode": "NEW_QUERY",
+              "intent": "REFERENCE_LOOKUP",
+              "constraints": [
+                {
+                  "type": "ENTITY",
+                  "operation": "SET",
+                  "field": "schemeCode",
+                  "entityText": "VICP-OVERALL",
+                  "resolvedText": null,
+                  "metric": null,
+                  "operator": null,
+                  "value": null,
+                  "evidence": "VICP-OVERALL",
+                  "hard": true,
+                  "confidence": 0.62
+                },
+                {
+                  "type": "ENTITY",
+                  "operation": "APPEND",
+                  "field": "schemeCode",
+                  "entityText": "VICP-LAYERED",
+                  "resolvedText": null,
+                  "metric": null,
+                  "operator": null,
+                  "value": null,
+                  "evidence": "VICP-LAYERED",
+                  "hard": true,
+                  "confidence": 0.62
+                }
+              ],
+              "preferences": [],
+              "unresolved": [
+                {
+                  "field": "schemeCode",
+                  "reason": "VICP-OVERALL与VICP-LAYERED是否为已发布参考行编码需后端核验"
+                }
+              ],
+              "confidence": 0.62
+            },
+            "parameterQuery": null,
+            "productQuery": null,
+            "queryContext": "CURRENT_TURN",
+            "adviceFocus": "SELECTION",
+            "audience": "UNSPECIFIED",
+            "intent": "REFERENCE_QUERY",
+            "confidence": 0.62,
+            "evidence": "查询已发布的VICP-OVERALL和VICP-LAYERED参考行，分别保留输入条件及来源。",
+            "unresolved": "VICP-OVERALL与VICP-LAYERED是否为已发布参考行名称需后端核验",
+            "complianceCheck": null,
+            "reportType": null,
+            "factRead": null,
+            "relation": "NEW",
+            "continuedGoal": null,
+            "comparison": null,
+            "referenceTime": null,
+            "adviceMode": null,
+            "constraintPatch": [],
+            "reference": {
+              "scope": "NONE",
+              "revision": null,
+              "items": []
+            },
+            "requestedEffect": "QUERY",
+            "effectRequest": null,
+            "ambiguity": []
+          },
+          "decision": {
+            "intent": "CLARIFY",
+            "mutation": "NONE",
+            "evidenceSpans": [],
+            "parserSource": "LLM",
+            "policyReason": "SEMANTIC_AMBIGUOUS",
+            "unresolved": [
+              "VICP-OVERALL与VICP-LAYERED是否为已发布参考行名称需后端核验"
+            ],
+            "semantic": {
+              "pageQuery": {
+                "queryMode": "NEW_QUERY",
+                "intent": "REFERENCE_LOOKUP",
+                "constraints": [
+                  {
+                    "type": "ENTITY",
+                    "operation": "SET",
+                    "field": "schemeCode",
+                    "entityText": "VICP-OVERALL",
+                    "resolvedText": null,
+                    "metric": null,
+                    "operator": null,
+                    "value": null,
+                    "evidence": "VICP-OVERALL",
+                    "hard": true,
+                    "confidence": 0.62
+                  },
+                  {
+                    "type": "ENTITY",
+                    "operation": "APPEND",
+                    "field": "schemeCode",
+                    "entityText": "VICP-LAYERED",
+                    "resolvedText": null,
+                    "metric": null,
+                    "operator": null,
+                    "value": null,
+                    "evidence": "VICP-LAYERED",
+                    "hard": true,
+                    "confidence": 0.62
+                  }
+                ],
+                "preferences": [],
+                "unresolved": [
+                  {
+                    "field": "schemeCode",
+                    "reason": "VICP-OVERALL与VICP-LAYERED是否为已发布参考行编码需后端核验"
+                  }
+                ],
+                "confidence": 0.62
+              },
+              "parameterQuery": null,
+              "productQuery": null,
+              "queryContext": "CURRENT_TURN",
+              "adviceFocus": "SELECTION",
+              "audience": "UNSPECIFIED",
+              "intent": "REFERENCE_QUERY",
+              "confidence": 0.62,
+              "evidence": "查询已发布的VICP-OVERALL和VICP-LAYERED参考行，分别保留输入条件及来源。",
+              "unresolved": "VICP-OVERALL与VICP-LAYERED是否为已发布参考行名称需后端核验",
+              "complianceCheck": null,
+              "reportType": null,
+              "factRead": null,
+              "relation": "NEW",
+              "continuedGoal": null,
+              "comparison": null,
+              "referenceTime": null,
+              "adviceMode": null,
+              "constraintPatch": [],
+              "reference": {
+                "scope": "NONE",
+                "revision": null,
+                "items": []
+              },
+              "requestedEffect": "QUERY",
+              "effectRequest": null,
+              "ambiguity": []
+            }
+          },
+          "attempt": 1
+        }
+      ]
+    },
+    "R2-T1": {
+      "message": "I型VICP平屋面，正置和倒置的20mm档分别怎么样？",
+      "traces": [
+        {
+          "at": "2026-10-18T15:43:35.994Z",
+          "message": "I型VICP平屋面，正置和倒置的20mm档分别怎么样？",
+          "pendingClarification": null,
+          "previousQuery": null,
+          "proposal": {
+            "pageQuery": {
+              "queryMode": "NEW_QUERY",
+              "intent": "REFERENCE_LOOKUP",
+              "constraints": [
+                {
+                  "type": "ENTITY",
+                  "operation": "SET",
+                  "field": "specClass",
+                  "entityText": "I型",
+                  "resolvedText": null,
+                  "metric": null,
+                  "operator": null,
+                  "value": null,
+                  "evidence": "I型",
+                  "hard": true,
+                  "confidence": 0.95
+                },
+                {
+                  "type": "ENTITY",
+                  "operation": "SET",
+                  "field": "systemHint",
+                  "entityText": "VICP",
+                  "resolvedText": null,
+                  "metric": null,
+                  "operator": null,
+                  "value": null,
+                  "evidence": "VICP",
+                  "hard": true,
+                  "confidence": 0.9
+                },
+                {
+                  "type": "ENTITY",
+                  "operation": "SET",
+                  "field": "roofForm",
+                  "entityText": "平屋面",
+                  "resolvedText": null,
+                  "metric": null,
+                  "operator": null,
+                  "value": null,
+                  "evidence": "平屋面",
+                  "hard": true,
+                  "confidence": 0.95
+                },
+                {
+                  "type": "ENTITY",
+                  "operation": "SET",
+                  "field": "placement",
+                  "entityText": "正置",
+                  "resolvedText": null,
+                  "metric": null,
+                  "operator": null,
+                  "value": null,
+                  "evidence": "正置",
+                  "hard": true,
+                  "confidence": 0.95
+                },
+                {
+                  "type": "ENTITY",
+                  "operation": "APPEND",
+                  "field": "placement",
+                  "entityText": "倒置",
+                  "resolvedText": null,
+                  "metric": null,
+                  "operator": null,
+                  "value": null,
+                  "evidence": "倒置",
+                  "hard": true,
+                  "confidence": 0.95
+                },
+                {
+                  "type": "THICKNESS",
+                  "operation": "SET",
+                  "field": null,
+                  "entityText": "20mm",
+                  "resolvedText": null,
+                  "metric": null,
+                  "operator": "EXACT",
+                  "value": 20,
+                  "evidence": "20mm",
+                  "hard": true,
+                  "confidence": 0.95
+                }
+              ],
+              "preferences": [],
+              "unresolved": [],
+              "confidence": 0.9
+            },
+            "parameterQuery": null,
+            "productQuery": null,
+            "queryContext": "CURRENT_TURN",
+            "adviceFocus": "SELECTION",
+            "audience": "UNSPECIFIED",
+            "intent": "REFERENCE_QUERY",
+            "confidence": 0.9,
+            "evidence": "I型VICP平屋面，正置和倒置的20mm档分别怎么样？",
+            "unresolved": null,
+            "complianceCheck": null,
+            "reportType": null,
+            "factRead": null,
+            "relation": "NEW",
+            "continuedGoal": null,
+            "comparison": null,
+            "referenceTime": null,
+            "adviceMode": null,
+            "constraintPatch": [],
+            "reference": {
+              "scope": "NONE",
+              "revision": null,
+              "items": []
+            },
+            "requestedEffect": "QUERY",
+            "effectRequest": null,
+            "ambiguity": []
+          },
+          "decision": {
+            "intent": "CLARIFY",
+            "mutation": "NONE",
+            "evidenceSpans": [],
+            "parserSource": "LLM",
+            "policyReason": "PAGE_QUERY_CONSTRAINTS_INVALID",
+            "unresolved": [
+              "本轮明确的建筑部位未被完整保留，请确认。"
+            ],
+            "semantic": {
+              "pageQuery": {
+                "queryMode": "NEW_QUERY",
+                "intent": "REFERENCE_LOOKUP",
+                "constraints": [
+                  {
+                    "type": "ENTITY",
+                    "operation": "SET",
+                    "field": "specClass",
+                    "entityText": "I型",
+                    "resolvedText": null,
+                    "metric": null,
+                    "operator": null,
+                    "value": null,
+                    "evidence": "I型",
+                    "hard": true,
+                    "confidence": 0.95
+                  },
+                  {
+                    "type": "ENTITY",
+                    "operation": "SET",
+                    "field": "systemHint",
+                    "entityText": "VICP",
+                    "resolvedText": null,
+                    "metric": null,
+                    "operator": null,
+                    "value": null,
+                    "evidence": "VICP",
+                    "hard": true,
+                    "confidence": 0.9
+                  },
+                  {
+                    "type": "ENTITY",
+                    "operation": "SET",
+                    "field": "roofForm",
+                    "entityText": "平屋面",
+                    "resolvedText": null,
+                    "metric": null,
+                    "operator": null,
+                    "value": null,
+                    "evidence": "平屋面",
+                    "hard": true,
+                    "confidence": 0.95
+                  },
+                  {
+                    "type": "ENTITY",
+                    "operation": "SET",
+                    "field": "placement",
+                    "entityText": "正置",
+                    "resolvedText": null,
+                    "metric": null,
+                    "operator": null,
+                    "value": null,
+                    "evidence": "正置",
+                    "hard": true,
+                    "confidence": 0.95
+                  },
+                  {
+                    "type": "ENTITY",
+                    "operation": "APPEND",
+                    "field": "placement",
+                    "entityText": "倒置",
+                    "resolvedText": null,
+                    "metric": null,
+                    "operator": null,
+                    "value": null,
+                    "evidence": "倒置",
+                    "hard": true,
+                    "confidence": 0.95
+                  },
+                  {
+                    "type": "THICKNESS",
+                    "operation": "SET",
+                    "field": null,
+                    "entityText": "20mm",
+                    "resolvedText": null,
+                    "metric": null,
+                    "operator": "EXACT",
+                    "value": 20,
+                    "evidence": "20mm",
+                    "hard": true,
+                    "confidence": 0.95
+                  }
+                ],
+                "preferences": [],
+                "unresolved": [],
+                "confidence": 0.9
+              },
+              "parameterQuery": null,
+              "productQuery": null,
+              "queryContext": "CURRENT_TURN",
+              "adviceFocus": "SELECTION",
+              "audience": "UNSPECIFIED",
+              "intent": "REFERENCE_QUERY",
+              "confidence": 0.9,
+              "evidence": "I型VICP平屋面，正置和倒置的20mm档分别怎么样？",
+              "unresolved": null,
+              "complianceCheck": null,
+              "reportType": null,
+              "factRead": null,
+              "relation": "NEW",
+              "continuedGoal": null,
+              "comparison": null,
+              "referenceTime": null,
+              "adviceMode": null,
+              "constraintPatch": [],
+              "reference": {
+                "scope": "NONE",
+                "revision": null,
+                "items": []
+              },
+              "requestedEffect": "QUERY",
+              "effectRequest": null,
+              "ambiguity": []
+            }
+          },
+          "attempt": 1
+        },
+        {
+          "at": "2026-10-18T15:43:37.908Z",
+          "message": "I型VICP平屋面，正置和倒置的20mm档分别怎么样？",
+          "pendingClarification": null,
+          "previousQuery": null,
+          "proposal": {
+            "pageQuery": {
+              "queryMode": "NEW_QUERY",
+              "intent": "REFERENCE_LOOKUP",
+              "constraints": [
+                {
+                  "type": "ENTITY",
+                  "operation": "SET",
+                  "field": "specClass",
+                  "entityText": "I型",
+                  "resolvedText": null,
+                  "metric": null,
+                  "operator": null,
+                  "value": null,
+                  "evidence": "I型",
+                  "hard": true,
+                  "confidence": 0.95
+                },
+                {
+                  "type": "ENTITY",
+                  "operation": "SET",
+                  "field": "systemHint",
+                  "entityText": "VICP",
+                  "resolvedText": null,
+                  "metric": null,
+                  "operator": null,
+                  "value": null,
+                  "evidence": "VICP",
+                  "hard": true,
+                  "confidence": 0.9
+                },
+                {
+                  "type": "ENTITY",
+                  "operation": "SET",
+                  "field": "applicationPart",
+                  "entityText": "平屋面",
+                  "resolvedText": null,
+                  "metric": null,
+                  "operator": null,
+                  "value": null,
+                  "evidence": "平屋面",
+                  "hard": true,
+                  "confidence": 0.95
+                },
+                {
+                  "type": "ENTITY",
+                  "operation": "SET",
+                  "field": "placement",
+                  "entityText": "正置",
+                  "resolvedText": null,
+                  "metric": null,
+                  "operator": null,
+                  "value": null,
+                  "evidence": "正置",
+                  "hard": true,
+                  "confidence": 0.95
+                },
+                {
+                  "type": "ENTITY",
+                  "operation": "APPEND",
+                  "field": "placement",
+                  "entityText": "倒置",
+                  "resolvedText": null,
+                  "metric": null,
+                  "operator": null,
+                  "value": null,
+                  "evidence": "倒置",
+                  "hard": true,
+                  "confidence": 0.95
+                },
+                {
+                  "type": "THICKNESS",
+                  "operation": "SET",
+                  "field": null,
+                  "entityText": "20mm",
+                  "resolvedText": null,
+                  "metric": null,
+                  "operator": "EXACT",
+                  "value": 20,
+                  "evidence": "20mm",
+                  "hard": true,
+                  "confidence": 0.95
+                }
+              ],
+              "preferences": [],
+              "unresolved": [],
+              "confidence": 0.9
+            },
+            "parameterQuery": null,
+            "productQuery": null,
+            "queryContext": "CURRENT_TURN",
+            "adviceFocus": "SELECTION",
+            "audience": "UNSPECIFIED",
+            "intent": "REFERENCE_QUERY",
+            "confidence": 0.9,
+            "evidence": "I型VICP平屋面，正置和倒置的20mm档分别怎么样？",
+            "unresolved": null,
+            "complianceCheck": null,
+            "reportType": null,
+            "factRead": null,
+            "relation": "NEW",
+            "continuedGoal": null,
+            "comparison": null,
+            "referenceTime": null,
+            "adviceMode": null,
+            "constraintPatch": [],
+            "reference": {
+              "scope": "NONE",
+              "revision": null,
+              "items": []
+            },
+            "requestedEffect": "QUERY",
+            "effectRequest": null,
+            "ambiguity": []
+          },
+          "decision": {
+            "intent": "REFERENCE_QUERY",
+            "mutation": "QUERY",
+            "evidenceSpans": [
+              "I型VICP平屋面，正置和倒置的20mm档分别怎么样？"
+            ],
+            "parserSource": "LLM",
+            "semantic": {
+              "pageQuery": {
+                "queryMode": "NEW_QUERY",
+                "intent": "REFERENCE_LOOKUP",
+                "constraints": [
+                  {
+                    "type": "ENTITY",
+                    "operation": "SET",
+                    "field": "specClass",
+                    "entityText": "I型",
+                    "resolvedText": null,
+                    "metric": null,
+                    "operator": null,
+                    "value": null,
+                    "evidence": "I型",
+                    "hard": true,
+                    "confidence": 0.95
+                  },
+                  {
+                    "type": "ENTITY",
+                    "operation": "SET",
+                    "field": "systemHint",
+                    "entityText": "VICP",
+                    "resolvedText": null,
+                    "metric": null,
+                    "operator": null,
+                    "value": null,
+                    "evidence": "VICP",
+                    "hard": true,
+                    "confidence": 0.9
+                  },
+                  {
+                    "type": "ENTITY",
+                    "operation": "SET",
+                    "field": "applicationPart",
+                    "entityText": "平屋面",
+                    "resolvedText": null,
+                    "metric": null,
+                    "operator": null,
+                    "value": null,
+                    "evidence": "平屋面",
+                    "hard": true,
+                    "confidence": 0.95
+                  },
+                  {
+                    "type": "ENTITY",
+                    "operation": "SET",
+                    "field": "placement",
+                    "entityText": "正置",
+                    "resolvedText": null,
+                    "metric": null,
+                    "operator": null,
+                    "value": null,
+                    "evidence": "正置",
+                    "hard": true,
+                    "confidence": 0.95
+                  },
+                  {
+                    "type": "ENTITY",
+                    "operation": "APPEND",
+                    "field": "placement",
+                    "entityText": "倒置",
+                    "resolvedText": null,
+                    "metric": null,
+                    "operator": null,
+                    "value": null,
+                    "evidence": "倒置",
+                    "hard": true,
+                    "confidence": 0.95
+                  },
+                  {
+                    "type": "THICKNESS",
+                    "operation": "SET",
+                    "field": null,
+                    "entityText": "20mm",
+                    "resolvedText": null,
+                    "metric": null,
+                    "operator": "EXACT",
+                    "value": 20,
+                    "evidence": "20mm",
+                    "hard": true,
+                    "confidence": 0.95
+                  }
+                ],
+                "preferences": [],
+                "unresolved": [],
+                "confidence": 0.9
+              },
+              "parameterQuery": null,
+              "productQuery": null,
+              "queryContext": "CURRENT_TURN",
+              "adviceFocus": "SELECTION",
+              "audience": "UNSPECIFIED",
+              "intent": "REFERENCE_QUERY",
+              "confidence": 0.9,
+              "evidence": "I型VICP平屋面，正置和倒置的20mm档分别怎么样？",
+              "unresolved": null,
+              "complianceCheck": null,
+              "reportType": null,
+              "factRead": null,
+              "relation": "NEW",
+              "continuedGoal": null,
+              "comparison": null,
+              "referenceTime": null,
+              "adviceMode": null,
+              "constraintPatch": [],
+              "reference": {
+                "scope": "NONE",
+                "revision": null,
+                "items": []
+              },
+              "requestedEffect": "QUERY",
+              "effectRequest": null,
+              "ambiguity": []
+            },
+            "requiresCandidateQuery": false,
+            "restoreAdviceGoal": false,
+            "referenceScope": "LATEST_VISIBLE",
+            "policyReason": "READ_ONLY_QUERY"
+          },
+          "attempt": 2
+        }
+      ]
+    },
+    "R1-T3": {
+      "message": "给我看对应原页，定位45mm那档。",
+      "traces": [
+        {
+          "at": "2026-10-18T15:40:03.823Z",
+          "message": "给我看对应原页，定位45mm那档。",
+          "pendingClarification": null,
+          "previousQuery": {
+            "intent": "REFERENCE_LOOKUP",
+            "filters": [],
+            "mode": "MAX_LIMIT",
+            "toleranceAdjusted": false,
+            "systemHint": "Ⅲ型VICP薄抹灰外保温",
+            "specClass": "III",
+            "thicknessMm": 45,
+            "readFields": [
+              "kValue",
+              "baseMaterial"
+            ],
+            "queryMode": "REFINE_QUERY",
+            "semanticConfidence": 0.95,
+            "parserSource": "LLM",
+            "documentIds": [
+              "baedb3e4-0935-4322-94e1-a02e4d4178ad"
+            ],
+            "knowledgeVersionIds": [
+              "b93a1099-4f32-45b4-8683-b3a3ef5bb64e"
+            ],
+            "preferences": {
+              "preferLowerK": true
+            },
+            "unresolved": [],
+            "conditionTrace": [
+              {
+                "field": "systemHint",
+                "value": "Ⅲ型VICP薄抹灰外保温",
+                "source": "USER_EXPLICIT",
+                "classification": "HARD_CONSTRAINT"
+              },
+              {
+                "field": "specClass",
+                "value": "III",
+                "source": "USER_EXPLICIT",
+                "classification": "HARD_CONSTRAINT"
+              },
+              {
+                "field": "thicknessMm",
+                "value": 45,
+                "source": "USER_EXPLICIT",
+                "classification": "HARD_CONSTRAINT"
+              },
+              {
+                "field": "documentIds",
+                "value": "baedb3e4-0935-4322-94e1-a02e4d4178ad",
+                "source": "USER_EXPLICIT",
+                "classification": "HARD_CONSTRAINT"
+              },
+              {
+                "field": "knowledgeVersionIds",
+                "value": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+                "source": "USER_EXPLICIT",
+                "classification": "HARD_CONSTRAINT"
+              },
+              {
+                "field": "preferLowerK",
+                "value": true,
+                "source": "USER_EXPLICIT",
+                "classification": "SOFT_PREFERENCE"
+              }
+            ]
+          },
+          "proposal": {
+            "pageQuery": null,
+            "parameterQuery": null,
+            "productQuery": null,
+            "queryContext": "CURRENT_TURN",
+            "adviceFocus": "SELECTION",
+            "audience": "UNSPECIFIED",
+            "intent": "REFERENCE_VIEW",
+            "confidence": 0.95,
+            "evidence": "给我看对应原页，定位45mm那档。",
+            "unresolved": null,
+            "complianceCheck": null,
+            "reportType": null,
+            "factRead": null,
+            "relation": "REFINE",
+            "continuedGoal": null,
+            "comparison": null,
+            "referenceTime": "CURRENT",
+            "adviceMode": null,
+            "constraintPatch": [],
+            "reference": {
+              "scope": "LAST_VISIBLE_CANDIDATES",
+              "revision": null,
+              "items": [
+                {
+                  "type": "THICKNESS",
+                  "value": 45,
+                  "evidence": "45mm"
+                }
+              ]
+            },
+            "requestedEffect": "READ_ONLY",
+            "effectRequest": null,
+            "ambiguity": []
+          },
+          "decision": {
+            "intent": "REFERENCE_VIEW",
+            "mutation": "NONE",
+            "evidenceSpans": [
+              "给我看对应原页，定位45mm那档。"
+            ],
+            "parserSource": "LLM",
+            "semantic": {
+              "pageQuery": null,
+              "parameterQuery": null,
+              "productQuery": null,
+              "queryContext": "CURRENT_TURN",
+              "adviceFocus": "SELECTION",
+              "audience": "UNSPECIFIED",
+              "intent": "REFERENCE_VIEW",
+              "confidence": 0.95,
+              "evidence": "给我看对应原页，定位45mm那档。",
+              "unresolved": null,
+              "complianceCheck": null,
+              "reportType": null,
+              "factRead": null,
+              "relation": "REFINE",
+              "continuedGoal": null,
+              "comparison": null,
+              "referenceTime": "CURRENT",
+              "adviceMode": null,
+              "constraintPatch": [],
+              "reference": {
+                "scope": "LAST_VISIBLE_CANDIDATES",
+                "revision": null,
+                "items": [
+                  {
+                    "type": "THICKNESS",
+                    "value": 45,
+                    "evidence": "给我看对应原页，定位45mm那档。"
+                  }
+                ]
+              },
+              "requestedEffect": "READ_ONLY",
+              "effectRequest": null,
+              "ambiguity": []
+            },
+            "requiresCandidateQuery": false,
+            "restoreAdviceGoal": false,
+            "referenceScope": "LATEST_VISIBLE",
+            "policyReason": "READ_ONLY_SEMANTIC"
+          },
+          "attempt": 1
+        }
+      ]
+    },
+    "S1-T2": {
+      "message": "我不是工程师，简单说就行。",
+      "traces": [
+        {
+          "at": "2026-10-18T15:21:03.837Z",
+          "message": "我不是工程师，简单说就行。",
+          "pendingClarification": null,
+          "previousQuery": null,
+          "proposal": {
+            "pageQuery": null,
+            "parameterQuery": null,
+            "productQuery": {
+              "scope": "IDENTITY",
+              "entityText": "VICP",
+              "granularity": "SERIES",
+              "evidence": "我不是工程师，简单说就行。"
+            },
+            "queryContext": "CURRENT_TURN",
+            "adviceFocus": "SELECTION",
+            "audience": "GENERAL",
+            "intent": "PRODUCT_DISCOVERY",
+            "confidence": 0.9,
+            "evidence": "我不是工程师，简单说就行。",
+            "unresolved": null,
+            "complianceCheck": null,
+            "reportType": null,
+            "factRead": null,
+            "relation": "CONTINUE",
+            "continuedGoal": null,
+            "comparison": null,
+            "referenceTime": null,
+            "adviceMode": null,
+            "constraintPatch": [],
+            "reference": {
+              "scope": "NONE",
+              "revision": null,
+              "items": []
+            },
+            "requestedEffect": "READ_ONLY",
+            "effectRequest": null,
+            "ambiguity": []
+          },
+          "decision": {
+            "intent": "CLARIFY",
+            "mutation": "NONE",
+            "evidenceSpans": [],
+            "parserSource": "LLM",
+            "policyReason": "PRODUCT_SCOPE_INVALID",
+            "unresolved": [
+              "这轮请求暂未能可靠理解，请补充要查询的产品、参数或参考构造；已明确的指标无需重复说明。"
+            ],
+            "semantic": {
+              "pageQuery": null,
+              "parameterQuery": null,
+              "productQuery": {
+                "scope": "IDENTITY",
+                "entityText": "VICP",
+                "granularity": "SERIES",
+                "evidence": "我不是工程师，简单说就行。"
+              },
+              "queryContext": "CURRENT_TURN",
+              "adviceFocus": "SELECTION",
+              "audience": "GENERAL",
+              "intent": "PRODUCT_DISCOVERY",
+              "confidence": 0.9,
+              "evidence": "我不是工程师，简单说就行。",
+              "unresolved": null,
+              "complianceCheck": null,
+              "reportType": null,
+              "factRead": null,
+              "relation": "CONTINUE",
+              "continuedGoal": null,
+              "comparison": null,
+              "referenceTime": null,
+              "adviceMode": null,
+              "constraintPatch": [],
+              "reference": {
+                "scope": "NONE",
+                "revision": null,
+                "items": []
+              },
+              "requestedEffect": "READ_ONLY",
+              "effectRequest": null,
+              "ambiguity": []
+            }
+          },
+          "attempt": 1
+        },
+        {
+          "at": "2026-10-18T15:21:05.017Z",
+          "message": "我不是工程师，简单说就行。",
+          "pendingClarification": null,
+          "previousQuery": null,
+          "proposal": {
+            "pageQuery": null,
+            "parameterQuery": null,
+            "productQuery": {
+              "scope": "IDENTITY",
+              "entityText": "VICP",
+              "granularity": "SERIES",
+              "evidence": "VICP"
+            },
+            "queryContext": "CURRENT_TURN",
+            "adviceFocus": "SELECTION",
+            "audience": "GENERAL",
+            "intent": "PRODUCT_DISCOVERY",
+            "confidence": 0.9,
+            "evidence": "我不是工程师，简单说就行。",
+            "unresolved": null,
+            "complianceCheck": null,
+            "reportType": null,
+            "factRead": null,
+            "relation": "CONTINUE",
+            "continuedGoal": null,
+            "comparison": null,
+            "referenceTime": null,
+            "adviceMode": null,
+            "constraintPatch": [],
+            "reference": {
+              "scope": "NONE",
+              "revision": null,
+              "items": []
+            },
+            "requestedEffect": "READ_ONLY",
+            "effectRequest": null,
+            "ambiguity": []
+          },
+          "decision": {
+            "intent": "CLARIFY",
+            "mutation": "NONE",
+            "evidenceSpans": [],
+            "parserSource": "LLM",
+            "policyReason": "PRODUCT_SCOPE_INVALID",
+            "unresolved": [
+              "这轮请求暂未能可靠理解，请补充要查询的产品、参数或参考构造；已明确的指标无需重复说明。"
+            ],
+            "semantic": {
+              "pageQuery": null,
+              "parameterQuery": null,
+              "productQuery": {
+                "scope": "IDENTITY",
+                "entityText": "VICP",
+                "granularity": "SERIES",
+                "evidence": "VICP"
+              },
+              "queryContext": "CURRENT_TURN",
+              "adviceFocus": "SELECTION",
+              "audience": "GENERAL",
+              "intent": "PRODUCT_DISCOVERY",
+              "confidence": 0.9,
+              "evidence": "我不是工程师，简单说就行。",
+              "unresolved": null,
+              "complianceCheck": null,
+              "reportType": null,
+              "factRead": null,
+              "relation": "CONTINUE",
+              "continuedGoal": null,
+              "comparison": null,
+              "referenceTime": null,
+              "adviceMode": null,
+              "constraintPatch": [],
+              "reference": {
+                "scope": "NONE",
+                "revision": null,
+                "items": []
+              },
+              "requestedEffect": "READ_ONLY",
+              "effectRequest": null,
+              "ambiguity": []
+            }
+          },
+          "attempt": 2
+        }
+      ]
+    },
+    "R3-T2": {
+      "message": "把芯材改成20mm，其他层不变。",
+      "traces": [
+        {
+          "at": "2026-10-18T15:47:24.767Z",
+          "message": "把芯材改成20mm，其他层不变。",
+          "pendingClarification": null,
+          "previousQuery": null,
+          "proposal": {
+            "pageQuery": null,
+            "parameterQuery": null,
+            "productQuery": null,
+            "queryContext": "CLARIFICATION_REPLY",
+            "adviceFocus": "SELECTION",
+            "audience": "UNSPECIFIED",
+            "intent": "THERMAL_CALCULATE",
+            "confidence": 0.72,
+            "evidence": "把芯材改成20mm，其他层不变。",
+            "unresolved": "Excel右侧分层构造的具体层次与材料仍未在本轮给出，需后端按用户所指Excel内容核验。",
+            "complianceCheck": null,
+            "reportType": null,
+            "factRead": null,
+            "relation": "CONTINUE",
+            "continuedGoal": null,
+            "comparison": null,
+            "referenceTime": null,
+            "adviceMode": null,
+            "constraintPatch": [
+              {
+                "field": "thicknessMm",
+                "op": "SET",
+                "value": 20,
+                "evidence": "把芯材改成20mm"
+              }
+            ],
+            "reference": {
+              "scope": "NONE",
+              "revision": null,
+              "items": []
+            },
+            "requestedEffect": "CALCULATE",
+            "effectRequest": {
+              "direct": true,
+              "polarity": "AFFIRMATIVE",
+              "speechAct": "REQUEST",
+              "evidence": "把芯材改成20mm，其他层不变。"
+            },
+            "ambiguity": []
+          },
+          "decision": {
+            "intent": "CLARIFY",
+            "mutation": "NONE",
+            "evidenceSpans": [],
+            "parserSource": "LLM",
+            "policyReason": "QUERY_CONTEXT_INVALID",
+            "unresolved": [
+              "这轮请求暂未能可靠理解，请补充要查询的产品、参数或参考构造；已明确的指标无需重复说明。"
+            ],
+            "semantic": {
+              "pageQuery": null,
+              "parameterQuery": null,
+              "productQuery": null,
+              "queryContext": "CLARIFICATION_REPLY",
+              "adviceFocus": "SELECTION",
+              "audience": "UNSPECIFIED",
+              "intent": "THERMAL_CALCULATE",
+              "confidence": 0.72,
+              "evidence": "把芯材改成20mm，其他层不变。",
+              "unresolved": "Excel右侧分层构造的具体层次与材料仍未在本轮给出，需后端按用户所指Excel内容核验。",
+              "complianceCheck": null,
+              "reportType": null,
+              "factRead": null,
+              "relation": "CONTINUE",
+              "continuedGoal": null,
+              "comparison": null,
+              "referenceTime": null,
+              "adviceMode": null,
+              "constraintPatch": [
+                {
+                  "field": "thicknessMm",
+                  "op": "SET",
+                  "value": 20,
+                  "evidence": "把芯材改成20mm"
+                }
+              ],
+              "reference": {
+                "scope": "NONE",
+                "revision": null,
+                "items": []
+              },
+              "requestedEffect": "CALCULATE",
+              "effectRequest": {
+                "direct": true,
+                "polarity": "AFFIRMATIVE",
+                "speechAct": "REQUEST",
+                "evidence": "把芯材改成20mm，其他层不变。"
+              },
+              "ambiguity": []
+            }
+          },
+          "attempt": 1
+        }
+      ]
+    },
+    "S2-T3": {
+      "message": "如果没命中，是没有这个数值，还是缺资料？这次查了哪些？",
+      "traces": [
+        {
+          "at": "2026-10-18T15:26:00.609Z",
+          "message": "如果没命中，是没有这个数值，还是缺资料？这次查了哪些？",
+          "pendingClarification": null,
+          "previousQuery": null,
+          "proposal": {
+            "pageQuery": null,
+            "parameterQuery": null,
+            "productQuery": null,
+            "queryContext": "CURRENT_TURN",
+            "adviceFocus": "SELECTION",
+            "audience": "UNSPECIFIED",
+            "intent": "KNOWLEDGE_EXPLAIN",
+            "confidence": 0.9,
+            "evidence": "如果没命中，是没有这个数值，还是缺资料？这次查了哪些？",
+            "unresolved": null,
+            "complianceCheck": null,
+            "reportType": null,
+            "factRead": null,
+            "relation": "CONTINUE",
+            "continuedGoal": null,
+            "comparison": null,
+            "referenceTime": null,
+            "adviceMode": null,
+            "constraintPatch": [],
+            "reference": {
+              "scope": "NONE",
+              "revision": null,
+              "items": []
+            },
+            "requestedEffect": "READ_ONLY",
+            "effectRequest": null,
+            "ambiguity": []
+          },
+          "decision": {
+            "intent": "KNOWLEDGE_EXPLAIN",
+            "mutation": "NONE",
+            "evidenceSpans": [
+              "如果没命中，是没有这个数值，还是缺资料？这次查了哪些？"
+            ],
+            "parserSource": "LLM",
+            "semantic": {
+              "pageQuery": null,
+              "parameterQuery": null,
+              "productQuery": null,
+              "queryContext": "CURRENT_TURN",
+              "adviceFocus": "SELECTION",
+              "audience": "UNSPECIFIED",
+              "intent": "KNOWLEDGE_EXPLAIN",
+              "confidence": 0.9,
+              "evidence": "如果没命中，是没有这个数值，还是缺资料？这次查了哪些？",
+              "unresolved": null,
+              "complianceCheck": null,
+              "reportType": null,
+              "factRead": null,
+              "relation": "CONTINUE",
+              "continuedGoal": null,
+              "comparison": null,
+              "referenceTime": null,
+              "adviceMode": null,
+              "constraintPatch": [],
+              "reference": {
+                "scope": "NONE",
+                "revision": null,
+                "items": []
+              },
+              "requestedEffect": "READ_ONLY",
+              "effectRequest": null,
+              "ambiguity": []
+            },
+            "requiresCandidateQuery": false,
+            "restoreAdviceGoal": false,
+            "referenceScope": "LATEST_VISIBLE",
+            "policyReason": "READ_ONLY_SEMANTIC"
+          },
+          "attempt": 1
+        }
+      ]
+    }
+  }
+}

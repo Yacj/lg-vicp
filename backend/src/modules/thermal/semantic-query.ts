@@ -8,7 +8,7 @@ import { parseThermalThicknessMessage } from "./thermal-lookup-thickness.js";
 import { groundedPageAttribute, pageAttributeFields, confirmedPageReadFieldSchema } from "../../shared/confirmed-page-query.js";
 
 const metricSchema = z.enum(["K", "TOTAL_R", "PRODUCT_R"]);
-const operatorSchema = z.enum(["EXACT", "APPROX", "MAX_LIMIT", "MIN_LIMIT"]);
+const operatorSchema = z.enum(["EXACT", "APPROX", "MAX_LIMIT", "MIN_LIMIT", "LT", "GT"]);
 // 单一对象，便于兼容结构化输出网关；null 表示不适用，不允许额外事实字段。
 export const semanticConstraintSchema = z.object({
   type: z.enum(["ENTITY", "METRIC", "THICKNESS"]),
@@ -20,6 +20,7 @@ export const semanticConstraintSchema = z.object({
   evidence: z.string().min(1), hard: z.literal(true), confidence: z.number().min(0).max(1)
 }).strict();
 export const semanticQuerySchema = z.object({
+  sourceScope: z.object({ kind: z.literal("REFERENCE_SET"), ids: z.array(z.uuid()).min(1).max(8), evidence: z.string().min(1) }).strict().nullable().optional(),
   readFields: z.array(confirmedPageReadFieldSchema).max(7).optional(),
   queryMode: z.enum(QUERY_LIFECYCLE_MODES),
   intent: z.enum(["REFERENCE_LOOKUP", "THERMAL", "COMPLIANCE", "COMPARISON"]),
@@ -29,7 +30,7 @@ export const semanticQuerySchema = z.object({
   confidence: z.number().min(0).max(1)
 }).strict();
 export type SemanticQuery = z.infer<typeof semanticQuerySchema>;
-export type SemanticDictionary = { entities: QueryEntity[]; aliases: QueryAlias[] };
+export type SemanticDictionary = { entities: QueryEntity[]; aliases: QueryAlias[]; sourceSets?: Array<{ id: string; code: string; name: string; source: string | null; reference: string | null }> };
 
 /** 只归一格式，不选择指标、模式或业务实体。 */
 export function normalizeSemanticText(message: string): string {
@@ -57,7 +58,7 @@ function semanticNumberRole(text: string, raw: string, index: number): string {
 }
 
 /** 仅完整、无剩余语言的符号表达直接跳过模型。口语交给分类模型。 */
-export function parseSemanticFastPath(message: string): SemanticQuery | null {
+export function parseSemanticFastPath(message: string, contractVersion: 1 | 2 = 1): SemanticQuery | null {
   const text = normalizeSemanticText(message);
   if (!/^(?:(?:K|TOTAL_R|PRODUCT_R|R0)\s*(?:<=|>=|<|>|=|≈|≤|≥)\s*\d+(?:\.\d+)?\s*)(?:[,;]\s*(?:K|TOTAL_R|PRODUCT_R|R0)\s*(?:<=|>=|<|>|=|≈|≤|≥)\s*\d+(?:\.\d+)?\s*)*$/i.test(text)) return null;
   const constraints: SemanticQuery["constraints"] = [];
@@ -65,7 +66,8 @@ export function parseSemanticFastPath(message: string): SemanticQuery | null {
     const token = match[1]!.toUpperCase();
     constraints.push({ type: "METRIC", operation: "SET", field: null, entityText: null, resolvedText: null,
       metric: token === "R0" ? "TOTAL_R" : token as "K" | "TOTAL_R" | "PRODUCT_R",
-      operator: /^(?:<|≤)/.test(match[2]!) ? "MAX_LIMIT" : /^(?:>|≥)/.test(match[2]!) ? "MIN_LIMIT" : match[2] === "=" ? "EXACT" : "APPROX",
+      operator: contractVersion === 2 && match[2] === "<" ? "LT" : contractVersion === 2 && match[2] === ">" ? "GT"
+        : /^(?:<|≤)/.test(match[2]!) ? "MAX_LIMIT" : /^(?:>|≥)/.test(match[2]!) ? "MIN_LIMIT" : match[2] === "=" ? "EXACT" : "APPROX",
       value: Number(match[3]), evidence: match[0], hard: true, confidence: 1 });
   }
   return { queryMode: "NEW_QUERY", intent: "REFERENCE_LOOKUP", constraints, preferences: [], unresolved: [], confidence: 1 };
@@ -73,33 +75,68 @@ export function parseSemanticFastPath(message: string): SemanticQuery | null {
 
 /** 数字必须来自用户证据，不能把页码/年份/构造编号当指标。允许确定性的 cm→mm。 */
 function groundedValue(constraint: SemanticQuery["constraints"][number]): boolean {
-  const numbers = [...constraint.evidence.matchAll(/\d+(?:\.\d+)?/g)].filter(match => {
-    const role = semanticNumberRole(constraint.evidence, match[0], match.index);
+  const evidence = normalizeSemanticText(constraint.evidence);
+  const numbers = [...evidence.matchAll(/\d+(?:\.\d+)?/g)].filter(match => {
+    const role = semanticNumberRole(evidence, match[0], match.index);
     return !["PAGE_NUMBER", "SCHEME_CODE_PART", "YEAR", "COUNT"].includes(role)
       && (constraint.type !== "METRIC" || role !== "THICKNESS");
   });
-  return numbers.some(match => Number(match[0]) * (constraint.type === "THICKNESS" && /^\s*(?:cm|厘米|公分)/i.test(constraint.evidence.slice(match.index + match[0].length)) ? 10 : 1) === constraint.value);
+  return numbers.some(match => Number(match[0]) * (constraint.type === "THICKNESS" && /^\s*(?:cm|厘米|公分)/i.test(evidence.slice(match.index + match[0].length)) ? 10 : 1) === constraint.value);
+}
+
+/** 封闭字段表示归一：已有substrateThickness只接受原话中的唯一精确厚度，不推断目标或授权。 */
+const isMillimetreScalar = (value: string) => /^\d+(?:\.\d+)?\s*(?:mm|毫米)$/i.test(normalizeSemanticText(value));
+function canonicalSubstrateThickness(constraint: SemanticQuery["constraints"][number]) {
+  if (constraint.type !== "ENTITY" || constraint.field !== "substrateThickness" || constraint.operation !== "SET"
+    || !constraint.entityText || constraint.metric != null || constraint.resolvedText != null
+    || constraint.operator != null && constraint.operator !== "EXACT") return constraint;
+  // SM-SUBSTRATE-SCALAR-01：完整数值+毫米单位，不接受夹带范围、否定或其他条件的自由文本。
+  if (!isMillimetreScalar(constraint.entityText)) return constraint;
+  const scalar = parseThermalThicknessMessage(constraint.entityText);
+  const value = scalar.query.thicknessMm;
+  if (!scalar.changed || scalar.needsClarification || value == null || scalar.query.thicknessMin != null || scalar.query.thicknessMax != null
+    || constraint.value != null && constraint.value !== value) return constraint;
+  return { ...constraint, type: "THICKNESS" as const, operator: "EXACT" as const, value };
+}
+
+/** 正式目录精确身份仅作语义复核证据；不从名称片段选路由、不输出正式ID或事实。 */
+export function publishedQueryIdentityHints(semantic: SemanticQuery | null | undefined, dictionary: SemanticDictionary) {
+  return (semantic?.constraints ?? []).flatMap(constraint => {
+    if (constraint.type !== "ENTITY" || !constraint.entityText || constraint.operation !== "SET" && constraint.operation !== "APPEND") return [];
+    const field = constraint.field === "schemeCode" ? "schemeId" : constraint.field;
+    const identities = dictionary.entities.filter(entity => entity.field === field
+      && entity.names.some(name => normalizeSemanticText(name) === normalizeSemanticText(constraint.entityText!)));
+    return new Set(identities.map(entity => entity.value)).size === 1 ? [{ field: constraint.field, text: constraint.entityText }] : [];
+  });
 }
 
 /** 语义只改变查询条件，实体必须再次验证目录；模型不输出正式 ID 或业务数值。 */
 export function applySemanticQuery(message: string, semanticInput: unknown, dictionary: SemanticDictionary, previous?: ThermalQueryState,
-  options?: { currentMessage?: string }): ThermalQueryState {
+  options?: { currentMessage?: string; contractVersion?: 1 | 2 }): ThermalQueryState {
   const semantic = semanticQuerySchema.parse(semanticInput);
   const text = normalizeSemanticText(message);
   // 覆盖校验只看本轮原话：拼接进来的历史原问只用于证据核验，不能当成本轮必须保留的条件
   // （澄清纠正指标时，上一轮的 K/体系会被误判为「模型漏掉」）。
   const scopeText = normalizeSemanticText(options?.currentMessage ?? message);
   let query: ThermalQueryState = semantic.queryMode === "NEW_QUERY" ? {} : { ...previous };
+  if (options?.contractVersion === 2) query.queryContractVersion = 2;
   query = { ...query, intent: semantic.intent, unresolved: [...semantic.unresolved],
     readFields: semantic.readFields?.length ? semantic.readFields : semantic.queryMode === "NEW_QUERY" ? undefined : previous?.readFields };
   const reject = (field: string, reason: string) => { query.unresolved = [...(query.unresolved ?? []), { field, reason }]; };
+  if (semantic.sourceScope) {
+    if (!text.includes(normalizeSemanticText(semantic.sourceScope.evidence)) || semantic.confidence < .9
+      || semantic.sourceScope.ids.some(id => !dictionary.sourceSets?.some(source => source.id === id)))
+      reject("referenceSetIds", "指定资料来源未能对应当前已发布参考集，请明确来源。");
+    else { query.referenceSetIds = [...new Set(semantic.sourceScope.ids)]; query.documentIds = undefined; query.knowledgeVersionIds = undefined; }
+  }
   if (semantic.confidence < 0.75) reject("query", "这句话有不同理解，请确认查询条件。");
   const updatedMetrics = new Set<string>();
   let changedSpec: string | undefined;
   let changedCode: string | undefined;
   const changedPageAttributes = new Map<string, string>();
+  const groundedParentParts = new Set<NonNullable<ThermalQueryState["applicationPart"]>>();
   // 先定位体系，再在体系内消解重复构造编号，不能依赖模型数组顺序。
-  const constraints = [...semantic.constraints].sort((a, b) => Number(b.type === "ENTITY" && b.field === "systemId") - Number(a.type === "ENTITY" && a.field === "systemId")
+  const constraints = semantic.constraints.map(canonicalSubstrateThickness).sort((a, b) => Number(b.type === "ENTITY" && b.field === "systemId") - Number(a.type === "ENTITY" && a.field === "systemId")
     || Number((a.field === "schemeCode" || a.field === "specClass" || a.field === "placement") && a.operation === "APPEND") - Number((b.field === "schemeCode" || b.field === "specClass" || b.field === "placement") && b.operation === "APPEND"));
   for (const constraint of constraints) {
     const evidence = normalizeSemanticText(constraint.evidence);
@@ -122,16 +159,23 @@ export function applySemanticQuery(message: string, semanticInput: unknown, dict
         }
         else if (constraint.operation === "SET") {
           if (changedPageAttributes.has(field) && changedPageAttributes.get(field) !== value) reject(field, "多个不同属性不能互相覆盖，请明确分别查询或保留全部对象。");
-          else { changedPageAttributes.set(field, value); Object.assign(query, { [field]: value }); if (field === "placement") query.placements = undefined; }
+          else {
+            changedPageAttributes.set(field, value); Object.assign(query, { [field]: value });
+            if (field === "placement") query.placements = undefined;
+            if (field === "roofForm") {
+              const parent = groundedPageAttribute("applicationPart", literal);
+              if (parent === "ROOF" || parent === "EXTERNAL_WALL") groundedParentParts.add(parent);
+            }
+          }
         }
         else reject(field, "多个不同构造属性不能收窄为任意一个值，请分别查询或保留全部对象。");
         continue;
       }
-      if (constraint.field === "substrateThickness") { reject("substrateThickness", "基层厚度应作为数值条件解析。"); continue; }
+      if (constraint.field === "substrateThickness") { reject("substrateThickness", "基层厚度尚未对应到唯一的原话数值，请说明基层的具体厚度。"); continue; }
       if (!constraint.field || !constraint.entityText || !evidence.includes(normalizeSemanticText(constraint.entityText))) { reject("entity", "指定对象缺少原话依据。"); continue; }
       const term = constraint.resolvedText ?? constraint.entityText;
       // 自然描述可映射到目录名称，但不能凭空建立新的名称/ID。
-      const resolved = resolveQueryEntities(term, {}, dictionary.entities.filter(entity => entity.field === constraint.field), dictionary.aliases, query);
+      const resolved = resolveQueryEntities(term, {}, dictionary.entities.filter(entity => entity.field === constraint.field), dictionary.aliases, { ...query, unresolved: [] });
       const field = constraint.field as typeof entityFields[number];
       if (constraint.operation === "REMOVE") {
         Object.assign(query, { [field]: undefined });
@@ -148,14 +192,18 @@ export function applySemanticQuery(message: string, semanticInput: unknown, dict
         query.systemId = named.systemId; query.systemIds = named.systemIds;
         continue;
       }
-      if (constraint.operation === "SET" && field === "schemeCode" && /^[A-Z]{1,4}\d+(?:-\d+)+$/i.test(constraint.entityText)) {
+      const formalCode = field === "schemeCode" ? resolveQueryEntities(constraint.entityText, {},
+        dictionary.entities.filter(entity => entity.field === "schemeId"), dictionary.aliases, query) : undefined;
+      const validCode = /^[A-Z]{1,4}\d+(?:-\d+)+$/i.test(constraint.entityText)
+        || !!formalCode?.schemeId && !formalCode.unresolved?.length;
+      if (constraint.operation === "SET" && field === "schemeCode" && validCode) {
         if (changedCode && changedCode !== constraint.entityText.toUpperCase()) { reject("schemeCode", "多个构造编码须明确并列，不能用后一个覆盖前一个。"); continue; }
         changedCode = constraint.entityText.toUpperCase();
         query.schemeCode = constraint.entityText.toUpperCase(); query.schemeId = undefined;
         query.constructionCodes = undefined;
         continue;
       }
-      if (constraint.operation === "APPEND" && field === "schemeCode" && /^[A-Z]{1,4}\d+(?:-\d+)+$/i.test(constraint.entityText)) {
+      if (constraint.operation === "APPEND" && field === "schemeCode" && validCode) {
         query.constructionCodes = [...new Set([...(query.constructionCodes ?? []), ...(query.schemeCode ? [query.schemeCode] : []), constraint.entityText.toUpperCase()])];
         query.schemeCode = undefined; query.schemeId = undefined;
         continue;
@@ -212,10 +260,10 @@ export function applySemanticQuery(message: string, semanticInput: unknown, dict
         query.filters = filters.filter(filter => constraint.operation === "APPEND" || updatedMetrics.has(constraint.metric!) || filter.metric !== constraint.metric);
         // 明确符号比较优先于模型分类；容差仍只从原话规则提取。
         const symbolic = [...evidence.matchAll(/(K|TOTAL_R|PRODUCT_R|R0)\s*(<=|>=|<|>|=|≈|≤|≥)\s*(\d+(?:\.\d+)?)/gi)]
-          .flatMap(match => parseSemanticFastPath(match[0])?.constraints ?? []).find(item => item.metric === constraint.metric && item.value === constraint.value);
-        const parsedMode = parseThermalLookupMessage(message).filters.find(item => item.metric === constraint.metric && item.targetValue === constraint.value)?.mode;
+          .flatMap(match => parseSemanticFastPath(match[0], options?.contractVersion)?.constraints ?? []).find(item => item.metric === constraint.metric && item.value === constraint.value);
+        const parsedMode = parseThermalLookupMessage(message, undefined, options?.contractVersion).filters.find(item => item.metric === constraint.metric && item.targetValue === constraint.value)?.mode;
         const inheritedMode = semantic.queryMode !== "NEW_QUERY" ? normalizeThermalLookupQuery(previous ?? {}).filters.find(item => item.metric === constraint.metric)?.mode : undefined;
-        const mode = symbolic?.operator ?? parsedMode ?? inferThermalLookupMode(constraint.evidence) ?? inheritedMode ?? "APPROX";
+        const mode = symbolic?.operator ?? parsedMode ?? inferThermalLookupMode(constraint.evidence, options?.contractVersion) ?? inheritedMode ?? "APPROX";
         const previousTolerance = filters.find(item => item.metric === constraint.metric && item.mode === mode && item.toleranceSource === "USER");
         const tolerance = parseThermalLookupMessage(evidence).filters.find(item => item.metric === constraint.metric)?.tolerance ?? previousTolerance?.tolerance;
         query.filters.push({ metric: constraint.metric, targetValue: constraint.value, mode, tolerance,
@@ -228,14 +276,16 @@ export function applySemanticQuery(message: string, semanticInput: unknown, dict
     }
     if (constraint.type === "THICKNESS") {
       if (constraint.field === "substrateThickness") {
+        const sourceThickness = parseThermalThicknessMessage(evidence);
         if (constraint.operation === "REMOVE") query.substrateThickness = undefined;
-        else if (constraint.operator === "EXACT" && constraint.value != null && constraint.value > 0 && constraint.value <= 2000 && groundedValue(constraint)) query.substrateThickness = constraint.value;
+        else if (constraint.operator === "EXACT" && constraint.value != null && constraint.value > 0 && constraint.value <= 2000 && groundedValue(constraint)
+          && !sourceThickness.needsClarification && sourceThickness.query.thicknessMin == null && sourceThickness.query.thicknessMax == null) query.substrateThickness = constraint.value;
         else reject("substrateThickness", "请确认明确的基层厚度，基层厚度不能作为保温厚度范围。");
         continue;
       }
       if (constraint.operation === "REMOVE") {
-        if (constraint.operator === "MAX_LIMIT") query.thicknessMax = undefined;
-        else if (constraint.operator === "MIN_LIMIT") query.thicknessMin = undefined;
+        if (constraint.operator === "MAX_LIMIT" || constraint.operator === "LT") query.thicknessMax = undefined;
+        else if (constraint.operator === "MIN_LIMIT" || constraint.operator === "GT") query.thicknessMin = undefined;
         else if (constraint.operator === "EXACT") query.thicknessMm = undefined;
         else {
           query.thicknessMm = undefined; query.thicknessMin = undefined; query.thicknessMax = undefined;
@@ -244,9 +294,17 @@ export function applySemanticQuery(message: string, semanticInput: unknown, dict
         continue;
       }
       if (constraint.value == null || constraint.value <= 0 || constraint.value > 1000 || !groundedValue(constraint)) { reject("thickness", "厚度缺少可靠依据，请确认。"); continue; }
-      if (constraint.operator === "MAX_LIMIT") { query.thicknessMm = undefined; query.thicknessMax = constraint.value; }
-      else if (constraint.operator === "MIN_LIMIT") { query.thicknessMm = undefined; query.thicknessMin = constraint.value; }
-      else if (constraint.operator === "EXACT") { query.thicknessMm = constraint.value; query.thicknessMin = undefined; query.thicknessMax = undefined; }
+      // REPLACE替换整个板厚条件；SET/APPEND仍保留另一侧边界，不把真实矛盾偷偷放宽。
+      if (constraint.operation === "REPLACE") {
+        query.thicknessMm = undefined; query.thicknessMin = undefined; query.thicknessMax = undefined;
+        query.thicknessMinExclusive = undefined; query.thicknessMaxExclusive = undefined;
+      }
+      const sourceBound = options?.contractVersion === 2 ? parseThermalThicknessMessage(evidence, previous, 2).query : undefined;
+      const operator = sourceBound?.thicknessMax === constraint.value ? sourceBound.thicknessMaxExclusive ? "LT" : "MAX_LIMIT"
+        : sourceBound?.thicknessMin === constraint.value ? sourceBound.thicknessMinExclusive ? "GT" : "MIN_LIMIT" : constraint.operator;
+      if (operator === "MAX_LIMIT" || operator === "LT") { query.thicknessMm = undefined; query.thicknessMax = constraint.value; query.thicknessMaxExclusive = operator === "LT" || undefined; }
+      else if (operator === "MIN_LIMIT" || operator === "GT") { query.thicknessMm = undefined; query.thicknessMin = constraint.value; query.thicknessMinExclusive = operator === "GT" || undefined; }
+      else if (operator === "EXACT") { query.thicknessMm = constraint.value; query.thicknessMin = undefined; query.thicknessMax = undefined; }
       else reject("thickness", "请选择明确的厚度档或厚度范围。");
       continue;
     }
@@ -261,7 +319,10 @@ export function applySemanticQuery(message: string, semanticInput: unknown, dict
   // 目录中明确命中的硬实体不能被模型省略或收窄为任意一条记录。
   // 已由原话连续证据核验的体系文本是只读硬筛选条件；目录没有该体系不等于不能查确认页。
   // 不让旧的局部族名建议再把完整systemHint改为“未映射”，也不据此签发目录ID。
-  const explicitEntities = resolveQueryEntities(scopeText, query.systemHint ? { systemHint: query.systemHint } : {}, dictionary.entities, dictionary.aliases);
+  // 已逐项核验并保留的编码集合不是互斥schemeId；遗漏的其他正式对象仍由覆盖检查拒绝。
+  const coverageEntities = query.constructionCodes?.length ? dictionary.entities.filter(entity => entity.field !== "schemeId"
+    || !entity.names.some(name => query.constructionCodes!.includes(normalizeSemanticText(name).toUpperCase()))) : dictionary.entities;
+  const explicitEntities = resolveQueryEntities(scopeText, query.systemHint ? { systemHint: query.systemHint } : {}, coverageEntities, dictionary.aliases);
   for (const unresolved of explicitEntities.unresolved ?? []) reject(unresolved.field, unresolved.reason);
   /**
    * 构造编号与构造ID是同一条身份的两个表示：字典可把「A1-3」解析成 schemeId，
@@ -298,7 +359,22 @@ export function applySemanticQuery(message: string, semanticInput: unknown, dict
     if (!query.exclusions?.some(item => item.field === exclusion.field && item.value === exclusion.value))
       reject(`exclude:${exclusion.field}`, "明确排除的对象未被保留，请确认。");
   }
-  const explicitThickness = parseThermalThicknessMessage(text, previous);
+  // 已grounding的基层标量不再当保温板厚检查；只屏蔽唯一工程字形，保留其他数值和否定范围。
+  let boardThicknessText = scopeText;
+  for (const constraint of constraints) {
+    const evidence = normalizeSemanticText(constraint.evidence);
+    // 角色已由字段提案并经groundedValue核验。按数值证据的位置排除基层，
+    // 不再要求同一个数必须另写成“mm”；同句其余板厚及否定/范围原样参与覆盖校验。
+    const scalars = describeNumberRoles(evidence).filter(number => number.role === "THICKNESS" && Number(number.raw) === constraint.value);
+    const scalar = scalars.length === 1 ? scalars[0] : undefined;
+    const start = boardThicknessText.indexOf(evidence);
+    if (constraint.type !== "THICKNESS" || constraint.field !== "substrateThickness" || constraint.operation !== "SET"
+      || constraint.operator !== "EXACT" || constraint.value !== query.substrateThickness || constraint.confidence < .75
+      || !groundedValue(constraint) || !scalar || start < 0 || start !== boardThicknessText.lastIndexOf(evidence)) continue;
+    const index = start + scalar.index;
+    boardThicknessText = boardThicknessText.slice(0, index) + " ".repeat(scalar.raw.length) + boardThicknessText.slice(index + scalar.raw.length);
+  }
+  const explicitThickness = parseThermalThicknessMessage(boardThicknessText, previous, options?.contractVersion);
   if (explicitThickness.changed && !explicitThickness.remove && !explicitThickness.needsClarification) {
     for (const field of ["thicknessMm", "thicknessMin", "thicknessMax"] as const) {
       if (explicitThickness.query[field] !== undefined && query[field] !== explicitThickness.query[field]) reject(field, "明确的厚度条件未被完整保留，请确认。");
@@ -310,6 +386,13 @@ export function applySemanticQuery(message: string, semanticInput: unknown, dict
   const mentionedParts = [...new Set(scopeText.match(/外墙|屋面/g) ?? [])];
   const expectedPart = mentionedParts.length === 1 ? groundedPageAttribute("applicationPart", mentionedParts[0]!) : undefined;
   const removedPart = semantic.constraints.some(item => item.type === "ENTITY" && item.field === "applicationPart" && item.operation === "REMOVE");
+  // 同一已核验字形可证明子属性及父部位；不要求模型重复输出父字段。
+  // 只补充更窄的限制，不覆盖已指定的不同部位，也不从未通过证据检查的提案推断。
+  if (!removedPart && groundedParentParts.size === 1) {
+    const parent = [...groundedParentParts][0]!;
+    if (!query.applicationPart) query.applicationPart = parent;
+    else if (query.applicationPart !== parent) reject("applicationPart", "建筑部位与已明确的构造属性不一致，请确认。");
+  }
   if (expectedPart && query.applicationPart !== expectedPart && !removedPart)
     reject("applicationPart", "本轮明确的建筑部位未被完整保留，请确认。");
   for (const filter of parseThermalLookupMessage(scopeText).filters) {

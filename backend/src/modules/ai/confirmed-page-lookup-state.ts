@@ -2,7 +2,7 @@ import { z } from "zod";
 import { thermalQueryStateSchema } from "../thermal/thermal-query-state.js";
 
 export const confirmedPageLookupSchema = z.object({
-  query: thermalQueryStateSchema, createdAt: z.string(), conversationId: z.string(), userId: z.string(),
+  query: thermalQueryStateSchema, requestQuery: thermalQueryStateSchema.optional(), createdAt: z.string(), conversationId: z.string(), userId: z.string(),
   projectId: z.string().nullable(), clientApp: z.string()
 });
 export type ConfirmedPageLookup = z.infer<typeof confirmedPageLookupSchema>;

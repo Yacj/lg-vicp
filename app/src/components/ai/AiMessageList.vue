@@ -5,6 +5,7 @@ import type { LocalMessage } from '@/store/assistant'
 import { fileApi } from '@/api/modules/files'
 import AiAgentStatus from '@/components/ai/AiAgentStatus.vue'
 import AiComparisonCard from '@/components/ai/AiComparisonCard.vue'
+import AiKnowledgeCompare from '@/components/ai/AiKnowledgeCompare.vue'
 import AiProductCard from '@/components/ai/AiProductCard.vue'
 import AiReferenceAnswer from '@/components/ai/AiReferenceAnswer.vue'
 import AiSourceCard from '@/components/ai/AiSourceCard.vue'
@@ -297,68 +298,75 @@ function openMessageSource(message: LocalMessage, source: AiSourceRef) {
           </text>
         </view>
 
-        <!-- AI 消息：思考中无正文时隐藏气泡，避免空对话框 -->
-        <view
-          v-else-if="hasAnswerBubble(message)"
-          class="ai-message__answer"
-        >
-          <AiProductCard
-            v-if="message.products?.length && !message.comparison"
-            :products="message.products"
+        <template v-else>
+          <AiAgentStatus
+            v-if="message.processingSteps?.length || message.id === streamingMessageId && isStreaming"
+            :current-message="message.id === streamingMessageId && isStreaming ? progressMessage : null"
+            :steps="message.processingSteps"
+            :active="message.id === streamingMessageId && isStreaming && message.processingFinishedAt == null"
+            :started-at="message.processingStartedAt"
+            :finished-at="message.processingFinishedAt"
+            :status="message.status"
+            :class="hasAnswerBubble(message) ? 'mb-3' : ''"
           />
-          <AiComparisonCard
-            v-if="message.comparison"
-            :comparison="message.comparison"
-            :explanation="message.content"
-          />
-          <AiReferenceAnswer
-            v-else-if="message.referencePages?.length"
-            :answer="isStreaming && message.id === streamingMessageId ? streamingReferenceText : message.content"
-            :pages="message.referencePages"
-            @open="(page, match) => emit('openReference', page, message.id, match)"
-            @open-table="(page, match, enabled) => emit('openTable', page, message.id, match, enabled)"
-          />
-          <template v-else-if="getHtml(message, 'summary')">
-            <mp-html
-              :content="getHtml(message, 'summary')"
-              :tag-style="markdownTagStyle"
-              scroll-table
-              preview-img
-              container-style="font-size: 28rpx; line-height: 1.7; overflow-wrap: break-word; word-break: break-word;"
+          <!-- AI 消息：思考中无正文时保留过程区，不渲染空的回答气泡。 -->
+          <view
+            v-if="hasAnswerBubble(message)"
+            class="ai-message__answer"
+          >
+            <AiProductCard
+              v-if="message.products?.length && !message.comparison"
+              :products="message.products"
             />
-            <view
-              v-if="messageLayers(message).collapsible && !expandedDetails[message.id]"
-              class="app-primary-text mt-1.5 text-2.5"
-              @click="expandDetails(message.id)"
-            >
-              查看详细说明
-            </view>
-            <mp-html
-              v-else-if="expandedDetails[message.id] && getHtml(message, 'details')"
-              class="mt-2"
-              :content="getHtml(message, 'details')"
-              :tag-style="markdownTagStyle"
-              scroll-table
-              preview-img
-              container-style="font-size: 28rpx; line-height: 1.7; overflow-wrap: break-word; word-break: break-word;"
+            <AiComparisonCard
+              v-if="message.comparison"
+              :comparison="message.comparison"
+              :explanation="message.content"
             />
-          </template>
-        </view>
+            <AiReferenceAnswer
+              v-else-if="message.referencePages?.length"
+              :answer="isStreaming && message.id === streamingMessageId ? streamingReferenceText : message.content"
+              :pages="message.referencePages"
+              @open="(page, match) => emit('openReference', page, message.id, match)"
+              @open-table="(page, match, enabled) => emit('openTable', page, message.id, match, enabled)"
+            />
+            <AiKnowledgeCompare v-if="message.referencePages?.length" :pages="message.referencePages" />
+            <template v-else-if="getHtml(message, 'summary')">
+              <mp-html
+                :content="getHtml(message, 'summary')"
+                :tag-style="markdownTagStyle"
+                scroll-table
+                preview-img
+                container-style="font-size: 28rpx; line-height: 1.7; overflow-wrap: break-word; word-break: break-word;"
+              />
+              <view
+                v-if="messageLayers(message).collapsible && !expandedDetails[message.id]"
+                class="app-primary-text mt-1.5 text-2.5"
+                @click="expandDetails(message.id)"
+              >
+                查看详细说明
+              </view>
+              <mp-html
+                v-else-if="expandedDetails[message.id] && getHtml(message, 'details')"
+                class="mt-2"
+                :content="getHtml(message, 'details')"
+                :tag-style="markdownTagStyle"
+                scroll-table
+                preview-img
+                container-style="font-size: 28rpx; line-height: 1.7; overflow-wrap: break-word; word-break: break-word;"
+              />
+            </template>
+          </view>
+        </template>
 
         <!-- AI 回答的辅助信息区 -->
         <template v-if="!isUser(message)">
-          <AiAgentStatus
-            v-if="message.id === streamingMessageId && isStreaming"
-            :current-message="progressMessage || '正在整理结果…'"
-            :class="hasAnswerBubble(message) ? 'mt-1.5' : ''"
-          />
-
-          <view v-else-if="message.status === 'STOPPED'" class="app-tertiary mt-1.5 text-2.5">
+          <view v-if="message.status === 'STOPPED'" class="app-tertiary mt-1.5 text-2.5">
             已停止生成
           </view>
 
           <view
-            v-else-if="message.status === 'FAILED'"
+            v-if="message.status === 'FAILED'"
             class="app-danger-text mt-1.5 flex items-center gap-1 text-2.5"
             @click="isVisionFailure(message) ? emit('resend', message.id) : emit('regenerate', message.id)"
           >

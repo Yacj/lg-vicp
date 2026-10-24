@@ -55,7 +55,7 @@ export const alovaInstance = createAlova({
 
     // Log request in development
     if (import.meta.env.MODE === 'development') {
-      console.log(`[Alova Request] ${method.type} ${method.url}`, method.data || method.config.params)
+      console.log(`[Alova Request] ${method.type} ${method.url}`)
       console.log(`[API Base URL] ${import.meta.env.VITE_API_BASE_URL}`)
       console.log(`[Environment] ${import.meta.env.VITE_ENV_NAME}`)
     }

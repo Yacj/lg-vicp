@@ -52,6 +52,7 @@ export interface CandidateQueryConditions extends ThermalLookupQuery {
   thicknessMm?: number;
   thicknessMin?: number;
   thicknessMax?: number;
+  thicknessMinExclusive?: boolean; thicknessMaxExclusive?: boolean;
   targetK?: number;
   /**
    * K 查询语义（缺省 MAX_LIMIT，兼容历史「K ≤ 目标」口径）：
@@ -68,6 +69,7 @@ export interface CandidateQueryConditions extends ThermalLookupQuery {
 
 /** 图集参考行 + 关联的方案/系统/规格/集冗余字段（服务层 join 已发布数据后构造） */
 export interface CandidateRow {
+  applicationPart?: string; systemType?: string; systemVersion?: number;
   rowId: string;
   setId: string;
   setCode: string;
@@ -76,6 +78,7 @@ export interface CandidateRow {
   setBuildingTypes: string[];
   schemeId: string;
   schemeCode: string;
+  schemeName?: string;
   schemeVersion: number;
   systemId: string;
   systemCode: string | null;
@@ -115,13 +118,14 @@ export interface CandidateResult {
   ranking?: { kGap: number; metric?: ThermalLookupMetric; metricGap?: number; isClosestToTarget: boolean };
   scheme: {
     id: string;
+    name?: string;
     code: string;
     version: number;
     substrateMaterial: string;
     substrateThickness: number | null;
     atlasPage: string | null;
   };
-  system: { id: string; code: string | null; name: string | null };
+  system: { id: string; code: string | null; name: string | null; applicationPart?: string; type?: string; version?: number };
   productSpec: { id: string; specCode: string; specVersion: number; specClass: SpecClass | null };
   set: { id: string; code: string; version: number; priority: number; buildingTypes: string[] };
   result: { thicknessMm: number; productThermalResistance: number; totalThermalResistance: number; kValue: number };
@@ -160,6 +164,8 @@ const thicknessMatches = (row: CandidateRow, q: CandidateQueryConditions): boole
   if (q.thicknessMm !== undefined) return row.thicknessMm === q.thicknessMm;
   if (q.thicknessMin !== undefined && row.thicknessMm < q.thicknessMin) return false;
   if (q.thicknessMax !== undefined && row.thicknessMm > q.thicknessMax) return false;
+  if (q.thicknessMin !== undefined && q.thicknessMinExclusive && row.thicknessMm === q.thicknessMin) return false;
+  if (q.thicknessMax !== undefined && q.thicknessMaxExclusive && row.thicknessMm === q.thicknessMax) return false;
   return hasThicknessCondition(q);
 };
 
@@ -272,12 +278,13 @@ function toCandidateResult(row: CandidateRow, matchType: MatchType, state: Condi
     scheme: {
       id: row.schemeId,
       code: row.schemeCode,
+      name: row.schemeName,
       version: row.schemeVersion,
       substrateMaterial: row.substrateMaterial,
       substrateThickness: row.substrateThickness,
       atlasPage: row.atlasPage
     },
-    system: { id: row.systemId, code: row.systemCode, name: row.systemName },
+    system: { id: row.systemId, code: row.systemCode, name: row.systemName, applicationPart: row.applicationPart, type: row.systemType, version: row.systemVersion },
     productSpec: { id: row.productSpecId, specCode: row.specCode, specVersion: row.specVersion, specClass: row.specClass },
     set: { id: row.setId, code: row.setCode, version: row.setVersion, priority: row.setPriority, buildingTypes: row.setBuildingTypes },
     result: {

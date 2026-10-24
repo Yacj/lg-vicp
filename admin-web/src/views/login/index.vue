@@ -150,7 +150,6 @@ onMounted(loadCaptcha)
 
         <header class="login-page__heading">
           <p class="!text-2xl !font-bold">蓝格 VICP 建筑节能 AI 智配系统</p>
-          <p class="login-page__entry-note">仅超级管理员可登录本后台。C 端注册用户请使用客户端。</p>
         </header>
 
         <t-form :data="formData" label-align="top" :rules="rules" @submit="handleSubmit">
@@ -472,7 +471,7 @@ onMounted(loadCaptcha)
 }
 
 .login-page__submit-item {
-  margin-top: var(--td-size-8);
+  margin-top: var(--td-size-8) !important;
   margin-bottom: 0;
 }
 

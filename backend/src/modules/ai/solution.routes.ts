@@ -5,6 +5,7 @@ import { requireClient } from "../../shared/client-guard.js";
 import { getCurrentUser } from "../../shared/current-user.js";
 import { ok } from "../../shared/response.js";
 import { thermalQueryStateSchema } from "../thermal/thermal-query-state.js";
+import { currentCandidateResult } from "./candidate-result.service.js";
 import { solutionActionSchema } from "./solution-workflow.js";
 import { assertSolutionAccess, loadActiveSolution, solutionDto, startSolution, querySolution, actOnSolution, activateSolutionFromLastLookup, getSolutionSnapshot, recordCalculatedSolution, recordProductSolutions } from "./solution-state.service.js";
 
@@ -23,6 +24,8 @@ export async function solutionRoutes(app: FastifyInstance) {
     const state = await loadActiveSolution(await context(request, request.params.conversationId));
     return ok(request, state ? solutionDto(state) : null);
   });
+  api.get(`${base}/candidates`, { preHandler: guards, schema: { tags, summary: "恢复当前有权且未过期的正式查询候选", params } }, async request =>
+    ok(request, await currentCandidateResult(await context(request, request.params.conversationId))));
   api.post(base, { preHandler: guards, schema: { tags, summary: "开始一轮智配方案", params,
     body: z.object({ expectedVersion: z.number().int().positive().optional(), candidateQueryRevision: z.number().int().positive().optional() }).strict() } }, async request => {
     const ctx = await context(request, request.params.conversationId);

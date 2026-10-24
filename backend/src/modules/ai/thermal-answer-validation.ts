@@ -8,6 +8,7 @@ import { answerHasForbiddenClaim, segmentAnswer, type SemanticFact, type Semanti
 import { normalizeSystemName, normalizeSystemFamily, normalizeEntityText } from "../thermal/thermal-query-state.js";
 import { sameReferenceConstruction } from "./reference-source-identity.js";
 import { renderReferenceQueryDiagnostics, type ReferenceQueryDiagnostics } from "../thermal/reference-query-diagnostics.js";
+import { renderReferenceQueryResponse } from "../thermal/reference-query-response.js";
 
 /**
  * 本次热工计算的可核验结果（REFERENCE_TABLE / 计算模式）。
@@ -87,6 +88,7 @@ export interface ReferenceSourceConflict {
   metric: ThermalLookupMetric;
   thermalRow?: number;
   knowledgePage?: number;
+  observations?: import("../../shared/reference-data-conflict.js").ReferenceDataConflict["observations"];
 }
 
 const sourceKindOf = (candidate: Readonly<ReferenceLookupCandidate>): keyof typeof REFERENCE_SOURCE_LABELS =>
@@ -121,7 +123,13 @@ export function detectReferenceSourceConflicts(
         thicknessMm: group.thermalRow.thicknessMm ?? null,
         metric,
         thermalRow: left,
-        knowledgePage: right
+        knowledgePage: right,
+        observations: [
+          { label: REFERENCE_SOURCE_LABELS.THERMAL_ROW, value: left, source: { title: thermal.evidenceSource || thermal.setCode || REFERENCE_SOURCE_LABELS.THERMAL_ROW,
+            location: thermal.evidenceRef, version: thermal.setVersion } },
+          { label: REFERENCE_SOURCE_LABELS.KNOWLEDGE_PAGE, value: right, source: { title: group.knowledgePage.evidenceSource || REFERENCE_SOURCE_LABELS.KNOWLEDGE_PAGE,
+            location: group.knowledgePage.sourcePageLabel ? `印刷页码 ${group.knowledgePage.sourcePageLabel}` : group.knowledgePage.evidenceRef } }
+        ]
       });
     }
   }
@@ -147,7 +155,7 @@ export interface BuildAllowedFactsOptions {
 function describeQuery(query: ThermalQueryState) {
   const lookup = normalizeThermalLookupQuery(query);
   return [query.systemHint, query.specClass ? `${query.specClass}型` : undefined, formatLookupThickness(query),
-    ...lookup.filters.map(filter => `${filter.metric === "K" ? "K" : filter.metric === "PRODUCT_R" ? "产品层热阻 R" : "总热阻 R₀"}${filter.mode === "MAX_LIMIT" ? "≤" : filter.mode === "MIN_LIMIT" ? "≥" : filter.mode === "EXACT" ? "=" : "≈"}${filter.targetValue}`)
+    ...lookup.filters.map(filter => `${filter.metric === "K" ? "K" : filter.metric === "PRODUCT_R" ? "产品层热阻 R" : "总热阻 R₀"}${filter.mode === "LT" ? "<" : filter.mode === "GT" ? ">" : filter.mode === "MAX_LIMIT" ? "≤" : filter.mode === "MIN_LIMIT" ? "≥" : filter.mode === "EXACT" ? "=" : "≈"}${filter.targetValue}`)
   ].filter(Boolean).join("，");
 }
 
@@ -162,7 +170,8 @@ function renderCandidate(candidate: Readonly<ReferenceLookupCandidate>, detailed
     detailed && candidate.lambda != null ? `λ=${candidate.lambda} W/(m·K)` : undefined,
     detailed && candidate.alpha != null ? `α=${candidate.alpha}` : undefined
   ].filter(Boolean);
-  const source = candidate.sourcePageLabel?.trim() ? `印刷页码 ${candidate.sourcePageLabel.trim()}` : "可查看原始来源页面（未记录印刷页码）";
+  const source = candidate.publishedReferenceSource ? `参考集版本 ${candidate.publishedReferenceSource.setVersion}，${candidate.publishedReferenceSource.reference}（未关联原图）`
+    : candidate.sourcePageLabel?.trim() ? `印刷页码 ${candidate.sourcePageLabel.trim()}` : candidate.sourcePageId ? "原始页面可查看，印刷页码未核实" : "未关联原始页面，印刷页码未核实";
   return `${values.join("；")}。\n来源：${candidate.evidenceSource || "正式参考资料"}（${REFERENCE_SOURCE_LABELS[sourceKindOf(candidate)]}），${source}。`;
 }
 export { renderCandidate as renderReferenceCandidate };
@@ -216,7 +225,7 @@ export function buildAllowedAnswerFacts(
   const sourceConflicts = detectReferenceSourceConflicts([...facts, ...nearby, ...identity]);
   let answer: string;
   if (query.unresolved?.length) answer = renderClarification(query, message);
-  else if (!facts.length && options.queryDiagnostics) answer = renderReferenceQueryDiagnostics(options.queryDiagnostics);
+  else if (!facts.length && options.queryDiagnostics) answer = renderReferenceQueryResponse(options.queryDiagnostics, query);
   // 「无字段」优先于「无匹配」：表里根本没有这一列时，说「没有满足条件的方案」是误导。
   else if (!facts.length && missingMetrics.length) answer = `当前已发布参考表没有记录${missingMetrics.map((metric) => THERMAL_METRIC_LABELS[metric]).join("、")} 字段，无法按该指标筛选。可以改按传热系数 K 或总热阻 R₀ 查询，或直接查看原始页面。`;
   else if (!facts.length && identity.length) answer = `不满足所问热工指标条件。指定方案和厚度的实际正式值如下：\n${identity.slice(0, 3).map(candidate => renderCandidate(candidate, detail)).join("\n")}`;

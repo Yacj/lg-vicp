@@ -41,7 +41,7 @@ describe("发送前原子事实门禁", () => {
   it("缺失印刷标签不会使用物理页序、atlasPage 或 evidenceRef", () => {
     const dirty = { ...candidate, sourcePageLabel: null, atlasPage: "7", evidenceRef: "第7页", physicalPageNumber: 7 };
     const facts = buildAllowedAnswerFacts({}, [dirty]);
-    expect(facts.canonicalAnswers[0]).toContain("可查看原始来源页面"); expect(facts.canonicalAnswers[0]).not.toContain("第7页");
+    expect(facts.canonicalAnswers[0]).toContain("未关联原始页面"); expect(facts.canonicalAnswers[0]).not.toContain("第7页");
   });
   it.each([
     ["保温板自身热阻2.8左右", "PRODUCT_R", "APPROX"], ["板自身R2.8左右", "PRODUCT_R", "APPROX"],

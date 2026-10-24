@@ -21,13 +21,14 @@ export default defineConfig(({ command, mode }) => {
   const { UNI_PLATFORM, SKIP_OPEN_DEVTOOLS } = process.env
   console.log('UNI_PLATFORM -> ', UNI_PLATFORM) // 得到 mp-weixin, h5, app 等
 
-  const envDir = path.resolve(process.cwd(), 'env')
+  const envDir = path.resolve(process.cwd())
   const env = loadEnv(mode, envDir)
   const localEnv = loadEnv(mode, envDir, '')
 
   console.log('环境变量 env -> ', env)
 
   return {
+    envDir,
     base: './',
     optimizeDeps: {
       exclude: ['@wot-ui/ui', 'uni-echarts'],

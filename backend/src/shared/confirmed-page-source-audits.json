@@ -1,0 +1,904 @@
+{
+  "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+  "records": [
+    {
+      "pageId": "ce388d5a-cd79-4ab9-8e9c-9cb3b1c547f6",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "84aff9feb2f760531178ee1060e42bd45b943f125c2072a092c599ce919878a4",
+      "printedLabel": "21",
+      "recordedLabel": "1",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 1,
+      "issues": []
+    },
+    {
+      "pageId": "5dcec0bb-e89e-4220-8cd1-3d75516c9757",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "7515a03c5c50bbec554214cae8d7aaecf103eddcf7206adbddb2c7e854648736",
+      "printedLabel": "22",
+      "recordedLabel": "2",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 2,
+      "issues": []
+    },
+    {
+      "imageSha256": "6dcbd6b4ddba19615d8d34981038a659a2db0887938e88824ec5cd2581c4d557",
+      "fingerprint": "62523980102308db2a3567ee32b143f673e749aa37b130eea514850a91916a32",
+      "method": "VISUAL_SOURCE_IMAGE",
+      "pageId": "ba2cfcd4-0788-4e22-a80d-603ca9616730",
+      "issues": [
+        "原表A2-2的基层厚度15mm及保温档位190mm存在资料疑点，未擅改；不能据此推算或替代正式计算参数。"
+      ],
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "printedLabel": null,
+      "recordedLabel": "3",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 3
+    },
+    {
+      "pageId": "514f3b87-3218-4f8c-ad88-e1bb8e550c8c",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "676c595fbd8fb825a819872fa9938a4a6accbe7b963e51a06617644ae8f196ec",
+      "printedLabel": "24",
+      "recordedLabel": "4",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 4,
+      "issues": []
+    },
+    {
+      "imageSha256": "3d86aa27249fd7f2fccf13ea7954050b189ea3caec21bc3d13e01c98e2aa9fd8",
+      "fingerprint": "42c16e557a80fbd6d1c56373aa4d47c4129b16d80091bec7d3412c915bc3e28c",
+      "method": "VISUAL_SOURCE_IMAGE",
+      "pageId": "60a1b3a1-9887-4450-8b03-dbe6570526df",
+      "issues": [],
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "printedLabel": "25",
+      "recordedLabel": "5",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 5
+    },
+    {
+      "imageSha256": "361103cfb7b46b09e6a89b3282033a42dd2cacc62f74dc6195a74283d354e235",
+      "fingerprint": "226c166aca921c377521b8388fae8f77689219983060942ddc6b8582a72a99ab",
+      "method": "VISUAL_SOURCE_IMAGE",
+      "pageId": "83ee889e-7321-4077-ae72-480bc8e93f33",
+      "issues": [
+        "原表A3-3导热系数印为0.0012，与同列热阻的口径存在疑点，保留原值，请资料负责人核定后再用于计算。"
+      ],
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "printedLabel": "26",
+      "recordedLabel": "6",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 6
+    },
+    {
+      "pageId": "5ce95a27-5244-4a45-ae90-5184b3506510",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "a0c14b978116dd72eacecc1390934c7c750b415d7703ff100b8ad8904d44bc5a",
+      "printedLabel": "27",
+      "recordedLabel": "7",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 7,
+      "issues": [
+        "确认标题与客户原表标题不一致，未改写确认记录；请结合原图核对构造名称。"
+      ]
+    },
+    {
+      "pageId": "43c945d6-c980-4e6d-bda0-9c4d5253eb8b",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "877d7b4154ca626af853b2516498093d8f7b7897eb7984ee478c3047108db1c9",
+      "printedLabel": "28",
+      "recordedLabel": "8",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 8,
+      "issues": []
+    },
+    {
+      "pageId": "51f4abeb-ebdf-4573-b361-2a16baba200a",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "ad69398800e92dda18c213a3974630fedb637e8bb56c2b8d3047225a1801ba98",
+      "printedLabel": "29",
+      "recordedLabel": "9",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 9,
+      "issues": []
+    },
+    {
+      "pageId": "8c6f91c8-93fa-4c4b-90af-bbc770ef5fdc",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "a855bd723674de155258221f122f273c71d706eb0ca6b7ab67336f20cc103d46",
+      "printedLabel": "30",
+      "recordedLabel": "10",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 10,
+      "issues": []
+    },
+    {
+      "pageId": "99f38c0d-131f-4575-89ee-3dcef2b15d15",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "4751497db8f05c4625ad9f08c5e74b562c1b1f008f2f50deb01c6b2f037e3bcc",
+      "printedLabel": "31",
+      "recordedLabel": "11",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 11,
+      "issues": []
+    },
+    {
+      "pageId": "353076f7-783d-4515-bf76-24118170168a",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "a3f7eff9544c7bef6e73d439497cf5ba23fb120faf2c16bf898940593717063c",
+      "printedLabel": "32",
+      "recordedLabel": "12",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 12,
+      "issues": []
+    },
+    {
+      "pageId": "a0464844-606a-4931-87f4-d28ef6876ba4",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "f3a100386dc2f5d7d003e75f02aa6bb7aa9502355ff4b385de9ce532f8780862",
+      "printedLabel": "33",
+      "recordedLabel": "13",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 13,
+      "issues": []
+    },
+    {
+      "pageId": "9ad48c5f-f233-4817-b402-20c9afbc53bc",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "953594b9bb0e0c08a36205e2c6001775ddc17bdc171e981aa69b6a582be2e1d7",
+      "printedLabel": "34",
+      "recordedLabel": "14",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 14,
+      "issues": [
+        "确认标题与客户原表标题不一致，未改写确认记录；请结合原图核对构造名称。"
+      ]
+    },
+    {
+      "pageId": "b72988e9-2931-4b81-afad-12fbd2b07add",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "e3769453d3ed72b84f87c28ba50edb5cb1e82fd916c3819db4975176c588ea21",
+      "printedLabel": "35",
+      "recordedLabel": "15",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 15,
+      "issues": []
+    },
+    {
+      "pageId": "19af7a8d-f060-4650-9877-59569ce55742",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "def1230d882724b22e4d5300941b8d927ae8afd84f689a0962e842806df6f8d7",
+      "printedLabel": "36",
+      "recordedLabel": "16",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 16,
+      "issues": []
+    },
+    {
+      "pageId": "2d1a5df6-f48b-4e83-8d80-e1fd3622bfd4",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "a96d1984cddee06763cc7b62503a36a7fb07300697b424391b20efe4327f4a31",
+      "printedLabel": "37",
+      "recordedLabel": "17",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 17,
+      "issues": []
+    },
+    {
+      "pageId": "acd45959-6a61-4b44-9347-78d5ccf99fd9",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "63c12611c91fb63ab61b7ddeef0816cedd7782da3008fa9610c1b62c0f0bda4b",
+      "printedLabel": "38",
+      "recordedLabel": "18",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 18,
+      "issues": [
+        "确认标题与客户原表标题不一致，未改写确认记录；请结合原图核对构造名称。"
+      ]
+    },
+    {
+      "pageId": "f3c53029-18b4-4476-bbca-08415ab280f5",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "7817815f9db45c9c9d102be9d149ba13402968ff572dd44cbb7c78c3b516d7c7",
+      "printedLabel": "39",
+      "recordedLabel": "19",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 19,
+      "issues": []
+    },
+    {
+      "pageId": "aa9f0632-4d09-41cd-98b7-9e207b427467",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "829041794ed3d79ed157b70450dbc98770483f6fa6e08a357d94f4d221c9c825",
+      "printedLabel": "40",
+      "recordedLabel": "20",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 20,
+      "issues": []
+    },
+    {
+      "pageId": "194df387-f6a1-485d-b6ae-b29b16021708",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "e03d6460a42e65d65779ec5a3d792e90c5fe39b11440aec26ac86a229e2a048b",
+      "printedLabel": "41",
+      "recordedLabel": "21",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 21,
+      "issues": []
+    },
+    {
+      "pageId": "d1444e4c-5cff-4f2f-a47a-5e2970b32c3f",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "13a7ea2f6e6439449765909f7889a56d3f99277d3328b5e578d5eac26deefcda",
+      "printedLabel": "42",
+      "recordedLabel": "22",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 22,
+      "issues": []
+    },
+    {
+      "pageId": "c9a0de27-d0f9-405b-8859-bcd87871aa8a",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "dad5ccdddc8857fdc301c7f171012556bcb0962cb98f1c118b4250e690b613e2",
+      "printedLabel": "43",
+      "recordedLabel": "23",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 23,
+      "issues": []
+    },
+    {
+      "pageId": "ca0707f1-e7f2-4ffb-8d2e-51f93662145e",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "b09b26a7e84c8f8c2b2397bf8ea6e11414298f71a1b98e0be868e90f3983f7c6",
+      "printedLabel": "44",
+      "recordedLabel": "24",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 24,
+      "issues": []
+    },
+    {
+      "pageId": "074ec8d2-1076-4290-8697-66af6e29b0a3",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "401095f4cb630119317fc7cd1009686dcb482291fc70e64773989de00bbaff58",
+      "printedLabel": "45",
+      "recordedLabel": "25",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 25,
+      "issues": []
+    },
+    {
+      "pageId": "eb5dfe9f-b148-4999-baef-968b538af055",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "1edcf456e34a8d69a894f69cd88cbd780441924c5f7f060aaf415eec8edd09b0",
+      "printedLabel": "46",
+      "recordedLabel": "26",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 26,
+      "issues": []
+    },
+    {
+      "pageId": "f4bcb001-892f-4355-8113-6cd217ff4600",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "59f2b0617b89096c804697741bc5ec1519a7f865dacf4c73e98ce3e4cf02fa32",
+      "printedLabel": "47",
+      "recordedLabel": "27",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 27,
+      "issues": []
+    },
+    {
+      "pageId": "f45d39fe-e4b4-464b-8da1-b77b912bf736",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "d7f6c3b1d4c309c6e74c725fefa82be1ae6a43653af4fbf44743d5f4fab4f640",
+      "printedLabel": "48",
+      "recordedLabel": "28",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 28,
+      "issues": [
+        "确认标题与客户原表标题不一致，未改写确认记录；请结合原图核对构造名称。"
+      ]
+    },
+    {
+      "pageId": "5b29d4e9-c984-45c7-b2d0-e649d45ea287",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "66fb96dda2c9b5988a931363ba68d38bc217aab07d34684c77420b157d068d37",
+      "printedLabel": "49",
+      "recordedLabel": "29",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 29,
+      "issues": []
+    },
+    {
+      "pageId": "362a42d7-d2c8-4730-9458-024c6f7d4bc1",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "8251f7d72ea1df1146e8022e5c941f4b73f4143c039e165553e8b7c5b428befd",
+      "printedLabel": "50",
+      "recordedLabel": "30",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 30,
+      "issues": []
+    },
+    {
+      "pageId": "1c79d6c2-5e35-4808-be82-cf446fe679ce",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "18cb20f994a6a39610d83928de969e7af606d35f03f18b54e5bce69b787fc3c9",
+      "printedLabel": "51",
+      "recordedLabel": "51",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 31,
+      "issues": []
+    },
+    {
+      "pageId": "d46ac449-a0e8-4672-b393-cf6f0b3786c9",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "3b18e640563e3e81e7ffa9e98895820257b048cb5184973994dd56ebad3d22ca",
+      "printedLabel": "52",
+      "recordedLabel": "32",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 32,
+      "issues": [
+        "确认标题与客户原表标题不一致，未改写确认记录；请结合原图核对构造名称。"
+      ]
+    },
+    {
+      "imageSha256": "6a7aeca028072f37653f6b846a216bab0e987b5401927ce01ddaa44cc097b18d",
+      "fingerprint": "0d5ac9eb56b2635f7ccb3a67d2a4cfbae234daed3120ba9304ee86b6c51e8abd",
+      "method": "VISUAL_SOURCE_IMAGE",
+      "pageId": "e40e16fa-f5fe-40cc-8839-091c1e93a72f",
+      "issues": [],
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "printedLabel": "53",
+      "recordedLabel": "33",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 33
+    },
+    {
+      "pageId": "8aadbad2-22b9-418d-9f8b-b0baba792a86",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "b5352a11183ec397de6af1c61cc84c4910b71e24f2dbcb8931ece778b55e25e8",
+      "printedLabel": "54",
+      "recordedLabel": "34",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 34,
+      "issues": []
+    },
+    {
+      "pageId": "cc8fead0-3273-43f9-8d55-99fcc095b194",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "d659860a558be21fe9b9158565b252ebe5ac2f0e6795b70bf45c51ebef6bb4b1",
+      "printedLabel": "55",
+      "recordedLabel": "35",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 35,
+      "issues": []
+    },
+    {
+      "pageId": "66b56e9e-b81a-4b02-bc7d-519e722f4f54",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "ed1caa8256bfe04daa58b6119a27df164c234b961b85c759e2f6f90d5c6bf71b",
+      "printedLabel": "56",
+      "recordedLabel": "36",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 36,
+      "issues": []
+    },
+    {
+      "pageId": "2309abb3-fc8e-4d81-93a5-91b29c763a13",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "824e317e0672cd3a8d7569c2486b772a51072bd591c17ddb7d649800d1177891",
+      "printedLabel": "57",
+      "recordedLabel": "37",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 37,
+      "issues": []
+    },
+    {
+      "pageId": "e41f8eab-6bbd-4c52-9603-d35614872563",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "e82b6e0709a37bdf253fafc06a6609a92dcfccc341b9ffb76693de9a6020e831",
+      "printedLabel": "58",
+      "recordedLabel": "38",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 38,
+      "issues": []
+    },
+    {
+      "pageId": "6a316a95-d118-4e84-96d6-40ecbb13bf24",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "3e94f69ce18f71f72bd974d406d359ad7f1b6c51da78206c79460769c3b050b8",
+      "printedLabel": "59",
+      "recordedLabel": "39",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 39,
+      "issues": []
+    },
+    {
+      "pageId": "7aed964c-adc6-409a-88fc-c06db1fb4c6e",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "fd5232098d6ad9f3392e6ae3f871d00d27fb628437552dd2a32f2346e653be72",
+      "printedLabel": "60",
+      "recordedLabel": "40",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 40,
+      "issues": []
+    },
+    {
+      "pageId": "c17f9f18-371e-48f9-a645-6a7615862a3a",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "f43b13ac93aff9a2279827f3e41db1340b5d22a02fae1fb55c20efc5e3ff5f4f",
+      "printedLabel": "61",
+      "recordedLabel": "41",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 41,
+      "issues": []
+    },
+    {
+      "pageId": "59f9ec89-eb3d-43df-9424-aa732eaed100",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "4d4a98334a9db5c3719a1e03312acbddd5db7720fdf1fefe728a3d91eab0f733",
+      "printedLabel": "62",
+      "recordedLabel": "42",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 42,
+      "issues": []
+    },
+    {
+      "pageId": "ba43bc40-63b4-4ba0-a3f5-a3b38fb2c28e",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "8f325a1a4dea0ff9071c9d0f9bcda3ffc2056e662dad03d9acc70fd894abb801",
+      "printedLabel": "63",
+      "recordedLabel": "43",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 43,
+      "issues": []
+    },
+    {
+      "pageId": "fae9dd3d-efd9-4c0b-b65d-e91b9f84c912",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "e6a2f574d0e9b53001808e8a5924190776861248fea737c3bb76677cc72a1e2d",
+      "printedLabel": "64",
+      "recordedLabel": "44",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 44,
+      "issues": []
+    },
+    {
+      "pageId": "2d532c0c-8a11-4540-8bf2-44366534a201",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "c3ea5676a91be1c3b856d0c421e53b42d54e9fbe7e8f194a5db0a5cc634384c9",
+      "printedLabel": "65",
+      "recordedLabel": "45",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 45,
+      "issues": []
+    },
+    {
+      "pageId": "da184f46-1478-486a-ad8c-0a1d645db1ce",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "919be10c7a6b314aab7fa2027920f35a2ff7bd478d4249349861e7cbac5b6e39",
+      "printedLabel": "66",
+      "recordedLabel": "46",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 46,
+      "issues": []
+    },
+    {
+      "pageId": "82cef49c-6104-48d9-830a-b1e9be3224f5",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "14de52c233d2d7b97c73c85b5687308c6e6f020ede346689ba85152c1ad6135c",
+      "printedLabel": "67",
+      "recordedLabel": "47",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 47,
+      "issues": []
+    },
+    {
+      "pageId": "3651e53a-ad01-4bbe-bb54-332897f62b8d",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "27d03a5948558912eb04ad58531f4fed9d4cee29c00141e961fafba7a59a6d62",
+      "printedLabel": "68",
+      "recordedLabel": "48",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 48,
+      "issues": [
+        "确认标题与客户原表标题不一致，未改写确认记录；请结合原图核对构造名称。"
+      ]
+    },
+    {
+      "pageId": "4311738a-7284-4227-a3cd-416629ccc3a9",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "6cec848d736eb7fac0cb335584c830cdf9f340b52c8351e2670e54c758b76f35",
+      "printedLabel": "69",
+      "recordedLabel": "49",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 49,
+      "issues": []
+    },
+    {
+      "pageId": "bedc47c7-a415-4081-bc11-24bc152e6b76",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "13c0147e80c7cede5620094ff97b346401a5f6c39f5520e352543dc469402f8b",
+      "printedLabel": "70",
+      "recordedLabel": "50",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 50,
+      "issues": []
+    },
+    {
+      "pageId": "35910ce5-b29c-4f5e-9547-81964fd3bb53",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "d38fbb42c0826e916e8000b62f8812ec4029946570a58d59d51503de2f504ca3",
+      "printedLabel": "71",
+      "recordedLabel": "51",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 51,
+      "issues": []
+    },
+    {
+      "pageId": "e28970b6-2bbb-4872-b48c-d4208376c874",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "98158f8a133c9591c9ffaba9c403c82480e23feb04266547565a4dc3118e4f03",
+      "printedLabel": "72",
+      "recordedLabel": "52",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 52,
+      "issues": []
+    },
+    {
+      "pageId": "2f928175-f172-48d6-bfb2-3bea75ff6c90",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "83cf8220b2c00ee5c49ee10279368c7fe9e27ccd1f538f0ae6b04f3d5dd14195",
+      "printedLabel": "73",
+      "recordedLabel": "53",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 53,
+      "issues": []
+    },
+    {
+      "pageId": "8f5b6713-7bd4-4365-a083-50a275edec76",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "035670f7abfad75cffa8e920355a351ca02a77b1e1b5f3f288914cd30249fd43",
+      "printedLabel": "74",
+      "recordedLabel": "54",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 54,
+      "issues": [
+        "确认标题与客户原表标题不一致，未改写确认记录；请结合原图核对构造名称。"
+      ]
+    },
+    {
+      "pageId": "52cbc926-808f-4927-9b06-9044cf213fb1",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "876134442d10855d5e9e24bf0a704c80f73c37aa3157f65b529a89a5bd0aab1c",
+      "printedLabel": "75",
+      "recordedLabel": "55",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 55,
+      "issues": []
+    },
+    {
+      "pageId": "d9a561bc-8b6b-42e0-bb4f-01e0a99a1cad",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "86c57ef3ad4aecac7e25f341428424a1c8d208310c700db5622d4ecbf9573f57",
+      "printedLabel": "76",
+      "recordedLabel": "56",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 56,
+      "issues": [
+        "确认标题与客户原表标题不一致，未改写确认记录；请结合原图核对构造名称。"
+      ]
+    },
+    {
+      "pageId": "3b41b197-9ded-41ac-9e68-0b62d143ffae",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "f7d25bd6848d3f004322a5d56294af08adbfeca5e558e14fbfb56d5d5120796d",
+      "printedLabel": "77",
+      "recordedLabel": "57",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 57,
+      "issues": [
+        "确认标题与客户原表标题不一致，未改写确认记录；请结合原图核对构造名称。"
+      ]
+    },
+    {
+      "pageId": "befd50d4-9a38-4e20-9a8b-e6f8c3bf1bd9",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "c8e11e4b637f6642ac0c27289216f4aaae244833b9a8d74f21d6a2bc3493a3db",
+      "printedLabel": "78",
+      "recordedLabel": "58",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 58,
+      "issues": []
+    },
+    {
+      "pageId": "f767df30-3b31-476b-ae07-0f6f640b70f4",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "2cde640d829ab17eed68c589cefeb78347a416e885f0475b4e89c32bdd00315e",
+      "printedLabel": "79",
+      "recordedLabel": "59",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 59,
+      "issues": [
+        "确认标题与客户原表标题不一致，未改写确认记录；请结合原图核对构造名称。"
+      ]
+    },
+    {
+      "pageId": "46b16b13-2015-4fa6-9c50-e8be5f316f8a",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "47526032d9c7034d502ad9215be7e3a639afc4be4eb1ba3d4c87d38f44d2e111",
+      "printedLabel": "80",
+      "recordedLabel": "60",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 60,
+      "issues": []
+    },
+    {
+      "pageId": "017eec4a-c14e-40b7-a82a-96ec6c0c7625",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "7a3642c3a3dbcf1627a5c44c027af0fb8dd9f347b92e29cee43a0f2d95b33bc0",
+      "printedLabel": "81",
+      "recordedLabel": "61",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 61,
+      "issues": []
+    },
+    {
+      "pageId": "ce44d0fd-a3ff-4619-8aa0-30617162e345",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "96c75b95f3f8592f93f0ac44c181276aaba340066fe9c6d9c8369e33f6c8889d",
+      "printedLabel": "82",
+      "recordedLabel": "62",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 62,
+      "issues": []
+    },
+    {
+      "pageId": "9cf7dbb4-fc8c-489e-ab22-48664ed2035e",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "e08914cae8a2ff6d20751b215cebd21f81de920636ba5082db250ddc6ad58513",
+      "printedLabel": "83",
+      "recordedLabel": "63",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 63,
+      "issues": []
+    },
+    {
+      "pageId": "2c620e7d-782d-4c9a-84f3-4bad9084b489",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "300ed224695ec0910697706db6267449a53ac92441bfbbad37c4d7d1009e9b05",
+      "printedLabel": "84",
+      "recordedLabel": "64",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 64,
+      "issues": []
+    },
+    {
+      "pageId": "cdeb7fc3-7a24-484e-8a00-91d6f6cd434b",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "e7dbcbc1529199d01069b729d3856c3a08dca86c2ff974801d0a2ce7e93cf30d",
+      "printedLabel": "85",
+      "recordedLabel": "65",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 65,
+      "issues": []
+    },
+    {
+      "pageId": "7be510ea-9ebf-4af0-ba1d-ae48d53c8cf1",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "453d1b7713a983027759501c55fb575ae592bd3c3a5e75a0f41dca2335b0b089",
+      "printedLabel": "86",
+      "recordedLabel": "66",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 66,
+      "issues": []
+    },
+    {
+      "pageId": "94902d07-187b-405b-ae30-02e37d574f4a",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "e0fc7c2be7a75c74e02e481f29765ceeb11b1149d2cea9a9fc94202448fe99a4",
+      "printedLabel": "87",
+      "recordedLabel": "67",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 67,
+      "issues": []
+    },
+    {
+      "pageId": "8a442fcb-0392-41e3-833b-2e43ba7ddfb8",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "3f5886e84d1260cd8674782e39ba392b9bec856b0d23db2925427bfaa9ffb017",
+      "printedLabel": "88",
+      "recordedLabel": "68",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 68,
+      "issues": []
+    },
+    {
+      "pageId": "a5824d09-1c2d-4929-bdf6-d4bdf57d25b8",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "8a0a19d1396dbfb740d717a890015f10528f6fab586a8af5cf5410d1f6bb5aa5",
+      "printedLabel": "89",
+      "recordedLabel": "69",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 69,
+      "issues": [
+        "确认标题与客户原表标题不一致，未改写确认记录；请结合原图核对构造名称。"
+      ]
+    },
+    {
+      "pageId": "97974f29-46b8-4ef4-b0da-5d491c913a60",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "766907bfc099c99d020257be275f55c75901b432d262fbebc582ad8245a5003d",
+      "printedLabel": "90",
+      "recordedLabel": "70",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 70,
+      "issues": []
+    },
+    {
+      "pageId": "86ea9e11-b96b-4654-b263-e025a90ab99d",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "47ee7d1bc79aa254d9cdf57684ecb0e627a676906d1b940306e3351ee336789a",
+      "printedLabel": "91",
+      "recordedLabel": "71",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 71,
+      "issues": []
+    },
+    {
+      "pageId": "6db35c18-49d9-4c17-b44b-c85b19a9c14d",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "5b55b19249e72ccd48bf90584e3543d1cf3005f34ad493b60e9baf79f8e617a4",
+      "printedLabel": "92",
+      "recordedLabel": "72",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 72,
+      "issues": []
+    },
+    {
+      "pageId": "7203ff83-286d-40f5-a18c-9c52d1f701ac",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "3d10f733422b41d478cf2545d6b36f9cb39369c9e1fba71176f3704870592f65",
+      "printedLabel": "93",
+      "recordedLabel": "73",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 73,
+      "issues": []
+    },
+    {
+      "pageId": "95f445c6-8568-4834-9d24-4baca5750e94",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "b62264116358423fa263c7c88fcfd31133c87858980a14af742ae08d3ab1038e",
+      "printedLabel": "94",
+      "recordedLabel": "74",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 74,
+      "issues": []
+    },
+    {
+      "pageId": "d8fad984-142b-4405-bd7e-9758de512615",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "ff3b72ee0a3fd3c68b64769c24b502cb59a6f1406b29ff8c7742195f8c459cff",
+      "printedLabel": "95",
+      "recordedLabel": "75",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 75,
+      "issues": []
+    },
+    {
+      "pageId": "920ad983-7384-47df-886f-e8c40632167c",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "3ddd06f16883832c79e9ad052edcd5cd4696f6c33349816c4e1435a8f18e501d",
+      "printedLabel": "96",
+      "recordedLabel": "76",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 76,
+      "issues": []
+    },
+    {
+      "pageId": "ddcb6a9f-32d2-4ba3-8a91-5984c4c8170e",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "46d10b0833cc7951b9f24d713b0c4afd061f4a57dddd8e63472a55aec1efa314",
+      "printedLabel": "97",
+      "recordedLabel": "77",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 77,
+      "issues": []
+    },
+    {
+      "pageId": "be6bcaac-b458-4536-8ab2-c4f703952599",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "a6456a441ec5f96be7c563321d01b6edb1a351bc96f4943046eff6b47355f228",
+      "printedLabel": "98",
+      "recordedLabel": "78",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 78,
+      "issues": []
+    },
+    {
+      "pageId": "b8937ad0-62ec-4d70-8d88-c6a9362dc01b",
+      "versionId": "b93a1099-4f32-45b4-8683-b3a3ef5bb64e",
+      "fingerprint": "8bf7212c6c40cfb6fd127e224c09d3db86e4ecf0f60aa14ff4a4b31b7fbee696",
+      "printedLabel": "99",
+      "recordedLabel": "79",
+      "method": "DOCX_TABLE_FOOTER_AND_CONFIRMED_SNAPSHOT",
+      "sourceSha256": "c6da4d241fa819647f9fcdd3575909ddff39340ad8e839692ad84a4ad593a919",
+      "sourceTable": 79,
+      "issues": []
+    }
+  ]
+}

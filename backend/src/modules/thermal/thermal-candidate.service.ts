@@ -1,4 +1,5 @@
 import { resolveScopedThermalStandard } from "./thermal-standard-scope.service.js";
+import { publishedSystemApplicationPart } from "./published-system-scope.js";
 import { rankByPreferences, validateCandidateAgainstQueryState, traceQueryState, type ConstraintCandidate, type ThermalQueryState } from "./thermal-query-state.js";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { and, count, desc, eq, inArray, isNull, or, lte, gte } from "drizzle-orm";
@@ -43,6 +44,7 @@ import {
 import type { AuthUser } from "../../shared/auth-user.js";
 import { identityMetricFailures } from "./thermal-candidate-identity.js";
 import { diagnoseReferenceQuery, type ReferenceQueryDiagnostics } from "./reference-query-diagnostics.js";
+import type { SpecThicknessMismatchEvidence } from "../../shared/reference-data-conflict.js";
 
 /**
  * 候选方案查询与条件匹配服务。
@@ -121,6 +123,7 @@ interface CandidateQueryInput extends ThermalLookupQuery, Omit<ThermalQueryState
   thicknessMm?: number;
   thicknessMin?: number;
   thicknessMax?: number;
+  thicknessMinExclusive?: boolean; thicknessMaxExclusive?: boolean;
   targetK?: number;
   /** K 查询语义：APPROX（近似）/ MAX_LIMIT（上限）/ MIN_LIMIT（下限）/ EXACT（精确）；缺省 MAX_LIMIT */
   kMode?: ThermalLookupMode;
@@ -139,6 +142,9 @@ export interface CandidateQueryOutcome {
   queryState?: ThermalQueryState;
   matchedCandidates?: Array<CandidateResult & { compliant: boolean | null }>;
   nearbyCandidates?: Array<CandidateResult & { compliant: boolean | null; status?: "NOT_FULLY_MATCHED" }>;
+  /** 规格厚度与行厚度不一致被排除的行数（只诊断，不改数据）。 */
+  specThicknessMismatchCount?: number;
+  specThicknessMismatchRows?: Array<SpecThicknessMismatchEvidence & { rowId: string }>;
   /** 分阶段过滤计数：全量 → 体系 → 指标 → 厚度 → 全部硬条件；用于定位 False Negative。 */
   stageCounts?: { beforeAll: number; afterFamily: number; afterMetric: number; afterThickness: number; afterAllHard: number };
   /**
@@ -178,10 +184,14 @@ function toCandidateRow(row: Record<string, unknown>): CandidateRow {
     setBuildingTypes: Array.isArray(row.setBuildingTypes) ? (row.setBuildingTypes as string[]) : [],
     schemeId: String(row.schemeId),
     schemeCode: String(row.schemeCode),
+    schemeName: typeof row.schemeName === "string" ? row.schemeName : undefined,
     schemeVersion: Number(row.schemeVersion),
     systemId: String(row.systemId),
     systemCode: row.systemCode === null ? null : String(row.systemCode),
     systemName: row.systemName === null ? null : String(row.systemName),
+    applicationPart: publishedSystemApplicationPart(row.systemType),
+    systemType: typeof row.systemType === "string" ? row.systemType : undefined,
+    systemVersion: typeof row.systemVersion === "number" ? row.systemVersion : undefined,
     substrateMaterial: String(row.substrateMaterial),
     substrateThickness: row.substrateThickness === null ? null : Number(row.substrateThickness),
     atlasPage: row.atlasPage === null ? null : String(row.atlasPage),
@@ -261,6 +271,7 @@ export async function queryThermalCandidates(
     thicknessMm: input.thicknessMm,
     thicknessMin: input.thicknessMin,
     thicknessMax: input.thicknessMax,
+    thicknessMinExclusive: input.thicknessMinExclusive, thicknessMaxExclusive: input.thicknessMaxExclusive,
     targetK: input.targetK ?? derivedTargetK,
     kMode: lookupMode,
     kTolerance: kTolerance ?? undefined,
@@ -286,7 +297,7 @@ export async function queryThermalCandidates(
   }
 
   // 4) 集内行 + 方案/系统/规格 join（行引用的是已发布版本行，不会读到草稿）
-  const setIds = sets.map((s) => s.id);
+  const setIds = sets.filter(set => !input.referenceSetIds || input.referenceSetIds.includes(set.id)).map((s) => s.id);
   const queryDate = (input.asOfDate ?? new Date()).toISOString().slice(0, 10);
   const rows = await app.db
     .select({
@@ -306,6 +317,7 @@ export async function queryThermalCandidates(
       catalogProductId: thermalReferenceRows.catalogProductId,
       schemeId: constructionSchemes.id,
       schemeCode: constructionSchemes.schemeCode,
+      schemeName: constructionSchemes.name,
       schemeVersion: constructionSchemes.version,
       substrateMaterial: constructionSchemes.substrateMaterial,
       substrateThickness: constructionSchemes.substrateThickness,
@@ -313,10 +325,13 @@ export async function queryThermalCandidates(
       systemId: insulationSystems.id,
       systemCode: insulationSystems.code,
       systemName: insulationSystems.name,
+      systemType: insulationSystems.systemType,
+      systemVersion: insulationSystems.version,
       productSpecId: productSpecs.id,
       specCode: productSpecs.specCode,
       specVersion: productSpecs.version,
       specClass: productSpecs.specClass,
+      specThicknessMm: productSpecs.thicknessMm,
       setId: thermalReferenceSets.id,
       setCode: thermalReferenceSets.code,
       setVersion: thermalReferenceSets.version,
@@ -349,6 +364,15 @@ export async function queryThermalCandidates(
   if (input.regionCode && (!limit || limit.regionCode !== input.regionCode) || input.standardLimitId && !limit) {
     input.unresolved = [...(input.unresolved ?? []), { field: "standardLimitId", reason: "地区与标准尚未唯一匹配，不能证明适用条件。" }];
   }
+  // 规格厚度与行厚度必须一致；不一致只做诊断与排除，不改库里任何数值（M1 方案B）。
+  const specMismatch = rows.filter(row => row.thicknessMm != null && row.specThicknessMm != null
+    && Math.abs(Number(row.thicknessMm) - Number(row.specThicknessMm)) > 1e-9);
+  if (specMismatch.length) {
+    app.log.warn({ mismatches: specMismatch.map(row => ({ rowId: row.rowId, specCode: row.specCode,
+      rowThicknessMm: Number(row.thicknessMm), specThicknessMm: Number(row.specThicknessMm) })) },
+      "参考行厚度与规格厚度不一致，已排除该行（未修改数据）");
+  }
+  const usableRows = specMismatch.length ? rows.filter(row => !specMismatch.includes(row)) : rows;
   const scopedStandard = input.standardLimitId && input.regionCode && input.buildingType ? await resolveScopedThermalStandard(app.db, input) : null;
   if (scopedStandard?.limit) input.unresolved = input.unresolved?.filter(item => item.field !== "standardLimitId");
   if (scopedStandard && !scopedStandard.limit) input.unresolved = [...(input.unresolved ?? []), { field: "standardLimitId", reason: scopedStandard.reason! }];
@@ -356,7 +380,7 @@ export async function queryThermalCandidates(
 
   // 5) 纯函数匹配（含相邻规格与排序）
   // 正式标识条件先收窄全量行，不能被 EXACT 厚度绕过。
-  const scopedRows = rows.filter((row) =>
+  const scopedRows = usableRows.filter((row) =>
     (!input.schemeId || row.schemeId === input.schemeId)
     && (!input.schemeCode || row.schemeCode === input.schemeCode)
     && (!input.productSpecId || row.productSpecId === input.productSpecId)
@@ -368,7 +392,7 @@ export async function queryThermalCandidates(
 
   // 分阶段过滤计数（诊断用，纯统计，不改变匹配行为）：
   // 依次叠加强约束，看 N 究竟在哪一步掉到 0，避免「模型只说查不到」而无法定位。
-  const allRows = rows.map(row => toCandidateRow({ ...row,
+  const allRows = usableRows.map(row => toCandidateRow({ ...row,
     sourcePageLabel: row.sourcePageId ? row.pageLabelVerified ? row.confirmedPageLabel : null : row.sourcePageLabel }));
   const asConstraint = (row: CandidateRow): ConstraintCandidate => ({ ...row, systemName: row.systemName ?? undefined, specClass: row.specClass ?? undefined,
     regionCode: limit?.regionCode, standardLimitId: limit?.id, structureType: scopedStandard?.limit ? input.structureType : undefined });
@@ -399,16 +423,16 @@ export async function queryThermalCandidates(
     ...c,
     regionCode: limit?.regionCode, standardLimitId: limit?.id, structureType: scopedStandard?.limit ? input.structureType : undefined,
     constraintMatch: validateCandidateAgainstQueryState({
-      ...c.result, systemId: c.system.id, systemName: c.system.name ?? undefined,
+      ...c.result, applicationPart: c.system.applicationPart, systemId: c.system.id, systemName: c.system.name ?? undefined,
       schemeId: c.scheme.id, schemeCode: c.scheme.code, substrateMaterial: c.scheme.substrateMaterial, substrateThickness: c.scheme.substrateThickness,
       productSpecId: c.productSpec.id, specClass: c.productSpec.specClass ?? undefined, catalogProductId: c.catalogProductId,
-      setBuildingTypes: c.set.buildingTypes, sourceDocumentId: c.sourceDocumentId, sourceVersionId: c.sourceVersionId,
+      setId: c.set.id, setBuildingTypes: c.set.buildingTypes, sourceDocumentId: c.sourceDocumentId, sourceVersionId: c.sourceVersionId,
       regionCode: limit?.regionCode, standardLimitId: limit?.id, structureType: scopedStandard?.limit ? input.structureType : undefined
     }, queryState),
     compliant: scopedStandard?.limit ? c.result.kValue <= scopedStandard.limit.limitKValue : null
   }));
   const orderedCandidates = rankByPreferences(candidates.map(candidate => ({
-    ...candidate.result, systemId: candidate.system.id, systemName: candidate.system.name ?? undefined,
+    ...candidate.result, applicationPart: candidate.system.applicationPart, systemId: candidate.system.id, systemName: candidate.system.name ?? undefined,
     schemeId: candidate.scheme.id, schemeCode: candidate.scheme.code, productSpecId: candidate.productSpec.id,
     catalogProductId: candidate.catalogProductId, specClass: candidate.productSpec.specClass ?? undefined,
     substrateMaterial: candidate.scheme.substrateMaterial, setBuildingTypes: candidate.set.buildingTypes,
@@ -475,6 +499,11 @@ export async function queryThermalCandidates(
     metricScope,
     identityMatchedButMetricFailed,
     stageCounts,
+    specThicknessMismatchCount: specMismatch.length,
+    specThicknessMismatchRows: specMismatch.filter(row => validateCandidateAgainstQueryState(asConstraint(toCandidateRow(row)), withoutMetric).passed).map(row => ({ rowId: row.rowId, specCode: row.specCode,
+      schemeCode: row.schemeCode, schemeName: row.schemeName, evidenceSource: row.evidenceSource, evidenceRef: row.evidenceRef,
+      setCode: row.setCode, setVersion: row.setVersion, specVersion: row.specVersion,
+      rowThicknessMm: Number(row.thicknessMm), specThicknessMm: Number(row.specThicknessMm) })),
     matchedCandidates: orderedCandidates.filter(candidate => candidate.constraintMatch.passed),
     nearbyCandidates: orderedCandidates.filter(candidate => !candidate.constraintMatch.passed).map(candidate => ({ ...candidate, status: "NOT_FULLY_MATCHED" as const })),
     candidates: orderedCandidates.filter(candidate => candidate.constraintMatch.passed),

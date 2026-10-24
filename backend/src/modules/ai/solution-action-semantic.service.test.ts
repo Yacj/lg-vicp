@@ -1,10 +1,12 @@
 import { domainDecision } from "./ai-domain-turn-decision.js";
+import { domainSemanticFixture } from "./domain-semantic.fixture.js";
 import "dotenv/config";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-const mocks = vi.hoisted(() => ({ generate: vi.fn(), runtime: vi.fn(), audit: vi.fn() }));
+const mocks = vi.hoisted(() => ({ generate: vi.fn(), runtime: vi.fn(), audit: vi.fn(), availability: vi.fn() }));
 vi.mock("ai", () => ({ generateObject: mocks.generate }));
 vi.mock("./ai-runtime.service.js", () => ({ resolveSceneRuntime: mocks.runtime }));
 vi.mock("../audit-logs/audit-log.service.js", () => ({ writeAuditLog: mocks.audit }));
+vi.mock("./candidate-availability.service.js", () => ({ explainCandidateAvailability: mocks.availability }));
 import { parseSolutionAction } from "./solution-action-semantic.service.js";
 import { groundSolutionAction, type ParsedSolutionAction, type CandidateReference } from "./solution-action-semantic.js";
 import { applySolutionAction, emptySolution, refreshSolution, referenceSolutionCandidate } from "./solution-workflow.js";
@@ -17,6 +19,72 @@ const semantic = (type: ParsedSolutionAction["type"], message: string, reference
 const position = (value: number, evidence: string): CandidateReference => ({ type: "POSITION", value, evidence });
 const thickness = (value: number, evidence: string): CandidateReference => ({ type: "THICKNESS", value, evidence });
 beforeEach(() => { vi.resetAllMocks(); mocks.runtime.mockResolvedValue({ primary: { languageModel: {}, modelId: "configured-model" } }); });
+it.each(["current", "withdrawn", "changed"])("组合指令的只读资料%s在模型返回后再次核验；失败时Final不部分执行", async variant => {
+  const state = pool(), message = "30mm定为最终，分层示例只留在对话中核对";
+  const reference = { fingerprint: "fingerprint", label: "分层参考做法", thicknessMm: 45,
+    conflict: { kind: "SPEC_THICKNESS_MISMATCH", subject: "参考做法", field: "THICKNESS", usage: "READ_ONLY", observations: [] } };
+  const catalog = { queryRevision: state.candidateSetRevision, references: [reference] };
+  mocks.availability.mockResolvedValueOnce({ readOnlyCatalog: catalog }).mockResolvedValueOnce(variant === "withdrawn" ? undefined
+    : { readOnlyCatalog: variant === "changed" ? { ...catalog, references: [{ ...reference, fingerprint: "new-source" }] } : catalog });
+  mocks.generate.mockResolvedValue({ object: { references: [thickness(30, "30mm")],
+    readOnlyReferences: [{ label: reference.label, evidence: "分层示例", thicknessEvidence: null }],
+    comparisonReferences: [], selectionMode: "INCLUDE", temporalScope: "CURRENT", evidence: message, unresolved: [] } });
+  const goal = domainSemanticFixture(message, "SOLUTION_ACTION", { solutionOperation: "SET_FINAL", confidence: .96 });
+  const parsed = await parseSolutionAction({ ...ctx, domainDecision: { ...domainDecision("SOLUTION_ACTION", message), semantic: goal } }, message, state);
+  if (variant === "current") expect(parsed).toMatchObject({ action: "SET_FINAL", candidateIds: ["B"], chatReferenceRetention: { references: [reference] } });
+  else expect(parsed).toHaveProperty("clarification");
+  expect(state.finalCandidateIds).toEqual([]);expect(mocks.availability).toHaveBeenCalledTimes(2);
+  expect(JSON.parse(mocks.generate.mock.calls[0]![0].prompt).readOnlyCatalog).toEqual([{ label: reference.label, thicknessMm: 45, usage: "CHAT_ONLY" }]);
+});
+it("独立已授权动作只解析引用，操作置信来自完整原话目标；唯一身份仍由Backend绑定", async () => {
+  const message = "采用刚才这套作为最终方案", goal = domainSemanticFixture(message, "SOLUTION_ACTION", { solutionOperation: "SET_FINAL", confidence: .96 });
+  const decision = { ...domainDecision("SOLUTION_ACTION", message), semantic: goal, referenceFocusIds: ["B"] };
+  const raw = { references: [{ type: "CURRENT_REFERENCE", evidence: "这套" }], selectionMode: "INCLUDE", temporalScope: "CURRENT", evidence: message, unresolved: [] };
+  mocks.generate.mockResolvedValue({ object: raw });
+  const result = await parseSolutionAction({ ...ctx, domainDecision: decision }, message, pool());
+  expect(result).toMatchObject({ action: "SET_FINAL", candidateIds: ["B"], semantic: { confidence: .96 } });
+  expect(mocks.generate.mock.calls[0]![0].system).toContain("不再分类操作");
+  expect(JSON.parse(mocks.generate.mock.calls[0]![0].prompt).currentReferencePositions).toEqual([2]);
+  expect(await parseSolutionAction({ ...ctx, domainDecision: { ...decision, referenceFocusIds: ["A", "B"] } }, message, pool())).toHaveProperty("clarification");
+});
+it("采用与阅读并行时只将已核验阅读字段交给引用层，不能把解释歧义变成身份或放过未知筛选条件", async () => {
+  const message = "先采用30mm那套，也解释它的保温参数", state = pool();
+  const goal = domainSemanticFixture(message, "SOLUTION_ACTION", { solutionOperation: "SELECT", confidence: .96,
+    referenceReadFields: ["productResistance"] });
+  const decision = { ...domainDecision("SOLUTION_ACTION", message), semantic: goal, referenceFocusIds: ["B"] };
+  const raw = { references: [thickness(30, "30mm那套")], selectionMode: "INCLUDE", temporalScope: "CURRENT", evidence: message, unresolved: [] };
+  mocks.generate.mockResolvedValue({ object: raw });
+  expect(await parseSolutionAction({ ...ctx, domainDecision: decision }, message, state)).toMatchObject({ action: "SELECT", candidateIds: ["B"] });
+  expect(JSON.parse(mocks.generate.mock.calls[0]![0].prompt).independentReadFields).toEqual(["productResistance"]);
+  mocks.generate.mockResolvedValue({ object: { ...raw, unresolved: ["用户要求的价格未提供"] } });
+  expect(await parseSolutionAction({ ...ctx, domainDecision: decision }, message, state)).toHaveProperty("clarification");
+  mocks.generate.mockResolvedValue({ object: { ...raw, references: [position(1, "30mm那套"), thickness(30, "30mm那套")] } });
+  expect(await parseSolutionAction({ ...ctx, domainDecision: decision }, message, state)).toHaveProperty("clarification");
+  expect(state.selectedCandidateIds).toEqual([]);
+});
+it("直接目标携带Revision时，完整会话状态必须传到操作复核，不能误退回旧动作解析", async () => {
+  const state = pool(), message = "把当前这套定为最终方案", goal = domainSemanticFixture(message, "SOLUTION_ACTION", {
+    solutionOperation: "SET_FINAL", reference: { scope: "LAST_VISIBLE_CANDIDATES", revision: state.candidateSetRevision, items: [] }
+  });
+  const raw = { references: [{ type: "CURRENT_REFERENCE", evidence: "这套" }], selectionMode: "INCLUDE", temporalScope: "CURRENT", evidence: message, unresolved: [] };
+  mocks.generate.mockResolvedValue({ object: raw });
+  const decision = { ...domainDecision("SOLUTION_ACTION", message), semantic: goal, referenceFocusIds: ["B"] };
+  const taskState = { taskType: "GENERAL" as const, lastReferenceLookup: { query: {}, candidates: state.candidates.map(item => item.candidate),
+    candidateQueryRevision: state.candidateSetRevision, createdAt: new Date().toISOString() } };
+  expect(await parseSolutionAction({ ...ctx, taskState, domainDecision: decision }, message, state)).toMatchObject({ action: "SET_FINAL", candidateIds: ["B"] });
+  taskState.lastReferenceLookup.candidateQueryRevision++;
+  expect(await parseSolutionAction({ ...ctx, taskState, domainDecision: decision }, message, state)).toHaveProperty("clarification");
+});
+it.each(["inventedId", "CONFIRM", "unknownCriterion", "scopeOverride"])("引用层%s不能扩大已授权动作或跳过来源门禁", async failure => {
+  const message = "把这套作为最终方案", goal = domainSemanticFixture(message, "SOLUTION_ACTION", { solutionOperation: "SET_FINAL" });
+  const raw: any = { references: [{ type: "CURRENT_REFERENCE", evidence: "这套" }], selectionMode: "INCLUDE", temporalScope: "CURRENT", evidence: message, unresolved: [] };
+  if (failure === "inventedId") raw.candidateId = "B";
+  if (failure === "CONFIRM") raw.type = "CONFIRM";
+  if (failure === "scopeOverride") raw.referenceScope = "CURRENT_SELECTION";
+  if (failure === "unknownCriterion") raw.unresolved = ["未提供所需价格依据"];
+  mocks.generate.mockResolvedValue({ object: raw });
+  expect(await parseSolutionAction({ ...ctx, domainDecision: { ...domainDecision("SOLUTION_ACTION", message), semantic: goal, referenceFocusIds: ["B"] } }, message, pool())).toHaveProperty("clarification");
+});
 describe("Solution Action Semantic Parser → Grounding → 既有mutation", () => {
   it.each([
     ["1和3先留着", "SELECT", [position(1, "1"), position(3, "3")], ["A", "C"]],
@@ -63,6 +131,8 @@ describe("Solution Action Semantic Parser → Grounding → 既有mutation", () 
   it("真实UAT回归：有候选时JSON模式提示词兼容要求，普通查询NONE不拦截问答", async () => {
     const message = "保温0.3有材料么";
     mocks.generate.mockImplementation(async input => {
+      expect(input.output).toBe("no-schema");
+      expect(input).not.toHaveProperty("schema");
       if (!/json/i.test(`${input.system}\n${input.prompt}`))
         throw new Error("Prompt must contain the word 'json' in some form to use 'response_format' of type 'json_object'.");
       const schema = JSON.parse(input.system.split("JSON Schema：")[1].split("\n")[0]);

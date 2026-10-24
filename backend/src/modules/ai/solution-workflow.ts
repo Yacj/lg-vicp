@@ -3,6 +3,8 @@ import { AppError } from "../../shared/errors.js";
 import { referenceLookupCandidateSchema, type ReferenceLookupCandidate } from "./conversation-task.js";
 import { thermalQueryStateSchema, validateCandidateAgainstQueryState, rankByPreferences, entityFields, type ThermalQueryState } from "../thermal/thermal-query-state.js";
 import { normalizeThermalLookupQuery } from "../thermal/thermal-lookup-mode.js";
+import { hasPublishedReferenceSource } from "./published-reference-source.js";
+import { pageAttributeFields } from "../../shared/confirmed-page-query.js";
 
 export const solutionStages = ["COLLECTING_REQUIREMENTS", "CANDIDATE_SELECTION", "REFINING", "READY_TO_CONFIRM", "CONFIRMED", "GENERATING", "GENERATED"] as const;
 export type SolutionStage = typeof solutionStages[number];
@@ -27,6 +29,7 @@ export const solutionActionSchema = z.object({
   action: z.enum(["SELECT", "ADD", "REMOVE", "REMOVE_CONFLICT", "KEEP_FOR_COMPARISON", "SET_FINAL", "COMPARE", "CONFIRM", "START_NEW", "REVISE"]),
   expectedVersion: z.number().int().positive(), candidateSetRevision: z.number().int().nonnegative().optional(),
   candidateIds: z.array(z.string().min(1)).max(100).optional(), positions: z.array(z.number().int().positive()).max(100).optional()
+  , comparisonCandidateIds: z.array(z.string().min(1)).max(100).optional()
 }).strict();
 export type SolutionAction = z.infer<typeof solutionActionSchema>;
 export function solutionError(code: string, message: string): never { throw new AppError(code, message, 400, { errorCode: code }); }
@@ -42,9 +45,9 @@ const unique = (ids: string[]) => [...new Set(ids)];
 /** 只比较有效硬条件，不把来源追踪、解析置信度、意图或偏好算成条件变化。 */
 export function solutionConstraintFingerprint(query: ThermalQueryState): string {
   const constraints: Record<string, unknown> = {};
-  for (const field of [...entityFields, "substrateThickness", "thicknessMm", "thicknessMin", "thicknessMax"] as const)
+  for (const field of [...entityFields, ...pageAttributeFields, "substrateThickness", "thicknessMm", "thicknessMin", "thicknessMax", "thicknessMinExclusive", "thicknessMaxExclusive"] as const)
     if (query[field] !== undefined) constraints[field] = query[field];
-  for (const field of ["systemIds", "documentIds", "knowledgeVersionIds"] as const)
+  for (const field of ["systemIds", "documentIds", "knowledgeVersionIds", "referenceSetIds", "specClasses", "placements", "constructionCodes"] as const)
     if (query[field]) constraints[field] = [...new Set(query[field])].sort();
   constraints.filters = normalizeThermalLookupQuery(query).filters.map(({ metric, targetValue, mode, tolerance }) =>
     JSON.stringify([metric, targetValue, mode, tolerance ?? null])).sort();
@@ -106,6 +109,9 @@ export function resolveActionCandidateIds(state: SolutionPayload, action: Soluti
 }
 export function applySolutionAction(input: SolutionPayload, action: SolutionAction): SolutionPayload {
   const state = structuredClone(input);
+  const comparisonIds = action.comparisonCandidateIds ?? [];
+  if (comparisonIds.length && action.action !== "SET_FINAL") solutionError("SOLUTION_CANDIDATE_INVALID", "参考候选只能随指定最终方案保留");
+  if (comparisonIds.length) resolveActionCandidateIds(state, { ...action, candidateIds: comparisonIds, positions: undefined });
   let ids = resolveActionCandidateIds(state, action);
   if (action.action === "REMOVE_CONFLICT" && !ids.length) ids = unique(state.conflicts.map(item => item.candidateId));
   if (action.action === "SET_FINAL" && !ids.length) ids = [...state.selectedCandidateIds];
@@ -128,6 +134,8 @@ export function applySolutionAction(input: SolutionPayload, action: SolutionActi
   if (action.action === "SET_FINAL") {
     if (!ids.length) solutionError("SOLUTION_FINAL_REQUIRED", "请先选择最终方案");
     state.finalCandidateIds = ids;
+    state.selectedCandidateIds = unique([...state.selectedCandidateIds, ...comparisonIds]);
+    state.rejectedCandidateIds = state.rejectedCandidateIds.filter(id => !comparisonIds.includes(id));
   }
   return reconcileSolution(state);
 }
@@ -150,7 +158,7 @@ export function validateFinalSolution(state: SolutionPayload): SolutionCandidate
     if (![candidate.thicknessMm, candidate.kValue, candidate.productThermalResistance, candidate.totalThermalResistance].every(value => typeof value === "number" && Number.isFinite(value) && value > 0)
       || !candidate.systemId || !candidate.schemeId || !candidate.productSpecId || !candidate.systemName || !candidate.constructionCode)
       solutionError("SOLUTION_FACTS_INCOMPLETE", "最终方案缺少关键正式事实，请补齐资料后确认");
-    if (candidate.sourceType === "REFERENCE" && (!candidate.sourcePageId || !candidate.sourceDocumentId || !candidate.optionId
+    if (candidate.sourceType === "REFERENCE" && !hasPublishedReferenceSource(candidate) && (!candidate.sourcePageId || !candidate.sourceDocumentId || !candidate.optionId
       || candidate.referenceKind !== "KNOWLEDGE_PAGE" && !candidate.thermalReferenceRowId))
       solutionError("SOLUTION_SOURCE_REQUIRED", "参考方案缺少可追溯原页或正式参考行");
     if (candidate.sourceType === "CALCULATED" && (!candidate.calculationId || !candidate.calcMode || !candidate.inputSnapshot || !candidate.resultSnapshot || !candidate.provenanceSnapshot))

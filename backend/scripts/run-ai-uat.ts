@@ -39,7 +39,22 @@ if (args.list || args.check) {
 } else {
   const directory = path.resolve(String(args.out ?? `logs/ai-uat/${new Date().toISOString().replaceAll(/[:.]/g, "-")}`));
   const results: TurnResult[] = [];
-  const run: Record<string, unknown> = { startedAt: new Date().toISOString(), fixtureVersion: FIXTURE_VERSION, reasoning: args.reasoning === "on" ? "ON" : "OFF", styleJudge: args.judge ? "AI_STYLE_ONLY" : "DETERMINISTIC_STYLE" };
+  // 运行指纹：每次UAT都必须能回答"用哪份代码/哪份数据/哪套判定"跑的，避免再出现不可比的 PASS/FAIL 数字。
+  const git = (command: string[]) => { try { return execFileSync("git", command, { encoding: "utf8" }).trim(); } catch { return "UNKNOWN"; } };
+  const databaseUrl = process.env.DATABASE_URL ?? "";
+  const parsed = (() => { try { const url = new URL(databaseUrl); return { host: url.hostname, name: url.pathname.replace(/^\//, "") }; } catch { return { host: "UNKNOWN", name: "UNKNOWN" }; } })();
+  const run: Record<string, unknown> = {
+    runId: `${new Date().toISOString().replaceAll(/[:.]/g, "-")}-${git(["rev-parse", "--short", "HEAD"])}`,
+    startedAt: new Date().toISOString(), fixtureVersion: FIXTURE_VERSION, reasoning: args.reasoning === "on" ? "ON" : "OFF",
+    styleJudge: args.judge ? "AI_STYLE_ONLY" : "DETERMINISTIC_STYLE",
+    code: { gitCommit: git(["rev-parse", "HEAD"]), dirtyFiles: git(["status", "--porcelain"]).split("\n").filter(Boolean).length,
+      branch: git(["rev-parse", "--abbrev-ref", "HEAD"]), backendPackageVersion: String((await import("../package.json", { with: { type: "json" } })).default.version) },
+    database: { host: parsed.host, name: parsed.name, scope: "ISOLATED_TEMP" },
+    knowledge: { fixtureVersion: FIXTURE_VERSION, publishedPages: null,
+      note: "隔离临时库：合成 4 条参考事实 / 3 个目录产品 / 自建图集页；真实库 79 页 890 档不参与本轮" },
+    model: { provider: "DB_SCENE_RUNTIME", model: "见会话绑定模型配置", reasoning: args.reasoning === "on" ? "ON" : "OFF" },
+    criteria: { assertionSet: "hard-assertions-v2", classification: "SOFTWARE_FAIL / DATA_BLOCKED / TEST_INVALID（按未通过断言计）" }
+  };
   try { run.gitRevision = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(); } catch { run.gitRevision = "UNKNOWN"; }
   let environment: Awaited<ReturnType<typeof createUatEnvironment>> | undefined;
   const api = async (route: string, token: string, body?: unknown) => {
@@ -57,6 +72,9 @@ if (args.list || args.check) {
     run.runtimePolicy = { chat: getAiTaskRuntimePolicy("CHAT"), agent: getAiTaskRuntimePolicy("PROJECT_AGENT") };
     environment = await prepareEnvironment();
     run.database = environment.databaseName;
+    // 同时记录主机与范围：报告要能在不暴露凭据的前提下定位"跑在哪个库"。
+    run.databaseHost = parsed.host;
+    run.databaseScope = "ISOLATED_TEMP";
     run.runtimeConfig = environment.runtimeConfig;
     for (const item of selected) {
       const user = await environment.createUser(item.persona, item.id);

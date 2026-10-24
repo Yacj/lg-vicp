@@ -21,7 +21,7 @@ import { queryConfirmedPageFacts, confirmedFactExtremum, inspectConfirmedPageFac
 import { renderReferenceQueryDiagnostics, type ReferenceQueryDiagnostics } from "../thermal/reference-query-diagnostics.js";
 
 export interface ConfirmedMatchDiagnostics { excludedMissingCoreFields: number; excludedMissingBaseMaterial: number }
-export interface KnowledgeTestReferenceContext { context: string; pages: ReferencePageBlock[]; citationOptionIds?: string[]; authoritative?: boolean; readOnlyPageFacts?: boolean; answer?: string; totalMatched?: number; totalGroups?: number; matchingDiagnostics?: ConfirmedMatchDiagnostics; queryDiagnostics?: ReferenceQueryDiagnostics; query?: ReturnType<typeof normalizeConversationLookupQuery>["query"] }
+export interface KnowledgeTestReferenceContext { context: string; pages: ReferencePageBlock[]; citationOptionIds?: string[]; authoritative?: boolean; readOnlyPageFacts?: boolean; answer?: string; totalMatched?: number; totalGroups?: number; matchingDiagnostics?: ConfirmedMatchDiagnostics; queryDiagnostics?: ReferenceQueryDiagnostics; requestQuery?: ThermalQueryState; query?: ReturnType<typeof normalizeConversationLookupQuery>["query"] }
 
 const canonicalConstructionCode = (value: string | null | undefined) => value?.normalize("NFKC").replace(/\s/g, "").replace(/^外墙/, "").toUpperCase();
 /** 老确认数据的systemName可能仅为构造编号；只有完整编号等价时才读取同页确认标题作为体系证据。 */
@@ -80,7 +80,7 @@ export async function loadKnowledgeTestReferences(app: FastifyInstance, versionI
   for (const id of pageIds) {
     const page = rows.find(row => row.id === id);
     if (!page) continue;
-    const model = readableRenderModel(page.id, page.metadata, visiblePageLabel(page));
+    const model = readableRenderModel(page.id, page.metadata, visiblePageLabel(page), page.versionId);
     if (!model?.constructions.some(item => item.options.length)) continue;
     let imageUrl = "";
     if (page.pageImageObjectKey) {
@@ -110,10 +110,10 @@ export function thermalLookupPrimaryFields(filters: ReturnType<typeof normalizeC
   return [...new Set<ThermalPageField>(["thicknessMm", ...metrics.map(metric => metric === "TOTAL_R" ? "totalThermalResistance" as const : metric === "PRODUCT_R" ? "productThermalResistance" as const : "kValue" as const)])];
 }
 
-export function formatConfirmedLookupAnswer(pages: readonly ReferencePageBlock[], optionIds: readonly string[], filters: ReturnType<typeof normalizeConversationLookupQuery>["query"]["filters"], copy?: { scopeLabel?: string; emptyHint?: string; compact?: boolean; totalMatched?: number; totalGroups?: number; readOnlyPageFacts?: boolean; readFields?: ThermalQueryState["readFields"]; diagnostics?: ReferenceQueryDiagnostics; extremum?: ReturnType<typeof confirmedFactExtremum>; structured?: ReturnType<typeof resolveStructuredReferenceQuery> }): string {
+export function formatConfirmedLookupAnswer(pages: readonly ReferencePageBlock[], optionIds: readonly string[], filters: ReturnType<typeof normalizeConversationLookupQuery>["query"]["filters"], copy?: { scopeLabel?: string; emptyHint?: string; compact?: boolean; displayLimit?: number; totalMatched?: number; totalGroups?: number; readOnlyPageFacts?: boolean; readFields?: ThermalQueryState["readFields"]; diagnostics?: ReferenceQueryDiagnostics; extremum?: ReturnType<typeof confirmedFactExtremum>; structured?: ReturnType<typeof resolveStructuredReferenceQuery> }): string {
   filters ??= [];
-  const target = filters.map(filter => `${filter.metric === "K" ? "传热系数 K" : filter.metric === "TOTAL_R" ? "整构造传热阻" : "产品层热阻 R"}${filter.mode === "EXACT" ? "等于" : filter.mode === "MAX_LIMIT" ? "不超过" : filter.mode === "MIN_LIMIT" ? "不低于" : "接近"} ${filter.targetValue}`).join("、");
-  const records = optionIds.flatMap(id => pages.flatMap(page => page.renderModel?.constructions.flatMap(construction => construction.options.filter(option => option.optionId === id).map(option => ({ page, construction, option }))) ?? [])).slice(0, copy?.structured || copy?.totalMatched != null ? 12 : 3);
+  const target = filters.map(filter => `${filter.metric === "K" ? "传热系数 K" : filter.metric === "TOTAL_R" ? "整构造传热阻" : "产品层热阻 R"}${filter.mode === "LT" ? "严格小于" : filter.mode === "GT" ? "严格大于" : filter.mode === "EXACT" ? "等于" : filter.mode === "MAX_LIMIT" ? "不超过" : filter.mode === "MIN_LIMIT" ? "不低于" : "接近"} ${filter.targetValue}`).join("、");
+  const records = optionIds.flatMap(id => pages.flatMap(page => page.renderModel?.constructions.flatMap(construction => construction.options.filter(option => option.optionId === id).map(option => ({ page, construction, option }))) ?? [])).slice(0, copy?.displayLimit ?? (copy?.structured || copy?.totalMatched != null ? 12 : 3));
   if (!records.length && copy?.diagnostics && !copy.totalMatched) return renderReferenceQueryDiagnostics(copy.diagnostics);
   if (copy?.readOnlyPageFacts) {
     const total = copy.totalMatched ?? records.length;
@@ -123,11 +123,13 @@ export function formatConfirmedLookupAnswer(pages: readonly ReferencePageBlock[]
     const layerLines: string[] = [];
     if (copy.readFields?.includes("layers")) {
       const groups = [...new Map(records.map(record => [record.construction.constructionId, record])).values()];
-      layerLines.push("即使参数相同，也不能据此认定构造做法完全相同。以下分别列出确认热工表记录的材料层顺序；完整防水、隔汽和施工做法仍需核对原始构造简图。",
+      layerLines.push("下面按原表分别列出材料层次；完整施工节点还需核对原始构造简图。",
         ...groups.map(({ page, construction, option }) => `- **${construction.rawConstructionLabel || construction.constructionCode || construction.systemName || "原页构造"}**：${construction.layers.filter(layer => layer.sourceRegion !== "DIAGRAM").map(layer => `${layer.sourceLayerLabel || layer.order || ""} ${layer.name}${layer.thicknessMm != null ? `（${layer.thicknessMm}mm）` : "（逐档可变）"}`).join(" → ")}。${construction.diagramNotes?.length ? `构造简图原文说明：${construction.diagramNotes.join("；")}。` : ""}来源印刷页码 ${page.page.pageLabel ?? "待核"}。[[KP:${option.optionId}:thicknessMm]]`),
       );
       if (!copy.readFields.some(field => ["kValue", "totalThermalResistance", "productThermalResistance"].includes(field))) return [...layerLines, ...originalNotes].join("\n\n");
     }
+    const tableRows: string[] = [];
+    const tableCell = (value: unknown) => String(value ?? "未提供").replaceAll("|", "／").replaceAll("\n", " ");
     const lines = records.map(({ page, construction, option }) => {
       const metricFields = ["productThermalResistance", "totalThermalResistance", "kValue"] as const;
       const requested = copy.readFields?.length ? metricFields.filter(field => copy.readFields!.includes(field)) : metricFields;
@@ -139,14 +141,22 @@ export function formatConfirmedLookupAnswer(pages: readonly ReferencePageBlock[]
           : field === "totalThermalResistance" ? "整构造传热阻（源文符号待核）" : field === "productThermalResistance" ? "产品整体热阻" : "传热系数 K";
         return [`${label} **${value.toFixed(3)}${column?.unit ? ` ${column.unit}` : ""}**`];
       });
+      if (requested.some(field => field === "productThermalResistance" || field === "totalThermalResistance")) {
+        const layerResistances = option.layerValues?.flatMap(value => value.rValue == null ? []
+          : [`${construction.layers[value.layerIndex]?.name ?? "原构造层"}的原表“热阻”列 **${value.rValue.toFixed(3)} (m²·K)/W**`]) ?? [];
+        parameters.push(...layerResistances);
+        if (layerResistances.length && option.productThermalResistance == null) parameters.push("产品整体热阻未单独给出，构造层热阻不能替代产品整体热阻");
+      }
       const fields = THERMAL_PAGE_FIELDS.filter(field => option[field] != null && (field === "thicknessMm" || requested.includes(field)));
       const base = construction.baseMaterial ? `，基层${construction.baseMaterial}${construction.baseThicknessMm != null ? ` ${construction.baseThicknessMm}mm` : ""}` : "";
+      tableRows.push(`| **${tableCell(construction.rawConstructionLabel || construction.constructionCode || construction.systemName || "原页构造")}** | ${tableCell(construction.baseMaterial)}${construction.baseThicknessMm != null ? ` ${construction.baseThicknessMm}mm` : ""} | ${option.thicknessMm}mm | ${parameters.join("；") || "本轮未指定"} | 《${tableCell(page.page.documentTitle)}》印刷页码 ${tableCell(page.page.pageLabel ?? "待核")} [[KP:${option.optionId}:${fields.join(",")}]] |`);
       return `- **${construction.rawConstructionLabel || construction.constructionCode || construction.systemName || "原页构造"}**${base}：板厚 **${option.thicknessMm}mm**${parameters.length ? `，${parameters.join("，")}` : ""}。来源：《${page.page.documentTitle}》${page.page.pageLabel ? `，印刷页码 ${page.page.pageLabel}` : "，印刷页码待核"}。[[KP:${option.optionId}:${fields.join(",")}]]`;
     });
     const extreme = copy.extremum ? `在全部 ${total} 条匹配档位内，${copy.extremum.metric === "K" ? "传热系数 K" : copy.extremum.metric === "TOTAL_R" ? "整构造传热阻" : "产品整体热阻"}${copy.extremum.direction === "MIN" ? "最小" : "最大"}为 ${copy.extremum.value.toFixed(3)}，共 ${copy.extremum.tiedCount} 条并列。` : "";
-    return [`本次已确认资料匹配 ${total} 档、${copy.totalGroups ?? records.length} 个独立构造，当前引用 ${records.length} 档。`, ...lines,
+    const comparisonTable = records.length > 1 ? `| 构造 | 基层 | 保温档厚 | 热工参数（按原表列及层口径） | 来源 |\n| --- | --- | ---: | --- | --- |\n${tableRows.join("\n")}` : null;
+    return [`原表共找到 ${total} 个符合条件的档位，涉及 ${copy.totalGroups ?? records.length} 种构造；先列出 ${records.length} 个供你查看。`, ...(comparisonTable ? [comparisonTable] : lines),
       extreme, ...layerLines, ...originalNotes, total > records.length ? "其余匹配档位未全部列入回答；来源表保留完整页面及所有厚度，不以当前引用数量代表全表。" : "",
-      "同值不代表做法相同，请结合完整表及原始构造简图核对。材料层热阻、产品整体热阻与整构造传热阻分别读取，缺值不补算；本次仅查阅资料，不选择方案或判断规范达标。"].filter(Boolean).join("\n\n");
+      "表中的热阻按各自来源口径保留；没有给出的值不补算。具体层次和施工做法可以继续查看对应原表。"].filter(Boolean).join("\n\n");
   }
   if (!records.length && copy?.totalMatched) return `本次资料匹配范围共 ${copy.totalMatched} 条完整档位，本轮展示预算未能包含可引用记录。请按构造或基层缩小查询范围。`;
   if (!records.length) return `${copy?.scopeLabel ?? "当前版本已确认的完整档位中"}，未找到${target}且同时符合其他查询条件的参考方案。${copy?.emptyHint ?? "请核对页面识别数据；未确认或缺少参数的档位暂不作为匹配依据。"}`;

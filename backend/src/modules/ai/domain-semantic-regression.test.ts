@@ -1,6 +1,8 @@
 import "dotenv/config";
 import { beforeEach, expect, it, vi } from "vitest";
 import { resolveDomainTurn } from "./ai-domain-turn-decision.service.js";
+import { domainTurnSemanticSchema } from "./ai-domain-semantic.js";
+import { domainSemanticFixture } from "./domain-semantic.fixture.js";
 const mocks = vi.hoisted(() => ({ model: vi.fn(), runtime: vi.fn() }));
 vi.mock("ai", () => ({ generateObject: mocks.model }));
 vi.mock("./ai-runtime.service.js", () => ({ resolveSceneRuntime: mocks.runtime }));
@@ -31,9 +33,18 @@ it.each(cases)("开放表达必须经过同一个语义合同：%s", async (mess
     constraintPatch: [], reference: { scope: "LAST_VISIBLE_CANDIDATES", revision: 7 },
     requestedEffect, effectRequest: requestedEffect === "READ_ONLY" ? null : { direct: true, polarity: "AFFIRMATIVE", speechAct: "REQUEST", evidence: message },
     ambiguity: [] } });
+  if (intent === "REPORT_REQUEST") mocks.model
+    .mockResolvedValueOnce({ object: domainSemanticFixture(message, intent) })
+    .mockResolvedValueOnce({ object: { operation: "EXECUTE", confidence: .99, evidence: message } });
   const result = await resolveDomainTurn({ app: { db: {}, log: { warn: vi.fn() } },
     conversation: { id: "semantic-case", projectId: null }, userMessage: message,
     taskState: { taskType: "GENERAL", lastReferenceLookup: { query: { thicknessMm: 45 }, candidates: [], candidateQueryRevision: 7 } } } as any);
-  expect(mocks.model).toHaveBeenCalledOnce();
+  expect(mocks.model).toHaveBeenCalledTimes(intent === "REPORT_REQUEST" ? 2 : 1);
   expect(result).toMatchObject({ intent, mutation: requestedEffect === "REPORT_GENERATION" ? "REPORT" : "NONE" });
+});
+vi.mock("../thermal/thermal-query-dictionary.service.js", () => ({ loadThermalQueryDictionary: async () => ({ entities: [], aliases: [], calculationModels: [] }) }));
+
+it("未请求的读取字段兼容null、空数组及省略，未知列仍拒绝", () => {
+  for (const fields of [undefined, null, []]) expect(domainTurnSemanticSchema.safeParse(domainSemanticFixture("你好", "GENERAL", { referenceReadFields: fields })).success).toBe(true);
+  expect(domainTurnSemanticSchema.safeParse({ ...domainSemanticFixture("你好", "GENERAL"), referenceReadFields: ["invented"] }).success).toBe(false);
 });

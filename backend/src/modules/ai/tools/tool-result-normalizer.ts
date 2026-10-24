@@ -259,6 +259,8 @@ export function normalizeReferenceLookupForModel(input: LookupThickness & {
     ? "本次包含多个热工条件，候选必须同时满足全部条件。有结果时说明找到同时符合这些筛选条件的参考方案；无结果时说明没有找到同时满足全部条件的正式参考方案。列出 K、总热阻、产品层热阻、厚度、构造与原始页，不得输出内部条件数组、枚举或宣称规范达标。"
     : mode === "APPROX"
     ? `本次是${metricLabel}近似查询：只能说「接近 / 约为 / 与目标值很接近」，不能称为满足上限或下限，更不能称为规范达标。`
+    : mode === "LT" ? `本次是严格上界查询：${metricLabel} < 目标值，等值记录不满足；不能称规范达标。`
+    : mode === "GT" ? `本次是严格下界查询：${metricLabel} > 目标值，等值记录不满足；不能称规范达标。`
     : mode === "MAX_LIMIT"
       ? `本次是上限查询：候选均满足${metricLabel} ≤ 目标值，可以说「满足不超过目标值的筛选条件」；不能说满足当地规范。`
       : mode === "MIN_LIMIT"

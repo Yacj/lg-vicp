@@ -21,6 +21,7 @@ import {
 } from "./knowledge-wiki-read.service.js";
 import { getPublicDocumentPageByLabel } from "./knowledge-wiki-read.service.js";
 import { getPageRecognition } from "./knowledge-page-recognition.service.js";
+import { readFileSync } from "node:fs";
 import { NotFoundError } from "../../shared/errors.js";
 
 /**
@@ -279,5 +280,22 @@ describe("来源详情：无 ORIGINAL 的页面驱动知识", () => {
     expect(source.page?.renderModel).toEqual(b.renderModel);
     expect(b.renderModel?.pageLabel).toBe("3");
     expect(c.extractedText).toBe(page.parsedText);
+  });
+  it.each([[25, 5, 25], [53, 33, 53]])("印刷页%s按已核验标签定位物理页%s，不误选旧raw标签相同的物理页%s", async (label, target, foil) => {
+    const source = JSON.parse(readFileSync(new URL("../../../tests/fixtures/confirmed-source-page-labels.json", import.meta.url), "utf8"));
+    const rows = [foil, target].map(physical => { const item = source.pages.find((p: any) => p.physicalPageNumber === physical);
+      return { ...page, id: item.pageId, versionId: source.versionId, physicalPageNumber: physical, pageLabel: String(physical), metadata: { confirmedStructuredData: item.data } }; });
+    const app = scriptedApp([[{ ...document, currentVersionId: source.versionId }], [{ ...version, id: source.versionId }], rows, blocks]);
+    const result = await getPublicDocumentPageByLabel(app, document.id, String(label));
+    expect(result.physicalPageNumber).toBe(target); expect(result.pageLabel).toBe(String(label));
+  });
+  it.each(["oldLabel", "changedFingerprint", "ambiguous"])("印刷页定位%s不回退成猜测物理页", async failure => {
+    const source = JSON.parse(readFileSync(new URL("../../../tests/fixtures/confirmed-source-page-labels.json", import.meta.url), "utf8"));
+    const original = source.pages.find((p: any) => p.physicalPageNumber === 5);
+    const target = { ...page, id: original.pageId, versionId: source.versionId, pageLabel: "5", metadata: { confirmedStructuredData: structuredClone(original.data) } };
+    if (failure === "changedFingerprint") target.metadata.confirmedStructuredData.pageTitle += "修订";
+    const rows = failure === "ambiguous" ? [target, { ...target, id: "00000000-0000-4000-8000-000000000101", pageLabel: "25" }] : [target];
+    const app = scriptedApp([[{ ...document, currentVersionId: source.versionId }], [{ ...version, id: source.versionId }], rows]);
+    await expect(getPublicDocumentPageByLabel(app, document.id, failure === "oldLabel" ? "5" : "25")).rejects.toThrow();
   });
 });

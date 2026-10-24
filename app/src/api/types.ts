@@ -522,10 +522,17 @@ export type AiStreamEventPayload
     data: import('./solution-types').SolutionUpdate
   }
   | {
+    event: 'reference_candidates'
+    data: import('./solution-types').ReferenceCandidateResult
+  }
+  | {
     event: 'progress'
     data: {
       stage: 'analyzing' | 'checking' | 'composing' | 'completed'
       message: string
+      stepId?: string
+      status?: 'active' | 'done' | 'error' | 'stopped'
+      sources?: Array<{ title: string, pageLabel?: string }>
     }
   }
   | {

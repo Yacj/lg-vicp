@@ -16,7 +16,28 @@ import type {
 } from '../types'
 import { request } from '../request'
 
+export interface KnowledgeCompareSelectionBody {
+  pageId: string
+  constructionCode?: string
+  constructionLabel?: string
+  thicknessMm?: number | null
+  confirmedRevision?: string
+}
+
 export const aiApi = {
+  /** 只读比较：只返回已确认/已发布/有权访问的档位；不产生候选，不写方案状态。 */
+  compareKnowledgeOptions(data: { projectId?: string, selections: KnowledgeCompareSelectionBody[] }) {
+    return request('POST', '/ai/knowledge/options/compare', { data })
+  },
+
+  getSolutionCandidates(conversationId: string) {
+    return request('GET', '/ai/conversations/{conversationId}/solution/candidates', { pathParams: { conversationId } })
+  },
+
+  activateSolution(conversationId: string, data: { candidateQueryRevision: number, action: 'ADD' | 'SELECT' | 'SET_FINAL', candidateIds: string[] }) {
+    return request('POST', '/ai/conversations/{conversationId}/solution/activate', { pathParams: { conversationId }, data })
+  },
+
   getSolution(conversationId: string) {
     return request('GET', '/ai/conversations/{conversationId}/solution', { pathParams: { conversationId } })
   },

@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import type { ApiEnvelope, ApiPage, DownloadUrlResult, ProjectRecord, ReportDetail, ReportTaskResult } from '@/api/types'
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { projectApi } from '@/api/modules/projects'
 import { reportApi } from '@/api/modules/reports'
+import ReportPdfReader from '@/components/report/ReportPdfReader.vue'
 import { useAuthGate } from '@/composables/useAuthGate'
 import { useBackNavigation } from '@/composables/useBackNavigation'
 import { useReportDetail } from '@/composables/useReportDetail'
@@ -26,13 +27,16 @@ interface ReportSection {
   content?: string
 }
 
-const route = useRoute()
 const router = useRouter()
 const { goBack } = useBackNavigation()
 const { requireLogin } = useAuthGate()
 const { error: showError, success: showSuccess } = useGlobalToast()
 
-const reportId = computed(() => String(route.query.id || route.params.id || ''))
+// ID绑定本页面的实际加载参数；全局路由在同路径切换query时可能仍保留上一份报告。
+const reportId = ref('')
+onLoad((options) => {
+  reportId.value = typeof options?.id === 'string' ? options.id : ''
+})
 const auth = useAuthStore()
 const resource = useReportDetail(() => ({ id: reportId.value, userId: auth.user?.id ?? null }), {
   get: async id => (await reportApi.getDetail(id).send(true) as ApiEnvelope<ReportDetail>).data,
@@ -42,7 +46,22 @@ const { detail, status, errorMessage, refreshing, retrying } = resource
 const presentation = computed(() => detail.value ? reportDetailPresentation(detail.value) : null)
 const fileAction = ref<'preview' | 'download' | null>(null)
 const fileError = ref('')
+const pdfPreviewVisible = ref(false)
 const platform = getPlatformInfo().platform
+// #ifdef H5
+// 浏览器同页只切换query时，uni-app可能复用页面而不再触发onLoad。
+// 仅同步当前报告详情的真实地址；资源层会清空旧数据、作废旧请求并重新授权。
+function syncReportLocation() {
+  const [path, query = ''] = window.location.hash.slice(1).split('?')
+  if (path === '/pages/report-detail/index')
+    reportId.value = new URLSearchParams(query).get('id') ?? ''
+}
+onMounted(() => {
+  if (platform === 'h5')
+    window.addEventListener('hashchange', syncReportLocation)
+})
+onBeforeUnmount(() => window.removeEventListener('hashchange', syncReportLocation))
+// #endif
 const downloadLabel = platform === 'h5' ? '下载 PDF' : '保存并打开 PDF'
 let visible = false
 let fileRevision = 0
@@ -80,6 +99,7 @@ onShow(() => {
 
 function stopPage() {
   visible = false
+  pdfPreviewVisible.value = false
   fileRevision++
   fileAction.value = null
   projectRevision++
@@ -94,6 +114,7 @@ onUnload(stopPage)
 onBeforeUnmount(stopPage)
 
 watch([reportId, () => auth.user?.id], () => {
+  pdfPreviewVisible.value = false
   fileRevision++
   fileAction.value = null
   fileError.value = ''
@@ -114,6 +135,10 @@ async function loadDetail() {
 async function openPdf(mode: 'preview' | 'download') {
   if (!requireLogin() || fileAction.value || !presentation.value?.canPreviewPdf)
     return
+  if (mode === 'preview' && platform === 'h5') {
+    pdfPreviewVisible.value = true
+    return
+  }
   const id = reportId.value
   const userId = auth.user?.id
   const revision = ++fileRevision
@@ -364,6 +389,8 @@ async function linkProject(item: ProjectRecord) {
         </template>
       </template>
     </view>
+
+    <ReportPdfReader v-if="platform === 'h5'" v-model="pdfPreviewVisible" :report-id="reportId" :user-id="auth.user?.id ?? null" />
 
     <wd-action-sheet
       v-model="moreVisible"

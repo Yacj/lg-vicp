@@ -9,6 +9,7 @@ import { reportResult } from '../test/fixtures/report'
 import { snapshotFixture, solutionFixture } from '../test/fixtures/solution'
 import * as agentUi from '../utils/aiAgentUi'
 import * as answerUx from '../utils/aiAnswerUx'
+import * as processing from '../utils/aiProcessing'
 import * as reportTask from '../utils/aiReportTask'
 import * as selection from '../utils/aiUserSelection'
 import * as solution from './solution'
@@ -27,6 +28,7 @@ function setup(options: { detail?: () => Promise<ReportDetail>, result?: CreateR
     './solution': solution,
     '@/store/auth': { useAuthStore: () => auth },
     '@/api/modules/ai': { aiApi: {
+      stopMessage: () => ({ send: async () => ({ success: true }) }),
       solutionAction: () => ({ send: async () => ({ data: { solutionState: solutionFixture({ stage: 'CONFIRMED', confirmedSnapshotId: 'snapshot-1' }), snapshot: snapshotFixture() } }) }),
       getConversation: () => ({ send: async () => ({ data: { reports: await options.history?.() ?? [] } }) }),
     } },
@@ -43,6 +45,7 @@ function setup(options: { detail?: () => Promise<ReportDetail>, result?: CreateR
     '@/utils/aiUserSelection': selection,
     '@/utils/aiAgentUi': agentUi,
     '@/utils/aiAnswerUx': answerUx,
+    '@/utils/aiProcessing': processing,
     '@/utils/aiSource': { normalizeAiSources: (value: unknown) => value },
     '@/utils/aiStream': { parseStreamEvent: (event: string, data: unknown) => ({ event, data }) },
     '@/services/platform': { createAiStreamRequest: () => { streams++ } },
@@ -80,6 +83,36 @@ function setup(options: { detail?: () => Promise<ReportDetail>, result?: CreateR
 }
 
 const flush = () => new Promise<void>(resolve => setImmediate(resolve))
+
+nodeTest('本地停止先冻结处理步骤，迟到SSE不能把未完成步骤改为成功', async () => {
+  const { store } = setup()
+  store.messages = [{ id: 'answer', role: 'ASSISTANT', content: '', status: 'STREAMING', processingSteps: [
+    { key: 'understanding', message: '正在理解你的问题…', status: 'active' },
+  ] }]
+  store.streamingMessageId = 'answer'
+  store.isStreaming = true
+  const revision = store.streamRevision
+  await store.stopStreaming()
+  assert.equal(store.messages[0].processingSteps[0].status, 'stopped')
+  assert.equal(store.messages[0].processingSteps[0].message, '本步已停止')
+  store.handleStreamEvent({ event: 'progress', data: { stage: 'analyzing', stepId: 'understanding', status: 'done', message: '已梳理问题' } }, revision, 'conversation-1')
+  assert.equal(store.messages[0].processingSteps[0].status, 'stopped')
+})
+
+nodeTest('思考计时在首段正文到达时结束，后续正文和done不延长耗时', () => {
+  const { store } = setup()
+  store.messages = [{ id: 'timed-answer', role: 'ASSISTANT', content: '', status: 'STREAMING' }]
+  const revision = store.startStreaming('timed-answer')
+  assert.ok(store.messages[0].processingStartedAt > 0)
+  store.handleStreamEvent({ event: 'delta', data: { text: ' ' } }, revision, 'conversation-1')
+  assert.equal(store.messages[0].processingFinishedAt, undefined)
+  store.handleStreamEvent({ event: 'delta', data: { text: '已查到的资料如下。' } }, revision, 'conversation-1')
+  const ended = store.messages[0].processingFinishedAt
+  assert.ok(ended >= store.messages[0].processingStartedAt)
+  store.handleStreamEvent({ event: 'delta', data: { text: '继续输出正文。' } }, revision, 'conversation-1')
+  store.handleStreamEvent({ event: 'done', data: { messageId: 'timed-answer', sources: [] } }, revision, 'conversation-1')
+  assert.equal(store.messages[0].processingFinishedAt, ended)
+})
 
 nodeTest('真实 assistant 动作创建→同一 sessionReport→详情轮询，READY 不覆盖普通聊天', async () => {
   const detail: ReportDetail = { report: { ...reportResult().report, status: 'READY' }, project: null, sources: [], solutionSnapshotId: 'snapshot-1', task: { id: 'task-1', status: 'COMPLETED', progress: 100, errorMessage: null }, availableFormats: ['PDF'] }

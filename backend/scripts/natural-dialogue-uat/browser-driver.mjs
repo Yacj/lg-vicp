@@ -1,0 +1,71 @@
+import { chromium } from 'playwright-core'
+import { readFile, writeFile } from 'node:fs/promises'
+import readline from 'node:readline'
+const out = process.argv[2] ?? 'D:/work/lg-vicp/backend/docs/ai/evidence/full-chain-uat-2026-10-19/round-01-targeted'
+const directNetwork = process.argv.includes('--direct-network')
+const browser = await chromium.launch({ executablePath: 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', headless: true,
+  ...(directNetwork ? { args: ['--no-proxy-server'] } : {}) })
+const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, acceptDownloads: true })
+await writeFile(`${out}/browser-environment-${Date.now()}.json`, JSON.stringify({ browser: 'Microsoft Edge headless', version: browser.version(),
+  directNetwork, systemProxyChanged: false, viewport: { width: 1280, height: 900 }, liveUi: true, mock: false }, null, 2))
+const blockedRequests = []
+await context.route('**/*', route => {
+  const request = route.request(), url = new URL(request.url())
+  if (['http://127.0.0.1:4339', 'http://127.0.0.1:8899'].includes(url.origin)
+    || request.method() === 'GET' && url.hostname.endsWith('.aliyuncs.com')) return route.continue()
+  blockedRequests.push({ origin: url.origin, path: url.pathname, method: request.method() }); return route.abort()
+})
+const page = await context.newPage()
+const errors = []
+page.on('pageerror', error => errors.push({ type: 'pageerror', message: error.message }))
+const clean = text => String(text).replace(/https?:[^\s"<>]+/g, url => url.split('?')[0]).replace(/Bearer\s+[\w.-]+/gi, 'Bearer [REDACTED]')
+page.on('console', event => { if (['error', 'warning'].includes(event.type())) errors.push({ type: event.type(), message: clean(event.text()) }) })
+async function capture(name) {
+  const state = await page.evaluate(() => ({ url: location.href, text: document.body.innerText, inputs: [...document.querySelectorAll('input,textarea')].map(e => ({ tag: e.tagName, placeholder: e.getAttribute('placeholder'), type: e.getAttribute('type') })), buttons: [...document.querySelectorAll('button,[aria-label],[role=checkbox]')].map(e => ({ text: e.innerText, label: e.getAttribute('aria-label'), role: e.getAttribute('role'), class: e.className })) }))
+  await page.screenshot({ path: `${out}/${name}.png`, fullPage: false })
+  await writeFile(`${out}/${name}.dom.json`, JSON.stringify(state, null, 2))
+  await writeFile(`${out}/${name}.console.json`, JSON.stringify(errors, null, 2))
+  return state
+}
+async function command(cmd) { if (cmd.action === "diagnose") return { blockedRequests, inputs: await page.locator("input").evaluateAll(items => items.map(item => ({type:item.type,length:item.value.length}))), errors };
+  if (cmd.action === 'login') {
+    const credentials = JSON.parse(await readFile('C:/Users/admin/AppData/Local/Temp/vicp-natural-dialogue-private-login.json', 'utf8'))
+    await page.goto('http://127.0.0.1:8899/#/pages/login', { waitUntil: 'networkidle' })
+    await page.locator('input[type=number]').fill(credentials.phone)
+    await page.locator('input[type=password]').fill(credentials.password)
+    await page.locator('.wd-checkbox').click()
+    const waiting = page.waitForResponse(response => response.url().includes('/auth/client/login/password'))
+    await page.getByText('登录', { exact: true }).click()
+    if (!(await (await waiting).json()).success) throw new Error('隔离测试账号登录失败')
+    await page.goto('http://127.0.0.1:8899/', { waitUntil: 'networkidle' })
+    await page.getByText('去问问筑小格', { exact: true }).first().click()
+    await page.locator('textarea').waitFor({ state: 'visible' })
+    return await capture('assistant-authenticated')
+  }
+  if (cmd.action === 'goto') await page.goto(cmd.url, { waitUntil: 'networkidle', timeout: 120000 })
+  if (cmd.action === 'click') {
+    const target = cmd.selector ? page.locator(cmd.selector) : page.getByText(cmd.text, { exact: true })
+    await target.first().click({ timeout: 15000 })
+  }
+  if (cmd.action === 'credentials') {
+    const credentials = JSON.parse(await readFile('C:/Users/admin/AppData/Local/Temp/vicp-natural-dialogue-private-login.json', 'utf8'))
+    await page.locator('input[type=number]').fill(credentials.phone)
+    await page.locator('input[type=password]').fill(credentials.password)
+    return { ready: true, credentialsPrinted: false }
+  }
+  if (cmd.action === 'viewport') await page.setViewportSize(cmd.viewport)
+  if (cmd.action === 'run') return await runMatrix()
+  if (cmd.action === 'single') return (await import('./single-flow.mjs')).run({context,page,capture,out,clean})
+  if (cmd.action === 'buttons') return (await import('./original/button-flow.mjs')).run({context,page,capture,out,clean})
+  if (cmd.action === 'pdf') return (await import('./original/pdf-audit.mjs')).run({context,page,capture,out,clean})
+  if (cmd.action === 'exit') { await browser.close(); process.exit(0) }
+  return await capture(cmd.name ?? 'browser-state')
+}
+async function runMatrix() { return (await import(`./matrix.mjs?run=${Date.now()}`)).run({ context, page, capture, out, clean }) }
+const rl = readline.createInterface({ input: process.stdin, terminal: false })
+console.log(JSON.stringify({ ready: true, browser: 'Edge', mode: '真实H5/独立浏览器上下文', network: directNetwork ? '浏览器独立直连；不修改系统代理' : '默认系统网络' }))
+for await (const line of rl) {
+  try { console.log(JSON.stringify({ result: await command(JSON.parse(line)) })) }
+  catch (error) { console.log(JSON.stringify({ error: error.name, message: clean(error.message) })) }
+}
+await browser.close()

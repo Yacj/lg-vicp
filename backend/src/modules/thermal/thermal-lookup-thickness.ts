@@ -6,11 +6,13 @@ export interface LookupThickness {
   thicknessMm?: number;
   thicknessMin?: number;
   thicknessMax?: number;
+  thicknessMinExclusive?: boolean; thicknessMaxExclusive?: boolean;
+  queryContractVersion?: 1 | 2;
   preferThinner?: boolean;
 }
 
 /** 厚度独立解析，避免 mm 的比较词和数字进入 K/R 条件。无数字的薄厚偏好不生成范围。 */
-export function parseThermalThicknessMessage(message: string, previous: LookupThickness = {}) {
+export function parseThermalThicknessMessage(message: string, previous: LookupThickness = {}, contractVersion: 1 | 2 = previous.queryContractVersion ?? 1) {
   const text = message.normalize("NFKC").replace(/(?<=\d)\s+(?=\d)/g, ",").replace(/\s+/g, "");
   const cancelWord = /取消|不限制|不用限制|不考虑|先不看|去掉|不限|无所谓/;
   const removeMin = /(?:取消|去掉|不限制)厚度下限|厚度下限(?:取消|不限)/.test(text);
@@ -44,13 +46,16 @@ export function parseThermalThicknessMessage(message: string, previous: LookupTh
     // 只读厚度数字前后的局部语义，K/R 片段的比较词不影响厚度。
     const modePrefix = prefix.replace(THERMAL_PREFIX_CONDITION, "");
     const suffix = clause.slice(number.index + number[0].length).split(/K|传热|热阻|总R|产品R|且|和/i)[0] ?? "";
-    const mode = inferThermalLookupMode(modePrefix.replace(/厚度/g, "") + suffix);
+    const mode = inferThermalLookupMode(modePrefix.replace(/厚度/g, "") + suffix, contractVersion);
     const implicit = /放宽到|收紧到|调整到|调整为|调到|改到|改成|改为|换成|提高到|降到/.test(prefix) && mode === null;
     query.thicknessMm = undefined; query.thicknessMin = undefined; query.thicknessMax = undefined;
-    if (mode === "MAX_LIMIT" || implicit && previous.thicknessMax !== undefined && previous.thicknessMin === undefined) {
+    if (contractVersion === 2) { query.thicknessMinExclusive = undefined; query.thicknessMaxExclusive = undefined; }
+    if (mode === "MAX_LIMIT" || mode === "LT" || implicit && previous.thicknessMax !== undefined && previous.thicknessMin === undefined) {
       query.thicknessMax = target;
-    } else if (mode === "MIN_LIMIT" || implicit && previous.thicknessMin !== undefined && previous.thicknessMax === undefined) {
+      if (contractVersion === 2) query.thicknessMaxExclusive = mode === "LT" || implicit && previous.thicknessMaxExclusive || undefined;
+    } else if (mode === "MIN_LIMIT" || mode === "GT" || implicit && previous.thicknessMin !== undefined && previous.thicknessMax === undefined) {
       query.thicknessMin = target;
+      if (contractVersion === 2) query.thicknessMinExclusive = mode === "GT" || implicit && previous.thicknessMinExclusive || undefined;
     } else if (implicit && previous.thicknessMin !== undefined && previous.thicknessMax !== undefined) {
       needsClarification = true; // 原区间有两端，不能猜本轮改的是哪端。
     } else {
@@ -66,8 +71,10 @@ export function parseThermalThicknessMessage(message: string, previous: LookupTh
 
 export function formatLookupThickness(query: LookupThickness): string | undefined {
   if (query.thicknessMm !== undefined) return `厚度 ${query.thicknessMm}mm`;
-  if (query.thicknessMin !== undefined && query.thicknessMax !== undefined) return `厚度 ${query.thicknessMin}～${query.thicknessMax}mm`;
-  if (query.thicknessMax !== undefined) return `厚度不超过 ${query.thicknessMax}mm`;
-  if (query.thicknessMin !== undefined) return `厚度不低于 ${query.thicknessMin}mm`;
+  if (query.thicknessMin !== undefined && query.thicknessMax !== undefined) return query.thicknessMinExclusive || query.thicknessMaxExclusive
+    ? `厚度${query.thicknessMinExclusive ? "大于" : "不小于"} ${query.thicknessMin}mm、${query.thicknessMaxExclusive ? "小于" : "不大于"} ${query.thicknessMax}mm`
+    : `厚度 ${query.thicknessMin}～${query.thicknessMax}mm`;
+  if (query.thicknessMax !== undefined) return `厚度${query.thicknessMaxExclusive ? "严格小于" : "不超过"} ${query.thicknessMax}mm`;
+  if (query.thicknessMin !== undefined) return `厚度${query.thicknessMinExclusive ? "严格大于" : "不低于"} ${query.thicknessMin}mm`;
   return undefined;
 }

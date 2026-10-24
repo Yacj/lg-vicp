@@ -48,7 +48,8 @@ describe('真实图集UAT语义提案回归，不使用口语路由',()=>{
     const message='屋面20mm的传热系数是多少？';
     const base=domainSemanticFixture(message,'REFERENCE_QUERY',{relation:'NEW',reference:{scope:'NONE',revision:null,items:[]}});
     const valid=query([entity('屋面','applicationPart'),{type:'THICKNESS',field:null,operation:'SET',entityText:null,resolvedText:null,metric:null,operator:'EXACT',value:20,evidence:'20mm',hard:true,confidence:1}]);
-    mocks.generate.mockResolvedValueOnce({object:{...base,pageQuery:{...valid,constraints:[...valid.constraints,{type:'METRIC',field:null,operation:'SET',entityText:null,resolvedText:null,metric:'K',operator:null,value:null,evidence:'传热系数',hard:true,confidence:1}]}}}).mockResolvedValueOnce({object:{...base,pageQuery:valid}});
+    const validFields={constraints:valid.constraints,unresolved:valid.unresolved,confidence:valid.confidence};
+    mocks.generate.mockResolvedValueOnce({object:{...base,pageQuery:{...valid,constraints:[...valid.constraints,{type:'METRIC',field:null,operation:'SET',entityText:null,resolvedText:null,metric:'K',operator:null,value:null,evidence:'传热系数',hard:true,confidence:1}]}}}).mockResolvedValueOnce({object:validFields});
     expect(await resolveDomainTurn(context(message))).toMatchObject({mutation:'QUERY',policyReason:'READ_ONLY_QUERY'});
     expect(mocks.generate).toHaveBeenCalledTimes(2);
     const requests=mocks.generate.mock.calls.map(c=>c[0]);expect(requests[0].abortSignal).toBe(requests[1].abortSignal);expect(requests[1].prompt).toContain('PAGE_QUERY_CONSTRAINTS_INVALID');

@@ -7,7 +7,7 @@ vi.mock("./ai-runtime.service.js", () => ({ resolveSceneRuntime: m.runtime }));
 vi.mock("./reference-fact-history.js", () => ({ readReferenceFactHistory: async () => [] }));
 vi.mock("./query-clarification-context.js", async original => ({ ...await original<typeof import("./query-clarification-context.js")>(), readQueryClarification: m.pending }));
 vi.mock("../thermal/thermal-query-dictionary.service.js", () => ({ loadThermalQueryDictionary: m.dictionary }));
-vi.mock("./solution-state.service.js", () => ({ assertSolutionAccess: m.access }));
+vi.mock("./solution-state.service.js", () => ({ assertSolutionAccess: m.access, loadActiveSolution: async () => null }));
 import { resolveDomainTurn } from "./ai-domain-turn-decision.service.js";
 import { readProductParameters } from "./product-parameter-read.service.js";
 import { domainSemanticFixture } from "./domain-semantic.fixture.js";
@@ -23,6 +23,7 @@ function context(message = "导热系数") {
 function proposal(message = "导热系数") { return domainSemanticFixture(message, "PRODUCT_PARAMETER_QUERY", { parameterQuery: { ...parameter, evidence: message }, pageQuery: null,
   queryContext: "CLARIFICATION_REPLY", relation: "CONTINUE", reference: { scope: "NONE", revision: null, items: [] } }); }
 beforeEach(() => { vi.clearAllMocks(); m.runtime.mockResolvedValue({ primary: { languageModel: {} } });
+  m.dictionary.mockResolvedValue({ entities: [], aliases: [], calculationModels: [] });
   m.pending.mockResolvedValue({ messageId: "q", message: "有保温0.3的材料么", question: "请说明指标", inheritPrevious: false });
   m.access.mockResolvedValue({ id: "c", userId: "u", clientApp: "c_app", projectId: null }); });
 it("待澄清的唯一0.3与本轮K已可校核时，允许一次语义复核；绝不直接提高低置信度",async()=>{
@@ -49,7 +50,7 @@ it("两轮Domain→Policy→Service保留0.3，只读λ零命中，不查K/R或�
   const result = await readProductParameters({ ...c, domainDecision: decision });
   expect(result.query).toMatchObject({ parameter: "LAMBDA", targetValue: .3, unit: "W/(m·K)" });
   expect(result.facts).toEqual([]); expect(result.diagnostics.issues).toContain("VALUE_NO_MATCH"); expect(result.answer).not.toContain("基层");
-  expect(c.reads).not.toContain("thermal_reference_rows"); expect(m.dictionary).not.toHaveBeenCalled();
+  expect(c.reads).not.toContain("thermal_reference_rows"); expect(m.dictionary).toHaveBeenCalledTimes(2);
   expect(c.taskState).toEqual(before); expect(c.app.db.insert).not.toHaveBeenCalled(); expect(c.app.db.update).not.toHaveBeenCalled();
 });
 it("过期或未绑定的pending不能从历史恢复数值", async () => {
@@ -69,7 +70,7 @@ it("切话题或明确新读取不继承待澄清数字", async () => {
 });
 it("原文体系线索保留，Service不把薄膜灰改成薄抹灰或转K", async () => {
   const text = "薄膜灰导热系数0.3的产品有么", s = proposal(text); s.queryContext = "CURRENT_TURN"; s.relation = "NEW"; s.parameterQuery!.systemText = "薄膜灰";
-  m.generate.mockResolvedValue({ object: s }); const c = context(text), d = await resolveDomainTurn(c);
+    m.generate.mockResolvedValueOnce({ object: s }).mockResolvedValueOnce({ object: { subjectText: null, systemText: "薄膜灰", confidence: .95, evidence: text } }); const c = context(text), d = await resolveDomainTurn(c);
   expect(d.intent).toBe("PRODUCT_PARAMETER_QUERY"); const r = await readProductParameters({ ...c, domainDecision: d });
   expect(r.diagnostics.issues).toContain("NAME_UNRESOLVED"); expect(r.query.systemText).toBe("薄膜灰"); expect(r.answer).not.toContain("请指定基层");
 });

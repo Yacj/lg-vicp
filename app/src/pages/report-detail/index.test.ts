@@ -15,9 +15,16 @@ function fixture(status = 'READY', formats: ReportDetail['availableFormats'] = [
   return { report: { ...reportResult().report, status }, project: null, sources: [], availableFormats: formats, task: null, solutionSnapshotId: 'snapshot-1' }
 }
 
-async function render(detail: ReportDetail | null, options: { platform?: string, status?: string, error?: string } = {}) {
+async function render(detail: ReportDetail | null, options: { platform?: string, status?: string, error?: string, pageId?: string } = {}) {
+  const load: Array<(options: Record<string, string>) => void> = []
+  let resourceContext: (() => { id: string }) | undefined
   const show: Array<() => void> = []
   const hide: Array<() => void> = []
+  const mounted: Array<() => void> = []
+  const hashListeners = new Set<() => void>()
+  const browserWindow = { location: { hash: `#/pages/report-detail/index?id=${options.pageId ?? 'report-1'}` },
+    addEventListener: (_name: string, listener: () => void) => hashListeners.add(listener),
+    removeEventListener: (_name: string, listener: () => void) => hashListeners.delete(listener) }
   const actions: string[] = []
   const signs: string[] = []
   const buttons: Array<{ label: string, click: () => Promise<void> }> = []
@@ -27,7 +34,8 @@ async function render(detail: ReportDetail | null, options: { platform?: string,
   const compiled = compileScript(descriptor, { id: 'report-detail-test', inlineTemplate: true, templateOptions: { compilerOptions: { isCustomElement: tag => ['view', 'text'].includes(tag) } } }).content
   const exports: Record<string, any> = {}
   const modules: Record<string, any> = {
-    'vue': vue,
+    '@/components/report/ReportPdfReader.vue': { default: vue.defineComponent({ render: () => null }) },
+    'vue': { ...vue, onMounted: (callback: () => void) => mounted.push(callback) },
     '@/api/modules/reports': { reportApi: {
       getArtifactPreviewUrl: () => ({ send: async () => {
         signs.push('preview')
@@ -40,7 +48,7 @@ async function render(detail: ReportDetail | null, options: { platform?: string,
     } },
     '@/composables/useAuthGate': { useAuthGate: () => ({ requireLogin: () => true }) },
     '@/composables/useBackNavigation': { useBackNavigation: () => ({ goBack: () => {} }) },
-    '@/composables/useReportDetail': { useReportDetail: () => resource },
+    '@/composables/useReportDetail': { useReportDetail: (context: () => { id: string }) => { resourceContext = context; return resource } },
     '@/constants/reports': { formatReportDate, reportTypeLabel },
     '@/store/auth': { useAuthStore: () => ({ user: { id: 'user-1' } }) },
     '@/store/reportTypes': { useReportTypeStore: () => ({ ensureLoaded: async () => {} }) },
@@ -53,11 +61,14 @@ async function render(detail: ReportDetail | null, options: { platform?: string,
   }
   runInNewContext(ts.transpileModule(compiled, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText, {
     exports,
+    window: browserWindow,
+    URLSearchParams,
     require: (id: string) => modules[id] ?? {},
     definePage: () => {},
     useRoute: () => ({ query: { id: 'report-1' }, params: {} }),
     useRouter: () => ({ push: () => {} }),
     useGlobalToast: () => ({ error: () => {}, success: () => {} }),
+    onLoad: (callback: (options: Record<string, string>) => void) => { load.push(callback); callback({ id: options.pageId ?? 'report-1' }) },
     onShow: (callback: () => void) => show.push(callback),
     onHide: (callback: () => void) => hide.push(callback),
     onUnload: () => {},
@@ -74,7 +85,9 @@ async function render(detail: ReportDetail | null, options: { platform?: string,
   for (const name of ['wd-navbar', 'wd-icon', 'wd-loading', 'wd-action-sheet'])
     app.component(name, { render() { return vue.h('div') } })
   const html = await renderToString(app)
-  return { html, buttons, show, hide, actions, signs }
+  return { html, buttons, show, hide, actions, signs, load, reportId: () => resourceContext?.().id,
+    mount: () => mounted.forEach(callback => callback()),
+    hashChange: (hash: string) => { browserWindow.location.hash = hash; hashListeners.forEach(listener => listener()) } }
 }
 
 nodeTest('正式空 JSON 报告使用 PDF 区；READY 无文件、生成中、失败、审核和发布明确区分', async () => {
@@ -107,15 +120,43 @@ nodeTest('旧 AI/历史技术 JSON 章节保持展示，权限失败只展示后
   assert.ok(!denied.html.includes('预览 PDF'))
 })
 
-nodeTest('真实页面点击分别实时请求 preview/download；App/微信展示保存并打开，隐藏停止详情刷新', async () => {
+nodeTest('H5预览使用受控阅读器，下载仍重新签发；App/微信继续系统阅读器，隐藏停止刷新', async () => {
   for (const platform of ['h5', 'app', 'mp-weixin']) {
     const page = await render(fixture(), { platform })
     page.show.forEach(callback => callback())
     await page.buttons.find(button => button.label === '预览 PDF')!.click()
     await page.buttons.find(button => button.label === (platform === 'h5' ? '下载 PDF' : '保存并打开 PDF'))!.click()
-    assert.deepEqual(page.signs, ['preview', 'download'])
-    assert.deepEqual(page.actions, ['preview', 'download'])
+    assert.deepEqual(page.signs, platform === 'h5' ? ['download'] : ['preview', 'download'])
+    assert.deepEqual(page.actions, platform === 'h5' ? ['download'] : ['preview', 'download'])
     page.hide.forEach(callback => callback())
     assert.equal(page.actions.at(-1), 'stop')
   }
+})
+
+nodeTest('同路径打开第二份报告以本次onLoad为准，不复用全局旧query；缺ID不回退旧报告', async () => {
+  const page = await render(fixture(), { pageId: 'report-two' })
+  assert.equal(page.reportId(), 'report-two')
+  page.load.forEach(callback => callback({ id: 'report-three' }))
+  await vue.nextTick()
+  assert.equal(page.reportId(), 'report-three')
+  page.load.forEach(callback => callback({}))
+  await vue.nextTick()
+  assert.equal(page.reportId(), '')
+})
+
+nodeTest('H5浏览器同页切换query没有onLoad时也切换真实报告；缺ID清空，其他页面不改本页身份', async () => {
+  const page = await render(fixture(), { pageId: 'report-two' })
+  page.mount()
+  page.hashChange('#/pages/report-detail/index?id=report-three')
+  await vue.nextTick()
+  assert.equal(page.reportId(), 'report-three')
+  page.hashChange('#/pages/assistant/index?id=unrelated')
+  assert.equal(page.reportId(), 'report-three')
+  page.hashChange('#/pages/report-detail/index')
+  await vue.nextTick()
+  assert.equal(page.reportId(), '')
+  const nativePage = await render(fixture(), { platform: 'app', pageId: 'native-report' })
+  nativePage.mount()
+  nativePage.hashChange('#/pages/report-detail/index?id=web-report')
+  assert.equal(nativePage.reportId(), 'native-report')
 })

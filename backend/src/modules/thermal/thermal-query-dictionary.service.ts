@@ -4,6 +4,7 @@ import { catalogProducts, constructionSchemes, insulationSystems, knowledgeAlias
 import { publishedReferenceConditions } from "../construction/construction-structure.service.js";
 import { type ConstraintCandidate } from "./thermal-query-state.js";
 import type { QueryEntity } from "./thermal-entity-resolver.js";
+import { publishedCalculationModels } from "../ai/calculation-models.js";
 
 /** 名称目录独立于选用表命中范围：没有参考行的体系也不能丢掉用户条件。 */
 export async function loadThermalQueryDictionary(db: DbExecutor) {
@@ -48,5 +49,7 @@ export async function loadThermalQueryDictionary(db: DbExecutor) {
       substrateMaterial: item.substrateMaterial, substrateThickness: item.substrateThickness })),
     ...specs.map(item => ({ productSpecId: item.id, catalogProductId: item.catalogProductId, specClass: item.specClass ?? undefined, specCode: item.specCode }))
   ];
-  return { entities, aliases, selectionFacts, hasPublishedLimits: limits.length > 0 };
+  const calculationModels = schemes.length ? await publishedCalculationModels(db) : [];
+  return { entities, aliases, selectionFacts, calculationModels,
+    sourceSets: sets.map(set => ({ id: set.id, code: set.code, name: set.name, source: set.evidenceSource, reference: set.evidenceRef })), hasPublishedLimits: limits.length > 0 };
 }

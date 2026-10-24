@@ -10,12 +10,15 @@ export interface SolutionCandidate {
   systemName?: string
   schemeId?: string
   constructionCode?: string
+  schemeName?: string
   productSpecId?: string
   productId?: string | null
   productName?: string
   substrateMaterial?: string
   substrateThickness?: number | null
   thicknessMm?: number
+  inputThicknessLayerName?: string
+  productThermalResistanceScope?: 'PRODUCT_LAYER_ROWS_ONLY' | 'PRODUCT_EQUIVALENT_TOTAL'
   productThermalResistance?: number
   totalThermalResistance?: number
   kValue?: number
@@ -24,6 +27,12 @@ export interface SolutionCandidate {
   sourcePageLabel?: string | null
   optionId?: string
   calculationId?: string
+}
+
+export interface ReferenceCandidateResult {
+  queryRevision: number
+  matchesCurrentQuery?: boolean
+  candidates: Array<SolutionCandidate & { position: number, confirmationEligible: boolean }>
 }
 
 export interface SolutionCandidateCard extends SolutionCandidate {
@@ -48,12 +57,12 @@ export interface SolutionConflict {
 export interface SolutionQueryState {
   intent?: 'REFERENCE_LOOKUP' | 'THERMAL' | 'COMPLIANCE' | 'COMPARISON'
   queryMode?: 'NEW_QUERY' | 'CONTINUE_QUERY' | 'REFINE_QUERY' | 'COMPARE_SELECTED'
-  filters?: Array<{ metric: 'K' | 'TOTAL_R' | 'PRODUCT_R', targetValue: number, mode?: 'EXACT' | 'APPROX' | 'MAX_LIMIT' | 'MIN_LIMIT', tolerance?: number, toleranceSource?: 'USER' | 'DEFAULT', requestedTolerance?: number, effectiveTolerance?: number, toleranceAdjusted?: boolean }>
+  filters?: Array<{ metric: 'K' | 'TOTAL_R' | 'PRODUCT_R', targetValue: number, mode?: 'EXACT' | 'APPROX' | 'MAX_LIMIT' | 'MIN_LIMIT' | 'LT' | 'GT', tolerance?: number, toleranceSource?: 'USER' | 'DEFAULT', requestedTolerance?: number, effectiveTolerance?: number, toleranceAdjusted?: boolean }>
   metric?: 'K' | 'TOTAL_R' | 'PRODUCT_R'
   targetValue?: number
   targetK?: number
   targetR?: number
-  mode?: 'EXACT' | 'APPROX' | 'MAX_LIMIT' | 'MIN_LIMIT'
+  mode?: 'EXACT' | 'APPROX' | 'MAX_LIMIT' | 'MIN_LIMIT' | 'LT' | 'GT'
   tolerance?: number
   toleranceSource?: 'USER' | 'DEFAULT'
   requestedTolerance?: number
@@ -77,6 +86,9 @@ export interface SolutionQueryState {
   knowledgeVersionIds?: string[]
   thicknessMm?: number
   thicknessMin?: number
+  thicknessMinExclusive?: boolean
+  thicknessMaxExclusive?: boolean
+  queryContractVersion?: 1 | 2
   thicknessMax?: number
   preferThinner?: boolean
   preferences?: { preferLowerK?: boolean, preferHigherR?: boolean, preferThinner?: boolean, preferThicker?: boolean, higherRMetric?: 'TOTAL_R' | 'PRODUCT_R', entities?: Array<{ field: SolutionEntityField, value: string }> }

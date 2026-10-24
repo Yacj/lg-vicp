@@ -13,7 +13,7 @@
 
 import { hasLambdaField, insideThermalUnit } from "../../shared/lambda-field.js";
 
-export const THERMAL_LOOKUP_MODES = ["APPROX", "MAX_LIMIT", "MIN_LIMIT", "EXACT"] as const;
+export const THERMAL_LOOKUP_MODES = ["APPROX", "MAX_LIMIT", "MIN_LIMIT", "EXACT", "LT", "GT"] as const;
 
 export type ThermalLookupMode = (typeof THERMAL_LOOKUP_MODES)[number];
 
@@ -65,15 +65,27 @@ export function isThermalLookupMode(value: unknown): value is ThermalLookupMode 
  * 关键业务规则：像「传热系数0.3的方案有么」这种**没有**「不超过 / 以内 / ≤ / 最大 / 上限 / 达标 / 限值」
  * 等明确约束词的问法，必须按 APPROX 处理，不能默认当成 MAX_LIMIT，否则 K=0.303 会被错误排除。
  */
-export function inferThermalLookupMode(message: string | null | undefined): ThermalLookupMode | null {
+export function inferThermalLookupMode(message: string | null | undefined, contractVersion: 1 | 2 = 1): ThermalLookupMode | null {
   const text = (message ?? "").replace(/\s+/g, "");
   if (!text) return null;
+  if (contractVersion === 2) {
+    // V2封闭数学关系：否定作用于比较符，不能把“不小于”截成“小于”。不判断任务或授权。
+    const relation = text.match(/((?:(?:不应该|不应|不得|不能|不要|不允许|禁止|别|不)(?:严格)?)*)?(?:严格)?(小于等于|大于等于|<=|>=|≤|≥|小于|低于|少于|大于|高于|超过|<|>)/);
+    if (relation) {
+      const operators: Record<string, ThermalLookupMode> = { 小于等于: "MAX_LIMIT", 大于等于: "MIN_LIMIT", "<=": "MAX_LIMIT", ">=": "MIN_LIMIT", "≤": "MAX_LIMIT", "≥": "MIN_LIMIT",
+        小于: "LT", 低于: "LT", 少于: "LT", "<": "LT", 大于: "GT", 高于: "GT", 超过: "GT", ">": "GT" };
+      const mode = operators[relation[2]!]!;
+      const negative = (relation[1]?.match(/不应该|不应|不得|不能|不要|不允许|禁止|别|不/g)?.length ?? 0) % 2 === 1;
+      const inverse: Partial<Record<ThermalLookupMode, ThermalLookupMode>> = { LT: "MIN_LIMIT", GT: "MAX_LIMIT", MAX_LIMIT: "GT", MIN_LIMIT: "LT" };
+      return negative ? inverse[mode]! : mode;
+    }
+  }
   if (MIN_LIMIT_NEG_PATTERN.test(text)) return "MIN_LIMIT";
   if (MAX_LIMIT_NEG_PATTERN.test(text)) return "MAX_LIMIT";
   if (APPROX_PATTERN.test(text)) return "APPROX";
   if (EXACT_PATTERN.test(text)) return "EXACT";
-  if (MIN_LIMIT_PLAIN_PATTERN.test(text)) return "MIN_LIMIT";
-  if (MAX_LIMIT_PLAIN_PATTERN.test(text)) return "MAX_LIMIT";
+  if (MIN_LIMIT_PLAIN_PATTERN.test(text)) return contractVersion === 2 ? "GT" : "MIN_LIMIT";
+  if (MAX_LIMIT_PLAIN_PATTERN.test(text)) return contractVersion === 2 ? "LT" : "MAX_LIMIT";
   if (/(?:传热系数|k值?|总热阻|总r|r[0₀]|主断面传热阻|产品层?热阻|保温板热阻|vicp热阻|产品r)[:：]?\d+(?:\.\d+)?|\d+(?:\.\d+)?的方案/i.test(text)) return "APPROX";
   return null;
 }
@@ -204,11 +216,13 @@ export function matchesMetric(value: number | undefined, target: number, mode: T
   if (value == null || !Number.isFinite(value)) return false;
   if (mode === "MAX_LIMIT") return value <= target;
   if (mode === "MIN_LIMIT") return value >= target;
+  if (mode === "LT") return value < target;
+  if (mode === "GT") return value > target;
   return Math.abs(value - target) <= (tolerance ?? DEFAULT_K_EXACT_EPSILON) + Number.EPSILON * Math.max(1, Math.abs(target));
 }
 
 export function metricRankingGap(value: number, target: number, mode: ThermalLookupMode): number {
-  return mode === "MAX_LIMIT" ? target - value : mode === "MIN_LIMIT" ? value - target : Math.abs(value - target);
+  return mode === "MAX_LIMIT" || mode === "LT" ? target - value : mode === "MIN_LIMIT" || mode === "GT" ? value - target : Math.abs(value - target);
 }
 
 /** 指标词优先级：产品层 R > 总 R > K，避免「总传热系数」被 bare K 抢先。 */
@@ -294,7 +308,7 @@ export function isMetricBridge(bridge: string, metricWord: string): boolean {
 }
 
 /** 模糊术语只在已有明确指标上下文时解析，禁止根据数值大小猜工程指标。 */
-export function parseThermalLookupMessage(message: string, previousMetric?: ThermalLookupMetric) {
+export function parseThermalLookupMessage(message: string, previousMetric?: ThermalLookupMetric, contractVersion: 1 | 2 = 1) {
   const text = message.normalize("NFKC").replace(/(?<=\d)\s+(?=\d)/g, ",").replace(/\s+/g, "");
   const mentions = [...text.matchAll(THERMAL_LOOKUP_METRIC_PATTERN)].filter(match => !insideThermalUnit(text, match.index))
     .map((match) => ({ word: match[0], index: match.index, metric: metricFromWord(match[0]) }));
@@ -348,7 +362,7 @@ export function parseThermalLookupMessage(message: string, previousMetric?: Ther
     if (number) boundNumberIndexes.add(mention.index + mention.word.length + number.index);
     if (!filters.length) firstModeMessage = modeMessage;
     modeMessages.push(modeMessage);
-    filters.push({ metric: mention.metric, targetValue, mode: inferThermalLookupMode(modeMessage) ?? "APPROX",
+    filters.push({ metric: mention.metric, targetValue, mode: inferThermalLookupMode(modeMessage, contractVersion) ?? "APPROX",
       tolerance: toleranceMatch && !toleranceIsThickness ? Number(toleranceMatch[1]) : undefined });
   }
   // 通用 target 绑定（语义层兜底）：只有一个已解析指标、且本句存在唯一尚未归属、
@@ -371,7 +385,7 @@ export function parseThermalLookupMessage(message: string, previousMetric?: Ther
           const modeMessage = `${actionableMentions[0]!.word}${text.slice(actionableMentions[0]!.index + actionableMentions[0]!.word.length, only.index)}${only.raw}`;
           firstModeMessage = modeMessage;
           modeMessages.push(modeMessage);
-          filters.push({ metric: soleMetric, targetValue, mode: inferThermalLookupMode(modeMessage) ?? "APPROX" });
+          filters.push({ metric: soleMetric, targetValue, mode: inferThermalLookupMode(modeMessage, contractVersion) ?? "APPROX" });
           // 主循环因 bridge 过严而暂时置 unresolved；语义层兜底已成功绑定，必须清除该澄清。
           unresolved = false;
         } else unresolved = true;

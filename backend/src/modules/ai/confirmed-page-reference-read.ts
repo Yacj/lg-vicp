@@ -5,6 +5,7 @@ import { constructionCodes } from "./reference-candidate-selection.js";
 import { buildAllowedAnswerFacts } from "./thermal-answer-validation.js";
 import type { ReferenceReadContext } from "./reference-candidate-resolver.service.js";
 import { currentConfirmedPageLookup } from "./confirmed-page-lookup-state.js";
+import { renderConfirmedPageComparison } from "./confirmed-page-comparison.js";
 
 /** 无Candidate的原页回溯只消费本会话实际发送的确认引用；不重查/写入查询或候选。 */
 export async function readHistoricalConfirmedPage(ctx: ReferenceReadContext) {
@@ -13,7 +14,7 @@ export async function readHistoricalConfirmedPage(ctx: ReferenceReadContext) {
   const latestPage = items?.length === 0 && decision?.semantic?.relation === "CONTINUE" && decision.semantic.referenceTime === "CURRENT"
     && decision.semantic.reference.scope === "LAST_VISIBLE_CANDIDATES" && !!currentLookup?.query.documentIds?.length && !!currentLookup.query.knowledgeVersionIds?.length;
   // 序号引用不能走此路径：它必须绑定候选 revision，不能从历史页块重建（见既有边界用例）。
-  if (decision?.intent !== "REFERENCE_VIEW" || decision.mutation !== "NONE" || ctx.taskState?.lastReferenceLookup?.candidates.length
+  if (!decision || !["REFERENCE_VIEW", "REFERENCE_DETAIL", "COMPARE_CANDIDATES"].includes(decision.intent) || decision.mutation !== "NONE" || ctx.taskState?.lastReferenceLookup?.candidates.length
     || decision.referenceScope === "CURRENT_SELECTED" || decision.referenceScope === "CURRENT_CONFIRMED"
     || ctx.candidateQueryRevision != null || decision.semantic?.reference.revision != null
     || !items || !items.length && !latestPage || items.some(item => item.type !== "CONSTRUCTION_CODE" && item.type !== "THICKNESS")
@@ -34,11 +35,12 @@ export async function readHistoricalConfirmedPage(ctx: ReferenceReadContext) {
     if (!locators.length) continue;
     const rows = await readConsumableReferencePages(ctx.app, locators.map(item => item.pageId), session.projectId);
     const pages = [];
+    let staleSource = false;
     for (const locator of locators) {
       const row = rows.find(row => row.page.id === locator.pageId && row.document.id === locator.documentId);
-      if (!row) continue;
+      if (!row) { staleSource = true; continue; }
       const restored = restoreReferencePageMatches(await toReferencePageBlock(ctx.app, row), locator.item);
-      if (!restored?.renderModel || !Array.isArray(locator.item.matches) || restored.matches.length !== locator.item.matches.length) continue;
+      if (!restored?.renderModel || !Array.isArray(locator.item.matches) || restored.matches.length !== locator.item.matches.length) { staleSource = true; continue; }
       restored.matches = restored.matches.filter(match => {
         const construction = restored.renderModel!.constructions.find(item => item.constructionId === match.constructionId);
         const option = construction?.options.find(item => item.optionId === match.optionId);
@@ -52,13 +54,13 @@ export async function readHistoricalConfirmedPage(ctx: ReferenceReadContext) {
         pages.push(restored);
       }
     }
-    // 多处来源不任选，也不从待核数值反选。
-    if (pages.length > 1) return undefined;
+    // 同次回答的来源组不因部分撤回/换版而静默变成任选一页，更不能回溯到更旧回答。
+    if (staleSource) return undefined;
     if (!pages.length) continue;
-    const page = pages[0]!;
     const facts = buildAllowedAnswerFacts({}, []);
-    facts.canonicalAnswers = [`以下是当前会话此前实际引用的确认原页：${page.page.documentTitle}，印刷页码 ${page.page.pageLabel ?? "待核"}。仅返回原引用及对应档位，未重新查询候选或选择方案。`];
-    return { facts, candidates: [], sources: [{ documentId: page.page.documentId, pageId: page.page.pageId, title: page.page.documentTitle, pageLabel: page.page.pageLabel }],
+    facts.canonicalAnswers = [decision.intent === "REFERENCE_VIEW" ? `以下是当前会话此前实际引用的确认原页：\n${pages.map(page => `- ${page.page.documentTitle}，资料标注页码 ${page.page.pageLabel ?? "待核"}。`).join("\n")}\n\n${renderConfirmedPageComparison(pages)}`
+      : renderConfirmedPageComparison(pages, decision.semantic?.comparison)];
+    return { facts, candidates: [], sources: pages.map(page => ({ documentId: page.page.documentId, pageId: page.page.pageId, title: page.page.documentTitle, pageLabel: page.page.pageLabel })),
       referencePages: pages, needsClarification: false, readOnly: true as const };
   }
   return undefined;

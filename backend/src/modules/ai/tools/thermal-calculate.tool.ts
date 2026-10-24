@@ -83,7 +83,7 @@ export const thermalInput = z.object({
   systemId: z.uuid("保温体系 ID 格式不正确").optional().describe("已知的正式保温体系 ID，优先于名称提示"),
   schemeCode: z.string().trim().min(1).max(80).optional().describe("查询指定构造方案编码"),
   catalogProductId: z.uuid("产品目录 ID 格式不正确").optional().describe("查询指定产品目录"),
-  lookupMode: z.enum(["APPROX", "MAX_LIMIT", "MIN_LIMIT", "EXACT"]).optional()
+  lookupMode: z.enum(["APPROX", "MAX_LIMIT", "MIN_LIMIT", "EXACT", "LT", "GT"]).optional()
     .describe(
       "查询已有参考档位时的指标语义（K / 总热阻 / 产品层热阻共用），必须与用户原话一致："
       + "「0.3左右 / 接近0.3 / 约0.3 / 0.3的方案有么 / 有没有0.3附近的」用 APPROX；"
@@ -338,6 +338,12 @@ export function createThermalTool(ctx: ToolRuntimeContext) {
           });
         }
 
+        if (decision.semantic?.calculationRequest) {
+          const { calculateConversationModel } = await import("../conversation-calculation.service.js");
+          const calculated = await calculateConversationModel({ ...ctx, domainDecision: decision });
+          ctx.thermalCanonicalAnswers = [calculated.answer];
+          return toolOk({ valid: calculated.valid, canonicalAnswers: [calculated.answer], calculationId: calculated.calculationId });
+        }
         const last = ctx.taskState?.lastReferenceLookup;
         const query = normalizeConversationLookupQuery({ ...args, mode: args.lookupMode }, ctx.userMessage ?? "", last).query;
         if (args.regionCode) query.regionCode = args.regionCode;
@@ -419,13 +425,25 @@ export function createThermalTool(ctx: ToolRuntimeContext) {
   });
 }
 
+/** 来源准入的可追踪缺口：保留原文候选与缺失字段，供日志与客户说明使用；不改变任何准入判定。 */
+export interface ReferencePageRejection {
+  candidateId: string;
+  pageId: string | null;
+  constructionCode: string | null;
+  thicknessMm: number | null;
+  sourcePageLabel: string | null;
+  reason: "PAGE_NOT_READABLE" | "BINDING_MISSING_OPTION";
+  missing: string[];
+}
+
 export async function emitReferencePages(
   ctx: Pick<ToolRuntimeContext, "app"> & { onEvent?: ToolRuntimeContext["onEvent"]; conversation?: { projectId: string | null } },
   candidates: ReferenceLookupCandidate[]
 ) {
   const warnings: string[] = [];
+  const rejected: ReferencePageRejection[] = [];
   const pageIds = [...new Set(candidates.map((item) => item.sourcePageId).filter((id): id is string => Boolean(id)))];
-  if (pageIds.length === 0) return { missingPage: candidates.length > 0, sources: [] as unknown[], candidates, warnings };
+  if (pageIds.length === 0) return { missingPage: candidates.length > 0, sources: [] as unknown[], candidates, warnings, rejected };
   const rows = await ctx.app.db.select({
     pageId: knowledgePages.id,
     documentId: knowledgePages.documentId,
@@ -454,9 +472,17 @@ export async function emitReferencePages(
   const today = new Date().toISOString().slice(0, 10);
   const validRows = rows.filter((row) => isReferencePageConsumable(row, today, ctx.conversation?.projectId ?? null));
   // 历史参数追问也必须重验来源授权，不能只跳过签名却继续返回失效快照的数值。
-  candidates = candidates.filter(candidate => !candidate.sourcePageId || validRows.some(page => page.pageId === candidate.sourcePageId
-    && (!candidate.sourceDocumentId || candidate.sourceDocumentId === page.documentId)
-    && (!candidate.sourceVersionId || candidate.sourceVersionId === page.versionId)));
+  candidates = candidates.filter(candidate => {
+    if (!candidate.sourcePageId) return true;
+    const readable = validRows.some(page => page.pageId === candidate.sourcePageId
+      && (!candidate.sourceDocumentId || candidate.sourceDocumentId === page.documentId)
+      && (!candidate.sourceVersionId || candidate.sourceVersionId === page.versionId));
+    if (readable) return true;
+    rejected.push({ candidateId: candidate.id, pageId: candidate.sourcePageId ?? null, constructionCode: candidate.schemeCode ?? null,
+      thicknessMm: candidate.thicknessMm ?? null, sourcePageLabel: candidate.sourcePageLabel ?? null, reason: "PAGE_NOT_READABLE",
+      missing: ["readablePublishedPage"] });
+    return false;
+  });
   candidates = candidates.map((candidate) => {
     const page = validRows.find((row) => row.pageId === candidate.sourcePageId);
     if (!page) return candidate;
@@ -467,10 +493,21 @@ export async function emitReferencePages(
     }
     return { ...bound.candidate, sourceDocumentId: page.documentId, sourceVersionId: page.versionId };
   });
+  // 页有确认快照时候选必须带档位身份；没有 identity 就明确记为绑定缺口，不再静默丢弃。
   candidates = candidates.filter(candidate => {
     const page = validRows.find(row => row.pageId === candidate.sourcePageId);
-    return !page || !readPageRecognitionMeta(page.metadata).confirmedStructuredData || Boolean(candidate.optionId);
+    if (!page || !readPageRecognitionMeta(page.metadata).confirmedStructuredData) return true;
+    if (candidate.optionId) return true;
+    rejected.push({ candidateId: candidate.id, pageId: page.pageId, constructionCode: candidate.schemeCode ?? null,
+      thicknessMm: candidate.thicknessMm ?? null, sourcePageLabel: visiblePageLabel(page), reason: "BINDING_MISSING_OPTION",
+      missing: ["optionId（页面档位身份）", ...(candidate.sourceVersionId ? [] : ["sourceVersionId"])] });
+    return false;
   });
+  if (rejected.length > 0) {
+    ctx.app.log.warn({ rejections: rejected.map(item => ({ candidateId: item.candidateId, pageId: item.pageId,
+      constructionCode: item.constructionCode, thicknessMm: item.thicknessMm, sourcePageLabel: item.sourcePageLabel,
+      reason: item.reason, missing: item.missing })) }, "参考行来源准入未通过：保留缺口明细，未删除来源校验");
+  }
   const rejectedPageIds = pageIds.filter((pageId) => !validRows.some((row) => row.pageId === pageId));
   if (rejectedPageIds.length > 0) {
     ctx.app.log.warn({ pageIds: rejectedPageIds }, "热工参考页当前不满足正式知识版本访问条件，已跳过签名输出");
@@ -486,7 +523,7 @@ export async function emitReferencePages(
       physicalPageNumber,
       pageLabel: visiblePageLabel(row),
       pageImageObjectKey: row.pageImageObjectKey,
-      renderModel: readableRenderModel(row.pageId, row.metadata, visiblePageLabel(row)),
+      renderModel: readableRenderModel(row.pageId, row.metadata, visiblePageLabel(row), row.versionId),
       imageUrl: row.pageImageObjectKey
         ? await ctx.app.storage.createDownloadUrl(row.pageImageObjectKey, `page-${physicalPageNumber}.png`, 3600).catch(() => null)
         : null
@@ -504,9 +541,9 @@ export async function emitReferencePages(
       physicalPageNumber: block.page.physicalPageNumber ?? block.page.pageNumber
     }));
     ctx.onEvent?.("sources", { sources });
-    return { missingPage: false, sources, candidates, warnings, blocks: built.blocks };
+    return { missingPage: false, sources, candidates, warnings, blocks: built.blocks, rejected };
   }
-  return { missingPage: true, sources: [] as unknown[], candidates, warnings };
+  return { missingPage: true, sources: [] as unknown[], candidates, warnings, rejected };
 }
 
 /** 兼容旧导出名 */

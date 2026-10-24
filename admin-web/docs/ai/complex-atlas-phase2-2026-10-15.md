@@ -76,7 +76,7 @@ KnowledgeTestPanel
 
 复用 `schemaVersion=2`、`pageLabelEvidence`；构造的 `rawConstructionLabel/constructionCodeEvidence/applicationPart/roofForm/placement/waterproofGrade/sourceColumns`；层的 `sourceLayerLabel/sourceGroupLabel`；档位的 `sourceRowLabel/fieldEvidence/layerValues`。保存保留已有额外元数据，空编号和档位数值显式 null；可选层数值 null 在编辑时可表示为未填，不会转成 0。I/II 型与防水等级分别编辑；三页缺乏独立完整产品整体 R 的事实不补算。
 
-旧页没有源列时，整构造列显示“整构造传热阻（源文符号待核）”，标准单位只是工程回退，不能冒充原图单位证据。来源字段存在但各组不一致时，公共表头保守退化，用户仍能展开每组原栏目核对。老页已有产品 R 单独展示，不再充当芯层 R；不回写旧页或旧数值。
+旧页没有源列时，整构造列显示“传热阻R”，标准单位只是工程回退，不能冒充原图单位证据。来源字段存在但各组不一致时，公共表头保守退化，用户仍能展开每组原栏目核对。老页已有产品 R 单独展示，不再充当芯层 R；不回写旧页或旧数值。
 
 引用只消费服务端 `pageId/constructionId/optionId/fieldKeys/answerOffset`。两组相同数值保持两身份，前端不生成正式引用 ID。快照变更由阶段 1 hash 产生不同 ID，旧 ID 不绑定新行；没有足够图像坐标时只定位结构化表格，原图打开整页。没有新增跨快照永久 ID 或数据库迁移。
 

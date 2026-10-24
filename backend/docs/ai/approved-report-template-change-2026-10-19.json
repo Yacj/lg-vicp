@@ -1,0 +1,191 @@
+{
+  "approval": "用户已确认，准备模板变更；生产尚未执行",
+  "approvedText": "本报告由蓝格 VICP 建筑节能 AI 智配系统生成，工程结论应由专业人员复核。",
+  "workflow": "new-version → PATCH sections → validate → submit → approve → publish；必须由有权管理员执行",
+  "drafts": [
+    {
+      "code": "material_compare",
+      "basedOnId": "d3ababe4-b556-41a7-bc35-1cbf02cdc63d",
+      "basedOnVersion": 1,
+      "basedOnSectionsSha256": "3ca12f9820077b203925172f517478da1eacc47bff55921fd38b4dba4761379a",
+      "changeNote": "2026-10-19 用户确认免责声明正文，仅移除内部占位说明；工程/审核提示及其他章节不变",
+      "sections": [
+        {
+          "key": "enterprise",
+          "order": 1,
+          "title": "封面",
+          "enabled": true,
+          "sourceType": "DATA"
+        },
+        {
+          "key": "comparison",
+          "order": 2,
+          "title": "对比",
+          "enabled": true,
+          "sourceType": "DATA"
+        },
+        {
+          "key": "sources",
+          "order": 3,
+          "title": "引用依据",
+          "enabled": true,
+          "sourceType": "DATA"
+        },
+        {
+          "key": "disclaimer",
+          "order": 4,
+          "title": "免责声明",
+          "content": "本报告由蓝格 VICP 建筑节能 AI 智配系统生成，工程结论应由专业人员复核。",
+          "enabled": true,
+          "sourceType": "TEXT"
+        }
+      ]
+    },
+    {
+      "code": "project_brief",
+      "basedOnId": "174fb9a7-c0e6-4186-aba9-2ec29e96c997",
+      "basedOnVersion": 1,
+      "basedOnSectionsSha256": "1b8586ad3413e68d44414b45e2c238b7d5fc5048d63a824ecb2eebd291f442cd",
+      "changeNote": "2026-10-19 用户确认免责声明正文，仅移除内部占位说明；工程/审核提示及其他章节不变",
+      "sections": [
+        {
+          "key": "enterprise",
+          "order": 1,
+          "title": "封面",
+          "enabled": true,
+          "sourceType": "DATA"
+        },
+        {
+          "key": "project",
+          "order": 2,
+          "title": "项目概况",
+          "enabled": true,
+          "sourceType": "DATA"
+        },
+        {
+          "key": "construction",
+          "order": 3,
+          "title": "方案",
+          "enabled": true,
+          "sourceType": "DATA"
+        },
+        {
+          "key": "selection",
+          "order": 4,
+          "title": "选用结论",
+          "enabled": true,
+          "sourceType": "DATA"
+        },
+        {
+          "key": "sources",
+          "order": 5,
+          "title": "引用依据",
+          "enabled": true,
+          "sourceType": "DATA"
+        },
+        {
+          "key": "disclaimer",
+          "order": 6,
+          "title": "免责声明",
+          "content": "本报告由蓝格 VICP 建筑节能 AI 智配系统生成，工程结论应由专业人员复核。",
+          "enabled": true,
+          "sourceType": "TEXT"
+        }
+      ]
+    },
+    {
+      "code": "standard_report",
+      "basedOnId": "937a9ef3-f901-47f5-ace5-58bb0012d28b",
+      "basedOnVersion": 1,
+      "basedOnSectionsSha256": "00a3becff3d5765d0a6abd4f7d539f06cfe2297f6adc28c3aaeda46a5e9e365d",
+      "changeNote": "2026-10-19 用户确认免责声明正文，仅移除内部占位说明；工程/审核提示及其他章节不变",
+      "sections": [
+        {
+          "key": "enterprise",
+          "order": 1,
+          "title": "企业介绍",
+          "enabled": true,
+          "sourceType": "DATA"
+        },
+        {
+          "key": "project",
+          "order": 2,
+          "title": "项目条件",
+          "enabled": true,
+          "sourceType": "DATA"
+        },
+        {
+          "key": "standards",
+          "order": 3,
+          "title": "引用标准与地区限值",
+          "enabled": true,
+          "sourceType": "DATA"
+        },
+        {
+          "key": "construction",
+          "order": 4,
+          "title": "构造方案",
+          "enabled": true,
+          "sourceType": "DATA"
+        },
+        {
+          "key": "candidates",
+          "order": 5,
+          "title": "候选方案",
+          "enabled": true,
+          "sourceType": "DATA"
+        },
+        {
+          "key": "selection",
+          "order": 6,
+          "title": "用户选择与理由",
+          "enabled": true,
+          "sourceType": "DATA"
+        },
+        {
+          "key": "thermal",
+          "order": 7,
+          "title": "热工计算",
+          "enabled": true,
+          "sourceType": "DATA"
+        },
+        {
+          "key": "nodes",
+          "order": 8,
+          "title": "节点图库",
+          "enabled": true,
+          "sourceType": "DATA"
+        },
+        {
+          "key": "comparison",
+          "order": 9,
+          "title": "材料对比",
+          "enabled": false,
+          "sourceType": "DATA"
+        },
+        {
+          "key": "acceptance",
+          "order": 10,
+          "title": "施工验收",
+          "enabled": true,
+          "sourceType": "DATA"
+        },
+        {
+          "key": "sources",
+          "order": 11,
+          "title": "来源",
+          "enabled": true,
+          "sourceType": "DATA"
+        },
+        {
+          "key": "disclaimer",
+          "order": 12,
+          "title": "免责声明",
+          "content": "本报告由蓝格 VICP 建筑节能 AI 智配系统生成，工程结论应由专业人员复核。",
+          "enabled": true,
+          "sourceType": "TEXT"
+        }
+      ]
+    }
+  ]
+}

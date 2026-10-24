@@ -15,6 +15,7 @@ import AiSelectionCard from '@/components/ai/AiSelectionCard.vue'
 import AiSharePanel from '@/components/ai/AiSharePanel.vue'
 import AiShareSelectBar from '@/components/ai/AiShareSelectBar.vue'
 import AiSolutionWorkspace from '@/components/ai/AiSolutionWorkspace.vue'
+import AiQueryCandidates from '@/components/ai/AiQueryCandidates.vue'
 import AiWelcomeHero from '@/components/ai/AiWelcomeHero.vue'
 import { useChatImageUpload } from '@/composables/useChatImageUpload'
 import { useQuickPrompts } from '@/composables/useQuickPrompts'
@@ -649,6 +650,14 @@ onShareAppMessage(() => {
           @open-source="openKnowledgeSource"
           @open-reference="openReferencePage"
           @open-table="openReferenceTable"
+        />
+        <AiQueryCandidates
+          v-if="assistantStore.referenceCandidates && !loadingConversation && !failedConversationId"
+          :result="assistantStore.referenceCandidates"
+          :selected-ids="assistantStore.solutionState?.selectedCandidateIds || []"
+          :disabled="assistantStore.solutionActionLoading || !assistantStore.canSend"
+          :notice="assistantStore.solutionNotice"
+          @select="assistantStore.activateReferenceCandidate($event)"
         />
         <AiSolutionWorkspace
           v-if="assistantStore.solutionState && !loadingConversation && !failedConversationId"

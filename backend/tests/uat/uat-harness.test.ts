@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { uatCases } from "./cases/index.js";
 import { A13, A14 } from "./fixtures/facts.js";
 import { assertObservation, matchesPartial, satisfies, visibleAnswer } from "./assertions/index.js";
-import { scoreTurn, redact, summarize } from "./report.js";
+import { classifyFailures, scoreTurn, redact, summarize } from "./report.js";
 import { SseDecoder } from "./sse.js";
 import type { Observation, TurnResult } from "./schema.js";
 import { HARD_FAIL_RULES } from "./schema.js";
@@ -52,6 +52,43 @@ describe("真实UAT基础设施与硬失败检测（不冒充真实模型UAT）"
     expect(assertObservation(expected, observation("无法确定是否符合规范，不能说达标。")).find(check => check.detail.includes("合规肯定"))?.passed).toBe(true);
     // 「不是在判…达标」是明确免责，不得当成肯定合规结论。
     expect(assertObservation(expected, observation("这是接近 0.3 的结果，不是在判规范限值达标；两者相差 0.008 左右。")).find(check => check.detail.includes("合规肯定"))?.passed).toBe(true);
+  });
+  it("正确拒答含“不判断规范达标”不再被判幻觉", () => {
+    const checks = assertObservation(expected, observation("本次仅查阅资料，不选择方案或判断规范达标。"));
+    expect(checks.find(check => check.detail.includes("合规肯定"))?.passed).toBe(true);
+    // 真实合规宣称仍然必须失败，不能借词表放宽。
+    expect(assertObservation(expected, observation("本项目符合规范，可以判定达标。")).find(check => check.detail.includes("合规肯定"))?.passed).toBe(false);
+  });
+  it("失败按软件/资料/断言三态归因，且不改变通过判定", () => {
+    const gap: Observation = {
+      message: { id: "m", conversationId: "c", content: "以下为已确认页面的只读参考，不构成正式方案候选。", status: "COMPLETED",
+        metadata: { backendDecision: { intent: "REFERENCE_LOOKUP", toolRoute: ["backend:knowledge", "backend:reference_read"],
+          toolUsage: { knowledge: true, thermal: false }, factValidation: "REFERENCE_QUERY_VERIFIED", answerContract: "REFERENCE_LOOKUP",
+          referenceQueryDiagnostics: { issues: ["SOURCE_NOT_VERIFIABLE"], matchedCount: 2 } } } } as Observation["message"],
+      tools: [], runs: [], calculations: [], events: [],
+      task: { taskType: "GENERAL", lastReferenceLookup: { query: {}, candidates: [], createdAt: "2026-10-07" } }
+    };
+    const contract = { intent: "REFERENCE_LOOKUP" as const, toolsAny: ["thermal" as const], operation: "LOOKUP_CANDIDATES" as const,
+      candidateCount: 1, hardFailRules: HARD_FAIL_RULES };
+    const checks = assertObservation(contract, gap);
+    const routing = checks.filter(check => check.type === "ROUTING" && !check.passed);
+    expect(routing.every(check => check.classification === "TEST_INVALID")).toBe(true);
+    const count = checks.filter(check => check.type === "FILTER" && !check.passed);
+    expect(count.every(check => check.classification === "DATA_BLOCKED")).toBe(true);
+    // 归因不改变状态：仍然是 FAIL。
+    expect(scoreTurn(checks, { score: 10, method: "TEST", reasons: [] }).status).toBe("FAIL");
+    const summary = summarize([{ caseId: "X", persona: "SALES", scenario: "s", turn: 1, user: "u", expected: contract, actual: gap, checks,
+      quality: { score: 10, method: "TEST", reasons: [] }, ...scoreTurn(checks, { score: 10, method: "TEST", reasons: [] }) } as TurnResult], 1, 1);
+    expect(summary.classification.software).toBe(0);
+    expect(summary.classification.data).toBeGreaterThan(0);
+    expect(summary.classification.invalid).toBeGreaterThan(0);
+  });
+  it("数值/口径错误的失败仍归因为软件问题，不因归因机制被洗白", () => {
+    const checks = assertObservation(expected, observation("产品热阻=3.297，总热阻=2.880。"));
+    const failed = checks.filter(check => !check.passed);
+    expect(failed.length).toBeGreaterThan(0);
+    expect(failed.every(check => check.classification === "SOFTWARE_FAIL")).toBe(true);
+    expect(classifyFailures([{ checks } as TurnResult]).software).toBe(failed.length);
   });
   it("K/W 与 W/(m²·K) 单位不得被误判成 K 值混淆，真实混淆仍必须失败", () => {
     // 2.88 ㎡·K/W 是热阻单位，其中的 K/W 不能与后面的总热阻数值绑定。

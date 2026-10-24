@@ -285,7 +285,9 @@ describe("thermal Tool 最终收口回归", () => {
     const result = await execute(ctx);
     expect(result.data).toMatchObject({ found: false, isFallback: false, candidates: [] });
     expect(result.data.allowedFacts.queryDiagnostics.issues).toContain("IDENTITY_NOT_FOUND");
-    expect(ctx.thermalCanonicalAnswers?.[0]).toContain("当前体系、型号、基层、厚度及来源限制");
+    expect(ctx.thermalCanonicalAnswers?.[0]).toContain("暂时没对应上");
+    expect(ctx.thermalCanonicalAnswers?.[0]).toContain("0.3");
+    expect(ctx.thermalCanonicalAnswers?.[0]).not.toContain("当前体系、型号、基层、厚度及来源限制");
     const restored = parseConversationTaskState(JSON.parse(JSON.stringify(ctx.taskState)));
     expect(restored.lastReferenceLookup).toMatchObject({ isFallback: false, query: { systemId: "system-i" }, candidates: [] });
   });

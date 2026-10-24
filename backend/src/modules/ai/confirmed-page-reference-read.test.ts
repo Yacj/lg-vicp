@@ -8,6 +8,7 @@ import { readHistoricalConfirmedPage } from "./confirmed-page-reference-read.js"
 import { referenceReadFixture } from "./reference-read.fixture.js";
 import { domainDecision } from "./ai-domain-turn-decision.js";
 import { domainSemanticFixture } from "./domain-semantic.fixture.js";
+import { normalizeCurrentComparison } from "./ai-domain-semantic.js";
 
 function setup() {
   const fixture = referenceReadFixture(), conversation = { id: "c", userId: "u", projectId: null, clientApp: "c_app" };
@@ -23,11 +24,41 @@ function setup() {
   return { ctx, history, stored, fixture };
 }
 beforeEach(() => { vi.resetAllMocks(); mocks.access.mockResolvedValue({ projectId: null }); });
+it.each(["REFERENCE_REFINE", "COMPARE_CANDIDATES"] as const)("%s提案经完整归一后能读取当前无Candidate原页，不丢CONTINUE来源关系", async intent => {
+  const { ctx } = setup(), message = "把当前记录的K并排看，哪个最小";
+  const semantic = normalizeCurrentComparison(domainSemanticFixture(message, intent, { relation: "REFINE", referenceTime: "CURRENT", effectRequest: null,
+    reference: { scope: "LAST_VISIBLE_CANDIDATES", revision: null, items: [] }, comparison: intent === "REFERENCE_REFINE" ? { metric: "K", direction: "MIN", evidence: message } : null,
+    pageQuery: intent === "REFERENCE_REFINE" ? { intent: "REFERENCE_LOOKUP", queryMode: "REFINE_QUERY", confidence: .95, constraints: [],
+      preferences: [{field:"preferLowerK",enabled:true,evidence:message}], unresolved: [], readFields: ["kValue"] } : null }));
+  ctx.userMessage = message; ctx.domainDecision = { ...domainDecision("COMPARE_CANDIDATES", message), semantic };
+  ctx.taskState.confirmedPageLookup = { ...ctx.conversation, conversationId: ctx.conversation.id, createdAt: new Date().toISOString(),
+    query: { documentIds: ["doc"], knowledgeVersionIds: ["version"] } };
+  const before = structuredClone(ctx.taskState), result = await readHistoricalConfirmedPage(ctx);
+  expect(semantic.relation).toBe("CONTINUE"); expect(result?.needsClarification).toBe(false);
+  expect(result?.referencePages).toHaveLength(1); expect(result?.candidates).toEqual([]);
+  expect(result?.facts.canonicalAnswers[0]).toContain(intent === "REFERENCE_REFINE" ? "最低" : "实际展示"); expect(result?.facts.canonicalAnswers[0]).toContain("0.303");
+  expect(ctx.taskState).toEqual(before); expect(ctx.onEvent).not.toHaveBeenCalled();
+});
+it("原页查看保留已定位档位的R/K与口径，不因只读目标分类而丢掉数值", async () => {
+  const { ctx } = setup(), before = structuredClone(ctx.taskState);
+  const result = await readHistoricalConfirmedPage(ctx), answer = result?.facts.canonicalAnswers[0];
+  expect(answer).toContain("确认原页"); expect(answer).toContain("原档位热阻");
+  expect(answer).toContain("2.88"); expect(answer).toContain("3.297"); expect(answer).toContain("0.303");
+  expect(result?.candidates).toEqual([]); expect(ctx.taskState).toEqual(before);
+});
 it("当前查询后省略原表读取仅消费紧邻实际引用，不需要Candidate或序号",async()=>{
   const {ctx}=setup();ctx.domainDecision.semantic.reference.items=[];ctx.domainDecision.semantic.referenceTime="CURRENT";
   ctx.taskState.confirmedPageLookup={conversationId:"c",userId:"u",clientApp:"c_app",projectId:null,createdAt:new Date().toISOString(),query:{documentIds:["doc"],knowledgeVersionIds:["version"]}};
   const before=structuredClone(ctx.taskState),result=await readHistoricalConfirmedPage(ctx);
   expect(result?.referencePages).toHaveLength(1);expect(result?.candidates).toEqual([]);expect(ctx.taskState).toEqual(before);
+});
+it.each(["COMPARE_CANDIDATES", "REFERENCE_DETAIL"])("实际只读来源可继续%s，仍无正式候选或状态写入", async intent => {
+  const { ctx } = setup(); ctx.domainDecision.intent = intent;
+  ctx.domainDecision.semantic.reference.items = []; ctx.domainDecision.semantic.referenceTime = "CURRENT";
+  ctx.taskState.confirmedPageLookup = { conversationId: "c", userId: "u", clientApp: "c_app", projectId: null, createdAt: new Date().toISOString(), query: { documentIds: ["doc"], knowledgeVersionIds: ["version"] } };
+  const before = structuredClone(ctx.taskState), result = await readHistoricalConfirmedPage(ctx);
+  expect(result?.facts.canonicalAnswers[0]).toContain("实际展示"); expect(result?.candidates).toEqual([]);
+  expect(ctx.taskState).toEqual(before);
 });
 it.each(["missing","expired","differentVersion","topic","latestUnrelated"])("省略原页%s不回溯旧来源",async failure=>{
   const {ctx,history}=setup();ctx.domainDecision.semantic.reference.items=[];ctx.domainDecision.semantic.referenceTime="CURRENT";
